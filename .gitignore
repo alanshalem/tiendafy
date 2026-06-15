@@ -1,0 +1,87 @@
+# Claude Code local config / vendored skills
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# .NET / C#
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+.vs/
+.vs
+appsettings.local.json
+.env.local
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Package managers
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.test
+
+# Terraform
+terraform.tfstate*
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# OS
+Thumbs.db
+
+# Dev screenshots / scratch captures (keep out of repo root)
+/*.png
+/*.jpg
+/*.jpeg
+
+# Playwright / MCP debug artifacts
+.playwright-mcp/
+
+# Database backups
+*.sql.gz
+*.dump
+
+# Local uploads
+uploads/
+tmp/
+
+# Redis persistence
+dump.rdb
+appendonly.aof
+
+# SSL certs (local dev)
+*.pem
+*.crt
+*.key

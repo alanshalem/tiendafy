@@ -1,0 +1,18 @@
+{
+  "name": "@tiendafy/design-system",
+  "version": "0.1.0",
+  "description": "Design tokens + Tailwind preset compartidos entre storefront y admin",
+  "type": "module",
+  "main": "tailwind.preset.cjs",
+  "exports": {
+    ".": "./tailwind.preset.cjs",
+    "./tokens.css": "./styles/tokens.css"
+  },
+  "files": [
+    "tailwind.preset.cjs",
+    "styles/"
+  ],
+  "peerDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

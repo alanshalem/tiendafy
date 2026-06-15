@@ -1,0 +1,58 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore backend.slnx
+
+      - name: Build (warnings as errors)
+        run: dotnet build backend.slnx --no-restore --configuration Release -warnaserror
+
+      - name: Test
+        run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --results-directory ./test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/test-results
+          retention-days: 7
+
+  # Activar cuando existan migraciones EF Core:
+  # migrations-dry-run:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: postgres:15-alpine
+  #       env: { POSTGRES_USER: ci, POSTGRES_PASSWORD: ci, POSTGRES_DB: tiendafy_ci }
+  #       ports: ['5432:5432']
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-dotnet@v4
+  #       with: { dotnet-version: '10.0.x' }
+  #     - run: dotnet ef migrations script --idempotent --project backend/src/Api

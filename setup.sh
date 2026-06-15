@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# Setup completo de Tiendafy para desarrollo local (Linux/macOS/WSL).
+#
+#   ./setup.sh              setup completo
+#   ./setup.sh --skip-tests sin tests del backend
+#   ./setup.sh --skip-docker sin levantar infraestructura
+#
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKIP_DOCKER=false
+SKIP_TESTS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --skip-docker) SKIP_DOCKER=true ;;
+    --skip-tests)  SKIP_TESTS=true ;;
+    *) echo "Argumento desconocido: $arg" >&2; exit 1 ;;
+  esac
+done
+
+step() { printf '\n\033[0;36m==> %s\033[0m\n' "$1"; }
+ok()   { printf '    \033[0;32mOK: %s\033[0m\n' "$1"; }
+fail() { printf '    \033[0;31mERROR: %s\033[0m\n' "$1" >&2; exit 1; }
+
+# ---------- 1. Prerequisitos ----------
+step "Verificando prerequisitos"
+
+command -v docker >/dev/null 2>&1 || fail "Docker no encontrado. https://docs.docker.com/engine/install/"
+docker info >/dev/null 2>&1 || fail "Docker instalado pero el daemon no responde."
+ok "Docker"
+
+command -v dotnet >/dev/null 2>&1 || fail ".NET SDK no encontrado. https://dotnet.microsoft.com/download/dotnet/10.0"
+DOTNET_VERSION="$(dotnet --version)"
+[[ "$DOTNET_VERSION" == 10.* ]] || fail ".NET 10 requerido, encontrado $DOTNET_VERSION"
+ok ".NET SDK $DOTNET_VERSION"
+
+command -v node >/dev/null 2>&1 || fail "Node.js no encontrado. Instalar Node 22+: https://nodejs.org"
+NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
+[[ "$NODE_MAJOR" -ge 22 ]] || fail "Node 22+ requerido, encontrado $(node --version)"
+ok "Node $(node --version)"
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "    pnpm no encontrado, instalando via corepack..."
+  corepack enable
+  corepack prepare pnpm@latest --activate
+  command -v pnpm >/dev/null 2>&1 || fail "No se pudo instalar pnpm. Manual: npm install -g pnpm"
+fi
+ok "pnpm $(pnpm --version)"
+
+# ---------- 2. Infraestructura Docker ----------
+if [[ "$SKIP_DOCKER" == false ]]; then
+  step "Levantando infraestructura (Postgres, PgBouncer, Redis, RabbitMQ, MinIO)"
+  docker compose -f "$ROOT/infra/docker/docker-compose.dev.yml" up -d --wait \
+    || fail "docker compose falló. Ver logs: docker compose -f infra/docker/docker-compose.dev.yml logs"
+  ok "Servicios arriba y healthy"
+else
+  step "Docker omitido (--skip-docker)"
+fi
+
+# ---------- 3. Dependencias frontend ----------
+step "Instalando dependencias del workspace (pnpm)"
+(cd "$ROOT" && pnpm install) || fail "pnpm install falló"
+ok "Workspace instalado"
+
+# ---------- 4. Backend: build + tests ----------
+step "Compilando backend (.NET)"
+dotnet build "$ROOT/backend/backend.slnx" --nologo -v minimal || fail "Build del backend falló"
+ok "Backend compila"
+
+if [[ "$SKIP_TESTS" == false ]]; then
+  step "Corriendo tests del backend"
+  dotnet test "$ROOT/backend/backend.slnx" --nologo --no-build -v minimal || fail "Tests del backend fallaron"
+  ok "Tests verdes"
+fi
+
+# ---------- 5. Resumen ----------
+printf '\033[0;32m'
+cat <<'EOF'
+
+============================================================
+  Tiendafy: entorno listo
+============================================================
+
+  Infraestructura (Docker):
+    PostgreSQL   localhost:5432  (tiendafy / tiendafy)
+    PgBouncer    localhost:6432  (pool transaccional)
+    Redis        localhost:6379
+    RabbitMQ     localhost:5672  | UI: http://localhost:15672 (guest/guest)
+    MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
+
+  Para desarrollar:
+    Backend API     (pendiente de scaffold: src/Api)
+    Backend Worker  (pendiente de scaffold: src/Worker)
+    Storefront      cd storefront && pnpm dev   -> http://localhost:3000  (pendiente de scaffold)
+    Admin           cd admin && pnpm dev        -> http://localhost:3001  (pendiente de scaffold)
+
+  Tests backend:    dotnet test backend/backend.slnx
+  Type-check FE:    pnpm --filter "./shared/**" run type-check
+  Bajar infra:      docker compose -f infra/docker/docker-compose.dev.yml down
+
+  Estado del proyecto: IMPLEMENTATION_CHECKLIST.md
+============================================================
+EOF
+printf '\033[0m'

@@ -1,0 +1,133 @@
+/**
+ * Design tokens de Tiendafy como CSS custom properties.
+ *
+ * Canal RGB crudo (no rgb()/hex) para que Tailwind pueda aplicar
+ * alpha: `rgb(var(--color-primary) / 0.5)`.
+ *
+ * Theming por tenant: el storefront inyecta overrides de estas variables
+ * en :root desde el tema del merchant (Themes module → JSON de tokens).
+ * El admin usa siempre los defaults de plataforma.
+ */
+:root {
+  /* ---------- Colores: marca (rebrand "obsidiana y papel" 2026-06) ---------- */
+  --color-primary: 232 80 30;        /* bermellón Tiendafy */
+  --color-primary-hover: 196 61 18;  /* bermellón profundo */
+  --color-primary-fg: 250 245 237;   /* papel sobre primary */
+
+  --color-accent: 27 21 16;          /* obsidiana (tinta cálida) */
+  --color-accent-fg: 250 245 237;
+
+  /* ---------- Colores: superficie ---------- */
+  --color-bg: 255 255 255;
+  --color-bg-subtle: 249 250 251;    /* gray-50 */
+  --color-bg-muted: 243 244 246;     /* gray-100 */
+  --color-surface: 255 255 255;      /* cards, modals */
+  --color-border: 229 231 235;       /* gray-200 */
+  --color-border-strong: 209 213 219; /* gray-300 */
+
+  /* ---------- Colores: texto ---------- */
+  --color-fg: 17 24 39;              /* gray-900 */
+  --color-fg-muted: 107 114 128;     /* gray-500 */
+  --color-fg-subtle: 156 163 175;    /* gray-400 */
+
+  /* ---------- Colores: estado ---------- */
+  --color-success: 22 163 74;        /* green-600 */
+  --color-success-bg: 240 253 244;   /* green-50 */
+  --color-warning: 217 119 6;        /* amber-600 */
+  --color-warning-bg: 255 251 235;   /* amber-50 */
+  --color-danger: 220 38 38;         /* red-600 */
+  --color-danger-bg: 254 242 242;    /* red-50 */
+  --color-info: 2 132 199;           /* sky-600 */
+  --color-info-bg: 240 249 255;      /* sky-50 */
+
+  /* ---------- Tipografía ---------- */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---------- Forma ---------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* ---------- Sombra ---------- */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-overlay: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* ---------- Layout ---------- */
+  --container-max: 80rem;            /* 1280px */
+  --header-height: 4rem;
+  --sidebar-width: 16rem;            /* admin */
+}
+
+/* ============================================================
+   Dark mode — override de tokens cuando html[data-theme="dark"].
+   El acento (obsidiana) y primary (bermellón) se mantienen; cambian
+   superficies, bordes y textos. Lo usa el switch del admin.
+   ============================================================ */
+[data-theme="dark"] {
+  --color-bg: 16 18 22;
+  --color-bg-subtle: 22 25 31;
+  --color-bg-muted: 33 37 45;
+  --color-surface: 24 27 33;
+  --color-border: 44 49 58;
+  --color-border-strong: 62 69 82;
+
+  --color-fg: 237 240 244;
+  --color-fg-muted: 161 168 178;
+  --color-fg-subtle: 113 120 132;
+
+  --color-success-bg: 20 40 28;
+  --color-warning-bg: 44 36 16;
+  --color-danger-bg: 48 24 24;
+  --color-info-bg: 18 34 48;
+
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+}
+
+/* Transición suave de tema (fallback cuando no hay View Transitions API). */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+}
+
+/* View Transitions: clip circular en vez de cross-fade por defecto. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition * {
+    transition: none;
+  }
+}
+
+/* ---- Scrollbars finos y temáticos (Firefox + WebKit) ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-border-strong)) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--color-border-strong));
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--color-fg-subtle));
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

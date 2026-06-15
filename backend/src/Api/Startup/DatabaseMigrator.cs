@@ -1,0 +1,59 @@
+using Catalog.Infrastructure.Persistence;
+using Checkout.Infrastructure.Persistence;
+using Content.Infrastructure;
+using Customers.Infrastructure;
+using Discounts.Infrastructure;
+using Identity.Infrastructure.Persistence;
+using Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Payments.Infrastructure.Persistence;
+using Tenancy.Infrastructure.Persistence;
+using Themes.Infrastructure;
+
+namespace Api.Startup;
+
+/// <summary>
+/// Aplica las migraciones pendientes de todos los módulos al arrancar.
+/// Idempotente: <c>MigrateAsync</c> solo corre lo que falta. Mismo espíritu
+/// que <c>EnsureMediaBucketAsync</c> — la infra queda lista antes de servir.
+///
+/// Nota prod: con varias instancias, conviene gatear esto o correrlo como un
+/// paso de deploy aparte para evitar carreras de migración al boot.
+/// </summary>
+public static class DatabaseMigrator
+{
+    public static async Task MigrateDatabaseAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigrator");
+
+        // Orden: Tenancy primero (raíz multi-tenant), el resto es independiente.
+        await MigrateAsync<TenancyDbContext>(sp, logger);
+        await MigrateAsync<AppIdentityDbContext>(sp, logger);
+        await MigrateAsync<CatalogDbContext>(sp, logger);
+        await MigrateAsync<DiscountsDbContext>(sp, logger);
+        await MigrateAsync<CustomersDbContext>(sp, logger);
+        await MigrateAsync<ContentDbContext>(sp, logger);
+        await MigrateAsync<ThemesDbContext>(sp, logger);
+        await MigrateAsync<InventoryDbContext>(sp, logger);
+        await MigrateAsync<CheckoutDbContext>(sp, logger);
+        await MigrateAsync<PaymentsDbContext>(sp, logger);
+    }
+
+    private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)
+        where TContext : DbContext
+    {
+        var context = sp.GetRequiredService<TContext>();
+        var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+        if (pending.Count == 0)
+        {
+            logger.LogDebug("{Context}: sin migraciones pendientes.", typeof(TContext).Name);
+            return;
+        }
+
+        logger.LogInformation("{Context}: aplicando {Count} migración(es): {Migrations}",
+            typeof(TContext).Name, pending.Count, string.Join(", ", pending));
+        await context.Database.MigrateAsync();
+    }
+}

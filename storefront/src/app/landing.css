@@ -1,0 +1,723 @@
+/* ============================================================
+   Landing Tiendafy v2 — "obsidiana y papel".
+   Hero oscuro con el producto adelante; secciones papel
+   editoriales; bermellón como único acento. Fraunces / Archivo.
+   Scoped bajo .ld-root; no toca storefronts de tenants.
+   ============================================================ */
+
+/* ---- Dark mode de la landing: invierte papel→obsidiana ----
+   Cuando html[data-ld-mode="dark"], las secciones claras pasan a oscuras.
+   El bermellón se mantiene; las zonas ya oscuras quedan igual. */
+html[data-ld-mode="dark"] .ld-root {
+  --ld-paper: #15110c;
+  --ld-paper-deep: #1d1812;
+  --ld-tan: #211a13;
+  --ld-ink: #f3ece0;
+  --ld-ink-soft: #b9ab98;
+  --ld-obsidian: #0c0a07;
+  --ld-obsidian-2: #15110c;
+  --ld-obsidian-line: #2a221a;
+  --ld-card: #1d1812;
+}
+html[data-ld-mode="dark"] .ld-root::before {
+  opacity: 0.28;
+}
+/* Zonas oscuras ya son obsidiana en ambos modos: dentro de ellas
+   los tokens papel/tinta no deben invertirse, o el texto crema
+   (títulos del hero, stats, CTA, footer) se vuelve invisible. */
+html[data-ld-mode="dark"] .ld-root .ld-dark-zone,
+html[data-ld-mode="dark"] .ld-root .ld-header {
+  --ld-paper: #faf5ed;
+  --ld-paper-deep: #f1e8d8;
+  --ld-tan: #e9dcc9;
+  --ld-ink: #1b1510;
+  --ld-ink-soft: #4a4138;
+}
+
+/* Toggle sol/luna */
+.ld-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--ld-obsidian-line);
+  color: var(--ld-cream-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.ld-mode-toggle:hover {
+  color: var(--ld-verm);
+  border-color: var(--ld-verm);
+}
+
+.ld-root {
+  --ld-paper: #faf5ed;
+  --ld-paper-deep: #f1e8d8;
+  --ld-tan: #e9dcc9;
+  --ld-ink: #1b1510;
+  --ld-ink-soft: #4a4138;
+  --ld-obsidian: #14100b;
+  --ld-obsidian-2: #211a13;
+  --ld-obsidian-line: #382e23;
+  --ld-cream-muted: #b9ab98;
+  --ld-card: #fffdf8;
+  --ld-verm: #e8501e;
+  --ld-verm-deep: #c43d12;
+  --ld-green: #1e5b3f;
+
+  --ld-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --ld-body: var(--font-archivo), 'Helvetica Neue', Arial, sans-serif;
+
+  background-color: var(--ld-paper);
+  color: var(--ld-ink);
+  font-family: var(--ld-body);
+  overflow-x: clip;
+  position: relative;
+}
+
+/* Grano de papel global */
+.ld-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.5 0 0 0 0 0.42 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.ld-root > * {
+  position: relative;
+  z-index: 2;
+}
+
+.ld-display {
+  font-family: var(--ld-display);
+  font-variation-settings: 'opsz' 144, 'SOFT' 40, 'WONK' 0;
+  letter-spacing: -0.02em;
+}
+
+.ld-container {
+  max-width: 74rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+/* ---------- Botones sello ---------- */
+.ld-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--ld-body);
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.85rem 1.75rem;
+  border: 2px solid var(--ld-ink);
+  background: var(--ld-verm);
+  color: var(--ld-paper);
+  box-shadow: 5px 5px 0 var(--ld-ink);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ld-btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 3px 3px 0 var(--ld-ink);
+  background: var(--ld-verm-deep);
+}
+
+.ld-btn:active {
+  transform: translate(5px, 5px);
+  box-shadow: 0 0 0 var(--ld-ink);
+}
+
+.ld-btn--ghost {
+  background: transparent;
+  color: var(--ld-ink);
+}
+
+.ld-btn--ghost:hover {
+  background: var(--ld-tan);
+}
+
+.ld-btn--big {
+  font-size: 1.2rem;
+  padding: 1.1rem 2.5rem;
+}
+
+/* Variantes sobre fondo oscuro: el sello proyecta sombra bermellón */
+.ld-dark-zone .ld-btn {
+  border-color: var(--ld-paper);
+  box-shadow: 5px 5px 0 rgb(232 80 30 / 0.55);
+}
+
+.ld-dark-zone .ld-btn:hover {
+  box-shadow: 3px 3px 0 rgb(232 80 30 / 0.55);
+}
+
+.ld-dark-zone .ld-btn--ghost {
+  color: var(--ld-paper);
+  background: transparent;
+}
+
+.ld-dark-zone .ld-btn--ghost:hover {
+  background: var(--ld-obsidian-2);
+}
+
+/* ---------- Zonas oscuras ---------- */
+.ld-dark-zone {
+  background:
+    radial-gradient(80rem 40rem at 85% -10%, rgb(232 80 30 / 0.13), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, rgb(232 80 30 / 0.07), transparent 60%),
+    var(--ld-obsidian);
+  color: var(--ld-paper);
+}
+
+/* ---------- Header ---------- */
+.ld-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--ld-obsidian) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--ld-obsidian-line);
+  color: var(--ld-paper);
+}
+
+.ld-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--ld-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ld-logo em {
+  color: var(--ld-verm);
+  font-style: italic;
+}
+
+.ld-logo-mark {
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+}
+
+.ld-nav-link {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ld-cream-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ld-nav-link:hover {
+  color: var(--ld-verm);
+}
+
+/* ---------- Hero ---------- */
+.ld-hero-title {
+  font-size: clamp(2.6rem, 5.8vw, 4.6rem);
+  line-height: 1;
+  font-weight: 600;
+}
+
+.ld-hero-title em {
+  font-style: italic;
+  color: var(--ld-verm);
+}
+
+.ld-hero-kicker {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ld-verm);
+  border: 1.5px solid var(--ld-verm);
+  padding: 0.3rem 0.75rem;
+  transform: rotate(-1.2deg);
+}
+
+@keyframes ld-fade-up {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ld-hero [data-stagger] {
+  animation: ld-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ld-hero [data-stagger='1'] { animation-delay: 0.05s; }
+.ld-hero [data-stagger='2'] { animation-delay: 0.18s; }
+.ld-hero [data-stagger='3'] { animation-delay: 0.32s; }
+.ld-hero [data-stagger='4'] { animation-delay: 0.46s; }
+.ld-hero [data-stagger='5'] { animation-delay: 0.6s; }
+
+/* ---------- Composición de producto del hero ---------- */
+.ld-stage {
+  position: relative;
+  perspective: 1400px;
+}
+
+/* Mock del admin real, en leve perspectiva */
+.ld-admin-mock {
+  border: 1.5px solid var(--ld-obsidian-line);
+  border-radius: 0.6rem;
+  background: #1d1812;
+  box-shadow:
+    0 30px 60px -20px rgb(0 0 0 / 0.7),
+    0 0 0 1px rgb(232 80 30 / 0.08);
+  transform: rotateX(4deg) rotateY(-7deg) rotate(0.6deg);
+  transform-style: preserve-3d;
+  overflow: hidden;
+  font-size: 0.68rem;
+}
+
+.ld-admin-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--ld-obsidian-line);
+  background: #181410;
+}
+
+.ld-admin-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--ld-obsidian-line);
+}
+
+.ld-admin-body {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  min-height: 16rem;
+}
+
+.ld-admin-side {
+  border-right: 1px solid var(--ld-obsidian-line);
+  padding: 0.8rem 0.6rem;
+  background: #181410;
+}
+
+.ld-admin-nav-item {
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.3rem;
+  color: var(--ld-cream-muted);
+  margin-bottom: 0.15rem;
+}
+
+.ld-admin-nav-item.active {
+  background: rgb(232 80 30 / 0.16);
+  color: var(--ld-verm);
+  font-weight: 600;
+}
+
+.ld-stat-card {
+  border: 1px solid var(--ld-obsidian-line);
+  border-radius: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  background: #221c15;
+}
+
+.ld-stat-card .value {
+  font-family: var(--ld-display);
+  font-size: 1.05rem;
+  color: var(--ld-paper);
+}
+
+.ld-stat-card .delta {
+  color: #7fe0a7;
+  font-weight: 600;
+}
+
+/* Mini gráfico de barras CSS */
+.ld-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
+  height: 3.2rem;
+}
+
+.ld-bars span {
+  flex: 1;
+  border-radius: 0.15rem 0.15rem 0 0;
+  background: linear-gradient(to top, rgb(232 80 30 / 0.55), var(--ld-verm));
+  animation: ld-bar-grow 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom;
+}
+
+@keyframes ld-bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.ld-admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--ld-obsidian-line);
+  color: var(--ld-cream-muted);
+}
+
+.ld-pill {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+}
+
+.ld-pill--ok { background: rgb(34 163 74 / 0.18); color: #7fe0a7; }
+.ld-pill--warn { background: rgb(217 119 6 / 0.18); color: #f3c577; }
+
+/* Tarjetas de tienda flotantes alrededor del admin */
+@keyframes ld-float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, -2deg)); }
+  50% { transform: translateY(-9px) rotate(var(--tilt, -2deg)); }
+}
+
+.ld-store-card {
+  position: absolute;
+  width: 9.5rem;
+  border: 1.5px solid var(--ld-ink);
+  background: var(--ld-paper);
+  color: var(--ld-ink);
+  box-shadow: 6px 6px 0 rgb(232 80 30 / 0.85);
+  animation: ld-float 7s ease-in-out infinite;
+}
+
+.ld-store-card .ld-store-img {
+  height: 5rem;
+  border-bottom: 1.5px solid var(--ld-ink);
+}
+
+.ld-store-card .ld-store-meta {
+  padding: 0.45rem 0.6rem;
+}
+
+.ld-store-card .name {
+  font-family: var(--ld-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  line-height: 1.1;
+}
+
+.ld-store-card .cat {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ld-ink-soft);
+}
+
+/* Toast de venta (firma de la v1, se queda) */
+@keyframes ld-toast-cycle {
+  0%, 100% { opacity: 0; transform: translateY(14px) rotate(-1deg); }
+  4%, 26% { opacity: 1; transform: translateY(0) rotate(-1deg); }
+  32% { opacity: 0; transform: translateY(-10px) rotate(-1deg); }
+}
+
+.ld-sale-toast {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--ld-paper);
+  color: var(--ld-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border: 1.5px solid var(--ld-ink);
+  box-shadow: 4px 4px 0 var(--ld-verm);
+  opacity: 0;
+  animation: ld-toast-cycle 13.5s ease-in-out infinite;
+  z-index: 5;
+}
+
+.ld-sale-toast .amount {
+  color: var(--ld-green);
+  font-weight: 700;
+}
+
+/* ---------- Ticker ---------- */
+.ld-ticker {
+  background: var(--ld-verm);
+  color: var(--ld-paper);
+  border-block: 2px solid var(--ld-ink);
+  transform: rotate(-1.1deg) scale(1.02);
+  overflow: hidden;
+}
+
+@keyframes ld-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.ld-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ld-marquee 36s linear infinite;
+}
+
+.ld-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.65rem 1.25rem 0.65rem 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- Secciones editoriales ---------- */
+.ld-section-title {
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  line-height: 1.04;
+  font-weight: 600;
+}
+
+.ld-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ld-verm);
+}
+
+.ld-step-number {
+  font-family: var(--ld-display);
+  font-style: italic;
+  font-size: 4.5rem;
+  line-height: 1;
+  color: var(--ld-verm);
+}
+
+.ld-paper-grid {
+  border: 1.5px solid var(--ld-ink);
+  background: var(--ld-ink);
+  display: grid;
+  gap: 1.5px;
+}
+
+.ld-paper-cell {
+  background: var(--ld-paper);
+  padding: 2rem;
+  transition: background 0.2s ease;
+}
+
+.ld-paper-cell:hover {
+  background: var(--ld-tan);
+}
+
+.ld-feature-title {
+  font-family: var(--ld-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+/* ---------- Collage de tiendas (masonry) ---------- */
+.ld-collage {
+  columns: 2;
+  column-gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .ld-collage { columns: 3; }
+}
+
+.ld-collage-card {
+  break-inside: avoid;
+  margin-bottom: 1.25rem;
+  border: 1.5px solid var(--ld-ink);
+  background: var(--ld-card);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.ld-collage-card:hover {
+  transform: translateY(-5px) rotate(-0.5deg);
+  box-shadow: 7px 7px 0 var(--ld-verm), 7px 7px 0 1.5px var(--ld-ink);
+}
+
+.ld-collage-img {
+  border-bottom: 1.5px solid var(--ld-ink);
+  display: grid;
+  place-items: center;
+  font-family: var(--ld-display);
+  color: var(--ld-paper);
+  text-align: center;
+  padding: 1rem;
+}
+
+.ld-collage-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.6rem 0.85rem;
+}
+
+.ld-collage-meta .name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.ld-collage-meta .cat {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ld-ink-soft);
+}
+
+/* ---------- Stats oscuras ---------- */
+.ld-stat {
+  font-family: var(--ld-display);
+  font-size: clamp(3rem, 6vw, 4.75rem);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--ld-verm);
+}
+
+.ld-dark-zone .ld-stat em {
+  font-style: italic;
+  color: var(--ld-paper);
+}
+
+/* ---------- Testimonios ---------- */
+.ld-quote {
+  font-family: var(--ld-display);
+  font-style: italic;
+  font-size: 1.3rem;
+  line-height: 1.35;
+}
+
+.ld-quote-mark {
+  font-family: var(--ld-display);
+  font-size: 4rem;
+  line-height: 0.6;
+  color: var(--ld-verm);
+}
+
+/* ---------- Pricing ---------- */
+.ld-plan {
+  border: 2px solid var(--ld-ink);
+  background: var(--ld-card);
+  padding: 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ld-plan--featured {
+  background: var(--ld-paper);
+  border-width: 2.5px;
+  box-shadow: 8px 8px 0 var(--ld-verm), 8px 8px 0 1.5px var(--ld-ink);
+}
+
+.ld-plan-sticker {
+  position: absolute;
+  top: -1.1rem;
+  right: 1.25rem;
+  transform: rotate(-6deg);
+  background: var(--ld-verm);
+  color: var(--ld-paper);
+  border: 1.5px solid var(--ld-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.7rem;
+  box-shadow: 3px 3px 0 var(--ld-ink);
+}
+
+.ld-plan-price {
+  font-family: var(--ld-display);
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ld-plan li {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  padding-block: 0.45rem;
+}
+
+.ld-plan li::before {
+  content: '✓';
+  color: var(--ld-verm);
+  font-weight: 700;
+}
+
+/* ---------- FAQ ---------- */
+.ld-faq {
+  border-top: 1.5px solid var(--ld-ink);
+}
+
+.ld-faq summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 1.25rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.ld-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.ld-faq summary::after {
+  content: '+';
+  font-family: var(--ld-display);
+  font-size: 1.6rem;
+  color: var(--ld-verm);
+  transition: transform 0.2s ease;
+}
+
+.ld-faq[open] summary::after {
+  transform: rotate(45deg);
+}
+
+/* ---------- Scroll reveal (progressive enhancement) ----------
+   Visible por default; .armed (puesto por JS) activa el estado oculto
+   que el IntersectionObserver revela. Sin JS no hay secciones en blanco. */
+.ld-reveal {
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ld-reveal.armed:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-reveal,
+  .ld-hero [data-stagger],
+  .ld-ticker-track,
+  .ld-sale-toast,
+  .ld-store-card,
+  .ld-bars span {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

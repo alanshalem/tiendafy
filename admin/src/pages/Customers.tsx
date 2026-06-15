@@ -1,0 +1,209 @@
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MoreVertical, Pencil, Trash2, Plus, Search } from 'lucide-react';
+import {
+  Button, Card, Dropdown, FormField, Input, Modal, useToast, useConfirm,
+  type TableColumn, Table,
+} from '@tiendafy/ui';
+import { useStore } from '../context/StoreContext';
+import { api, ApiRequestError } from '../lib/api';
+import { EmptyState } from '../components/EmptyState';
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
+  createdAtUtc: string;
+}
+
+export function CustomersPage() {
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const confirm = useConfirm();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<Customer | null>(null);
+  const [term, setTerm] = useState('');
+  const [q, setQ] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['customers', store?.id, q],
+    queryFn: () => api.get<{ items: Customer[] }>(`/api/v1/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    enabled: !!store,
+  });
+  const customers = data?.items ?? [];
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
+
+  const remove = useMutation({
+    mutationFn: (c: Customer) => api.delete(`/api/v1/customers/${c.id}`),
+    onSuccess: () => { refresh(); toast('Cliente eliminado', { variant: 'success' }); },
+    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+  });
+
+  const columns: TableColumn<Customer>[] = [
+    { key: 'name', header: 'Nombre', cell: (c) => <span className="font-semibold text-fg">{c.name}</span> },
+    { key: 'email', header: 'Email', cell: (c) => c.email ?? <span className="text-fg-subtle">—</span> },
+    { key: 'phone', header: 'Teléfono', cell: (c) => c.phone ?? <span className="text-fg-subtle">—</span> },
+    {
+      key: 'address',
+      header: 'Dirección',
+      cell: (c) => (c.address
+        ? <span className="block max-w-[16rem] truncate text-sm text-fg-muted" title={c.address}>{c.address}</span>
+        : <span className="text-fg-subtle">—</span>),
+    },
+    { key: 'createdAtUtc', header: 'Creado', cell: (c) => <span className="text-sm text-fg-muted">{new Date(c.createdAtUtc).toLocaleDateString('es-AR')}</span> },
+    {
+      key: 'id',
+      header: '',
+      cell: (c) => (
+        <div className="flex justify-end">
+          <Dropdown>
+            <Dropdown.Trigger><MoreVertical className="h-4 w-4" /></Dropdown.Trigger>
+            <Dropdown.Menu align="end">
+              <Dropdown.Item onSelect={() => setEditing(c)}><Pencil className="mr-2 inline h-4 w-4" /> Editar</Dropdown.Item>
+              <Dropdown.Item destructive onSelect={async () => { if (await confirm({ title: 'Eliminar cliente', message: `¿Eliminar a ${c.name}?`, confirmLabel: 'Eliminar', variant: 'danger' })) remove.mutate(c); }}>
+                <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
+      ),
+    },
+  ];
+
+  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-fg">Clientes</h1>
+          <p className="mt-0.5 text-sm text-fg-muted">Tu base de contactos: nombre, datos y notas internas.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <form
+            onSubmit={(e) => { e.preventDefault(); setQ(term.trim()); }}
+            className="relative"
+          >
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+            <Input
+              className="pl-8"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Buscar cliente..."
+            />
+          </form>
+          <Button onClick={() => setCreateOpen(true)}><span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Agregar cliente</span></Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p></Card>
+      ) : customers.length === 0 ? (
+        q ? (
+          <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">No se encontraron clientes para “{q}”.</p></Card>
+        ) : (
+          <EmptyState
+            kicker="Clientes"
+            title="Agregá tu primer cliente"
+            body="Guardá los datos de contacto de tus compradores para tener tu CRM siempre a mano."
+            action={{ label: 'Agregar cliente', onClick: () => setCreateOpen(true) }}
+          />
+        )
+      ) : (
+        <Card flush>
+          <Table columns={columns} rows={customers} rowKey={(c) => c.id} emptyState="No hay clientes." />
+        </Card>
+      )}
+
+      <CustomerModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
+      <CustomerModal open={!!editing} customer={editing ?? undefined} onClose={() => setEditing(null)} onSaved={refresh} />
+    </div>
+  );
+}
+
+function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; customer?: Customer; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string>();
+  const isEdit = !!customer;
+
+  // Inicializar los campos al abrir (crear = vacío, editar = datos del cliente).
+  useEffect(() => {
+    if (!open) return;
+    setName(customer?.name ?? '');
+    setEmail(customer?.email ?? '');
+    setPhone(customer?.phone ?? '');
+    setAddress(customer?.address ?? '');
+    setNotes(customer?.notes ?? '');
+    setError(undefined);
+  }, [open, customer]);
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body = {
+        name: name.trim(),
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        notes: notes.trim() || null,
+      };
+      return isEdit ? api.put(`/api/v1/customers/${customer!.id}`, body) : api.post('/api/v1/customers', body);
+    },
+    onSuccess: () => { onSaved(); toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', { variant: 'success' }); onClose(); },
+    onError: (e) => setError(e instanceof ApiRequestError ? e.message : 'Error inesperado'),
+  });
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? 'Editar cliente' : 'Agregar cliente'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button loading={save.isPending} disabled={!name.trim()} onClick={() => save.mutate()}>
+            {isEdit ? 'Guardar' : 'Agregar'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <FormField label="Nombre" required error={error}>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Pérez" />
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Email" hint="Opcional">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="juan@email.com" />
+          </FormField>
+          <FormField label="Teléfono" hint="Opcional">
+            <Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="11 1234 5678" />
+          </FormField>
+        </div>
+
+        <FormField label="Dirección" hint="Opcional">
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Siempre Viva 742" />
+        </FormField>
+
+        <FormField label="Notas" hint="Opcional">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Notas internas sobre el cliente..."
+            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </FormField>
+      </div>
+    </Modal>
+  );
+}
