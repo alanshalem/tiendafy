@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
-import { useToast } from '@tiendafy/ui';
+import { Plus, X, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { useToast, cn } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../lib/api';
 
 /* Uploaders del editor de diseño (imagen / video / multi-imagen del carrusel). */
@@ -16,9 +16,12 @@ export function ImageUploader({ value, onChange }: { value: string; onChange: (u
           <button onClick={() => onChange('')} aria-label="Quitar imagen" className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"><X className="h-3.5 w-3.5" /></button>
         </div>
       ) : (
-        <label className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-primary/40 text-primary hover:bg-primary/[0.05]">
-          <span className="text-xl">{uploading ? '…' : <Plus className="h-6 w-6" />}</span>
-          <span className="text-xs font-semibold">Elegir imagen</span>
+        <label className={cn(
+          'flex h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary',
+          uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/[0.05]',
+        )}>
+          {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
+          <span className="text-xs font-semibold">{uploading ? 'Subiendo imagen…' : 'Elegir imagen'}</span>
           <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" disabled={uploading} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
@@ -50,9 +53,12 @@ export function VideoUploader({ value, onChange, accept, label }: { value: strin
           <button onClick={() => onChange('')} aria-label="Quitar video" className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"><X className="h-3.5 w-3.5" /></button>
         </div>
       ) : (
-        <label className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-primary/40 text-primary hover:bg-primary/[0.05]">
-          <span className="text-xl">{uploading ? '…' : <Plus className="h-6 w-6" />}</span>
-          <span className="text-xs font-semibold">{label}</span>
+        <label className={cn(
+          'flex h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary',
+          uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/[0.05]',
+        )}>
+          {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
+          <span className="text-xs font-semibold">{uploading ? 'Subiendo video…' : label}</span>
           <input type="file" accept={accept} className="hidden" disabled={uploading} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;

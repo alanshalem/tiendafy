@@ -258,6 +258,31 @@ export function ProductDetail({
         </div>
       </div>
 
+      {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 px-4 py-2.5 shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
+        style={{ background: 'rgb(var(--color-bg))', color: 'rgb(var(--color-fg))' }}
+      >
+        <div className="min-w-0">
+          <div className="truncate text-xs opacity-60">{name}</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-bold">{fmt(variant.price.amount, variant.price.currency)}</span>
+            {variant.compareAtPrice && (
+              <span className="text-xs line-through opacity-50">{fmt(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={() => { addToCart(); setOpen(true); }}
+          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md px-5 text-sm font-semibold text-primary-fg"
+          style={{ background: 'rgb(var(--color-primary))' }}
+        >
+          Agregar al carrito
+        </button>
+      </div>
+      {/* Espaciador para que la barra fija no tape el contenido en mobile. */}
+      <div className="h-16 md:hidden" />
+
       {lightboxIndex !== null && images[lightboxIndex] && (
         <Lightbox images={images} index={lightboxIndex} onChange={setLightboxIndex} onClose={() => setLightboxIndex(null)} alt={name} />
       )}

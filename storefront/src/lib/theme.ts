@@ -33,9 +33,11 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
 }
 
 export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
+  // no-store: tras publicar, el cambio se ve en el primer reload (sin caché ISR
+  // que obligue a recargar dos veces). La home ya es force-dynamic.
   const cfg = await apiGet<ThemeConfig>('/api/v1/theme', {
     headers: { 'X-Tenant-Id': tenantId },
-    next: { revalidate: 5 },
+    cache: 'no-store',
   });
   return mergeTheme(cfg);
 }

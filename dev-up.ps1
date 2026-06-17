@@ -23,7 +23,10 @@
 #>
 param(
     [switch]$BackendOnly,
-    [bool]$InWindows = $true
+    [bool]$InWindows = $true,
+    # Levanta un túnel cloudflared para exponer la API (webhooks MercadoPago) y
+    # auto-inyecta la URL pública a la API (RedirectUri + PublicApiBaseUrl).
+    [switch]$Tunnel
 )
 
 # 'Continue' a propósito: comandos nativos (docker) escriben a stderr cuando el
@@ -36,6 +39,15 @@ $apiDir    = Join-Path $root 'backend\src\Api'
 $adminDir  = Join-Path $root 'admin'
 $storeDir  = Join-Path $root 'storefront'
 $dockerExe = "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
+# cloudflared: en la raíz del repo (cualquier nombre cloudflared*.exe) o en el PATH.
+$cloudflared = @(
+    (Join-Path $root 'cloudflared.exe'),
+    (Join-Path $root 'cloudflared-windows-amd64.exe')
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $cloudflared) {
+    $found = Get-ChildItem -Path $root -Filter 'cloudflared*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $cloudflared = if ($found) { $found.FullName } else { 'cloudflared' }
+}
 
 # ---- Mapa de puertos (única fuente de verdad para el script) ----
 $PORTS = [ordered]@{
@@ -61,6 +73,20 @@ function Test-DockerUp {
     return ($LASTEXITCODE -eq 0)
 }
 
+# Reinicio limpio de Docker Desktop. Cura el bug donde "Engine running" miente:
+# el engine corre en WSL pero com.docker.backend (broker host: pipe del CLI +
+# forwarding de puertos) murió, dejando 127.0.0.1:<puerto> inalcanzable.
+function Restart-Docker {
+    Warn '  Reiniciando Docker Desktop (backend host caído)...'
+    'Docker Desktop','com.docker.backend','com.docker.build','com.docker.dev-envs','vpnkit','vpnkit-bridge' |
+        ForEach-Object { Get-Process $_ -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 4
+    wsl --shutdown 2>$null
+    Start-Sleep -Seconds 4
+    if (Test-Path $dockerExe) { Start-Process $dockerExe }
+    Wait-Until 'daemon (post-restart)' { Test-DockerUp } 60 5 | Out-Null
+}
+
 function Wait-Until($label, [scriptblock]$test, [int]$tries = 60, [int]$delay = 3) {
     Write-Host "  $label " -NoNewline
     for ($i = 0; $i -lt $tries; $i++) {
@@ -74,6 +100,32 @@ function Stop-Port([int]$port) {
     Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty OwningProcess -Unique |
         ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+}
+
+# Levanta un quick tunnel cloudflared sobre la API y devuelve la URL pública
+# https://xxxx.trycloudflare.com (o $null si no se pudo).
+function Start-Tunnel([int]$port) {
+    $exists = ($cloudflared -ne 'cloudflared') -or (Get-Command cloudflared -ErrorAction SilentlyContinue)
+    if (-not $exists) {
+        Warn '  cloudflared no encontrado. Descargalo y ponelo como cloudflared.exe en la raíz del repo.'
+        Warn '  https://github.com/cloudflare/cloudflared/releases (cloudflared-windows-amd64.exe)'
+        return $null
+    }
+    $log = Join-Path $root 'backend\cloudflared.log'
+    if (Test-Path $log) { Remove-Item $log -Force -ErrorAction SilentlyContinue }
+    Start-Process -FilePath $cloudflared `
+        -ArgumentList 'tunnel', '--url', "http://localhost:$port", '--no-autoupdate' `
+        -RedirectStandardOutput $log -RedirectStandardError "$log.err" -WindowStyle Hidden
+
+    Write-Host '  esperando URL del túnel ' -NoNewline
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Seconds 2
+        $content = (Get-Content $log, "$log.err" -ErrorAction SilentlyContinue) -join "`n"
+        $m = [regex]::Match($content, 'https://[a-z0-9-]+\.trycloudflare\.com')
+        if ($m.Success) { Ok 'OK'; return $m.Value }
+        Write-Host '.' -NoNewline
+    }
+    Err 'TIMEOUT'; return $null
 }
 
 Write-Host ''
@@ -91,20 +143,41 @@ if (-not (Wait-Until 'daemon' { Test-DockerUp } 60 5)) {
 
 # 2) Stack de infraestructura --------------------------------------------------
 Info "`n[2/4] Infra (compose)"
-docker compose -f $compose up -d | Out-Null
-$infraOk = $true
-foreach ($svc in 'Postgres', 'Redis', 'MinIO') {
-    if (-not (Wait-Until "$svc :$($PORTS[$svc])" { Test-Port $PORTS[$svc] } 30 3)) { $infraOk = $false }
+function Start-Infra {
+    docker compose -f $compose up -d 2>$null | Out-Null
+    $ok = $true
+    foreach ($svc in 'Postgres', 'Redis', 'MinIO') {
+        if (-not (Wait-Until "$svc :$($PORTS[$svc])" { Test-Port $PORTS[$svc] } 20 3)) { $ok = $false }
+    }
+    return $ok
 }
-if (-not $infraOk) {
-    Err '  Algún servicio no publicó su puerto al host. `docker compose ps` para ver estado.'
-    exit 1
+if (-not (Start-Infra)) {
+    # Auto-reparación: el síntoma típico es el backend host muerto → reiniciar Docker y reintentar 1 vez.
+    Restart-Docker
+    if (-not (Start-Infra)) {
+        Err '  La infra no publicó puertos ni tras reiniciar Docker. Revisá Docker Desktop manualmente.'
+        exit 1
+    }
 }
 
 # 3) API .NET ------------------------------------------------------------------
 Info "`n[3/4] API (.NET :$($PORTS.API))"
 Stop-Port $PORTS.API
 Stop-Port 5000   # por si quedó una instancia con el perfil default
+
+# Túnel cloudflared (opcional): expone la API y auto-inyecta la URL pública a
+# la config de MercadoPago vía variables de entorno (override de appsettings).
+$tunnelUrl = $null
+if ($Tunnel) {
+    $tunnelUrl = Start-Tunnel $PORTS.API
+    if ($tunnelUrl) {
+        $env:MercadoPago__PublicApiBaseUrl = $tunnelUrl
+        $env:MercadoPago__RedirectUri = "$tunnelUrl/api/v1/payments/mercadopago/callback"
+        Ok "  túnel: $tunnelUrl"
+        Warn "  Registrá ese Redirect URI en tu app de MercadoPago (cambia en cada corrida)."
+    }
+}
+
 Start-Process -FilePath 'dotnet' `
     -ArgumentList 'run', '--launch-profile', 'http' `
     -WorkingDirectory $apiDir `
@@ -148,6 +221,9 @@ Ok '== Todo arriba =='
 Write-Host "  API        http://localhost:$($PORTS.API)"
 Write-Host "  Swagger    http://localhost:$($PORTS.API)/scalar"
 Write-Host "  Health     http://localhost:$($PORTS.API)/health"
+if ($tunnelUrl) {
+    Write-Host "  Túnel API  $tunnelUrl  (webhooks MercadoPago)" -ForegroundColor Cyan
+}
 if (-not $BackendOnly) {
     Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
     Write-Host "  Storefront http://localhost:$($PORTS.Storefront)"

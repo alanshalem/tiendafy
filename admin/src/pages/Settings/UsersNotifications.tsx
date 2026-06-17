@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, EyeOff, Pencil, Plus, User } from 'lucide-react';
+import { EyeOff, Pencil, Plus, User } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { api } from '../../lib/api';
+import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
 
 interface Me {
@@ -103,7 +104,7 @@ export function UsersNotificationsPage() {
       </div>
       {users.length > 0 && <p className="mt-2 text-sm text-fg-muted">Mostrando 1-{users.length} usuarios de {users.length}</p>}
 
-      <p className="mt-5 inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">Más sobre permisos para usuarios <ExternalLink className="h-3.5 w-3.5" /></p>
+      <HelpLink id="users" />
     </div>
   );
 }

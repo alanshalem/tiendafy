@@ -38,9 +38,18 @@ interface ProductsPage {
 export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[]> {
   const page = await apiGet<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', {
     headers: { 'X-Tenant-Id': tenantId },
-    next: { revalidate: 30 },
+    cache: 'no-store',
   });
   return page?.items ?? [];
+}
+
+/** Un producto por id. Lo usan las secciones que referencian productos
+ *  puntuales (destacados/ofertas) que pueden quedar fuera del set inicial. */
+export async function fetchProductById(tenantId: string, id: string): Promise<ProductDto | null> {
+  return apiGet<ProductDto>(`/api/v1/products/${id}`, {
+    headers: { 'X-Tenant-Id': tenantId },
+    cache: 'no-store',
+  });
 }
 
 export interface ProductSearchResult {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Payments.Contracts;
 using Payments.Core.Abstractions;
 using Payments.Core.Domain;
 using Payments.Core.Features.Connect;
@@ -23,9 +24,11 @@ public static class PaymentsModule
         services.Configure<MercadoPagoOptions>(configuration.GetSection(MercadoPagoOptions.SectionName));
 
         services.AddHttpClient<IMercadoPagoOAuthClient, MercadoPagoOAuthClient>();
+        services.AddHttpClient<IMercadoPagoPaymentService, MercadoPagoCheckoutClient>();
 
         services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();
         services.AddSingleton<IOAuthStateProtector, DataProtectionStateProtector>();
+        services.AddSingleton<IMercadoPagoWebhookValidator, MercadoPagoWebhookValidator>();
 
         services.AddScoped<IMercadoPagoConnectionRepository, MercadoPagoConnectionRepository>();
         services.AddScoped<BuildConnectUrlHandler>();

@@ -5,7 +5,10 @@ using Customers.Infrastructure;
 using Discounts.Infrastructure;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
+using Analytics.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Notifications.Infrastructure;
+using Orders.Infrastructure.Persistence;
 using Payments.Infrastructure.Persistence;
 using Tenancy.Infrastructure.Persistence;
 using Themes.Infrastructure;
@@ -39,6 +42,9 @@ public static class DatabaseMigrator
         await MigrateAsync<InventoryDbContext>(sp, logger);
         await MigrateAsync<CheckoutDbContext>(sp, logger);
         await MigrateAsync<PaymentsDbContext>(sp, logger);
+        await MigrateAsync<OrdersDbContext>(sp, logger);
+        await MigrateAsync<AnalyticsDbContext>(sp, logger);
+        await MigrateAsync<NotificationsDbContext>(sp, logger);
     }
 
     private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)

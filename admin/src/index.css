@@ -9,3 +9,15 @@ body {
   color: rgb(var(--color-fg));
   font-family: var(--font-sans);
 }
+
+/* Editor de páginas (TipTap): el texto usa el token del tema, no el gris fijo de
+   `prose` (que se ve negro en dark mode). `:is(...)` gana en especificidad. */
+.rte-content {
+  color: rgb(var(--color-fg));
+}
+.rte-content :is(h1, h2, h3, h4, p, li, strong, em, blockquote, code) {
+  color: rgb(var(--color-fg));
+}
+.rte-content a {
+  color: rgb(var(--color-primary));
+}

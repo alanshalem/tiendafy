@@ -14,6 +14,12 @@ public sealed class Customer
     public string? Notes { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
+    // --- Cuenta de comprador (shopper). Null = es solo un registro de CRM
+    // (ej. creado desde un pedido) sin login. Se setean al registrarse. ---
+    public string? PasswordHash { get; private set; }
+    public string? GoogleSubject { get; private set; }
+    public bool EmailVerified { get; private set; }
+
     private Customer() { } // EF Core
 
     public static Result<Customer> Create(Guid tenantId, string? name, string? email, string? phone, string? address, string? notes)
@@ -32,6 +38,34 @@ public sealed class Customer
             Notes = Norm(notes),
             CreatedAtUtc = DateTime.UtcNow,
         };
+    }
+
+    /// <summary>Crea una cuenta de comprador (email obligatorio, listo para login).</summary>
+    public static Result<Customer> CreateShopper(Guid tenantId, string? name, string? email, bool emailVerified = false)
+    {
+        var e = email?.Trim();
+        if (string.IsNullOrEmpty(e) || !e.Contains('@') || e.Length > 200)
+            return Result.Failure<Customer>(Error.Validation("Customer.InvalidEmail", "El email no es válido."));
+        var n = name?.Trim();
+        if (string.IsNullOrEmpty(n) || n.Length > 120)
+            return Result.Failure<Customer>(Error.Validation("Customer.InvalidName", "El nombre debe tener entre 1 y 120 caracteres."));
+
+        return new Customer
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Name = n,
+            Email = e.ToLowerInvariant(),
+            EmailVerified = emailVerified,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+    }
+
+    public void SetPasswordHash(string hash) => PasswordHash = hash;
+    public void LinkGoogle(string subject)
+    {
+        GoogleSubject = subject;
+        EmailVerified = true;
     }
 
     public Result Update(string? name, string? email, string? phone, string? address, string? notes)

@@ -9,3 +9,59 @@ body {
   color: rgb(var(--color-fg));
   font-family: var(--font-sans);
 }
+
+/* Motion: entrada suave (fade + subir). Para reveals en cascada se combina con
+   un animation-delay inline por índice. Respeta prefers-reduced-motion. */
+@keyframes tf-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.tf-in { animation: tf-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes tf-shimmer {
+  100% { transform: translateX(100%); }
+}
+/* Skeleton con barrido de brillo. */
+.tf-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--color-fg) / 0.06);
+}
+.tf-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(var(--color-fg) / 0.08), transparent);
+  animation: tf-shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-in { animation: none; }
+  .tf-skeleton::after { animation: none; }
+}
+
+/* Estilo de bordes global del storefront (cards, botones, imágenes, inputs).
+   Re-mapea las utilidades de Tailwind dentro del scope del tema. `rounded-full`
+   se deja intacto para que íconos/FAB/badges circulares sigan redondos.
+   Mayor especificidad (atributo + clase) → gana sin !important. */
+[data-store-radius='sharp'] .rounded,
+[data-store-radius='sharp'] .rounded-md,
+[data-store-radius='sharp'] .rounded-lg,
+[data-store-radius='sharp'] .rounded-xl,
+[data-store-radius='sharp'] .rounded-2xl {
+  border-radius: 0;
+}
+[data-store-radius='soft'] .rounded,
+[data-store-radius='soft'] .rounded-md {
+  border-radius: 0.125rem;
+}
+[data-store-radius='soft'] .rounded-lg {
+  border-radius: 0.25rem;
+}
+[data-store-radius='soft'] .rounded-xl {
+  border-radius: 0.375rem;
+}
+[data-store-radius='soft'] .rounded-2xl {
+  border-radius: 0.5rem;
+}

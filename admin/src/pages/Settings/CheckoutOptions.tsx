@@ -1,6 +1,6 @@
 import { Checkbox, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
-import { ExternalLink } from 'lucide-react';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
 
 interface CheckoutData {
@@ -110,7 +110,7 @@ export function CheckoutOptionsPage() {
         />
       </div>
 
-      <p className="inline-flex w-full items-center justify-center gap-1 mt-6 text-center text-sm text-primary">Más sobre checkout <ExternalLink className="h-3.5 w-3.5" /></p>
+      <HelpLink id="checkout" />
 
       <SaveBar
         dirty={dirty}

@@ -7,21 +7,24 @@ import {
   Code,
   Construction,
   ExternalLink,
+  AlertTriangle,
   Home,
   Image,
   List,
+  MessageCircle,
   Monitor,
   Package,
   Palette,
   Phone,
   ShoppingCart,
   Smartphone,
+  Square,
   Type,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme } from '@tiendafy/types';
+import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, PAYMENT_LOGOS } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, setActiveTenant } from '../lib/api';
 import { ImageUploader } from './theme-editor-uploaders';
@@ -169,7 +172,7 @@ export function ThemeEditorPage() {
     const handler = (e: MessageEvent) => {
       if (e.data?.type !== 'tiendafy:edit-section') return;
       const { target, sectionId } = e.data as { target: string; sectionId?: string };
-      if (target === 'header') setView('header');
+      if (target === 'header' || target === 'announcement') setView('header');
       else if (target === 'footer') setView('footer');
       else if (target === 'section' && sectionId) setView(`home:${sectionId}`);
     };
@@ -193,6 +196,26 @@ export function ThemeEditorPage() {
     },
     [postToPreview],
   );
+
+  // Eliminar sección desde el preview (botón de tacho en el hover).
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type !== 'tiendafy:delete-section' || !e.data.sectionId) return;
+      const sectionId = e.data.sectionId as string;
+      confirm({
+        title: 'Eliminar sección',
+        message: '¿Seguro que querés eliminar esta sección del inicio? Podés volver a agregarla cuando quieras.',
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      }).then((ok) => {
+        if (!ok) return;
+        updateTheme((t) => ({ ...t, sections: t.sections.filter((s) => s.id !== sectionId) }));
+        setView((v) => (v === `home:${sectionId}` ? 'home' : v));
+      });
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [confirm, updateTheme]);
 
   const publish = async () => {
     if (!theme) return;
@@ -308,6 +331,7 @@ export function ThemeEditorPage() {
               applyPreset={(p) => updateTheme((t) => ({ ...t, colors: { ...t.colors, primary: p.primary, bg: p.bg, text: p.text }, header: { ...t.header, bg: p.header, textColor: contrastText(p.header) } }))} />
           )}
           {view === 'fonts' && <FontsPanel theme={theme} onBack={() => setView('root')} onChange={(k, v) => updateTheme((t) => ({ ...t, fonts: { ...t.fonts, [k]: v } }))} />}
+          {view === 'radius' && <BorderRadiusPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'header' && <HeaderPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'home' && <HomePanel theme={theme} onBack={() => setView('root')} onOpenSection={(id) => setView(`home:${id}`)} updateTheme={updateTheme} />}
           {view.startsWith('home:') && (
@@ -322,6 +346,7 @@ export function ThemeEditorPage() {
           {view === 'product-detail' && <ProductDetailPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'cart' && <CartPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'contact' && <ContactPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
+          {view === 'whatsapp' && <WhatsAppPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'footer' && <FooterPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'css' && <CssPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'coming-soon' && <ComingSoonPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
@@ -349,6 +374,7 @@ function RootNav({ onNavigate }: { onNavigate: (v: string) => void }) {
       <NavRow icon={Image} label="Logo de la tienda" onClick={() => onNavigate('logo')} />
       <NavRow icon={Palette} label="Colores de tu marca" onClick={() => onNavigate('colors')} />
       <NavRow icon={Type} label="Tipo de letra" onClick={() => onNavigate('fonts')} />
+      <NavRow icon={Square} label="Estilo de bordes" onClick={() => onNavigate('radius')} />
       <GroupLabel>Configuraciones avanzadas</GroupLabel>
       <NavRow icon={ChevronUp} label="Encabezado" onClick={() => onNavigate('header')} />
       <NavRow icon={Home} label="Página de inicio" onClick={() => onNavigate('home')} />
@@ -356,6 +382,7 @@ function RootNav({ onNavigate }: { onNavigate: (v: string) => void }) {
       <NavRow icon={Package} label="Detalle de producto" onClick={() => onNavigate('product-detail')} />
       <NavRow icon={ShoppingCart} label="Carrito de compras" onClick={() => onNavigate('cart')} />
       <NavRow icon={Phone} label="Contacto" onClick={() => onNavigate('contact')} />
+      <NavRow icon={MessageCircle} label="Botón de WhatsApp" onClick={() => onNavigate('whatsapp')} />
       <NavRow icon={ChevronDown} label="Pie de página" onClick={() => onNavigate('footer')} />
       <NavRow icon={Code} label="Edición avanzada de CSS" onClick={() => onNavigate('css')} />
       <GroupLabel>Estado de la tienda</GroupLabel>
@@ -600,6 +627,9 @@ function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
       <div className="space-y-4 p-4">
         <Field label="Texto del botón de checkout"><TextInput value={theme.cart.checkoutButtonText} onChange={(v) => set({ checkoutButtonText: v })} placeholder="Iniciar compra" /></Field>
         <Check label="Mostrar productos sugeridos" checked={theme.cart.showSuggested} onChange={(v) => set({ showSuggested: v })} />
+        <Field label="Mensaje para clientes" hint="Se muestra en el carrito (ej. aclaraciones de envío o pago). Vacío = no se muestra.">
+          <TextArea value={theme.cart.notice} onChange={(v) => set({ notice: v })} />
+        </Field>
         <Check label="Mostrar barra de envío gratis" checked={theme.cart.freeShippingBar} onChange={(v) => set({ freeShippingBar: v })} />
         {theme.cart.freeShippingBar && (
           <Field label="Mínimo para envío gratis (ARS)">
@@ -617,11 +647,40 @@ function ContactPanel({ theme, onBack, updateTheme }: PanelProps) {
     <div>
       <BackHeader title="Contacto" onBack={onBack} />
       <div className="space-y-4 p-4">
+        <div className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-bg p-3 text-xs text-fg">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+          <p>
+            Es obligatorio incluir estos datos en tu tienda, según la{' '}
+            <a href="https://www.argentina.gob.ar/normativa/nacional/resoluci%C3%B3n-104-2005-107456" target="_blank" rel="noreferrer" className="font-medium text-primary underline hover:no-underline">
+              Resolución N° 104/2005 de Defensa del Consumidor
+            </a>.
+          </p>
+        </div>
         <Check label="Mostrar formulario de contacto" checked={theme.contact.showForm} onChange={(v) => set({ showForm: v })} />
-        <Field label="Dirección"><TextInput value={theme.contact.address} onChange={(v) => set({ address: v })} placeholder="Av. Corrientes 1234, CABA" /></Field>
-        <Field label="Teléfono"><TextInput value={theme.contact.phone} onChange={(v) => set({ phone: v })} /></Field>
-        <Field label="Email"><TextInput value={theme.contact.email} onChange={(v) => set({ email: v })} /></Field>
+        <Field label="Dirección del local o showroom"><TextInput value={theme.contact.address} onChange={(v) => set({ address: v })} placeholder="Av. Corrientes 1234, CABA" /></Field>
+        <Field label="Teléfono"><TextInput value={theme.contact.phone} onChange={(v) => set({ phone: v })} placeholder="+54 11 1234-5678" /></Field>
+        <Field label="Email de la tienda"><TextInput value={theme.contact.email} onChange={(v) => set({ email: v })} placeholder="contacto@mitienda.com" /></Field>
         <Field label="WhatsApp"><TextInput value={theme.contact.whatsapp} onChange={(v) => set({ whatsapp: v })} placeholder="+54 9 11 1234 5678" /></Field>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
+  const set = (patch: Partial<ThemeConfig['whatsappButton']>) => updateTheme((t) => ({ ...t, whatsappButton: { ...t.whatsappButton, ...patch } }));
+  const w = theme.whatsappButton;
+  return (
+    <div>
+      <BackHeader title="Botón de WhatsApp" onBack={onBack} />
+      <div className="space-y-4 p-4">
+        <p className="text-xs text-fg-muted">Botón flotante fijo abajo a la derecha del storefront. Tu cliente lo toca y te escribe directo.</p>
+        <Check label="Mostrar botón de WhatsApp" checked={w.enabled} onChange={(v) => set({ enabled: v })} />
+        {w.enabled && (
+          <>
+            <Field label="Número de WhatsApp"><TextInput value={w.phone} onChange={(v) => set({ phone: v })} placeholder="+54 9 11 1234 5678" /></Field>
+            <Field label="Mensaje inicial"><TextArea value={w.message} onChange={(v) => set({ message: v })} /></Field>
+          </>
+        )}
       </div>
     </div>
   );
@@ -642,6 +701,9 @@ function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           </>
         )}
         <Check label="Mostrar logos de medios de pago" checked={theme.footer.showPaymentLogos} onChange={(v) => set({ showPaymentLogos: v })} />
+        {theme.footer.showPaymentLogos && (
+          <PaymentLogoPicker selected={theme.footer.paymentLogos} onChange={(v) => set({ paymentLogos: v })} />
+        )}
 
         <div className="border-t border-border pt-4">
           <div className="mb-3 text-sm font-semibold text-fg">Contacto en el pie</div>
@@ -651,6 +713,78 @@ function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
             <StringList label="Teléfonos" values={theme.footer.phones} onChange={(v) => set({ phones: v })} placeholder="0800 123 4567" />
             <StringList label="Emails" values={theme.footer.emails} onChange={(v) => set({ emails: v })} placeholder="hola@mitienda.com" />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Grilla de logos de medios de pago. Click = seleccionar/deseleccionar. */
+function PaymentLogoPicker({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (slug: string) =>
+    onChange(selected.includes(slug) ? selected.filter((s) => s !== slug) : [...selected, slug]);
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs text-fg-muted">Elegí qué logos mostrar ({selected.length})</span>
+        {selected.length > 0 && (
+          <button type="button" onClick={() => onChange([])} className="text-xs text-fg-subtle hover:text-fg">Limpiar</button>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {PAYMENT_LOGOS.map((logo) => {
+          const on = selected.includes(logo.slug);
+          return (
+            <button
+              key={logo.slug}
+              type="button"
+              onClick={() => toggle(logo.slug)}
+              title={logo.label}
+              aria-pressed={on}
+              className={cn(
+                'flex h-12 items-center justify-center rounded-md border bg-white p-2 transition',
+                on ? 'border-primary ring-2 ring-primary/30' : 'border-border opacity-50 hover:opacity-100',
+              )}
+            >
+              <img src={`/payment-logos/${logo.slug}.svg`} alt={logo.label} className="max-h-full max-w-full object-contain" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
+  const opts: { value: ThemeConfig['borderRadius']; label: string; sample: string }[] = [
+    { value: 'rounded', label: 'Redondeado', sample: 'rounded-xl' },
+    { value: 'soft', label: 'Suave', sample: 'rounded' },
+    { value: 'sharp', label: 'Cuadrado', sample: 'rounded-none' },
+  ];
+  return (
+    <div>
+      <BackHeader title="Estilo de bordes" onBack={onBack} />
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-fg-muted">Aplica a cards, botones, imágenes e inputs de tu tienda. Los íconos circulares (carrito, WhatsApp) no cambian.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {opts.map((o) => {
+            const active = theme.borderRadius === o.value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => updateTheme((t) => ({ ...t, borderRadius: o.value }))}
+                aria-pressed={active}
+                className={cn(
+                  'flex flex-col items-center gap-2.5 rounded-lg border p-3 text-xs font-medium transition',
+                  active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
+                )}
+              >
+                <span className={cn('h-11 w-11 border-2 border-fg/50 bg-fg/5', o.sample)} />
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

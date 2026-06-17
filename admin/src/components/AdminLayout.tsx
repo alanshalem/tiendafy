@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
-import { Dropdown, cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { ThemeModeToggle } from './ThemeModeToggle';
+import { StoreSwitcher } from './StoreSwitcher';
+import { isNavVisible } from '../config/features';
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -37,7 +39,7 @@ interface NavSection {
 }
 
 /**
- * IA estilo Tiendanube: Inicio/Estadísticas + Gestión + Canales + Apps.
+ * Arquitectura de información: Inicio/Estadísticas + Gestión + Canales + Apps.
  * `soon` = módulo del checklist todavía no implementado; la página existe
  * con empty state para que la estructura completa sea navegable desde hoy.
  */
@@ -66,10 +68,9 @@ const sections: NavSection[] = [
       {
         to: '/ventas',
         label: 'Ventas',
-        soon: true,
         children: [
-          { to: '/ventas', label: 'Lista de ventas', soon: true },
-          { to: '/ventas/carritos', label: 'Carritos abandonados', soon: true },
+          { to: '/ventas', label: 'Lista de ventas' },
+          { to: '/ventas/carritos', label: 'Carritos abandonados' },
         ],
       },
       {
@@ -182,18 +183,29 @@ function SidebarItem({ item }: { item: NavItem }) {
 }
 
 export function AdminLayout() {
-  const { store, stores, selectStore } = useStore();
+  const { store } = useStore();
+
+  // Filtra el menú según los flags de config/features.ts (oculta secciones/subsecciones).
+  const visibleSections = sections
+    .map((s) => ({
+      ...s,
+      items: s.items
+        .filter((it) => isNavVisible(it.to))
+        .map((it) => (it.children ? { ...it, children: it.children.filter((c) => isNavVisible(c.to)) } : it))
+        .filter((it) => !it.children || it.children.length > 0),
+    }))
+    .filter((s) => s.items.length > 0);
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-sidebar shrink-0 flex-col bg-accent text-accent-fg">
+      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col bg-accent text-accent-fg">
         <div className="flex h-header items-center gap-2.5 border-b border-white/10 px-4">
           <LogoMark className="h-7 w-7" />
           <span className="text-lg font-bold">tiendafy</span>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto p-3">
-          {sections.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.heading ?? 'top'}>
               {section.heading && (
                 <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/40">
@@ -226,27 +238,7 @@ export function AdminLayout() {
 
       <div className="min-w-0 flex-1">
         <header className="flex h-header items-center justify-between border-b border-border bg-surface px-6">
-          {stores.length === 0 ? (
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-9 cursor-not-allowed items-center rounded-md border border-border bg-bg-subtle px-3 text-sm font-medium text-fg-subtle"
-            >
-              Sin tiendas
-            </button>
-          ) : (
-            <Dropdown>
-              <Dropdown.Trigger>{store ? store.name : 'Elegir tienda'}</Dropdown.Trigger>
-              <Dropdown.Menu>
-                {stores.map((s) => (
-                  <Dropdown.Item key={s.id} onSelect={() => selectStore(s)}>
-                    {s.name}
-                    <span className="ml-2 text-xs text-fg-subtle">{s.subdomain}</span>
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-          )}
+          <StoreSwitcher />
 
           <div className="flex items-center gap-3">
             {store && (

@@ -1,43 +1,68 @@
-import { ExternalLink } from 'lucide-react';
-import { StatsPageHeader } from '../../components/stats/StatsToolbar';
-import { ChartCard, HBarChart } from '../../components/charts';
-import { couponsMock as m, formatArs } from '../../lib/statsMock';
+import { useQuery } from '@tanstack/react-query';
+import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { ChartCard } from '../../components/charts';
+import { api } from '../../lib/api';
+import { useStore } from '../../context/StoreContext';
+import { formatMoney } from '../../lib/format';
+
+interface CouponsReport {
+  totalCoupons: number;
+  activeCoupons: number;
+  totalUses: number;
+  totalDiscount: number;
+  items: { code: string; uses: number; paidUses: number; discountGiven: number }[];
+}
+
+const money = formatMoney;
 
 export function StatsCouponsPage() {
+  const { store } = useStore();
+  const { data, isLoading } = useQuery({
+    queryKey: ['stats-coupons', store?.id],
+    queryFn: () => api.get<CouponsReport>('/api/v1/stats/coupons'),
+    enabled: !!store,
+  });
+
   return (
     <div className="space-y-5">
-      <StatsPageHeader title="Cupones utilizados" />
+      <StatsToolbar />
+      <StatsPageHeader title="Reporte de cupones" />
 
-      <ChartCard title="Principales cupones" info>
-        <HBarChart rows={m.topCoupons} formatValue={(n) => `${n}`} />
-      </ChartCard>
+      <div className="grid gap-4 lg:grid-cols-4">
+        <KpiCard title="Cupones" value={(data?.totalCoupons ?? 0).toLocaleString('es-AR')} />
+        <KpiCard title="Activos" value={(data?.activeCoupons ?? 0).toLocaleString('es-AR')} />
+        <KpiCard title="Usos" value={(data?.totalUses ?? 0).toLocaleString('es-AR')} />
+        <KpiCard title="Descuento otorgado" value={money(data?.totalDiscount ?? 0)} />
+      </div>
 
-      <ChartCard title="Ventas por cupones" info>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-fg-muted">
-              <th className="py-2 font-medium">Cupón</th>
-              <th className="py-2 font-medium">Tipo</th>
-              <th className="py-2 text-center font-medium">Usos</th>
-              <th className="py-2 text-right font-medium">Descuento total</th>
-              <th className="py-2 text-right font-medium">Facturación</th>
-            </tr>
-          </thead>
-          <tbody>
-            {m.salesByCoupon.map((c) => (
-              <tr key={c.code} className="border-b border-border last:border-b-0">
-                <td className="py-2.5 font-mono font-medium text-fg">{c.code}</td>
-                <td className="py-2.5 text-fg-muted">{c.type}</td>
-                <td className="py-2.5 text-center tabular-nums">{c.uses}</td>
-                <td className="py-2.5 text-right tabular-nums text-danger">−{formatArs(c.discount)}</td>
-                <td className="py-2.5 text-right tabular-nums text-fg">{formatArs(c.revenue)}</td>
+      <ChartCard title="Uso por cupón" info>
+        {isLoading ? (
+          <p className="py-4 text-sm text-fg-muted">Cargando…</p>
+        ) : !data || data.items.length === 0 ? (
+          <p className="py-4 text-sm text-fg-muted">Todavía nadie usó un cupón.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-fg-muted">
+                <th className="py-2 font-medium">Código</th>
+                <th className="py-2 text-center font-medium">Usos</th>
+                <th className="py-2 text-center font-medium">Pagados</th>
+                <th className="py-2 text-right font-medium">Descuento</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.items.map((c) => (
+                <tr key={c.code} className="border-b border-border last:border-b-0">
+                  <td className="py-2.5 font-mono text-fg">{c.code}</td>
+                  <td className="py-2.5 text-center tabular-nums">{c.uses}</td>
+                  <td className="py-2.5 text-center tabular-nums">{c.paidUses}</td>
+                  <td className="py-2.5 text-right tabular-nums text-fg">{money(c.discountGiven)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </ChartCard>
-
-      <p className="inline-flex w-full items-center justify-center gap-1 pt-2 text-center text-sm text-primary">Más sobre estadísticas <ExternalLink className="h-3.5 w-3.5" /></p>
     </div>
   );
 }

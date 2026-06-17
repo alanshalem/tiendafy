@@ -51,8 +51,9 @@ export default async function InstitutionalPage({
         {page ? (
           <>
             <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{page.title}</h1>
+            {/* El body ya viene sanitizado del backend (HtmlSanitizer al guardar). */}
             <div
-              className="prose mt-6 max-w-none whitespace-pre-line opacity-80"
+              className="prose mt-6 max-w-none opacity-80"
               dangerouslySetInnerHTML={{ __html: page.body }}
             />
           </>

@@ -9,8 +9,13 @@ using Customers.Infrastructure;
 using Discounts.Infrastructure;
 using Identity.Infrastructure;
 using Inventory.Infrastructure;
+using Analytics.Infrastructure;
+using Api.Notifications;
+using Api.Payments;
 using Media.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
+using Notifications.Infrastructure;
+using Orders.Infrastructure;
 using Payments.Infrastructure;
 using Scalar.AspNetCore;
 using SharedKernel.Abstractions;
@@ -31,6 +36,18 @@ builder.Services.AddMediaModule(builder.Configuration);
 builder.Services.AddInventoryModule(builder.Configuration);
 builder.Services.AddCheckoutModule(builder.Configuration);
 builder.Services.AddPaymentsModule(builder.Configuration);
+builder.Services.AddOrdersModule(builder.Configuration);
+builder.Services.AddAnalyticsModule(builder.Configuration);
+builder.Services.AddNotificationsModule(builder.Configuration);
+
+// Webhooks de pago: cola en memoria + worker (mismo patrón que importación).
+builder.Services.AddSingleton<PaymentWebhookQueue>();
+builder.Services.AddHostedService<PaymentWebhookWorker>();
+
+// Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.AddHttpClient<IEmailSender, EmailSender>();
+builder.Services.AddScoped<OrderPaidNotifier>();
 
 // Cifrado de secretos en reposo (tokens OAuth de MercadoPago, claves AFIP).
 // Dev: claves en %LOCALAPPDATA%. Prod: persistir el keyring (DB/Redis/KeyVault).
@@ -80,6 +97,10 @@ await app.Services.MigrateDatabaseAsync();
 // Bucket de media listo antes de servir (idempotente).
 await app.Services.EnsureMediaBucketAsync();
 
+// Dev: compradores de prueba en cada tienda (docs/usuarios-de-prueba.md).
+if (app.Environment.IsDevelopment())
+    await app.Services.SeedTestShoppersAsync();
+
 // Docs de la API solo en Development (spec + UI navegable).
 if (app.Environment.IsDevelopment())
 {
@@ -110,5 +131,11 @@ apiV1.MapMediaEndpoints();
 apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();
 apiV1.MapPaymentsEndpoints();
+apiV1.MapOrderEndpoints();
+apiV1.MapPaymentWebhookEndpoints();
+apiV1.MapTrackEndpoints();
+apiV1.MapEmailTemplateEndpoints();
+apiV1.MapShopAuthEndpoints();
+apiV1.MapShopFavoritesEndpoints();
 
 app.Run();

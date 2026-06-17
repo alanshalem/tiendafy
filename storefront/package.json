@@ -17,6 +17,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json,md}\""
   },
   "dependencies": {
+    "@mercadopago/sdk-react": "^1.0.7",
     "@sentry/nextjs": "^8.0.0",
     "@tiendafy/design-system": "workspace:*",
     "@tiendafy/types": "workspace:*",

@@ -4,6 +4,7 @@ import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/S
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { formatMoney } from '../../lib/format';
 
 interface Overview {
   products: { total: number; published: number; draft: number; archived: number };
@@ -11,10 +12,11 @@ interface Overview {
   coupons: { total: number; active: number };
   customers: number;
   pages: { total: number; published: number };
-  sales: { available: false };
+  sales: { available: boolean; orders?: number; revenue?: number; currency?: string };
 }
 
 const fmt = (n: number) => n.toLocaleString('es-AR');
+const money = formatMoney;
 
 export function StatsOverviewPage() {
   const { store } = useStore();
@@ -59,13 +61,15 @@ export function StatsOverviewPage() {
             </KpiCard>
 
             <ChartCard title="Estadísticas de ventas" info className="lg:col-span-2">
-              <div className="flex h-full min-h-[5rem] flex-col justify-center">
-                <p className="text-sm text-fg-muted">
-                  Disponibles cuando actives Pedidos y checkout.
-                </p>
-                <p className="mt-1 text-xs text-fg-subtle">
-                  Aún no hay datos de facturación, ventas ni ticket promedio para mostrar.
-                </p>
+              <div className="flex h-full min-h-[5rem] items-center gap-8">
+                <div>
+                  <div className="text-sm text-fg-muted">Facturación (pagado)</div>
+                  <div className="mt-1 text-2xl font-bold text-fg">{money(data.sales.revenue ?? 0, data.sales.currency ?? 'ARS')}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-fg-muted">Ventas pagadas</div>
+                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(data.sales.orders ?? 0)}</div>
+                </div>
               </div>
             </ChartCard>
           </div>

@@ -53,6 +53,8 @@ export type {
   CartConfig,
   ContactConfig,
   FooterConfig,
+  PaymentLogo,
+  BorderRadiusStyle,
   ThemeConfig,
 } from './theme';
-export { DEFAULT_SECTIONS, baseTheme, normalizeTheme } from './theme';
+export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, PAYMENT_LOGOS, PAYMENT_LOGO_SLUGS } from './theme';

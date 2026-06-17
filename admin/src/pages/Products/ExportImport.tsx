@@ -6,7 +6,7 @@ import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 
-// Cabecera completa estilo Tiendanube (Excel es-AR usa ';').
+// Cabecera completa del CSV (Excel es-AR usa ';').
 const CSV_HEADER = [
   'Identificador de URL',
   'Nombre',

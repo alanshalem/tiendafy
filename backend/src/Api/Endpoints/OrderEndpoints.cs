@@ -1,0 +1,177 @@
+using Api.Notifications;
+using Checkout.Core.Domain;
+using Discounts.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Orders.Core.Domain;
+using Orders.Core.Features;
+using Payments.Contracts;
+using SharedKernel.Abstractions;
+using SharedKernel.Common;
+
+namespace Api.Endpoints;
+
+public static class OrderEndpoints
+{
+    public static RouteGroupBuilder MapOrderEndpoints(this RouteGroupBuilder group)
+    {
+        // Pagar con Checkout Pro (redirect) → crea Order + preference MP.
+        group.MapPost("/checkout/{id:guid}/pay", async (
+            Guid id,
+            PayCheckoutRequest request,
+            ITenantContext tenant,
+            ICheckoutRepository checkouts,
+            DiscountsDbContext discountsDb,
+            CreateOrderHandler createOrder,
+            IOrderRepository orders,
+            IMercadoPagoPaymentService mp,
+            CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
+            if (orderResult.IsFailure) return orderResult.Error.ToProblem();
+            var order = orderResult.Value;
+
+            var baseUrl = (request.ReturnUrl ?? string.Empty).TrimEnd('/');
+            var prefResult = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
+                tenant.TenantId, order.Id, order.Currency,
+                order.Items.Select(ToPreferenceItem).ToList(),
+                order.BuyerEmail,
+                SuccessUrl: $"{baseUrl}/checkout/success?order={order.Id}",
+                FailureUrl: $"{baseUrl}/checkout/failure?order={order.Id}",
+                PendingUrl: $"{baseUrl}/checkout/pending?order={order.Id}",
+                DiscountAmount: order.DiscountAmount.ToDecimal()), ct);
+
+            if (prefResult.IsFailure) return prefResult.Error.ToProblem();
+
+            order.AttachPreference(prefResult.Value.PreferenceId);
+            await orders.SaveChangesAsync(ct);
+            return Results.Ok(new { orderId = order.Id, initPoint = prefResult.Value.InitPoint });
+        });
+
+        // Pagar on-site (Checkout API/Bricks): el front tokeniza la tarjeta.
+        group.MapPost("/checkout/{id:guid}/pay-onsite", async (
+            Guid id,
+            PayOnsiteRequest request,
+            ITenantContext tenant,
+            ICheckoutRepository checkouts,
+            DiscountsDbContext discountsDb,
+            CreateOrderHandler createOrder,
+            SettlePaymentHandler settle,
+            IMercadoPagoPaymentService mp,
+            OrderPaidNotifier notifier,
+            CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
+                return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
+
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
+            if (orderResult.IsFailure) return orderResult.Error.ToProblem();
+            var order = orderResult.Value;
+
+            var payResult = await mp.CreateCardPaymentAsync(new CreateCardPaymentRequest(
+                tenant.TenantId, order.Id, order.Total.ToDecimal(),
+                request.Token, request.PaymentMethodId, request.Installments ?? 1, request.IssuerId,
+                order.BuyerEmail, request.PayerDocType, request.PayerDocNumber), ct);
+            if (payResult.IsFailure) return payResult.Error.ToProblem();
+            var card = payResult.Value;
+
+            // Aplicar el resultado ya (el webhook es backup, idempotente).
+            var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct);
+            if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
+                await notifier.NotifyAsync(settleResult.Value.Order, ct);
+
+            return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
+        });
+
+        group.MapGet("/orders/{id:guid}", async (
+            Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            return order is null ? Results.NotFound() : Results.Ok(ToDto(order));
+        });
+
+        group.MapGet("/orders", async (
+            ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
+            return Results.Ok(new { items = items.Select(ToDto) });
+        });
+
+        return group;
+    }
+
+    /// <summary>Crea la Order desde un checkout enviado, aplicando el cupón validado server-side.</summary>
+    private static async Task<Result<Order>> BuildOrderAsync(
+        TenantId tenantId, Guid sessionId, string? couponCode,
+        ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder, CancellationToken ct)
+    {
+        var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
+        if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
+        if (session.Status != CheckoutStatus.Submitted)
+            return Result.Failure<Order>(Error.Conflict("Checkout.NotSubmitted",
+                "El checkout debe estar enviado (con stock reservado) antes de pagar."));
+
+        // Cupón: NUNCA confiar en el descuento del cliente; recalcular server-side.
+        Money discount = Money.Zero(session.Currency);
+        var code = (couponCode ?? string.Empty).Trim().ToUpperInvariant();
+        if (code.Length > 0)
+        {
+            var subtotal = session.Items.Aggregate(0L, (s, i) => s + i.UnitPrice.AmountInMinorUnits * i.Quantity);
+            var coupon = await discountsDb.Coupons.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value && c.Code == code, ct);
+            if (coupon is not null)
+            {
+                var ev = coupon.Evaluate(subtotal, DateTime.UtcNow);
+                if (ev.Valid && ev.Discount > 0) discount = new Money(ev.Discount, session.Currency);
+            }
+        }
+
+        var lines = session.Items.Select(i => new CreateOrderLine(
+            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId)).ToList();
+
+        return await createOrder.HandleAsync(new CreateOrderCommand(
+            tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
+            discount.IsZero ? null : discount, code.Length > 0 ? code : null), ct);
+    }
+
+    private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
+        string.IsNullOrWhiteSpace(i.VariantDescription) ? i.ProductName : $"{i.ProductName} · {i.VariantDescription}",
+        i.Quantity, i.UnitPrice.ToDecimal());
+
+    private static object ToDto(Order order) => new
+    {
+        order.Id,
+        status = order.Status.ToString().ToUpperInvariant(),
+        order.BuyerEmail,
+        order.Currency,
+        order.PaymentProvider,
+        order.PreferenceId,
+        order.PaymentId,
+        order.CouponCode,
+        order.CreatedAtUtc,
+        order.PaidAtUtc,
+        subtotal = new { amount = order.Subtotal.AmountInMinorUnits, currency = order.Subtotal.Currency },
+        discount = new { amount = order.DiscountAmount.AmountInMinorUnits, currency = order.DiscountAmount.Currency },
+        total = new { amount = order.Total.AmountInMinorUnits, currency = order.Total.Currency },
+        items = order.Items.Select(i => new
+        {
+            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.Quantity,
+            unitPrice = new { amount = i.UnitPrice.AmountInMinorUnits, currency = i.UnitPrice.Currency },
+        }),
+    };
+}
+
+public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode);
+
+public sealed record PayOnsiteRequest(
+    string Token,
+    string PaymentMethodId,
+    int? Installments,
+    string? IssuerId,
+    string? PayerDocType,
+    string? PayerDocNumber,
+    string? CouponCode);

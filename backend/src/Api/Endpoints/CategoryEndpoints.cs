@@ -1,6 +1,9 @@
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateCategory;
+using Catalog.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -39,8 +42,44 @@ public static class CategoryEndpoints
             return Results.Ok(new { items = all.Select(c => c.ToDto()).ToList() });
         });
 
+        // Renombrar (mantiene la URL/slug para no romper enlaces ni SEO).
+        categories.MapPut("/{id:guid}", async (
+            Guid id, RenameCategoryRequest request, ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant)
+                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId && c.Id == id, ct);
+            if (category is null) return Results.NotFound();
+
+            var result = category.Rename(request.Name);
+            if (result.IsFailure) return result.Error.ToProblem();
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(category.ToDto());
+        });
+
+        // Eliminar (bloquea si tiene subcategorías para no dejar huérfanas).
+        categories.MapDelete("/{id:guid}", async (
+            Guid id, ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant)
+                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId && c.Id == id, ct);
+            if (category is null) return Results.NoContent();
+
+            var hasChildren = await db.Categories.AnyAsync(c => c.TenantId == tenant.TenantId && c.ParentId == id, ct);
+            if (hasChildren)
+                return Error.Conflict("Category.HasChildren", "Esta categoría tiene subcategorías. Eliminálas o movélas primero.").ToProblem();
+
+            db.Categories.Remove(category);
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+
         return group;
     }
 }
 
 public sealed record CreateCategoryRequest(string Name, Guid? ParentId);
+public sealed record RenameCategoryRequest(string Name);

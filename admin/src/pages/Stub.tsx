@@ -12,16 +12,6 @@ interface StubConfig {
  * página real cuando su módulo de backend aterriza.
  */
 export const stubs: Record<string, StubConfig> = {
-  ventas: {
-    kicker: 'Ventas',
-    title: 'Tu primera venta está por llegar',
-    body: 'Desde acá vas a gestionar pedidos, pagos y envíos. Se activa cuando el checkout esté en producción (módulos Orders + Checkout del roadmap).',
-  },
-  'ventas/carritos': {
-    kicker: 'Carritos abandonados',
-    title: 'Nada abandonado por ahora',
-    body: 'Acá vas a recuperar compras no finalizadas con un click. Llega junto con el checkout.',
-  },
   marketing: {
     kicker: 'Marketing',
     title: 'Hacé que te encuentren',

@@ -26,6 +26,20 @@ public static class PaymentsEndpoints
             return Results.Ok(ToDto(connection));
         });
 
+        // Config pública para el storefront: modo de cobro + public key (no secreto).
+        mp.MapGet("/public-config", async (
+            ITenantContext tenant, IMercadoPagoConnectionRepository repository, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            var c = await repository.GetByTenantAsync(tenant.TenantId, ct);
+            return Results.Ok(new
+            {
+                connected = c is not null,
+                checkoutMode = (c?.CheckoutMode ?? MercadoPagoCheckoutMode.Pro).ToString().ToUpperInvariant(),
+                publicKey = c?.PublicKey,
+            });
+        });
+
         // Arranca el OAuth: devuelve la URL a la que el front manda al merchant.
         mp.MapPost("/connect", (ITenantContext tenant, BuildConnectUrlHandler handler) =>
         {

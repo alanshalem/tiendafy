@@ -1,6 +1,6 @@
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { fetchDraftTheme } from '@/lib/theme';
-import { loadStorefront } from '@/lib/storefront';
+import { loadStorefront, withReferencedProducts } from '@/lib/storefront';
 
 // Preview del editor: render del DRAFT, con postMessage live.
 export const dynamic = 'force-dynamic';
@@ -16,13 +16,14 @@ export default async function PreviewPage() {
   }
 
   const theme = await fetchDraftTheme(data.tenant.id);
+  const products = await withReferencedProducts(data.tenant.id, theme, data.products);
 
   return (
     <StorefrontView
       tenantId={data.tenant.id}
       tenantName={data.tenant.name}
       theme={theme}
-      products={data.products}
+      products={products}
       live
     />
   );

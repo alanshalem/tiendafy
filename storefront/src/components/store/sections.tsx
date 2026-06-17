@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Truck, CreditCard, ShieldCheck, Gift, Headphones, RefreshCw, type LucideIcon } from 'lucide-react';
+import { Truck, CreditCard, ShieldCheck, Gift, Headphones, RefreshCw, Heart, type LucideIcon } from 'lucide-react';
 import type { ProductListConfig, SectionType, ThemeSection } from '@/lib/theme';
 import { useCart } from './cart';
+import { useFavorites } from './favorites';
 import { usePreviewHref, PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
+import { StoreImage } from './StoreImage';
 
 const INFO_ICON_MAP: Record<string, LucideIcon> = {
   shipping: Truck,
@@ -43,25 +45,45 @@ function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
 
 export function ProductCard({ product, list }: { product: StoreProduct; list: ProductListConfig }) {
   const { add, setOpen } = useCart();
+  const fav = useFavorites();
   const href = usePreviewHref();
   const link = href(`/productos/${product.slug}`);
+  const onSale = !!product.compareAtAmount && product.compareAtAmount > product.priceAmount;
+  const discountPct = onSale ? Math.round((1 - product.priceAmount / product.compareAtAmount!) * 100) : 0;
+  const faved = fav.has(product.id);
   return (
-    <div className="group">
-      <Link href={link}>
+    <div className="group flex h-full flex-col">
+      <Link href={link} className="relative block aspect-square w-full overflow-hidden rounded-lg bg-black/5">
+        {/* Badge de descuento: el lever visual de conversión en LATAM. */}
+        {onSale && discountPct > 0 && (
+          <span className="absolute left-2 top-2 z-10 rounded-md bg-red-600 px-1.5 py-0.5 text-[0.7rem] font-bold text-white shadow-sm">
+            -{discountPct}%
+          </span>
+        )}
+        {/* Favorito: toggle sin navegar. */}
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); fav.toggle(product.id); }}
+          aria-label={faved ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          aria-pressed={faved}
+          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:scale-110"
+        >
+          <Heart className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
+        </button>
         {product.image ? (
-          <img src={product.image} alt={product.name} className="aspect-square w-full rounded-lg object-cover transition-transform group-hover:-translate-y-1" />
+          <StoreImage src={product.image} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
-          <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-black/5 text-5xl font-bold opacity-40">
+          <div className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40">
             {product.name.charAt(0)}
           </div>
         )}
       </Link>
-      <Link href={link} className="mt-2 block text-sm font-medium hover:underline">
+      <Link href={link} className="mt-2 block min-h-[2.5rem] text-sm font-medium hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
         {product.name}
       </Link>
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
-          <span className="font-semibold">{fmt(product.priceAmount, product.currency)}</span>
+          <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>{fmt(product.priceAmount, product.currency)}</span>
           {list.showCompareAt && product.compareAtAmount && (
             <span className="ml-2 line-through opacity-50">{fmt(product.compareAtAmount, product.currency)}</span>
           )}
@@ -80,7 +102,9 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             });
             setOpen(true);
           }}
-          className="mt-2 w-full rounded-md py-1.5 text-xs font-semibold text-primary-fg opacity-0 transition-opacity group-hover:opacity-100"
+          // Visible siempre en mobile (sin hover); hover-reveal solo en desktop.
+          // mt-auto: empuja el botón al fondo → alinea entre cards de la fila.
+          className="mt-auto w-full rounded-md py-1.5 pt-1.5 text-xs font-semibold text-primary-fg opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
           style={{ background: 'rgb(var(--color-primary))' }}
         >
           Agregar al carrito
@@ -107,16 +131,18 @@ function ProductGrid({ title, products, list, carousel }: { title: string; produ
       )}
       {carousel ? (
         <div className="-mx-4 flex snap-x gap-5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {products.map((p) => (
-            <div key={p.id} className="w-40 shrink-0 snap-start sm:w-52">
+          {products.map((p, i) => (
+            <div key={p.id} className="tf-in w-40 shrink-0 snap-start sm:w-52" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
               <ProductCard product={p} list={list} />
             </div>
           ))}
         </div>
       ) : (
         <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} list={list} />
+          {products.map((p, i) => (
+            <div key={p.id} className="tf-in" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
+              <ProductCard product={p} list={list} />
+            </div>
           ))}
         </div>
       )}
@@ -210,7 +236,7 @@ function HeroVideoSection({ section }: SectionRenderProps) {
           {mp4 && <source src={mp4} type="video/mp4" />}
         </video>
       ) : poster ? (
-        <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <StoreImage src={poster} alt="" sizes="100vw" priority className="object-cover" />
       ) : null}
 
       <div className={`absolute inset-0 ${overlay}`} />
@@ -231,14 +257,38 @@ function HeroVideoSection({ section }: SectionRenderProps) {
 }
 
 function CarouselSection({ section, storeName }: SectionRenderProps) {
+  const href = usePreviewHref();
   const d = section.data as CarouselData;
   const images = Array.isArray(d.images) ? d.images : [];
   if (images.length === 0) {
+    // Hero por defecto (sin imágenes aún): degradado de marca + titular + CTA.
     return (
-      <section className="bg-black/[0.03]">
-        <div className="mx-auto max-w-container px-4 py-20 text-center">
-          <h2 className="text-4xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>{storeName}</h2>
-          <p className="mx-auto mt-3 max-w-xl opacity-70">Bienvenido a la tienda.</p>
+      <section className="relative overflow-hidden border-b border-black/5">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(120% 90% at 50% -10%, rgb(var(--color-primary) / 0.16), transparent 60%)' }}
+        />
+        <div
+          className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full opacity-20 blur-3xl"
+          style={{ background: 'rgb(var(--color-primary))' }}
+        />
+        <div className="relative mx-auto flex max-w-container flex-col items-center px-4 py-24 text-center sm:py-32">
+          <span className="tf-in mb-4 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-xs font-medium opacity-70">
+            ● Tienda online
+          </span>
+          <h2 className="tf-in max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl" style={{ fontFamily: 'var(--font-heading)', animationDelay: '60ms' }}>
+            {storeName}
+          </h2>
+          <p className="tf-in mx-auto mt-4 max-w-xl text-base opacity-70 sm:text-lg" style={{ animationDelay: '120ms' }}>
+            Descubrí toda la colección. Envíos a todo el país y compra protegida.
+          </p>
+          <Link
+            href={href('/productos')}
+            className="tf-in mt-7 inline-flex items-center rounded-full px-7 py-3 text-sm font-semibold text-primary-fg shadow-lg transition-transform hover:scale-[1.03]"
+            style={{ background: 'rgb(var(--color-primary))', animationDelay: '180ms' }}
+          >
+            Ver productos
+          </Link>
         </div>
       </section>
     );
@@ -387,11 +437,54 @@ function NewsletterSection({ section }: SectionRenderProps) {
 
 function InstagramSection({ section }: SectionRenderProps) {
   const d = section.data as InstagramData;
-  if (!d.video) return null;
+  const url = d.video?.trim();
+  if (!url) return null;
+
+  // Post / reel / tv de Instagram → su URL /embed sí se puede iframe-ar.
+  const igPost = url.match(/instagram\.com\/(?:p|reel|reels|tv)\/([\w-]+)/i);
+  if (igPost) {
+    return (
+      <section className="mx-auto max-w-container px-4 py-12">
+        <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border border-black/10 bg-white">
+          <iframe src={`https://www.instagram.com/p/${igPost[1]}/embed`} className="h-[560px] w-full" scrolling="no" title="Instagram" />
+        </div>
+      </section>
+    );
+  }
+
+  // Perfil/cuenta de Instagram: NO se puede embeber el feed (Instagram lo
+  // bloquea). Mostramos una tarjeta con link al perfil.
+  const igProfile = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/?(?:\?.*)?$/i);
+  if (igProfile) {
+    const user = igProfile[1];
+    return (
+      <section className="mx-auto max-w-container px-4 py-12">
+        <a
+          href={`https://instagram.com/${user}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-black/10 p-8 text-center transition-transform hover:scale-[1.01]"
+        >
+          <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <rect x="2" y="2" width="20" height="20" rx="5" />
+            <circle cx="12" cy="12" r="4" />
+            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+          </svg>
+          <div className="text-lg font-bold">@{user}</div>
+          <div className="text-sm opacity-60">Seguinos en Instagram</div>
+          <span className="mt-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+            Ver perfil
+          </span>
+        </a>
+      </section>
+    );
+  }
+
+  // YouTube / Vimeo / otro embebible.
   return (
     <section className="mx-auto max-w-container px-4 py-12">
       <div className="aspect-video w-full overflow-hidden rounded-lg bg-black/5">
-        <iframe src={toEmbed(d.video)} className="h-full w-full" allowFullScreen title="Video" />
+        <iframe src={toEmbed(url)} className="h-full w-full" allowFullScreen title="Video" />
       </div>
     </section>
   );
@@ -414,6 +507,22 @@ const SECTION_RENDERERS: Record<SectionType, (props: SectionRenderProps) => Reac
   'info-bar': InfoBarSection,
   newsletter: NewsletterSection,
   instagram: InstagramSection,
+};
+
+/** Texto descriptivo para el botón "Editar {label}" del preview (educa al usuario). */
+const SECTION_LABELS: Record<SectionType, string> = {
+  'hero-video': 'el hero con video',
+  carousel: 'el carrusel',
+  featured: 'los destacados',
+  'new-products': 'los recién llegados',
+  'sale-products': 'las ofertas',
+  'promo-banners': 'los banners de promo',
+  'category-banners': 'los banners de categorías',
+  institutional: 'la sección institucional',
+  'image-text': 'la sección imagen + texto',
+  'info-bar': 'la barra de información',
+  newsletter: 'el newsletter',
+  instagram: 'el feed de Instagram',
 };
 
 export function SectionRenderer({
@@ -509,7 +618,7 @@ function AnimatedSections({ visible, products, storeName, productList }: { visib
     <main>
       {items.map((it) => (
         <PresenceItem key={it.id} show={it.show}>
-          <EditableRegion target="section" id={it.section.id}>
+          <EditableRegion target="section" id={it.section.id} label={SECTION_LABELS[it.section.type]}>
             <SectionRenderer section={it.section} products={products} storeName={storeName} productList={productList} />
           </EditableRegion>
         </PresenceItem>

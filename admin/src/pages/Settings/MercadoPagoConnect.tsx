@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import {
   BadgeCheck,
   ChevronDown,
-  ExternalLink,
   Link2,
   Loader2,
   ShieldCheck,
@@ -329,18 +328,3 @@ function Helper({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-export { MP_BLUE };
-
-// Helper visual reutilizable para abrir docs de MP.
-export function MpDocsLink() {
-  return (
-    <a
-      href="https://www.mercadopago.com.ar/developers/es/docs"
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-    >
-      Documentación de Mercado Pago <ExternalLink className="h-3 w-3" />
-    </a>
-  );
-}

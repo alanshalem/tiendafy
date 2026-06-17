@@ -38,7 +38,9 @@ public sealed class CategoryResolver
         var ids = new List<Guid>();
         if (string.IsNullOrWhiteSpace(raw)) return ids;
 
-        foreach (var pathStr in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        // Múltiples categorías por producto se separan con ';' (la coma puede ir
+        // dentro de un nombre, ej. "Cardinas, Cepillos y Alicates").
+        foreach (var pathStr in raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var leaf = await ResolvePathAsync(pathStr, ct);
             if (leaf is not null && !ids.Contains(leaf.Id))

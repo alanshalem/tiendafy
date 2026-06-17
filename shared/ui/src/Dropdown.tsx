@@ -80,9 +80,11 @@ export function Dropdown({ children, className }: DropdownProps) {
 export interface DropdownTriggerProps {
   children: ReactNode;
   className?: string;
+  /** Sin caja ni chevron — para triggers de solo ícono (ej. ⋮). El estilo lo da className. */
+  bare?: boolean;
 }
 
-function Trigger({ children, className }: DropdownTriggerProps) {
+function Trigger({ children, className, bare = false }: DropdownTriggerProps) {
   const { open, setOpen, menuId, triggerRef } = useDropdown();
   return (
     <button
@@ -93,15 +95,18 @@ function Trigger({ children, className }: DropdownTriggerProps) {
       aria-controls={menuId}
       onClick={() => setOpen(!open)}
       className={cn(
-        'inline-flex h-10 items-center gap-1 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg',
-        'hover:bg-bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+        bare
+          ? 'inline-flex items-center focus-visible:outline-none'
+          : 'inline-flex h-10 items-center gap-1 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         className,
       )}
     >
       {children}
-      <svg className="h-4 w-4 text-fg-muted" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      {!bare && (
+        <svg className="h-4 w-4 text-fg-muted" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
     </button>
   );
 }

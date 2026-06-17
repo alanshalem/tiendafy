@@ -1,4 +1,5 @@
 using Content.Infrastructure;
+using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
@@ -7,6 +8,10 @@ namespace Api.Endpoints;
 
 public static class PagesEndpoints
 {
+    // Sanitiza el HTML del editor: descarta <script>, on*=, javascript:, etc.
+    // Defensa en profundidad (el storefront también sanitiza al renderizar).
+    private static readonly HtmlSanitizer Sanitizer = new();
+
     public static RouteGroupBuilder MapPageEndpoints(this RouteGroupBuilder group)
     {
         var pages = group.MapGroup("/pages");
@@ -19,6 +24,19 @@ public static class PagesEndpoints
             var items = await db.Pages.AsNoTracking().Where(p => p.TenantId == tid)
                 .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });
+        });
+
+        // Storefront: lista liviana de páginas PUBLICADAS (para el navbar). Sin body ni borradores.
+        pages.MapGet("/published", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Bad();
+            var tid = tenant.TenantId.Value;
+            var items = await db.Pages.AsNoTracking()
+                .Where(p => p.TenantId == tid && p.Published)
+                .OrderBy(p => p.Title)
+                .Select(p => new { p.Id, p.Title, p.Slug })
+                .ToListAsync(ct);
+            return Results.Ok(new { items });
         });
 
         // Storefront: una página publicada por slug.
@@ -34,7 +52,7 @@ public static class PagesEndpoints
         {
             if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId.Value;
-            var created = Page.Create(tid, req.Title, req.Slug, req.Body, req.Published);
+            var created = Page.Create(tid, req.Title, req.Slug, Sanitizer.Sanitize(req.Body ?? string.Empty), req.Published);
             if (created.IsFailure) return created.Error.ToProblem();
             if (await db.Pages.AnyAsync(p => p.TenantId == tid && p.Slug == created.Value.Slug, ct))
                 return Error.Conflict("Page.Duplicate", $"Ya existe una página con la URL '{created.Value.Slug}'.").ToProblem();
@@ -54,7 +72,7 @@ public static class PagesEndpoints
             if (await db.Pages.AnyAsync(p => p.TenantId == tid && p.Slug == newSlug && p.Id != id, ct))
                 return Error.Conflict("Page.Duplicate", $"Ya existe una página con la URL '{newSlug}'.").ToProblem();
 
-            var result = page.Update(req.Title, req.Slug, req.Body, req.Published);
+            var result = page.Update(req.Title, req.Slug, Sanitizer.Sanitize(req.Body ?? string.Empty), req.Published);
             if (result.IsFailure) return result.Error.ToProblem();
             await db.SaveChangesAsync(ct);
             return Results.Ok(ToDto(page));

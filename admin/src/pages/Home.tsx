@@ -4,10 +4,21 @@ import { Check } from 'lucide-react';
 import { Badge, Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
+import { formatMoney } from '../lib/format';
+import { Sparkline } from '../components/charts';
 
 interface ProductsResponse {
   items: unknown[];
   hasMore: boolean;
+}
+interface Overview {
+  products: { total: number; published: number; draft: number };
+}
+interface Sales {
+  currency: string;
+  revenue: number;
+  orders: number;
+  series: { date: string; revenue: number; orders: number }[];
 }
 
 export function HomePage() {
@@ -16,6 +27,16 @@ export function HomePage() {
   const { data: products } = useQuery({
     queryKey: ['products', store?.id, 'count'],
     queryFn: () => api.get<ProductsResponse>('/api/v1/products?limit=1'),
+    enabled: !!store,
+  });
+  const { data: overview } = useQuery({
+    queryKey: ['stats-overview', store?.id],
+    queryFn: () => api.get<Overview>('/api/v1/stats/overview'),
+    enabled: !!store,
+  });
+  const { data: sales } = useQuery({
+    queryKey: ['stats-sales-30', store?.id],
+    queryFn: () => api.get<Sales>('/api/v1/stats/sales?days=30'),
     enabled: !!store,
   });
 
@@ -62,17 +83,30 @@ export function HomePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: 'Ventas hoy', value: '$0', hint: 'El checkout llega pronto' },
-          { label: 'Visitas', value: '—', hint: 'Estadísticas en construcción' },
-          { label: 'Estado', value: store.status === 'ACTIVE' ? 'Activa' : store.status, hint: `Plan ${store.plan}` },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{stat.label}</div>
-            <div className="mt-1 text-2xl font-bold text-fg">{stat.value}</div>
-            <div className="mt-1 text-xs text-fg-subtle">{stat.hint}</div>
-          </Card>
-        ))}
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Ventas (30 días)</div>
+          <div className="mt-1 text-2xl font-bold text-fg">
+            {sales ? formatMoney(sales.revenue, sales.currency) : '—'}
+          </div>
+          <div className="mt-1 text-xs text-fg-subtle">{sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}</div>
+          {sales && sales.series.length > 1 && (
+            <div className="mt-2"><Sparkline data={sales.series.map((s) => s.revenue)} /></div>
+          )}
+        </Card>
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Productos</div>
+          <div className="mt-1 text-2xl font-bold text-fg">
+            {overview ? overview.products.total.toLocaleString('es-AR') : '—'}
+          </div>
+          <div className="mt-1 text-xs text-fg-subtle">
+            {overview ? `${overview.products.published} publicados · ${overview.products.draft} borradores` : 'Cargando…'}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Estado</div>
+          <div className="mt-1 text-2xl font-bold text-fg">{store.status === 'ACTIVE' ? 'Activa' : store.status}</div>
+          <div className="mt-1 text-xs text-fg-subtle">Plan {store.plan}</div>
+        </Card>
       </div>
 
       <Card title="Poné tu tienda en marcha" flush>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ExternalLink, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button, Input, Select, Textarea, useToast } from '@tiendafy/ui';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
 
 /* ---------- Centros de distribución ---------- */
@@ -26,7 +27,7 @@ export function DistributionCentersPage() {
           <span className="rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium text-fg-muted">Por defecto</span>
         </div>
       </div>
-      <p className="mt-5 inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">Más sobre centros de distribución <ExternalLink className="h-3.5 w-3.5" /></p>
+      <HelpLink id="distributionCenters" />
     </div>
   );
 }

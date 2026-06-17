@@ -1,5 +1,5 @@
 /**
- * Semántica de precios estilo Tiendanube:
+ * Semántica de precios:
  * - "Precio" = precio de lista (regular). Se tacha cuando hay oferta.
  * - "Precio promocional" = oferta (menor). Es el que se cobra y se muestra.
  *

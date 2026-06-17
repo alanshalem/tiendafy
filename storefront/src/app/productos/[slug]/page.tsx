@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ProductDetail } from '@/components/store/ProductDetail';
 import { SectionRenderer } from '@/components/store/sections';
+import { EmptyState } from '@/components/store/EmptyState';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { apiGet } from '@/lib/api';
 
@@ -55,7 +56,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             )}
           </>
         ) : (
-          <p className="py-16 text-center opacity-60">Producto no encontrado.</p>
+          <EmptyState
+            title="Producto no encontrado"
+            message="Puede que ya no esté disponible o que el enlace sea incorrecto."
+            cta={{ href: preview ? '/productos?preview=1' : '/productos', label: 'Ver todos los productos' }}
+          />
         )}
       </main>
     </StorefrontView>

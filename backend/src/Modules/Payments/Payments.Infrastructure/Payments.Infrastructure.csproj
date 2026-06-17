@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Payments.Core\Payments.Core.csproj" />
+    <ProjectReference Include="..\Payments.Contracts\Payments.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

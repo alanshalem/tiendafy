@@ -22,4 +22,11 @@ public sealed class MercadoPagoOptions
 
     /// <summary>A dónde volvemos el navegador del merchant tras el OAuth.</summary>
     public string AdminReturnUrl { get; set; } = "http://localhost:3001/configuracion/medios-de-pago";
+
+    /// <summary>
+    /// Base pública de la API (la URL del túnel en dev). MercadoPago la usa como
+    /// notification_url de los webhooks. Si está vacía, no se mandan webhooks
+    /// (el redirect sigue andando, pero la orden no se concilia sola).
+    /// </summary>
+    public string PublicApiBaseUrl { get; set; } = string.Empty;
 }

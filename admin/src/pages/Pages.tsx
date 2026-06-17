@@ -8,6 +8,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
+import { RichTextEditor } from '../components/RichTextEditor';
 
 interface PageDto {
   id: string;
@@ -157,14 +158,8 @@ function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: Pag
           <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="sobre-nosotros" />
         </FormField>
 
-        <FormField label="Contenido" hint="Texto simple o HTML básico.">
-          <textarea
-            rows={10}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Escribí el contenido de la página..."
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:ring-2 focus:ring-primary/40"
-          />
+        <FormField label="Contenido" hint="Editá con formato: títulos, negrita, listas, links e imágenes.">
+          <RichTextEditor value={body} onChange={setBody} />
         </FormField>
 
         <label className="flex items-center gap-2 text-sm font-medium text-fg">

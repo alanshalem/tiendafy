@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Copy, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
-import { Button, FormField, Input, Modal, Select, cn, useToast } from '@tiendafy/ui';
+import { ChevronRight, Copy, ExternalLink, GripVertical, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 import { EmptyState } from '../../components/EmptyState';
@@ -52,8 +52,11 @@ export function CategoriesPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [createParentId, setCreateParentId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<CategoryDto | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState<Record<string, string[]>>({});
   const [dirty, setDirty] = useState(false);
@@ -134,6 +137,33 @@ export function CategoriesPage() {
     toast('Orden de categorías guardado', { variant: 'success' });
   };
 
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['categories', store?.id] });
+
+  const renameMut = useMutation({
+    mutationFn: (p: { id: string; name: string }) => api.put(`/api/v1/categories/${p.id}`, { name: p.name }),
+    onSuccess: () => { refresh(); setRenaming(null); toast('Categoría renombrada', { variant: 'success' }); },
+    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'No se pudo renombrar', { variant: 'error' }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/categories/${id}`),
+    onSuccess: () => { refresh(); toast('Categoría eliminada', { variant: 'success' }); },
+    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'No se pudo eliminar', { variant: 'error' }),
+  });
+
+  const onAddSub = (node: TreeNode) => { setCreateParentId(node.id); setCreateOpen(true); };
+  const onView = (node: TreeNode) =>
+    window.open(`http://${store?.subdomain}.localhost:3000/productos?category=${node.id}`, '_blank');
+  const onDelete = async (node: TreeNode) => {
+    const ok = await confirm({
+      title: `Eliminar “${node.name}”`,
+      message: 'Se elimina la categoría. Los productos no se borran, pero pierden esta asignación.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    });
+    if (ok) deleteMut.mutate(node.id);
+  };
+
   const discard = () => {
     const raw = localStorage.getItem(storageKey);
     setOrder(raw ? JSON.parse(raw) : {});
@@ -160,7 +190,7 @@ export function CategoriesPage() {
             Arrastrá <GripVertical className="inline h-3.5 w-3.5 text-fg" /> para reordenar.
           </p>
         </div>
-        {!isEmpty && <Button onClick={() => setCreateOpen(true)}>Crear categoría</Button>}
+        {!isEmpty && <Button onClick={() => setCreateOpen(true)} className="shrink-0 whitespace-nowrap">Crear categoría</Button>}
       </div>
 
       {isEmpty ? (
@@ -184,6 +214,10 @@ export function CategoriesPage() {
               onDragStart={setDragId}
               onDrop={handleDrop}
               onDuplicate={() => toast('Duplicar categoría — próximamente', { variant: 'info' })}
+              onEdit={setRenaming}
+              onAddSub={onAddSub}
+              onView={onView}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -208,11 +242,42 @@ export function CategoriesPage() {
 
       <CreateCategoryModal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => { setCreateOpen(false); setCreateParentId(null); }}
         storeId={store.id}
         categories={categories}
+        presetParentId={createParentId}
       />
+
+      {renaming && (
+        <RenameCategoryModal
+          category={renaming}
+          onClose={() => setRenaming(null)}
+          onSave={(name) => renameMut.mutate({ id: renaming.id, name })}
+          saving={renameMut.isPending}
+        />
+      )}
     </div>
+  );
+}
+
+function RenameCategoryModal({ category, onClose, onSave, saving }: { category: CategoryDto; onClose: () => void; onSave: (name: string) => void; saving: boolean }) {
+  const [name, setName] = useState(category.name);
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Editar nombre"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button loading={saving} disabled={!name.trim()} onClick={() => onSave(name.trim())}>Guardar</Button>
+        </>
+      }
+    >
+      <FormField label="Nombre" hint="La URL de la categoría no cambia al renombrar.">
+        <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      </FormField>
+    </Modal>
   );
 }
 
@@ -225,23 +290,21 @@ function findNode(nodes: TreeNode[], id: string): TreeNode | null {
   return null;
 }
 
-function CategoryRow({
-  node,
-  collapsed,
-  onToggle,
-  dragId,
-  onDragStart,
-  onDrop,
-  onDuplicate,
-}: {
-  node: TreeNode;
+interface RowHandlers {
   collapsed: Set<string>;
   onToggle: (id: string) => void;
   dragId: string | null;
   onDragStart: (id: string) => void;
   onDrop: (node: TreeNode) => void;
   onDuplicate: () => void;
-}) {
+  onEdit: (node: TreeNode) => void;
+  onAddSub: (node: TreeNode) => void;
+  onView: (node: TreeNode) => void;
+  onDelete: (node: TreeNode) => void;
+}
+
+function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
+  const { collapsed, onToggle, dragId, onDragStart, onDrop, onDuplicate, onEdit, onAddSub, onView, onDelete } = h;
   const [over, setOver] = useState(false);
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.id);
@@ -297,28 +360,23 @@ function CategoryRow({
         >
           <Copy className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          title="Más opciones"
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </button>
+        <Dropdown>
+          <Dropdown.Trigger bare className="h-7 w-7 justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted">
+            <MoreVertical className="h-4 w-4" />
+          </Dropdown.Trigger>
+          <Dropdown.Menu align="end">
+            <Dropdown.Item onSelect={() => onEdit(node)}><Pencil className="mr-2 inline h-4 w-4" /> Editar nombre</Dropdown.Item>
+            <Dropdown.Item onSelect={() => onAddSub(node)}><Plus className="mr-2 inline h-4 w-4" /> Agregar subcategoría</Dropdown.Item>
+            <Dropdown.Item onSelect={() => onView(node)}><ExternalLink className="mr-2 inline h-4 w-4" /> Ver en la tienda</Dropdown.Item>
+            <Dropdown.Item onSelect={() => onDelete(node)}><Trash2 className="mr-2 inline h-4 w-4 text-danger" /> Eliminar</Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
       </div>
 
       {hasChildren &&
         !isCollapsed &&
         node.children.map((child) => (
-          <CategoryRow
-            key={child.id}
-            node={child}
-            collapsed={collapsed}
-            onToggle={onToggle}
-            dragId={dragId}
-            onDragStart={onDragStart}
-            onDrop={onDrop}
-            onDuplicate={onDuplicate}
-          />
+          <CategoryRow key={child.id} node={child} {...h} />
         ))}
     </>
   );
@@ -329,15 +387,22 @@ function CreateCategoryModal({
   onClose,
   storeId,
   categories,
+  presetParentId,
 }: {
   open: boolean;
   onClose: () => void;
   storeId: string;
   categories: CategoryDto[];
+  presetParentId?: string | null;
 }) {
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState('');
   const [error, setError] = useState<string>();
+
+  // Al abrir con "Agregar subcategoría", preseleccionar el padre.
+  useEffect(() => {
+    if (open) setParentId(presetParentId ?? '');
+  }, [open, presetParentId]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

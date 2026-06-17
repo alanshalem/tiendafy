@@ -1,0 +1,157 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { User, Heart, LogOut, X, Loader2 } from 'lucide-react';
+import { useAuth } from './auth';
+import { usePreviewHref } from './preview';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+
+/** Entrada de cuenta en el header: menú si está logueado, modal de login si no. */
+export function AccountButton() {
+  const { user, logout } = useAuth();
+  const href = usePreviewHref();
+  const [modal, setModal] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setMenu(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [menu]);
+
+  if (!user) {
+    return (
+      <>
+        <button type="button" onClick={() => setModal(true)} aria-label="Iniciar sesión" title="Iniciar sesión" className="opacity-90 hover:opacity-100">
+          <User className="h-5 w-5" />
+        </button>
+        {modal && <AuthModal onClose={() => setModal(false)} />}
+      </>
+    );
+  }
+
+  const firstName = user.name.split(' ')[0];
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setMenu((o) => !o)} className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100" aria-label="Mi cuenta">
+        <User className="h-5 w-5" />
+        <span className="hidden max-w-[7rem] truncate text-sm sm:inline">{firstName}</span>
+      </button>
+      {menu && (
+        <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border shadow-xl" style={{ background: 'rgb(var(--color-bg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: 'rgb(var(--color-fg) / 0.1)' }}>
+            <div className="truncate text-sm font-semibold">{user.name}</div>
+            <div className="truncate text-xs opacity-60">{user.email}</div>
+          </div>
+          <Link href={href('/favoritos')} onClick={() => setMenu(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
+            <Heart className="h-4 w-4" /> Mis favoritos
+          </Link>
+          <button type="button" onClick={() => { setMenu(false); logout(); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
+            <LogOut className="h-4 w-4" /> Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuthModal({ onClose }: { onClose: () => void }) {
+  const { login, register, googleUrl } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [googleOn, setGoogleOn] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/api/v1/shop/auth/google/configured`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setGoogleOn(!!d?.configured))
+      .catch(() => {});
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    const res = mode === 'login' ? await login(email, password) : await register(name, email, password);
+    setBusy(false);
+    if (res.ok) onClose();
+    else setError(res.error ?? 'Algo salió mal.');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="relative w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
+        style={{ background: 'rgb(var(--color-bg))', color: 'rgb(var(--color-fg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-3 top-3 rounded-full p-1 opacity-60 hover:opacity-100">
+          <X className="h-5 w-5" />
+        </button>
+
+        <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          {mode === 'login' ? 'Iniciá sesión' : 'Creá tu cuenta'}
+        </h2>
+        <p className="mt-1 text-sm opacity-60">
+          {mode === 'login' ? 'Para ver tus favoritos y comprar más rápido.' : 'Guardá favoritos y seguí tus compras.'}
+        </p>
+
+        {googleOn && (
+          <button
+            type="button"
+            onClick={() => { window.location.href = googleUrl(typeof window !== 'undefined' ? window.location.href : '/'); }}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
+            style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
+          >
+            <GoogleIcon /> Continuar con Google
+          </button>
+        )}
+
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          {mode === 'register' && (
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+          )}
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={8} className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+
+          <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          </button>
+        </form>
+
+        <p className="mt-4 text-center text-sm opacity-70">
+          {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
+          <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
+            {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+      <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
+    </svg>
+  );
+}

@@ -34,8 +34,19 @@
     <Project Path="src/Modules/Media/Media.Infrastructure/Media.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Payments/">
+    <Project Path="src/Modules/Payments/Payments.Contracts/Payments.Contracts.csproj" />
     <Project Path="src/Modules/Payments/Payments.Core/Payments.Core.csproj" />
     <Project Path="src/Modules/Payments/Payments.Infrastructure/Payments.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Orders/">
+    <Project Path="src/Modules/Orders/Orders.Core/Orders.Core.csproj" />
+    <Project Path="src/Modules/Orders/Orders.Infrastructure/Orders.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Analytics/">
+    <Project Path="src/Modules/Analytics/Analytics.Infrastructure/Analytics.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/Notifications.Infrastructure/Notifications.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Tenancy/">
     <Project Path="src/Modules/Tenancy/Tenancy.Contracts/Tenancy.Contracts.csproj" />

@@ -9,6 +9,9 @@ public sealed class MercadoPagoConnectionRepository(PaymentsDbContext context) :
     public Task<MercadoPagoConnection?> GetByTenantAsync(TenantId tenantId, CancellationToken ct = default) =>
         context.MercadoPagoConnections.FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
 
+    public Task<MercadoPagoConnection?> GetByMercadoPagoUserIdAsync(long mercadoPagoUserId, CancellationToken ct = default) =>
+        context.MercadoPagoConnections.FirstOrDefaultAsync(c => c.MercadoPagoUserId == mercadoPagoUserId, ct);
+
     public async Task AddAsync(MercadoPagoConnection connection, CancellationToken ct = default) =>
         await context.MercadoPagoConnections.AddAsync(connection, ct);
 

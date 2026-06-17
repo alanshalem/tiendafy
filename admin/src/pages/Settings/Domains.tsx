@@ -2,6 +2,7 @@ import { Calendar, Check, ExternalLink, Lock, Pencil, Plus, Search, Settings, ty
 import { Badge } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 
 export function DomainsPage() {
   const { store } = useStore();
@@ -83,12 +84,12 @@ export function DomainsPage() {
             <card.icon className="h-5 w-5 text-fg-muted" />
             <h3 className="mt-2 font-semibold text-fg">{card.title}</h3>
             <p className="mt-1 text-sm text-fg-muted">{card.body}</p>
-            <span className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary">Ver tutorial <ExternalLink className="h-3.5 w-3.5" /></span>
+            <a href="/ayuda/domains" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">Ver tutorial <ExternalLink className="h-3.5 w-3.5" /></a>
           </div>
         ))}
       </div>
 
-      <p className="mt-6 inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">Más sobre dominios <ExternalLink className="h-3.5 w-3.5" /></p>
+      <HelpLink id="domains" />
     </div>
   );
 }

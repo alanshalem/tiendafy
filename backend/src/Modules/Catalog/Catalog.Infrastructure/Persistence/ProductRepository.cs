@@ -57,7 +57,26 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             query = query.Where(p => EF.Functions.ILike(p.Name, $"%{filter.Query.Trim()}%"));
 
         if (filter.CategoryId is { } categoryId)
-            query = query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
+        {
+            // Filtro por subárbol: una categoría padre trae los productos de sus
+            // descendientes (los productos se asignan a la hoja). Resolvemos la
+            // categoría + todas las que cuelgan de su path.
+            var selectedPath = await context.Categories.AsNoTracking()
+                .Where(c => c.TenantId == tenantId && c.Id == categoryId)
+                .Select(c => c.Path).FirstOrDefaultAsync(ct);
+
+            if (selectedPath is not null)
+            {
+                var subtreeIds = await context.Categories.AsNoTracking()
+                    .Where(c => c.TenantId == tenantId && (c.Path == selectedPath || c.Path.StartsWith(selectedPath + "/")))
+                    .Select(c => c.Id).ToListAsync(ct);
+                query = query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Any(id => subtreeIds.Contains(id)));
+            }
+            else
+            {
+                query = query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
+            }
+        }
 
         var total = await query.CountAsync(ct);
 

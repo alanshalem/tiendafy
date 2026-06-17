@@ -1,7 +1,7 @@
 /**
  * Kit de gráficos liviano — SVG puro, sin librerías. Colores por tokens
  * del design system (primary = bermellón + tints). Pensado para los
- * dashboards de estadísticas estilo Tiendanube.
+ * dashboards de estadísticas.
  */
 import { useId, type ReactNode } from 'react';
 import { cn } from '@tiendafy/ui';

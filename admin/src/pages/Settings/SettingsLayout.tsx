@@ -7,17 +7,16 @@ import {
   Globe,
   Mail,
   MapPin,
-  MessageCircle,
   Package,
   Pencil,
-  Phone,
   ShoppingCart,
   User,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { useStore } from '../../context/StoreContext';
 import { ThemeModeToggle } from '../../components/ThemeModeToggle';
+import { StoreSwitcher } from '../../components/StoreSwitcher';
+import { isNavVisible } from '../../config/features';
 
 interface NavItem {
   to: string;
@@ -41,8 +40,6 @@ const groups: NavGroup[] = [
   {
     heading: 'Comunicación',
     items: [
-      { to: '/configuracion/informacion-de-contacto', label: 'Información de contacto', icon: Phone },
-      { to: '/configuracion/boton-de-whatsapp', label: 'Botón de WhatsApp', icon: MessageCircle },
       { to: '/configuracion/emails-automaticos', label: 'E-mails automáticos', icon: Mail },
     ],
   },
@@ -50,7 +47,6 @@ const groups: NavGroup[] = [
     heading: 'Checkout',
     items: [
       { to: '/configuracion/opciones-del-checkout', label: 'Opciones del checkout', icon: ShoppingCart },
-      { to: '/configuracion/mensaje-para-clientes', label: 'Mensaje para clientes', icon: MessageCircle },
     ],
   },
   {
@@ -80,8 +76,12 @@ function LogoMark({ className }: { className?: string }) {
 }
 
 export function SettingsLayout() {
-  const { store } = useStore();
   const navigate = useNavigate();
+
+  // Filtra el menú de configuración según los flags de config/features.ts.
+  const visibleGroups = groups
+    .map((g) => ({ ...g, items: g.items.filter((it) => isNavVisible(it.to)) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <div className="flex min-h-screen">
@@ -97,7 +97,7 @@ export function SettingsLayout() {
         </button>
 
         <nav className="flex-1 space-y-5 overflow-y-auto p-3">
-          {groups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.heading}>
               <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/40">
                 {group.heading}
@@ -127,8 +127,8 @@ export function SettingsLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="flex h-header items-center justify-end gap-3 border-b border-border bg-surface px-6">
-          <span className="text-sm text-fg-muted">{store ? store.name : 'Configuración'} · dev</span>
+        <header className="flex h-header items-center justify-between gap-3 border-b border-border bg-surface px-6">
+          <StoreSwitcher />
           <ThemeModeToggle />
         </header>
         <main className="p-6">

@@ -37,10 +37,10 @@ export function ShippingMethodsPage() {
 
       {tab === 'Nacionales' ? (
         <div className="space-y-5">
-          {/* Envío Nube destacado */}
+          {/* Envío Tiendafy destacado */}
           <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
             <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-primary">Envío Nube</span>
+              <span className="text-base font-bold text-primary">Envío Tiendafy</span>
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Recomendada</span>
             </div>
             <p className="text-sm text-fg-muted">Nuestra solución logística</p>

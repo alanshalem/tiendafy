@@ -92,6 +92,8 @@ export interface CartConfig {
   freeShippingThreshold: number;
   checkoutButtonText: string;
   showSuggested: boolean;
+  /** Mensaje para el cliente en el carrito (vacío = no se muestra). */
+  notice: string;
 }
 export interface ContactConfig {
   showForm: boolean;
@@ -100,12 +102,20 @@ export interface ContactConfig {
   email: string;
   whatsapp: string;
 }
+/** Botón flotante de WhatsApp (abajo a la derecha del storefront). */
+export interface WhatsAppButtonConfig {
+  enabled: boolean;
+  phone: string;
+  message: string;
+}
 export interface FooterConfig {
   text: string;
   showSocial: boolean;
   instagram: string;
   facebook: string;
   showPaymentLogos: boolean;
+  /** Slugs de logos de medios de pago a mostrar (ver PAYMENT_LOGOS). Vacío = ninguno. */
+  paymentLogos: string[];
   /** Contactos (uno o varios). */
   whatsapps: string[];
   addresses: string[];
@@ -113,10 +123,48 @@ export interface FooterConfig {
   emails: string[];
 }
 
+/**
+ * Catálogo de logos de medios de pago / bancos disponibles.
+ * `slug` = nombre del archivo en /payment-logos/<slug>.svg (servido por
+ * storefront y admin desde sus carpetas public). Fuente única para el
+ * selector del admin y el render del footer.
+ */
+export interface PaymentLogo {
+  slug: string;
+  label: string;
+}
+export const PAYMENT_LOGOS: PaymentLogo[] = [
+  { slug: 'mercadopago', label: 'Mercado Pago' },
+  { slug: 'mercadocredito', label: 'Mercado Crédito' },
+  { slug: 'visa', label: 'Visa' },
+  { slug: 'mastercard', label: 'Mastercard' },
+  { slug: 'american-express', label: 'American Express' },
+  { slug: 'cabal', label: 'Cabal' },
+  { slug: 'naranja', label: 'Naranja' },
+  { slug: 'cordobesa', label: 'Cordobesa' },
+  { slug: 'pago-facil', label: 'Pago Fácil' },
+  { slug: 'santander', label: 'Santander' },
+  { slug: 'galicia', label: 'Galicia' },
+  { slug: 'bbva', label: 'BBVA' },
+  { slug: 'banco-nacion', label: 'Banco Nación' },
+  { slug: 'banco-hipotecario', label: 'Banco Hipotecario' },
+  { slug: 'icbc', label: 'ICBC' },
+  { slug: 'hsbc', label: 'HSBC' },
+  { slug: 'citi', label: 'Citi' },
+  { slug: 'cencosud', label: 'Cencosud' },
+];
+/** Slugs válidos (para filtrar selecciones viejas/erróneas). */
+export const PAYMENT_LOGO_SLUGS: string[] = PAYMENT_LOGOS.map((l) => l.slug);
+
+/** Estilo de bordes global (cards, botones, imágenes, inputs). */
+export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';
+
 export interface ThemeConfig {
   logo: string;
   favicon: string;
   shareImage: string;
+  /** Redondeado (default) / Suave / Cuadrado. */
+  borderRadius: BorderRadiusStyle;
   colors: ThemeColors;
   fonts: ThemeFonts;
   header: ThemeHeader;
@@ -128,6 +176,7 @@ export interface ThemeConfig {
   cart: CartConfig;
   contact: ContactConfig;
   footer: FooterConfig;
+  whatsappButton: WhatsAppButtonConfig;
   customCss: string;
 }
 
@@ -147,6 +196,7 @@ export const baseTheme: ThemeConfig = {
   logo: '',
   favicon: '',
   shareImage: '',
+  borderRadius: 'rounded',
   colors: { primary: '232 80 30', accent: '27 21 16', useAccent: false, bg: '255 255 255', text: '17 24 39' },
   fonts: { heading: 'sans', body: 'sans' },
   header: {
@@ -159,9 +209,10 @@ export const baseTheme: ThemeConfig = {
   sections: [],
   productList: { columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true },
   productDetail: { showSku: false, showStock: true, galleryStyle: 'thumbs', showRelated: true, cashDiscountPercent: 0 },
-  cart: { freeShippingBar: false, freeShippingThreshold: 5000000, checkoutButtonText: 'Iniciar compra', showSuggested: true },
+  cart: { freeShippingBar: false, freeShippingThreshold: 5000000, checkoutButtonText: 'Iniciar compra', showSuggested: true, notice: '' },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
-  footer: { text: '', showSocial: true, instagram: '', facebook: '', showPaymentLogos: true, whatsapps: [], addresses: [], phones: [], emails: [] },
+  footer: { text: '', showSocial: true, instagram: '', facebook: '', showPaymentLogos: true, paymentLogos: ['mercadopago', 'visa', 'mastercard'], whatsapps: [], addresses: [], phones: [], emails: [] },
+  whatsappButton: { enabled: false, phone: '', message: '¡Hola! Tengo una consulta.' },
   customCss: '',
 };
 
@@ -176,6 +227,7 @@ export function normalizeTheme(raw: Partial<ThemeConfig> | null, fallbackSection
     logo: typeof raw.logo === 'string' ? raw.logo : baseTheme.logo,
     favicon: typeof raw.favicon === 'string' ? raw.favicon : baseTheme.favicon,
     shareImage: typeof raw.shareImage === 'string' ? raw.shareImage : baseTheme.shareImage,
+    borderRadius: raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
     header: { ...baseTheme.header, ...raw.header },
@@ -189,11 +241,15 @@ export function normalizeTheme(raw: Partial<ThemeConfig> | null, fallbackSection
     footer: {
       ...baseTheme.footer,
       ...raw.footer,
+      paymentLogos: Array.isArray(raw.footer?.paymentLogos)
+        ? raw.footer!.paymentLogos.filter((s) => PAYMENT_LOGO_SLUGS.includes(s))
+        : baseTheme.footer.paymentLogos,
       whatsapps: Array.isArray(raw.footer?.whatsapps) ? raw.footer!.whatsapps : baseTheme.footer.whatsapps,
       addresses: Array.isArray(raw.footer?.addresses) ? raw.footer!.addresses : baseTheme.footer.addresses,
       phones: Array.isArray(raw.footer?.phones) ? raw.footer!.phones : baseTheme.footer.phones,
       emails: Array.isArray(raw.footer?.emails) ? raw.footer!.emails : baseTheme.footer.emails,
     },
+    whatsappButton: { ...baseTheme.whatsappButton, ...raw.whatsappButton },
     customCss: typeof raw.customCss === 'string' ? raw.customCss : baseTheme.customCss,
   };
 }

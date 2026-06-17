@@ -3,7 +3,7 @@ import { PlatformLanding } from '@/components/landing/PlatformLanding';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
-import { isPlatformHost, loadStorefront } from '@/lib/storefront';
+import { isPlatformHost, loadStorefront, withReferencedProducts } from '@/lib/storefront';
 import './landing.css';
 
 /** URL de la plataforma (sin el subdominio de la tienda) para el CTA de registro. */
@@ -29,12 +29,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   if (!preview && theme.comingSoon.enabled) return <ComingSoon theme={theme} tenantName={data.tenant.name} />;
 
+  const products = await withReferencedProducts(data.tenant.id, theme, data.products);
+
   return (
     <StorefrontView
       tenantId={data.tenant.id}
       tenantName={data.tenant.name}
       theme={theme}
-      products={data.products}
+      products={products}
       live={preview}
     />
   );

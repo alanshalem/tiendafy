@@ -231,7 +231,12 @@ function NewsletterEditor({ set, str }: SectionEditorProps) {
 
 function InstagramEditor({ set, str }: SectionEditorProps) {
   return (
-    <Field label="Link de video (YouTube o Vimeo)"><TextInput value={str('video')} onChange={(v) => set({ video: v })} placeholder="https://youtube.com/watch?v=..." /></Field>
+    <Field
+      label="Link de video o publicación"
+      hint="YouTube, Vimeo, o un post/reel de Instagram (instagram.com/p/… o /reel/…). Si pegás una cuenta (instagram.com/usuario) se muestra un botón al perfil — Instagram no permite embeber el feed completo."
+    >
+      <TextInput value={str('video')} onChange={(v) => set({ video: v })} placeholder="https://instagram.com/p/…  ó  https://youtube.com/watch?v=…" />
+    </Field>
   );
 }
 

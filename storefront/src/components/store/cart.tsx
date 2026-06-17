@@ -97,6 +97,7 @@ interface CartConfig {
   freeShippingThreshold: number;
   checkoutButtonText: string;
   showSuggested: boolean;
+  notice?: string;
 }
 interface Suggested {
   variantId: string;
@@ -269,8 +270,11 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                 <span>Total</span>
                 <span className="tabular-nums">{formatPrice(finalTotal, currency)}</span>
               </div>
+              {cart?.notice && (
+                <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>
+              )}
               <button
-                onClick={() => alert('Checkout — el flujo de pago se conecta con el módulo Checkout + Mercado Pago.')}
+                onClick={() => { window.location.href = '/checkout'; }}
                 className="w-full rounded-md py-3 text-sm font-semibold text-primary-fg"
                 style={{ background: 'rgb(var(--color-primary))' }}
               >

@@ -42,6 +42,15 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("email");
 
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_verified");
+
+                    b.Property<string>("GoogleSubject")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("google_subject");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -52,6 +61,11 @@ namespace Customers.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("notes");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("password_hash");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(40)
@@ -68,7 +82,80 @@ namespace Customers.Infrastructure.Migrations
                     b.HasIndex("TenantId", "CreatedAtUtc")
                         .HasDatabaseName("ix_customers_tenant_id_created_at_utc");
 
+                    b.HasIndex("TenantId", "Email")
+                        .HasDatabaseName("ix_customers_tenant_id_email");
+
                     b.ToTable("customers", (string)null);
+                });
+
+            modelBuilder.Entity("Customers.Infrastructure.CustomerFavorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_favorites");
+
+                    b.HasIndex("CustomerId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_favorites_customer_id_product_id");
+
+                    b.ToTable("customer_favorites", (string)null);
+                });
+
+            modelBuilder.Entity("Customers.Infrastructure.CustomerSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("token");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_sessions");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_sessions_token");
+
+                    b.ToTable("customer_sessions", (string)null);
                 });
 #pragma warning restore 612, 618
         }

@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
-import { fetchActiveProducts, toStoreProduct } from './catalog';
+import { fetchActiveProducts, fetchProductById, toStoreProduct } from './catalog';
 import type { StoreProduct } from '@/components/store/sections';
 import { resolveTenant } from './tenancy';
-import type { Tenant } from '@tiendafy/types';
+import type { Tenant, ThemeConfig } from '@tiendafy/types';
 
 const PLATFORM_BASE_DOMAIN = process.env.PLATFORM_BASE_DOMAIN ?? 'localhost';
 
@@ -32,4 +32,31 @@ export async function loadStorefront(): Promise<StorefrontData | null> {
     .filter((p): p is StoreProduct => p !== null);
 
   return { tenant, products };
+}
+
+/**
+ * Las secciones del home (destacados/ofertas) eligen productos por id. Si un
+ * producto elegido quedó fuera del set inicial (que trae sólo los primeros 24),
+ * el render lo descartaba en silencio. Acá traemos por id los referenciados que
+ * falten y los sumamos, así siempre se muestran los que el merchant seleccionó.
+ */
+export async function withReferencedProducts(
+  tenantId: string,
+  theme: ThemeConfig,
+  products: StoreProduct[],
+): Promise<StoreProduct[]> {
+  const present = new Set(products.map((p) => p.id));
+  const referenced = new Set<string>();
+  for (const s of theme.sections) {
+    const ids = (s.data as { productIds?: unknown }).productIds;
+    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && referenced.add(id));
+  }
+  const missing = [...referenced].filter((id) => !present.has(id));
+  if (missing.length === 0) return products;
+
+  const fetched = await Promise.all(missing.map((id) => fetchProductById(tenantId, id)));
+  const extra = fetched
+    .map((p) => (p ? toStoreProduct(p) : null))
+    .filter((p): p is StoreProduct => p !== null);
+  return [...products, ...extra];
 }

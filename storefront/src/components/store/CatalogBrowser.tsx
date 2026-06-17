@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import type { ProductListConfig } from '@/lib/theme';
 import type { CategoryDto } from '@/lib/catalog';
 import { ProductCard, type StoreProduct } from './sections';
-import { useLiveTheme } from './preview';
+import { useLiveTheme, usePreviewHref } from './preview';
+import { EmptyState } from './EmptyState';
 
 const SORTS: { value: string; label: string }[] = [
   { value: 'newest', label: 'Más nuevos' },
@@ -35,10 +36,13 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
   // En preview, refleja al instante los cambios de "Listado de productos".
   const live = useLiveTheme();
   productList = live?.productList ?? productList;
+  const href = usePreviewHref();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(current.q);
+  const [catsOpen, setCatsOpen] = useState(false);
+  const activeCat = categories.find((c) => c.id === current.category);
 
   const navigate = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -64,18 +68,13 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
           {total} {total === 1 ? 'resultado' : 'resultados'}
           {current.q && <> para «{current.q}»</>}
         </p>
-        <label className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm">
           <span className="opacity-60">Ordenar por</span>
-          <select
+          <SortDropdown
             value={current.sort || 'newest'}
-            onChange={(e) => navigate({ sort: e.target.value === 'newest' ? null : e.target.value, page: null })}
-            className="rounded-md border border-black/15 bg-white px-2 py-1.5 text-sm text-black"
-          >
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </label>
+            onChange={(v) => navigate({ sort: v === 'newest' ? null : v, page: null })}
+          />
+        </div>
       </div>
 
       <div className="grid gap-8 pt-6 lg:grid-cols-[15rem_1fr]">
@@ -102,8 +101,19 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
 
           {categories.length > 0 && (
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">Categorías</h3>
-              <ul className="space-y-0.5 text-sm">
+              {/* Mobile: header clickeable que colapsa la lista (no empuja la grilla).
+                  Desktop (lg): la lista queda siempre visible. */}
+              <button
+                type="button"
+                onClick={() => setCatsOpen((o) => !o)}
+                className="mb-2 flex w-full items-center justify-between lg:pointer-events-none"
+              >
+                <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+                  Categorías{activeCat ? <span className="text-primary">: {activeCat.name}</span> : ''}
+                </h3>
+                <ChevronDown className={`h-4 w-4 opacity-60 transition-transform lg:hidden ${catsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <ul className={`space-y-0.5 text-sm ${catsOpen ? 'block' : 'hidden'} lg:block`}>
                 <li>
                   <button
                     onClick={() => navigate({ category: null, page: null })}
@@ -130,7 +140,12 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
         {/* Grilla + paginado */}
         <div>
           {products.length === 0 ? (
-            <p className="py-16 text-center opacity-60">No encontramos productos con esos filtros.</p>
+            <EmptyState
+              icon={<SearchX className="h-8 w-8" />}
+              title="Sin resultados"
+              message="No encontramos productos con esos filtros. Probá cambiarlos o mirá todo el catálogo."
+              cta={{ href: href('/productos'), label: 'Ver todo' }}
+            />
           ) : (
             <div className={`grid gap-x-5 gap-y-8 ${colClass[productList.columns] ?? colClass[4]}`}>
               {products.map((p) => (
@@ -156,6 +171,54 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Dropdown de orden, estilizado con los colores de la tienda (no el select nativo). */
+function SortDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const currentOpt = SORTS.find((s) => s.value === value) ?? SORTS[0];
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+        style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
+      >
+        {currentOpt.label}
+        <ChevronDown className={`h-4 w-4 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 z-30 mt-1.5 min-w-[11rem] overflow-hidden rounded-md border shadow-lg"
+          style={{ background: 'rgb(var(--color-bg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}
+        >
+          {SORTS.map((s) => {
+            const active = s.value === value;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => { onChange(s.value); setOpen(false); }}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)]"
+                style={active ? { color: 'rgb(var(--color-primary))', fontWeight: 600 } : undefined}
+              >
+                {s.label}
+                {active && <Check className="h-4 w-4" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
