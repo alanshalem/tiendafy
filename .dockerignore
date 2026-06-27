@@ -1,0 +1,28 @@
+**/node_modules
+**/.next
+**/dist
+**/bin
+**/obj
+.git
+**/.git
+**/.turbo
+**/coverage
+**/*.log
+api-debug.log
+api-debug.err.log
+
+# Secretos: nunca hornearlos en la imagen (sí permitimos los ejemplos/base placeholder).
+**/.env
+**/.env.*
+!**/.env.example
+**/appsettings.*.json
+!**/appsettings.json
+!**/appsettings.Development.json
+**/*.pem
+**/*.key
+
+# IDE / OS
+**/.vscode
+**/.idea
+**/.vs
+**/*.user

@@ -16,6 +16,20 @@ async function platformUrl(): Promise<string> {
 
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata(): Promise<import('next').Metadata> {
+  if (await isPlatformHost()) {
+    return { title: 'Tiendafy — Abrí tu tienda online', description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.' };
+  }
+  const data = await loadStorefront();
+  if (!data) return { title: 'Tienda' };
+  const theme = await fetchPublishedTheme(data.tenant.id).catch(() => null);
+  return {
+    title: data.tenant.name,
+    description: `Tienda online de ${data.tenant.name}. Envíos a todo el país.`,
+    openGraph: { title: data.tenant.name, images: theme?.shareImage ? [theme.shareImage] : [] },
+  };
+}
+
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   if (await isPlatformHost()) return <PlatformLanding />;
 

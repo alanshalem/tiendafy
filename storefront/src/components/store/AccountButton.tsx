@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { User, Heart, LogOut, X, Loader2 } from 'lucide-react';
 import { useAuth } from './auth';
 import { usePreviewHref } from './preview';
+import { Captcha } from './Captcha';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
 
@@ -47,6 +48,9 @@ export function AccountButton() {
             <div className="truncate text-sm font-semibold">{user.name}</div>
             <div className="truncate text-xs opacity-60">{user.email}</div>
           </div>
+          <Link href={href('/cuenta')} onClick={() => setMenu(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
+            <User className="h-4 w-4" /> Mi cuenta y pedidos
+          </Link>
           <Link href={href('/favoritos')} onClick={() => setMenu(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
             <Heart className="h-4 w-4" /> Mis favoritos
           </Link>
@@ -60,14 +64,16 @@ export function AccountButton() {
 }
 
 function AuthModal({ onClose }: { onClose: () => void }) {
-  const { login, register, googleUrl } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const { login, register, forgot, googleUrl } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [googleOn, setGoogleOn] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/api/v1/shop/auth/google/configured`)
@@ -85,7 +91,14 @@ function AuthModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = mode === 'login' ? await login(email, password) : await register(name, email, password);
+    if (mode === 'forgot') {
+      const res = await forgot(email);
+      setBusy(false);
+      if (res.ok) setSent(true);
+      else setError(res.error ?? 'Algo salió mal.');
+      return;
+    }
+    const res = mode === 'login' ? await login(email, password, captcha || undefined) : await register(name, email, password, captcha || undefined);
     setBusy(false);
     if (res.ok) onClose();
     else setError(res.error ?? 'Algo salió mal.');
@@ -103,42 +116,68 @@ function AuthModal({ onClose }: { onClose: () => void }) {
         </button>
 
         <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {mode === 'login' ? 'Iniciá sesión' : 'Creá tu cuenta'}
+          {mode === 'forgot' ? 'Recuperar contraseña' : mode === 'login' ? 'Iniciá sesión' : 'Creá tu cuenta'}
         </h2>
         <p className="mt-1 text-sm opacity-60">
-          {mode === 'login' ? 'Para ver tus favoritos y comprar más rápido.' : 'Guardá favoritos y seguí tus compras.'}
+          {mode === 'forgot' ? 'Te enviamos un link para crear una nueva.' : mode === 'login' ? 'Para ver tus favoritos y comprar más rápido.' : 'Guardá favoritos y seguí tus compras.'}
         </p>
 
-        {googleOn && (
-          <button
-            type="button"
-            onClick={() => { window.location.href = googleUrl(typeof window !== 'undefined' ? window.location.href : '/'); }}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
-            style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
-          >
-            <GoogleIcon /> Continuar con Google
+        {sent ? (
+          <p className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
+            Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo (y spam).
+          </p>
+        ) : (
+          <>
+            {mode !== 'forgot' && googleOn && (
+              <button
+                type="button"
+                onClick={() => { window.location.href = googleUrl(typeof window !== 'undefined' ? window.location.href : '/'); }}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
+                style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
+              >
+                <GoogleIcon /> Continuar con Google
+              </button>
+            )}
+
+            <form onSubmit={submit} className="mt-4 space-y-3">
+              {mode === 'register' && (
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+              )}
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+              {mode !== 'forgot' && (
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={8} className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+              )}
+
+              {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
+
+              {error && <p className="text-sm text-red-500">{error}</p>}
+
+              <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)} className="flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'forgot' ? 'Enviar link' : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+              </button>
+            </form>
+          </>
+        )}
+
+        {mode === 'login' && !sent && (
+          <button type="button" onClick={() => { setError(null); setMode('forgot'); }} className="mt-3 block w-full text-center text-sm opacity-70 hover:underline">
+            ¿Olvidaste tu contraseña?
           </button>
         )}
 
-        <form onSubmit={submit} className="mt-4 space-y-3">
-          {mode === 'register' && (
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
-          )}
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={8} className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
-
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
-          <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
-          </button>
-        </form>
-
         <p className="mt-4 text-center text-sm opacity-70">
-          {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-          <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
-            {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
-          </button>
+          {mode === 'forgot' ? (
+            <button type="button" onClick={() => { setError(null); setSent(false); setMode('login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
+              Volver a iniciar sesión
+            </button>
+          ) : (
+            <>
+              {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
+              <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
+                {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>

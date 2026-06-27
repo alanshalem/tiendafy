@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Api.Notifications;
 using Api.Shop;
 using Customers.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -15,47 +16,114 @@ public static class ShopAuthEndpoints
     {
         var auth = group.MapGroup("/shop/auth");
 
-        auth.MapPost("/register", async (ShopRegisterRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, IEmailSender emailSender, IConfiguration cfg, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return MissingTenant();
+            if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
             if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
                 return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
             var tid = tenant.TenantId.Value;
-            var email = req.Email?.Trim().ToLowerInvariant();
+            var email = ShopAuth.NormalizeEmail(req.Email);
             var taken = await db.Customers.AnyAsync(c => c.TenantId == tid && c.Email == email && c.PasswordHash != null, ct);
             if (taken) return Problem("ShopAuth.EmailTaken", "Ya existe una cuenta con ese email.", 409);
 
-            var created = Customer.CreateShopper(tid, req.Name, req.Email);
+            var created = Customer.CreateShopper(tid, req.Name, email ?? req.Email);
             if (created.IsFailure) return created.Error.ToProblem();
             var customer = created.Value;
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             db.Customers.Add(customer);
             var token = await IssueSessionAsync(db, customer.Id, tid, ct);
+            var verifyTok = ShopAuth.NewToken();
+            db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, verifyTok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { token, customer = ToDto(customer) });
-        });
+            ShopAuth.SetSessionCookie(http, tid, token);
+            await emailSender.SendAsync(customer.Email!, "Verificá tu email",
+                EmailBody("Verificá tu email", "Confirmá tu dirección para activar tu cuenta.",
+                    BuildLink(http, cfg, "/cuenta/verificar", verifyTok), "Verificar email"), ct);
+            return Results.Ok(new { customer = ToDto(customer) });
+        }).RequireRateLimiting("auth");
 
-        auth.MapPost("/login", async (ShopLoginRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        // ¿Olvidaste tu contraseña? Manda email con link de reset. Respuesta uniforme
+        // (204) exista o no el email → no permite enumerar cuentas.
+        auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, IEmailSender email, IConfiguration cfg, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return MissingTenant();
             var tid = tenant.TenantId.Value;
-            var email = req.Email?.Trim().ToLowerInvariant();
+            var addr = ShopAuth.NormalizeEmail(req.Email);
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == addr && c.PasswordHash != null, ct);
+            if (customer is not null)
+            {
+                var tok = ShopAuth.NewToken();
+                db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeReset, tok, TimeSpan.FromHours(1)));
+                await db.SaveChangesAsync(ct);
+                await email.SendAsync(customer.Email!, "Restablecé tu contraseña",
+                    EmailBody("Restablecé tu contraseña", "Pediste cambiar tu contraseña. El link vence en 1 hora. Si no fuiste vos, ignorá este email.",
+                        BuildLink(http, cfg, "/cuenta/reset", tok), "Cambiar contraseña"), ct);
+            }
+            return Results.NoContent();
+        }).RequireRateLimiting("auth");
+
+        // Aplica el reset: valida el token, setea la nueva contraseña y loguea.
+        auth.MapPost("/reset", async (ShopResetRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return MissingTenant();
+            if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
+                return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
+            var tid = tenant.TenantId.Value;
+            var row = await db.CustomerTokens.FirstOrDefaultAsync(t => t.Token == req.Token && t.TenantId == tid, ct);
+            if (row is null || !row.IsValid(CustomerToken.PurposeReset))
+                return Problem("ShopAuth.InvalidToken", "El link no es válido o expiró. Pedí uno nuevo.", 400);
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == row.CustomerId, ct);
+            if (customer is null) return Problem("ShopAuth.InvalidToken", "El link no es válido.", 400);
+
+            customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
+            customer.MarkEmailVerified(); // resetear prueba acceso al email
+            row.Consume();
+            var session = await IssueSessionAsync(db, customer.Id, tid, ct);
+            await db.SaveChangesAsync(ct);
+            ShopAuth.SetSessionCookie(http, tid, session);
+            return Results.Ok(new { customer = ToDto(customer) });
+        }).RequireRateLimiting("auth");
+
+        // Verifica el email con el token enviado al registrarse.
+        auth.MapPost("/verify", async (ShopVerifyRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return MissingTenant();
+            var tid = tenant.TenantId.Value;
+            var row = await db.CustomerTokens.FirstOrDefaultAsync(t => t.Token == req.Token && t.TenantId == tid, ct);
+            if (row is null || !row.IsValid(CustomerToken.PurposeVerify))
+                return Problem("ShopAuth.InvalidToken", "El link no es válido o expiró.", 400);
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == row.CustomerId, ct);
+            if (customer is null) return Problem("ShopAuth.InvalidToken", "El link no es válido.", 400);
+            customer.MarkEmailVerified();
+            row.Consume();
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+
+        auth.MapPost("/login", async (ShopLoginRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return MissingTenant();
+            if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
+            var tid = tenant.TenantId.Value;
+            var email = ShopAuth.NormalizeEmail(req.Email);
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == email, ct);
-            if (customer is null || !ShopAuth.VerifyPassword(customer, req.Password ?? string.Empty))
+            if (customer is null)
+            {
+                ShopAuth.BurnPassword(req.Password ?? string.Empty); // iguala timing
+                return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
+            }
+            if (!ShopAuth.VerifyPassword(customer, req.Password ?? string.Empty))
                 return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
             var token = await IssueSessionAsync(db, customer.Id, tid, ct);
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { token, customer = ToDto(customer) });
-        });
+            ShopAuth.SetSessionCookie(http, tid, token);
+            return Results.Ok(new { customer = ToDto(customer) });
+        }).RequireRateLimiting("auth");
 
         auth.MapPost("/logout", async (HttpContext http, CustomersDbContext db, CancellationToken ct) =>
         {
-            var header = http.Request.Headers.Authorization.ToString();
-            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                var token = header["Bearer ".Length..].Trim();
-                await db.CustomerSessions.Where(s => s.Token == token).ExecuteDeleteAsync(ct);
-            }
+            await ShopAuth.LogoutAsync(http, db, ct);
             return Results.NoContent();
         });
 
@@ -121,15 +189,22 @@ public static class ShopAuthEndpoints
             var idToken = tokenDoc.RootElement.TryGetProperty("id_token", out var it) ? it.GetString() : null;
             if (string.IsNullOrEmpty(idToken)) return Problem("ShopAuth.GoogleError", "Sin id_token.", 502);
 
-            // Payload del id_token: viene directo de Google sobre TLS (token endpoint) → no verificamos firma local.
-            var parts = idToken.Split('.');
-            if (parts.Length < 2) return Problem("ShopAuth.GoogleError", "id_token mal formado.", 502);
-            using var payload = JsonDocument.Parse(Encoding.UTF8.GetString(Base64UrlDecode(parts[1])));
-            var sub = payload.RootElement.GetProperty("sub").GetString();
-            var email = payload.RootElement.TryGetProperty("email", out var em) ? em.GetString()?.ToLowerInvariant() : null;
-            var name = payload.RootElement.TryGetProperty("name", out var nm) ? nm.GetString() : email;
-            if (string.IsNullOrEmpty(sub) || string.IsNullOrEmpty(email))
-                return Problem("ShopAuth.GoogleError", "Google no devolvió email.", 502);
+            // Verificamos firma + aud + exp + iss contra las llaves públicas de Google.
+            Google.Apis.Auth.GoogleJsonWebSignature.Payload gp;
+            try
+            {
+                gp = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(idToken,
+                    new Google.Apis.Auth.GoogleJsonWebSignature.ValidationSettings { Audience = new[] { clientId } });
+            }
+            catch
+            {
+                return Problem("ShopAuth.GoogleError", "id_token inválido.", 502);
+            }
+            var sub = gp.Subject;
+            var email = ShopAuth.NormalizeEmail(gp.Email);
+            var name = string.IsNullOrWhiteSpace(gp.Name) ? email : gp.Name;
+            if (string.IsNullOrEmpty(sub) || string.IsNullOrEmpty(email) || !gp.EmailVerified)
+                return Problem("ShopAuth.GoogleError", "Google no devolvió un email verificado.", 502);
 
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == email, ct);
             if (customer is null)
@@ -147,10 +222,11 @@ public static class ShopAuthEndpoints
             var token = await IssueSessionAsync(db, customer.Id, tid, ct);
             await db.SaveChangesAsync(ct);
 
-            // Token en el fragmento (#): no viaja al server, lo lee el storefront en el cliente.
-            var dest = string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl;
-            var sep = dest.Contains('#') ? "&" : "#";
-            return Results.Redirect($"{dest}{sep}shop_token={Uri.EscapeDataString(token)}");
+            // Sesión en cookie HttpOnly (ya no viaja el token por la URL). El storefront
+            // lee /me al volver. Solo redirigimos a destinos propios (anti open-redirect).
+            ShopAuth.SetSessionCookie(http, tid, token);
+            var dest = IsSafeReturnUrl(returnUrl, cfg) ? returnUrl : "/";
+            return Results.Redirect(dest);
         });
 
         return group;
@@ -164,15 +240,44 @@ public static class ShopAuthEndpoints
         return token;
     }
 
-    private static byte[] Base64UrlDecode(string s)
+    /// <summary>
+    /// El destino del callback OAuth debe ser propio: path relativo, o un host de
+    /// la plataforma (localhost/*.localhost en dev, dominio de plataforma + subdominios
+    /// de tienda en prod). Evita open-redirect que filtraría el token de sesión.
+    /// </summary>
+    private static bool IsSafeReturnUrl(string? url, IConfiguration cfg)
     {
-        s = s.Replace('-', '+').Replace('_', '/');
-        switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
-        return Convert.FromBase64String(s);
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (url.StartsWith('/') && !url.StartsWith("//")) return true; // relativo
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
+        if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;
+        var host = u.Host.ToLowerInvariant();
+        if (host == "localhost" || host.EndsWith(".localhost")) return true;
+        var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+        return host == platform || host.EndsWith("." + platform);
     }
 
     private static IResult MissingTenant() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
+
+    /// <summary>Link a la tienda usando el Origin del request (validado). Vacío si no es propio.</summary>
+    private static string BuildLink(HttpContext http, IConfiguration cfg, string path, string token)
+    {
+        var origin = http.Request.Headers.Origin.ToString();
+        var baseUrl = IsSafeReturnUrl(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
+        return $"{baseUrl}{path}?token={Uri.EscapeDataString(token)}";
+    }
+
+    private static string EmailBody(string title, string text, string url, string cta) => $"""
+        <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="margin:0 0 8px">{title}</h2>
+          <p style="color:#444;line-height:1.5">{text}</p>
+          <p style="margin:24px 0">
+            <a href="{url}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block">{cta}</a>
+          </p>
+          <p style="color:#888;font-size:12px;word-break:break-all">O copiá este link: {url}</p>
+        </div>
+        """;
 
     internal static object ToDto(Customer c) => new { id = c.Id, name = c.Name, email = c.Email };
 }

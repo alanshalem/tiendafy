@@ -40,10 +40,21 @@ export interface ThemeHeader {
   border: 'none' | 'line' | 'shadow';
 }
 
+/** Un anuncio de la barra superior: texto + link opcional. */
+export interface AnnouncementItem {
+  text: string;
+  link: string;
+}
 export interface ThemeAnnouncement {
   show: boolean;
-  message: string;
-  link: string;
+  /** 'static' = texto(s) fijo(s) centrado(s); 'marquee' = se desplazan de derecha a izquierda. */
+  animation: 'static' | 'marquee';
+  /** Uno o varios anuncios (cada uno con su link). */
+  items: AnnouncementItem[];
+  /** @deprecated Legacy de la versión de un solo texto — se migra a items[0]. */
+  message?: string;
+  /** @deprecated Legacy. */
+  link?: string;
 }
 
 export interface ComingSoonConfig {
@@ -107,6 +118,8 @@ export interface WhatsAppButtonConfig {
   enabled: boolean;
   phone: string;
   message: string;
+  /** Al pasar el mouse, muestra un mini-preview estilo chat de WhatsApp del mensaje. */
+  showPreview: boolean;
 }
 export interface FooterConfig {
   text: string;
@@ -158,6 +171,10 @@ export const PAYMENT_LOGO_SLUGS: string[] = PAYMENT_LOGOS.map((l) => l.slug);
 
 /** Estilo de bordes global (cards, botones, imágenes, inputs). */
 export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';
+/** Intensidad de las animaciones de entrada del storefront. */
+export type MotionStyle = 'none' | 'subtle' | 'dynamic';
+/** Densidad de espaciado del storefront. */
+export type DensityStyle = 'compact' | 'cozy' | 'spacious';
 
 export interface ThemeConfig {
   logo: string;
@@ -165,6 +182,10 @@ export interface ThemeConfig {
   shareImage: string;
   /** Redondeado (default) / Suave / Cuadrado. */
   borderRadius: BorderRadiusStyle;
+  /** Animaciones de entrada: ninguna / sutil (default) / dinámica. */
+  motion: MotionStyle;
+  /** Espaciado: compacto / cómodo (default) / amplio. */
+  density: DensityStyle;
   colors: ThemeColors;
   fonts: ThemeFonts;
   header: ThemeHeader;
@@ -197,6 +218,8 @@ export const baseTheme: ThemeConfig = {
   favicon: '',
   shareImage: '',
   borderRadius: 'rounded',
+  motion: 'subtle',
+  density: 'cozy',
   colors: { primary: '232 80 30', accent: '27 21 16', useAccent: false, bg: '255 255 255', text: '17 24 39' },
   fonts: { heading: 'sans', body: 'sans' },
   header: {
@@ -204,7 +227,7 @@ export const baseTheme: ThemeConfig = {
     layout: 'classic', textColor: '', transparentOnHome: false, transparentLevel: 'full',
     showSearch: false, showCart: true, cartStyle: 'icon', showAccount: false, border: 'none',
   },
-  announcement: { show: false, message: '', link: '' },
+  announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }], message: '', link: '' },
   comingSoon: { enabled: false, title: 'Estamos en construcción', message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!' },
   sections: [],
   productList: { columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true },
@@ -212,9 +235,39 @@ export const baseTheme: ThemeConfig = {
   cart: { freeShippingBar: false, freeShippingThreshold: 5000000, checkoutButtonText: 'Iniciar compra', showSuggested: true, notice: '' },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
   footer: { text: '', showSocial: true, instagram: '', facebook: '', showPaymentLogos: true, paymentLogos: ['mercadopago', 'visa', 'mastercard'], whatsapps: [], addresses: [], phones: [], emails: [] },
-  whatsappButton: { enabled: false, phone: '', message: '¡Hola! Tengo una consulta.' },
+  whatsappButton: { enabled: false, phone: '', message: '¡Hola! Tengo una consulta.', showPreview: true },
   customCss: '',
 };
+
+/**
+ * Barra de anuncio: arma items[] desde el formato nuevo o migra el legacy
+ * { message, link } a un único item. Nunca devuelve items vacío con animación,
+ * pero sí puede quedar [] (el storefront no renderiza nada si no hay texto).
+ */
+function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncement {
+  const base = baseTheme.announcement;
+  if (!raw) return { ...base, items: base.items.map((i) => ({ ...i })) };
+
+  let items: AnnouncementItem[] = [];
+  if (Array.isArray(raw.items)) {
+    items = raw.items
+      .filter((it): it is AnnouncementItem => !!it && typeof it.text === 'string')
+      .map((it) => ({ text: it.text, link: typeof it.link === 'string' ? it.link : '' }));
+  }
+  // Compat: tema viejo con un solo { message, link }.
+  if (items.length === 0 && typeof raw.message === 'string' && raw.message.trim()) {
+    items = [{ text: raw.message, link: typeof raw.link === 'string' ? raw.link : '' }];
+  }
+  if (items.length === 0) items = [{ text: '', link: '' }];
+
+  return {
+    show: typeof raw.show === 'boolean' ? raw.show : base.show,
+    animation: raw.animation === 'marquee' ? 'marquee' : 'static',
+    items,
+    message: typeof raw.message === 'string' ? raw.message : '',
+    link: typeof raw.link === 'string' ? raw.link : '',
+  };
+}
 
 /**
  * Mergea una config parcial sobre los defaults para que nunca falten campos.
@@ -228,10 +281,12 @@ export function normalizeTheme(raw: Partial<ThemeConfig> | null, fallbackSection
     favicon: typeof raw.favicon === 'string' ? raw.favicon : baseTheme.favicon,
     shareImage: typeof raw.shareImage === 'string' ? raw.shareImage : baseTheme.shareImage,
     borderRadius: raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
+    motion: raw.motion === 'none' || raw.motion === 'dynamic' ? raw.motion : baseTheme.motion,
+    density: raw.density === 'compact' || raw.density === 'spacious' ? raw.density : baseTheme.density,
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
     header: { ...baseTheme.header, ...raw.header },
-    announcement: { ...baseTheme.announcement, ...raw.announcement },
+    announcement: normalizeAnnouncement(raw.announcement),
     comingSoon: { ...baseTheme.comingSoon, ...raw.comingSoon },
     sections: Array.isArray(raw.sections) && raw.sections.length > 0 ? raw.sections : fallbackSections,
     productList: { ...baseTheme.productList, ...raw.productList },

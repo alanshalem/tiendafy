@@ -1,12 +1,32 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Customers.Infrastructure;
 
 public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> options) : DbContext(options)
 {
+    // Cifrado de PII en reposo. Lo setea el host (Program) antes de migrar/servir.
+    // Null (ej. design-time de migraciones) → columnas en claro, sin romper el schema.
+    private static IDataProtector? _piiProtector;
+    public static void UsePii(IDataProtectionProvider provider) =>
+        _piiProtector = provider.CreateProtector("Customers.PII.v1");
+
+    private static string? Encrypt(string? v) =>
+        v is null || _piiProtector is null ? v : _piiProtector.Protect(v);
+
+    private static string? Decrypt(string? v)
+    {
+        if (v is null || _piiProtector is null) return v;
+        try { return _piiProtector.Unprotect(v); }
+        catch { return v; } // fila vieja en claro (pre-cifrado): la devolvemos tal cual
+    }
+
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerSession> CustomerSessions => Set<CustomerSession>();
     public DbSet<CustomerFavorite> CustomerFavorites => Set<CustomerFavorite>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
+    public DbSet<CustomerToken> CustomerTokens => Set<CustomerToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,8 +39,11 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         c.HasIndex(x => new { x.TenantId, x.Email });
         c.Property(x => x.Name).HasMaxLength(120).IsRequired();
         c.Property(x => x.Email).HasMaxLength(200);
-        c.Property(x => x.Phone).HasMaxLength(40);
-        c.Property(x => x.Address).HasMaxLength(300);
+        // PII cifrada en reposo: el ciphertext es más largo y opaco → columnas `text`,
+        // sin índice (no se consultan). Email queda en claro porque es clave de login.
+        var pii = new ValueConverter<string?, string?>(v => Encrypt(v), v => Decrypt(v));
+        c.Property(x => x.Phone).HasConversion(pii);
+        c.Property(x => x.Address).HasConversion(pii);
         c.Property(x => x.Notes).HasMaxLength(2000);
         c.Property(x => x.PasswordHash).HasMaxLength(400);
         c.Property(x => x.GoogleSubject).HasMaxLength(100);
@@ -37,5 +60,22 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         f.HasKey(x => x.Id);
         f.Property(x => x.Id).ValueGeneratedNever();
         f.HasIndex(x => new { x.CustomerId, x.ProductId }).IsUnique();
+
+        var t = modelBuilder.Entity<CustomerToken>();
+        t.ToTable("customer_tokens");
+        t.HasKey(x => x.Id);
+        t.Property(x => x.Id).ValueGeneratedNever();
+        t.HasIndex(x => x.Token).IsUnique();
+        t.Property(x => x.Token).HasMaxLength(120).IsRequired();
+        t.Property(x => x.Purpose).HasMaxLength(20).IsRequired();
+
+        var cm = modelBuilder.Entity<ContactMessage>();
+        cm.ToTable("contact_messages");
+        cm.HasKey(x => x.Id);
+        cm.Property(x => x.Id).ValueGeneratedNever();
+        cm.HasIndex(x => new { x.TenantId, x.CreatedAtUtc });
+        cm.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        cm.Property(x => x.Email).HasMaxLength(200).IsRequired();
+        cm.Property(x => x.Body).HasMaxLength(4000).IsRequired();
     }
 }

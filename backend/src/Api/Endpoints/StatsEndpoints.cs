@@ -9,6 +9,7 @@ using Discounts.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
+using Api.Auth;
 using SharedKernel.Abstractions;
 
 namespace Api.Endpoints;
@@ -17,7 +18,8 @@ public static class StatsEndpoints
 {
     public static RouteGroupBuilder MapStatsEndpoints(this RouteGroupBuilder group)
     {
-        var stats = group.MapGroup("/stats");
+        // Grupo 100% admin: métricas de ventas/clientes. Exige membresía.
+        var stats = group.MapGroup("/stats").RequireTenantMembership();
 
         // Resumen: catálogo + descuentos + clientes + páginas + ventas (de Orders).
         stats.MapGet("/overview", async (

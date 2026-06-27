@@ -1,3 +1,4 @@
+using Api.Auth;
 using Microsoft.Extensions.Options;
 using Payments.Core.Domain;
 using Payments.Core.Features.Connect;
@@ -24,7 +25,7 @@ public static class PaymentsEndpoints
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(ToDto(connection));
-        });
+        }).RequireTenantMembership(); // estado de conexión MP = solo admin (public-config es público aparte)
 
         // Config pública para el storefront: modo de cobro + public key (no secreto).
         mp.MapGet("/public-config", async (

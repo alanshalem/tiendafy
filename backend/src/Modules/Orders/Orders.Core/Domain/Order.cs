@@ -32,6 +32,8 @@ public sealed class Order : AggregateRoot
     public Money DiscountAmount { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? PaidAtUtc { get; private set; }
+    public string? Tracking { get; private set; }
+    public DateTime? FulfilledAtUtc { get; private set; }
 
     private readonly List<OrderItem> _items = [];
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
@@ -111,6 +113,22 @@ public sealed class Order : AggregateRoot
     public void MarkCancelled()
     {
         if (Status == OrderStatus.PendingPayment) Status = OrderStatus.Cancelled;
+    }
+
+    /// <summary>Marca como despachada/entregada (Paid → Fulfilled). Guarda el tracking opcional.</summary>
+    public Result MarkFulfilled(string? tracking)
+    {
+        if (Status == OrderStatus.Fulfilled)
+        {
+            Tracking = string.IsNullOrWhiteSpace(tracking) ? Tracking : tracking.Trim();
+            return Result.Success();
+        }
+        if (Status != OrderStatus.Paid)
+            return Result.Failure(Error.Conflict("Order.NotPaid", $"Order is {Status}, solo se puede despachar una pagada."));
+        Status = OrderStatus.Fulfilled;
+        Tracking = string.IsNullOrWhiteSpace(tracking) ? null : tracking.Trim();
+        FulfilledAtUtc = DateTime.UtcNow;
+        return Result.Success();
     }
 
     /// <summary>Reembolso total tras estar pagada. Idempotente.</summary>

@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using Api.Auth;
+using Identity.Infrastructure;
 using SharedKernel.Common;
 using Tenancy.Contracts;
 using Tenancy.Core;
@@ -13,39 +16,40 @@ public static class TenantEndpoints
     {
         var tenants = group.MapGroup("/tenants");
 
-        // TODO: proteger con auth de plataforma cuando Identity exista.
-        tenants.MapPost("/", async (CreateTenantRequest request, CreateTenantHandler handler, CancellationToken ct) =>
+        // Crear tienda: el usuario autenticado queda como dueño (membresía).
+        tenants.MapPost("/", async (CreateTenantRequest request, CreateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            var userId = user.GetUserId();
+            if (userId is null) return Results.Unauthorized();
             var result = await handler.HandleAsync(new CreateTenantCommand(request.Name, request.Subdomain), ct);
-            return result.IsSuccess
-                ? Results.Created($"/api/v1/tenants/{result.Value.Id}", result.Value)
-                : result.Error.ToProblem();
-        });
+            if (!result.IsSuccess) return result.Error.ToProblem();
+            await memberships.AddOwnerAsync(userId.Value, result.Value.Id, ct);
+            return Results.Created($"/api/v1/tenants/{result.Value.Id}", result.Value);
+        }).RequireAuthorization();
 
-        // Paginado por cursor: ?limit=20&after=<último id de la página anterior>
-        tenants.MapGet("/", async (Tenancy.Core.Domain.ITenantRepository repository, CancellationToken ct, int limit = 20, Guid? after = null) =>
+        // Sólo las tiendas del usuario autenticado.
+        tenants.MapGet("/", async (ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
-            limit = Math.Clamp(limit, 1, 100);
-            var page = await repository.ListAsync(limit + 1, after, ct);
-            var hasMore = page.Count > limit;
-            var items = page.Take(limit).Select(t => t.ToDto()).ToList();
-
-            return Results.Ok(new
+            var userId = user.GetUserId();
+            if (userId is null) return Results.Unauthorized();
+            var ids = await memberships.TenantIdsForUserAsync(userId.Value, ct);
+            var items = new List<object>();
+            foreach (var id in ids)
             {
-                items,
-                nextCursor = hasMore ? items[^1].Id.ToString() : null,
-                hasMore,
-            });
-        });
+                var t = await service.GetByIdAsync(id, ct);
+                if (t is not null) items.Add(t);
+            }
+            return Results.Ok(new { items, nextCursor = (string?)null, hasMore = false });
+        }).RequireAuthorization();
 
-        tenants.MapGet("/{id:guid}", async (Guid id, ITenancyService service, CancellationToken ct) =>
+        tenants.MapGet("/{id:guid}", async (Guid id, ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            if (await NotMember(user, id, memberships, ct)) return Forbidden();
             var tenant = await service.GetByIdAsync(id, ct);
             return tenant is null ? Results.NotFound() : Results.Ok(tenant);
-        });
+        }).RequireAuthorization();
 
-        // Disponibilidad de nombre/subdominio para validar en vivo en el form.
-        // excludeId = id de la tienda que se está editando (no choca consigo misma).
+        // Disponibilidad de nombre/subdominio para el form de creación (admin).
         tenants.MapGet("/check", async (
             ITenantRepository repository,
             CancellationToken ct,
@@ -60,35 +64,39 @@ public static class TenantEndpoints
                 || !await repository.NameExistsAsync(name, excludeId, ct);
 
             return Results.Ok(new { subdomainValid, subdomainAvailable, nameAvailable });
-        });
+        }).RequireAuthorization();
 
-        tenants.MapPatch("/{id:guid}", async (Guid id, UpdateTenantRequest request, UpdateTenantHandler handler, CancellationToken ct) =>
+        tenants.MapPatch("/{id:guid}", async (Guid id, UpdateTenantRequest request, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            if (await NotMember(user, id, memberships, ct)) return Forbidden();
             var result = await handler.UpdateAsync(
                 new UpdateTenantCommand(id, request.Name, request.Subdomain, request.CustomDomain), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
-        });
+        }).RequireAuthorization();
 
-        tenants.MapPost("/{id:guid}/archive", async (Guid id, UpdateTenantHandler handler, CancellationToken ct) =>
+        tenants.MapPost("/{id:guid}/archive", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            if (await NotMember(user, id, memberships, ct)) return Forbidden();
             var result = await handler.ArchiveAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
-        });
+        }).RequireAuthorization();
 
-        tenants.MapPost("/{id:guid}/activate", async (Guid id, UpdateTenantHandler handler, CancellationToken ct) =>
+        tenants.MapPost("/{id:guid}/activate", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            if (await NotMember(user, id, memberships, ct)) return Forbidden();
             var result = await handler.ActivateAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
-        });
+        }).RequireAuthorization();
 
         // Soft-delete: marca CANCELED. No borra físico (productos/temas referencian el id).
-        tenants.MapDelete("/{id:guid}", async (Guid id, UpdateTenantHandler handler, CancellationToken ct) =>
+        tenants.MapDelete("/{id:guid}", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
+            if (await NotMember(user, id, memberships, ct)) return Forbidden();
             var result = await handler.DeleteAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
-        });
+        }).RequireAuthorization();
 
-        // Resolución por host — lo usan storefront y admin para saber qué tienda servir.
+        // Resolución por host — pública (storefront + admin la usan para resolver tienda).
         tenants.MapGet("/resolve", async (string host, ITenancyService service, CancellationToken ct) =>
         {
             var tenant = await service.ResolveByHostAsync(host, ct);
@@ -97,6 +105,15 @@ public static class TenantEndpoints
 
         return group;
     }
+
+    private static async Task<bool> NotMember(ClaimsPrincipal user, Guid tenantId, IMembershipService memberships, CancellationToken ct)
+    {
+        var userId = user.GetUserId();
+        return userId is null || !await memberships.IsMemberAsync(userId.Value, tenantId, ct);
+    }
+
+    private static IResult Forbidden() =>
+        Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>RFC 7807 problem+json desde un Error del dominio.</summary>
     public static IResult ToProblem(this Error error)

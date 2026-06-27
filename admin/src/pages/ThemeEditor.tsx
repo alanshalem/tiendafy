@@ -16,9 +16,11 @@ import {
   Package,
   Palette,
   Phone,
+  Plus,
   ShoppingCart,
   Smartphone,
   Square,
+  Trash2,
   Type,
   X,
   type LucideIcon,
@@ -27,6 +29,7 @@ import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, PAYMENT_LOGOS } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, setActiveTenant } from '../lib/api';
+import { ThemeModeToggle } from '../components/ThemeModeToggle';
 import { ImageUploader } from './theme-editor-uploaders';
 import { BackHeader, Field, Check, Select, TextInput, TextArea, StringList, ColorRow, INPUT_BASE, contrastText } from './theme-editor-inputs';
 import { HomePanel, SectionPanel } from './theme-editor-sections';
@@ -65,24 +68,70 @@ const fontOptions = [
   { value: 'archivoblack', label: 'Archivo Black' },
 ];
 
-// Orden: paletas claras primero, oscuras al final (igual que la galería de diseños).
+// Familias CSS para previsualizar en el panel (mismas que el storefront).
+const FONT_CSS: Record<string, string> = {
+  sans: 'ui-sans-serif, system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  display: 'Georgia, serif',
+  mono: 'ui-monospace, monospace',
+  poppins: "'Poppins', sans-serif",
+  montserrat: "'Montserrat', sans-serif",
+  dmsans: "'DM Sans', sans-serif",
+  manrope: "'Manrope', sans-serif",
+  worksans: "'Work Sans', sans-serif",
+  spacegrotesk: "'Space Grotesk', sans-serif",
+  playfair: "'Playfair Display', serif",
+  lora: "'Lora', serif",
+  cormorant: "'Cormorant Garamond', serif",
+  dmserif: "'DM Serif Display', serif",
+  bebas: "'Bebas Neue', sans-serif",
+  archivoblack: "'Archivo Black', sans-serif",
+};
+
+// Combinaciones de tipografías que funcionan bien juntas (título + cuerpo).
+// Curadas según pares clásicos de diseño, usando sólo fuentes ya cargadas.
+const FONT_PAIRINGS: { name: string; heading: string; body: string }[] = [
+  { name: 'Editorial', heading: 'playfair', body: 'dmsans' },
+  { name: 'Moderno', heading: 'spacegrotesk', body: 'worksans' },
+  { name: 'Elegante', heading: 'cormorant', body: 'montserrat' },
+  { name: 'Impacto', heading: 'bebas', body: 'montserrat' },
+  { name: 'Minimalista', heading: 'manrope', body: 'manrope' },
+  { name: 'Clásico', heading: 'dmserif', body: 'dmsans' },
+  { name: 'Boutique', heading: 'playfair', body: 'montserrat' },
+  { name: 'Tecnológico', heading: 'spacegrotesk', body: 'dmsans' },
+  { name: 'Cálido', heading: 'lora', body: 'worksans' },
+  { name: 'Amigable', heading: 'poppins', body: 'dmsans' },
+  { name: 'Lujo', heading: 'cormorant', body: 'worksans' },
+  { name: 'Deportivo', heading: 'archivoblack', body: 'worksans' },
+  { name: 'Revista', heading: 'dmserif', body: 'montserrat' },
+  { name: 'Sobrio', heading: 'montserrat', body: 'lora' },
+  { name: 'Fashion', heading: 'bebas', body: 'worksans' },
+];
+
+// Paletas curadas. `group` separa claras de oscuras en el panel.
 const presets = [
-  { name: 'Bermellón', primary: '232 80 30', bg: '255 255 255', text: '17 24 39', header: '27 21 16' },
-  { name: 'Mono', primary: '17 17 17', bg: '255 255 255', text: '17 17 17', header: '17 17 17' },
-  { name: 'Arena', primary: '194 65 12', bg: '254 252 248', text: '41 37 36', header: '68 64 60' },
-  { name: 'Cielo', primary: '12 74 110', bg: '248 251 253', text: '23 37 47', header: '12 74 110' },
-  { name: 'Bosque', primary: '30 91 63', bg: '250 252 248', text: '26 36 30', header: '30 91 63' },
-  { name: 'Menta', primary: '13 148 136', bg: '247 254 252', text: '19 78 74', header: '17 94 89' },
-  { name: 'Esmeralda', primary: '5 150 105', bg: '247 254 250', text: '6 78 59', header: '6 78 59' },
-  { name: 'Rosa', primary: '214 109 132', bg: '255 251 252', text: '52 36 41', header: '52 36 41' },
-  { name: 'Coral', primary: '244 63 94', bg: '255 250 251', text: '76 5 25', header: '76 5 25' },
-  { name: 'Vino', primary: '159 18 57', bg: '254 252 252', text: '50 12 24', header: '76 5 25' },
-  { name: 'Lavanda', primary: '124 58 237', bg: '250 250 255', text: '30 27 75', header: '49 46 129' },
-  { name: 'Mostaza', primary: '202 138 4', bg: '254 252 245', text: '41 37 28', header: '66 50 12' },
-  { name: 'Noche', primary: '163 230 53', bg: '14 14 14', text: '245 245 245', header: '0 0 0' },
-  { name: 'Carbón', primary: '249 115 22', bg: '24 24 27', text: '244 244 245', header: '9 9 11' },
-  { name: 'Marino', primary: '56 189 248', bg: '15 23 42', text: '226 232 240', header: '2 6 23' },
-  { name: 'Grafito', primary: '129 140 248', bg: '17 17 19', text: '237 237 240', header: '9 9 11' },
+  // --- Claras ---
+  { name: 'Bermellón', group: 'light', primary: '232 80 30', bg: '255 255 255', text: '17 24 39', header: '27 21 16' },
+  { name: 'Mono', group: 'light', primary: '17 17 17', bg: '255 255 255', text: '17 17 17', header: '17 17 17' },
+  { name: 'Arena', group: 'light', primary: '194 65 12', bg: '254 252 248', text: '41 37 36', header: '68 64 60' },
+  { name: 'Cielo', group: 'light', primary: '12 74 110', bg: '248 251 253', text: '23 37 47', header: '12 74 110' },
+  { name: 'Bosque', group: 'light', primary: '30 91 63', bg: '250 252 248', text: '26 36 30', header: '30 91 63' },
+  { name: 'Menta', group: 'light', primary: '13 148 136', bg: '247 254 252', text: '19 78 74', header: '17 94 89' },
+  { name: 'Esmeralda', group: 'light', primary: '5 150 105', bg: '247 254 250', text: '6 78 59', header: '6 78 59' },
+  { name: 'Turquesa', group: 'light', primary: '8 145 178', bg: '247 254 255', text: '22 60 70', header: '14 116 144' },
+  { name: 'Rosa', group: 'light', primary: '214 109 132', bg: '255 251 252', text: '52 36 41', header: '52 36 41' },
+  { name: 'Coral', group: 'light', primary: '244 63 94', bg: '255 250 251', text: '76 5 25', header: '76 5 25' },
+  { name: 'Vino', group: 'light', primary: '159 18 57', bg: '254 252 252', text: '50 12 24', header: '76 5 25' },
+  { name: 'Lavanda', group: 'light', primary: '124 58 237', bg: '250 250 255', text: '30 27 75', header: '49 46 129' },
+  { name: 'Índigo', group: 'light', primary: '67 56 202', bg: '249 250 255', text: '30 27 75', header: '49 46 129' },
+  { name: 'Mostaza', group: 'light', primary: '202 138 4', bg: '254 252 245', text: '41 37 28', header: '66 50 12' },
+  // --- Oscuras ---
+  { name: 'Obsidiana', group: 'dark', primary: '232 80 30', bg: '10 10 10', text: '245 245 245', header: '0 0 0' },
+  { name: 'Noche', group: 'dark', primary: '163 230 53', bg: '14 14 14', text: '245 245 245', header: '0 0 0' },
+  { name: 'Carbón', group: 'dark', primary: '249 115 22', bg: '24 24 27', text: '244 244 245', header: '9 9 11' },
+  { name: 'Marino', group: 'dark', primary: '56 189 248', bg: '15 23 42', text: '226 232 240', header: '2 6 23' },
+  { name: 'Grafito', group: 'dark', primary: '129 140 248', bg: '17 17 19', text: '237 237 240', header: '9 9 11' },
+  { name: 'Viña', group: 'dark', primary: '244 63 94', bg: '20 12 16', text: '245 240 242', header: '10 6 8' },
 ];
 
 export function ThemeEditorPage() {
@@ -253,7 +302,7 @@ export function ThemeEditorPage() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg-subtle">
       {/* Top bar */}
-      <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4">
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface/80 px-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/canales/tienda-online/disenios')} aria-label="Cerrar" className="text-fg-muted hover:text-fg">
             <X className="h-5 w-5" />
@@ -280,18 +329,19 @@ export function ThemeEditorPage() {
             </Dropdown>
           )}
         </div>
-        <div className="flex gap-1 rounded-md border border-border p-0.5">
+        <div className="flex gap-1 rounded-full border border-border bg-bg-muted p-1">
           {(['mobile', 'desktop'] as const).map((d) => (
             <button
               key={d}
               onClick={() => setDevice(d)}
-              className={cn('inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-semibold', device === d ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:text-fg')}
+              className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors', device === d ? 'bg-primary text-primary-fg shadow-sm' : 'text-fg-muted hover:text-fg')}
             >
               {d === 'mobile' ? <><Smartphone className="h-4 w-4" /> Celulares</> : <><Monitor className="h-4 w-4" /> Computadoras</>}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-3">
+          <ThemeModeToggle />
           <a href={previewBase} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
             Ver tienda <ExternalLink className="h-4 w-4" />
           </a>
@@ -310,11 +360,11 @@ export function ThemeEditorPage() {
             <div>
               <BackHeader title="Identidad de tu tienda" onBack={() => setView('root')} />
               <div className="space-y-5 p-4">
-                <Field label="Logo de la tienda" hint="Se muestra en el encabezado. JPG, PNG, WebP o AVIF · hasta 5MB. Tamaño recomendado: 575×230px (horizontal, fondo transparente PNG ideal). Si no cargás logo, se muestra el nombre de la tienda.">
-                  <ImageUploader value={theme.logo} onChange={(url) => updateTheme((t) => ({ ...t, logo: url }))} />
+                <Field label="Logo de la tienda" hint="Se muestra en el encabezado. JPG, PNG, WebP, AVIF o SVG · hasta 5MB. Tamaño recomendado: 575×230px (horizontal, fondo transparente). SVG ideal: se ve nítido en cualquier tamaño. Si no cargás logo, se muestra el nombre de la tienda.">
+                  <ImageUploader value={theme.logo} onChange={(url) => updateTheme((t) => ({ ...t, logo: url }))} allowSvg />
                 </Field>
-                <Field label="Favicon" hint="El ícono chico de la pestaña del navegador. JPG, PNG, WebP o AVIF · hasta 5MB. Tamaño recomendado: 130×130px (cuadrado; PNG con fondo transparente).">
-                  <ImageUploader value={theme.favicon} onChange={(url) => updateTheme((t) => ({ ...t, favicon: url }))} />
+                <Field label="Favicon" hint="El ícono chico de la pestaña del navegador. JPG, PNG, WebP, AVIF o SVG · hasta 5MB. Tamaño recomendado: 130×130px (cuadrado). SVG ideal por nitidez.">
+                  <ImageUploader value={theme.favicon} onChange={(url) => updateTheme((t) => ({ ...t, favicon: url }))} allowSvg />
                 </Field>
                 <Field label="Imagen al compartir" hint="La que se ve al compartir el link en redes (WhatsApp, Instagram…). JPG, PNG, WebP o AVIF · hasta 5MB. Tamaño recomendado: 1200×630px (horizontal) o 600×600px (cuadrada).">
                   <ImageUploader value={theme.shareImage} onChange={(url) => updateTheme((t) => ({ ...t, shareImage: url }))} />
@@ -330,7 +380,7 @@ export function ThemeEditorPage() {
               onToggleAccent={(on) => updateTheme((t) => ({ ...t, colors: { ...t.colors, useAccent: on } }))}
               applyPreset={(p) => updateTheme((t) => ({ ...t, colors: { ...t.colors, primary: p.primary, bg: p.bg, text: p.text }, header: { ...t.header, bg: p.header, textColor: contrastText(p.header) } }))} />
           )}
-          {view === 'fonts' && <FontsPanel theme={theme} onBack={() => setView('root')} onChange={(k, v) => updateTheme((t) => ({ ...t, fonts: { ...t.fonts, [k]: v } }))} />}
+          {view === 'fonts' && <FontsPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'radius' && <BorderRadiusPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'header' && <HeaderPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
           {view === 'home' && <HomePanel theme={theme} onBack={() => setView('root')} onOpenSection={(id) => setView(`home:${id}`)} updateTheme={updateTheme} />}
@@ -352,15 +402,30 @@ export function ThemeEditorPage() {
           {view === 'coming-soon' && <ComingSoonPanel theme={theme} onBack={() => setView('root')} updateTheme={updateTheme} />}
         </aside>
 
-        {/* Preview */}
+        {/* Preview — UN solo iframe persistente; cambiar de device solo reestiliza
+            el contenedor (no remonta el iframe), así no recarga ni parpadea. */}
         <div className="flex flex-1 items-start justify-center overflow-auto bg-bg-muted p-6">
-          {device === 'mobile' ? (
-            <div className="overflow-hidden rounded-[2rem] border-8 border-black bg-black shadow-2xl" style={{ width: 390 }}>
-              <iframe ref={iframeRef} src={previewUrl} title="Preview" className="h-[780px] w-full bg-white" />
-            </div>
-          ) : (
-            <iframe ref={iframeRef} src={previewUrl} title="Preview" className="h-full min-h-[700px] w-full rounded-lg border border-border bg-white shadow-card" />
-          )}
+          <div
+            className={cn(
+              'transition-all duration-300 ease-out',
+              device === 'mobile'
+                ? 'overflow-hidden rounded-[2rem] border-8 border-black bg-black shadow-2xl'
+                : 'h-full w-full',
+            )}
+            style={device === 'mobile' ? { width: 390 } : undefined}
+          >
+            <iframe
+              ref={iframeRef}
+              src={previewUrl}
+              title="Preview"
+              className={cn(
+                'w-full bg-white',
+                device === 'mobile'
+                  ? 'h-[780px]'
+                  : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+              )}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -374,7 +439,7 @@ function RootNav({ onNavigate }: { onNavigate: (v: string) => void }) {
       <NavRow icon={Image} label="Logo de la tienda" onClick={() => onNavigate('logo')} />
       <NavRow icon={Palette} label="Colores de tu marca" onClick={() => onNavigate('colors')} />
       <NavRow icon={Type} label="Tipo de letra" onClick={() => onNavigate('fonts')} />
-      <NavRow icon={Square} label="Estilo de bordes" onClick={() => onNavigate('radius')} />
+      <NavRow icon={Square} label="Estilo y movimiento" onClick={() => onNavigate('radius')} />
       <GroupLabel>Configuraciones avanzadas</GroupLabel>
       <NavRow icon={ChevronUp} label="Encabezado" onClick={() => onNavigate('header')} />
       <NavRow icon={Home} label="Página de inicio" onClick={() => onNavigate('home')} />
@@ -424,14 +489,83 @@ function ColorsPanel({ theme, onBack, setColor, onToggleAccent, applyPreset }: {
         </div>
         <div className="border-t border-border pt-4">
           <div className="mb-1 text-sm font-semibold text-fg">Combinaciones predeterminadas</div>
-          <p className="mb-3 text-xs text-fg-muted">Un click para arrancar de una base.</p>
-          <div className="grid grid-cols-3 gap-2">
-            {presets.map((p) => (
-              <button key={p.name} onClick={() => applyPreset(p)} className="overflow-hidden rounded-md border border-border" title={p.name}>
-                <div className="h-8" style={{ background: `rgb(${p.primary})` }} />
-                <div className="h-4" style={{ background: `rgb(${p.header})` }} />
-              </button>
-            ))}
+          <p className="mb-3 text-xs text-fg-muted">Un click para arrancar de una base. El nombre va en el fondo y color de texto reales de la paleta.</p>
+          {(['light', 'dark'] as const).map((grp) => (
+            <div key={grp} className="mb-4 last:mb-0">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{grp === 'light' ? 'Claras' : 'Oscuras'}</div>
+              <div className="grid grid-cols-2 gap-2">
+                {presets.filter((p) => p.group === grp).map((p) => {
+                  const active = theme.colors.primary === p.primary && theme.colors.bg === p.bg && theme.colors.text === p.text;
+                  return (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      aria-pressed={active}
+                      title={p.name}
+                      className={cn('overflow-hidden rounded-lg border transition', active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong')}
+                    >
+                      <div className="flex h-7">
+                        <div className="flex-1" style={{ background: `rgb(${p.primary})` }} />
+                        <div className="w-1/3" style={{ background: `rgb(${p.header})` }} />
+                      </div>
+                      <div className="flex items-center justify-between px-2.5 py-2" style={{ background: `rgb(${p.bg})`, color: `rgb(${p.text})` }}>
+                        <span className="text-sm font-semibold">{p.name}</span>
+                        <span className="text-xs opacity-60">Aa</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FontsPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBack: () => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void }) {
+  const setFont = (k: 'heading' | 'body', v: string) => updateTheme((t) => ({ ...t, fonts: { ...t.fonts, [k]: v } }));
+  const applyPair = (heading: string, body: string) => updateTheme((t) => ({ ...t, fonts: { ...t.fonts, heading, body } }));
+  return (
+    <div>
+      <BackHeader title="Tipo de letra" onBack={onBack} />
+      <div className="space-y-5 p-4">
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Combinaciones listas</div>
+          <p className="mb-3 text-xs text-fg-muted">Pares de tipografías que combinan bien. Tocá una para aplicarla.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {FONT_PAIRINGS.map((p) => {
+              const active = theme.fonts.heading === p.heading && theme.fonts.body === p.body;
+              return (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => applyPair(p.heading, p.body)}
+                  aria-pressed={active}
+                  className={cn(
+                    'rounded-lg border p-3 text-left transition',
+                    active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
+                  )}
+                >
+                  <div className="text-lg leading-tight text-fg" style={{ fontFamily: FONT_CSS[p.heading] }}>{p.name}</div>
+                  <div className="mt-0.5 text-xs text-fg-muted" style={{ fontFamily: FONT_CSS[p.body] }}>Texto de muestra</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Personalizado</div>
+          <div className="space-y-4">
+            <Field label="Títulos de páginas y banners">
+              <Select value={theme.fonts.heading} onChange={(v) => setFont('heading', v)} options={fontOptions} />
+            </Field>
+            <Field label="Texto en el resto del sitio">
+              <Select value={theme.fonts.body} onChange={(v) => setFont('body', v)} options={fontOptions} />
+            </Field>
           </div>
         </div>
       </div>
@@ -439,28 +573,41 @@ function ColorsPanel({ theme, onBack, setColor, onToggleAccent, applyPreset }: {
   );
 }
 
-function FontsPanel({ theme, onBack, onChange }: { theme: ThemeConfig; onBack: () => void; onChange: (k: 'heading' | 'body', v: string) => void }) {
-  return (
-    <div>
-      <BackHeader title="Tipo de letra" onBack={onBack} />
-      <div className="space-y-4 p-4">
-        <Field label="Títulos de páginas y banners">
-          <Select value={theme.fonts.heading} onChange={(v) => onChange('heading', v)} options={fontOptions} />
-        </Field>
-        <Field label="Texto en el resto del sitio">
-          <Select value={theme.fonts.body} onChange={(v) => onChange('body', v)} options={fontOptions} />
-        </Field>
-      </div>
-    </div>
-  );
-}
+const HEADER_PRESETS: { name: string; header: Partial<ThemeConfig['header']> }[] = [
+  { name: 'Clásico', header: { layout: 'classic', border: 'line', transparentOnHome: false, logoSize: 'md', sticky: true } },
+  { name: 'Centrado', header: { layout: 'logo-center', border: 'none', transparentOnHome: false, logoSize: 'md', sticky: true } },
+  { name: 'Inmersivo', header: { layout: 'classic', border: 'none', transparentOnHome: true, transparentLevel: 'full', logoSize: 'lg', sticky: true } },
+  { name: 'Minimal', header: { layout: 'menu-left', border: 'none', transparentOnHome: false, logoSize: 'sm', sticky: true } },
+];
 
 function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBack: () => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void }) {
   const setH = (patch: Partial<ThemeConfig['header']>) => updateTheme((t) => ({ ...t, header: { ...t.header, ...patch } }));
+  const matchesPreset = (h: Partial<ThemeConfig['header']>) =>
+    (Object.keys(h) as (keyof ThemeConfig['header'])[]).every((k) => theme.header[k] === h[k]);
   return (
     <div>
       <BackHeader title="Encabezado" onBack={onBack} />
       <div className="space-y-4 p-4">
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Estilos rápidos</div>
+          <div className="grid grid-cols-2 gap-2">
+            {HEADER_PRESETS.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => setH(p.header)}
+                aria-pressed={matchesPreset(p.header)}
+                className={cn(
+                  'rounded-lg border px-3 py-2.5 text-sm font-medium transition',
+                  matchesPreset(p.header) ? 'border-primary text-primary ring-2 ring-primary/30' : 'border-border text-fg hover:border-border-strong',
+                )}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-fg-muted">Ajustá los detalles abajo.</p>
+        </div>
         <ColorRow label="Color de fondo del encabezado" value={theme.header.bg} onChange={(v) => updateTheme((t) => ({ ...t, header: { ...t.header, bg: v } }))} fallback="#1b1510" />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={theme.header.sticky} onChange={(e) => updateTheme((t) => ({ ...t, header: { ...t.header, sticky: e.target.checked } }))} className="rounded-sm" />
@@ -548,12 +695,58 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
           </label>
           {theme.announcement.show && (
             <div className="mt-3 space-y-3">
-              <Field label="Mensaje">
-                <TextInput value={theme.announcement.message} onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, message: v } }))} placeholder="10% OFF EN TU PRIMERA COMPRA" />
+              <Field label="Animación">
+                <Select
+                  value={theme.announcement.animation}
+                  onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, animation: v as ThemeConfig['announcement']['animation'] } }))}
+                  options={[{ value: 'static', label: 'Fija (centrada)' }, { value: 'marquee', label: 'En movimiento (derecha → izquierda)' }]}
+                />
               </Field>
-              <Field label="Link (opcional)">
-                <TextInput value={theme.announcement.link} onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, link: v } }))} placeholder="/productos" />
-              </Field>
+
+              <div className="space-y-3">
+                {theme.announcement.items.map((it, i) => (
+                  <div key={i} className="space-y-2 rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">Anuncio {i + 1}</span>
+                      {theme.announcement.items.length > 1 && (
+                        <button
+                          type="button"
+                          aria-label="Quitar anuncio"
+                          onClick={() => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.filter((_, idx) => idx !== i) } }))}
+                          className="rounded p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <Field label="Texto">
+                      <TextInput
+                        value={it.text}
+                        onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, text: v } : x)) } }))}
+                        placeholder="10% OFF EN TU PRIMERA COMPRA"
+                      />
+                    </Field>
+                    <Field label="Link (opcional)">
+                      <TextInput
+                        value={it.link}
+                        onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, link: v } : x)) } }))}
+                        placeholder="/productos"
+                      />
+                    </Field>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: [...t.announcement.items, { text: '', link: '' }] } }))}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+              >
+                <Plus className="h-4 w-4" /> Agregar anuncio
+              </button>
+              {theme.announcement.animation === 'marquee' && (
+                <p className="text-xs text-fg-muted">Con varios anuncios y movimiento, se muestran en fila desplazándose en loop.</p>
+              )}
             </div>
           )}
         </div>
@@ -666,6 +859,14 @@ function ContactPanel({ theme, onBack, updateTheme }: PanelProps) {
   );
 }
 
+const WHATSAPP_MESSAGES = [
+  '¡Hola! Tengo una consulta.',
+  '¡Hola! Quiero hacer un pedido.',
+  'Hola, ¿hacen envíos a mi zona?',
+  'Hola, quería consultar por un producto.',
+  '¡Hola! ¿Tienen stock disponible?',
+];
+
 function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = (patch: Partial<ThemeConfig['whatsappButton']>) => updateTheme((t) => ({ ...t, whatsappButton: { ...t.whatsappButton, ...patch } }));
   const w = theme.whatsappButton;
@@ -679,6 +880,31 @@ function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
           <>
             <Field label="Número de WhatsApp"><TextInput value={w.phone} onChange={(v) => set({ phone: v })} placeholder="+54 9 11 1234 5678" /></Field>
             <Field label="Mensaje inicial"><TextArea value={w.message} onChange={(v) => set({ message: v })} /></Field>
+            <Check
+              label="Vista previa al pasar el mouse"
+              checked={w.showPreview}
+              onChange={(v) => set({ showPreview: v })}
+            />
+            <p className="-mt-2 text-xs text-fg-muted">En compu, al pasar el mouse por el botón se abre un mini-chat estilo WhatsApp con el mensaje.</p>
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Mensajes listos</div>
+              <div className="space-y-1.5">
+                {WHATSAPP_MESSAGES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => set({ message: m })}
+                    aria-pressed={w.message === m}
+                    className={cn(
+                      'block w-full rounded-md border px-3 py-2 text-left text-sm transition',
+                      w.message === m ? 'border-primary text-primary ring-2 ring-primary/30' : 'border-border text-fg hover:border-border-strong',
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -755,36 +981,89 @@ function PaymentLogoPicker({ selected, onChange }: { selected: string[]; onChang
   );
 }
 
+/** Grupo de opciones tipo segmented (3 botones). */
+function SegGroup<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            'rounded-lg border px-2 py-2 text-xs font-medium transition',
+            value === o.value ? 'border-primary text-primary ring-2 ring-primary/30' : 'border-border text-fg hover:border-border-strong',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const opts: { value: ThemeConfig['borderRadius']; label: string; sample: string }[] = [
+  const radiusOpts: { value: ThemeConfig['borderRadius']; label: string; sample: string }[] = [
     { value: 'rounded', label: 'Redondeado', sample: 'rounded-xl' },
     { value: 'soft', label: 'Suave', sample: 'rounded' },
     { value: 'sharp', label: 'Cuadrado', sample: 'rounded-none' },
   ];
   return (
     <div>
-      <BackHeader title="Estilo de bordes" onBack={onBack} />
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-fg-muted">Aplica a cards, botones, imágenes e inputs de tu tienda. Los íconos circulares (carrito, WhatsApp) no cambian.</p>
-        <div className="grid grid-cols-3 gap-2">
-          {opts.map((o) => {
-            const active = theme.borderRadius === o.value;
-            return (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => updateTheme((t) => ({ ...t, borderRadius: o.value }))}
-                aria-pressed={active}
-                className={cn(
-                  'flex flex-col items-center gap-2.5 rounded-lg border p-3 text-xs font-medium transition',
-                  active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
-                )}
-              >
-                <span className={cn('h-11 w-11 border-2 border-fg/50 bg-fg/5', o.sample)} />
-                {o.label}
-              </button>
-            );
-          })}
+      <BackHeader title="Estilo y movimiento" onBack={onBack} />
+      <div className="space-y-6 p-4">
+        <div>
+          <div className="mb-2 text-sm font-semibold text-fg">Bordes</div>
+          <p className="mb-3 text-xs text-fg-muted">Cards, botones, imágenes e inputs. Los íconos circulares no cambian.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {radiusOpts.map((o) => {
+              const active = theme.borderRadius === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => updateTheme((t) => ({ ...t, borderRadius: o.value }))}
+                  aria-pressed={active}
+                  className={cn(
+                    'flex flex-col items-center gap-2.5 rounded-lg border p-3 text-xs font-medium transition',
+                    active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
+                  )}
+                >
+                  <span className={cn('h-11 w-11 border-2 border-fg/50 bg-fg/5', o.sample)} />
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-2 text-sm font-semibold text-fg">Movimiento</div>
+          <p className="mb-3 text-xs text-fg-muted">Animaciones de entrada al cargar y scrollear.</p>
+          <SegGroup
+            value={theme.motion}
+            onChange={(v) => updateTheme((t) => ({ ...t, motion: v }))}
+            options={[
+              { value: 'none', label: 'Sin' },
+              { value: 'subtle', label: 'Sutil' },
+              { value: 'dynamic', label: 'Dinámico' },
+            ]}
+          />
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-2 text-sm font-semibold text-fg">Densidad</div>
+          <p className="mb-3 text-xs text-fg-muted">Cuánto aire entre secciones de la tienda.</p>
+          <SegGroup
+            value={theme.density}
+            onChange={(v) => updateTheme((t) => ({ ...t, density: v }))}
+            options={[
+              { value: 'compact', label: 'Compacto' },
+              { value: 'cozy', label: 'Cómodo' },
+              { value: 'spacious', label: 'Amplio' },
+            ]}
+          />
         </div>
       </div>
     </div>

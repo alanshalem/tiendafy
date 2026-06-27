@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using Api.Auth;
 using Api.Notifications;
 using Checkout.Core.Domain;
 using Discounts.Infrastructure;
@@ -12,6 +14,9 @@ namespace Api.Endpoints;
 
 public static class OrderEndpoints
 {
+    // Serializa reembolsos concurrentes de la misma orden (por instancia).
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> RefundLocks = new();
+
     public static RouteGroupBuilder MapOrderEndpoints(this RouteGroupBuilder group)
     {
         // Pagar con Checkout Pro (redirect) → crea Order + preference MP.
@@ -99,6 +104,53 @@ public static class OrderEndpoints
             if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
             return Results.Ok(new { items = items.Select(ToDto) });
+        }).RequireTenantMembership(); // lista completa de ventas = solo admin de la tienda
+
+        // Marcar despachado (admin). Paid → Fulfilled + tracking + email de envío.
+        group.MapPost("/orders/{id:guid}/fulfill", async (
+            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+            var r = order.MarkFulfilled(req.Tracking);
+            if (r.IsFailure) return r.Error.ToProblem();
+            await orders.SaveChangesAsync(ct);
+            await notifier.NotifyAsync(order, "confirmacion-envio", ct);
+            return Results.Ok(ToDto(order));
+        });
+
+        // Reembolso total (admin). MP refund → Refunded + email.
+        // Lock por orden + recarga dentro del lock: dos requests concurrentes no
+        // disparan dos refunds ni dos emails (el dinero ya es idempotente en MP).
+        group.MapPost("/orders/{id:guid}/refund", async (
+            Guid id, ITenantContext tenant, IOrderRepository orders, IMercadoPagoPaymentService mp, OrderNotifier notifier, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+
+            var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+                if (order is null) return Results.NotFound();
+                if (string.IsNullOrEmpty(order.PaymentId))
+                    return Error.Validation("Order.NoPayment", "El pedido no tiene un pago para reembolsar.").ToProblem();
+                if (order.Status is not (OrderStatus.Paid or OrderStatus.Fulfilled))
+                    return Error.Conflict("Order.NotRefundable", "Solo se puede reembolsar un pedido pagado.").ToProblem();
+
+                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId, ct);
+                if (refund.IsFailure) return refund.Error.ToProblem();
+
+                if (!order.MarkRefunded()) return Results.Ok(ToDto(order)); // ya estaba reembolsada
+                await orders.SaveChangesAsync(ct);
+                await notifier.NotifyAsync(order, "cancelacion-compra", ct);
+                return Results.Ok(ToDto(order));
+            }
+            finally
+            {
+                gate.Release();
+            }
         });
 
         return group;
@@ -154,6 +206,8 @@ public static class OrderEndpoints
         order.CouponCode,
         order.CreatedAtUtc,
         order.PaidAtUtc,
+        order.Tracking,
+        order.FulfilledAtUtc,
         subtotal = new { amount = order.Subtotal.AmountInMinorUnits, currency = order.Subtotal.Currency },
         discount = new { amount = order.DiscountAmount.AmountInMinorUnits, currency = order.DiscountAmount.Currency },
         total = new { amount = order.Total.AmountInMinorUnits, currency = order.Total.Currency },
@@ -164,6 +218,8 @@ public static class OrderEndpoints
         }),
     };
 }
+
+public sealed record FulfillRequest(string? Tracking);
 
 public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode);
 

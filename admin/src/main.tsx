@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, ConfirmProvider } from '@tiendafy/ui';
 import App from './App';
 import { StoreProvider } from './context/StoreContext';
+import { AuthProvider } from './context/AuthContext';
+import { AuthGate } from './pages/Login';
 import { applyMode, getInitialMode } from './lib/themeMode';
 import './index.css';
 
@@ -22,11 +24,15 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ConfirmProvider>
-          <StoreProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </StoreProvider>
+          <AuthProvider>
+            <AuthGate>
+              <StoreProvider>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </StoreProvider>
+            </AuthGate>
+          </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>

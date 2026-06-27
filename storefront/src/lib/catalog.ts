@@ -112,6 +112,7 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     currency: v.price.currency,
     compareAtAmount: v.compareAtPrice?.amount ?? null,
     image: p.images[0]?.url ?? null,
+    images: p.images.map((img) => img.url),
     variantId: v.id,
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
   };

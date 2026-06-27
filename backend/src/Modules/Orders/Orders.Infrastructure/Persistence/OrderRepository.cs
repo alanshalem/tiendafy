@@ -12,6 +12,16 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
     public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) =>
         context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
 
+    public async Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default)
+    {
+        var e = email.Trim().ToLowerInvariant();
+        return await context.Orders
+            .Where(o => o.TenantId == tenantId && o.BuyerEmail.ToLower() == e)
+            .OrderByDescending(o => o.CreatedAtUtc)
+            .Take(100)
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default)
     {
         var query = context.Orders.Where(o => o.TenantId == tenantId).OrderByDescending(o => o.CreatedAtUtc).AsQueryable();

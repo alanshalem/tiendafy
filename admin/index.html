@@ -3,8 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- CSP (defensa-en-profundidad). HSTS/X-Frame-Options/nosniff los pone el
+         proxy/host estático — ver admin/public/_headers y DEPLOY.md.
+         frame-src: el editor de diseño embebe la tienda del merchant (preview).
+         Dev = subdominios *.localhost:3000; prod = la tienda en https (incluye
+         dominios propios del merchant). frame-ancestors NO va acá (ignorado en
+         <meta>); protege al admin de ser embebido y vive en _headers/proxy. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https: http://localhost:*; frame-src 'self' http://*.localhost:* https:; object-src 'none'; base-uri 'self'"
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Tiendafy Admin</title>
+    <!-- Fuentes elegibles del editor de diseño: se cargan para previsualizar
+         las combinaciones y selectores con su tipografía real. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;600;700&family=Work+Sans:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&family=Playfair+Display:wght@400;600;700;800&family=Lora:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Serif+Display&family=Bebas+Neue&family=Archivo+Black&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

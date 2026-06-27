@@ -62,6 +62,7 @@ public sealed class Customer
     }
 
     public void SetPasswordHash(string hash) => PasswordHash = hash;
+    public void MarkEmailVerified() => EmailVerified = true;
     public void LinkGoogle(string subject)
     {
         GoogleSubject = subject;

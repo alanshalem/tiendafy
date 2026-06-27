@@ -1,55 +1,83 @@
 using Api.Notifications;
+using Microsoft.EntityFrameworkCore;
 using Orders.Core.Features;
 using Payments.Contracts;
 using Payments.Core.Domain;
+using Payments.Infrastructure.Persistence;
 
 namespace Api.Payments;
 
 /// <summary>
-/// Procesa webhooks de pago de forma async e idempotente: resuelve el seller por
-/// user_id, consulta el pago real (server-side), y aplica el resultado a la orden.
+/// Procesa el inbox durable de webhooks de pago: hace polling de eventos pendientes
+/// y los procesa idempotentemente (resuelve seller por user_id, consulta el pago
+/// real y aplica el resultado a la orden), con reintentos. Sobrevive reinicios.
 /// </summary>
 public sealed class PaymentWebhookWorker(
-    PaymentWebhookQueue queue,
     IServiceScopeFactory scopeFactory,
     ILogger<PaymentWebhookWorker> logger) : BackgroundService
 {
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var job in queue.ReadAllAsync(stoppingToken))
+        while (!stoppingToken.IsCancellationRequested)
         {
-            try { await ProcessAsync(job, stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Webhook job falló (type {Type}, data {DataId}).", job.Type, job.DataId); }
+            try { await PollOnceAsync(stoppingToken); }
+            catch (Exception ex) { logger.LogError(ex, "Polling de webhooks falló."); }
+            try { await Task.Delay(PollInterval, stoppingToken); }
+            catch (OperationCanceledException) { break; }
         }
     }
 
-    private async Task ProcessAsync(PaymentWebhookJob job, CancellationToken ct)
+    private async Task PollOnceAsync(CancellationToken ct)
     {
-        if (job.Type != "payment") return; // Checkout Pro: solo topic payment
-
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<PaymentsDbContext>();
+
+        var pending = await db.PaymentWebhookEvents
+            .Where(e => e.Status == PaymentWebhookEvent.StatusPending)
+            .OrderBy(e => e.CreatedAtUtc)
+            .Take(20)
+            .ToListAsync(ct);
+
+        foreach (var ev in pending)
+        {
+            try
+            {
+                await ProcessAsync(sp, ev, ct);
+                ev.MarkDone();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Webhook {Id} (data {DataId}) falló, intento {Attempt}.", ev.Id, ev.DataId, ev.Attempts + 1);
+                ev.MarkFailed(ex.Message);
+            }
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private async Task ProcessAsync(IServiceProvider sp, PaymentWebhookEvent ev, CancellationToken ct)
+    {
+        if (ev.Type != "payment") return; // Checkout Pro: solo topic payment
 
         var connections = sp.GetRequiredService<IMercadoPagoConnectionRepository>();
-        var connection = await connections.GetByMercadoPagoUserIdAsync(job.UserId, ct);
+        var connection = await connections.GetByMercadoPagoUserIdAsync(ev.UserId, ct);
         if (connection is null)
         {
-            logger.LogWarning("Webhook de user_id {UserId} sin conexión asociada; ignorado.", job.UserId);
-            return;
+            logger.LogWarning("Webhook de user_id {UserId} sin conexión asociada; ignorado.", ev.UserId);
+            return; // sin conexión no es reintentable útil; lo marcamos done
         }
 
         var mp = sp.GetRequiredService<IMercadoPagoPaymentService>();
-        var payment = await mp.GetPaymentAsync(connection.TenantId, job.DataId, ct);
+        var payment = await mp.GetPaymentAsync(connection.TenantId, ev.DataId, ct);
         if (payment.IsFailure)
-        {
-            logger.LogWarning("No se pudo consultar el pago {PaymentId}: {Error}", job.DataId, payment.Error.Code);
-            return;
-        }
+            throw new InvalidOperationException($"No se pudo consultar el pago {ev.DataId}: {payment.Error.Code}");
 
         var ext = payment.Value.ExternalReference;
         if (string.IsNullOrEmpty(ext) || !Guid.TryParse(ext, out var orderId))
         {
-            logger.LogWarning("Pago {PaymentId} sin external_reference válido ('{Ext}').", job.DataId, ext);
+            logger.LogWarning("Pago {PaymentId} sin external_reference válido ('{Ext}').", ev.DataId, ext);
             return;
         }
 

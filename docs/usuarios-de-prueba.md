@@ -1,4 +1,21 @@
-# Usuarios de prueba (compradores del storefront)
+# Usuarios de prueba
+
+## Admin (panel del merchant)
+
+En dev se siembra un usuario admin con membresía a **todas** las tiendas, así
+entrás con login y las ves todas:
+
+| Email | Contraseña |
+|-------|------------|
+| `admin@tiendafy.local` | `password123` |
+
+El admin ahora **requiere login** (`/auth`). Todas las escrituras exigen sesión +
+membresía a la tienda del `X-Tenant-Id`. Podés registrar otra cuenta desde el
+modal; arranca sin tiendas hasta que crees una (quedás como dueño).
+
+---
+
+# Compradores del storefront
 
 El backend siembra automáticamente estos **compradores** en **cada tienda** al
 arrancar en modo Development (`ShopperSeeder`). Sirven para probar el login del

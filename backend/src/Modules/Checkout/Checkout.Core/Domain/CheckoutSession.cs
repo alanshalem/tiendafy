@@ -25,6 +25,8 @@ public sealed class CheckoutSession : AggregateRoot
     public string Currency { get; private set; } = null!;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
+    /// <summary>Cuándo se mandó el email de recuperación (null = todavía no). Evita reenviar.</summary>
+    public DateTime? RecoveryEmailSentAtUtc { get; private set; }
 
     private readonly List<CheckoutItem> _items = [];
     public IReadOnlyList<CheckoutItem> Items => _items.AsReadOnly();
@@ -99,6 +101,8 @@ public sealed class CheckoutSession : AggregateRoot
     }
 
     public void Expire() => Status = CheckoutStatus.Expired;
+
+    public void MarkRecoveryEmailed() => RecoveryEmailSentAtUtc = DateTime.UtcNow;
 }
 
 /// <summary>Línea del checkout: snapshot de producto y precio.</summary>

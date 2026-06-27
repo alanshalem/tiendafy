@@ -5,14 +5,33 @@ import { api, ApiRequestError } from '../lib/api';
 
 /* Uploaders del editor de diseño (imagen / video / multi-imagen del carrusel). */
 
-export function ImageUploader({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+export function ImageUploader({ value, onChange, allowSvg }: { value: string; onChange: (url: string) => void; allowSvg?: boolean }) {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
+  // SVG solo para logo/favicon (vectorial, nítido). NO para og:image — las redes
+  // sociales no renderizan SVG al compartir.
+  const accept = allowSvg
+    ? 'image/jpeg,image/png,image/webp,image/avif,image/svg+xml'
+    : 'image/jpeg,image/png,image/webp,image/avif';
+  const errorMsg = allowSvg
+    ? 'Error subiendo imagen. Usá JPG, PNG, WebP, AVIF o SVG (hasta 5MB).'
+    : 'Error subiendo imagen. Usá JPG, PNG, WebP o AVIF (hasta 5MB).';
   return (
     <div>
       {value ? (
-        <div className="relative">
-          <img src={value} alt="" className="h-32 w-full rounded-md border border-border object-cover" />
+        <div
+          className="relative rounded-md border border-border p-2"
+          // Checkerboard de transparencia: logos blancos o con alpha se ven igual
+          // en light y dark (no se "pierden" sobre fondo blanco).
+          style={{
+            backgroundColor: '#ffffff',
+            backgroundImage:
+              'linear-gradient(45deg,#dfe1e5 25%,transparent 25%),linear-gradient(-45deg,#dfe1e5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dfe1e5 75%),linear-gradient(-45deg,transparent 75%,#dfe1e5 75%)',
+            backgroundSize: '16px 16px',
+            backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
+          }}
+        >
+          <img src={value} alt="" className="h-28 w-full rounded object-contain" />
           <button onClick={() => onChange('')} aria-label="Quitar imagen" className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"><X className="h-3.5 w-3.5" /></button>
         </div>
       ) : (
@@ -22,7 +41,7 @@ export function ImageUploader({ value, onChange }: { value: string; onChange: (u
         )}>
           {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
           <span className="text-xs font-semibold">{uploading ? 'Subiendo imagen…' : 'Elegir imagen'}</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" disabled={uploading} onChange={async (e) => {
+          <input type="file" accept={accept} className="hidden" disabled={uploading} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
             setUploading(true);
@@ -30,7 +49,7 @@ export function ImageUploader({ value, onChange }: { value: string; onChange: (u
               const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
               onChange(url);
             } catch (err) {
-              toast(err instanceof ApiRequestError ? err.message : 'Error subiendo imagen. Usá JPG, PNG, WebP o AVIF (hasta 5MB).', { variant: 'error' });
+              toast(err instanceof ApiRequestError ? err.message : errorMsg, { variant: 'error' });
             } finally {
               setUploading(false);
               e.target.value = '';

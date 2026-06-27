@@ -4,10 +4,78 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Tokens de PLATAFORMA (admin) — estética estilo Apple / macOS.
+   Overridean los defaults de tokens.css SOLO en el build del admin
+   (este archivo no lo importa el storefront). Las tiendas de clientes
+   siguen usando tokens.css sin tocar. Acento: azul de sistema iOS.
+   ============================================================ */
+:root {
+  --color-primary: 0 122 255;        /* #007AFF — system blue (light) */
+  --color-primary-hover: 0 105 224;
+  --color-primary-fg: 255 255 255;
+
+  /* `accent` = material del sidebar (sigue el tema, estilo macOS). */
+  --color-accent: 245 245 247;       /* #F5F5F7 */
+  --color-accent-fg: 29 29 31;       /* #1D1D1F */
+
+  --color-bg: 255 255 255;
+  --color-bg-subtle: 245 245 247;    /* #F5F5F7 — fondo de página */
+  --color-bg-muted: 235 235 240;
+  --color-surface: 255 255 255;
+  --color-border: 222 222 228;       /* separadores suaves */
+  --color-border-strong: 198 198 204;
+
+  --color-fg: 29 29 31;              /* #1D1D1F */
+  --color-fg-muted: 110 110 115;     /* #6E6E73 */
+  --color-fg-subtle: 142 142 147;    /* #8E8E93 */
+
+  --color-success: 52 199 89;        /* #34C759 */
+  --color-warning: 255 149 0;        /* #FF9500 */
+  --color-danger: 255 59 48;         /* #FF3B30 */
+  --color-info: 0 122 255;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Esquinas suaves y consistentes. */
+  --radius-sm: 0.5rem;   /* 8px  */
+  --radius-md: 0.75rem;  /* 12px */
+  --radius-lg: 1rem;     /* 16px */
+
+  /* Sombras muy suaves y difusas. */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 8px 24px -10px rgb(0 0 0 / 0.10);
+  --shadow-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.20), 0 4px 12px -6px rgb(0 0 0 / 0.10);
+}
+
+[data-theme="dark"] {
+  --color-primary: 10 132 255;       /* #0A84FF — system blue (dark) */
+  --color-primary-hover: 50 150 255;
+  --color-primary-fg: 255 255 255;
+
+  --color-accent: 28 28 30;          /* #1C1C1E — sidebar dark material */
+  --color-accent-fg: 245 245 247;
+
+  --color-bg: 28 28 30;              /* #1C1C1E — cards */
+  --color-bg-subtle: 0 0 0;          /* #000 — fondo de página */
+  --color-bg-muted: 44 44 46;        /* #2C2C2E */
+  --color-surface: 28 28 30;
+  --color-border: 56 56 58;          /* #38383A */
+  --color-border-strong: 72 72 74;
+
+  --color-fg: 245 245 247;           /* #F5F5F7 */
+  --color-fg-muted: 152 152 157;     /* #98989D */
+  --color-fg-subtle: 110 110 115;
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 28px -10px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.7), 0 4px 12px -6px rgb(0 0 0 / 0.5);
+}
+
 body {
   background-color: rgb(var(--color-bg-subtle));
   color: rgb(var(--color-fg));
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Editor de páginas (TipTap): el texto usa el token del tema, no el gris fijo de

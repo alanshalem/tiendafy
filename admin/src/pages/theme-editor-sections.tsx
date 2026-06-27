@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { GripVertical, ChevronUp, ChevronDown, ChevronRight, Eye, EyeOff, X, Plus } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, type ThemeSection, type SectionType } from '@tiendafy/types';
 import { useFlipList } from '../lib/useFlip';
 import { api } from '../lib/api';
@@ -21,6 +21,101 @@ export const sectionMeta: Record<string, string> = {
   'info-bar': 'Información de envíos, pagos y compra',
   newsletter: 'Newsletter',
 };
+
+/** Data inicial sensata por tipo de sección (el merchant después la completa). */
+function sectionData(type: SectionType): Record<string, unknown> {
+  switch (type) {
+    case 'carousel': return { images: [], fullHeightMobile: false };
+    case 'featured': return { title: 'Destacados', carousel: true };
+    case 'new-products': return { title: 'Recién llegados', carousel: true };
+    case 'sale-products': return { title: 'Ofertas', carousel: true };
+    default: return {};
+  }
+}
+
+/**
+ * Plantillas curadas de página de inicio. Cada una es un arreglo ordenado de
+ * tipos de sección; aplicarla reemplaza las secciones por esa estructura base
+ * (el merchant la edita después). Misma idea que las combinaciones de fuentes/colores.
+ */
+const HOME_TEMPLATES: { name: string; description: string; sections: SectionType[] }[] = [
+  {
+    name: 'Lanzamiento',
+    description: 'Hero con video, destacados y newsletter. Para presentar la marca con fuerza.',
+    sections: ['hero-video', 'featured', 'info-bar', 'newsletter'],
+  },
+  {
+    name: 'Catálogo grande',
+    description: 'Carrusel, categorías y varias grillas. Ideal si tenés muchos productos.',
+    sections: ['carousel', 'category-banners', 'featured', 'new-products', 'info-bar'],
+  },
+  {
+    name: 'Marca / Editorial',
+    description: 'Imagen + texto e institucional. Cuenta una historia antes de vender.',
+    sections: ['carousel', 'image-text', 'institutional', 'featured', 'info-bar'],
+  },
+  {
+    name: 'Minimal',
+    description: 'Solo lo esencial: portada y destacados. Limpio y directo.',
+    sections: ['carousel', 'featured'],
+  },
+  {
+    name: 'Ofertas',
+    description: 'Productos en oferta y banners promocionales al frente.',
+    sections: ['carousel', 'sale-products', 'promo-banners', 'featured', 'info-bar'],
+  },
+];
+
+/** Bloque-maqueta que representa visualmente una sección en el wireframe. */
+function MiniBlock({ type }: { type: SectionType }) {
+  const base = 'rounded-[3px] bg-fg/10';
+  switch (type) {
+    case 'hero-video':
+    case 'carousel':
+      return <div className={`flex h-9 items-center justify-center ${base}`}><span className="h-1.5 w-8 rounded bg-fg/25" /></div>;
+    case 'featured':
+    case 'new-products':
+    case 'sale-products':
+      return <div className="flex gap-1">{[0, 1, 2].map((i) => <span key={i} className={`h-7 flex-1 ${base}`} />)}</div>;
+    case 'category-banners':
+    case 'promo-banners':
+      return <div className="flex gap-1">{[0, 1].map((i) => <span key={i} className={`h-6 flex-1 ${base}`} />)}</div>;
+    case 'image-text':
+      return (
+        <div className="flex gap-1">
+          <span className={`h-8 w-1/2 ${base}`} />
+          <div className="flex w-1/2 flex-col justify-center gap-1">
+            <span className="h-1.5 w-full rounded bg-fg/20" />
+            <span className="h-1.5 w-2/3 rounded bg-fg/15" />
+          </div>
+        </div>
+      );
+    case 'institutional':
+      return (
+        <div className="flex h-7 flex-col items-center justify-center gap-1">
+          <span className="h-1.5 w-12 rounded bg-fg/20" />
+          <span className="h-1.5 w-20 rounded bg-fg/15" />
+        </div>
+      );
+    case 'info-bar':
+      return <div className={`flex h-3.5 items-center justify-around ${base}`}>{[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-fg/30" />)}</div>;
+    case 'newsletter':
+      return <div className={`flex h-7 items-center justify-center gap-1.5 ${base}`}><span className="h-1.5 w-10 rounded bg-fg/20" /><span className="h-3 w-6 rounded bg-primary/40" /></div>;
+    case 'instagram':
+      return <span className={`block h-8 ${base}`} />;
+    default:
+      return <span className={`block h-5 ${base}`} />;
+  }
+}
+
+/** Wireframe del layout de una plantilla: bloques apilados = preview sin aplicar. */
+function TemplateWireframe({ sections }: { sections: SectionType[] }) {
+  return (
+    <div className="mt-2 space-y-1 rounded-md border border-border bg-bg-muted/50 p-2">
+      {sections.map((s, i) => <MiniBlock key={i} type={s} />)}
+    </div>
+  );
+}
 
 /* ---- Panel "Página de inicio": lista de secciones (reordenar / ocultar / agregar / quitar) ---- */
 export function HomePanel({ theme, onBack, onOpenSection, updateTheme }: { theme: ThemeConfig; onBack: () => void; onOpenSection: (id: string) => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void }) {
@@ -53,10 +148,66 @@ export function HomePanel({ theme, onBack, onOpenSection, updateTheme }: { theme
   const listRef = useFlipList<HTMLDivElement>(theme.sections.map((s) => s.id).join(','));
   const [dragId, setDragId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const confirm = useConfirm();
+
+  const applyTemplate = async (tpl: (typeof HOME_TEMPLATES)[number]) => {
+    if (theme.sections.length > 0) {
+      const ok = await confirm({
+        title: `Usar plantilla "${tpl.name}"`,
+        message: 'Reemplaza las secciones actuales del inicio por esta estructura. Podés editar cada una después.',
+        confirmLabel: 'Usar plantilla',
+      });
+      if (!ok) return;
+    }
+    updateTheme((t) => ({
+      ...t,
+      sections: tpl.sections.map((type) => ({
+        id: `${type}-${Math.random().toString(36).slice(2, 8)}`,
+        type,
+        visible: true,
+        data: sectionData(type),
+      })),
+    }));
+    setShowTemplates(false);
+  };
 
   return (
     <div>
       <BackHeader title="Página de inicio" onBack={onBack} />
+
+      {/* Plantillas curadas: arman una estructura base de secciones de un click. */}
+      <div className="px-3 pt-3">
+        {showTemplates ? (
+          <div className="rounded-md border border-border bg-surface p-2">
+            <div className="flex items-center justify-between px-1 py-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Elegí una plantilla</span>
+              <button onClick={() => setShowTemplates(false)} aria-label="Cerrar"><X className="h-4 w-4 text-fg-subtle" /></button>
+            </div>
+            <div className="space-y-1.5">
+              {HOME_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.name}
+                  onClick={() => applyTemplate(tpl)}
+                  className="block w-full rounded-md border border-border p-2.5 text-left transition hover:border-primary/50 hover:bg-bg-muted"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-fg">{tpl.name}</span>
+                    <span className="text-[0.7rem] text-fg-subtle">{tpl.sections.length} secciones</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-fg-muted">{tpl.description}</p>
+                  <TemplateWireframe sections={tpl.sections} />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowTemplates(true)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/[0.08] py-2.5 text-sm font-semibold text-primary hover:bg-primary/[0.14]">
+            Usar una plantilla de inicio
+          </button>
+        )}
+      </div>
+
       <p className="inline-flex flex-wrap items-center gap-1 px-4 pt-3 text-xs text-fg-muted">Arrastrá <GripVertical className="h-3.5 w-3.5" /> para reordenar. El ojo muestra/oculta cada sección.</p>
       <div className="p-3" ref={listRef}>
         {theme.sections.map((s, i) => (

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, LogOut } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
 import { isNavVisible } from '../config/features';
@@ -10,12 +11,10 @@ import { isNavVisible } from '../config/features';
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <g transform="rotate(-4 32 32)">
-        <rect x="6" y="6" width="52" height="52" rx="10" fill="#e8501e" stroke="#1b1510" strokeWidth="3" />
-        <text x="32" y="46" textAnchor="middle" fontFamily="Georgia, serif" fontStyle="italic" fontWeight="700" fontSize="40" fill="#faf5ed">
-          t
-        </text>
-      </g>
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
+      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">
+        t
+      </text>
     </svg>
   );
 }
@@ -83,6 +82,7 @@ const sections: NavSection[] = [
         ],
       },
       { to: '/clientes', label: 'Clientes' },
+      { to: '/mensajes', label: 'Mensajes' },
       { to: '/descuentos', label: 'Descuentos' },
       { to: '/marketing', label: 'Marketing', soon: true },
     ],
@@ -108,7 +108,7 @@ const sections: NavSection[] = [
 
 function SoonBadge() {
   return (
-    <span className="ml-auto rounded-full bg-white/10 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider opacity-70">
+    <span className="ml-auto rounded-full bg-fg/10 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider opacity-70">
       Pronto
     </span>
   );
@@ -125,7 +125,7 @@ function SidebarItem({ item }: { item: NavItem }) {
       'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
       isActive
         ? 'bg-primary text-primary-fg'
-        : 'text-accent-fg/60 hover:bg-white/10 hover:text-accent-fg',
+        : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
     );
 
   if (!item.children) {
@@ -157,7 +157,7 @@ function SidebarItem({ item }: { item: NavItem }) {
         </svg>
       </button>
       {open && (
-        <div className="ml-3 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
+        <div className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
           {item.children.map((child) => (
             <NavLink
               key={child.to}
@@ -184,6 +184,7 @@ function SidebarItem({ item }: { item: NavItem }) {
 
 export function AdminLayout() {
   const { store } = useStore();
+  const { user, logout } = useAuth();
 
   // Filtra el menú según los flags de config/features.ts (oculta secciones/subsecciones).
   const visibleSections = sections
@@ -198,8 +199,8 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col bg-accent text-accent-fg">
-        <div className="flex h-header items-center gap-2.5 border-b border-white/10 px-4">
+      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-accent/80 text-accent-fg backdrop-blur-xl">
+        <div className="flex h-header items-center gap-2.5 border-b border-border px-4">
           <LogoMark className="h-7 w-7" />
           <span className="text-lg font-bold">tiendafy</span>
         </div>
@@ -221,13 +222,13 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-border p-3">
           <NavLink
             to="/configuracion"
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
-                isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-white/10 hover:text-accent-fg',
+                isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
               )
             }
           >
@@ -237,7 +238,7 @@ export function AdminLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="flex h-header items-center justify-between border-b border-border bg-surface px-6">
+        <header className="sticky top-0 z-20 flex h-header items-center justify-between border-b border-border bg-surface/80 px-6 backdrop-blur-xl">
           <StoreSwitcher />
 
           <div className="flex items-center gap-3">
@@ -252,9 +253,15 @@ export function AdminLayout() {
               </a>
             )}
             <ThemeModeToggle />
+            <div className="flex items-center gap-2 border-l border-border pl-3">
+              <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">{user?.name}</span>
+              <button type="button" onClick={() => logout()} title="Cerrar sesión" aria-label="Cerrar sesión" className="text-fg-subtle hover:text-fg">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </header>
-        <main className="p-6">
+        <main className="p-6 md:p-8">
           <Outlet />
         </main>
       </div>

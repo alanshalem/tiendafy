@@ -10,6 +10,14 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Nunca scroll horizontal: ningún contenido (video hero full-bleed, secciones a
+   ancho completo, drawer del carrito fuera de pantalla) debe desbordar el ancho de
+   la pantalla. `clip` en vez de `hidden` para NO crear un contenedor de scroll que
+   rompería el `position: sticky` del header. */
+html {
+  overflow-x: clip;
+}
+
 /* Motion: entrada suave (fade + subir). Para reveals en cascada se combina con
    un animation-delay inline por índice. Respeta prefers-reduced-motion. */
 @keyframes tf-in {
@@ -17,6 +25,18 @@ body {
   to { opacity: 1; transform: none; }
 }
 .tf-in { animation: tf-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Barra de anuncio en modo marquee: la pista se duplica (2 copias) y se desplaza
+   -50% = una copia entera, en loop continuo. Pausa al pasar el mouse. */
+@keyframes tf-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.tf-marquee { animation: tf-marquee 22s linear infinite; }
+.tf-marquee:hover { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .tf-marquee { animation: none; }
+}
 
 @keyframes tf-shimmer {
   100% { transform: translateX(100%); }
@@ -64,4 +84,23 @@ body {
 }
 [data-store-radius='soft'] .rounded-2xl {
   border-radius: 0.5rem;
+}
+
+/* Movimiento: intensidad de las animaciones de entrada (.tf-in). */
+[data-store-motion='none'] .tf-in {
+  animation: none;
+}
+[data-store-motion='dynamic'] .tf-in {
+  animation-duration: 0.75s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Densidad: espaciado vertical de las secciones del storefront. */
+[data-store-density='compact'] .store-section {
+  padding-top: 1.75rem;
+  padding-bottom: 1.75rem;
+}
+[data-store-density='spacious'] .store-section {
+  padding-top: 4.5rem;
+  padding-bottom: 4.5rem;
 }

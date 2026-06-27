@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Loader2, RefreshCw, Package } from 'lucide-react';
+import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -26,6 +26,8 @@ interface Order {
   couponCode: string | null;
   createdAtUtc: string;
   paidAtUtc: string | null;
+  tracking: string | null;
+  fulfilledAtUtc: string | null;
   subtotal: Money;
   discount: Money;
   total: Money;
@@ -49,6 +51,7 @@ export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +64,33 @@ export function OrdersPage() {
       setLoading(false);
     }
   }, []);
+
+  const fulfill = useCallback(async (o: Order) => {
+    const tracking = window.prompt('Código de seguimiento (opcional):', o.tracking ?? '');
+    if (tracking === null) return; // canceló
+    setBusy(o.id);
+    try {
+      await api.post(`/api/v1/orders/${o.id}/fulfill`, { tracking: tracking.trim() || null });
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo marcar como enviada.');
+    } finally {
+      setBusy(null);
+    }
+  }, [load]);
+
+  const refund = useCallback(async (o: Order) => {
+    if (!window.confirm(`¿Reembolsar ${money(o.total)} a ${o.buyerEmail}? Esto devuelve el dinero en Mercado Pago y no se puede deshacer.`)) return;
+    setBusy(o.id);
+    try {
+      await api.post(`/api/v1/orders/${o.id}/refund`, {});
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo reembolsar.');
+    } finally {
+      setBusy(null);
+    }
+  }, [load]);
 
   useEffect(() => {
     if (store) load();
@@ -123,6 +153,26 @@ export function OrdersPage() {
                               </div>
                             )}
                             {o.paymentId && <div className="pt-1 text-xs text-fg-subtle">Pago MP #{o.paymentId}{o.paidAtUtc ? ` · ${new Date(o.paidAtUtc).toLocaleString('es-AR')}` : ''}</div>}
+                            {o.tracking && <div className="text-xs text-fg-subtle">Seguimiento: {o.tracking}{o.fulfilledAtUtc ? ` · enviada ${new Date(o.fulfilledAtUtc).toLocaleDateString('es-AR')}` : ''}</div>}
+                            {(o.status === 'PAID' || o.status === 'FULFILLED') && (
+                              <div className="flex flex-wrap gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                                {o.status === 'PAID' && (
+                                  <button onClick={() => fulfill(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50">
+                                    {busy === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />} Marcar enviada
+                                  </button>
+                                )}
+                                {o.status === 'FULFILLED' && (
+                                  <button onClick={() => fulfill(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50">
+                                    <Truck className="h-3.5 w-3.5" /> Editar seguimiento
+                                  </button>
+                                )}
+                                {o.paymentId && (
+                                  <button onClick={() => refund(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+                                    {busy === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />} Reembolsar
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>

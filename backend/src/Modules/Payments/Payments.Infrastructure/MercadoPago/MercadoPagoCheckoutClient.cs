@@ -165,6 +165,27 @@ public sealed class MercadoPagoCheckoutClient(
             TransactionAmount: root.TryGetProperty("transaction_amount", out var ta) && ta.ValueKind == JsonValueKind.Number ? ta.GetDecimal() : 0m);
     }
 
+    public async Task<Result> RefundAsync(TenantId tenantId, string paymentId, CancellationToken ct = default)
+    {
+        var tokenResult = await GetSellerTokenAsync(tenantId, ct);
+        if (tokenResult.IsFailure) return Result.Failure(tokenResult.Error);
+
+        // Refund total: POST /v1/payments/{id}/refunds con body vacío.
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/v1/payments/{paymentId}/refunds");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Value.AccessToken);
+        req.Headers.TryAddWithoutValidation("X-Idempotency-Key", $"refund-{paymentId}");
+        req.Content = JsonContent.Create(new { });
+
+        using var resp = await http.SendAsync(req, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            logger.LogError("MercadoPago refund {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, json);
+            return Result.Failure(new Error("MercadoPago.RefundFailed", "No se pudo reembolsar el pago en MercadoPago."));
+        }
+        return Result.Success();
+    }
+
     /// <summary>Carga la conexión del tenant, refresca el token si está por vencer, y devuelve el access_token descifrado.</summary>
     private async Task<Result<(string AccessToken, MercadoPagoConnection Connection)>> GetSellerTokenAsync(TenantId tenantId, CancellationToken ct)
     {

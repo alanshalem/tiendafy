@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Microsoft.EntityFrameworkCore;
+using Api.Auth;
 using Api.Import;
 using Catalog.Core;
 using Microsoft.AspNetCore.Http.Features;
@@ -284,7 +285,7 @@ public static class ProductEndpoints
                 errors = job.Errors.Take(100).Select(e => new { e.Line, e.Slug, e.Message }),
                 failureMessage = job.FailureMessage,
             });
-        });
+        }).RequireTenantMembership();
 
         // ---- Importación masiva de imágenes ----
         // Sube muchas imágenes (o un .zip); se matchean por nombre = slug del
@@ -373,7 +374,7 @@ public static class ProductEndpoints
                 unmatchedSample = job.UnmatchedSample,
                 failureMessage = job.FailureMessage,
             });
-        });
+        }).RequireTenantMembership();
 
         // ---- Exportación masiva (CSV) ----
         // Recorre TODOS los productos del tenant (no el tope de 100 del listado).
@@ -415,7 +416,7 @@ public static class ProductEndpoints
             var csv = ProductCsv.BuildExport(all, includeDescriptions, paths);
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
-        });
+        }).RequireTenantMembership();
 
         // Asignar/cambiar las categorías de un producto (para el admin).
         products.MapPut("/{id:guid}/categories", async (

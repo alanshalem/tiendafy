@@ -7,9 +7,20 @@ namespace Payments.Infrastructure.Persistence;
 public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> options) : DbContext(options)
 {
     public DbSet<MercadoPagoConnection> MercadoPagoConnections => Set<MercadoPagoConnection>();
+    public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var wh = modelBuilder.Entity<PaymentWebhookEvent>();
+        wh.ToTable("payment_webhook_events");
+        wh.HasKey(x => x.Id);
+        wh.Property(x => x.Id).ValueGeneratedNever();
+        wh.HasIndex(x => new { x.Status, x.CreatedAtUtc }); // cola: pendientes por orden
+        wh.Property(x => x.Type).HasMaxLength(40).IsRequired();
+        wh.Property(x => x.DataId).HasMaxLength(64).IsRequired();
+        wh.Property(x => x.Status).HasMaxLength(10).IsRequired();
+        wh.Property(x => x.LastError).HasMaxLength(500);
+
         var connection = modelBuilder.Entity<MercadoPagoConnection>();
         connection.ToTable("mp_connections");
         connection.HasKey(c => c.Id);

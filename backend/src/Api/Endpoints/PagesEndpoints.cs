@@ -1,3 +1,4 @@
+using Api.Auth;
 using Content.Infrastructure;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ public static class PagesEndpoints
             var items = await db.Pages.AsNoTracking().Where(p => p.TenantId == tid)
                 .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });
-        });
+        }).RequireTenantMembership(); // incluye borradores → solo admin (published/by-slug son públicos)
 
         // Storefront: lista liviana de páginas PUBLICADAS (para el navbar). Sin body ni borradores.
         pages.MapGet("/published", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>

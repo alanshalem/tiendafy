@@ -62,7 +62,8 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
     }
     fetch(`${API}/api/v1/shop/favorites/merge`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey, Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey },
+      credentials: 'include',
       body: JSON.stringify({ productIds: local }),
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -78,7 +79,8 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
         if (token) {
           fetch(`${API}/api/v1/shop/favorites/${id}`, {
             method: has ? 'DELETE' : 'PUT',
-            headers: { 'X-Tenant-Id': storeKey, Authorization: `Bearer ${token}` },
+            headers: { 'X-Tenant-Id': storeKey },
+            credentials: 'include',
           }).catch(() => {});
         }
         return has ? prev.filter((x) => x !== id) : [id, ...prev];

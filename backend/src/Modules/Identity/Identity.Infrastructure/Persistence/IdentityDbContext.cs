@@ -11,9 +11,19 @@ namespace Identity.Infrastructure.Persistence;
 public sealed class AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options)
     : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<TenantMembership> TenantMemberships => Set<TenantMembership>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        var m = builder.Entity<TenantMembership>();
+        m.ToTable("tenant_memberships");
+        m.HasKey(x => x.Id);
+        m.Property(x => x.Id).ValueGeneratedNever();
+        m.HasIndex(x => new { x.UserId, x.TenantId }).IsUnique();
+        m.HasIndex(x => x.UserId);
+        m.Property(x => x.Role).HasMaxLength(40).IsRequired();
 
         // Nombres de tabla sobrios en vez de AspNetXxx.
         builder.Entity<AppUser>().ToTable("users");

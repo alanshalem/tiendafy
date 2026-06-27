@@ -160,9 +160,14 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         onClick={() => setOpen(false)}
       />
       <aside
-        className={`fixed right-0 top-0 z-[60] flex h-full w-96 max-w-[92vw] flex-col bg-bg text-fg shadow-2xl transition-transform ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed z-[60] flex flex-col overflow-hidden bg-bg text-fg shadow-2xl transition-transform
+          inset-x-0 bottom-0 h-[88vh] rounded-t-2xl
+          sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-auto sm:h-full sm:w-96 sm:max-w-[92vw] sm:rounded-none
+          ${open ? 'translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-x-full sm:translate-y-0'}`}
       >
-        <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
+        {/* Handle del bottom sheet (solo mobile). */}
+        <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-fg/20 sm:hidden" />
+        <div className="flex items-center justify-between border-b border-black/10 px-5 py-3.5">
           <h2 className="text-lg font-bold">Tu carrito</h2>
           <button onClick={() => setOpen(false)} aria-label="Cerrar" className="inline-flex leading-none opacity-60 hover:opacity-100">
             <X className="h-6 w-6" />

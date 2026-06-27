@@ -21,6 +21,7 @@ export function setActiveTenant(tenantId: string | null) {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: 'include', // manda la cookie de sesión del admin
     headers: {
       'Content-Type': 'application/json',
       ...(activeTenantId ? { 'X-Tenant-Id': activeTenantId } : {}),
@@ -60,6 +61,7 @@ export const api = {
   /** Descarga un archivo (CSV/binario) y devuelve el Blob, con el header de tenant. */
   download: async (path: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
       headers: activeTenantId ? { 'X-Tenant-Id': activeTenantId } : undefined,
     });
     if (!res.ok) {
@@ -76,6 +78,7 @@ export const api = {
 async function sendForm<T>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
+    credentials: 'include',
     headers: activeTenantId ? { 'X-Tenant-Id': activeTenantId } : undefined,
     body: form,
   });

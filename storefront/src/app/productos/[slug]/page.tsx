@@ -4,10 +4,32 @@ import { StorefrontView } from '@/components/store/StorefrontView';
 import { ProductDetail } from '@/components/store/ProductDetail';
 import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
+import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
+import { loadStorefront } from '@/lib/storefront';
 import { apiGet } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await loadStorefront();
+  if (!data) return { title: 'Tienda' };
+  const product = await apiGet<{ name: string; description: string | null; images: { url: string }[] }>(
+    `/api/v1/products/by-slug/${slug}`,
+    { headers: { 'X-Tenant-Id': data.tenant.id }, cache: 'no-store' },
+  ).catch(() => null);
+  if (!product) return { title: data.tenant.name };
+  return {
+    title: `${product.name} · ${data.tenant.name}`,
+    description: product.description?.slice(0, 160) ?? `${product.name} en ${data.tenant.name}.`,
+    openGraph: {
+      title: product.name,
+      description: product.description?.slice(0, 160) ?? undefined,
+      images: product.images[0]?.url ? [product.images[0].url] : [],
+    },
+  };
+}
 
 interface ProductDto {
   id: string;

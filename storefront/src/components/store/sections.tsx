@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Truck, CreditCard, ShieldCheck, Gift, Headphones, RefreshCw, Heart, type LucideIcon } from 'lucide-react';
+import { Truck, CreditCard, ShieldCheck, Gift, Headphones, RefreshCw, Heart, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import type { ProductListConfig, SectionType, ThemeSection } from '@/lib/theme';
 import { useCart } from './cart';
 import { useFavorites } from './favorites';
@@ -29,6 +29,7 @@ export interface StoreProduct {
   currency: string;
   compareAtAmount: number | null;
   image: string | null;
+  images: string[];
   variantId: string;
   variantLabel: string;
 }
@@ -51,6 +52,13 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
   const onSale = !!product.compareAtAmount && product.compareAtAmount > product.priceAmount;
   const discountPct = onSale ? Math.round((1 - product.priceAmount / product.compareAtAmount!) * 100) : 0;
   const faved = fav.has(product.id);
+  const imgs = product.images?.length ? product.images : product.image ? [product.image] : [];
+  const [imgIdx, setImgIdx] = useState(0);
+  const stepImg = (e: React.MouseEvent, dir: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImgIdx((i) => (i + dir + imgs.length) % imgs.length);
+  };
   return (
     <div className="group flex h-full flex-col">
       <Link href={link} className="relative block aspect-square w-full overflow-hidden rounded-lg bg-black/5">
@@ -70,12 +78,38 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         >
           <Heart className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
         </button>
-        {product.image ? (
-          <StoreImage src={product.image} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
+        {imgs.length > 0 ? (
+          <StoreImage src={imgs[imgIdx]} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40">
             {product.name.charAt(0)}
           </div>
+        )}
+        {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. */}
+        {imgs.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => stepImg(e, -1)}
+              aria-label="Imagen anterior"
+              className="absolute left-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => stepImg(e, 1)}
+              aria-label="Imagen siguiente"
+              className="absolute right-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1">
+              {imgs.map((_, i) => (
+                <span key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+              ))}
+            </div>
+          </>
         )}
       </Link>
       <Link href={link} className="mt-2 block min-h-[2.5rem] text-sm font-medium hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
@@ -102,9 +136,8 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             });
             setOpen(true);
           }}
-          // Visible siempre en mobile (sin hover); hover-reveal solo en desktop.
-          // mt-auto: empuja el botón al fondo → alinea entre cards de la fila.
-          className="mt-auto w-full rounded-md py-1.5 pt-1.5 text-xs font-semibold text-primary-fg opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+          // Siempre visible. mt-3: gap del precio; el card flex lo mantiene abajo.
+          className="mt-3 w-full rounded-md py-2 text-xs font-semibold text-primary-fg"
           style={{ background: 'rgb(var(--color-primary))' }}
         >
           Agregar al carrito
@@ -121,21 +154,46 @@ const colClass: Record<number, string> = {
 };
 
 function ProductGrid({ title, products, list, carousel }: { title: string; products: StoreProduct[]; list: ProductListConfig; carousel?: boolean }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollByCards = (dir: number) => scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
   if (products.length === 0) return null;
   return (
-    <section className="mx-auto max-w-container px-4 py-12">
+    <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
       {title && (
         <h3 className="mb-6 text-sm font-bold uppercase tracking-widest opacity-60" style={{ fontFamily: 'var(--font-heading)' }}>
           {title}
         </h3>
       )}
       {carousel ? (
-        <div className="-mx-4 flex snap-x gap-5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {products.map((p, i) => (
-            <div key={p.id} className="tf-in w-40 shrink-0 snap-start sm:w-52" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-              <ProductCard product={p} list={list} />
-            </div>
-          ))}
+        <div className="group/car relative">
+          <div ref={scrollRef} className="flex snap-x gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {products.map((p, i) => (
+              <div key={p.id} className="tf-in w-40 shrink-0 snap-start sm:w-52" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
+                <ProductCard product={p} list={list} />
+              </div>
+            ))}
+          </div>
+          {/* Flechas: scrollean el carrusel (desktop; en mobile se desliza). */}
+          {products.length > 2 && (
+            <>
+              <button
+                type="button"
+                onClick={() => scrollByCards(-1)}
+                aria-label="Anterior"
+                className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollByCards(1)}
+                aria-label="Siguiente"
+                className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
@@ -260,6 +318,7 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
   const href = usePreviewHref();
   const d = section.data as CarouselData;
   const images = Array.isArray(d.images) ? d.images : [];
+  const fullHeightMobile = d.fullHeightMobile === true;
   if (images.length === 0) {
     // Hero por defecto (sin imágenes aún): degradado de marca + titular + CTA.
     return (
@@ -272,7 +331,7 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
           className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full opacity-20 blur-3xl"
           style={{ background: 'rgb(var(--color-primary))' }}
         />
-        <div className="relative mx-auto flex max-w-container flex-col items-center px-4 py-24 text-center sm:py-32">
+        <div className={`relative mx-auto flex max-w-container flex-col items-center justify-center px-4 py-24 text-center sm:py-32 ${fullHeightMobile ? 'min-h-[82svh] sm:min-h-0' : ''}`}>
           <span className="tf-in mb-4 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-xs font-medium opacity-70">
             ● Tienda online
           </span>

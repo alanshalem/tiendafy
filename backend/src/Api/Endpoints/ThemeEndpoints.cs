@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Themes.Infrastructure;
 
 namespace Api.Endpoints;
@@ -36,7 +38,7 @@ public static class ThemeEndpoints
                 return Results.Problem(title: "Theme.InvalidConfig", detail: "Config must be a JSON object.", statusCode: 400);
 
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
-            doc.DraftConfig = body.GetRawText();
+            doc.DraftConfig = SanitizeConfig(body);
             doc.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
@@ -51,8 +53,9 @@ public static class ThemeEndpoints
                 return Results.Problem(title: "Theme.InvalidConfig", detail: "Config must be a JSON object.", statusCode: 400);
 
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
-            doc.DraftConfig = body.GetRawText();
-            doc.PublishedConfig = body.GetRawText();
+            var clean = SanitizeConfig(body);
+            doc.DraftConfig = clean;
+            doc.PublishedConfig = clean;
             doc.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
             return ConfigResult(doc.PublishedConfig);
@@ -64,6 +67,32 @@ public static class ThemeEndpoints
     private static IResult MissingTenant() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 
     private static bool IsValidConfig(JsonElement body) => body.ValueKind == JsonValueKind.Object;
+
+    /// <summary>Reserializa la config saneando `customCss` (el merchant lo inyecta crudo en un &lt;style&gt;).</summary>
+    private static string SanitizeConfig(JsonElement body)
+    {
+        var node = JsonNode.Parse(body.GetRawText());
+        if (node is JsonObject obj
+            && obj.TryGetPropertyValue("customCss", out var css)
+            && css is JsonValue v && v.TryGetValue<string>(out var s))
+        {
+            obj["customCss"] = SanitizeCss(s);
+        }
+        return node!.ToJsonString();
+    }
+
+    /// <summary>
+    /// CSS del merchant: quita lo que permitiría romper el &lt;style&gt; e inyectar HTML/JS
+    /// o ejecutar código. No hay CSS legítimo con '&lt;'. Las url() (fondos) quedan.
+    /// </summary>
+    private static string SanitizeCss(string css)
+    {
+        if (string.IsNullOrEmpty(css)) return css;
+        var cleaned = css.Replace("<", string.Empty); // mata `</style>` y cualquier tag
+        foreach (var bad in new[] { "expression(", "javascript:", "behavior:", "-moz-binding", "@import" })
+            cleaned = Regex.Replace(cleaned, Regex.Escape(bad), string.Empty, RegexOptions.IgnoreCase);
+        return cleaned;
+    }
 
     private static IResult ConfigResult(string json) =>
         Results.Content(string.IsNullOrWhiteSpace(json) ? ThemeDocument.DefaultConfig : json, "application/json");

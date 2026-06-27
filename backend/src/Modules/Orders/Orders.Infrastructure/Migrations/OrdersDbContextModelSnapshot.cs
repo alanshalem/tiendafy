@@ -59,6 +59,10 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<DateTime?>("FulfilledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fulfilled_at_utc");
+
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at_utc");
@@ -88,6 +92,10 @@ namespace Orders.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("Tracking")
+                        .HasColumnType("text")
+                        .HasColumnName("tracking");
 
                     b.HasKey("Id")
                         .HasName("pk_orders");

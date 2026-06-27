@@ -51,6 +51,9 @@ public interface IMercadoPagoPaymentService
 
     /// <summary>Consulta el estado real de un pago (server-side, nunca confiar en el redirect).</summary>
     Task<Result<PaymentStatusDto>> GetPaymentAsync(TenantId tenantId, string paymentId, CancellationToken ct = default);
+
+    /// <summary>Reembolso total de un pago aprobado (MercadoPago refunds API).</summary>
+    Task<Result> RefundAsync(TenantId tenantId, string paymentId, CancellationToken ct = default);
 }
 
 public sealed record WebhookValidationResult(bool IsValid, string? Type, string? DataId);

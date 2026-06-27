@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using Api.Payments;
 using Payments.Contracts;
+using Payments.Infrastructure.Persistence;
 
 namespace Api.Endpoints;
 
@@ -13,7 +13,7 @@ public static class PaymentWebhookEndpoints
         group.MapPost("/payments/webhooks/mercadopago", async (
             HttpRequest httpRequest,
             IMercadoPagoWebhookValidator validator,
-            PaymentWebhookQueue queue,
+            PaymentsDbContext db,
             CancellationToken ct) =>
         {
             string body;
@@ -33,9 +33,13 @@ public static class PaymentWebhookEndpoints
 
             var userId = ParseUserId(body);
 
-            // Responder 200 ya; el worker procesa async.
+            // Persistir el evento (inbox durable) y responder 200. El worker lo
+            // procesa async con reintentos; sobrevive reinicios del proceso.
             if (result.Type == "payment" && !string.IsNullOrEmpty(result.DataId))
-                await queue.EnqueueAsync(new PaymentWebhookJob(result.Type, result.DataId!, userId), ct);
+            {
+                db.PaymentWebhookEvents.Add(PaymentWebhookEvent.Receive(result.Type, result.DataId!, userId));
+                await db.SaveChangesAsync(ct);
+            }
 
             return Results.Ok();
         });

@@ -1,3 +1,4 @@
+using Api.Auth;
 using Customers.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
@@ -8,7 +9,8 @@ public static class CustomersEndpoints
 {
     public static RouteGroupBuilder MapCustomerEndpoints(this RouteGroupBuilder group)
     {
-        var customers = group.MapGroup("/customers");
+        // Grupo 100% admin: PII de clientes. Toda lectura/escritura exige membresía.
+        var customers = group.MapGroup("/customers").RequireTenantMembership();
 
         customers.MapGet("/", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct, string? q = null) =>
         {
@@ -18,9 +20,10 @@ public static class CustomersEndpoints
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = $"%{q.Trim()}%";
+                // Phone/Address están cifradas en reposo → no se pueden buscar (ni tendría
+                // sentido el ILIKE sobre ciphertext). Búsqueda por nombre + email.
                 query = query.Where(c => EF.Functions.ILike(c.Name, term)
-                    || (c.Email != null && EF.Functions.ILike(c.Email, term))
-                    || (c.Phone != null && EF.Functions.ILike(c.Phone, term)));
+                    || (c.Email != null && EF.Functions.ILike(c.Email, term)));
             }
             var items = await query.OrderByDescending(c => c.CreatedAtUtc).ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });

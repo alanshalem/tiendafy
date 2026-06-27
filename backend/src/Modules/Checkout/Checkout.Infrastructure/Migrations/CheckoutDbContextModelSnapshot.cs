@@ -47,6 +47,10 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at_utc");
 
+                    b.Property<DateTime?>("RecoveryEmailSentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recovery_email_sent_at_utc");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

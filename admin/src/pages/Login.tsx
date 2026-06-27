@@ -1,0 +1,188 @@
+import { useState, type ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { api, ApiRequestError } from '../lib/api';
+import { Captcha } from '../components/Captcha';
+
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
+      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">t</text>
+    </svg>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-7 shadow-card">
+        <div className="mb-6 flex items-center gap-2.5">
+          <LogoMark className="h-9 w-9" />
+          <span className="text-xl font-bold text-fg">tiendafy</span>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Login() {
+  const { login, register } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    if (mode === 'forgot') {
+      try { await api.post('/api/v1/auth/forgot', { email }); setSent(true); }
+      catch { setSent(true); } // respuesta uniforme: no revela si el email existe
+      finally { setBusy(false); }
+      return;
+    }
+    const res = mode === 'login' ? await login(email, password, captcha || undefined) : await register(name, email, password, captcha || undefined);
+    setBusy(false);
+    if (!res.ok) setError(res.error ?? 'Algo salió mal.');
+  };
+
+  return (
+    <Shell>
+      <h1 className="text-lg font-semibold text-fg">
+        {mode === 'forgot' ? 'Recuperar contraseña' : mode === 'login' ? 'Entrá a tu panel' : 'Creá tu cuenta'}
+      </h1>
+      <p className="mt-1 text-sm text-fg-muted">
+        {mode === 'forgot' ? 'Te enviamos un link para crear una nueva.' : mode === 'login' ? 'Administrá tus tiendas.' : 'Y empezá a vender.'}
+      </p>
+
+      {sent ? (
+        <p className="mt-5 rounded-lg bg-bg-muted p-4 text-sm text-fg">
+          Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo (y spam).
+        </p>
+      ) : (
+        <form onSubmit={submit} className="mt-5 space-y-3">
+          {mode === 'register' && (
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" required
+              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+          )}
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required
+            className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+          {mode !== 'forgot' && (
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={10}
+              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+          )}
+
+          {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
+
+          {error && <p className="text-sm text-danger">{error}</p>}
+
+          <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)}
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'forgot' ? 'Enviar link' : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          </button>
+        </form>
+      )}
+
+      {mode === 'login' && !sent && (
+        <button type="button" onClick={() => { setError(null); setMode('forgot'); }} className="mt-3 block w-full text-center text-sm text-fg-muted hover:underline">
+          ¿Olvidaste tu contraseña?
+        </button>
+      )}
+
+      <p className="mt-4 text-center text-sm text-fg-muted">
+        {mode === 'forgot' ? (
+          <button type="button" onClick={() => { setError(null); setSent(false); setMode('login'); }} className="font-semibold text-primary hover:underline">
+            Volver a iniciar sesión
+          </button>
+        ) : (
+          <>
+            {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
+            <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline">
+              {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
+            </button>
+          </>
+        )}
+      </p>
+    </Shell>
+  );
+}
+
+/** Formulario de reset (link del email): /restablecer?email=&token= */
+export function ResetPasswordForm() {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email') ?? '';
+  const token = params.get('token') ?? '';
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await api.post('/api/v1/auth/reset', { email, token, password });
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.error.message : 'El link no es válido o expiró.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!email || !token) {
+    return <Shell><p className="text-sm text-fg-muted">Link inválido. Pedí uno nuevo desde &quot;Olvidaste tu contraseña&quot;.</p></Shell>;
+  }
+
+  if (done) {
+    return (
+      <Shell>
+        <h1 className="text-lg font-semibold text-fg">¡Listo!</h1>
+        <p className="mt-1 text-sm text-fg-muted">Tu contraseña fue cambiada.</p>
+        <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Iniciar sesión</a>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <h1 className="text-lg font-semibold text-fg">Nueva contraseña</h1>
+      <p className="mt-1 text-sm text-fg-muted">Para {email}. Mínimo 10 caracteres.</p>
+      <form onSubmit={submit} className="mt-5 space-y-3">
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva contraseña" required minLength={10}
+          className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <button type="submit" disabled={busy || password.length < 10}
+          className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
+        </button>
+      </form>
+    </Shell>
+  );
+}
+
+/** Gate: muestra el login si no hay sesión; el resto de la app si la hay. */
+export function AuthGate({ children }: { children: ReactNode }) {
+  const { user, ready } = useAuth();
+  // El link de reset llega sin sesión: se atiende antes del gate.
+  if (typeof window !== 'undefined' && window.location.pathname === '/restablecer') {
+    return <ResetPasswordForm />;
+  }
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-subtle">
+        <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
+      </div>
+    );
+  }
+  if (!user) return <Login />;
+  return <>{children}</>;
+}

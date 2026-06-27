@@ -1,3 +1,4 @@
+using Api.Auth;
 using Discounts.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
@@ -20,7 +21,7 @@ public static class DiscountsEndpoints
                 .OrderByDescending(c => c.CreatedAtUtc)
                 .ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });
-        });
+        }).RequireTenantMembership(); // listado de cupones = solo admin (validate es público aparte)
 
         coupons.MapPost("/", async (CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
@@ -103,7 +104,7 @@ public static class DiscountsEndpoints
                 discountAmount = ev.Discount,
                 freeShipping = ev.FreeShipping,
             });
-        });
+        }).RequireRateLimiting("auth");
 
         return group;
     }

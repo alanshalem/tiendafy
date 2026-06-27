@@ -59,6 +59,9 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
   };
 
   const pageWindow = buildPageWindow(page, totalPages);
+  // Sin productos: ocultamos el sidebar y centramos el estado vacío en todo el ancho
+  // (con sidebar quedaba corrido a la derecha, centrado solo dentro de la columna 1fr).
+  const empty = products.length === 0;
 
   return (
     <div className="mx-auto max-w-container px-4 pb-16">
@@ -77,8 +80,9 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
         </div>
       </div>
 
-      <div className="grid gap-8 pt-6 lg:grid-cols-[15rem_1fr]">
-        {/* Sidebar: búsqueda + categorías */}
+      <div className={empty ? 'pt-6' : 'grid gap-8 pt-6 lg:grid-cols-[15rem_1fr]'}>
+        {/* Sidebar: búsqueda + categorías (oculto si no hay resultados) */}
+        {!empty && (
         <aside className="space-y-6">
           <form onSubmit={onSearch}>
             <div className="flex gap-2">
@@ -136,10 +140,11 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
             </div>
           )}
         </aside>
+        )}
 
-        {/* Grilla + paginado */}
+        {/* Grilla + paginado (o estado vacío centrado a todo el ancho) */}
         <div>
-          {products.length === 0 ? (
+          {empty ? (
             <EmptyState
               icon={<SearchX className="h-8 w-8" />}
               title="Sin resultados"

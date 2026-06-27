@@ -204,6 +204,7 @@ export function ProductDetail({
                 <select
                   value={variantId}
                   onChange={(e) => setVariantId(e.target.value)}
+                  aria-label="Variante"
                   className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
                 >
                   {variants.map((v) => (

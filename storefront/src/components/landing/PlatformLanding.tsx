@@ -6,21 +6,18 @@ const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3001';
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <g transform="rotate(-4 32 32)">
-        <rect x="6" y="6" width="52" height="52" rx="10" fill="#e8501e" stroke="#1b1510" strokeWidth="3" />
-        <text
-          x="32"
-          y="46"
-          textAnchor="middle"
-          fontFamily="Georgia, serif"
-          fontStyle="italic"
-          fontWeight="700"
-          fontSize="40"
-          fill="#faf5ed"
-        >
-          t
-        </text>
-      </g>
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="var(--ld-verm)" />
+      <text
+        x="32"
+        y="45"
+        textAnchor="middle"
+        fontFamily="-apple-system, BlinkMacSystemFont, system-ui, sans-serif"
+        fontWeight="700"
+        fontSize="38"
+        fill="#fff"
+      >
+        t
+      </text>
     </svg>
   );
 }
@@ -376,7 +373,7 @@ export function PlatformLanding() {
       </div>
 
       {/* ---------- Cómo funciona ---------- */}
-      <section id="como-funciona" className="py-24">
+      <section id="como-funciona" className="py-28">
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Cómo funciona</span>
@@ -387,9 +384,9 @@ export function PlatformLanding() {
           <div className="mt-14 grid gap-10 md:grid-cols-3">
             {steps.map((step, i) => (
               <Reveal key={step.title} delay={i * 120}>
-                <div className="border-t-2 pt-6" style={{ borderColor: 'var(--ld-ink)' }}>
-                  <div className="ld-step-number">0{i + 1}</div>
-                  <h3 className="ld-display mt-3 text-xl font-semibold">{step.title}</h3>
+                <div className="ld-step-card">
+                  <div className="ld-step-number">{i + 1}</div>
+                  <h3 className="ld-display mt-5 text-xl font-semibold">{step.title}</h3>
                   <p className="mt-2" style={{ color: 'var(--ld-ink-soft)' }}>{step.body}</p>
                 </div>
               </Reveal>
@@ -399,7 +396,7 @@ export function PlatformLanding() {
       </section>
 
       {/* ---------- Collage de tiendas ---------- */}
-      <section id="tiendas" className="pb-24">
+      <section id="tiendas" className="pb-28">
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Tiendas con identidad</span>
@@ -415,7 +412,7 @@ export function PlatformLanding() {
             <div className="ld-collage mt-12">
               {showcaseStores.map((store) => (
                 <div key={store.name} className="ld-collage-card">
-                  <div className="ld-collage-img" style={{ background: store.bg, height: store.height }}>
+                  <div className="ld-collage-img" style={{ background: store.bg }}>
                     <span className="text-lg italic">{store.label}</span>
                   </div>
                   <div className="ld-collage-meta">
@@ -430,7 +427,7 @@ export function PlatformLanding() {
       </section>
 
       {/* ---------- Features ---------- */}
-      <section id="funciones" className="pb-24">
+      <section id="funciones" className="pb-28">
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Funciones</span>
@@ -485,7 +482,7 @@ export function PlatformLanding() {
       </section>
 
       {/* ---------- Testimonios ---------- */}
-      <section className="py-24" style={{ background: 'var(--ld-tan)' }}>
+      <section className="py-28" style={{ background: 'var(--ld-tan)' }}>
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Historias reales</span>
@@ -505,7 +502,7 @@ export function PlatformLanding() {
       </section>
 
       {/* ---------- Pricing ---------- */}
-      <section id="precios" className="py-24">
+      <section id="precios" className="py-28">
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Precios</span>
@@ -540,7 +537,7 @@ export function PlatformLanding() {
       </section>
 
       {/* ---------- FAQ ---------- */}
-      <section id="preguntas" className="pb-24">
+      <section id="preguntas" className="pb-28">
         <div className="ld-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
           <Reveal>
             <span className="ld-eyebrow">Preguntas frecuentes</span>

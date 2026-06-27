@@ -65,12 +65,10 @@ const groups: NavGroup[] = [
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <g transform="rotate(-4 32 32)">
-        <rect x="6" y="6" width="52" height="52" rx="10" fill="#e8501e" stroke="#1b1510" strokeWidth="3" />
-        <text x="32" y="46" textAnchor="middle" fontFamily="Georgia, serif" fontStyle="italic" fontWeight="700" fontSize="40" fill="#faf5ed">
-          t
-        </text>
-      </g>
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
+      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">
+        t
+      </text>
     </svg>
   );
 }
@@ -85,11 +83,11 @@ export function SettingsLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-sidebar shrink-0 flex-col bg-accent text-accent-fg">
+      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-accent/80 text-accent-fg backdrop-blur-xl">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex h-header items-center gap-2 border-b border-white/10 px-4 text-left hover:bg-white/5"
+          className="flex h-header items-center gap-2 border-b border-border px-4 text-left hover:bg-fg/5"
         >
           <ChevronLeft className="h-5 w-5 text-accent-fg/60" />
           <LogoMark className="h-6 w-6" />
@@ -112,7 +110,7 @@ export function SettingsLayout() {
                         'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                         isActive
                           ? 'bg-primary text-primary-fg'
-                          : 'text-accent-fg/60 hover:bg-white/10 hover:text-accent-fg',
+                          : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
                       )
                     }
                   >
@@ -127,11 +125,11 @@ export function SettingsLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="flex h-header items-center justify-between gap-3 border-b border-border bg-surface px-6">
+        <header className="sticky top-0 z-20 flex h-header items-center justify-between gap-3 border-b border-border bg-surface/80 px-6 backdrop-blur-xl">
           <StoreSwitcher />
           <ThemeModeToggle />
         </header>
-        <main className="p-6">
+        <main className="p-6 md:p-8">
           <Outlet />
         </main>
       </div>

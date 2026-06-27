@@ -13,6 +13,7 @@ import { EditableRegion } from './EditableRegion';
 import { Analytics } from './Analytics';
 import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
 import { PagesNav } from './PagesNav';
+import { WhatsAppFab } from './WhatsAppFab';
 import { PreviewContext, LiveThemeContext, usePreviewHref } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { toStoreProduct } from '@/lib/catalog';
@@ -64,6 +65,12 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const bg = transparent ? `rgb(${h.bg} / ${transparentAlpha})` : `rgb(${h.bg})`;
   const borderClass = h.border === 'line' ? 'border-b border-white/15' : h.border === 'shadow' ? 'shadow-lg' : '';
 
+  // Barra de anuncio: uno o varios textos (cada uno con link opcional), fija o
+  // desplazándose (marquee). Sólo se muestra si hay al menos un texto con contenido.
+  const ann = theme.announcement;
+  const annItems = (ann.items ?? []).filter((i) => i.text.trim());
+  const annMarquee = ann.animation === 'marquee';
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     router.push(href(`/productos${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`));
@@ -108,10 +115,12 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   ) : null;
 
   const cartBtn = h.showCart ? (
-    <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm" aria-label="Abrir carrito">
+    <button onClick={() => setOpen(true)} className="relative inline-flex items-center gap-1.5 text-sm" aria-label="Abrir carrito">
       <ShoppingCart className="h-5 w-5" />
       {h.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
-      <span className="rounded-full px-1.5 text-xs font-bold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>{count}</span>
+      {count > 0 && (
+        <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]" style={{ background: 'rgb(var(--color-primary))' }}>{count}</span>
+      )}
     </button>
   ) : null;
 
@@ -122,7 +131,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
     <Link href={href('/favoritos')} className="relative inline-flex items-center opacity-90 hover:opacity-100" aria-label="Favoritos" title="Favoritos">
       <Heart className="h-5 w-5" />
       {fav.count > 0 && (
-        <span className="absolute -right-2 -top-2 rounded-full px-1.5 text-[0.65rem] font-bold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>{fav.count}</span>
+        <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]" style={{ background: 'rgb(var(--color-primary))' }}>{fav.count}</span>
       )}
     </Link>
   );
@@ -141,10 +150,10 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
     case 'logo-center':
       inner = (
         <div className="py-2.5">
-          <div className="flex items-center">
-            <div className="flex-1">{search}</div>
-            <div className="flex justify-center">{logo}</div>
-            <div className="flex flex-1 items-center justify-end gap-3">{accountBtn}{favBtn}{cartBtn}</div>
+          <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-center">{search}</div>
+            <div className="flex shrink-0 justify-center">{logo}</div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">{accountBtn}{favBtn}{cartBtn}</div>
           </div>
           <div className="mt-1.5 flex justify-center">{nav}</div>
         </div>
@@ -179,9 +188,9 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   return (
     <>
-      {theme.announcement.show && theme.announcement.message && (
+      {ann.show && annItems.length > 0 && (
         <div
-          className="relative px-4 py-2 text-center text-sm font-semibold text-primary-fg"
+          className="relative overflow-hidden px-4 py-2 text-sm font-semibold text-primary-fg"
           style={{ background: 'rgb(var(--color-primary))' }}
           onMouseEnter={preview ? () => setAnnHover(true) : undefined}
           onMouseLeave={preview ? () => setAnnHover(false) : undefined}
@@ -197,7 +206,30 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
               </button>
             </>
           )}
-          {theme.announcement.link ? <a href={theme.announcement.link}>{theme.announcement.message}</a> : theme.announcement.message}
+          {annMarquee ? (
+            // Marquee: la pista se duplica para un loop continuo sin saltos.
+            <div className="tf-marquee flex w-max whitespace-nowrap will-change-transform">
+              {[0, 1].map((dup) => (
+                <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
+                  {annItems.map((it, i) => (
+                    <span key={i} className="flex items-center">
+                      {it.link ? <a href={it.link} className="px-6 hover:underline">{it.text}</a> : <span className="px-6">{it.text}</span>}
+                      <span className="opacity-50">•</span>
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+              {annItems.map((it, i) => (
+                <span key={i} className="flex items-center gap-3">
+                  {i > 0 && <span className="opacity-50">•</span>}
+                  {it.link ? <a href={it.link} className="hover:underline">{it.text}</a> : <span>{it.text}</span>}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <header
@@ -429,7 +461,7 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
   }, [theme.favicon]);
 
   return (
-    <div data-store-radius={theme.borderRadius} style={themeToStyle(theme) as React.CSSProperties}>
+    <div data-store-radius={theme.borderRadius} data-store-motion={theme.motion} data-store-density={theme.density} style={themeToStyle(theme) as React.CSSProperties}>
       {theme.customCss && <style dangerouslySetInnerHTML={{ __html: theme.customCss }} />}
       {!live && tenantId && <Analytics tenantId={tenantId} />}
       <PreviewContext.Provider value={!!live}>
@@ -446,18 +478,13 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
         </LiveThemeContext.Provider>
       </PreviewContext.Provider>
       {theme.whatsappButton?.enabled && theme.whatsappButton.phone && (
-        <a
-          href={`https://wa.me/${theme.whatsappButton.phone.replace(/\D/g, '')}?text=${encodeURIComponent(theme.whatsappButton.message || '')}`}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Escribinos por WhatsApp"
-          className="fixed bottom-5 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-110"
-          style={{ background: '#25D366' }}
-        >
-          <svg viewBox="0 0 24 24" className="h-8 w-8" fill="currentColor" aria-hidden="true">
-            <path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.519 5.262l-.999 3.648 3.97-1.04zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
-          </svg>
-        </a>
+        <WhatsAppFab
+          phone={theme.whatsappButton.phone}
+          message={theme.whatsappButton.message}
+          storeName={tenantName}
+          logo={theme.logo}
+          showPreview={theme.whatsappButton.showPreview !== false}
+        />
       )}
     </div>
   );

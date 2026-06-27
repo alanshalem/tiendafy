@@ -30,7 +30,8 @@ public static class IdentityModule
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppIdentityDbContext>()
-            .AddSignInManager();
+            .AddSignInManager()
+            .AddDefaultTokenProviders(); // tokens de reset de contraseña / 2FA
 
         // Sesión server-side con cookie httpOnly (ADR sección 9):
         // revocable al instante, sin JWT para el admin.
@@ -64,6 +65,8 @@ public static class IdentityModule
         });
 
         services.AddAuthorization();
+
+        services.AddScoped<IMembershipService, MembershipService>();
 
         return services;
     }

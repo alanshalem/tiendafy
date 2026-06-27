@@ -23,6 +23,7 @@ import { NewProductPage } from './pages/Products/NewProduct';
 import { EditProductPage } from './pages/Products/EditProduct';
 import { DiscountsPage } from './pages/Discounts';
 import { CustomersPage } from './pages/Customers';
+import { MessagesPage } from './pages/Messages';
 import { OrdersPage } from './pages/Orders';
 import { AbandonedCartsPage } from './pages/AbandonedCarts';
 import { HelpArticlePage, HelpIndexPage } from './pages/Help';
@@ -70,6 +71,7 @@ export default function App() {
 
         <Route path="/descuentos" element={<DiscountsPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
+        <Route path="/mensajes" element={<MessagesPage />} />
         <Route path="/paginas" element={<PagesPage />} />
         <Route path="/tenants" element={<TenantsPage />} />
         {Object.keys(stubs).map((id) => (
