@@ -19,7 +19,9 @@ const csp = [
   "media-src 'self' data: blob: https: http:",
   "font-src 'self' data: https://fonts.gstatic.com",
   `connect-src 'self' ${API} https://*.mercadopago.com https://api.mercadopago.com https://challenges.cloudflare.com`,
-  "frame-src https://*.mercadopago.com https://challenges.cloudflare.com",
+  // Embeds de la sección Instagram/Video: iframes de YouTube, Vimeo e Instagram.
+  // Sin estos orígenes el navegador bloquea el iframe ("This content is blocked").
+  "frame-src https://*.mercadopago.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.instagram.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self' https://*.mercadopago.com",
