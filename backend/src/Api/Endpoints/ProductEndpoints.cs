@@ -48,13 +48,7 @@ public static class ProductEndpoints
             int limit = 20,
             Guid? after = null) =>
         {
-            ProductStatus? statusFilter = status?.ToUpperInvariant() switch
-            {
-                "DRAFT" => ProductStatus.Draft,
-                "ACTIVE" => ProductStatus.Active,
-                "ARCHIVED" => ProductStatus.Archived,
-                _ => null,
-            };
+            var statusFilter = ProductStatusExtensions.ParseApi(status);
 
             limit = Math.Clamp(limit, 1, 100);
             var page = await repository.ListAsync(tenant.TenantId, statusFilter, limit + 1, after, ct);

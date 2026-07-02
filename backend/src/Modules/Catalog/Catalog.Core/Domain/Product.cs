@@ -12,6 +12,20 @@ public enum ProductStatus
     Archived = 2,
 }
 
+/// <summary>Mapeo único ProductStatus ↔ string de API (DRAFT/ACTIVE/ARCHIVED).</summary>
+public static class ProductStatusExtensions
+{
+    public static string ToApiString(this ProductStatus status) => status.ToString().ToUpperInvariant();
+
+    public static ProductStatus? ParseApi(string? raw) => raw?.ToUpperInvariant() switch
+    {
+        "DRAFT" => ProductStatus.Draft,
+        "ACTIVE" => ProductStatus.Active,
+        "ARCHIVED" => ProductStatus.Archived,
+        _ => null,
+    };
+}
+
 /// <summary>
 /// Aggregate root del catálogo. Invariantes que protege:
 /// - Cada variante combina exactamente un valor de cada opción, y la combinación es única.

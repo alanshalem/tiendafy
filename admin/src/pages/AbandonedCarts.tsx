@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatDateTime } from '../lib/format';
 
 interface Abandoned {
   count: number;
@@ -67,7 +67,7 @@ export function AbandonedCartsPage() {
             <tbody>
               {items.map((c) => (
                 <tr key={c.id} className="border-b border-border last:border-b-0">
-                  <td className="px-4 py-3 text-fg-muted">{new Date(c.createdAtUtc).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="px-4 py-3 text-fg-muted">{formatDateTime(c.createdAtUtc)}</td>
                   <td className="px-4 py-3 text-fg">{c.email ?? <span className="text-fg-subtle">Sin email (no recuperable)</span>}</td>
                   <td className="px-4 py-3 text-center tabular-nums">{c.items}</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">{money(c.total.amount, c.total.currency)}</td>

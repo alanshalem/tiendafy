@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Heart, LogOut, Package } from 'lucide-react';
-import { formatMoney } from '@tiendafy/types';
+import { formatMoney, formatDate } from '@tiendafy/types';
 import { useAuth } from './auth';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { clientJson } from '@/lib/api-client';
 
 interface OrderItem { productName: string; variantDescription: string; quantity: number; unitPrice: { amount: number; currency: string } }
 interface Order {
@@ -43,10 +43,8 @@ export function AccountDashboard() {
   useEffect(() => {
     if (!token) { setOrders([]); return; }
     let cancelled = false;
-    fetch(`${API}/api/v1/shop/orders`, { headers: { 'X-Tenant-Id': tenantId }, credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setOrders(d?.items ?? []); })
-      .catch(() => { if (!cancelled) setOrders([]); });
+    clientJson<{ items: Order[] }>('/api/v1/shop/orders', { headers: { 'X-Tenant-Id': tenantId }, credentials: 'include' })
+      .then((d) => { if (!cancelled) setOrders(d?.items ?? []); });
     return () => { cancelled = true; };
   }, [token, tenantId]);
 
@@ -90,7 +88,7 @@ export function AccountDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
-                    <span className="text-xs opacity-50">{new Date(o.createdAtUtc).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    <span className="text-xs opacity-50">{formatDate(o.createdAtUtc, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                   </div>
                   <span className="font-bold">{money(o.total.amount, o.total.currency)}</span>
                 </div>

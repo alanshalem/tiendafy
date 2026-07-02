@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { API_URL as API } from '@/lib/api-client';
 
 interface Cat {
   id: string;

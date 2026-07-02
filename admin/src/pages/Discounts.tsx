@@ -5,7 +5,7 @@ import {
   Badge, Button, Card, Dropdown, FormField, Input, Modal, Select, useToast, useConfirm,
   type BadgeVariant, type TableColumn, Table,
 } from '@tiendafy/ui';
-import { formatMoney } from '@tiendafy/types';
+import { formatMoney, formatDate } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
@@ -35,7 +35,7 @@ function describe(c: Coupon): string {
 }
 
 function vigencia(c: Coupon): string {
-  const d = (s: string | null) => (s ? new Date(s).toLocaleDateString('es-AR') : null);
+  const d = (s: string | null) => (s ? formatDate(s) : null);
   const from = d(c.startsAtUtc);
   const to = d(c.endsAtUtc);
   if (from && to) return `${from} – ${to}`;

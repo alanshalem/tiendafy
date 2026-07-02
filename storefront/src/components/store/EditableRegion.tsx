@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useState, type ReactNode } from 'react';
+import { EDITOR_MSG } from '@tiendafy/types';
 import { Pencil, Trash2 } from 'lucide-react';
 import { PreviewContext } from './preview';
 
@@ -24,8 +25,8 @@ export function EditableRegion({
   const [hover, setHover] = useState(false);
   if (!preview) return <>{children}</>;
 
-  const open = () => window.parent?.postMessage({ type: 'tiendafy:edit-section', target, sectionId: id }, '*');
-  const del = () => window.parent?.postMessage({ type: 'tiendafy:delete-section', sectionId: id }, '*');
+  const open = () => window.parent?.postMessage({ type: EDITOR_MSG.editSection, target, sectionId: id }, '*');
+  const del = () => window.parent?.postMessage({ type: EDITOR_MSG.deleteSection, sectionId: id }, '*');
   const canDelete = target === 'section' && Boolean(id);
 
   return (

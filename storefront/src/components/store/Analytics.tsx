@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { API_URL as API } from '@/lib/api-client';
 
 function persistentId(key: string, storage: Storage): string {
   let value = storage.getItem(key);

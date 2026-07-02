@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EDITOR_MSG } from '@tiendafy/types';
 import { useNavigate } from 'react-router-dom';
 import {
   Check as CheckIcon,
@@ -195,18 +196,18 @@ export function ThemeEditorPage() {
 
   // Postear tema al iframe (preview en vivo).
   const postToPreview = useCallback((t: ThemeConfig) => {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'tiendafy:theme', theme: t }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.theme, theme: t }, '*');
   }, []);
 
   // Abrir/cerrar el carrito en el preview (no es una página: se controla por mensaje).
   const postCart = useCallback((open: boolean) => {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'tiendafy:preview-cart', open }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.previewCart, open }, '*');
   }, []);
 
   // El preview avisa cuando está listo → mandamos el tema actual (+ estado del carrito).
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'tiendafy:preview-ready' && theme) {
+      if (e.data?.type === EDITOR_MSG.previewReady && theme) {
         postToPreview(theme);
         postCart(view === 'cart');
       }
@@ -224,16 +225,16 @@ export function ThemeEditorPage() {
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
     let msg: { type: string; target?: string; sectionId?: string } | null = null;
-    if (view === 'header') msg = { type: 'tiendafy:focus-section', target: 'header' };
-    else if (view === 'footer') msg = { type: 'tiendafy:focus-section', target: 'footer' };
-    else if (view.startsWith('home:')) msg = { type: 'tiendafy:focus-section', target: 'section', sectionId: view.slice(5) };
+    if (view === 'header') msg = { type: EDITOR_MSG.focusSection, target: 'header' };
+    else if (view === 'footer') msg = { type: EDITOR_MSG.focusSection, target: 'footer' };
+    else if (view.startsWith('home:')) msg = { type: EDITOR_MSG.focusSection, target: 'section', sectionId: view.slice(5) };
     if (msg) win.postMessage(msg, '*');
   }, [view]);
 
   // Click en una región del preview (sección / encabezado / pie) → abre su panel.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type !== 'tiendafy:edit-section') return;
+      if (e.data?.type !== EDITOR_MSG.editSection) return;
       const { target, sectionId } = e.data as { target: string; sectionId?: string };
       if (target === 'header' || target === 'announcement') setView('header');
       else if (target === 'footer') setView('footer');
@@ -263,7 +264,7 @@ export function ThemeEditorPage() {
   // Eliminar sección desde el preview (botón de tacho en el hover).
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type !== 'tiendafy:delete-section' || !e.data.sectionId) return;
+      if (e.data?.type !== EDITOR_MSG.deleteSection || !e.data.sectionId) return;
       const sectionId = e.data.sectionId as string;
       confirm({
         title: 'Eliminar sección',

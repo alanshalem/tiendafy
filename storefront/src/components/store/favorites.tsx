@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './auth';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { API_URL as API } from '@/lib/api-client';
+import { readJson, writeJson } from '@/lib/storage';
 
 /**
  * Favoritos del comprador.
@@ -33,33 +34,20 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
 
   // Carga inicial desde localStorage (invitado o cache del logueado).
   useEffect(() => {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      try {
-        const p = JSON.parse(raw);
-        if (Array.isArray(p)) setIds(p.filter((x) => typeof x === 'string'));
-      } catch {
-        /* ignore */
-      }
-    }
+    const stored = readJson<unknown>(key, []);
+    if (Array.isArray(stored)) setIds(stored.filter((x): x is string => typeof x === 'string'));
   }, [key]);
 
   // Persistir siempre a localStorage.
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(ids));
+    writeJson(key, ids);
   }, [key, ids]);
 
   // Al loguearse: subir locales (merge) y adoptar el set del server.
   useEffect(() => {
     if (!ready || !token) return;
     let cancelled = false;
-    let local: string[] = [];
-    try {
-      const raw = localStorage.getItem(key);
-      local = raw ? JSON.parse(raw) : [];
-    } catch {
-      local = [];
-    }
+    const local = readJson<string[]>(key, []);
     fetch(`${API}/api/v1/shop/favorites/merge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey },

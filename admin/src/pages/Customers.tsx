@@ -5,6 +5,7 @@ import {
   Button, Card, Dropdown, FormField, Input, Modal, useToast, useConfirm,
   type TableColumn, Table,
 } from '@tiendafy/ui';
+import { formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
@@ -55,7 +56,7 @@ export function CustomersPage() {
         ? <span className="block max-w-[16rem] truncate text-sm text-fg-muted" title={c.address}>{c.address}</span>
         : <span className="text-fg-subtle">—</span>),
     },
-    { key: 'createdAtUtc', header: 'Creado', cell: (c) => <span className="text-sm text-fg-muted">{new Date(c.createdAtUtc).toLocaleDateString('es-AR')}</span> },
+    { key: 'createdAtUtc', header: 'Creado', cell: (c) => <span className="text-sm text-fg-muted">{formatDate(c.createdAtUtc)}</span> },
     {
       key: 'id',
       header: '',

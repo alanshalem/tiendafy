@@ -8,7 +8,7 @@ import { useAuth } from './auth';
 import { usePreviewHref } from './preview';
 import { Captcha } from './Captcha';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { clientJson } from '@/lib/api-client';
 
 /** Entrada de cuenta en el header: menú si está logueado, modal de login si no. */
 export function AccountButton() {
@@ -77,10 +77,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/api/v1/shop/auth/google/configured`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setGoogleOn(!!d?.configured))
-      .catch(() => {});
+    clientJson<{ configured: boolean }>('/api/v1/shop/auth/google/configured')
+      .then((d) => setGoogleOn(!!d?.configured));
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;

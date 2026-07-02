@@ -6,7 +6,7 @@ import { Loader2, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { API_URL as API } from '@/lib/api-client';
 
 interface CartLine {
   variantId: string;

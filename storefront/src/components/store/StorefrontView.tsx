@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useState } from 'react';
+import { EDITOR_MSG } from '@tiendafy/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Pencil } from 'lucide-react';
@@ -18,9 +19,9 @@ import { PagesNav } from './PagesNav';
 import { WhatsAppFab } from './WhatsAppFab';
 import { PreviewContext, LiveThemeContext, usePreviewHref } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
-import { toStoreProduct } from '@/lib/catalog';
+import { toStoreProduct, type ProductDto } from '@/lib/catalog';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { clientJson } from '@/lib/api-client';
 
 interface StorefrontViewProps {
   tenantId: string;
@@ -202,7 +203,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
             <>
               <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
               <button
-                onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: 'tiendafy:edit-section', target: 'announcement' }, '*'); }}
+                onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, '*'); }}
                 className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
               >
                 <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
@@ -246,7 +247,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <>
             <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-[rgb(var(--color-primary))]" />
             <button
-              onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: 'tiendafy:edit-section', target: 'header' }, '*'); }}
+              onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, '*'); }}
               className="absolute right-3 top-2 z-[56] inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
               style={{ background: 'rgb(var(--color-primary))' }}
             >
@@ -379,7 +380,7 @@ function PreviewCartSync() {
   useEffect(() => {
     if (!preview) return;
     const h = (e: MessageEvent) => {
-      if (e.data?.type === 'tiendafy:preview-cart') setOpen(e.data.open !== false);
+      if (e.data?.type === EDITOR_MSG.previewCart) setOpen(e.data.open !== false);
     };
     window.addEventListener('message', h);
     return () => window.removeEventListener('message', h);
@@ -411,9 +412,9 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     if (!live) return;
     const handler = (e: MessageEvent) => {
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
-      if (e.data?.type === 'tiendafy:theme' && e.data.theme) setTheme(mergeTheme(e.data.theme));
+      if (e.data?.type === EDITOR_MSG.theme && e.data.theme) setTheme(mergeTheme(e.data.theme));
       // Al abrir un panel, el editor pide enfocar su sección: scroll + flash.
-      if (e.data?.type === 'tiendafy:focus-section') {
+      if (e.data?.type === EDITOR_MSG.focusSection) {
         const key = e.data.sectionId ? `section:${e.data.sectionId}` : e.data.target;
         const el = key && document.querySelector<HTMLElement>(`[data-tf-focus="${key}"]`);
         if (el) {
@@ -426,7 +427,7 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
       }
     };
     window.addEventListener('message', handler);
-    window.parent?.postMessage({ type: 'tiendafy:preview-ready' }, '*');
+    window.parent?.postMessage({ type: EDITOR_MSG.previewReady }, '*');
     return () => window.removeEventListener('message', handler);
   }, [live]);
 
@@ -447,9 +448,7 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     let cancelled = false;
     Promise.all(
       missing.map((id) =>
-        fetch(`${API_BASE}/api/v1/products/${id}`, { headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' } })
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
+        clientJson<ProductDto>(`/api/v1/products/${id}`, { headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' } }),
       ),
     ).then((dtos) => {
       if (cancelled) return;

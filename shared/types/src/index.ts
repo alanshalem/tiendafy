@@ -61,4 +61,5 @@ export type {
   ThemeConfig,
 } from './theme';
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, PAYMENT_LOGOS, PAYMENT_LOGO_SLUGS } from './theme';
-export { formatMoney } from './format';
+export { formatMoney, formatDate, formatDateTime } from './format';
+export { EDITOR_MSG, type EditorMsgType } from './editor-messages';

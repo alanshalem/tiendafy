@@ -10,3 +10,15 @@ export function formatMoney(amountInMinorUnits: number, currency?: string): stri
     maximumFractionDigits: 0,
   }).format(amountInMinorUnits / 100);
 }
+
+/** Fecha (es-AR). Centraliza el locale; `opts` para variar el formato. */
+export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): string {
+  return new Date(iso).toLocaleDateString('es-AR', opts);
+}
+
+/** Fecha + hora corta (es-AR): "05 jul, 14:30". */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('es-AR', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+}

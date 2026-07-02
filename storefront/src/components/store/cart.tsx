@@ -4,7 +4,8 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 
-const CART_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+import { API_URL as CART_API } from '@/lib/api-client';
+import { readJson, writeJson } from '@/lib/storage';
 
 export interface CartLine {
   variantId: string;
@@ -43,18 +44,11 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      try {
-        setLines(JSON.parse(raw));
-      } catch {
-        /* ignore */
-      }
-    }
+    setLines(readJson<CartLine[]>(key, []));
   }, [key]);
 
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(lines));
+    writeJson(key, lines);
   }, [key, lines]);
 
   const value = useMemo<CartContextValue>(() => {
