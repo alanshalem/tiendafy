@@ -148,8 +148,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             setOpen(true);
           }}
           // Siempre visible. mt-3: gap del precio; el card flex lo mantiene abajo.
-          className="mt-3 w-full rounded-md py-2 text-xs font-semibold text-primary-fg"
-          style={{ background: 'rgb(var(--color-primary))' }}
+          className="mt-3 w-full rounded-md bg-primary py-2 text-xs font-semibold text-primary-fg"
         >
           Agregar al carrito
         </button>

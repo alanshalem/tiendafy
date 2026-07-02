@@ -100,15 +100,15 @@ function ImageCarousel({ images, fullHeightMobile }: { images: string[]; fullHei
   const [i, setI] = useState(0);
   useEffect(() => {
     if (images.length < 2) return;
-    const t = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
+    return () => clearInterval(timer);
   }, [images.length]);
-  const h = fullHeightMobile ? 'h-[78vh] sm:h-auto sm:max-h-[460px]' : 'max-h-[460px]';
+  const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-auto sm:max-h-[460px]' : 'max-h-[460px]';
   return (
     <section className="relative overflow-hidden">
       <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${i * 100}%)` }}>
         {images.map((src, idx) => (
-          <img key={idx} src={src} alt="" className={`${h} w-full shrink-0 object-cover`} />
+          <img key={idx} src={src} alt="" className={`${heightClass} w-full shrink-0 object-cover`} />
         ))}
       </div>
       {images.length > 1 && (
@@ -165,11 +165,11 @@ export interface SectionRenderProps {
 
 function HeroVideoSection({ section }: SectionRenderProps) {
   const href = usePreviewHref();
-  const d = section.data as HeroVideoData;
-  const { videoWebm: webm, videoMp4: mp4, poster, title, subtitle, buttonText, link } = d;
-  const alignLeft = d.align === 'left';
-  const full = d.height === 'full';
-  const overlay = OVERLAY_CLASS[d.overlay || 'medium'] ?? OVERLAY_CLASS.medium;
+  const data = section.data as HeroVideoData;
+  const { videoWebm: webm, videoMp4: mp4, poster, title, subtitle, buttonText, link } = data;
+  const alignLeft = data.align === 'left';
+  const full = data.height === 'full';
+  const overlay = OVERLAY_CLASS[data.overlay || 'medium'] ?? OVERLAY_CLASS.medium;
 
   if (!webm && !mp4 && !poster && !title) return null;
 
@@ -191,7 +191,7 @@ function HeroVideoSection({ section }: SectionRenderProps) {
           {title && <h1 className="max-w-2xl text-4xl font-bold leading-tight sm:text-5xl md:text-6xl" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h1>}
           {subtitle && <p className="max-w-xl text-lg opacity-90">{subtitle}</p>}
           {buttonText && (
-            <Link href={href(link || '/productos')} className="mt-2 inline-flex w-fit rounded-md px-6 py-3 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+            <Link href={href(link || '/productos')} className="mt-2 inline-flex w-fit rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-fg">
               {buttonText}
             </Link>
           )}
@@ -203,9 +203,9 @@ function HeroVideoSection({ section }: SectionRenderProps) {
 
 function CarouselSection({ section, storeName }: SectionRenderProps) {
   const href = usePreviewHref();
-  const d = section.data as CarouselData;
-  const images = Array.isArray(d.images) ? d.images : [];
-  const fullHeightMobile = d.fullHeightMobile === true;
+  const data = section.data as CarouselData;
+  const images = Array.isArray(data.images) ? data.images : [];
+  const fullHeightMobile = data.fullHeightMobile === true;
   if (images.length === 0) {
     // Hero por defecto (sin imágenes aún): degradado de marca + titular + CTA.
     return (
@@ -214,10 +214,7 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
           className="pointer-events-none absolute inset-0"
           style={{ background: 'radial-gradient(120% 90% at 50% -10%, rgb(var(--color-primary) / 0.16), transparent 60%)' }}
         />
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'rgb(var(--color-primary))' }}
-        />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary opacity-20 blur-3xl" />
         <div className={`relative mx-auto flex max-w-container flex-col items-center justify-center px-4 py-24 text-center sm:py-32 ${fullHeightMobile ? 'min-h-[82svh] sm:min-h-0' : ''}`}>
           <span className="tf-in mb-4 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-xs font-medium opacity-70">
             ● Tienda online
@@ -230,8 +227,8 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
           </p>
           <Link
             href={href('/productos')}
-            className="tf-in mt-7 inline-flex items-center rounded-full px-7 py-3 text-sm font-semibold text-primary-fg shadow-lg transition-transform hover:scale-[1.03]"
-            style={{ background: 'rgb(var(--color-primary))', animationDelay: '180ms' }}
+            className="tf-in mt-7 inline-flex items-center rounded-full bg-primary px-7 py-3 text-sm font-semibold text-primary-fg shadow-lg transition-transform hover:scale-[1.03]"
+            style={{ animationDelay: '180ms' }}
           >
             Ver productos
           </Link>
@@ -239,25 +236,25 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
       </section>
     );
   }
-  return <ImageCarousel images={images} fullHeightMobile={d.fullHeightMobile === true} />;
+  return <ImageCarousel images={images} fullHeightMobile={data.fullHeightMobile === true} />;
 }
 
 function ProductsSection({ section, products, productList }: SectionRenderProps) {
-  const d = section.data as ProductsData;
-  const ids = Array.isArray(d.productIds) ? d.productIds : [];
+  const data = section.data as ProductsData;
+  const ids = Array.isArray(data.productIds) ? data.productIds : [];
   const fallback = section.type === 'sale-products'
     ? products.filter((p) => p.compareAtAmount).slice(0, 8)
     : products.slice(0, 8);
   const list = ids.length > 0 ? pickProducts(products, ids) : fallback;
   const defaultTitle = section.type === 'sale-products' ? 'Ofertas' : section.type === 'new-products' ? 'Recién llegados' : 'Destacados';
-  return <ProductGrid title={typeof d.title === 'string' ? d.title : defaultTitle} products={list} list={productList} carousel={d.carousel !== false} />;
+  return <ProductGrid title={typeof data.title === 'string' ? data.title : defaultTitle} products={list} list={productList} carousel={data.carousel !== false} />;
 }
 
 function PromoBannersSection({ section }: SectionRenderProps) {
-  const d = section.data as BannersData;
-  const banners = (Array.isArray(d.banners) ? d.banners : []).filter((b) => b.show !== false && b.image);
+  const data = section.data as BannersData;
+  const banners = (Array.isArray(data.banners) ? data.banners : []).filter((b) => b.show !== false && b.image);
   if (banners.length === 0) return null;
-  const full = d.fullWidth === true;
+  const full = data.fullWidth === true;
   return (
     <section className={full ? 'w-full py-8' : 'mx-auto max-w-container px-4 py-8'}>
       <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${full ? 'gap-0 sm:gap-0' : ''}`}>
@@ -278,10 +275,10 @@ function PromoBannersSection({ section }: SectionRenderProps) {
 }
 
 function CategoryBannersSection({ section }: SectionRenderProps) {
-  const d = section.data as BannersData;
-  const banners = (Array.isArray(d.banners) ? d.banners : []).filter((b) => b.show !== false && b.image);
+  const data = section.data as BannersData;
+  const banners = (Array.isArray(data.banners) ? data.banners : []).filter((b) => b.show !== false && b.image);
   if (banners.length === 0) return null;
-  const full = d.fullWidth === true;
+  const full = data.fullWidth === true;
   return (
     <section className={full ? 'w-full py-8' : 'mx-auto max-w-container px-4 py-8'}>
       <div className={`grid gap-4 sm:grid-cols-3 ${full ? 'gap-0 sm:gap-0' : ''}`}>
@@ -299,43 +296,43 @@ function CategoryBannersSection({ section }: SectionRenderProps) {
 }
 
 function InstitutionalSection({ section }: SectionRenderProps) {
-  const d = section.data as InstitutionalData;
-  if (!d.title && !d.description) return null;
+  const data = section.data as InstitutionalData;
+  if (!data.title && !data.description) return null;
   return (
     <section className="mx-auto max-w-container px-4 py-14 text-center">
-      {d.title && <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{d.title}</h3>}
-      {d.description && <p className="mx-auto mt-3 max-w-2xl opacity-70">{d.description}</p>}
+      {data.title && <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{data.title}</h3>}
+      {data.description && <p className="mx-auto mt-3 max-w-2xl opacity-70">{data.description}</p>}
     </section>
   );
 }
 
 function ImageTextSection({ section }: SectionRenderProps) {
-  const d = section.data as ImageTextData;
-  const light = d.textColor === 'light';
-  if (!d.image && !d.title) return null;
+  const data = section.data as ImageTextData;
+  const light = data.textColor === 'light';
+  if (!data.image && !data.title) return null;
 
-  const hasText = !!(d.title || d.description || d.buttonText);
+  const hasText = !!(data.title || data.description || data.buttonText);
 
   // Solo imagen (sin texto): a todo el ancho del contenedor, centrada — no media
   // columna a la izquierda. Sirve para banners de cualquier proporción.
-  if (d.image && !hasText) {
+  if (data.image && !hasText) {
     return (
       <section className="mx-auto max-w-container px-4 py-14">
-        <img src={d.image} alt="" className="mx-auto w-full rounded-lg" />
+        <img src={data.image} alt="" className="mx-auto w-full rounded-lg" />
       </section>
     );
   }
 
   // Imagen + texto = 2 columnas. Solo texto = una columna a todo el ancho.
   return (
-    <section className={`mx-auto max-w-container items-center gap-8 px-4 py-14 ${d.image ? 'grid md:grid-cols-2' : ''}`}>
-      {d.image && <img src={d.image} alt="" className="w-full rounded-lg object-cover" />}
+    <section className={`mx-auto max-w-container items-center gap-8 px-4 py-14 ${data.image ? 'grid md:grid-cols-2' : ''}`}>
+      {data.image && <img src={data.image} alt="" className="w-full rounded-lg object-cover" />}
       <div className={light ? 'text-white' : undefined}>
-        {d.title && <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{d.title}</h3>}
-        {d.description && <p className="mt-3 opacity-70">{d.description}</p>}
-        {d.buttonText && (
-          <a href={d.link || '#'} className="mt-5 inline-block rounded-md px-5 py-2.5 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
-            {d.buttonText}
+        {data.title && <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{data.title}</h3>}
+        {data.description && <p className="mt-3 opacity-70">{data.description}</p>}
+        {data.buttonText && (
+          <a href={data.link || '#'} className="mt-5 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">
+            {data.buttonText}
           </a>
         )}
       </div>
@@ -344,8 +341,8 @@ function ImageTextSection({ section }: SectionRenderProps) {
 }
 
 function InfoBarSection({ section }: SectionRenderProps) {
-  const d = section.data as InfoBarData;
-  const items = Array.isArray(d.items) ? d.items : [];
+  const data = section.data as InfoBarData;
+  const items = Array.isArray(data.items) ? data.items : [];
   const list: InfoItemData[] = items.length > 0 ? items : [
     { icon: 'shipping', title: 'Envíos a todo el país' },
     { icon: 'card', title: 'Pagá con Mercado Pago' },
@@ -377,16 +374,16 @@ function InfoBarSection({ section }: SectionRenderProps) {
 }
 
 function NewsletterSection({ section }: SectionRenderProps) {
-  const d = section.data as NewsletterData;
+  const data = section.data as NewsletterData;
   return (
     <section className="bg-black/[0.03]">
       <div className="mx-auto max-w-container px-4 py-14 text-center">
-        {d.image && <img src={d.image} alt="" className="mx-auto mb-5 h-28 w-auto rounded-lg object-cover" />}
-        <h3 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{d.title || 'Recibí novedades'}</h3>
-        {d.text && <p className="mx-auto mt-2 max-w-md opacity-70">{d.text}</p>}
+        {data.image && <img src={data.image} alt="" className="mx-auto mb-5 h-28 w-auto rounded-lg object-cover" />}
+        <h3 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{data.title || 'Recibí novedades'}</h3>
+        {data.text && <p className="mx-auto mt-2 max-w-md opacity-70">{data.text}</p>}
         <form className="mx-auto mt-4 flex max-w-sm gap-2" onSubmit={(e) => e.preventDefault()}>
           <input type="email" placeholder="tu@email.com" className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-          <button type="submit" className="h-10 shrink-0 rounded-md px-4 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+          <button type="submit" className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg">
             Suscribirme
           </button>
         </form>
@@ -396,8 +393,8 @@ function NewsletterSection({ section }: SectionRenderProps) {
 }
 
 function InstagramSection({ section }: SectionRenderProps) {
-  const d = section.data as InstagramData;
-  const url = d.video?.trim();
+  const data = section.data as InstagramData;
+  const url = data.video?.trim();
   if (!url) return null;
 
   // Post / reel / tv de Instagram → su URL /embed sí se puede iframe-ar.
@@ -432,7 +429,7 @@ function InstagramSection({ section }: SectionRenderProps) {
           </svg>
           <div className="text-lg font-bold">@{user}</div>
           <div className="text-sm opacity-60">Seguinos en Instagram</div>
-          <span className="mt-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+          <span className="mt-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg">
             Ver perfil
           </span>
         </a>

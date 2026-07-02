@@ -37,7 +37,7 @@ export function VerifyEmail() {
           <CheckCircle2 className="mx-auto h-10 w-10 text-green-600" />
           <h1 className="mt-3 text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Email verificado</h1>
           <p className="mt-1 text-sm opacity-70">Tu cuenta quedó activada.</p>
-          <Link href={href('/cuenta')} className="mt-5 inline-block rounded-md px-5 py-2.5 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>Ir a mi cuenta</Link>
+          <Link href={href('/cuenta')} className="mt-5 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">Ir a mi cuenta</Link>
         </>
       )}
       {state === 'error' && (

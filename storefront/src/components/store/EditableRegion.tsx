@@ -46,12 +46,9 @@ export function EditableRegion({
     >
       {children}
       {hover && (
-        <div className="pointer-events-none absolute inset-0 z-40 ring-2 ring-inset ring-[rgb(var(--color-primary))]">
+        <div className="pointer-events-none absolute inset-0 z-40 ring-2 ring-inset ring-primary">
           <div className="pointer-events-auto absolute right-2.5 top-2.5 flex items-center gap-1.5">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
-              style={{ background: 'rgb(var(--color-primary))' }}
-            >
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg">
               <Pencil className="h-3.5 w-3.5" /> Editar{label ? ` ${label}` : ''}
             </span>
             {canDelete && (

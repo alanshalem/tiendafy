@@ -175,7 +175,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
               <span className="font-semibold text-green-600">¡Tenés envío gratis! 🎉</span>
             )}
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10">
-              <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: 'rgb(var(--color-primary))' }} />
+              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
@@ -273,8 +273,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
               )}
               <button
                 onClick={() => { window.location.href = '/checkout'; }}
-                className="w-full rounded-md py-3 text-sm font-semibold text-primary-fg"
-                style={{ background: 'rgb(var(--color-primary))' }}
+                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg"
               >
                 {cart?.checkoutButtonText || 'Iniciar compra'}
               </button>

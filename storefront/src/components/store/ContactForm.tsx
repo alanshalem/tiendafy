@@ -58,7 +58,7 @@ export function ContactForm() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={busy || captcha === null} className="inline-flex items-center gap-2 rounded-md px-6 py-3 text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
+      <button type="submit" disabled={busy || captcha === null} className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-fg disabled:opacity-60">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Enviar
       </button>

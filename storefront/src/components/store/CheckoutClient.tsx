@@ -228,7 +228,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Tu email"
             className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
           <button onClick={payPro} disabled={paying}
-            className="w-full rounded-md py-3 text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
+            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:opacity-60">
             {paying ? 'Redirigiendo a Mercado Pago…' : 'Pagar con Mercado Pago'}
           </button>
         </div>

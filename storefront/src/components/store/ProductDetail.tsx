@@ -120,7 +120,7 @@ export function ProductDetail({
             {images.length > 1 && (
               <div className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto pr-1">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-[rgb(var(--color-primary))]' : 'border-black/10 hover:border-black/30'}`}>
+                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}>
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -144,7 +144,7 @@ export function ProductDetail({
             {images.length > 1 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-[rgb(var(--color-primary))]' : 'border-transparent hover:border-black/20'}`}>
+                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}>
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -168,7 +168,7 @@ export function ProductDetail({
         </div>
         {cashPrice !== null && (
           <div className="mt-1">
-            <span className="text-xl font-bold" style={{ color: 'rgb(var(--color-primary))' }}>{fmt(cashPrice, variant.price.currency)}</span>
+            <span className="text-xl font-bold text-primary">{fmt(cashPrice, variant.price.currency)}</span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
             <div className="text-xs opacity-60">{cashPct}% de descuento pagando con transferencia o efectivo</div>
           </div>
@@ -188,7 +188,7 @@ export function ProductDetail({
                       <button
                         key={val}
                         onClick={() => setSelected((s) => { const next = [...s]; next[oi] = val; return next; })}
-                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-[rgb(var(--color-primary))] font-semibold' : 'border-black/15 hover:border-black/40'}`}
+                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'}`}
                       >
                         {val}
                       </button>
@@ -217,8 +217,7 @@ export function ProductDetail({
           {/* Comprar ahora — CTA principal */}
           <button
             onClick={buyNow}
-            className="h-12 w-full rounded-md text-sm font-semibold text-primary-fg"
-            style={{ background: 'rgb(var(--color-primary))' }}
+            className="h-12 w-full rounded-md bg-primary text-sm font-semibold text-primary-fg"
           >
             Comprar ahora
           </button>
@@ -232,8 +231,7 @@ export function ProductDetail({
             </div>
             <button
               onClick={() => { addToCart(); setOpen(true); }}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 text-sm font-semibold"
-              style={{ borderColor: 'rgb(var(--color-primary))', color: 'rgb(var(--color-primary))' }}
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary"
             >
               Agregar al carrito
             </button>
@@ -260,8 +258,7 @@ export function ProductDetail({
 
       {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 px-4 py-2.5 shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
-        style={{ background: 'rgb(var(--color-bg))', color: 'rgb(var(--color-fg))' }}
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
       >
         <div className="min-w-0">
           <div className="truncate text-xs opacity-60">{name}</div>
@@ -274,8 +271,7 @@ export function ProductDetail({
         </div>
         <button
           onClick={() => { addToCart(); setOpen(true); }}
-          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md px-5 text-sm font-semibold text-primary-fg"
-          style={{ background: 'rgb(var(--color-primary))' }}
+          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg"
         >
           Agregar al carrito
         </button>

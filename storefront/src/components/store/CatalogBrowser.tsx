@@ -118,7 +118,7 @@ export function CatalogBrowser({
                 placeholder="Buscar productos"
                 className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
               />
-              <button type="submit" aria-label="Buscar" className="inline-flex h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+              <button type="submit" aria-label="Buscar" className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg">
                 <Search className="h-4 w-4" />
               </button>
             </div>
@@ -451,16 +451,14 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-        style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
+        className="inline-flex items-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] px-3 py-1.5 text-sm font-medium transition-colors"
       >
         {currentOpt.label}
         <ChevronDown className={`h-4 w-4 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div
-          className="absolute right-0 z-30 mt-1.5 min-w-[11rem] overflow-hidden rounded-md border shadow-lg"
-          style={{ background: 'rgb(var(--color-bg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}
+          className="absolute right-0 z-30 mt-1.5 min-w-[11rem] overflow-hidden rounded-md border border-[rgb(var(--color-fg)/0.12)] bg-bg shadow-lg"
         >
           {SORTS.map((s) => {
             const active = s.value === value;
@@ -469,8 +467,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
                 key={s.value}
                 type="button"
                 onClick={() => { onChange(s.value); setOpen(false); }}
-                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)]"
-                style={active ? { color: 'rgb(var(--color-primary))', fontWeight: 600 } : undefined}
+                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)] ${active ? 'font-semibold text-primary' : ''}`}
               >
                 {s.label}
                 {active && <Check className="h-4 w-4" />}
@@ -490,9 +487,8 @@ function PageBtn({ children, active, disabled, onClick, ariaLabel }: { children:
       disabled={disabled}
       aria-label={ariaLabel}
       className={`flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-sm transition-colors disabled:opacity-30 ${
-        active ? 'border-transparent font-semibold text-primary-fg' : 'border-black/15 hover:bg-black/5'
+        active ? 'border-transparent bg-primary font-semibold text-primary-fg' : 'border-black/15 hover:bg-black/5'
       }`}
-      style={active ? { background: 'rgb(var(--color-primary))' } : undefined}
     >
       {children}
     </button>

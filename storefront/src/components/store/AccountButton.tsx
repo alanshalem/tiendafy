@@ -44,8 +44,8 @@ export function AccountButton() {
         <span className="hidden max-w-[7rem] truncate text-sm sm:inline">{firstName}</span>
       </button>
       {menu && (
-        <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border shadow-xl" style={{ background: 'rgb(var(--color-bg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}>
-          <div className="border-b px-4 py-3" style={{ borderColor: 'rgb(var(--color-fg) / 0.1)' }}>
+        <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-[rgb(var(--color-fg)/0.12)] bg-bg shadow-xl">
+          <div className="border-b border-[rgb(var(--color-fg)/0.1)] px-4 py-3">
             <div className="truncate text-sm font-semibold">{user.name}</div>
             <div className="truncate text-xs opacity-60">{user.email}</div>
           </div>
@@ -106,8 +106,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="relative w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
-        style={{ background: 'rgb(var(--color-bg))', color: 'rgb(var(--color-fg))', borderColor: 'rgb(var(--color-fg) / 0.12)' }}
+        className="relative w-full max-w-sm rounded-2xl border border-[rgb(var(--color-fg)/0.12)] bg-bg p-6 text-fg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-3 top-3 rounded-full p-1 opacity-60 hover:opacity-100">
@@ -131,8 +130,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => { window.location.href = googleUrl(typeof window !== 'undefined' ? window.location.href : '/'); }}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
-                style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
               >
                 <GoogleIcon /> Continuar con Google
               </button>
@@ -140,18 +138,18 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 
             <form onSubmit={submit} className="mt-4 space-y-3">
               {mode === 'register' && (
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" required className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary" />
               )}
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary" />
               {mode !== 'forgot' && (
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={8} className="h-11 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:border-[rgb(var(--color-primary))]" style={{ borderColor: 'rgb(var(--color-fg) / 0.2)' }} />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={8} className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary" />
               )}
 
               {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
 
               {error && <p className="text-sm text-red-500">{error}</p>}
 
-              <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)} className="flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-primary-fg disabled:opacity-60" style={{ background: 'rgb(var(--color-primary))' }}>
+              <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)} className="flex h-11 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-fg disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'forgot' ? 'Enviar link' : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
               </button>
             </form>
@@ -166,13 +164,13 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 
         <p className="mt-4 text-center text-sm opacity-70">
           {mode === 'forgot' ? (
-            <button type="button" onClick={() => { setError(null); setSent(false); setMode('login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
+            <button type="button" onClick={() => { setError(null); setSent(false); setMode('login'); }} className="font-semibold text-primary hover:underline">
               Volver a iniciar sesión
             </button>
           ) : (
             <>
               {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-              <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline" style={{ color: 'rgb(var(--color-primary))' }}>
+              <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline">
                 {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
               </button>
             </>

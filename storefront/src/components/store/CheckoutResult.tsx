@@ -77,7 +77,7 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
       <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{view.title}</h1>
       <p className="max-w-md opacity-70">{view.text}</p>
       {orderId && <p className="text-xs opacity-40">Orden {orderId}</p>}
-      <a href="/" className="mt-2 rounded-md px-5 py-2.5 text-sm font-semibold text-primary-fg" style={{ background: 'rgb(var(--color-primary))' }}>
+      <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">
         Volver a la tienda
       </a>
     </main>
