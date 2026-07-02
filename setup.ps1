@@ -122,11 +122,20 @@ Write-Host @"
     RabbitMQ     localhost:5672  | UI: http://localhost:15672 (guest/guest)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
 
-  Para desarrollar:
-    Backend API     (pendiente de scaffold: src/Api)
-    Backend Worker  (pendiente de scaffold: src/Worker)
-    Storefront      cd storefront; pnpm dev   -> http://localhost:3000  (pendiente de scaffold)
-    Admin           cd admin; pnpm dev        -> http://localhost:3001  (pendiente de scaffold)
+  Levantar TODO con un comando:
+    Nativo (hot-reload, recomendado en dev):   .\dev-up.ps1
+    Full-docker (todo en contenedores):        .\dev-up.ps1 -Docker
+    Bajar todo:                                .\dev-down.ps1   (o -Docker)
+
+  URLs:
+    API             http://localhost:5080   (Swagger: /scalar, Health: /health)
+    Storefront      http://localhost:3000   (probá petify.localhost:3000)
+    Admin           http://localhost:3001
+
+  O a mano (nativo):
+    Backend API     cd backend/src/Api; dotnet run
+    Storefront      cd storefront; pnpm dev
+    Admin           cd admin; pnpm dev
 
   Tests backend:    dotnet test backend/backend.slnx
   Type-check FE:    pnpm --filter "./shared/**" run type-check

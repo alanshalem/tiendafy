@@ -4,14 +4,19 @@
     Para el entorno de desarrollo de Tiendafy.
 .PARAMETER KeepInfra
     No frena los contenedores Docker (Postgres/Redis/etc), solo API + frontends.
+.PARAMETER Docker
+    Baja el stack full-docker (lo que levanta `dev-up.ps1 -Docker`): infra + API +
+    storefront + admin en contenedores.
 .EXAMPLE
     ./dev-down.ps1
     ./dev-down.ps1 -KeepInfra
+    ./dev-down.ps1 -Docker
 #>
-param([switch]$KeepInfra)
+param([switch]$KeepInfra, [switch]$Docker)
 
-$root    = $PSScriptRoot
-$compose = Join-Path $root 'infra\docker\docker-compose.dev.yml'
+$root       = $PSScriptRoot
+$compose    = Join-Path $root 'infra\docker\docker-compose.dev.yml'
+$composeApp = Join-Path $root 'infra\docker\docker-compose.app.yml'
 
 function Stop-Port([int]$port, [string]$label) {
     $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
@@ -21,6 +26,15 @@ function Stop-Port([int]$port, [string]$label) {
 }
 
 Write-Host "`n== Tiendafy dev-down ==" -ForegroundColor Cyan
+
+# Modo full-docker: baja infra + apps en contenedores y listo.
+if ($Docker) {
+    Write-Host '  Bajando stack full-docker (infra + apps)...' -ForegroundColor Yellow
+    docker compose -f $compose -f $composeApp down 2>&1 | Out-Null
+    Write-Host "Listo.`n" -ForegroundColor Green
+    return
+}
+
 Stop-Port 5080 'API'
 Stop-Port 5000 'API(default)'
 Stop-Port 3001 'Admin'

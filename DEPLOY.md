@@ -66,12 +66,31 @@ docker build -f storefront/Dockerfile   -t tiendafy-store .
 docker build -f admin/Dockerfile        -t tiendafy-admin .
 ```
 
-> Validá los Dockerfiles con un `docker build` real antes de confiar en ellos —
-> se escribieron pero no se probaron en este entorno.
+Notas de build (ya resueltas en los Dockerfiles):
+- **API**: usa el user no-root `app` que traen las imágenes .NET 8+ (`USER $APP_UID`);
+  Azure Linux no tiene `adduser`.
+- **Frontends**: `node:22-alpine` (pnpm 10 exige Node 22+). Los `NEXT_PUBLIC_*` /
+  `VITE_API_URL` se hornean en build-time → pasalos con `--build-arg`.
+- **pnpm**: los build scripts nativos aprobados están en `pnpm-workspace.yaml`
+  (`onlyBuiltDependencies`), si no `--frozen-lockfile` falla.
+- El `.dockerignore` de la raíz excluye `.git`, `node_modules`, `.env*` y
+  `appsettings.*.json` para no hornear secretos ni engordar el contexto.
 
-> **Contenedor sin root**: al escribir los Dockerfiles, creá un usuario no-root
-> (`USER app`/`USER node`) antes del `CMD/ENTRYPOINT`. El `.dockerignore` de la raíz
-> ya excluye `.git`, `.env*` y `appsettings.*.json` para no hornear secretos.
+### Correr TODO el sistema en contenedores (local)
+
+Overlay que suma las 3 apps a la infra, sin duplicarla:
+
+```bash
+docker compose -f infra/docker/docker-compose.dev.yml \
+               -f infra/docker/docker-compose.app.yml up -d --build
+```
+
+o, en Windows, un solo comando:  `./dev-up.ps1 -Docker`  (y `./dev-down.ps1 -Docker`).
+
+La API (`ASPNETCORE_ENVIRONMENT=Development`) migra sola al arrancar y apunta a
+`postgres`/`minio` por nombre de servicio; el storefront hace SSR contra `api:8080`
+y el browser pega a `localhost:5080`. Para el día a día de desarrollo conviene el
+modo **nativo** (`./dev-up.ps1`, con hot-reload); el full-docker es para demo/smoke.
 
 ## Seguridad (hecho vs. proxy vs. roadmap)
 

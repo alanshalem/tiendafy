@@ -2,3 +2,12 @@ packages:
   - storefront
   - admin
   - shared/*
+
+# pnpm 10 ignora los build scripts de dependencias salvo que se aprueben acá
+# (si no, `pnpm install --frozen-lockfile` falla con ERR_PNPM_IGNORED_BUILDS,
+# p.ej. en el build de Docker). Son deps con binarios nativos legítimos.
+onlyBuiltDependencies:
+  - '@sentry/cli'
+  - esbuild
+  - sharp
+  - unrs-resolver

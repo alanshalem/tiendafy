@@ -26,7 +26,10 @@ param(
     [bool]$InWindows = $true,
     # Levanta un túnel cloudflared para exponer la API (webhooks MercadoPago) y
     # auto-inyecta la URL pública a la API (RedirectUri + PublicApiBaseUrl).
-    [switch]$Tunnel
+    [switch]$Tunnel,
+    # Corre TODO el sistema en contenedores (infra + API + storefront + admin),
+    # en vez del modo nativo con hot-reload. Ideal para demo/smoke/onboarding.
+    [switch]$Docker
 )
 
 # 'Continue' a propósito: comandos nativos (docker) escriben a stderr cuando el
@@ -35,6 +38,7 @@ param(
 $ErrorActionPreference = 'Continue'
 $root      = $PSScriptRoot
 $compose   = Join-Path $root 'infra\docker\docker-compose.dev.yml'
+$composeApp = Join-Path $root 'infra\docker\docker-compose.app.yml'  # overlay full-docker (-Docker)
 $apiDir    = Join-Path $root 'backend\src\Api'
 $adminDir  = Join-Path $root 'admin'
 $storeDir  = Join-Path $root 'storefront'
@@ -139,6 +143,34 @@ if (-not (Test-DockerUp)) {
 }
 if (-not (Wait-Until 'daemon' { Test-DockerUp } 60 5)) {
     Err '  Docker no respondió. Revisá Docker Desktop ("Engine running").'; exit 1
+}
+
+# 1b) Modo full-docker: TODO en contenedores (infra + API + storefront + admin) -
+# Corta acá el flujo nativo. Un solo `compose up --build` levanta todo.
+if ($Docker) {
+    Info "`n[2/2] Stack completo en Docker (build + up)"
+    # Liberar puertos por si quedó corriendo el modo nativo (dotnet/pnpm en el host).
+    foreach ($p in $PORTS.API, $PORTS.Admin, $PORTS.Storefront) { Stop-Port $p }
+    docker compose -f $compose -f $composeApp up -d --build
+    if ($LASTEXITCODE -ne 0) { Err '  compose up falló. Revisá el output de arriba.'; exit 1 }
+
+    $apiUp = Wait-Until 'health' {
+        try { (Invoke-WebRequest "http://localhost:$($PORTS.API)/health" -UseBasicParsing -TimeoutSec 4).StatusCode -eq 200 }
+        catch { $false }
+    } 60 4
+    if (-not $apiUp) {
+        Err '  La API en Docker no respondió. Logs:  docker compose -f infra\docker\docker-compose.dev.yml -f infra\docker\docker-compose.app.yml logs api'
+        exit 1
+    }
+
+    Write-Host ''
+    Ok '== Todo arriba (Docker) =='
+    Write-Host "  API        http://localhost:$($PORTS.API)"
+    Write-Host "  Swagger    http://localhost:$($PORTS.API)/scalar"
+    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (probá  petify.localhost:$($PORTS.Storefront))"
+    Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
+    Write-Host "`n  Parar todo: ./dev-down.ps1 -Docker`n"
+    exit 0
 }
 
 # 2) Stack de infraestructura --------------------------------------------------
