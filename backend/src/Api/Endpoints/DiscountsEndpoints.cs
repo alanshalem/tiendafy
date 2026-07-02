@@ -14,7 +14,7 @@ public static class DiscountsEndpoints
 
         coupons.MapGet("/", async (ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var items = await db.Coupons.AsNoTracking()
                 .Where(c => c.TenantId == tid)
@@ -25,7 +25,7 @@ public static class DiscountsEndpoints
 
         coupons.MapPost("/", async (CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
 
             var created = Coupon.Create(tid, req.Code, ParseType(req.Type), req.Value, req.MinPurchase,
@@ -42,7 +42,7 @@ public static class DiscountsEndpoints
 
         coupons.MapPut("/{id:guid}", async (Guid id, CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.TenantId == tid && c.Id == id, ct);
             if (coupon is null) return Results.NotFound();
@@ -61,7 +61,7 @@ public static class DiscountsEndpoints
 
         coupons.MapPost("/{id:guid}/toggle", async (Guid id, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.TenantId == tid && c.Id == id, ct);
             if (coupon is null) return Results.NotFound();
@@ -73,7 +73,7 @@ public static class DiscountsEndpoints
 
         coupons.MapDelete("/{id:guid}", async (Guid id, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.TenantId == tid && c.Id == id, ct);
             if (coupon is null) return Results.NotFound();
@@ -86,7 +86,7 @@ public static class DiscountsEndpoints
         // Público (storefront): valida un código contra un subtotal y devuelve el descuento.
         coupons.MapPost("/validate", async (ValidateCouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var code = (req.Code ?? string.Empty).Trim().ToUpperInvariant();
 
@@ -108,8 +108,6 @@ public static class DiscountsEndpoints
 
         return group;
     }
-
-    private static IResult MissingTenant() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 
     private static CouponType ParseType(string? type) => (type ?? string.Empty).Trim().ToLowerInvariant() switch
     {

@@ -7,6 +7,9 @@ namespace SharedKernel.Common;
 /// </summary>
 public readonly record struct Money(long AmountInMinorUnits, string Currency)
 {
+    /// <summary>Moneda por defecto de la plataforma (ISO 4217). Único origen del literal "ARS".</summary>
+    public const string DefaultCurrency = "ARS";
+
     public static Money Zero(string currency) => new(0, currency);
 
     public static Money FromDecimal(decimal amount, string currency) =>

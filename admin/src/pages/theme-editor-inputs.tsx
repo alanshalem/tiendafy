@@ -1,6 +1,9 @@
-import { type ReactNode } from 'react';
+import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
 import type { ThemeConfig } from '@tiendafy/types';
+
+/** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
+export { contrastText } from '@tiendafy/types';
 
 /* Primitivos de formulario + helpers de color del editor de diseño. */
 
@@ -26,15 +29,10 @@ export const hexToRgb = (hex: string) => {
   const v = hex.replace('#', '');
   return `${parseInt(v.slice(0, 2), 16)} ${parseInt(v.slice(2, 4), 16)} ${parseInt(v.slice(4, 6), 16)}`;
 };
-/** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
-export const contrastText = (rgbRaw: string): string => {
-  const [r, g, b] = rgbRaw.trim().split(/\s+/).map(Number);
-  const lum = (0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0)) / 255;
-  return lum > 0.6 ? '17 24 39' : '255 255 255';
-};
-
 /** Estilo base compartido de inputs/selects/textarea del editor. */
 export const INPUT_BASE = 'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
+/** Estilo completo de un input/textarea/select de alto estándar (h-10). */
+export const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
 
 export function BackHeader({ title, onBack, onReset }: { title: string; onBack: () => void; onReset?: () => void }) {
   return (
@@ -56,10 +54,16 @@ export function BackHeader({ title, onBack, onReset }: { title: string; onBack: 
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  // Asocia programáticamente el <label> con su control: genera un id y lo
+  // reenvía al hijo (TextInput/TextArea/Select/… aceptan `id`). Solo agrega
+  // atributos: no cambia el render visual.
+  const generatedId = useId();
+  const el = isValidElement(children) ? (children as ReactElement<{ id?: string }>) : null;
+  const controlId = el ? (el.props.id ?? generatedId) : undefined;
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-fg">{label}</label>
-      {children}
+      <label htmlFor={controlId} className="mb-1.5 block text-sm font-medium text-fg">{label}</label>
+      {el ? cloneElement(el, { id: controlId }) : children}
       {hint && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
     </div>
   );
@@ -72,7 +76,7 @@ export function ColorRow({ label, hint, value, onChange, fallback }: { label: st
         <div className="text-sm font-medium text-fg">{label}</div>
         {hint && <p className="text-xs text-fg-muted">{hint}</p>}
       </div>
-      <input type="color" value={rgbToHex(value, fallback)} onChange={(e) => onChange(hexToRgb(e.target.value))} className="h-8 w-12 shrink-0 cursor-pointer rounded border border-border-strong" />
+      <input type="color" aria-label={label} value={rgbToHex(value, fallback)} onChange={(e) => onChange(hexToRgb(e.target.value))} className="h-8 w-12 shrink-0 cursor-pointer rounded border border-border-strong" />
     </div>
   );
 }
@@ -86,26 +90,30 @@ export function Check({ label, checked, onChange }: { label: string; checked: bo
   );
 }
 
-export function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`h-10 w-full px-3 text-sm ${INPUT_BASE}`} />;
+export function TextInput({ value, onChange, placeholder, id }: { value: string; onChange: (v: string) => void; placeholder?: string; id?: string }) {
+  return <input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={INPUT_FIELD} />;
 }
 
-export function TextArea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={`w-full px-3 py-2 text-sm ${INPUT_BASE}`} />;
+export function TextArea({ value, onChange, id }: { value: string; onChange: (v: string) => void; id?: string }) {
+  return <textarea id={id} value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={`w-full px-3 py-2 text-sm ${INPUT_BASE}`} />;
 }
 
 /** Lista de valores repetible (uno o varios): agregar / editar / quitar. */
 export function StringList({ label, hint, values, onChange, placeholder }: { label: string; hint?: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  // Mismo markup visual que <Field>, pero asociando el <label> al primer input real.
+  const firstId = useId();
   return (
-    <Field label={label} hint={hint}>
+    <div>
+      <label htmlFor={firstId} className="mb-1.5 block text-sm font-medium text-fg">{label}</label>
       <div className="space-y-2">
         {values.map((val, i) => (
           <div key={i} className="flex gap-2">
             <input
+              id={i === 0 ? firstId : undefined}
               value={val}
               onChange={(e) => onChange(values.map((v, idx) => (idx === i ? e.target.value : v)))}
               placeholder={placeholder}
-              className={`h-10 w-full px-3 text-sm ${INPUT_BASE}`}
+              className={INPUT_FIELD}
             />
             <button type="button" onClick={() => onChange(values.filter((_, idx) => idx !== i))} aria-label="Quitar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-muted">
               <X className="h-4 w-4" />
@@ -116,13 +124,14 @@ export function StringList({ label, hint, values, onChange, placeholder }: { lab
           <Plus className="h-4 w-4" /> Agregar
         </button>
       </div>
-    </Field>
+      {hint && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
+    </div>
   );
 }
 
-export function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+export function Select({ value, onChange, options, id }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; id?: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={`h-10 w-full appearance-none px-3 text-sm ${INPUT_BASE}`}>
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={`appearance-none ${INPUT_FIELD}`}>
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );

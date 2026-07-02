@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Api.Auth;
 using Api.Notifications;
 using Api.Shop;
 using Customers.Infrastructure;
@@ -18,7 +19,7 @@ public static class ShopAuthEndpoints
 
         auth.MapPost("/register", async (ShopRegisterRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, IEmailSender emailSender, IConfiguration cfg, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
             if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
                 return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
@@ -47,7 +48,7 @@ public static class ShopAuthEndpoints
         // (204) exista o no el email → no permite enumerar cuentas.
         auth.MapPost("/forgot", async (ShopForgotRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, IEmailSender email, IConfiguration cfg, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var addr = ShopAuth.NormalizeEmail(req.Email);
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Email == addr && c.PasswordHash != null, ct);
@@ -66,7 +67,7 @@ public static class ShopAuthEndpoints
         // Aplica el reset: valida el token, setea la nueva contraseña y loguea.
         auth.MapPost("/reset", async (ShopResetRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
                 return Problem("ShopAuth.WeakPassword", "La contraseña debe tener al menos 8 caracteres.", 400);
             var tid = tenant.TenantId.Value;
@@ -88,7 +89,7 @@ public static class ShopAuthEndpoints
         // Verifica el email con el token enviado al registrarse.
         auth.MapPost("/verify", async (ShopVerifyRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var row = await db.CustomerTokens.FirstOrDefaultAsync(t => t.Token == req.Token && t.TenantId == tid, ct);
             if (row is null || !row.IsValid(CustomerToken.PurposeVerify))
@@ -103,7 +104,7 @@ public static class ShopAuthEndpoints
 
         auth.MapPost("/login", async (ShopLoginRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct)) return Problem("Captcha.Failed", "Verificación anti-bots fallida.", 400);
             var tid = tenant.TenantId.Value;
             var email = ShopAuth.NormalizeEmail(req.Email);
@@ -257,7 +258,6 @@ public static class ShopAuthEndpoints
         return host == platform || host.EndsWith("." + platform);
     }
 
-    private static IResult MissingTenant() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
 
     /// <summary>Link a la tienda usando el Origin del request (validado). Vacío si no es propio.</summary>

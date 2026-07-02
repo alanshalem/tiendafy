@@ -1,14 +1,11 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
+import type { MoneyDto as Money } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { formatMoney } from '../lib/format';
 
-interface Money {
-  amount: number;
-  currency: string;
-}
 interface OrderItem {
   variantId: string;
   productName: string;

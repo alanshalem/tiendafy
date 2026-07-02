@@ -1,3 +1,4 @@
+using Api.Auth;
 using Api.Shop;
 using Customers.Infrastructure;
 using Orders.Core.Domain;
@@ -12,7 +13,7 @@ public static class ShopOrdersEndpoints
     {
         group.MapGet("/shop/orders", async (HttpContext http, ITenantContext tenant, CustomersDbContext db, IOrderRepository orders, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             if (customer is null || string.IsNullOrEmpty(customer.Email)) return Results.Unauthorized();
 
@@ -27,13 +28,13 @@ public static class ShopOrdersEndpoints
                     o.CreatedAtUtc,
                     o.PaidAtUtc,
                     o.Tracking,
-                    total = new { amount = o.Total.AmountInMinorUnits, currency = o.Total.Currency },
+                    total = ApiJson.MoneyJson(o.Total),
                     items = o.Items.Select(i => new
                     {
                         i.ProductName,
                         i.VariantDescription,
                         i.Quantity,
-                        unitPrice = new { amount = i.UnitPrice.AmountInMinorUnits, currency = i.UnitPrice.Currency },
+                        unitPrice = ApiJson.MoneyJson(i.UnitPrice),
                     }),
                 }),
             });

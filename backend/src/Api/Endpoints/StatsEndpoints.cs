@@ -11,6 +11,7 @@ using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
 using Api.Auth;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -44,7 +45,7 @@ public static class StatsEndpoints
 
             var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid).ToListAsync(ct);
             var revenue = paid.Sum(o => o.Total.AmountInMinorUnits);
-            var currency = paid.FirstOrDefault()?.Currency ?? "ARS";
+            var currency = paid.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
 
             return Results.Ok(new
             {
@@ -67,7 +68,7 @@ public static class StatsEndpoints
             var orders = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CreatedAtUtc >= since).ToListAsync(ct);
             var paid = orders.Where(o => o.Status == OrderStatus.Paid).ToList();
             var revenue = paid.Sum(o => o.Total.AmountInMinorUnits);
-            var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? "ARS";
+            var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
 
             var series = paid
                 .GroupBy(o => (o.PaidAtUtc ?? o.CreatedAtUtc).Date)
@@ -209,7 +210,7 @@ public static class StatsEndpoints
                     email = s.Email,
                     s.CreatedAtUtc,
                     items = s.Items.Count,
-                    total = new { amount = s.Subtotal.AmountInMinorUnits, currency = s.Subtotal.Currency },
+                    total = ApiJson.MoneyJson(s.Subtotal),
                     recoverable = s.Email != null,
                 })
                 .ToList();

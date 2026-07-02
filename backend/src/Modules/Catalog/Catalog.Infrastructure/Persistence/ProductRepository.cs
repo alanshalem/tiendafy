@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Catalog.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Common;
@@ -6,6 +7,11 @@ namespace Catalog.Infrastructure.Persistence;
 
 public sealed class ProductRepository(CatalogDbContext context) : IProductRepository
 {
+    // Precio mínimo entre las variantes de un producto. Se reutiliza SOLO en los
+    // OrderBy/OrderByDescending (aceptan la Expression tal cual → mismo SQL).
+    private static readonly Expression<Func<Product, long>> MinVariantPrice =
+        p => p.Variants.Min(v => v.Price.AmountInMinorUnits);
+
     public Task<Product?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
         context.Products.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == id, ct);
 
@@ -101,8 +107,8 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         // Orden por precio = mínimo precio entre las variantes (subconsulta correlacionada).
         query = filter.Sort switch
         {
-            ProductSort.PriceAsc => query.OrderBy(p => p.Variants.Min(v => v.Price.AmountInMinorUnits)),
-            ProductSort.PriceDesc => query.OrderByDescending(p => p.Variants.Min(v => v.Price.AmountInMinorUnits)),
+            ProductSort.PriceAsc => query.OrderBy(MinVariantPrice),
+            ProductSort.PriceDesc => query.OrderByDescending(MinVariantPrice),
             ProductSort.NameAsc => query.OrderBy(p => p.Name),
             _ => query.OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id),
         };

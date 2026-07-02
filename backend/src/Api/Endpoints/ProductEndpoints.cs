@@ -9,6 +9,7 @@ using Catalog.Core.Features.CreateProduct;
 using Catalog.Core.Features.UpdateProduct;
 using Microsoft.Extensions.Primitives;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -31,7 +32,7 @@ public static class ProductEndpoints
                 request.Description,
                 request.Options?.Select(o => new CreateProductOption(o.Name, o.Values)).ToList() ?? [],
                 request.Variants?.Select(v => new CreateProductVariant(
-                    v.Sku, v.OptionValues ?? [], v.PriceAmount, v.Currency ?? "ARS", v.CompareAtAmount)).ToList() ?? [],
+                    v.Sku, v.OptionValues ?? [], v.PriceAmount, v.Currency ?? Money.DefaultCurrency, v.CompareAtAmount)).ToList() ?? [],
                 request.Publish);
 
             var result = await handler.HandleAsync(command, ct);
@@ -191,7 +192,7 @@ public static class ProductEndpoints
         {
             var result = await handler.ChangeVariantPriceAsync(new ChangeVariantPriceCommand(
                 tenant.TenantId, id, variantId,
-                request.PriceAmount, request.Currency ?? "ARS", request.CompareAtAmount), ct);
+                request.PriceAmount, request.Currency ?? Money.DefaultCurrency, request.CompareAtAmount), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         });
 
@@ -228,7 +229,7 @@ public static class ProductEndpoints
             CancellationToken ct) =>
         {
             if (!req.HasFormContentType)
-                return Results.BadRequest(new { error = "Se espera multipart/form-data." });
+                return MultipartExpected();
 
             var form = await req.ReadFormAsync(ct);
             var file = form.Files["file"];
@@ -282,7 +283,7 @@ public static class ProductEndpoints
             CancellationToken ct) =>
         {
             if (!req.HasFormContentType)
-                return Results.BadRequest(new { error = "Se espera multipart/form-data." });
+                return MultipartExpected();
 
             // Subida grande: cientos/miles de imágenes en un POST. Levantar el
             // tope de tamaño (default 30MB) y el de secciones multipart (default 1024).
@@ -365,30 +366,11 @@ public static class ProductEndpoints
             CancellationToken ct,
             bool includeDescriptions = true) =>
         {
-            var all = new List<Product>();
-            Guid? after = null;
-            while (true)
-            {
-                var page = await repository.ListAsync(tenant.TenantId, null, 100, after, ct);
-                all.AddRange(page);
-                if (page.Count < 100) break;
-                after = page[^1].Id;
-            }
+            var all = await LoadAllProductsAsync(repository, tenant.TenantId, ct);
 
             // Mapa id → path display ("Indumentaria > Remeras") subiendo por ParentId.
             var categories = await categoryRepository.ListAsync(tenant.TenantId, ct);
-            var byId = categories.ToDictionary(c => c.Id);
-            var paths = categories.ToDictionary(c => c.Id, c =>
-            {
-                var names = new List<string>();
-                Category? cur = c;
-                for (var guard = 0; cur is not null && guard < Category.MaxDepth + 1; guard++)
-                {
-                    names.Insert(0, cur.Name);
-                    cur = cur.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
-                }
-                return string.Join(" > ", names);
-            });
+            var paths = BuildCategoryPaths(categories);
 
             var csv = ProductCsv.BuildExport(all, includeDescriptions, paths);
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
@@ -462,6 +444,42 @@ public static class ProductEndpoints
         });
 
         return group;
+    }
+
+    private static IResult MultipartExpected() =>
+        Results.BadRequest(new { error = "Se espera multipart/form-data." });
+
+    /// <summary>Trae TODOS los productos del tenant paginando de a 100 (para el export).</summary>
+    private static async Task<List<Product>> LoadAllProductsAsync(
+        IProductRepository repository, TenantId tenantId, CancellationToken ct)
+    {
+        var all = new List<Product>();
+        Guid? after = null;
+        while (true)
+        {
+            var page = await repository.ListAsync(tenantId, null, 100, after, ct);
+            all.AddRange(page);
+            if (page.Count < 100) break;
+            after = page[^1].Id;
+        }
+        return all;
+    }
+
+    /// <summary>Mapa id → path display ("Indumentaria > Remeras") subiendo por ParentId.</summary>
+    private static Dictionary<Guid, string> BuildCategoryPaths(IReadOnlyList<Category> categories)
+    {
+        var byId = categories.ToDictionary(c => c.Id);
+        return categories.ToDictionary(c => c.Id, c =>
+        {
+            var names = new List<string>();
+            Category? cur = c;
+            for (var guard = 0; cur is not null && guard < Category.MaxDepth + 1; guard++)
+            {
+                names.Insert(0, cur.Name);
+                cur = cur.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
+            }
+            return string.Join(" > ", names);
+        });
     }
 
     private static bool ParseFormBool(StringValues value, bool fallback)

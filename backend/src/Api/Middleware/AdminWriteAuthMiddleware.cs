@@ -52,7 +52,7 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
             if (!tenant.HasTenant)
             {
                 ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await ctx.Response.WriteAsJsonAsync(new { error = "Missing X-Tenant-Id header." });
+                await ctx.Response.WriteAsJsonAsync(new { error = AuthExtensions.MissingTenantHeaderMessage });
                 return;
             }
 

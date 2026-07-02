@@ -6,6 +6,7 @@ import { api, ApiRequestError } from '../../lib/api';
 import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
 import { EmptyState } from '../../components/EmptyState';
+import { NoStoreSelected } from '../../components/NoStoreSelected';
 
 interface VariantDto {
   id: string;
@@ -73,7 +74,7 @@ export function InventoryPage() {
   });
 
   if (!store) {
-    return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+    return <NoStoreSelected />;
   }
 
   const items = allItems.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);

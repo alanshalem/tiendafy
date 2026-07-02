@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Catalog.Core.Domain;
+using SharedKernel.Common;
 
 namespace Api.Import;
 
@@ -43,7 +44,7 @@ public sealed class ImportProduct
 /// </summary>
 public static class ProductCsv
 {
-    public const string Currency = "ARS";
+    public const string Currency = Money.DefaultCurrency;
 
     /// <summary>Cabecera canónica. El orden manda para la plantilla y el export.</summary>
     public static readonly string[] Headers =

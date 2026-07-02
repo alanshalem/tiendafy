@@ -6,6 +6,8 @@ import { formatMoney } from '@tiendafy/types';
 
 import { API_URL as CART_API } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
+import { InitialFallback } from './InitialFallback';
+import { useFocusTrap } from './useFocusTrap';
 
 export interface CartLine {
   variantId: string;
@@ -112,6 +114,17 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
   const [couponError, setCouponError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
+  // A11y: enfoca el drawer al abrir, atrapa el Tab dentro y restaura el foco al cerrar.
+  const drawerRef = useFocusTrap<HTMLElement>(open);
+
+  // Cerrar con Escape (consistente con los otros modales del storefront).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   const validateCoupon = async (code: string) => {
     if (!code.trim()) return;
     setChecking(true);
@@ -153,7 +166,12 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         onClick={() => setOpen(false)}
       />
       <aside
-        className={`fixed z-[60] flex flex-col overflow-hidden bg-bg text-fg shadow-2xl transition-transform
+        ref={drawerRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
+        className={`fixed z-[60] flex flex-col overflow-hidden bg-bg text-fg shadow-2xl outline-none transition-transform
           inset-x-0 bottom-0 h-[88vh] rounded-t-2xl
           sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-auto sm:h-full sm:w-96 sm:max-w-[92vw] sm:rounded-none
           ${open ? 'translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-x-full sm:translate-y-0'}`}
@@ -161,7 +179,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         {/* Handle del bottom sheet (solo mobile). */}
         <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-fg/20 sm:hidden" />
         <div className="flex items-center justify-between border-b border-black/10 px-5 py-3.5">
-          <h2 className="text-lg font-bold">Tu carrito</h2>
+          <h2 id="cart-drawer-title" className="text-lg font-bold">Tu carrito</h2>
           <button onClick={() => setOpen(false)} aria-label="Cerrar" className="inline-flex leading-none opacity-60 hover:opacity-100">
             <X className="h-6 w-6" />
           </button>
@@ -193,9 +211,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                   {l.image ? (
                     <img src={l.image} alt="" className="h-16 w-16 rounded-md object-cover" />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold opacity-50">
-                      {l.productName.charAt(0)}
-                    </div>
+                    <InitialFallback name={l.productName} className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold opacity-50" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.productName}</div>
@@ -225,7 +241,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                         {s.image ? (
                           <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
                         ) : (
-                          <div className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold opacity-40">{s.name.charAt(0)}</div>
+                          <InitialFallback name={s.name} className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold opacity-40" />
                         )}
                         <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
                       </button>
@@ -248,6 +264,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                       placeholder="Cupón de descuento"
+                      aria-label="Cupón de descuento"
                       className="h-9 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
                     />
                     <button type="submit" disabled={checking || !couponInput.trim()} className="h-9 shrink-0 rounded-md border border-black/20 px-3 text-sm font-semibold disabled:opacity-50">

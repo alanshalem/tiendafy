@@ -5,6 +5,8 @@ import { Minus, Plus, Share2, Check, X, ChevronLeft, ChevronRight, ZoomIn, Shiel
 import { formatMoney } from '@tiendafy/types';
 import { useCart } from './cart';
 import { useLiveTheme } from './preview';
+import { InitialFallback } from './InitialFallback';
+import { useFocusTrap } from './useFocusTrap';
 
 interface Variant {
   id: string;
@@ -46,7 +48,7 @@ export function ProductDetail({
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
-  config = live?.productDetail ?? config;
+  const cfg = live?.productDetail ?? config;
   const { add, setOpen } = useCart();
   const hasOptions = options.length > 0;
   const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
@@ -63,7 +65,7 @@ export function ProductDetail({
   if (!variant) return null;
   const label = variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
 
-  const cashPct = config.cashDiscountPercent ?? 0;
+  const cashPct = cfg.cashDiscountPercent ?? 0;
   const cashPrice = cashPct > 0 ? Math.round(variant.price.amount * (1 - cashPct / 100)) : null;
 
   const addToCart = () =>
@@ -102,7 +104,7 @@ export function ProductDetail({
   return (
     <div className="mt-4 grid gap-8 md:grid-cols-2">
       <div>
-        {config.galleryStyle === 'stacked' ? (
+        {cfg.galleryStyle === 'stacked' ? (
           <div className="space-y-3">
             {(images.length > 0 ? images : [null]).map((img, i) =>
               img ? (
@@ -111,16 +113,16 @@ export function ProductDetail({
                   <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"><ZoomIn className="h-4 w-4" /></span>
                 </button>
               ) : (
-                <div key={i} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30">{name.charAt(0)}</div>
+                <InitialFallback key={i} name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
               ),
             )}
           </div>
-        ) : config.galleryStyle === 'thumbs-left' ? (
+        ) : cfg.galleryStyle === 'thumbs-left' ? (
           <div className="flex gap-3">
             {images.length > 1 && (
               <div className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto pr-1">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}>
+                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} aria-label={`Ver imagen ${i + 1}`} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}>
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -130,7 +132,7 @@ export function ProductDetail({
               {images[activeImg] ? (
                 <MagnifierImage src={images[activeImg].url} alt={images[activeImg].altText ?? name} onOpen={() => setLightboxIndex(activeImg)} />
               ) : (
-                <div className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30">{name.charAt(0)}</div>
+                <InitialFallback name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
               )}
             </div>
           </div>
@@ -139,12 +141,12 @@ export function ProductDetail({
             {images[activeImg] ? (
               <MagnifierImage src={images[activeImg].url} alt={images[activeImg].altText ?? name} onOpen={() => setLightboxIndex(activeImg)} />
             ) : (
-              <div className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30">{name.charAt(0)}</div>
+              <InitialFallback name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
             )}
             {images.length > 1 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}>
+                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} aria-label={`Ver imagen ${i + 1}`} className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}>
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -156,8 +158,8 @@ export function ProductDetail({
 
       <div>
         <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{name}</h1>
-        {config.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
-        {config.showSku && <div className="text-xs opacity-50">SKU: {variant.sku}</div>}
+        {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
+        {cfg.showSku && <div className="text-xs opacity-50">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
           {fmt(variant.price.amount, variant.price.currency)}
           {variant.compareAtPrice && (
@@ -188,6 +190,7 @@ export function ProductDetail({
                       <button
                         key={val}
                         onClick={() => setSelected((s) => { const next = [...s]; next[oi] = val; return next; })}
+                        aria-pressed={active}
                         className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'}`}
                       >
                         {val}
@@ -367,6 +370,7 @@ function Lightbox({
 }) {
   const [zoomed, setZoomed] = useState(false);
   const [origin, setOrigin] = useState('50% 50%');
+  const dialogRef = useFocusTrap<HTMLDivElement>(true);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -387,7 +391,7 @@ function Lightbox({
   const go = (d: number) => { setZoomed(false); onChange((index + d + images.length) % images.length); };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm" onClick={onClose}>
+    <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[100] flex flex-col bg-black/95 outline-none backdrop-blur-sm" onClick={onClose} role="dialog" aria-modal="true" aria-label={alt}>
       <div className="flex items-center justify-between px-5 py-4 text-white/80">
         <span className="text-sm tabular-nums">{index + 1} / {images.length}</span>
         <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 transition-colors hover:bg-white/10 hover:text-white">

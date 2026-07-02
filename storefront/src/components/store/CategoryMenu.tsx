@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
-import { API_URL as API } from '@/lib/api-client';
+import { clientJson } from '@/lib/api-client';
 
 interface Cat {
   id: string;
@@ -36,12 +36,10 @@ function useCategoryTree(): CatNode[] {
   const [cats, setCats] = useState<Cat[]>([]);
   useEffect(() => {
     if (!tenantId) return;
-    fetch(`${API}/api/v1/categories`, { headers: { 'X-Tenant-Id': tenantId } })
-      .then((r) => r.json())
-      .then((d) => setCats(d.items ?? []))
-      .catch(() => {});
+    clientJson<{ items?: Cat[] }>('/api/v1/categories', { headers: { 'X-Tenant-Id': tenantId } })
+      .then((d) => setCats(d?.items ?? []));
   }, [tenantId]);
-  return buildTree(cats);
+  return useMemo(() => buildTree(cats), [cats]);
 }
 
 /** Fila recursiva: link + flechita para expandir hijos. Misma UX en todo lado. */
@@ -105,6 +103,8 @@ export function CategoryMenu() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         onMouseEnter={() => setOpen(true)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="flex items-center gap-1 opacity-90 hover:opacity-100"
       >
         Categorías <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />

@@ -5,6 +5,7 @@ import { Button, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { themePresets, type ThemePreset } from '../lib/themePresets';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 /** Luminancia relativa aproximada (0 oscuro → 1 claro) de un color "R G B". */
 function luminance(rgbRaw: string): number {
@@ -130,7 +131,7 @@ export function ThemeGalleryPage() {
   });
 
   if (!store) {
-    return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+    return <NoStoreSelected />;
   }
 
   return (

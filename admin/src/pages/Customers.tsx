@@ -7,8 +7,9 @@ import {
 } from '@tiendafy/ui';
 import { formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 interface Customer {
   id: string;
@@ -42,7 +43,7 @@ export function CustomersPage() {
   const remove = useMutation({
     mutationFn: (c: Customer) => api.delete(`/api/v1/customers/${c.id}`),
     onSuccess: () => { refresh(); toast('Cliente eliminado', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const columns: TableColumn<Customer>[] = [
@@ -76,7 +77,7 @@ export function CustomersPage() {
     },
   ];
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -160,7 +161,7 @@ function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; cu
       return isEdit ? api.put(`/api/v1/customers/${customer!.id}`, body) : api.post('/api/v1/customers', body);
     },
     onSuccess: () => { onSaved(); toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', { variant: 'success' }); onClose(); },
-    onError: (e) => setError(e instanceof ApiRequestError ? e.message : 'Error inesperado'),
+    onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
   return (

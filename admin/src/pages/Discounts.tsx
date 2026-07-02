@@ -7,8 +7,10 @@ import {
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
+import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 type CouponType = 'Percentage' | 'FixedAmount' | 'FreeShipping';
 
@@ -64,12 +66,12 @@ export function DiscountsPage() {
   const toggle = useMutation({
     mutationFn: (c: Coupon) => api.post(`/api/v1/coupons/${c.id}/toggle`, {}),
     onSuccess: () => { refresh(); toast('Cupón actualizado', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const remove = useMutation({
     mutationFn: (c: Coupon) => api.delete(`/api/v1/coupons/${c.id}`),
     onSuccess: () => { refresh(); toast('Cupón eliminado', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const statusVariant = (c: Coupon): BadgeVariant => (c.active ? 'success' : 'neutral');
@@ -101,7 +103,7 @@ export function DiscountsPage() {
     },
   ];
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -170,8 +172,8 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
       const body = {
         code: code.trim(),
         type,
-        value: type === 'Percentage' ? Math.round(Number(value)) : type === 'FixedAmount' ? Math.round(parseFloat(value.replace(',', '.')) * 100) : 0,
-        minPurchase: minPurchase ? Math.round(parseFloat(minPurchase.replace(',', '.')) * 100) : 0,
+        value: type === 'Percentage' ? Math.round(Number(value)) : type === 'FixedAmount' ? toCents(value) : 0,
+        minPurchase: minPurchase ? toCents(minPurchase) : 0,
         startsAtUtc: startsAt ? new Date(`${startsAt}T00:00:00`).toISOString() : null,
         endsAtUtc: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : null,
         maxUses: maxUses ? parseInt(maxUses, 10) : null,
@@ -180,7 +182,7 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
       return isEdit ? api.put(`/api/v1/coupons/${coupon!.id}`, body) : api.post('/api/v1/coupons', body);
     },
     onSuccess: () => { onSaved(); toast(isEdit ? 'Cupón actualizado' : 'Cupón creado', { variant: 'success' }); onClose(); },
-    onError: (e) => setError(e instanceof ApiRequestError ? e.message : 'Error inesperado'),
+    onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
   const valueValid = type === 'FreeShipping'

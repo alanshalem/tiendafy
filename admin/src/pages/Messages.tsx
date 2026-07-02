@@ -3,6 +3,7 @@ import { Mail, MailOpen } from 'lucide-react';
 import { Badge } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 interface ContactMessage {
   id: string;
@@ -31,7 +32,7 @@ export function MessagesPage() {
     qc.invalidateQueries({ queryKey: ['contact-messages', store?.id] });
   };
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
 
   const items = data?.items ?? [];
 

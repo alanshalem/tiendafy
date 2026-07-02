@@ -6,6 +6,7 @@ import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { Sparkline } from '../components/charts';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 interface ProductsResponse {
   items: unknown[];
@@ -41,7 +42,7 @@ export function HomePage() {
   });
 
   if (!store) {
-    return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba para empezar.</p>;
+    return <NoStoreSelected message="Elegí una tienda arriba para empezar." />;
   }
 
   const hasProducts = (products?.items.length ?? 0) > 0;

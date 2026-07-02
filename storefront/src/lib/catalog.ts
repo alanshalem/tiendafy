@@ -1,11 +1,6 @@
 import { apiGetTenant } from './api';
-import { formatMoney } from '@tiendafy/types';
+import { formatMoney, type MoneyDto } from '@tiendafy/types';
 import type { StoreProduct } from '@/components/store/sections';
-
-export interface MoneyDto {
-  amount: number;
-  currency: string;
-}
 
 export interface VariantDto {
   id: string;

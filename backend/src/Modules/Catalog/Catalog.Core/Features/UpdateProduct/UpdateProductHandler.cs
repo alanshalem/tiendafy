@@ -24,11 +24,22 @@ public sealed record RemoveImageCommand(TenantId TenantId, Guid ProductId, Guid 
 
 public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfWork unitOfWork)
 {
+    private const string ProductEntity = "Product";
+
+    /// <summary>Carga el producto del tenant o devuelve el NotFound estándar.</summary>
+    private async Task<Result<Product>> LoadAsync(TenantId tenantId, Guid productId, CancellationToken ct)
+    {
+        var product = await repository.GetByIdAsync(tenantId, productId, ct);
+        return product is null
+            ? Result.Failure<Product>(Error.NotFound(ProductEntity, productId))
+            : product;
+    }
+
     public async Task<Result<ProductDto>> UpdateDetailsAsync(UpdateProductDetailsCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         var result = product.UpdateDetails(command.Name, command.Description);
         if (result.IsFailure)
@@ -43,9 +54,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> ReorderImagesAsync(ReorderImagesCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         product.ReorderImages(command.ImageIds);
         await unitOfWork.SaveChangesAsync(ct);
@@ -54,9 +65,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> DuplicateAsync(TenantId tenantId, Guid productId, CancellationToken ct = default)
     {
-        var src = await repository.GetByIdAsync(tenantId, productId, ct);
-        if (src is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", productId));
+        var loaded = await LoadAsync(tenantId, productId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var src = loaded.Value;
 
         var created = Product.Create(tenantId, $"Copia de {src.Name}", src.Description);
         if (created.IsFailure) return Result.Failure<ProductDto>(created.Error);
@@ -94,9 +105,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> SetStatusAsync(SetProductStatusCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         if (command.Publish)
         {
@@ -119,9 +130,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> AddImageAsync(AddImageCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         var result = product.AddImage(command.Url, command.AltText);
         if (result.IsFailure)
@@ -133,9 +144,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> RemoveImageAsync(RemoveImageCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         var result = product.RemoveImage(command.ImageId);
         if (result.IsFailure)
@@ -147,9 +158,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
 
     public async Task<Result<ProductDto>> ChangeVariantPriceAsync(ChangeVariantPriceCommand command, CancellationToken ct = default)
     {
-        var product = await repository.GetByIdAsync(command.TenantId, command.ProductId, ct);
-        if (product is null)
-            return Result.Failure<ProductDto>(Error.NotFound("Product", command.ProductId));
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure<ProductDto>(loaded.Error);
+        var product = loaded.Value;
 
         var price = new Money(command.PriceAmount, command.Currency);
         Money? compareAt = command.CompareAtAmount.HasValue

@@ -21,7 +21,7 @@ public static class PaymentsEndpoints
             CancellationToken ct) =>
         {
             if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(ToDto(connection));
@@ -31,7 +31,7 @@ public static class PaymentsEndpoints
         mp.MapGet("/public-config", async (
             ITenantContext tenant, IMercadoPagoConnectionRepository repository, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(new
             {
@@ -45,7 +45,7 @@ public static class PaymentsEndpoints
         mp.MapPost("/connect", (ITenantContext tenant, BuildConnectUrlHandler handler) =>
         {
             if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+                return AuthExtensions.MissingTenant();
 
             return Results.Ok(new { authUrl = handler.Handle(tenant.TenantId) });
         });
@@ -74,7 +74,7 @@ public static class PaymentsEndpoints
             CancellationToken ct) =>
         {
             if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             if (connection is null) return Results.NoContent();
@@ -92,7 +92,7 @@ public static class PaymentsEndpoints
             CancellationToken ct) =>
         {
             if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             if (connection is null)

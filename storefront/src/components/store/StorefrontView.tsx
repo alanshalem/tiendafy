@@ -34,6 +34,99 @@ interface StorefrontViewProps {
 
 const logoSizeClass = { sm: 'text-base', md: 'text-lg', lg: 'text-2xl' };
 
+/** Badge numérico (carrito / favoritos) sobre el ícono del header. */
+function CountBadge({ count }: { count: number }) {
+  return (
+    <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">{count}</span>
+  );
+}
+
+/**
+ * Barra de anuncio: uno o varios textos (cada uno con link opcional), fija o
+ * desplazándose (marquee). Sólo se muestra si hay al menos un texto con contenido.
+ */
+function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; preview: boolean }) {
+  const [annHover, setAnnHover] = useState(false);
+  const annItems = (ann.items ?? []).filter((i) => i.text.trim());
+  const annMarquee = ann.animation === 'marquee';
+  if (!(ann.show && annItems.length > 0)) return null;
+  return (
+    <div
+      data-tf-focus="announcement"
+      className="relative overflow-hidden bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+      onMouseEnter={preview ? () => setAnnHover(true) : undefined}
+      onMouseLeave={preview ? () => setAnnHover(false) : undefined}
+    >
+      {preview && annHover && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
+          <button
+            onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, '*'); }}
+            className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
+          </button>
+        </>
+      )}
+      {annMarquee ? (
+        // Marquee: la pista se duplica para un loop continuo sin saltos.
+        <div className="tf-marquee flex w-max whitespace-nowrap will-change-transform">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
+              {annItems.map((it, i) => (
+                <span key={i} className="flex items-center">
+                  {it.link ? <a href={it.link} className="px-6 hover:underline">{it.text}</a> : <span className="px-6">{it.text}</span>}
+                  <span className="opacity-50">•</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          {annItems.map((it, i) => (
+            <span key={i} className="flex items-center gap-3">
+              {i > 0 && <span className="opacity-50">•</span>}
+              {it.link ? <a href={it.link} className="hover:underline">{it.text}</a> : <span>{it.text}</span>}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Mobile: panel desplegable con buscador + links (mismos ítems que el desktop). */
+function MobilePanel({ header, q, setQ, submitSearch, navLinks, onClose }: {
+  header: ThemeConfig['header'];
+  q: string;
+  setQ: (v: string) => void;
+  submitSearch: (e: React.FormEvent) => void;
+  navLinks: { href: string; label: string }[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${header.bg})` }}>
+      {header.showSearch && (
+        <form onSubmit={submitSearch} className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3">
+          <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label="Buscar" className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60" style={{ color: 'currentColor' }} />
+        </form>
+      )}
+      {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
+      <nav className="flex flex-col gap-0.5 text-sm">
+        <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[0].label}</Link>
+        <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[1].label}</Link>
+        <CategoryMenuMobile onNavigate={onClose} />
+        <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[2].label}</Link>
+        <div className="flex flex-col [&>a]:py-1.5 [&>a]:opacity-90 [&>a:hover]:opacity-100">
+          <PagesNav />
+        </div>
+      </nav>
+    </div>
+  );
+}
+
 function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
   const header = theme.header;
   const { count, setOpen } = useCart();
@@ -46,7 +139,6 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const [q, setQ] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [editHover, setEditHover] = useState(false);
-  const [annHover, setAnnHover] = useState(false);
 
   // Cerrar el menú mobile al navegar.
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -67,12 +159,6 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const transparentAlpha = header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
   const bg = transparent ? `rgb(${header.bg} / ${transparentAlpha})` : `rgb(${header.bg})`;
   const borderClass = header.border === 'line' ? 'border-b border-white/15' : header.border === 'shadow' ? 'shadow-lg' : '';
-
-  // Barra de anuncio: uno o varios textos (cada uno con link opcional), fija o
-  // desplazándose (marquee). Sólo se muestra si hay al menos un texto con contenido.
-  const ann = theme.announcement;
-  const annItems = (ann.items ?? []).filter((i) => i.text.trim());
-  const annMarquee = ann.animation === 'marquee';
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +197,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Buscar"
+        aria-label="Buscar"
         className="h-8 w-32 bg-transparent text-sm outline-none placeholder:opacity-60 lg:w-44"
         style={{ color: 'currentColor' }}
       />
@@ -121,9 +208,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
     <button onClick={() => setOpen(true)} className="relative inline-flex items-center gap-1.5 text-sm" aria-label="Abrir carrito">
       <Icon name="cart" className="h-5 w-5" />
       {header.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
-      {count > 0 && (
-        <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">{count}</span>
-      )}
+      {count > 0 && <CountBadge count={count} />}
     </button>
   ) : null;
 
@@ -133,9 +218,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const favBtn = (
     <Link href={href('/favoritos')} className="relative inline-flex items-center opacity-90 hover:opacity-100" aria-label="Favoritos" title="Favoritos">
       <Icon name="heart" className="h-5 w-5" />
-      {fav.count > 0 && (
-        <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">{fav.count}</span>
-      )}
+      {fav.count > 0 && <CountBadge count={fav.count} />}
     </Link>
   );
 
@@ -191,50 +274,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   return (
     <>
-      {ann.show && annItems.length > 0 && (
-        <div
-          data-tf-focus="announcement"
-          className="relative overflow-hidden bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
-          onMouseEnter={preview ? () => setAnnHover(true) : undefined}
-          onMouseLeave={preview ? () => setAnnHover(false) : undefined}
-        >
-          {preview && annHover && (
-            <>
-              <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
-              <button
-                onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, '*'); }}
-                className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
-              </button>
-            </>
-          )}
-          {annMarquee ? (
-            // Marquee: la pista se duplica para un loop continuo sin saltos.
-            <div className="tf-marquee flex w-max whitespace-nowrap will-change-transform">
-              {[0, 1].map((dup) => (
-                <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
-                  {annItems.map((it, i) => (
-                    <span key={i} className="flex items-center">
-                      {it.link ? <a href={it.link} className="px-6 hover:underline">{it.text}</a> : <span className="px-6">{it.text}</span>}
-                      <span className="opacity-50">•</span>
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-              {annItems.map((it, i) => (
-                <span key={i} className="flex items-center gap-3">
-                  {i > 0 && <span className="opacity-50">•</span>}
-                  {it.link ? <a href={it.link} className="hover:underline">{it.text}</a> : <span>{it.text}</span>}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <AnnouncementBar ann={theme.announcement} preview={preview} />
       <header
         data-tf-focus="header"
         className={cn(header.sticky && 'sticky top-0 z-40', !header.sticky && preview && 'relative', borderClass, 'transition-colors')}
@@ -273,24 +313,14 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
         {/* Mobile: panel desplegable con buscador + links */}
         {header.showTabsMobile && mobileOpen && (
-          <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${header.bg})` }}>
-            {header.showSearch && (
-              <form onSubmit={submitSearch} className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3">
-                <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60" style={{ color: 'currentColor' }} />
-              </form>
-            )}
-            {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
-            <nav className="flex flex-col gap-0.5 text-sm">
-              <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[0].label}</Link>
-              <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[1].label}</Link>
-              <CategoryMenuMobile onNavigate={() => setMobileOpen(false)} />
-              <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[2].label}</Link>
-              <div className="flex flex-col [&>a]:py-1.5 [&>a]:opacity-90 [&>a:hover]:opacity-100">
-                <PagesNav />
-              </div>
-            </nav>
-          </div>
+          <MobilePanel
+            header={header}
+            q={q}
+            setQ={setQ}
+            submitSearch={submitSearch}
+            navLinks={navLinks}
+            onClose={() => setMobileOpen(false)}
+          />
         )}
       </header>
     </>

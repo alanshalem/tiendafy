@@ -37,3 +37,14 @@ export function toDomainPrice(regular: number, promo: number | null): DomainPric
   if (promo == null || promo === regular) return { priceAmount: regular, compareAtAmount: null };
   return { priceAmount: Math.min(regular, promo), compareAtAmount: Math.max(regular, promo) };
 }
+
+/* ---- Helpers de conversión texto ↔ centavos (compartidos por los forms de producto/cupón). ---- */
+
+/** Centavos a partir del texto de un campo de precio (acepta coma o punto decimal). */
+export const toCents = (s: string): number => Math.round(parseFloat(s.replace(',', '.')) * 100);
+
+/** Centavos → texto en pesos (para poblar los inputs). */
+export const toPesos = (cents: number): string => (cents / 100).toString();
+
+/** ¿El texto es un precio válido? (entero o con 1-2 decimales). */
+export const isValidPrice = (s: string): boolean => /^\d+([.,]\d{1,2})?$/.test(s.replace(',', '.'));

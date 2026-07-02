@@ -145,9 +145,7 @@ public sealed class ProductImportWorker(
         {
             var iv = model.Variants[i];
             var sku = string.IsNullOrWhiteSpace(iv.Sku) ? GenerateSku(product.Slug.Value, i) : iv.Sku;
-            var (priceMinor, compareMinor) = NormalizePrice(iv.PriceMinor, iv.CompareAtMinor);
-            var price = new Money(priceMinor, ProductCsv.Currency);
-            Money? compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
+            var (price, compareAt) = BuildPrice(iv);
 
             var vr = product.AddVariant(sku, iv.OptionValues, price, compareAt);
             if (vr.IsFailure)
@@ -195,13 +193,10 @@ public sealed class ProductImportWorker(
         foreach (var iv in model.Variants)
         {
             if (string.IsNullOrWhiteSpace(iv.Sku)) continue;
-            var match = product.Variants.FirstOrDefault(v =>
-                string.Equals(v.Sku, iv.Sku, StringComparison.OrdinalIgnoreCase));
+            var match = MatchBySku(product, iv.Sku, blankFallback: false);
             if (match is null) continue;
 
-            var (priceMinor, compareMinor) = NormalizePrice(iv.PriceMinor, iv.CompareAtMinor);
-            var price = new Money(priceMinor, ProductCsv.Currency);
-            Money? compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
+            var (price, compareAt) = BuildPrice(iv);
             product.ChangeVariantPrice(match.Id, price, compareAt);
         }
 
@@ -217,8 +212,7 @@ public sealed class ProductImportWorker(
         foreach (var iv in model.Variants)
         {
             if (iv.Stock is not { } qty) continue;
-            var match = product.Variants.FirstOrDefault(v =>
-                string.Equals(v.Sku, string.IsNullOrWhiteSpace(iv.Sku) ? v.Sku : iv.Sku, StringComparison.OrdinalIgnoreCase));
+            var match = MatchBySku(product, iv.Sku, blankFallback: true);
             if (match is null) continue;
             await stock.SetAvailableAsync(tenant, match.Id, qty, "Importación CSV", ct);
         }
@@ -252,6 +246,23 @@ public sealed class ProductImportWorker(
         if (promo is not { } p || p == precio) return (precio, null);
         return (Math.Min(precio, p), Math.Max(precio, p));
     }
+
+    /// <summary>Precio + promocional del CSV → Money (moneda por defecto del import).</summary>
+    private static (Money Price, Money? CompareAt) BuildPrice(ImportVariant iv)
+    {
+        var (priceMinor, compareMinor) = NormalizePrice(iv.PriceMinor, iv.CompareAtMinor);
+        var price = new Money(priceMinor, ProductCsv.Currency);
+        Money? compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
+        return (price, compareAt);
+    }
+
+    /// <summary>
+    /// Busca la variante cuyo SKU coincide (case-insensitive). Con <paramref name="blankFallback"/>
+    /// true, un SKU vacío en el CSV matchea la variante (misma semántica que el apply de stock).
+    /// </summary>
+    private static Variant? MatchBySku(Product product, string sku, bool blankFallback) =>
+        product.Variants.FirstOrDefault(v => string.Equals(
+            v.Sku, blankFallback && string.IsNullOrWhiteSpace(sku) ? v.Sku : sku, StringComparison.OrdinalIgnoreCase));
 
     private static string GenerateSku(string slug, int index)
     {

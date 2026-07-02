@@ -15,7 +15,7 @@ import {
 } from '@tiendafy/ui';
 import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import type { Tenant } from '@tiendafy/types';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 
 interface TenantsResponse {
   items: Tenant[];
@@ -58,17 +58,17 @@ export function TenantsPage() {
   const archiveMut = useMutation({
     mutationFn: (t: Tenant) => api.post<Tenant>(`/api/v1/tenants/${t.id}/archive`, {}),
     onSuccess: (t) => { refresh(); toast(`"${t.name}" archivada`, { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const activateMut = useMutation({
     mutationFn: (t: Tenant) => api.post<Tenant>(`/api/v1/tenants/${t.id}/activate`, {}),
     onSuccess: (t) => { refresh(); toast(`"${t.name}" activada`, { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const deleteMut = useMutation({
     mutationFn: (t: Tenant) => api.delete<Tenant>(`/api/v1/tenants/${t.id}`),
     onSuccess: (t) => { refresh(); closeDelete(); toast(`"${t.name}" eliminada`, { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const columns: TableColumn<Tenant>[] = [
@@ -259,7 +259,7 @@ function TenantFormModal({
       toast(mode === 'create' ? `Tienda "${t.name}" creada` : `Tienda "${t.name}" actualizada`, { variant: 'success' });
       onClose();
     },
-    onError: (err) => setError(err instanceof ApiRequestError ? err.message : 'Error inesperado'),
+    onError: (err) => setError(errMsg(err, 'Error inesperado')),
   });
 
   const blocked = !name.trim() || !subdomain.trim() || nameTaken || subInvalid || subTaken;

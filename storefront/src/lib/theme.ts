@@ -1,5 +1,5 @@
 import { apiGetTenant } from './api';
-import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme } from '@tiendafy/types';
+import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme, contrastText, FONT_OPTIONS } from '@tiendafy/types';
 
 /* ============================================================
    El schema de tema vive en @tiendafy/types (fuente única, compartida
@@ -68,12 +68,16 @@ const FONT_FAMILIES: Record<string, string> = {
   archivoblack: "'Archivo Black', sans-serif",
 };
 
-/** Texto legible (blanco u oscuro) según la luminancia del color de fondo "R G B". */
-function contrastFg(rgbRaw: string): string {
-  const [r, g, b] = rgbRaw.trim().split(/\s+/).map(Number);
-  const lum = (0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0)) / 255;
-  return lum > 0.6 ? '17 24 39' : '255 255 255';
-}
+/** Texto legible (blanco u oscuro) según la luminancia del color de fondo "R G B".
+ *  Fuente única en @tiendafy/types; se mantiene el nombre `contrastFg` para consumidores. */
+export const contrastFg = contrastText;
+
+/** Mapa de columnas de grilla del listado (compartido por sections + CatalogBrowser). */
+export const colClass: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-2 sm:grid-cols-3',
+  4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+};
 
 /** Config de tema → CSS custom properties para el wrapper del storefront. */
 export function themeToStyle(theme: ThemeConfig): Record<string, string> {
@@ -94,21 +98,5 @@ export function themeToStyle(theme: ThemeConfig): Record<string, string> {
   };
 }
 
-export const fontOptions = [
-  { value: 'sans', label: 'Sans (moderna)' },
-  { value: 'serif', label: 'Serif (clásica)' },
-  { value: 'display', label: 'Display (con carácter)' },
-  { value: 'mono', label: 'Mono (técnica)' },
-  { value: 'poppins', label: 'Poppins' },
-  { value: 'montserrat', label: 'Montserrat' },
-  { value: 'dmsans', label: 'DM Sans' },
-  { value: 'manrope', label: 'Manrope' },
-  { value: 'worksans', label: 'Work Sans' },
-  { value: 'spacegrotesk', label: 'Space Grotesk' },
-  { value: 'playfair', label: 'Playfair Display' },
-  { value: 'lora', label: 'Lora' },
-  { value: 'cormorant', label: 'Cormorant' },
-  { value: 'dmserif', label: 'DM Serif Display' },
-  { value: 'bebas', label: 'Bebas Neue' },
-  { value: 'archivoblack', label: 'Archivo Black' },
-];
+/** Catálogo de fuentes: fuente única en @tiendafy/types (se conserva el nombre `fontOptions`). */
+export const fontOptions = FONT_OPTIONS;

@@ -29,10 +29,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, baseTheme, PAYMENT_LOGOS } from '@tiendafy/types';
+import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, baseTheme, PAYMENT_LOGOS, FONT_OPTIONS } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, setActiveTenant } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 import { ImageUploader } from './theme-editor-uploaders';
 import { BackHeader, Field, Check, Select, TextInput, TextArea, StringList, ColorRow, INPUT_BASE, contrastText, sectionSetter } from './theme-editor-inputs';
 import { HomePanel, SectionPanel } from './theme-editor-sections';
@@ -52,24 +53,8 @@ import { HomePanel, SectionPanel } from './theme-editor-sections';
  */
 const withDefaults = (raw: Partial<ThemeConfig>): ThemeConfig => normalizeTheme(raw, []);
 
-const fontOptions = [
-  { value: 'sans', label: 'Sans (moderna)' },
-  { value: 'serif', label: 'Serif (clásica)' },
-  { value: 'display', label: 'Display (con carácter)' },
-  { value: 'mono', label: 'Mono (técnica)' },
-  { value: 'poppins', label: 'Poppins' },
-  { value: 'montserrat', label: 'Montserrat' },
-  { value: 'dmsans', label: 'DM Sans' },
-  { value: 'manrope', label: 'Manrope' },
-  { value: 'worksans', label: 'Work Sans' },
-  { value: 'spacegrotesk', label: 'Space Grotesk' },
-  { value: 'playfair', label: 'Playfair Display' },
-  { value: 'lora', label: 'Lora' },
-  { value: 'cormorant', label: 'Cormorant' },
-  { value: 'dmserif', label: 'DM Serif Display' },
-  { value: 'bebas', label: 'Bebas Neue' },
-  { value: 'archivoblack', label: 'Archivo Black' },
-];
+// Catálogo compartido (@tiendafy/types). Copia mutable para el <Select> (options no-readonly).
+const fontOptions: { value: string; label: string }[] = [...FONT_OPTIONS];
 
 // Familias CSS para previsualizar en el panel (mismas que el storefront).
 const FONT_CSS: Record<string, string> = {
@@ -311,7 +296,7 @@ export function ThemeEditorPage() {
   const setColor = (key: keyof ThemeConfig['colors'], value: string) =>
     updateTheme((t) => ({ ...t, colors: { ...t.colors, [key]: value } }));
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
   if (!theme) return <p className="py-16 text-center text-sm text-fg-muted">Cargando editor...</p>;
 
   return (
@@ -565,7 +550,7 @@ function Collapsible({ title, children, defaultOpen = true }: { title: string; c
   );
 }
 
-function ColorsPanel({ theme, onBack, onReset, setColor, onToggleAccent, applyPreset }: { theme: ThemeConfig; onBack: () => void; onReset: () => void; setColor: (k: 'primary' | 'accent' | 'bg' | 'text', v: string) => void; onToggleAccent: (on: boolean) => void; applyPreset: (p: (typeof presets)[number]) => void }) {
+function ColorsPanel({ theme, onBack, onReset, setColor, onToggleAccent, applyPreset }: { theme: ThemeConfig; onBack: () => void; onReset: () => void; setColor: (k: keyof ThemeConfig['colors'], v: string) => void; onToggleAccent: (on: boolean) => void; applyPreset: (p: (typeof presets)[number]) => void }) {
   return (
     <div>
       <BackHeader title="Colores de tu marca" onBack={onBack} onReset={onReset} />
@@ -686,6 +671,11 @@ const HEADER_PRESETS: { name: string; recommended?: boolean; header: Partial<The
 function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBack: () => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void }) {
   const confirm = useConfirm();
   const setH = sectionSetter(updateTheme, 'header');
+  // Editar / quitar un anuncio por índice (evita repetir el map/filter en cada campo).
+  const updateItem = (i: number, patch: Partial<ThemeConfig['announcement']['items'][number]>) =>
+    updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, ...patch } : x)) } }));
+  const removeItem = (i: number) =>
+    updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.filter((_, idx) => idx !== i) } }));
   const matchesPreset = (h: Partial<ThemeConfig['header']>) =>
     (Object.keys(h) as (keyof ThemeConfig['header'])[]).every((k) => theme.header[k] === h[k]);
   return (
@@ -799,7 +789,7 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
                         <button
                           type="button"
                           aria-label="Quitar anuncio"
-                          onClick={() => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.filter((_, idx) => idx !== i) } }))}
+                          onClick={() => removeItem(i)}
                           className="rounded p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -809,14 +799,14 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
                     <Field label="Texto">
                       <TextInput
                         value={it.text}
-                        onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, text: v } : x)) } }))}
+                        onChange={(v) => updateItem(i, { text: v })}
                         placeholder="10% OFF EN TU PRIMERA COMPRA"
                       />
                     </Field>
                     <Field label="Link (opcional)">
                       <TextInput
                         value={it.link}
-                        onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, link: v } : x)) } }))}
+                        onChange={(v) => updateItem(i, { link: v })}
                         placeholder="/productos"
                       />
                     </Field>
@@ -1232,6 +1222,7 @@ function CssPanel({ theme, onBack, updateTheme }: PanelProps) {
           value={theme.customCss}
           onChange={(e) => updateTheme((t) => ({ ...t, customCss: e.target.value }))}
           rows={14}
+          aria-label="CSS personalizado"
           placeholder={'.product-card { border-radius: 16px; }'}
           className={`w-full p-3 font-mono text-xs ${INPUT_BASE}`}
         />

@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { useAuth } from './auth';
 import { usePreviewHref } from './preview';
 import { Captcha } from './Captcha';
+import { useFocusTrap } from './useFocusTrap';
 
 import { clientJson } from '@/lib/api-client';
 
@@ -39,7 +40,7 @@ export function AccountButton() {
   const firstName = user.name.split(' ')[0];
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setMenu((o) => !o)} className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100" aria-label="Mi cuenta">
+      <button type="button" onClick={() => setMenu((o) => !o)} className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100" aria-label="Mi cuenta" aria-haspopup="menu" aria-expanded={menu}>
         <Icon name="user" className="h-5 w-5" />
         <span className="hidden max-w-[7rem] truncate text-sm sm:inline">{firstName}</span>
       </button>
@@ -75,6 +76,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   const [googleOn, setGoogleOn] = useState(false);
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const dialogRef = useFocusTrap<HTMLDivElement>(true);
 
   useEffect(() => {
     clientJson<{ configured: boolean }>('/api/v1/shop/auth/google/configured')
@@ -106,14 +108,19 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="relative w-full max-w-sm rounded-2xl border border-[rgb(var(--color-fg)/0.12)] bg-bg p-6 text-fg shadow-2xl"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative w-full max-w-sm rounded-2xl border border-[rgb(var(--color-fg)/0.12)] bg-bg p-6 text-fg shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
       >
         <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-3 top-3 rounded-full p-1 opacity-60 hover:opacity-100">
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <h2 id="auth-modal-title" className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {mode === 'forgot' ? 'Recuperar contraseña' : mode === 'login' ? 'Iniciá sesión' : 'Creá tu cuenta'}
         </h2>
         <p className="mt-1 text-sm opacity-60">

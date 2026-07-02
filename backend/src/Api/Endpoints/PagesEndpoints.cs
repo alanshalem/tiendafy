@@ -20,7 +20,7 @@ public static class PagesEndpoints
         // Admin: todas las páginas del tenant.
         pages.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var items = await db.Pages.AsNoTracking().Where(p => p.TenantId == tid)
                 .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
@@ -30,7 +30,7 @@ public static class PagesEndpoints
         // Storefront: lista liviana de páginas PUBLICADAS (para el navbar). Sin body ni borradores.
         pages.MapGet("/published", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var items = await db.Pages.AsNoTracking()
                 .Where(p => p.TenantId == tid && p.Published)
@@ -43,7 +43,7 @@ public static class PagesEndpoints
         // Storefront: una página publicada por slug.
         pages.MapGet("/by-slug/{slug}", async (string slug, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var page = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.TenantId == tid && p.Slug == slug, ct);
             return page is null || !page.Published ? Results.NotFound() : Results.Ok(ToDto(page));
@@ -51,7 +51,7 @@ public static class PagesEndpoints
 
         pages.MapPost("/", async (PageRequest req, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var created = Page.Create(tid, req.Title, req.Slug, Sanitizer.Sanitize(req.Body ?? string.Empty), req.Published);
             if (created.IsFailure) return created.Error.ToProblem();
@@ -64,7 +64,7 @@ public static class PagesEndpoints
 
         pages.MapPut("/{id:guid}", async (Guid id, PageRequest req, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var page = await db.Pages.FirstOrDefaultAsync(p => p.TenantId == tid && p.Id == id, ct);
             if (page is null) return Results.NotFound();
@@ -81,7 +81,7 @@ public static class PagesEndpoints
 
         pages.MapDelete("/{id:guid}", async (Guid id, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var page = await db.Pages.FirstOrDefaultAsync(p => p.TenantId == tid && p.Id == id, ct);
             if (page is null) return Results.NotFound();
@@ -92,8 +92,6 @@ public static class PagesEndpoints
 
         return group;
     }
-
-    private static IResult Bad() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 
     private static object ToDto(Page p) => new
     {

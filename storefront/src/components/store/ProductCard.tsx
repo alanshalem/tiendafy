@@ -9,6 +9,7 @@ import { useCart } from './cart';
 import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
+import { InitialFallback } from './InitialFallback';
 
 // Descuento por transferencia/efectivo del tema (productDetail.cashDiscountPercent).
 // Se provee en StorefrontView; las cards lo usan para el "precio con transferencia".
@@ -82,9 +83,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         {imgs.length > 0 ? (
           <StoreImage src={imgs[imgIdx]} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40">
-            {product.name.charAt(0)}
-          </div>
+          <InitialFallback name={product.name} className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40" />
         )}
         {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. */}
         {imgs.length > 1 && (

@@ -19,7 +19,7 @@ public static class ContactEndpoints
         // Envío público del formulario (anónimo). Tenant por X-Tenant-Id + captcha.
         contact.MapPost("/submit", async (ContactSubmitRequest req, ITenantContext tenant, ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct))
                 return Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida. Reintentá.", statusCode: 400);
 

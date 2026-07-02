@@ -6,8 +6,9 @@ import {
   type BadgeVariant, type TableColumn, Table,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 import { RichTextEditor } from '../components/RichTextEditor';
 
 interface PageDto {
@@ -40,7 +41,7 @@ export function PagesPage() {
   const remove = useMutation({
     mutationFn: (p: PageDto) => api.delete(`/api/v1/pages/${p.id}`),
     onSuccess: () => { refresh(); toast('Página eliminada', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const statusVariant = (p: PageDto): BadgeVariant => (p.published ? 'success' : 'neutral');
@@ -69,7 +70,7 @@ export function PagesPage() {
     },
   ];
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -132,7 +133,7 @@ function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: Pag
       return isEdit ? api.put(`/api/v1/pages/${page!.id}`, body_) : api.post('/api/v1/pages', body_);
     },
     onSuccess: () => { onSaved(); toast(isEdit ? 'Página actualizada' : 'Página creada', { variant: 'success' }); onClose(); },
-    onError: (e) => setError(e instanceof ApiRequestError ? e.message : 'Error inesperado'),
+    onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
   return (

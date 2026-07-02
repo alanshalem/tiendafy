@@ -50,9 +50,9 @@ export function ContactForm() {
 
   return (
     <form className="mt-6 space-y-4" onSubmit={submit}>
-      <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-      <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Tu email" className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-      <textarea required value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tu mensaje" rows={5} className="w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-black" />
+      <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" aria-label="Tu nombre" className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
+      <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Tu email" aria-label="Tu email" className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
+      <textarea required value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tu mensaje" aria-label="Tu mensaje" rows={5} className="w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-black" />
 
       <Captcha onToken={setCaptcha} />
 

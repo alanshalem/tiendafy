@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
-import type { ProductListConfig, SectionType, ThemeSection } from '@/lib/theme';
+import { colClass, type ProductListConfig, type SectionType, type ThemeSection } from '@/lib/theme';
 import { usePreviewHref, PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
 import { StoreImage } from './StoreImage';
@@ -33,12 +33,6 @@ function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
   const byId = new Map(products.map((p) => [p.id, p]));
   return ids.map((id) => byId.get(id)).filter((p): p is StoreProduct => !!p);
 }
-
-const colClass: Record<number, string> = {
-  2: 'grid-cols-2',
-  3: 'grid-cols-2 sm:grid-cols-3',
-  4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-};
 
 function ProductGrid({ title, products, list, carousel }: { title: string; products: StoreProduct[]; list: ProductListConfig; carousel?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -382,7 +376,7 @@ function NewsletterSection({ section }: SectionRenderProps) {
         <h3 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{data.title || 'Recibí novedades'}</h3>
         {data.text && <p className="mx-auto mt-2 max-w-md opacity-70">{data.text}</p>}
         <form className="mx-auto mt-4 flex max-w-sm gap-2" onSubmit={(e) => e.preventDefault()}>
-          <input type="email" placeholder="tu@email.com" className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
+          <input type="email" placeholder="tu@email.com" aria-label="Email" className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
           <button type="submit" className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg">
             Suscribirme
           </button>

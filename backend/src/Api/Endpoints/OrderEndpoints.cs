@@ -31,7 +31,7 @@ public static class OrderEndpoints
             IMercadoPagoPaymentService mp,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
@@ -67,7 +67,7 @@ public static class OrderEndpoints
             OrderPaidNotifier notifier,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
@@ -93,7 +93,7 @@ public static class OrderEndpoints
         group.MapGet("/orders/{id:guid}", async (
             Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             return order is null ? Results.NotFound() : Results.Ok(ToDto(order));
         });
@@ -101,7 +101,7 @@ public static class OrderEndpoints
         group.MapGet("/orders", async (
             ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequireTenantMembership(); // lista completa de ventas = solo admin de la tienda
@@ -110,7 +110,7 @@ public static class OrderEndpoints
         group.MapPost("/orders/{id:guid}/fulfill", async (
             Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
             var r = order.MarkFulfilled(req.Tracking);
@@ -126,7 +126,7 @@ public static class OrderEndpoints
         group.MapPost("/orders/{id:guid}/refund", async (
             Guid id, ITenantContext tenant, IOrderRepository orders, IMercadoPagoPaymentService mp, OrderNotifier notifier, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -208,13 +208,13 @@ public static class OrderEndpoints
         order.PaidAtUtc,
         order.Tracking,
         order.FulfilledAtUtc,
-        subtotal = new { amount = order.Subtotal.AmountInMinorUnits, currency = order.Subtotal.Currency },
-        discount = new { amount = order.DiscountAmount.AmountInMinorUnits, currency = order.DiscountAmount.Currency },
-        total = new { amount = order.Total.AmountInMinorUnits, currency = order.Total.Currency },
+        subtotal = ApiJson.MoneyJson(order.Subtotal),
+        discount = ApiJson.MoneyJson(order.DiscountAmount),
+        total = ApiJson.MoneyJson(order.Total),
         items = order.Items.Select(i => new
         {
             i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.Quantity,
-            unitPrice = new { amount = i.UnitPrice.AmountInMinorUnits, currency = i.UnitPrice.Currency },
+            unitPrice = ApiJson.MoneyJson(i.UnitPrice),
         }),
     };
 }

@@ -5,6 +5,7 @@ import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useT
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 import { EmptyState } from '../../components/EmptyState';
+import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
 
 interface CategoryDto {
@@ -175,7 +176,7 @@ export function CategoriesPage() {
   );
 
   if (!store) {
-    return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+    return <NoStoreSelected />;
   }
 
   const isEmpty = !isLoading && categories.length === 0;

@@ -68,11 +68,11 @@ public static class CheckoutEndpoints
             i.VariantDescription,
             i.Sku,
             i.Quantity,
-            unitPrice = new { amount = i.UnitPrice.AmountInMinorUnits, currency = i.UnitPrice.Currency },
-            lineTotal = new { amount = i.LineTotal.AmountInMinorUnits, currency = i.LineTotal.Currency },
+            unitPrice = ApiJson.MoneyJson(i.UnitPrice),
+            lineTotal = ApiJson.MoneyJson(i.LineTotal),
             i.ReservationId,
         }),
-        subtotal = new { amount = session.Subtotal.AmountInMinorUnits, currency = session.Subtotal.Currency },
+        subtotal = ApiJson.MoneyJson(session.Subtotal),
     };
 }
 

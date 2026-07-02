@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Trash2, GripVertical } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, Textarea, useToast } from '@tiendafy/ui';
+import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
-import { api, ApiRequestError } from '../../lib/api';
-import { toFormPrice, toDomainPrice } from '../../lib/price';
+import { api, errMsg } from '../../lib/api';
+import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
+import { Section } from './FormSection';
+import { StickyFormBar } from './StickyFormBar';
+import { NoStoreSelected } from '../../components/NoStoreSelected';
 
-interface MoneyDto { amount: number; currency: string }
 interface VariantDto {
   id: string;
   sku: string;
@@ -30,20 +33,6 @@ interface ProductDto {
 }
 interface StockItem { variantId: string; available: number }
 interface Category { id: string; name: string; path: string; depth: number }
-
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-surface p-5 shadow-card">
-      <h2 className="text-sm font-semibold text-fg">{title}</h2>
-      {hint && <p className="mt-0.5 text-xs text-fg-muted">{hint}</p>}
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
-const toPesos = (cents: number) => (cents / 100).toString();
-const toCents = (s: string) => Math.round(parseFloat(s.replace(',', '.')) * 100);
-const priceOk = (s: string) => /^\d+([.,]\d{1,2})?$/.test(s.replace(',', '.'));
 
 export function EditProductPage() {
   const { id } = useParams<{ id: string }>();
@@ -126,12 +115,12 @@ export function EditProductPage() {
       }
     },
     onSuccess: () => { refresh(); toast('Imágenes agregadas', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const removeImage = useMutation({
     mutationFn: (imageId: string) => api.delete(`/api/v1/products/${id}/images/${imageId}`),
     onSuccess: () => refresh(),
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const reorder = useMutation({
     mutationFn: (imageIds: string[]) => api.put(`/api/v1/products/${id}/images/reorder`, { imageIds }),
@@ -139,7 +128,7 @@ export function EditProductPage() {
       queryClient.invalidateQueries({ queryKey: ['product', id] });
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
     },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const onDropImage = (targetId: string) => {
@@ -181,24 +170,24 @@ export function EditProductPage() {
         await api.put(`/api/v1/products/${id}/categories`, { categoryIds });
     },
     onSuccess: () => { refresh(); toast('Producto guardado', { variant: 'success' }); navigate('/productos'); },
-    onError: (e) => setError(e instanceof ApiRequestError ? e.message : 'Error inesperado'),
+    onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
   const setStatus = useMutation({
     mutationFn: (publish: boolean) => api.post(`/api/v1/products/${id}/${publish ? 'publish' : 'archive'}`, {}),
     onSuccess: () => { refresh(); toast('Estado actualizado', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const del = useMutation({
     mutationFn: () => api.delete(`/api/v1/products/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['products', store?.id] }); toast('Producto eliminado', { variant: 'success' }); navigate('/productos'); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'Error', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const [confirmDel, setConfirmDel] = useState(false);
 
-  if (!store) return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba.</p>;
+  if (!store) return <NoStoreSelected />;
   if (isLoading || !product) return <p className="py-16 text-center text-sm text-fg-muted">Cargando producto...</p>;
 
   const toggleCategory = (cid: string) =>
@@ -351,18 +340,16 @@ export function EditProductPage() {
         )}
       </Section>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 px-6 py-3 backdrop-blur md:left-sidebar">
-        <div className="mx-auto flex max-w-2xl items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => navigate('/productos')}>Cancelar</Button>
-          <Button
-            loading={save.isPending}
-            disabled={!name || product.variants.some((v) => !priceOk(prices[v.id]?.price ?? ''))}
-            onClick={() => save.mutate()}
-          >
-            Guardar cambios
-          </Button>
-        </div>
-      </div>
+      <StickyFormBar>
+        <Button variant="secondary" onClick={() => navigate('/productos')}>Cancelar</Button>
+        <Button
+          loading={save.isPending}
+          disabled={!name || product.variants.some((v) => !isValidPrice(prices[v.id]?.price ?? ''))}
+          onClick={() => save.mutate()}
+        >
+          Guardar cambios
+        </Button>
+      </StickyFormBar>
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
-import type { ProductListConfig } from '@/lib/theme';
+import { buildPageWindow } from '@tiendafy/ui';
+import { colClass, type ProductListConfig } from '@/lib/theme';
 import type { CategoryDto, ProductFacets } from '@/lib/catalog';
 import { ProductCard, type StoreProduct } from './sections';
 import { useLiveTheme, usePreviewHref } from './preview';
@@ -15,12 +16,6 @@ const SORTS: { value: string; label: string }[] = [
   { value: 'price_desc', label: 'Mayor precio' },
   { value: 'name', label: 'Nombre A-Z' },
 ];
-
-const colClass: Record<number, string> = {
-  2: 'grid-cols-2',
-  3: 'grid-cols-2 sm:grid-cols-3',
-  4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-};
 
 interface Props {
   products: StoreProduct[];
@@ -40,7 +35,7 @@ export function CatalogBrowser({
 }: Props) {
   // En preview, refleja al instante los cambios de "Listado de productos".
   const live = useLiveTheme();
-  productList = live?.productList ?? productList;
+  const list = live?.productList ?? productList;
   const href = usePreviewHref();
   const router = useRouter();
   const pathname = usePathname();
@@ -116,6 +111,7 @@ export function CatalogBrowser({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar productos"
+                aria-label="Buscar"
                 className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
               />
               <button type="submit" aria-label="Buscar" className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg">
@@ -129,12 +125,12 @@ export function CatalogBrowser({
             )}
           </form>
 
-          {productList.filterCategories && categories.length > 0 && (
+          {list.filterCategories && categories.length > 0 && (
             <CategoryFacet categories={categories} current={current.category} onSelect={(id) => navigate({ category: id, page: null })} />
           )}
 
           {/* Precio (Desde / Hasta) */}
-          {productList.filterPrice && (
+          {list.filterPrice && (
           <div>
             <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">Precio</h3>
             <div className="flex items-center gap-2">
@@ -161,7 +157,7 @@ export function CatalogBrowser({
           )}
 
           {/* Marca (lista, single-select) */}
-          {productList.filterBrand && facets.brands.length > 0 && (
+          {list.filterBrand && facets.brands.length > 0 && (
             <BrandFacet
               brands={facets.brands}
               current={current.brand}
@@ -170,7 +166,7 @@ export function CatalogBrowser({
           )}
 
           {/* Opciones del producto (Color / Talle / …), chips multi-select */}
-          {productList.filterOptions && facets.options.map((opt) => (
+          {list.filterOptions && facets.options.map((opt) => (
             <OptionFacetChips key={opt.name} name={opt.name} values={opt.values} selected={current.options} onToggle={toggleOption} />
           ))}
 
@@ -192,9 +188,9 @@ export function CatalogBrowser({
               cta={{ href: href('/productos'), label: 'Ver todo' }}
             />
           ) : (
-            <div className={`grid gap-x-5 gap-y-8 ${colClass[productList.columns] ?? colClass[4]}`}>
+            <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
               {products.map((p) => (
-                <ProductCard key={p.id} product={p} list={productList} />
+                <ProductCard key={p.id} product={p} list={list} />
               ))}
             </div>
           )}
@@ -224,6 +220,17 @@ export function CatalogBrowser({
 const FACET_VISIBLE = 8;      // cuántos valores mostrar antes de colapsar
 const FACET_SEARCHABLE = 15;  // a partir de acá, buscador dentro de la faceta
 
+/** Lógica común de una faceta colapsable + buscable (marca / opciones). */
+function useCollapsibleFacet(values: string[]) {
+  const [expanded, setExpanded] = useState(false);
+  const [q, setQ] = useState('');
+  const searchable = values.length > FACET_SEARCHABLE;
+  const filtered = q ? values.filter((v) => v.toLowerCase().includes(q.toLowerCase())) : values;
+  const shown = expanded ? filtered : filtered.slice(0, FACET_VISIBLE);
+  const toggle = () => setExpanded((e) => !e);
+  return { q, setQ, searchable, filtered, shown, expanded, toggle };
+}
+
 function FacetTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">{children}</h3>;
 }
@@ -249,11 +256,7 @@ function ShowMore({ hidden, expanded, onToggle }: { hidden: number; expanded: bo
 
 /** Opción del producto (Color/Talle/…): chips multi-select, colapsable + buscable. */
 function OptionFacetChips({ name, values, selected, onToggle }: { name: string; values: string[]; selected: string[]; onToggle: (v: string) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [q, setQ] = useState('');
-  const searchable = values.length > FACET_SEARCHABLE;
-  const filtered = q ? values.filter((v) => v.toLowerCase().includes(q.toLowerCase())) : values;
-  const shown = expanded ? filtered : filtered.slice(0, FACET_VISIBLE);
+  const { q, setQ, searchable, filtered, shown, expanded, toggle } = useCollapsibleFacet(values);
   return (
     <div>
       <FacetTitle>{name}</FacetTitle>
@@ -275,7 +278,7 @@ function OptionFacetChips({ name, values, selected, onToggle }: { name: string; 
         })}
       </div>
       {filtered.length > FACET_VISIBLE && (
-        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={() => setExpanded((e) => !e)} />
+        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={toggle} />
       )}
       {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
     </div>
@@ -349,6 +352,7 @@ function CategoryFacet({ categories, current, onSelect }: { categories: Category
           )}
           <button
             onClick={() => onSelect(node.id)}
+            aria-current={current === node.id || undefined}
             className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary' : 'opacity-80'}`}
           >
             {node.name}
@@ -377,6 +381,7 @@ function CategoryFacet({ categories, current, onSelect }: { categories: Category
           <li>
             <button
               onClick={() => onSelect(null)}
+              aria-current={!current || undefined}
               className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary' : 'opacity-80'}`}
             >
               Todas
@@ -406,11 +411,7 @@ function CategoryFacet({ categories, current, onSelect }: { categories: Category
 
 /** Marca: lista single-select, colapsable + buscable. */
 function BrandFacet({ brands, current, onSelect }: { brands: string[]; current: string; onSelect: (b: string) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [q, setQ] = useState('');
-  const searchable = brands.length > FACET_SEARCHABLE;
-  const filtered = q ? brands.filter((b) => b.toLowerCase().includes(q.toLowerCase())) : brands;
-  const shown = expanded ? filtered : filtered.slice(0, FACET_VISIBLE);
+  const { q, setQ, searchable, filtered, shown, expanded, toggle } = useCollapsibleFacet(brands);
   return (
     <div>
       <FacetTitle>Marca</FacetTitle>
@@ -420,6 +421,7 @@ function BrandFacet({ brands, current, onSelect }: { brands: string[]; current: 
           <li key={b}>
             <button
               onClick={() => onSelect(b)}
+              aria-pressed={current === b}
               className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current === b ? 'font-semibold text-primary' : 'opacity-80'}`}
             >
               {b}
@@ -428,7 +430,7 @@ function BrandFacet({ brands, current, onSelect }: { brands: string[]; current: 
         ))}
       </ul>
       {filtered.length > FACET_VISIBLE && (
-        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={() => setExpanded((e) => !e)} />
+        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={toggle} />
       )}
       {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
     </div>
@@ -451,6 +453,8 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="inline-flex items-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] px-3 py-1.5 text-sm font-medium transition-colors"
       >
         {currentOpt.label}
@@ -493,17 +497,4 @@ function PageBtn({ children, active, disabled, onClick, ariaLabel }: { children:
       {children}
     </button>
   );
-}
-
-/** Ventana de paginación: 1 … (p-1) p (p+1) … N */
-function buildPageWindow(page: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const out: (number | null)[] = [1];
-  const start = Math.max(2, page - 1);
-  const end = Math.min(total - 1, page + 1);
-  if (start > 2) out.push(null);
-  for (let i = start; i <= end; i++) out.push(i);
-  if (end < total - 1) out.push(null);
-  out.push(total);
-  return out;
 }

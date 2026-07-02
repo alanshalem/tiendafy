@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, buildPageWindow } from '@tiendafy/ui';
 
 /** Paginador: ‹ 1 … (p-1) p (p+1) … N › */
 export function Pagination({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
   if (totalPages <= 1) return null;
-  const win = buildWindow(page, totalPages);
+  const win = buildPageWindow(page, totalPages);
 
   return (
     <nav className="flex items-center justify-center gap-1.5 pt-3">
@@ -37,16 +37,4 @@ function Btn({ children, active, disabled, onClick, label }: { children: React.R
       {children}
     </button>
   );
-}
-
-function buildWindow(page: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const out: (number | null)[] = [1];
-  const start = Math.max(2, page - 1);
-  const end = Math.min(total - 1, page + 1);
-  if (start > 2) out.push(null);
-  for (let i = start; i <= end; i++) out.push(i);
-  if (end < total - 1) out.push(null);
-  out.push(total);
-  return out;
 }

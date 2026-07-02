@@ -6,6 +6,12 @@ namespace Api.Auth;
 
 public static class AuthExtensions
 {
+    /// <summary>Mensaje único del 400 cuando falta el header X-Tenant-Id.</summary>
+    public const string MissingTenantHeaderMessage = "Missing X-Tenant-Id header.";
+
+    /// <summary>400 estándar cuando falta el header X-Tenant-Id (cuerpo JSON compartido).</summary>
+    public static IResult MissingTenant() => Results.BadRequest(new { error = MissingTenantHeaderMessage });
+
     /// <summary>Id del usuario de plataforma autenticado (claim NameIdentifier), o null.</summary>
     public static Guid? GetUserId(this ClaimsPrincipal principal)
     {
@@ -38,7 +44,7 @@ public static class AuthExtensions
         {
             var http = ctx.HttpContext;
             var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
-            if (!tenant.HasTenant) return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            if (!tenant.HasTenant) return MissingTenant();
             var userId = http.User.GetUserId();
             if (userId is null) return Results.Unauthorized();
             var memberships = http.RequestServices.GetRequiredService<IMembershipService>();
@@ -69,7 +75,7 @@ public static class AuthExtensions
     {
         var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
         if (!tenant.HasTenant)
-            return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            return MissingTenant();
         return await next(ctx);
     }
 
@@ -78,7 +84,7 @@ public static class AuthExtensions
         var http = ctx.HttpContext;
         var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
         if (!tenant.HasTenant)
-            return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+            return MissingTenant();
 
         var userId = http.User.GetUserId();
         if (userId is null) return Results.Unauthorized();

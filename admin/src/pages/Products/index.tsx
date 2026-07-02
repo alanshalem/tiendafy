@@ -3,18 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, List, MoreVertical, Plus, Search, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { Badge, Button, Dropdown, Modal, useToast, useConfirm, type BadgeVariant } from '@tiendafy/ui';
+import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 import { toFormPrice, toDomainPrice } from '../../lib/price';
 import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
 import { EmptyState } from '../../components/EmptyState';
+import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 
-interface MoneyDto {
-  amount: number;
-  currency: string;
-}
 interface VariantDto {
   id: string;
   sku: string;
@@ -215,7 +213,7 @@ export function ProductsPage() {
   };
 
   if (!store) {
-    return <p className="py-16 text-center text-sm text-fg-muted">Elegí una tienda arriba para ver sus productos.</p>;
+    return <NoStoreSelected message="Elegí una tienda arriba para ver sus productos." />;
   }
 
   const isEmpty = !isLoading && products.length === 0;

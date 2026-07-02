@@ -18,3 +18,5 @@ export { Pagination, type PaginationProps } from './Pagination';
 export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './Breadcrumbs';
 export { FormField, FormError, type FormFieldProps, type FormErrorProps } from './Form';
 export { MultiSelect, type MultiSelectProps, type MultiSelectOption } from './MultiSelect';
+export { Captcha, type CaptchaProps } from './Captcha';
+export { buildPageWindow } from './pageWindow';
