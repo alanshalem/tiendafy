@@ -13,6 +13,7 @@ public static class ProductMapping
         product.Description,
         product.SeoTitle,
         product.SeoDescription,
+        product.Brand,
         product.Status.ToString().ToUpperInvariant(),
         product.Options.Select(o => new ProductOptionDto(o.Name, o.Values)).ToList(),
         product.Variants.Select(v => v.ToDto()).ToList(),

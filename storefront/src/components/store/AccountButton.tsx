@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { User, Heart, LogOut, X, Loader2 } from 'lucide-react';
+import { LogOut, X, Loader2 } from 'lucide-react';
+import { Icon } from './Icon';
 import { useAuth } from './auth';
 import { usePreviewHref } from './preview';
 import { Captcha } from './Captcha';
@@ -28,7 +29,7 @@ export function AccountButton() {
     return (
       <>
         <button type="button" onClick={() => setModal(true)} aria-label="Iniciar sesión" title="Iniciar sesión" className="opacity-90 hover:opacity-100">
-          <User className="h-5 w-5" />
+          <Icon name="user" className="h-5 w-5" />
         </button>
         {modal && <AuthModal onClose={() => setModal(false)} />}
       </>
@@ -39,7 +40,7 @@ export function AccountButton() {
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setMenu((o) => !o)} className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100" aria-label="Mi cuenta">
-        <User className="h-5 w-5" />
+        <Icon name="user" className="h-5 w-5" />
         <span className="hidden max-w-[7rem] truncate text-sm sm:inline">{firstName}</span>
       </button>
       {menu && (
@@ -49,10 +50,10 @@ export function AccountButton() {
             <div className="truncate text-xs opacity-60">{user.email}</div>
           </div>
           <Link href={href('/cuenta')} onClick={() => setMenu(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
-            <User className="h-4 w-4" /> Mi cuenta y pedidos
+            <Icon name="user" className="h-4 w-4" /> Mi cuenta y pedidos
           </Link>
           <Link href={href('/favoritos')} onClick={() => setMenu(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
-            <Heart className="h-4 w-4" /> Mis favoritos
+            <Icon name="heart" className="h-4 w-4" /> Mis favoritos
           </Link>
           <button type="button" onClick={() => { setMenu(false); logout(); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)]">
             <LogOut className="h-4 w-4" /> Cerrar sesión

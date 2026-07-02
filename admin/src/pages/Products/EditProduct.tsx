@@ -20,6 +20,7 @@ interface ProductDto {
   id: string;
   name: string;
   description: string | null;
+  brand: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
@@ -72,6 +73,7 @@ export function EditProductPage() {
   // Estado del form (se inicializa al cargar el producto).
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [brand, setBrand] = useState('');
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [prices, setPrices] = useState<Record<string, { price: string; promo: string }>>({});
@@ -85,6 +87,7 @@ export function EditProductPage() {
     if (!product) return;
     setName(product.name);
     setDescription(product.description ?? '');
+    setBrand(product.brand ?? '');
     setSeoTitle(product.seoTitle ?? '');
     setSeoDescription(product.seoDescription ?? '');
     setCategoryIds(product.categoryIds ?? []);
@@ -156,6 +159,7 @@ export function EditProductPage() {
       await api.patch(`/api/v1/products/${id}`, {
         name,
         description: description || null,
+        brand: brand.trim() || null,
         seoTitle: seoTitle.trim() || null,
         seoDescription: seoDescription.trim() || null,
       });
@@ -216,6 +220,9 @@ export function EditProductPage() {
           </FormField>
           <FormField label="Descripción">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+          </FormField>
+          <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
+            <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />
           </FormField>
         </div>
       </Section>

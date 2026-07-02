@@ -210,6 +210,11 @@ export function HomePanel({ theme, onBack, onOpenSection, updateTheme }: { theme
 
       <p className="inline-flex flex-wrap items-center gap-1 px-4 pt-3 text-xs text-fg-muted">Arrastrá <GripVertical className="h-3.5 w-3.5" /> para reordenar. El ojo muestra/oculta cada sección.</p>
       <div className="p-3" ref={listRef}>
+        {theme.sections.length === 0 && (
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-fg-muted">
+            Tu página de inicio está vacía. Elegí una plantilla arriba o agregá secciones con el botón de abajo.
+          </div>
+        )}
         {theme.sections.map((s, i) => (
           <div
             key={s.id}

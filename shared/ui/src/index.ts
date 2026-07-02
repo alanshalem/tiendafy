@@ -12,6 +12,7 @@ export { Modal, type ModalProps } from './Modal';
 export { Dropdown, type DropdownProps, type DropdownItemProps } from './Dropdown';
 export { ToastProvider, useToast, type ToastVariant, type ToastOptions } from './Toast';
 export { ConfirmProvider, useConfirm, type ConfirmOptions } from './Confirm';
+export { PromptProvider, usePrompt, type PromptOptions } from './Prompt';
 export { Table, type TableProps, type TableColumn } from './Table';
 export { Pagination, type PaginationProps } from './Pagination';
 export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './Breadcrumbs';

@@ -27,6 +27,8 @@ public sealed class Product : AggregateRoot
     public string? Description { get; private set; }
     public string? SeoTitle { get; private set; }
     public string? SeoDescription { get; private set; }
+    /// <summary>Marca del producto (ej: "Royal Canin"). Se usa para filtrar en la tienda.</summary>
+    public string? Brand { get; private set; }
     public ProductStatus Status { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -259,6 +261,13 @@ public sealed class Product : AggregateRoot
         _categoryIds.Clear();
         foreach (var id in categoryIds.Where(id => id != Guid.Empty).Distinct())
             _categoryIds.Add(id);
+    }
+
+    /// <summary>Setea la marca (normaliza vacío → null, recorta a 100 chars).</summary>
+    public void SetBrand(string? brand)
+    {
+        var trimmed = brand?.Trim();
+        Brand = string.IsNullOrEmpty(trimmed) ? null : trimmed.Length > 100 ? trimmed[..100] : trimmed;
     }
 
     public Result UpdateDetails(string? name, string? description)

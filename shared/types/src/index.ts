@@ -57,6 +57,8 @@ export type {
   BorderRadiusStyle,
   MotionStyle,
   DensityStyle,
+  IconKit,
   ThemeConfig,
 } from './theme';
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, PAYMENT_LOGOS, PAYMENT_LOGO_SLUGS } from './theme';
+export { formatMoney } from './format';

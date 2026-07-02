@@ -7,7 +7,7 @@ namespace Catalog.Core.Features.UpdateProduct;
 
 public sealed record UpdateProductDetailsCommand(
     TenantId TenantId, Guid ProductId, string Name, string? Description,
-    string? SeoTitle = null, string? SeoDescription = null);
+    string? SeoTitle = null, string? SeoDescription = null, string? Brand = null);
 
 public sealed record ReorderImagesCommand(TenantId TenantId, Guid ProductId, IReadOnlyList<Guid> ImageIds);
 
@@ -35,6 +35,7 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
             return Result.Failure<ProductDto>(result.Error);
 
         product.SetSeo(command.SeoTitle, command.SeoDescription);
+        product.SetBrand(command.Brand);
 
         await unitOfWork.SaveChangesAsync(ct);
         return product.ToDto();
@@ -83,6 +84,7 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
             copy.AddImage(img.Url, img.AltText);
         copy.SetCategories(src.CategoryIds);
         copy.SetSeo(src.SeoTitle, src.SeoDescription);
+        copy.SetBrand(src.Brand);
         // Queda en Draft a propósito (no publicar la copia automáticamente).
 
         await repository.AddAsync(copy, ct);

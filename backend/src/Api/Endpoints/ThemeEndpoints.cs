@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Themes.Infrastructure;
+using Api.Auth;
 
 namespace Api.Endpoints;
 
@@ -11,12 +12,11 @@ public static class ThemeEndpoints
 {
     public static RouteGroupBuilder MapThemeEndpoints(this RouteGroupBuilder group)
     {
-        var theme = group.MapGroup("/theme");
+        var theme = group.MapGroup("/theme").RequireTenant();
 
         // Config PUBLICADA — la que sirve el storefront al comprador.
         theme.MapGet("/", async (ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
             return ConfigResult(doc.PublishedConfig);
         });
@@ -24,7 +24,6 @@ public static class ThemeEndpoints
         // Config DRAFT — la que edita el panel (preview). Si no hay draft, cae a publicada.
         theme.MapGet("/draft", async (ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
             return ConfigResult(string.IsNullOrWhiteSpace(doc.DraftConfig) ? doc.PublishedConfig : doc.DraftConfig);
         });
@@ -33,7 +32,6 @@ public static class ThemeEndpoints
         theme.MapPut("/draft", async (
             JsonElement body, ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
             if (!IsValidConfig(body))
                 return Results.Problem(title: "Theme.InvalidConfig", detail: "Config must be a JSON object.", statusCode: 400);
 
@@ -48,7 +46,6 @@ public static class ThemeEndpoints
         theme.MapPost("/publish", async (
             JsonElement body, ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return MissingTenant();
             if (!IsValidConfig(body))
                 return Results.Problem(title: "Theme.InvalidConfig", detail: "Config must be a JSON object.", statusCode: 400);
 
@@ -64,7 +61,6 @@ public static class ThemeEndpoints
         return group;
     }
 
-    private static IResult MissingTenant() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 
     private static bool IsValidConfig(JsonElement body) => body.ValueKind == JsonValueKind.Object;
 

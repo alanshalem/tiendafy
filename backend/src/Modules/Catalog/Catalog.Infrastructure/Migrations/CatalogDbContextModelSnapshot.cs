@@ -71,6 +71,11 @@ namespace Catalog.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Brand")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("brand");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -118,6 +123,9 @@ namespace Catalog.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_products");
+
+                    b.HasIndex("TenantId", "Brand")
+                        .HasDatabaseName("ix_products_tenant_id_brand");
 
                     b.HasIndex("TenantId", "Slug")
                         .IsUnique()

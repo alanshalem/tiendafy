@@ -15,7 +15,7 @@ public static class PagesEndpoints
 
     public static RouteGroupBuilder MapPageEndpoints(this RouteGroupBuilder group)
     {
-        var pages = group.MapGroup("/pages");
+        var pages = group.MapGroup("/pages").RequireTenant();
 
         // Admin: todas las páginas del tenant.
         pages.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>

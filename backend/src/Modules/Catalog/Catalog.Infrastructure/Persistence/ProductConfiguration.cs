@@ -30,6 +30,8 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Description);
         builder.Property(p => p.SeoTitle).HasMaxLength(70);
         builder.Property(p => p.SeoDescription).HasMaxLength(320);
+        builder.Property(p => p.Brand).HasMaxLength(100);
+        builder.HasIndex(p => new { p.TenantId, p.Brand });
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.CreatedAtUtc);
 

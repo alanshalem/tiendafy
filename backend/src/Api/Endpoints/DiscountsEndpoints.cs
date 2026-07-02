@@ -10,7 +10,7 @@ public static class DiscountsEndpoints
 {
     public static RouteGroupBuilder MapDiscountsEndpoints(this RouteGroupBuilder group)
     {
-        var coupons = group.MapGroup("/coupons");
+        var coupons = group.MapGroup("/coupons").RequireTenant();
 
         coupons.MapGet("/", async (ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {

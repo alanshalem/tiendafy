@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Truck, CreditCard, ShieldCheck, Gift, Headphones, RefreshCw, Heart, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { formatMoney } from '@tiendafy/types';
+import { Icon, type IconName } from './Icon';
 import type { ProductListConfig, SectionType, ThemeSection } from '@/lib/theme';
 import { useCart } from './cart';
 import { useFavorites } from './favorites';
@@ -10,16 +11,25 @@ import { usePreviewHref, PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
 import { StoreImage } from './StoreImage';
 
-const INFO_ICON_MAP: Record<string, LucideIcon> = {
-  shipping: Truck,
-  card: CreditCard,
-  security: ShieldCheck,
-  gift: Gift,
-  support: Headphones,
-  returns: RefreshCw,
+// Mapea el slug guardado en la sección al nombre semántico del kit de íconos.
+const INFO_ICON_MAP: Record<string, IconName> = {
+  shipping: 'shipping',
+  card: 'card',
+  security: 'security',
+  gift: 'gift',
+  support: 'support',
+  returns: 'returns',
 };
 
-const defaultList: ProductListConfig = { columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true };
+const defaultList: ProductListConfig = {
+  columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true,
+  filterCategories: true, filterPrice: true, filterBrand: true, filterOptions: true,
+  showCashPrice: false, installmentsCount: 0, showStockBadge: false,
+};
+
+// Descuento por transferencia/efectivo del tema (productDetail.cashDiscountPercent).
+// Se provee en StorefrontView; las cards lo usan para el "precio con transferencia".
+export const CashDiscountContext = createContext(0);
 
 export interface StoreProduct {
   id: string;
@@ -32,11 +42,13 @@ export interface StoreProduct {
   images: string[];
   variantId: string;
   variantLabel: string;
+  stock?: number | null;
 }
 
-function fmt(amount: number, currency: string) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
-}
+const fmt = formatMoney;
+
+// Bajo este stock la card muestra "¡Últimas N!" (badge de urgencia).
+const LOW_STOCK_THRESHOLD = 5;
 
 /** Selecciona productos por id preservando el orden elegido. */
 function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
@@ -46,6 +58,7 @@ function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
 
 export function ProductCard({ product, list }: { product: StoreProduct; list: ProductListConfig }) {
   const { add, setOpen } = useCart();
+  const cashPct = useContext(CashDiscountContext);
   const fav = useFavorites();
   const href = usePreviewHref();
   const link = href(`/productos/${product.slug}`);
@@ -68,6 +81,17 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             -{discountPct}%
           </span>
         )}
+        {/* Badge de stock (bajo el de %OFF si convive). */}
+        {list.showStockBadge && product.stock != null && product.stock <= 0 && (
+          <span className={`absolute left-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}>
+            Sin stock
+          </span>
+        )}
+        {list.showStockBadge && product.stock != null && product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD && (
+          <span className={`absolute left-2 z-10 rounded-md bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}>
+            ¡Últimas {product.stock}!
+          </span>
+        )}
         {/* Favorito: toggle sin navegar. */}
         <button
           type="button"
@@ -76,7 +100,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           aria-pressed={faved}
           className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:scale-110"
         >
-          <Heart className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
+          <Icon name="heart" className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
         </button>
         {imgs.length > 0 ? (
           <StoreImage src={imgs[imgIdx]} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
@@ -94,7 +118,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
               aria-label="Imagen anterior"
               className="absolute left-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Icon name="chevronLeft" className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -102,7 +126,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
               aria-label="Imagen siguiente"
               className="absolute right-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
             >
-              <ChevronRight className="h-4 w-4" />
+              <Icon name="chevronRight" className="h-4 w-4" />
             </button>
             <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1">
               {imgs.map((_, i) => (
@@ -121,6 +145,16 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           {list.showCompareAt && product.compareAtAmount && (
             <span className="ml-2 line-through opacity-50">{fmt(product.compareAtAmount, product.currency)}</span>
           )}
+        </div>
+      )}
+      {list.showPrice && list.showCashPrice && cashPct > 0 && (
+        <div className="text-xs font-semibold text-green-700">
+          {fmt(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con transferencia
+        </div>
+      )}
+      {list.showPrice && list.installmentsCount > 0 && (
+        <div className="text-xs opacity-70">
+          {list.installmentsCount} x {fmt(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin interés
         </div>
       )}
       {list.showBuyButton && (
@@ -182,7 +216,7 @@ function ProductGrid({ title, products, list, carousel }: { title: string; produ
                 aria-label="Anterior"
                 className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <Icon name="chevronLeft" className="h-5 w-5" />
               </button>
               <button
                 type="button"
@@ -190,7 +224,7 @@ function ProductGrid({ title, products, list, carousel }: { title: string; produ
                 aria-label="Siguiente"
                 className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
               >
-                <ChevronRight className="h-5 w-5" />
+                <Icon name="chevronRight" className="h-5 w-5" />
               </button>
             </>
           )}
@@ -426,8 +460,22 @@ function ImageTextSection({ section }: SectionRenderProps) {
   const d = section.data as ImageTextData;
   const light = d.textColor === 'light';
   if (!d.image && !d.title) return null;
+
+  const hasText = !!(d.title || d.description || d.buttonText);
+
+  // Solo imagen (sin texto): a todo el ancho del contenedor, centrada — no media
+  // columna a la izquierda. Sirve para banners de cualquier proporción.
+  if (d.image && !hasText) {
+    return (
+      <section className="mx-auto max-w-container px-4 py-14">
+        <img src={d.image} alt="" className="mx-auto w-full rounded-lg" />
+      </section>
+    );
+  }
+
+  // Imagen + texto = 2 columnas. Solo texto = una columna a todo el ancho.
   return (
-    <section className="mx-auto grid max-w-container items-center gap-8 px-4 py-14 md:grid-cols-2">
+    <section className={`mx-auto max-w-container items-center gap-8 px-4 py-14 ${d.image ? 'grid md:grid-cols-2' : ''}`}>
       {d.image && <img src={d.image} alt="" className="w-full rounded-lg object-cover" />}
       <div className={light ? 'text-white' : undefined}>
         {d.title && <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{d.title}</h3>}
@@ -454,10 +502,10 @@ function InfoBarSection({ section }: SectionRenderProps) {
     <section className="border-y border-black/10">
       <div className="mx-auto grid max-w-container gap-6 px-4 py-8 sm:grid-cols-3">
         {list.map((it, idx) => {
-          const Icon = INFO_ICON_MAP[it.icon ?? 'shipping'] ?? Truck;
+          const iconName = INFO_ICON_MAP[it.icon ?? 'shipping'] ?? 'shipping';
           const inner = (
             <div className="inline-flex items-center justify-center gap-3 text-sm">
-              <Icon className="h-6 w-6 shrink-0 opacity-70" />
+              <Icon name={iconName} className="h-6 w-6 shrink-0 opacity-70" />
               <div className="text-left">
                 {it.title && <div className="font-semibold">{it.title}</div>}
                 {it.description && <div className="text-xs opacity-60">{it.description}</div>}

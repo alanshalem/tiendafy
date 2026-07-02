@@ -1,5 +1,6 @@
 using Media.Infrastructure;
 using SharedKernel.Abstractions;
+using Api.Auth;
 
 namespace Api.Endpoints;
 
@@ -7,7 +8,7 @@ public static class MediaEndpoints
 {
     public static RouteGroupBuilder MapMediaEndpoints(this RouteGroupBuilder group)
     {
-        var media = group.MapGroup("/media");
+        var media = group.MapGroup("/media").RequireTenant();
 
         // multipart/form-data con campo "file". Devuelve la URL pública.
         media.MapPost("/", async (
@@ -16,9 +17,6 @@ public static class MediaEndpoints
             IMediaStorage storage,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             await using var stream = file.OpenReadStream();
             var result = await storage.UploadAsync(
                 tenant.TenantId.Value, stream, file.ContentType, file.Length, ct);

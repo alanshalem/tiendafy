@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
+import { formatMoney } from '@tiendafy/types';
 
 const CART_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
 
@@ -88,9 +89,7 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
-function formatPrice(amount: number, currency: string) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
-}
+const formatPrice = formatMoney;
 
 interface CartConfig {
   freeShippingBar: boolean;

@@ -3,12 +3,14 @@
 import { useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShoppingCart, Search, MessageCircle, MapPin, Phone, Mail, Menu, X, Pencil, Heart } from 'lucide-react';
+import { Pencil } from 'lucide-react';
+import { cn } from '@tiendafy/ui';
+import { Icon, IconKitContext } from './Icon';
 import { CartProvider, CartDrawer, useCart } from './cart';
 import { FavoritesProvider, useFavorites } from './favorites';
 import { AuthProvider } from './auth';
 import { AccountButton } from './AccountButton';
-import { HomeSections, type StoreProduct } from './sections';
+import { HomeSections, CashDiscountContext, type StoreProduct } from './sections';
 import { EditableRegion } from './EditableRegion';
 import { Analytics } from './Analytics';
 import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
@@ -103,7 +105,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   const search = h.showSearch ? (
     <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3">
-      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Search className="h-4 w-4" /></button>
+      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -116,7 +118,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   const cartBtn = h.showCart ? (
     <button onClick={() => setOpen(true)} className="relative inline-flex items-center gap-1.5 text-sm" aria-label="Abrir carrito">
-      <ShoppingCart className="h-5 w-5" />
+      <Icon name="cart" className="h-5 w-5" />
       {h.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
       {count > 0 && (
         <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]" style={{ background: 'rgb(var(--color-primary))' }}>{count}</span>
@@ -129,7 +131,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   const favBtn = (
     <Link href={href('/favoritos')} className="relative inline-flex items-center opacity-90 hover:opacity-100" aria-label="Favoritos" title="Favoritos">
-      <Heart className="h-5 w-5" />
+      <Icon name="heart" className="h-5 w-5" />
       {fav.count > 0 && (
         <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]" style={{ background: 'rgb(var(--color-primary))' }}>{fav.count}</span>
       )}
@@ -190,6 +192,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
     <>
       {ann.show && annItems.length > 0 && (
         <div
+          data-tf-focus="announcement"
           className="relative overflow-hidden px-4 py-2 text-sm font-semibold text-primary-fg"
           style={{ background: 'rgb(var(--color-primary))' }}
           onMouseEnter={preview ? () => setAnnHover(true) : undefined}
@@ -233,6 +236,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
         </div>
       )}
       <header
+        data-tf-focus="header"
         className={cn(h.sticky && 'sticky top-0 z-40', !h.sticky && preview && 'relative', borderClass, 'transition-colors')}
         style={{ background: bg, color: textColor }}
         onMouseEnter={preview ? () => setEditHover(true) : undefined}
@@ -258,7 +262,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <div className="flex h-14 items-center justify-between gap-3 md:hidden">
             {h.showTabsMobile ? (
               <button type="button" onClick={() => setMobileOpen((o) => !o)} aria-label="Menú" className="shrink-0 opacity-90 hover:opacity-100">
-                {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                {mobileOpen ? <Icon name="close" className="h-6 w-6" /> : <Icon name="menu" className="h-6 w-6" />}
               </button>
             ) : (
               <span className="w-6 shrink-0" />
@@ -273,7 +277,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${h.bg})` }}>
             {h.showSearch && (
               <form onSubmit={submitSearch} className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3">
-                <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Search className="h-4 w-4" /></button>
+                <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60" style={{ color: 'currentColor' }} />
               </form>
             )}
@@ -294,9 +298,6 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   );
 }
 
-function cn(...parts: Array<string | false | undefined>) {
-  return parts.filter(Boolean).join(' ');
-}
 
 function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
   const f = theme.footer;
@@ -314,22 +315,22 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm opacity-75">
             {f.whatsapps.filter(Boolean).map((w, i) => (
               <a key={`w${i}`} href={`https://wa.me/${w.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-100">
-                <MessageCircle className="h-4 w-4" /> {w}
+                <Icon name="chat" className="h-4 w-4" /> {w}
               </a>
             ))}
             {f.phones.filter(Boolean).map((p, i) => (
               <a key={`p${i}`} href={`tel:${p.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:opacity-100">
-                <Phone className="h-4 w-4" /> {p}
+                <Icon name="phone" className="h-4 w-4" /> {p}
               </a>
             ))}
             {f.emails.filter(Boolean).map((e, i) => (
               <a key={`e${i}`} href={`mailto:${e}`} className="inline-flex items-center gap-1.5 hover:opacity-100">
-                <Mail className="h-4 w-4" /> {e}
+                <Icon name="mail" className="h-4 w-4" /> {e}
               </a>
             ))}
             {f.addresses.filter(Boolean).map((a, i) => (
               <span key={`a${i}`} className="inline-flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" /> {a}
+                <Icon name="mapPin" className="h-4 w-4" /> {a}
               </span>
             ))}
           </div>
@@ -411,6 +412,18 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     const handler = (e: MessageEvent) => {
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
       if (e.data?.type === 'tiendafy:theme' && e.data.theme) setTheme(mergeTheme(e.data.theme));
+      // Al abrir un panel, el editor pide enfocar su sección: scroll + flash.
+      if (e.data?.type === 'tiendafy:focus-section') {
+        const key = e.data.sectionId ? `section:${e.data.sectionId}` : e.data.target;
+        const el = key && document.querySelector<HTMLElement>(`[data-tf-focus="${key}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('tf-focus-flash');
+          void el.offsetWidth; // reinicia la animación si ya estaba
+          el.classList.add('tf-focus-flash');
+          window.setTimeout(() => el.classList.remove('tf-focus-flash'), 1400);
+        }
+      }
     };
     window.addEventListener('message', handler);
     window.parent?.postMessage({ type: 'tiendafy:preview-ready' }, '*');
@@ -462,6 +475,8 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
 
   return (
     <div data-store-radius={theme.borderRadius} data-store-motion={theme.motion} data-store-density={theme.density} style={themeToStyle(theme) as React.CSSProperties}>
+      <IconKitContext.Provider value={theme.iconKit}>
+      <CashDiscountContext.Provider value={theme.productDetail.cashDiscountPercent || 0}>
       {theme.customCss && <style dangerouslySetInnerHTML={{ __html: theme.customCss }} />}
       {!live && tenantId && <Analytics tenantId={tenantId} />}
       <PreviewContext.Provider value={!!live}>
@@ -486,6 +501,8 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
           showPreview={theme.whatsappButton.showPreview !== false}
         />
       )}
+      </CashDiscountContext.Provider>
+      </IconKitContext.Provider>
     </div>
   );
 }

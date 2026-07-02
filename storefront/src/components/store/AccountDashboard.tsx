@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Heart, LogOut, Package } from 'lucide-react';
+import { formatMoney } from '@tiendafy/types';
 import { useAuth } from './auth';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
@@ -31,9 +32,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CHARGEDBACK: { label: 'Contracargo', cls: 'bg-red-100 text-red-700' },
 };
 
-function money(amount: number, currency: string) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
-}
+const money = formatMoney;
 
 export function AccountDashboard() {
   const { user, token, ready, logout } = useAuth();

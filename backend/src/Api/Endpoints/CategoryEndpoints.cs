@@ -5,13 +5,15 @@ using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
+using Api.Auth;
+
 namespace Api.Endpoints;
 
 public static class CategoryEndpoints
 {
     public static RouteGroupBuilder MapCategoryEndpoints(this RouteGroupBuilder group)
     {
-        var categories = group.MapGroup("/categories");
+        var categories = group.MapGroup("/categories").RequireTenant();
 
         categories.MapPost("/", async (
             CreateCategoryRequest request,
@@ -19,9 +21,6 @@ public static class CategoryEndpoints
             CreateCategoryHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.HandleAsync(
                 new CreateCategoryCommand(tenant.TenantId, request.Name, request.ParentId), ct);
 
@@ -35,9 +34,6 @@ public static class CategoryEndpoints
             ICategoryRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var all = await repository.ListAsync(tenant.TenantId, ct);
             return Results.Ok(new { items = all.Select(c => c.ToDto()).ToList() });
         });
@@ -46,9 +42,6 @@ public static class CategoryEndpoints
         categories.MapPut("/{id:guid}", async (
             Guid id, RenameCategoryRequest request, ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var category = await db.Categories.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId && c.Id == id, ct);
             if (category is null) return Results.NotFound();
 
@@ -62,9 +55,6 @@ public static class CategoryEndpoints
         categories.MapDelete("/{id:guid}", async (
             Guid id, ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var category = await db.Categories.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId && c.Id == id, ct);
             if (category is null) return Results.NoContent();
 

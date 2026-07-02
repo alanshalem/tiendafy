@@ -30,6 +30,7 @@ export function EditableRegion({
 
   return (
     <div
+      data-tf-focus={id ? `section:${id}` : target}
       className="relative cursor-pointer"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

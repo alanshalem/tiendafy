@@ -14,7 +14,7 @@ public static class ContactEndpoints
         group.MapGet("/captcha/config", (ICaptchaVerifier captcha) =>
             Results.Ok(new { enabled = captcha.Enabled, siteKey = captcha.SiteKey }));
 
-        var contact = group.MapGroup("/contact");
+        var contact = group.MapGroup("/contact").RequireTenant();
 
         // Envío público del formulario (anónimo). Tenant por X-Tenant-Id + captcha.
         contact.MapPost("/submit", async (ContactSubmitRequest req, ITenantContext tenant, ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>

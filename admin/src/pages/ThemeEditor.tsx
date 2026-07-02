@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Check as CheckIcon,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -17,6 +18,7 @@ import {
   Palette,
   Phone,
   Plus,
+  Sparkles,
   ShoppingCart,
   Smartphone,
   Square,
@@ -26,12 +28,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, PAYMENT_LOGOS } from '@tiendafy/types';
+import { type ThemeConfig, type ThemeSection, type SectionType, normalizeTheme, baseTheme, PAYMENT_LOGOS } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, setActiveTenant } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
 import { ImageUploader } from './theme-editor-uploaders';
-import { BackHeader, Field, Check, Select, TextInput, TextArea, StringList, ColorRow, INPUT_BASE, contrastText } from './theme-editor-inputs';
+import { BackHeader, Field, Check, Select, TextInput, TextArea, StringList, ColorRow, INPUT_BASE, contrastText, sectionSetter } from './theme-editor-inputs';
 import { HomePanel, SectionPanel } from './theme-editor-sections';
 
 /* ============================================================
@@ -216,6 +218,18 @@ export function ThemeEditorPage() {
   // Al abrir el panel "Carrito", abrir el drawer en el preview (y cerrarlo al salir).
   useEffect(() => { postCart(view === 'cart'); }, [view, postCart]);
 
+  // Al abrir un panel, resaltar su sección en el preview (scroll + flash). Solo aplica
+  // a lo que se ve en el home: encabezado, pie y secciones del inicio.
+  useEffect(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    let msg: { type: string; target?: string; sectionId?: string } | null = null;
+    if (view === 'header') msg = { type: 'tiendafy:focus-section', target: 'header' };
+    else if (view === 'footer') msg = { type: 'tiendafy:focus-section', target: 'footer' };
+    else if (view.startsWith('home:')) msg = { type: 'tiendafy:focus-section', target: 'section', sectionId: view.slice(5) };
+    if (msg) win.postMessage(msg, '*');
+  }, [view]);
+
   // Click en una región del preview (sección / encabezado / pie) → abre su panel.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -355,7 +369,7 @@ export function ThemeEditorPage() {
       <div className="flex min-h-0 flex-1">
         {/* Panel izquierdo */}
         <aside className="w-80 shrink-0 overflow-y-auto border-r border-border bg-surface">
-          {view === 'root' && <RootNav onNavigate={setView} />}
+          {view === 'root' && <RootNav onNavigate={setView} theme={theme} onOpenGallery={() => navigate('/canales/tienda-online/disenios')} />}
           {view === 'logo' && (
             <div>
               <BackHeader title="Identidad de tu tienda" onBack={() => setView('root')} />
@@ -376,6 +390,7 @@ export function ThemeEditorPage() {
             <ColorsPanel
               theme={theme}
               onBack={() => setView('root')}
+              onReset={async () => { if (await confirm({ title: 'Restablecer colores', message: '¿Volver los colores a los valores por defecto?', confirmLabel: 'Restablecer', variant: 'danger' })) updateTheme((t) => ({ ...t, colors: baseTheme.colors })); }}
               setColor={setColor}
               onToggleAccent={(on) => updateTheme((t) => ({ ...t, colors: { ...t.colors, useAccent: on } }))}
               applyPreset={(p) => updateTheme((t) => ({ ...t, colors: { ...t.colors, primary: p.primary, bg: p.bg, text: p.text }, header: { ...t.header, bg: p.header, textColor: contrastText(p.header) } }))} />
@@ -432,26 +447,92 @@ export function ThemeEditorPage() {
   );
 }
 
-function RootNav({ onNavigate }: { onNavigate: (v: string) => void }) {
+function RootNav({ onNavigate, theme, onOpenGallery }: { onNavigate: (v: string) => void; theme: ThemeConfig; onOpenGallery: () => void }) {
   return (
     <div className="py-2">
-      <GroupLabel>Imagen de tu marca</GroupLabel>
+      <EditorChecklist theme={theme} onNavigate={onNavigate} />
+
+      {/* Atajo a diseños completos listos (colores + fuentes + secciones en 1 click). */}
+      <button
+        onClick={onOpenGallery}
+        className="mx-3 mb-1 flex w-[calc(100%-1.5rem)] items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 text-left text-sm font-semibold text-primary hover:bg-primary/10"
+      >
+        <Sparkles className="h-4 w-4 shrink-0" />
+        <span className="flex-1">Elegí un diseño listo</span>
+        <ChevronRight className="h-4 w-4" />
+      </button>
+
+      {/* Orden de armado: de lo global (marca) a lo específico (conversión) → la tienda "se arma sola". */}
+      <GroupLabel>1 · Identidad</GroupLabel>
       <NavRow icon={Image} label="Logo de la tienda" onClick={() => onNavigate('logo')} />
       <NavRow icon={Palette} label="Colores de tu marca" onClick={() => onNavigate('colors')} />
       <NavRow icon={Type} label="Tipo de letra" onClick={() => onNavigate('fonts')} />
+
+      <GroupLabel>2 · Estilo global</GroupLabel>
       <NavRow icon={Square} label="Estilo y movimiento" onClick={() => onNavigate('radius')} />
-      <GroupLabel>Configuraciones avanzadas</GroupLabel>
+
+      <GroupLabel>3 · Estructura de la tienda</GroupLabel>
       <NavRow icon={ChevronUp} label="Encabezado" onClick={() => onNavigate('header')} />
+      <NavRow icon={ChevronDown} label="Pie de página" onClick={() => onNavigate('footer')} />
+
+      <GroupLabel>4 · Contenido</GroupLabel>
       <NavRow icon={Home} label="Página de inicio" onClick={() => onNavigate('home')} />
       <NavRow icon={List} label="Listado de productos" onClick={() => onNavigate('products-list')} />
       <NavRow icon={Package} label="Detalle de producto" onClick={() => onNavigate('product-detail')} />
+
+      <GroupLabel>5 · Conversión y contacto</GroupLabel>
       <NavRow icon={ShoppingCart} label="Carrito de compras" onClick={() => onNavigate('cart')} />
-      <NavRow icon={Phone} label="Contacto" onClick={() => onNavigate('contact')} />
       <NavRow icon={MessageCircle} label="Botón de WhatsApp" onClick={() => onNavigate('whatsapp')} />
-      <NavRow icon={ChevronDown} label="Pie de página" onClick={() => onNavigate('footer')} />
+      <NavRow icon={Phone} label="Contacto" onClick={() => onNavigate('contact')} />
+
+      <GroupLabel>6 · Avanzado y estado</GroupLabel>
       <NavRow icon={Code} label="Edición avanzada de CSS" onClick={() => onNavigate('css')} />
-      <GroupLabel>Estado de la tienda</GroupLabel>
       <NavRow icon={Construction} label="Tienda en construcción" onClick={() => onNavigate('coming-soon')} />
+    </div>
+  );
+}
+
+/**
+ * Checklist de progreso: nudges accionables (cada uno abre su panel). Usa solo
+ * señales del theme (sin fetches extra). Se colapsa a un resumen cuando está todo.
+ */
+function EditorChecklist({ theme, onNavigate }: { theme: ThemeConfig; onNavigate: (v: string) => void }) {
+  const items = [
+    { label: 'Cargá tu logo', done: !!theme.logo, view: 'logo' },
+    { label: 'Elegí colores de marca', done: theme.colors.primary !== baseTheme.colors.primary, view: 'colors' },
+    { label: 'Armá tu página de inicio', done: theme.sections.length > 0, view: 'home' },
+    { label: 'Mostrá medios de pago', done: theme.footer.paymentLogos.length > 0, view: 'footer' },
+    { label: 'Cargá datos de contacto', done: !!(theme.contact.whatsapp || theme.contact.phone || theme.contact.email || theme.contact.address), view: 'contact' },
+  ];
+  const doneCount = items.filter((i) => i.done).length;
+  const pct = Math.round((doneCount / items.length) * 100);
+  if (doneCount === items.length) return null; // todo listo → no molestar
+
+  return (
+    <div className="mx-3 mb-3 mt-1 rounded-lg border border-border bg-bg-muted p-3">
+      <div className="mb-1.5 flex items-center justify-between text-sm font-semibold text-fg">
+        <span>Poné tu tienda linda</span>
+        <span className="text-xs text-fg-muted">{doneCount}/{items.length}</span>
+      </div>
+      <div className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-border">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <ul className="space-y-0.5">
+        {items.map((it) => (
+          <li key={it.view}>
+            <button
+              onClick={() => onNavigate(it.view)}
+              className="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-xs hover:bg-surface"
+            >
+              <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', it.done ? 'border-primary bg-primary text-primary-fg' : 'border-border text-transparent')}>
+                <CheckIcon className="h-3 w-3" />
+              </span>
+              <span className={cn('flex-1', it.done ? 'text-fg-muted line-through' : 'text-fg')}>{it.label}</span>
+              {!it.done && <ChevronRight className="h-3.5 w-3.5 text-fg-subtle" />}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -469,22 +550,43 @@ function NavRow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: strin
   );
 }
 
-function ColorsPanel({ theme, onBack, setColor, onToggleAccent, applyPreset }: { theme: ThemeConfig; onBack: () => void; setColor: (k: 'primary' | 'accent' | 'bg' | 'text', v: string) => void; onToggleAccent: (on: boolean) => void; applyPreset: (p: (typeof presets)[number]) => void }) {
+/** Sección plegable para paneles largos (ej. Encabezado). Título clickeable + cuerpo. */
+function Collapsible({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-border pt-4">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between text-sm font-semibold text-fg">
+        {title}
+        <ChevronDown className={cn('h-4 w-4 text-fg-muted transition-transform', open ? 'rotate-180' : '')} />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
+function ColorsPanel({ theme, onBack, onReset, setColor, onToggleAccent, applyPreset }: { theme: ThemeConfig; onBack: () => void; onReset: () => void; setColor: (k: 'primary' | 'accent' | 'bg' | 'text', v: string) => void; onToggleAccent: (on: boolean) => void; applyPreset: (p: (typeof presets)[number]) => void }) {
   return (
     <div>
-      <BackHeader title="Colores de tu marca" onBack={onBack} />
+      <BackHeader title="Colores de tu marca" onBack={onBack} onReset={onReset} />
       <div className="space-y-5 p-4">
         <ColorRow label="Color principal" hint="Botones, destacados, líneas." value={theme.colors.primary} onChange={(v) => setColor('primary', v)} fallback="#e8501e" />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={theme.colors.useAccent} onChange={(e) => onToggleAccent(e.target.checked)} className="rounded-sm" />
-          Usar color de acento
-        </label>
+        <Check label="Usar color de acento" checked={theme.colors.useAccent} onChange={(v) => onToggleAccent(v)} />
         {theme.colors.useAccent && <ColorRow label="Color de acento" value={theme.colors.accent} onChange={(v) => setColor('accent', v)} fallback="#1b1510" />}
         <div className="border-t border-border pt-4">
           <div className="mb-3 text-sm font-semibold text-fg">Colores de contraste</div>
           <div className="space-y-3">
             <ColorRow label="Color de fondo" value={theme.colors.bg} onChange={(v) => setColor('bg', v)} fallback="#ffffff" />
             <ColorRow label="Color de textos" value={theme.colors.text} onChange={(v) => setColor('text', v)} fallback="#111827" />
+          </div>
+        </div>
+        <div className="border-t border-border pt-4">
+          <div className="mb-2 text-sm font-semibold text-fg">Vista previa</div>
+          <div className="rounded-lg border border-border p-3" style={{ background: `rgb(${theme.colors.bg})`, color: `rgb(${theme.colors.text})` }}>
+            <div className="text-sm font-semibold">Producto de ejemplo</div>
+            <div className="mt-0.5 text-xs" style={{ opacity: 0.7 }}>$ 12.500</div>
+            <button className="mt-2 w-full rounded-md py-1.5 text-xs font-semibold" style={{ background: `rgb(${theme.colors.primary})`, color: contrastText(theme.colors.primary) }}>
+              Agregar al carrito
+            </button>
           </div>
         </div>
         <div className="border-t border-border pt-4">
@@ -573,20 +675,25 @@ function FontsPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBack
   );
 }
 
-const HEADER_PRESETS: { name: string; header: Partial<ThemeConfig['header']> }[] = [
-  { name: 'Clásico', header: { layout: 'classic', border: 'line', transparentOnHome: false, logoSize: 'md', sticky: true } },
+const HEADER_PRESETS: { name: string; recommended?: boolean; header: Partial<ThemeConfig['header']> }[] = [
+  { name: 'Clásico', recommended: true, header: { layout: 'classic', border: 'line', transparentOnHome: false, logoSize: 'md', sticky: true } },
   { name: 'Centrado', header: { layout: 'logo-center', border: 'none', transparentOnHome: false, logoSize: 'md', sticky: true } },
   { name: 'Inmersivo', header: { layout: 'classic', border: 'none', transparentOnHome: true, transparentLevel: 'full', logoSize: 'lg', sticky: true } },
   { name: 'Minimal', header: { layout: 'menu-left', border: 'none', transparentOnHome: false, logoSize: 'sm', sticky: true } },
 ];
 
 function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBack: () => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void }) {
-  const setH = (patch: Partial<ThemeConfig['header']>) => updateTheme((t) => ({ ...t, header: { ...t.header, ...patch } }));
+  const confirm = useConfirm();
+  const setH = sectionSetter(updateTheme, 'header');
   const matchesPreset = (h: Partial<ThemeConfig['header']>) =>
     (Object.keys(h) as (keyof ThemeConfig['header'])[]).every((k) => theme.header[k] === h[k]);
   return (
     <div>
-      <BackHeader title="Encabezado" onBack={onBack} />
+      <BackHeader
+        title="Encabezado"
+        onBack={onBack}
+        onReset={async () => { if (await confirm({ title: 'Restablecer encabezado', message: '¿Volver el encabezado y la barra de anuncio a los valores por defecto?', confirmLabel: 'Restablecer', variant: 'danger' })) updateTheme((t) => ({ ...t, header: baseTheme.header, announcement: baseTheme.announcement })); }}
+      />
       <div className="space-y-4 p-4">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Estilos rápidos</div>
@@ -598,31 +705,27 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
                 onClick={() => setH(p.header)}
                 aria-pressed={matchesPreset(p.header)}
                 className={cn(
-                  'rounded-lg border px-3 py-2.5 text-sm font-medium transition',
+                  'relative rounded-lg border px-3 py-2.5 text-sm font-medium transition',
                   matchesPreset(p.header) ? 'border-primary text-primary ring-2 ring-primary/30' : 'border-border text-fg hover:border-border-strong',
                 )}
               >
                 {p.name}
+                {p.recommended && (
+                  <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[0.6rem] font-semibold text-primary-fg">Recomendado</span>
+                )}
               </button>
             ))}
           </div>
           <p className="mt-2 text-xs text-fg-muted">Ajustá los detalles abajo.</p>
         </div>
         <ColorRow label="Color de fondo del encabezado" value={theme.header.bg} onChange={(v) => updateTheme((t) => ({ ...t, header: { ...t.header, bg: v } }))} fallback="#1b1510" />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={theme.header.sticky} onChange={(e) => updateTheme((t) => ({ ...t, header: { ...t.header, sticky: e.target.checked } }))} className="rounded-sm" />
-          Encabezado siempre visible al navegar
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={theme.header.showTabsMobile} onChange={(e) => updateTheme((t) => ({ ...t, header: { ...t.header, showTabsMobile: e.target.checked } }))} className="rounded-sm" />
-          Mostrar menú de solapas en celulares
-        </label>
+        <Check label="Encabezado siempre visible al navegar" checked={theme.header.sticky} onChange={(v) => updateTheme((t) => ({ ...t, header: { ...t.header, sticky: v } }))} />
+        <Check label="Mostrar menú de solapas en celulares" checked={theme.header.showTabsMobile} onChange={(v) => updateTheme((t) => ({ ...t, header: { ...t.header, showTabsMobile: v } }))} />
         <Field label="Tamaño del logo">
           <Select value={theme.header.logoSize} onChange={(v) => updateTheme((t) => ({ ...t, header: { ...t.header, logoSize: v as 'sm' | 'md' | 'lg' } }))} options={[{ value: 'sm', label: 'Chico' }, { value: 'md', label: 'Predeterminado' }, { value: 'lg', label: 'Grande' }]} />
         </Field>
 
-        <div className="border-t border-border pt-4">
-          <div className="mb-3 text-sm font-semibold text-fg">Disposición y estilo</div>
+        <Collapsible title="Disposición y estilo">
           <div className="space-y-3">
             <Field label="Disposición">
               <Select
@@ -637,10 +740,7 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
               />
             </Field>
             <ColorRow label="Color del texto del menú" value={theme.header.textColor} onChange={(v) => setH({ textColor: v })} fallback="#ffffff" />
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={theme.header.transparentOnHome} onChange={(e) => setH({ transparentOnHome: e.target.checked })} className="rounded-sm" />
-              Encabezado transparente sobre el inicio
-            </label>
+            <Check label="Encabezado transparente sobre el inicio" checked={theme.header.transparentOnHome} onChange={(v) => setH({ transparentOnHome: v })} />
             {theme.header.transparentOnHome && (
               <Field label="Nivel de transparencia">
                 <Select
@@ -658,19 +758,12 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
               />
             </Field>
           </div>
-        </div>
+        </Collapsible>
 
-        <div className="border-t border-border pt-4">
-          <div className="mb-3 text-sm font-semibold text-fg">Buscador y acciones</div>
+        <Collapsible title="Buscador y acciones">
           <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={theme.header.showSearch} onChange={(e) => setH({ showSearch: e.target.checked })} className="rounded-sm" />
-              Mostrar buscador en el encabezado
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={theme.header.showCart} onChange={(e) => setH({ showCart: e.target.checked })} className="rounded-sm" />
-              Mostrar carrito
-            </label>
+            <Check label="Mostrar buscador en el encabezado" checked={theme.header.showSearch} onChange={(v) => setH({ showSearch: v })} />
+            <Check label="Mostrar carrito" checked={theme.header.showCart} onChange={(v) => setH({ showCart: v })} />
             {theme.header.showCart && (
               <Field label="Estilo del carrito">
                 <Select
@@ -680,19 +773,12 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
                 />
               </Field>
             )}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={theme.header.showAccount} onChange={(e) => setH({ showAccount: e.target.checked })} className="rounded-sm" />
-              Mostrar ícono de cuenta
-            </label>
+            <Check label="Mostrar ícono de cuenta" checked={theme.header.showAccount} onChange={(v) => setH({ showAccount: v })} />
           </div>
-        </div>
+        </Collapsible>
 
-        <div className="border-t border-border pt-4">
-          <div className="mb-2 text-sm font-semibold text-fg">Barra de anuncio</div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={theme.announcement.show} onChange={(e) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, show: e.target.checked } }))} className="rounded-sm" />
-            Mostrar barra de anuncio
-          </label>
+        <Collapsible title="Barra de anuncio" defaultOpen={false}>
+          <Check label="Mostrar barra de anuncio" checked={theme.announcement.show} onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, show: v } }))} />
           {theme.announcement.show && (
             <div className="mt-3 space-y-3">
               <Field label="Animación">
@@ -749,7 +835,7 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
               )}
             </div>
           )}
-        </div>
+        </Collapsible>
       </div>
     </div>
   );
@@ -758,10 +844,15 @@ function HeaderPanel({ theme, onBack, updateTheme }: { theme: ThemeConfig; onBac
 type PanelProps = { theme: ThemeConfig; onBack: () => void; updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void };
 
 function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['productList']>) => updateTheme((t) => ({ ...t, productList: { ...t.productList, ...patch } }));
+  const confirm = useConfirm();
+  const set = sectionSetter(updateTheme, 'productList');
   return (
     <div>
-      <BackHeader title="Listado de productos" onBack={onBack} />
+      <BackHeader
+        title="Listado de productos"
+        onBack={onBack}
+        onReset={async () => { if (await confirm({ title: 'Restablecer listado', message: '¿Volver el listado de productos a los valores por defecto?', confirmLabel: 'Restablecer', variant: 'danger' })) updateTheme((t) => ({ ...t, productList: baseTheme.productList })); }}
+      />
       <div className="space-y-4 p-4">
         <Field label="Productos por fila">
           <Select value={String(theme.productList.columns)} onChange={(v) => set({ columns: Number(v) })} options={[{ value: '2', label: '2 columnas' }, { value: '3', label: '3 columnas' }, { value: '4', label: '4 columnas' }]} />
@@ -769,13 +860,37 @@ function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
         <Check label="Mostrar precio" checked={theme.productList.showPrice} onChange={(v) => set({ showPrice: v })} />
         <Check label="Mostrar precio tachado (promo)" checked={theme.productList.showCompareAt} onChange={(v) => set({ showCompareAt: v })} />
         <Check label="Mostrar botón 'Agregar al carrito'" checked={theme.productList.showBuyButton} onChange={(v) => set({ showBuyButton: v })} />
+        <Check label="Mostrar disponibilidad (stock)" checked={theme.productList.showStockBadge} onChange={(v) => set({ showStockBadge: v })} />
+        <p className="-mt-2 text-xs text-fg-muted">Muestra «Sin stock» o «¡Últimas N!» en las cards. Activalo solo si controlás stock.</p>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-2 text-sm font-semibold text-fg">Precio con transferencia y cuotas</div>
+          <Check label="Mostrar precio con transferencia" checked={theme.productList.showCashPrice} onChange={(v) => set({ showCashPrice: v })} />
+          <p className="mb-3 mt-1 text-xs text-fg-muted">Usa el % de descuento por transferencia de «Detalle de producto».</p>
+          <Field label="Cuotas sin interés (0 = no mostrar)">
+            <Select
+              value={String(theme.productList.installmentsCount)}
+              onChange={(v) => set({ installmentsCount: Number(v) })}
+              options={[0, 3, 6, 9, 12].map((n) => ({ value: String(n), label: n === 0 ? 'No mostrar' : `${n} cuotas` }))}
+            />
+          </Field>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-1 text-sm font-semibold text-fg">Filtros del sidebar</div>
+          <p className="mb-3 text-xs text-fg-muted">Cada filtro se muestra solo si tus productos tienen esos datos.</p>
+          <Check label="Categorías" checked={theme.productList.filterCategories} onChange={(v) => set({ filterCategories: v })} />
+          <Check label="Precio (Desde / Hasta)" checked={theme.productList.filterPrice} onChange={(v) => set({ filterPrice: v })} />
+          <Check label="Marca" checked={theme.productList.filterBrand} onChange={(v) => set({ filterBrand: v })} />
+          <Check label="Color / Talle y otras opciones" checked={theme.productList.filterOptions} onChange={(v) => set({ filterOptions: v })} />
+        </div>
       </div>
     </div>
   );
 }
 
 function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['productDetail']>) => updateTheme((t) => ({ ...t, productDetail: { ...t.productDetail, ...patch } }));
+  const set = sectionSetter(updateTheme, 'productDetail');
   return (
     <div>
       <BackHeader title="Detalle de producto" onBack={onBack} />
@@ -795,7 +910,7 @@ function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
 }
 
 function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['comingSoon']>) => updateTheme((t) => ({ ...t, comingSoon: { ...t.comingSoon, ...patch } }));
+  const set = sectionSetter(updateTheme, 'comingSoon');
   return (
     <div>
       <BackHeader title="Tienda en construcción" onBack={onBack} />
@@ -813,7 +928,7 @@ function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
 }
 
 function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['cart']>) => updateTheme((t) => ({ ...t, cart: { ...t.cart, ...patch } }));
+  const set = sectionSetter(updateTheme, 'cart');
   return (
     <div>
       <BackHeader title="Carrito de compras" onBack={onBack} />
@@ -835,11 +950,12 @@ function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
 }
 
 function ContactPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['contact']>) => updateTheme((t) => ({ ...t, contact: { ...t.contact, ...patch } }));
+  const set = sectionSetter(updateTheme, 'contact');
   return (
     <div>
       <BackHeader title="Contacto" onBack={onBack} />
       <div className="space-y-4 p-4">
+        <p className="text-xs text-fg-muted">Estos datos salen en la <strong>página de Contacto</strong>. Los que aparecen en el <strong>pie de página</strong> se editan en «Pie de página».</p>
         <div className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-bg p-3 text-xs text-fg">
           <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
           <p>
@@ -868,7 +984,7 @@ const WHATSAPP_MESSAGES = [
 ];
 
 function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['whatsappButton']>) => updateTheme((t) => ({ ...t, whatsappButton: { ...t.whatsappButton, ...patch } }));
+  const set = sectionSetter(updateTheme, 'whatsappButton');
   const w = theme.whatsappButton;
   return (
     <div>
@@ -913,7 +1029,7 @@ function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
 }
 
 function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const set = (patch: Partial<ThemeConfig['footer']>) => updateTheme((t) => ({ ...t, footer: { ...t.footer, ...patch } }));
+  const set = sectionSetter(updateTheme, 'footer');
   return (
     <div>
       <BackHeader title="Pie de página" onBack={onBack} />
@@ -1009,6 +1125,13 @@ function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
     { value: 'soft', label: 'Suave', sample: 'rounded' },
     { value: 'sharp', label: 'Cuadrado', sample: 'rounded-none' },
   ];
+  const iconKits: { value: ThemeConfig['iconKit']; label: string; desc: string }[] = [
+    { value: 'lucide', label: 'Clásico', desc: 'Líneas limpias (por defecto)' },
+    { value: 'feather', label: 'Fino', desc: 'Trazo liviano y minimal' },
+    { value: 'tabler', label: 'Marcado', desc: 'Contorno con más presencia' },
+    { value: 'phosphor', label: 'Relleno', desc: 'Íconos sólidos redondeados' },
+    { value: 'heroicons', label: 'Sólido', desc: 'Sólidos y compactos' },
+  ];
   return (
     <div>
       <BackHeader title="Estilo y movimiento" onBack={onBack} />
@@ -1039,8 +1162,36 @@ function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
         </div>
 
         <div className="border-t border-border pt-4">
+          <div className="mb-2 text-sm font-semibold text-fg">Íconos</div>
+          <p className="mb-3 text-xs text-fg-muted">Cambia el estilo de todos los íconos de la tienda (carrito, corazón, cuenta, contacto, etc.). Miralo en la vista previa.</p>
+          <div className="grid gap-2">
+            {iconKits.map((k) => {
+              const active = theme.iconKit === k.value;
+              return (
+                <button
+                  key={k.value}
+                  type="button"
+                  onClick={() => updateTheme((t) => ({ ...t, iconKit: k.value }))}
+                  aria-pressed={active}
+                  className={cn(
+                    'flex items-center justify-between rounded-lg border px-3 py-2.5 text-left transition',
+                    active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
+                  )}
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-fg">{k.label}</span>
+                    <span className="block text-xs text-fg-muted">{k.desc}</span>
+                  </span>
+                  {active && <span className="text-xs font-semibold text-primary">Activo</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4">
           <div className="mb-2 text-sm font-semibold text-fg">Movimiento</div>
-          <p className="mb-3 text-xs text-fg-muted">Animaciones de entrada al cargar y scrollear.</p>
+          <p className="mb-3 text-xs text-fg-muted">Animaciones de entrada al cargar y scrollear. <span className="text-primary">Recomendado: Sutil.</span></p>
           <SegGroup
             value={theme.motion}
             onChange={(v) => updateTheme((t) => ({ ...t, motion: v }))}
@@ -1054,7 +1205,7 @@ function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
 
         <div className="border-t border-border pt-4">
           <div className="mb-2 text-sm font-semibold text-fg">Densidad</div>
-          <p className="mb-3 text-xs text-fg-muted">Cuánto aire entre secciones de la tienda.</p>
+          <p className="mb-3 text-xs text-fg-muted">Cuánto aire entre secciones de la tienda. <span className="text-primary">Recomendado: Cómodo.</span></p>
           <SegGroup
             value={theme.density}
             onChange={(v) => updateTheme((t) => ({ ...t, density: v }))}

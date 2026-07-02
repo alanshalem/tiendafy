@@ -16,7 +16,7 @@ public static class ProductEndpoints
 {
     public static RouteGroupBuilder MapProductEndpoints(this RouteGroupBuilder group)
     {
-        var products = group.MapGroup("/products");
+        var products = group.MapGroup("/products").RequireTenant();
 
         // TODO: proteger con permisos products:write cuando Identity tenga memberships.
         products.MapPost("/", async (
@@ -25,9 +25,6 @@ public static class ProductEndpoints
             CreateProductHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var command = new CreateProductCommand(
                 tenant.TenantId,
                 request.Name,
@@ -51,9 +48,6 @@ public static class ProductEndpoints
             int limit = 20,
             Guid? after = null) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             ProductStatus? statusFilter = status?.ToUpperInvariant() switch
             {
                 "DRAFT" => ProductStatus.Draft,
@@ -79,16 +73,20 @@ public static class ProductEndpoints
         products.MapGet("/search", async (
             ITenantContext tenant,
             IProductRepository repository,
+            Inventory.Core.Domain.IStockRepository stockRepository,
             CancellationToken ct,
             string? q = null,
             Guid? category = null,
             string? sort = null,
             int page = 1,
-            int pageSize = 24) =>
+            int pageSize = 24,
+            // Filtros: precio en PESOS (se convierte a centavos), marca, y valores de
+            // opción repetibles (?option=Rojo&option=M).
+            decimal? priceMin = null,
+            decimal? priceMax = null,
+            string? brand = null,
+            string[]? option = null) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 48);
 
@@ -100,16 +98,39 @@ public static class ProductEndpoints
                 _ => ProductSort.Newest,
             };
 
-            var (items, total) = await repository.SearchAsync(
-                tenant.TenantId, new ProductSearchFilter(q, category, sortEnum, page, pageSize), ct);
+            // Pesos → centavos (unidades menores). Ignora negativos.
+            long? ToMinor(decimal? p) => p is > 0 ? (long)Math.Round(p.Value * 100) : null;
+            var options = option?.Where(o => !string.IsNullOrWhiteSpace(o)).Select(o => o.Trim()).Distinct().ToList();
+
+            var (items, total, facets) = await repository.SearchAsync(
+                tenant.TenantId,
+                new ProductSearchFilter(q, category, sortEnum, page, pageSize,
+                    ToMinor(priceMin), ToMinor(priceMax),
+                    string.IsNullOrWhiteSpace(brand) ? null : brand.Trim(),
+                    options is { Count: > 0 } ? options : null),
+                ct);
+
+            // Stock por producto (suma de sus variantes) para badges en la card.
+            var variantIds = items.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
+            var stockByVariant = variantIds.Count > 0
+                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
+                : new Dictionary<Guid, int>();
+            int StockFor(Product p) => p.Variants.Sum(v => stockByVariant.TryGetValue(v.Id, out var a) ? a : 0);
 
             return Results.Ok(new
             {
-                items = items.Select(p => p.ToDto()),
+                items = items.Select(p => p.ToDto() with { Stock = StockFor(p) }),
                 total,
                 page,
                 pageSize,
                 totalPages = (int)Math.Ceiling(total / (double)pageSize),
+                facets = new
+                {
+                    brands = facets.Brands,
+                    options = facets.Options.Select(o => new { name = o.Name, values = o.Values }),
+                    priceMin = facets.PriceMin,
+                    priceMax = facets.PriceMax,
+                },
             });
         });
 
@@ -119,9 +140,6 @@ public static class ProductEndpoints
             IProductRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             return product is null ? Results.NotFound() : Results.Ok(product.ToDto());
         });
@@ -133,19 +151,14 @@ public static class ProductEndpoints
             UpdateProductHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.UpdateDetailsAsync(
-                new UpdateProductDetailsCommand(tenant.TenantId, id, request.Name, request.Description, request.SeoTitle, request.SeoDescription), ct);
+                new UpdateProductDetailsCommand(tenant.TenantId, id, request.Name, request.Description, request.SeoTitle, request.SeoDescription, request.Brand), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         });
 
         products.MapPost("/{id:guid}/duplicate", async (
             Guid id, ITenantContext tenant, UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             var result = await handler.DuplicateAsync(tenant.TenantId, id, ct);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/products/{result.Value.Id}", result.Value)
@@ -155,8 +168,6 @@ public static class ProductEndpoints
         products.MapPut("/{id:guid}/images/reorder", async (
             Guid id, ReorderImagesRequest request, ITenantContext tenant, UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             var result = await handler.ReorderImagesAsync(
                 new ReorderImagesCommand(tenant.TenantId, id, request.ImageIds ?? []), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
@@ -165,9 +176,6 @@ public static class ProductEndpoints
         products.MapPost("/{id:guid}/publish", async (
             Guid id, ITenantContext tenant, UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.SetStatusAsync(new SetProductStatusCommand(tenant.TenantId, id, true), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         });
@@ -175,9 +183,6 @@ public static class ProductEndpoints
         products.MapPost("/{id:guid}/archive", async (
             Guid id, ITenantContext tenant, UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.SetStatusAsync(new SetProductStatusCommand(tenant.TenantId, id, false), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         });
@@ -190,9 +195,6 @@ public static class ProductEndpoints
             UpdateProductHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.ChangeVariantPriceAsync(new ChangeVariantPriceCommand(
                 tenant.TenantId, id, variantId,
                 request.PriceAmount, request.Currency ?? "ARS", request.CompareAtAmount), ct);
@@ -206,9 +208,6 @@ public static class ProductEndpoints
             UpdateProductHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.AddImageAsync(
                 new AddImageCommand(tenant.TenantId, id, request.Url, request.AltText), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
@@ -221,9 +220,6 @@ public static class ProductEndpoints
             UpdateProductHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.RemoveImageAsync(new RemoveImageCommand(tenant.TenantId, id, imageId), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         });
@@ -237,8 +233,6 @@ public static class ProductEndpoints
             ProductImportQueue queue,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             if (!req.HasFormContentType)
                 return Results.BadRequest(new { error = "Se espera multipart/form-data." });
 
@@ -265,9 +259,6 @@ public static class ProductEndpoints
         products.MapGet("/import/{jobId:guid}", (
             Guid jobId, ITenantContext tenant, ProductImportQueue queue) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var job = queue.Get(tenant.TenantId.Value, jobId);
             if (job is null) return Results.NotFound();
 
@@ -296,8 +287,6 @@ public static class ProductEndpoints
             ImageImportQueue queue,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             if (!req.HasFormContentType)
                 return Results.BadRequest(new { error = "Se espera multipart/form-data." });
 
@@ -356,9 +345,6 @@ public static class ProductEndpoints
         products.MapGet("/images/import/{jobId:guid}", (
             Guid jobId, ITenantContext tenant, ImageImportQueue queue) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var job = queue.Get(tenant.TenantId.Value, jobId);
             if (job is null) return Results.NotFound();
 
@@ -385,9 +371,6 @@ public static class ProductEndpoints
             CancellationToken ct,
             bool includeDescriptions = true) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var all = new List<Product>();
             Guid? after = null;
             while (true)
@@ -427,9 +410,6 @@ public static class ProductEndpoints
             Catalog.Infrastructure.Persistence.CatalogDbContext db,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             if (product is null) return Results.NotFound();
 
@@ -445,9 +425,6 @@ public static class ProductEndpoints
             Media.Infrastructure.IMediaStorage media,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var tid = tenant.TenantId;
             var all = await db.Products.Where(p => p.TenantId == tid).ToListAsync(ct);
 
@@ -469,9 +446,6 @@ public static class ProductEndpoints
             Catalog.Infrastructure.Persistence.CatalogDbContext db,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             if (product is null) return Results.NotFound();
 
@@ -487,9 +461,6 @@ public static class ProductEndpoints
             IProductRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var product = await repository.GetBySlugAsync(tenant.TenantId, slug, ct);
             return product is null || product.Status != ProductStatus.Active
                 ? Results.NotFound()
@@ -542,7 +513,7 @@ public sealed record CreateProductRequest(
 
 public sealed record OptionInput(string Name, List<string> Values);
 
-public sealed record UpdateProductRequest(string Name, string? Description, string? SeoTitle, string? SeoDescription);
+public sealed record UpdateProductRequest(string Name, string? Description, string? SeoTitle, string? SeoDescription, string? Brand = null);
 
 public sealed record ReorderImagesRequest(List<Guid>? ImageIds);
 

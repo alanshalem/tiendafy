@@ -47,14 +47,17 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         return await query.Take(limit).ToListAsync(ct);
     }
 
-    public async Task<(IReadOnlyList<Product> Items, int Total)> SearchAsync(
+    public async Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(
         TenantId tenantId, ProductSearchFilter filter, CancellationToken ct = default)
     {
-        var query = context.Products.AsNoTracking()
+        // Base = tenant + ACTIVE + texto + categoría. Las facetas se calculan sobre
+        // esta base (no sobre precio/marca/opciones) para que las opciones no se
+        // "vacíen" a medida que el usuario filtra.
+        var baseQuery = context.Products.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active);
 
         if (!string.IsNullOrWhiteSpace(filter.Query))
-            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{filter.Query.Trim()}%"));
+            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Name, $"%{filter.Query.Trim()}%"));
 
         if (filter.CategoryId is { } categoryId)
         {
@@ -70,13 +73,28 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
                 var subtreeIds = await context.Categories.AsNoTracking()
                     .Where(c => c.TenantId == tenantId && (c.Path == selectedPath || c.Path.StartsWith(selectedPath + "/")))
                     .Select(c => c.Id).ToListAsync(ct);
-                query = query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Any(id => subtreeIds.Contains(id)));
+                baseQuery = baseQuery.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Any(id => subtreeIds.Contains(id)));
             }
             else
             {
-                query = query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
+                baseQuery = baseQuery.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
             }
         }
+
+        var facets = await BuildFacetsAsync(baseQuery, ct);
+
+        // Filtros que SÍ recortan el set mostrado.
+        var query = baseQuery;
+
+        if (filter.PriceMin is { } min)
+            query = query.Where(p => p.Variants.Min(v => v.Price.AmountInMinorUnits) >= min);
+        if (filter.PriceMax is { } max)
+            query = query.Where(p => p.Variants.Min(v => v.Price.AmountInMinorUnits) <= max);
+        if (!string.IsNullOrWhiteSpace(filter.Brand))
+            query = query.Where(p => p.Brand == filter.Brand);
+        if (filter.OptionValues is { Count: > 0 })
+            foreach (var val in filter.OptionValues)
+                query = query.Where(p => p.Options.Any(o => EF.Property<List<string>>(o, "_values").Contains(val)));
 
         var total = await query.CountAsync(ct);
 
@@ -94,6 +112,43 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             .Take(filter.PageSize)
             .ToListAsync(ct);
 
-        return (items, total);
+        return (items, total, facets);
+    }
+
+    /// <summary>Marcas, opciones (nombre→valores) y rango de precio disponibles en el set base.</summary>
+    private static async Task<ProductFacets> BuildFacetsAsync(IQueryable<Product> baseQuery, CancellationToken ct)
+    {
+        var brands = await baseQuery
+            .Where(p => p.Brand != null)
+            .Select(p => p.Brand!)
+            .Distinct().OrderBy(b => b).Take(300).ToListAsync(ct);
+
+        // Rango de precio = min/max del precio mínimo por producto.
+        long? priceMin = null, priceMax = null;
+        var withVariants = baseQuery.Where(p => p.Variants.Any());
+        if (await withVariants.AnyAsync(ct))
+        {
+            var mins = withVariants.Select(p => p.Variants.Min(v => v.Price.AmountInMinorUnits));
+            priceMin = await mins.MinAsync(ct);
+            priceMax = await mins.MaxAsync(ct);
+        }
+
+        // Opciones: traemos (nombre, valores) de los productos del set y agrupamos en memoria.
+        // Cada producto tiene ≤3 opciones con pocos valores → volumen chico aunque haya muchos productos.
+        var rawOptions = await baseQuery
+            .SelectMany(p => p.Options)
+            .Select(o => new { o.Name, Values = EF.Property<List<string>>(o, "_values") })
+            .ToListAsync(ct);
+
+        var options = rawOptions
+            .GroupBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new OptionFacet(
+                g.Key,
+                g.SelectMany(o => o.Values).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(v => v).Take(50).ToList()))
+            .OrderBy(o => o.Name)
+            .Take(10)
+            .ToList();
+
+        return new ProductFacets(brands, options, priceMin, priceMax);
     }
 }

@@ -6,12 +6,13 @@ import Image from '@tiptap/extension-image';
 import {
   Bold, Italic, Heading2, Heading3, List, ListOrdered, Quote, Link2, Image as ImageIcon, Undo, Redo,
 } from 'lucide-react';
-import { cn, useToast } from '@tiendafy/ui';
+import { cn, useToast, usePrompt } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../lib/api';
 
 /** Editor WYSIWYG para el contenido de páginas. Devuelve HTML (sanitizado server-side al guardar). */
 export function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
   const { toast } = useToast();
+  const prompt = usePrompt();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -38,12 +39,12 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
 
   if (!editor) return null;
 
-  const setLink = () => {
+  const setLink = async () => {
     const prev = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Enlace (URL):', prev ?? 'https://');
+    const url = await prompt({ title: 'Enlace', message: 'URL del enlace (vacío para quitar):', defaultValue: prev ?? 'https://', placeholder: 'https://...' });
     if (url === null) return;
-    if (url === '') editor.chain().focus().unsetLink().run();
-    else editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    if (url.trim() === '') editor.chain().focus().unsetLink().run();
+    else editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
   };
 
   const uploadImage = async (file: File) => {

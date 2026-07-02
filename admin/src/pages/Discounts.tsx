@@ -5,6 +5,7 @@ import {
   Badge, Button, Card, Dropdown, FormField, Input, Modal, Select, useToast, useConfirm,
   type BadgeVariant, type TableColumn, Table,
 } from '@tiendafy/ui';
+import { formatMoney } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
@@ -25,7 +26,7 @@ interface Coupon {
   createdAtUtc: string;
 }
 
-const pesos = (cents: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(cents / 100);
+const pesos = (cents: number) => formatMoney(cents, 'ARS');
 
 function describe(c: Coupon): string {
   if (c.type === 'Percentage') return `${c.value}% de descuento`;

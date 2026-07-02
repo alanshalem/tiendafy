@@ -1,4 +1,5 @@
-import { apiGet } from './api';
+import { apiGetTenant } from './api';
+import { formatMoney } from '@tiendafy/types';
 import type { StoreProduct } from '@/components/store/sections';
 
 export interface MoneyDto {
@@ -26,8 +27,21 @@ export interface ProductDto {
   name: string;
   slug: string;
   description: string | null;
+  brand: string | null;
   variants: VariantDto[];
   images: ProductImageDto[];
+  stock: number | null;
+}
+
+export interface OptionFacet {
+  name: string;
+  values: string[];
+}
+export interface ProductFacets {
+  brands: string[];
+  options: OptionFacet[];
+  priceMin: number | null; // en centavos
+  priceMax: number | null;
 }
 
 interface ProductsPage {
@@ -36,8 +50,7 @@ interface ProductsPage {
 }
 
 export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[]> {
-  const page = await apiGet<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', {
-    headers: { 'X-Tenant-Id': tenantId },
+  const page = await apiGetTenant<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', tenantId, {
     cache: 'no-store',
   });
   return page?.items ?? [];
@@ -46,8 +59,7 @@ export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[
 /** Un producto por id. Lo usan las secciones que referencian productos
  *  puntuales (destacados/ofertas) que pueden quedar fuera del set inicial. */
 export async function fetchProductById(tenantId: string, id: string): Promise<ProductDto | null> {
-  return apiGet<ProductDto>(`/api/v1/products/${id}`, {
-    headers: { 'X-Tenant-Id': tenantId },
+  return apiGetTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
     cache: 'no-store',
   });
 }
@@ -58,7 +70,10 @@ export interface ProductSearchResult {
   page: number;
   pageSize: number;
   totalPages: number;
+  facets: ProductFacets;
 }
+
+const EMPTY_FACETS: ProductFacets = { brands: [], options: [], priceMin: null, priceMax: null };
 
 export interface CategoryDto {
   id: string;
@@ -75,6 +90,10 @@ export interface SearchParams {
   sort?: string;
   page?: number;
   pageSize?: number;
+  priceMin?: number; // en pesos
+  priceMax?: number;
+  brand?: string;
+  options?: string[]; // valores de opción seleccionados (Color/Talle/…)
 }
 
 export async function searchProducts(tenantId: string, params: SearchParams): Promise<ProductSearchResult> {
@@ -82,19 +101,21 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   if (params.q) qs.set('q', params.q);
   if (params.category) qs.set('category', params.category);
   if (params.sort) qs.set('sort', params.sort);
+  if (params.priceMin != null) qs.set('priceMin', String(params.priceMin));
+  if (params.priceMax != null) qs.set('priceMax', String(params.priceMax));
+  if (params.brand) qs.set('brand', params.brand);
+  for (const o of params.options ?? []) qs.append('option', o);
   qs.set('page', String(params.page ?? 1));
   qs.set('pageSize', String(params.pageSize ?? 24));
 
-  const res = await apiGet<ProductSearchResult>(`/api/v1/products/search?${qs.toString()}`, {
-    headers: { 'X-Tenant-Id': tenantId },
+  const res = await apiGetTenant<ProductSearchResult>(`/api/v1/products/search?${qs.toString()}`, tenantId, {
     next: { revalidate: 30 },
   });
-  return res ?? { items: [], total: 0, page: 1, pageSize: params.pageSize ?? 24, totalPages: 0 };
+  return res ?? { items: [], total: 0, page: 1, pageSize: params.pageSize ?? 24, totalPages: 0, facets: EMPTY_FACETS };
 }
 
 export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> {
-  const res = await apiGet<{ items: CategoryDto[] }>('/api/v1/categories', {
-    headers: { 'X-Tenant-Id': tenantId },
+  const res = await apiGetTenant<{ items: CategoryDto[] }>('/api/v1/categories', tenantId, {
     next: { revalidate: 60 },
   });
   return res?.items ?? [];
@@ -115,13 +136,10 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     images: p.images.map((img) => img.url),
     variantId: v.id,
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
+    stock: p.stock ?? null,
   };
 }
 
 export function formatPrice(money: MoneyDto): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: money.currency,
-    maximumFractionDigits: 0,
-  }).format(money.amount / 100);
+  return formatMoney(money.amount, money.currency);
 }

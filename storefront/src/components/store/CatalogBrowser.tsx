@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import type { ProductListConfig } from '@/lib/theme';
-import type { CategoryDto } from '@/lib/catalog';
+import type { CategoryDto, ProductFacets } from '@/lib/catalog';
 import { ProductCard, type StoreProduct } from './sections';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
@@ -28,11 +28,16 @@ interface Props {
   page: number;
   totalPages: number;
   categories: CategoryDto[];
+  facets: ProductFacets;
   productList: ProductListConfig;
-  current: { q: string; sort: string; category: string };
+  current: { q: string; sort: string; category: string; brand: string; options: string[]; priceMin: string; priceMax: string };
 }
 
-export function CatalogBrowser({ products, total, page, totalPages, categories, productList, current }: Props) {
+export function CatalogBrowser({
+  products, total, page, totalPages, categories,
+  facets = { brands: [], options: [], priceMin: null, priceMax: null },
+  productList, current,
+}: Props) {
   // En preview, refleja al instante los cambios de "Listado de productos".
   const live = useLiveTheme();
   productList = live?.productList ?? productList;
@@ -41,8 +46,8 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(current.q);
-  const [catsOpen, setCatsOpen] = useState(false);
-  const activeCat = categories.find((c) => c.id === current.category);
+  const [priceMin, setPriceMin] = useState(current.priceMin);
+  const [priceMax, setPriceMax] = useState(current.priceMax);
 
   const navigate = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -50,6 +55,27 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
       if (v === null || v === '') params.delete(k);
       else params.set(k, v);
     }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  // Opciones (Color/Talle): multi-valor con el param repetible `option`.
+  const toggleOption = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const cur = params.getAll('option');
+    params.delete('option');
+    const next = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value];
+    for (const v of next) params.append('option', v);
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const applyPrice = () => navigate({ priceMin: priceMin.trim() || null, priceMax: priceMax.trim() || null, page: null });
+
+  const hasFilters = !!(current.brand || current.options.length || current.priceMin || current.priceMax);
+  const clearFilters = () => {
+    setPriceMin(''); setPriceMax('');
+    const params = new URLSearchParams(searchParams.toString());
+    for (const k of ['brand', 'option', 'priceMin', 'priceMax', 'page']) params.delete(k);
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -103,41 +129,55 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
             )}
           </form>
 
-          {categories.length > 0 && (
-            <div>
-              {/* Mobile: header clickeable que colapsa la lista (no empuja la grilla).
-                  Desktop (lg): la lista queda siempre visible. */}
-              <button
-                type="button"
-                onClick={() => setCatsOpen((o) => !o)}
-                className="mb-2 flex w-full items-center justify-between lg:pointer-events-none"
-              >
-                <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                  Categorías{activeCat ? <span className="text-primary">: {activeCat.name}</span> : ''}
-                </h3>
-                <ChevronDown className={`h-4 w-4 opacity-60 transition-transform lg:hidden ${catsOpen ? 'rotate-180' : ''}`} />
-              </button>
-              <ul className={`space-y-0.5 text-sm ${catsOpen ? 'block' : 'hidden'} lg:block`}>
-                <li>
-                  <button
-                    onClick={() => navigate({ category: null, page: null })}
-                    className={`block w-full rounded px-2 py-1 text-left hover:bg-black/5 ${!current.category ? 'font-semibold text-primary' : 'opacity-80'}`}
-                  >
-                    Todas
-                  </button>
-                </li>
-                {categories.map((c) => (
-                  <li key={c.id} style={{ paddingLeft: `${(c.depth - 1) * 0.75}rem` }}>
-                    <button
-                      onClick={() => navigate({ category: c.id, page: null })}
-                      className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current.category === c.id ? 'font-semibold text-primary' : 'opacity-80'}`}
-                    >
-                      {c.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+          {productList.filterCategories && categories.length > 0 && (
+            <CategoryFacet categories={categories} current={current.category} onSelect={(id) => navigate({ category: id, page: null })} />
+          )}
+
+          {/* Precio (Desde / Hasta) */}
+          {productList.filterPrice && (
+          <div>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">Precio</h3>
+            <div className="flex items-center gap-2">
+              <input
+                inputMode="numeric" value={priceMin}
+                onChange={(e) => setPriceMin(e.target.value.replace(/\D/g, ''))}
+                placeholder={facets.priceMin != null ? String(Math.floor(facets.priceMin / 100)) : 'Desde'}
+                aria-label="Precio desde"
+                className="h-9 w-full min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm text-black"
+              />
+              <span className="opacity-40">–</span>
+              <input
+                inputMode="numeric" value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value.replace(/\D/g, ''))}
+                placeholder={facets.priceMax != null ? String(Math.ceil(facets.priceMax / 100)) : 'Hasta'}
+                aria-label="Precio hasta"
+                className="h-9 w-full min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm text-black"
+              />
             </div>
+            <button type="button" onClick={applyPrice} className="mt-2 w-full rounded-md border border-black/15 py-1.5 text-xs font-semibold hover:bg-black/5">
+              Aplicar
+            </button>
+          </div>
+          )}
+
+          {/* Marca (lista, single-select) */}
+          {productList.filterBrand && facets.brands.length > 0 && (
+            <BrandFacet
+              brands={facets.brands}
+              current={current.brand}
+              onSelect={(b) => navigate({ brand: current.brand === b ? null : b, page: null })}
+            />
+          )}
+
+          {/* Opciones del producto (Color / Talle / …), chips multi-select */}
+          {productList.filterOptions && facets.options.map((opt) => (
+            <OptionFacetChips key={opt.name} name={opt.name} values={opt.values} selected={current.options} onToggle={toggleOption} />
+          ))}
+
+          {hasFilters && (
+            <button type="button" onClick={clearFilters} className="text-xs text-primary hover:underline">
+              Limpiar filtros
+            </button>
           )}
         </aside>
         )}
@@ -176,6 +216,221 @@ export function CatalogBrowser({ products, total, page, totalPages, categories, 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Facetas largas: mostramos algunos valores y colapsamos el resto tras "Ver más".
+const FACET_VISIBLE = 8;      // cuántos valores mostrar antes de colapsar
+const FACET_SEARCHABLE = 15;  // a partir de acá, buscador dentro de la faceta
+
+function FacetTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">{children}</h3>;
+}
+
+function FacetSearch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={label}
+      className="mb-2 h-8 w-full rounded-md border border-black/15 bg-white px-2 text-xs text-black"
+    />
+  );
+}
+
+function ShowMore({ hidden, expanded, onToggle }: { hidden: number; expanded: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="mt-2 text-xs font-semibold text-primary hover:underline">
+      {expanded ? 'Ver menos' : `Ver ${hidden} más`}
+    </button>
+  );
+}
+
+/** Opción del producto (Color/Talle/…): chips multi-select, colapsable + buscable. */
+function OptionFacetChips({ name, values, selected, onToggle }: { name: string; values: string[]; selected: string[]; onToggle: (v: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [q, setQ] = useState('');
+  const searchable = values.length > FACET_SEARCHABLE;
+  const filtered = q ? values.filter((v) => v.toLowerCase().includes(q.toLowerCase())) : values;
+  const shown = expanded ? filtered : filtered.slice(0, FACET_VISIBLE);
+  return (
+    <div>
+      <FacetTitle>{name}</FacetTitle>
+      {searchable && <FacetSearch value={q} onChange={setQ} label={`Buscar ${name.toLowerCase()}`} />}
+      <div className="flex flex-wrap gap-1.5">
+        {shown.map((v) => {
+          const on = selected.includes(v);
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onToggle(v)}
+              aria-pressed={on}
+              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-black/15 hover:bg-black/5'}`}
+            >
+              {v}
+            </button>
+          );
+        })}
+      </div>
+      {filtered.length > FACET_VISIBLE && (
+        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={() => setExpanded((e) => !e)} />
+      )}
+      {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
+    </div>
+  );
+}
+
+interface CatNode { id: string; name: string; depth: number; children: CatNode[] }
+
+/** Arma el árbol de categorías desde la lista plana (por parentId). */
+function buildCatTree(cats: CategoryDto[]): CatNode[] {
+  const byId = new Map<string, CatNode>(cats.map((c) => [c.id, { id: c.id, name: c.name, depth: c.depth, children: [] }]));
+  const roots: CatNode[] = [];
+  for (const c of cats) {
+    const node = byId.get(c.id)!;
+    const parent = c.parentId ? byId.get(c.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  return roots;
+}
+
+/** Ids de los ancestros de una categoría (para auto-expandir su rama). */
+function ancestorsOf(id: string, cats: CategoryDto[]): string[] {
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const out: string[] = [];
+  let cur = byId.get(id);
+  while (cur?.parentId) { out.push(cur.parentId); cur = byId.get(cur.parentId); }
+  return out;
+}
+
+/**
+ * Categorías como acordeón: muestra las principales y se abren las secundarias con
+ * el chevron. Mobile colapsa todo; buscador si hay muchas (busca en todo el árbol).
+ * La rama de la categoría activa se auto-expande.
+ */
+function CategoryFacet({ categories, current, onSelect }: { categories: CategoryDto[]; current: string; onSelect: (id: string | null) => void }) {
+  const [catsOpen, setCatsOpen] = useState(false); // mobile
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showAllRoots, setShowAllRoots] = useState(false);
+  const [q, setQ] = useState('');
+
+  // Auto-expandir la rama de la categoría activa (mantiene lo que abrió el usuario).
+  useEffect(() => {
+    if (current) setExpanded((prev) => new Set([...prev, ...ancestorsOf(current, categories)]));
+  }, [current, categories]);
+
+  const activeCat = categories.find((c) => c.id === current);
+  const searchable = categories.length > FACET_SEARCHABLE;
+  const toggleOpen = (id: string) => setExpanded((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+
+  const tree = buildCatTree(categories);
+  const rootsShown = showAllRoots ? tree : tree.slice(0, FACET_VISIBLE);
+  const searchMatches = q ? categories.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : [];
+
+  const renderNode = (node: CatNode) => {
+    const hasKids = node.children.length > 0;
+    const isOpen = expanded.has(node.id);
+    return (
+      <li key={node.id}>
+        <div className="flex items-center gap-0.5" style={{ paddingLeft: `${(node.depth - 1) * 0.6}rem` }}>
+          {hasKids ? (
+            <button type="button" onClick={() => toggleOpen(node.id)} aria-label={isOpen ? 'Contraer' : 'Expandir'} className="shrink-0 rounded p-0.5 opacity-50 hover:opacity-100">
+              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            </button>
+          ) : (
+            <span className="w-[1.125rem] shrink-0" />
+          )}
+          <button
+            onClick={() => onSelect(node.id)}
+            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary' : 'opacity-80'}`}
+          >
+            {node.name}
+          </button>
+        </div>
+        {hasKids && isOpen && <ul className="space-y-0.5">{node.children.map(renderNode)}</ul>}
+      </li>
+    );
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setCatsOpen((o) => !o)}
+        className="mb-2 flex w-full items-center justify-between lg:pointer-events-none"
+      >
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Categorías{activeCat ? <span className="text-primary">: {activeCat.name}</span> : ''}
+        </h3>
+        <ChevronDown className={`h-4 w-4 opacity-60 transition-transform lg:hidden ${catsOpen ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`${catsOpen ? 'block' : 'hidden'} lg:block`}>
+        {searchable && <FacetSearch value={q} onChange={setQ} label="Buscar categoría" />}
+        <ul className="space-y-0.5 text-sm">
+          <li>
+            <button
+              onClick={() => onSelect(null)}
+              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary' : 'opacity-80'}`}
+            >
+              Todas
+            </button>
+          </li>
+          {q
+            ? searchMatches.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => onSelect(c.id)}
+                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${current === c.id ? 'font-semibold text-primary' : 'opacity-80'}`}
+                  >
+                    {c.name}
+                  </button>
+                </li>
+              ))
+            : rootsShown.map(renderNode)}
+        </ul>
+        {!q && tree.length > FACET_VISIBLE && (
+          <ShowMore hidden={tree.length - rootsShown.length} expanded={showAllRoots} onToggle={() => setShowAllRoots((v) => !v)} />
+        )}
+        {q && searchMatches.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Marca: lista single-select, colapsable + buscable. */
+function BrandFacet({ brands, current, onSelect }: { brands: string[]; current: string; onSelect: (b: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [q, setQ] = useState('');
+  const searchable = brands.length > FACET_SEARCHABLE;
+  const filtered = q ? brands.filter((b) => b.toLowerCase().includes(q.toLowerCase())) : brands;
+  const shown = expanded ? filtered : filtered.slice(0, FACET_VISIBLE);
+  return (
+    <div>
+      <FacetTitle>Marca</FacetTitle>
+      {searchable && <FacetSearch value={q} onChange={setQ} label="Buscar marca" />}
+      <ul className="space-y-0.5 text-sm">
+        {shown.map((b) => (
+          <li key={b}>
+            <button
+              onClick={() => onSelect(b)}
+              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current === b ? 'font-semibold text-primary' : 'opacity-80'}`}
+            >
+              {b}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {filtered.length > FACET_VISIBLE && (
+        <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={() => setExpanded((e) => !e)} />
+      )}
+      {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
     </div>
   );
 }

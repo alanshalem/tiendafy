@@ -10,13 +10,27 @@ public enum ProductSort
     NameAsc = 3,
 }
 
-/// <summary>Filtro de búsqueda del catálogo (storefront): texto, categoría, orden, página.</summary>
+/// <summary>Filtro de búsqueda del catálogo (storefront): texto, categoría, orden, página + filtros de precio/marca/opciones.</summary>
 public sealed record ProductSearchFilter(
     string? Query,
     Guid? CategoryId,
     ProductSort Sort,
     int Page,
-    int PageSize);
+    int PageSize,
+    long? PriceMin = null,          // en unidades menores (centavos), como se guarda
+    long? PriceMax = null,
+    string? Brand = null,
+    IReadOnlyList<string>? OptionValues = null);   // valores de opción seleccionados (Color/Talle/…); AND entre ellos
+
+/// <summary>Un filtro de opción con sus valores disponibles (ej: "Color" → ["Rojo","Azul"]).</summary>
+public sealed record OptionFacet(string Name, IReadOnlyList<string> Values);
+
+/// <summary>Valores disponibles para armar la barra de filtros del storefront (marcas, opciones, rango de precio).</summary>
+public sealed record ProductFacets(
+    IReadOnlyList<string> Brands,
+    IReadOnlyList<OptionFacet> Options,
+    long? PriceMin,
+    long? PriceMax);
 
 /// <summary>
 /// Puerto de persistencia del catálogo. Filtra por tenant explícitamente
@@ -31,7 +45,7 @@ public interface IProductRepository
     Task<IReadOnlyList<Product>> ListAsync(
         TenantId tenantId, ProductStatus? status, int limit, Guid? afterId, CancellationToken ct = default);
 
-    /// <summary>Busca productos ACTIVE con filtros, orden y paginado por página. Devuelve la página + el total.</summary>
-    Task<(IReadOnlyList<Product> Items, int Total)> SearchAsync(
+    /// <summary>Busca productos ACTIVE con filtros, orden y paginado. Devuelve la página, el total y las facetas.</summary>
+    Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(
         TenantId tenantId, ProductSearchFilter filter, CancellationToken ct = default);
 }

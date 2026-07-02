@@ -8,6 +8,8 @@ import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { loadStorefront } from '@/lib/storefront';
 import { apiGet } from '@/lib/api';
+import { searchProducts, toStoreProduct } from '@/lib/catalog';
+import type { StoreProduct } from '@/components/store/sections';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,7 @@ interface ProductDto {
   options: { name: string; values: string[] }[];
   variants: { id: string; sku: string; optionValues: string[]; price: { amount: number; currency: string }; compareAtPrice: { amount: number; currency: string } | null }[];
   images: { url: string; altText: string | null }[];
+  categoryIds: string[];
 }
 
 export default async function ProductDetailPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ preview?: string }> }) {
@@ -52,7 +55,10 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     cache: 'no-store',
   });
 
-  const related = data.products.filter((p) => p.slug !== slug).slice(0, 4);
+  // "También te puede gustar": productos de la MISMA categoría del que se está
+  // viendo (antes eran siempre los primeros 4 del catálogo). Si la categoría no
+  // llega a 4, rellenamos con el resto del catálogo para no dejar huecos.
+  const related = await buildRelated(data.tenant.id, slug, product?.categoryIds ?? [], data.products);
 
   return (
     <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
@@ -88,3 +94,42 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     </StorefrontView>
   );
 }
+
+/**
+ * Arma los "También te puede gustar": primero productos de la misma categoría del
+ * que se ve, y si no llegan a 4, rellena con el resto del catálogo. Nunca repite ni
+ * incluye el producto actual.
+ */
+async function buildRelated(
+  tenantId: string,
+  currentSlug: string,
+  categoryIds: string[],
+  fallback: StoreProduct[],
+): Promise<StoreProduct[]> {
+  const seen = new Set<string>();
+  const out: StoreProduct[] = [];
+  const push = (p: StoreProduct) => {
+    if (p.slug === currentSlug || seen.has(p.id)) return;
+    seen.add(p.id);
+    out.push(p);
+  };
+
+  const catId = categoryIds[0];
+  if (catId) {
+    try {
+      const res = await searchProducts(tenantId, { category: catId, pageSize: 16 });
+      res.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null).forEach(push);
+    } catch {
+      // Si falla la búsqueda por categoría, seguimos con el fallback.
+    }
+  }
+
+  if (out.length < RELATED_COUNT) fallback.forEach(push);
+
+  return out.slice(0, RELATED_COUNT);
+}
+
+// Cuántos mostrar en "También te puede gustar". El carrusel tiene flechas y
+// next/image lazy-loadea las tarjetas fuera de vista, así que 12 llena la página
+// sin penalizar la carga inicial.
+const RELATED_COUNT = 12;

@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Icon } from './Icon';
 import { ContactForm } from './ContactForm';
 import { useLiveTheme } from './preview';
 import type { ContactConfig } from '@/lib/theme';
@@ -16,10 +16,10 @@ export function ContactContent({ contact }: { contact: ContactConfig }) {
 
       {(c.address || c.phone || c.email || c.whatsapp) && (
         <div className="mt-5 space-y-1.5 rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm">
-          {c.address && <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /> {c.address}</div>}
-          {c.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /> {c.phone}</div>}
-          {c.email && <div className="flex items-center gap-2"><Mail className="h-4 w-4 shrink-0" /> {c.email}</div>}
-          {c.whatsapp && <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 shrink-0" /> WhatsApp: {c.whatsapp}</div>}
+          {c.address && <div className="flex items-center gap-2"><Icon name="mapPin" className="h-4 w-4 shrink-0" /> {c.address}</div>}
+          {c.phone && <div className="flex items-center gap-2"><Icon name="phone" className="h-4 w-4 shrink-0" /> {c.phone}</div>}
+          {c.email && <div className="flex items-center gap-2"><Icon name="mail" className="h-4 w-4 shrink-0" /> {c.email}</div>}
+          {c.whatsapp && <div className="flex items-center gap-2"><Icon name="chat" className="h-4 w-4 shrink-0" /> WhatsApp: {c.whatsapp}</div>}
         </div>
       )}
 

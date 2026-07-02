@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Minus, Plus, Share2, Check, X, ChevronLeft, ChevronRight, ZoomIn, ShieldCheck } from 'lucide-react';
+import { formatMoney } from '@tiendafy/types';
 import { useCart } from './cart';
 import { useLiveTheme } from './preview';
 
@@ -13,9 +14,7 @@ interface Variant {
   compareAtPrice: { amount: number; currency: string } | null;
 }
 
-function fmt(amount: number, currency: string) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
-}
+const fmt = formatMoney;
 
 interface DetailConfig {
   showSku: boolean;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, User } from 'lucide-react';
+import { useToast, useConfirm } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../../lib/api';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
@@ -12,6 +13,8 @@ const ROLE_LABEL: Record<string, string> = { owner: 'Dueño', staff: 'Staff' };
 
 export function UsersNotificationsPage() {
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: me } = useQuery({ queryKey: ['auth-me'], queryFn: () => api.get<Me>('/api/v1/auth/me').catch(() => null) });
 
   const membersQ = useQuery({
@@ -35,12 +38,12 @@ export function UsersNotificationsPage() {
   const changeRole = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) => api.patch(`/api/v1/members/${userId}`, { role }),
     onSuccess: invalidate,
-    onError: (e) => alert(e instanceof ApiRequestError ? e.error.message : 'No se pudo cambiar el rol.'),
+    onError: (e) => toast(e instanceof ApiRequestError ? e.error.message : 'No se pudo cambiar el rol.', { variant: 'error' }),
   });
   const removeM = useMutation({
     mutationFn: (userId: string) => api.delete(`/api/v1/members/${userId}`),
     onSuccess: invalidate,
-    onError: (e) => alert(e instanceof ApiRequestError ? e.error.message : 'No se pudo quitar.'),
+    onError: (e) => toast(e instanceof ApiRequestError ? e.error.message : 'No se pudo quitar.', { variant: 'error' }),
   });
 
   // Solo el dueño puede gestionar (la API devuelve 403 al staff).
@@ -119,7 +122,7 @@ export function UsersNotificationsPage() {
                         </select>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => { if (confirm(`¿Quitar a ${m.email} de la tienda?`)) removeM.mutate(m.userId); }}
+                        <button onClick={async () => { if (await confirm({ title: 'Quitar de la tienda', message: `¿Quitar a ${m.email} de la tienda?`, confirmLabel: 'Quitar', variant: 'danger' })) removeM.mutate(m.userId); }}
                           className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger" aria-label="Quitar">
                           <Trash2 className="h-4 w-4" />
                         </button>

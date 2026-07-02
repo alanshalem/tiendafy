@@ -78,6 +78,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Accesibilidad: foco visible al navegar por teclado (solo teclado, no mouse). */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Editor de páginas (TipTap): el texto usa el token del tema, no el gris fijo de
    `prose` (que se ve negro en dark mode). `:is(...)` gana en especificidad. */
 .rte-content {

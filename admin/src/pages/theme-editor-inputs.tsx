@@ -1,7 +1,20 @@
 import { type ReactNode } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
+import type { ThemeConfig } from '@tiendafy/types';
 
 /* Primitivos de formulario + helpers de color del editor de diseño. */
+
+/**
+ * Setter para una sección-objeto del tema (header/cart/footer/…). Evita repetir
+ * `(patch) => updateTheme((t) => ({ ...t, key: { ...t.key, ...patch } }))` en cada panel.
+ */
+export function sectionSetter<K extends keyof ThemeConfig>(
+  update: (u: (t: ThemeConfig) => ThemeConfig) => void,
+  key: K,
+) {
+  return (patch: Partial<ThemeConfig[K]>) =>
+    update((t) => ({ ...t, [key]: { ...(t[key] as object), ...patch } }) as ThemeConfig);
+}
 
 /* ---- color helpers (config guarda "R G B"; el input usa hex) ---- */
 export const rgbToHex = (raw: string, fb: string) => {
@@ -23,11 +36,22 @@ export const contrastText = (rgbRaw: string): string => {
 /** Estilo base compartido de inputs/selects/textarea del editor. */
 export const INPUT_BASE = 'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
 
-export function BackHeader({ title, onBack }: { title: string; onBack: () => void }) {
+export function BackHeader({ title, onBack, onReset }: { title: string; onBack: () => void; onReset?: () => void }) {
   return (
-    <button onClick={onBack} className="flex w-full items-center gap-2 border-b border-border px-4 py-3 text-left text-sm font-semibold text-fg hover:bg-bg-muted">
-      <ChevronLeft className="h-4 w-4 text-fg-muted" /> {title}
-    </button>
+    <div className="flex items-center border-b border-border">
+      <button onClick={onBack} className="flex flex-1 items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-fg hover:bg-bg-muted">
+        <ChevronLeft className="h-4 w-4 text-fg-muted" /> {title}
+      </button>
+      {onReset && (
+        <button
+          onClick={onReset}
+          title="Volver esta sección a los valores por defecto"
+          className="mr-2 shrink-0 rounded px-2 py-1 text-xs font-medium text-fg-muted hover:bg-bg-muted hover:text-fg"
+        >
+          Restablecer
+        </button>
+      )}
+    </div>
   );
 }
 

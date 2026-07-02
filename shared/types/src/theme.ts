@@ -89,6 +89,15 @@ export interface ProductListConfig {
   showPrice: boolean;
   showBuyButton: boolean;
   showCompareAt: boolean;
+  // Filtros del sidebar del listado (se ocultan si no hay datos igual).
+  filterCategories: boolean;
+  filterPrice: boolean;
+  filterBrand: boolean;
+  filterOptions: boolean;
+  // Cards: precio con transferencia/efectivo (usa cashDiscountPercent) + cuotas + stock.
+  showCashPrice: boolean;
+  installmentsCount: number;   // 0 = no mostrar cuotas
+  showStockBadge: boolean;
 }
 export interface ProductDetailConfig {
   showSku: boolean;
@@ -175,6 +184,8 @@ export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';
 export type MotionStyle = 'none' | 'subtle' | 'dynamic';
 /** Densidad de espaciado del storefront. */
 export type DensityStyle = 'compact' | 'cozy' | 'spacious';
+/** Kit de íconos: cada uno usa una librería distinta (cambian todos a la vez). */
+export type IconKit = 'lucide' | 'phosphor' | 'tabler' | 'heroicons' | 'feather';
 
 export interface ThemeConfig {
   logo: string;
@@ -186,6 +197,8 @@ export interface ThemeConfig {
   motion: MotionStyle;
   /** Espaciado: compacto / cómodo (default) / amplio. */
   density: DensityStyle;
+  /** Kit de íconos del storefront (cambia el estilo de todos los íconos a la vez). */
+  iconKit: IconKit;
   colors: ThemeColors;
   fonts: ThemeFonts;
   header: ThemeHeader;
@@ -220,6 +233,7 @@ export const baseTheme: ThemeConfig = {
   borderRadius: 'rounded',
   motion: 'subtle',
   density: 'cozy',
+  iconKit: 'lucide',
   colors: { primary: '232 80 30', accent: '27 21 16', useAccent: false, bg: '255 255 255', text: '17 24 39' },
   fonts: { heading: 'sans', body: 'sans' },
   header: {
@@ -230,7 +244,11 @@ export const baseTheme: ThemeConfig = {
   announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }], message: '', link: '' },
   comingSoon: { enabled: false, title: 'Estamos en construcción', message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!' },
   sections: [],
-  productList: { columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true },
+  productList: {
+    columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true,
+    filterCategories: true, filterPrice: true, filterBrand: true, filterOptions: true,
+    showCashPrice: false, installmentsCount: 0, showStockBadge: false,
+  },
   productDetail: { showSku: false, showStock: true, galleryStyle: 'thumbs', showRelated: true, cashDiscountPercent: 0 },
   cart: { freeShippingBar: false, freeShippingThreshold: 5000000, checkoutButtonText: 'Iniciar compra', showSuggested: true, notice: '' },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
@@ -283,6 +301,7 @@ export function normalizeTheme(raw: Partial<ThemeConfig> | null, fallbackSection
     borderRadius: raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
     motion: raw.motion === 'none' || raw.motion === 'dynamic' ? raw.motion : baseTheme.motion,
     density: raw.density === 'compact' || raw.density === 'spacious' ? raw.density : baseTheme.density,
+    iconKit: (['lucide', 'phosphor', 'tabler', 'heroicons', 'feather'] as const).includes(raw.iconKit as IconKit) ? raw.iconKit! : baseTheme.iconKit,
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
     header: { ...baseTheme.header, ...raw.header },

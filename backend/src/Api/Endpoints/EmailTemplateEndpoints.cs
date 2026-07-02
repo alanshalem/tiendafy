@@ -18,7 +18,6 @@ public static class EmailTemplateEndpoints
         // Lista combinada: defaults del catálogo + overrides del tenant.
         templates.MapGet("/", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId.Value;
             var overrides = await db.EmailTemplates.AsNoTracking()
                 .Where(x => x.TenantId == tid).ToDictionaryAsync(x => x.Type, ct);
@@ -43,7 +42,6 @@ public static class EmailTemplateEndpoints
         // Upsert del override de una plantilla.
         templates.MapPut("/{type}", async (string type, EmailTemplateRequest req, ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var def = EmailTemplateCatalog.Find(type);
             if (def is null) return Results.NotFound();
 
@@ -76,7 +74,6 @@ public static class EmailTemplateEndpoints
         return s;
     }
 
-    private static IResult Bad() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 }
 
 public sealed record EmailTemplateRequest(bool Enabled, string? Subject, string? BodyHtml);

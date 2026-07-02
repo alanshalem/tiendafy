@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Icon } from './Icon';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
@@ -66,7 +66,7 @@ function CatRow({ node, depth, onNavigate }: { node: CatNode; depth: number; onN
             aria-label={open ? 'Contraer' : 'Expandir'}
             className="shrink-0 rounded p-1 opacity-70 hover:opacity-100"
           >
-            <ChevronRight className={`h-4 w-4 transition-transform ${open ? 'rotate-90' : ''}`} />
+            <Icon name="chevronRight" className={`h-4 w-4 transition-transform ${open ? 'rotate-90' : ''}`} />
           </button>
         )}
       </div>
@@ -107,7 +107,7 @@ export function CategoryMenu() {
         onMouseEnter={() => setOpen(true)}
         className="flex items-center gap-1 opacity-90 hover:opacity-100"
       >
-        Categorías <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        Categorías <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

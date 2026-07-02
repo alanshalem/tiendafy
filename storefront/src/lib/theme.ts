@@ -1,4 +1,4 @@
-import { apiGet } from './api';
+import { apiGetTenant } from './api';
 import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme } from '@tiendafy/types';
 
 /* ============================================================
@@ -21,6 +21,7 @@ export type {
   CartConfig,
   ContactConfig,
   FooterConfig,
+  IconKit,
   ThemeConfig,
 } from '@tiendafy/types';
 
@@ -35,16 +36,14 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
 export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
   // no-store: tras publicar, el cambio se ve en el primer reload (sin caché ISR
   // que obligue a recargar dos veces). La home ya es force-dynamic.
-  const cfg = await apiGet<ThemeConfig>('/api/v1/theme', {
-    headers: { 'X-Tenant-Id': tenantId },
+  const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, {
     cache: 'no-store',
   });
   return mergeTheme(cfg);
 }
 
 export async function fetchDraftTheme(tenantId: string): Promise<ThemeConfig> {
-  const cfg = await apiGet<ThemeConfig>('/api/v1/theme/draft', {
-    headers: { 'X-Tenant-Id': tenantId },
+  const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme/draft', tenantId, {
     cache: 'no-store',
   });
   return mergeTheme(cfg);

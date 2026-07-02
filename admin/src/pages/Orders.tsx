@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { formatMoney } from '../lib/format';
@@ -48,6 +48,9 @@ const money = (m: Money) => formatMoney(m.amount, m.currency);
 
 export function OrdersPage() {
   const { store } = useStore();
+  const { toast } = useToast();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -66,31 +69,31 @@ export function OrdersPage() {
   }, []);
 
   const fulfill = useCallback(async (o: Order) => {
-    const tracking = window.prompt('Código de seguimiento (opcional):', o.tracking ?? '');
+    const tracking = await prompt({ title: 'Marcar como enviada', message: 'Código de seguimiento (opcional):', defaultValue: o.tracking ?? '', placeholder: 'Ej: AR123456789', confirmLabel: 'Marcar enviada' });
     if (tracking === null) return; // canceló
     setBusy(o.id);
     try {
       await api.post(`/api/v1/orders/${o.id}/fulfill`, { tracking: tracking.trim() || null });
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo marcar como enviada.');
+      toast(e instanceof Error ? e.message : 'No se pudo marcar como enviada.', { variant: 'error' });
     } finally {
       setBusy(null);
     }
-  }, [load]);
+  }, [load, prompt, toast]);
 
   const refund = useCallback(async (o: Order) => {
-    if (!window.confirm(`¿Reembolsar ${money(o.total)} a ${o.buyerEmail}? Esto devuelve el dinero en Mercado Pago y no se puede deshacer.`)) return;
+    if (!(await confirm({ title: 'Reembolsar', message: `¿Reembolsar ${money(o.total)} a ${o.buyerEmail}? Esto devuelve el dinero en Mercado Pago y no se puede deshacer.`, confirmLabel: 'Reembolsar', variant: 'danger' }))) return;
     setBusy(o.id);
     try {
       await api.post(`/api/v1/orders/${o.id}/refund`, {});
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo reembolsar.');
+      toast(e instanceof Error ? e.message : 'No se pudo reembolsar.', { variant: 'error' });
     } finally {
       setBusy(null);
     }
-  }, [load]);
+  }, [load, confirm, toast]);
 
   useEffect(() => {
     if (store) load();

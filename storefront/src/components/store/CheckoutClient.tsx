@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Loader2, Tag } from 'lucide-react';
+import { formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
@@ -19,8 +20,7 @@ interface CartLine {
 
 type Mode = 'PRO' | 'API';
 
-const fmt = (cents: number, currency: string) =>
-  new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
+const fmt = formatMoney;
 
 export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [lines, setLines] = useState<CartLine[]>([]);

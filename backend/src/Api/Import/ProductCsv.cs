@@ -26,6 +26,7 @@ public sealed class ImportProduct
     public string Name { get; set; } = "";
     public string? Description { get; set; }
     public string Categories { get; set; } = "";
+    public string? Brand { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
     public bool Visible { get; set; } = true;
@@ -156,6 +157,7 @@ public static class ProductCsv
                 Name = Cell(first, index, "nombre").Trim(),
                 Description = FirstNonEmpty(groupRows, index, "descripcion"),
                 Categories = FirstNonEmpty(groupRows, index, "categorias") ?? "",
+                Brand = FirstNonEmpty(groupRows, index, "marca"),
                 SeoTitle = FirstNonEmpty(groupRows, index, "titulo para seo", "titulo seo"),
                 SeoDescription = FirstNonEmpty(groupRows, index, "descripcion para seo", "descripcion seo"),
                 Visible = ParseBool(Cell(first, index, "mostrar en tienda"), defaultValue: true),

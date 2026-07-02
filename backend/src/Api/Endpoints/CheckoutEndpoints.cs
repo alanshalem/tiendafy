@@ -2,6 +2,7 @@ using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
 using SharedKernel.Abstractions;
+using Api.Auth;
 
 namespace Api.Endpoints;
 
@@ -9,7 +10,7 @@ public static class CheckoutEndpoints
 {
     public static RouteGroupBuilder MapCheckoutEndpoints(this RouteGroupBuilder group)
     {
-        var checkout = group.MapGroup("/checkout");
+        var checkout = group.MapGroup("/checkout").RequireTenant();
 
         checkout.MapPost("/", async (
             StartCheckoutRequest request,
@@ -17,9 +18,6 @@ public static class CheckoutEndpoints
             StartCheckoutHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var command = new StartCheckoutCommand(
                 tenant.TenantId,
                 request.Lines?.Select(l => new StartCheckoutLine(l.VariantId, l.Quantity)).ToList() ?? []);
@@ -36,9 +34,6 @@ public static class CheckoutEndpoints
             ICheckoutRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var session = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             return session is null ? Results.NotFound() : Results.Ok(ToDto(session));
         });
@@ -51,9 +46,6 @@ public static class CheckoutEndpoints
             SubmitCheckoutHandler handler,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await handler.HandleAsync(
                 new SubmitCheckoutCommand(tenant.TenantId, id, request.Email ?? string.Empty), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();

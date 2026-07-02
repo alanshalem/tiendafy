@@ -27,7 +27,6 @@ public static class StatsEndpoints
             CatalogDbContext catalog, DiscountsDbContext discounts, CustomersDbContext customers,
             ContentDbContext content, OrdersDbContext ordersDb, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId;
             var tidGuid = tid.Value;
 
@@ -62,7 +61,6 @@ public static class StatsEndpoints
         stats.MapGet("/sales", async (
             ITenantContext tenant, OrdersDbContext ordersDb, CustomersDbContext customers, int? days, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
 
@@ -97,7 +95,6 @@ public static class StatsEndpoints
         stats.MapGet("/products/top", async (
             ITenantContext tenant, OrdersDbContext ordersDb, int? days, int? limit, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
             var take = Math.Clamp(limit ?? 10, 1, 50);
@@ -115,7 +112,6 @@ public static class StatsEndpoints
         stats.MapGet("/coupons", async (
             ITenantContext tenant, OrdersDbContext ordersDb, DiscountsDbContext discounts, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId;
 
             var used = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CouponCode != null).ToListAsync(ct);
@@ -146,7 +142,6 @@ public static class StatsEndpoints
         stats.MapGet("/visits", async (
             ITenantContext tenant, AnalyticsDbContext analytics, int? days, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tidGuid = tenant.TenantId.Value;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 14, 1, 90));
 
@@ -171,7 +166,6 @@ public static class StatsEndpoints
         stats.MapGet("/realtime", async (
             ITenantContext tenant, AnalyticsDbContext analytics, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tidGuid = tenant.TenantId.Value;
             var since = DateTime.UtcNow.AddMinutes(-5);
 
@@ -195,7 +189,6 @@ public static class StatsEndpoints
         stats.MapGet("/abandoned-carts", async (
             ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb, int? days, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 90));
 
@@ -232,5 +225,4 @@ public static class StatsEndpoints
         return group;
     }
 
-    private static IResult Bad() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 }

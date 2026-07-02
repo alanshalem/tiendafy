@@ -14,7 +14,6 @@ public static class CustomersEndpoints
 
         customers.MapGet("/", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct, string? q = null) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId.Value;
             var query = db.Customers.AsNoTracking().Where(c => c.TenantId == tid);
             if (!string.IsNullOrWhiteSpace(q))
@@ -31,7 +30,6 @@ public static class CustomersEndpoints
 
         customers.MapPost("/", async (CustomerRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var created = Customer.Create(tenant.TenantId.Value, req.Name, req.Email, req.Phone, req.Address, req.Notes);
             if (created.IsFailure) return created.Error.ToProblem();
             db.Customers.Add(created.Value);
@@ -41,7 +39,6 @@ public static class CustomersEndpoints
 
         customers.MapPut("/{id:guid}", async (Guid id, CustomerRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId.Value;
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Id == id, ct);
             if (customer is null) return Results.NotFound();
@@ -53,7 +50,6 @@ public static class CustomersEndpoints
 
         customers.MapDelete("/{id:guid}", async (Guid id, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return Bad();
             var tid = tenant.TenantId.Value;
             var customer = await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tid && c.Id == id, ct);
             if (customer is null) return Results.NotFound();
@@ -65,7 +61,6 @@ public static class CustomersEndpoints
         return group;
     }
 
-    private static IResult Bad() => Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
 
     private static object ToDto(Customer c) => new
     {

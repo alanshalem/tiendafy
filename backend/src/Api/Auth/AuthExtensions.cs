@@ -49,6 +49,30 @@ public static class AuthExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Exige solo el header X-Tenant-Id (sin auth). Para lecturas públicas del
+    /// storefront que igual necesitan saber de qué tienda son (productos, categorías,
+    /// páginas publicadas, tema público, etc.). Reemplaza el guard repetido
+    /// `if (!tenant.HasTenant) return BadRequest(...)`.
+    /// </summary>
+    public static RouteGroupBuilder RequireTenant(this RouteGroupBuilder builder)
+    {
+        builder.AddEndpointFilter(TenantFilter);
+        return builder;
+    }
+
+    /// <summary>Igual que el anterior pero por endpoint.</summary>
+    public static RouteHandlerBuilder RequireTenant(this RouteHandlerBuilder builder) =>
+        builder.AddEndpointFilter(TenantFilter);
+
+    private static async ValueTask<object?> TenantFilter(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
+    {
+        var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
+        if (!tenant.HasTenant)
+            return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
+        return await next(ctx);
+    }
+
     private static async ValueTask<object?> MembershipFilter(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
     {
         var http = ctx.HttpContext;

@@ -18,9 +18,6 @@ public static class InventoryEndpoints
             IStockRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var ids = variantIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => Guid.TryParse(s.Trim(), out var g) ? g : Guid.Empty)
                 .Where(g => g != Guid.Empty)
@@ -41,8 +38,6 @@ public static class InventoryEndpoints
             IStockRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
             if (request.Available < 0)
                 return Results.Problem(title: "Stock.Negative", detail: "Available cannot be negative.", statusCode: 400);
 
@@ -58,9 +53,6 @@ public static class InventoryEndpoints
             IStockRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await repository.TryReserveAsync(tenant.TenantId, request.VariantId, request.Quantity, ct);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/inventory/reservations/{result.Value.Id}", new
@@ -77,9 +69,6 @@ public static class InventoryEndpoints
         inventory.MapPost("/reservations/{id:guid}/confirm", async (
             Guid id, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await repository.ConfirmReservationAsync(tenant.TenantId, id, ct);
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
@@ -87,9 +76,6 @@ public static class InventoryEndpoints
         inventory.MapPost("/reservations/{id:guid}/release", async (
             Guid id, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var result = await repository.ReleaseReservationAsync(tenant.TenantId, id, ct);
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
@@ -98,9 +84,6 @@ public static class InventoryEndpoints
         inventory.MapGet("/{variantId:guid}/ledger", async (
             Guid variantId, ITenantContext tenant, IStockRepository repository, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return Results.BadRequest(new { error = "Missing X-Tenant-Id header." });
-
             var movements = await repository.GetLedgerAsync(tenant.TenantId, variantId, 50, ct);
             return Results.Ok(new
             {

@@ -172,6 +172,7 @@ public sealed class ProductImportWorker(
 
         var categoryIds = await resolver.ResolveAsync(model.Categories, ct);
         if (categoryIds.Count > 0) product.SetCategories(categoryIds);
+        product.SetBrand(model.Brand);
         product.SetSeo(model.SeoTitle, model.SeoDescription);
 
         await repo.AddAsync(product, ct);
@@ -186,6 +187,7 @@ public sealed class ProductImportWorker(
         CatalogDbContext db, IStockRepository stock, CategoryResolver resolver, CancellationToken ct)
     {
         product.UpdateDetails(model.Name, model.Description);
+        product.SetBrand(model.Brand);
 
         var categoryIds = await resolver.ResolveAsync(model.Categories, ct);
         if (categoryIds.Count > 0) product.SetCategories(categoryIds);

@@ -5,6 +5,11 @@
 
 const API_URL = process.env.API_URL ?? 'http://localhost:5080';
 
+/** apiGet + header X-Tenant-Id (evita repetirlo en cada fetch del storefront). */
+export function apiGetTenant<T>(path: string, tenantId: string, init?: RequestInit): Promise<T | null> {
+  return apiGet<T>(path, { ...init, headers: { 'X-Tenant-Id': tenantId, ...init?.headers } });
+}
+
 export async function apiGet<T>(path: string, init?: RequestInit, attempts = 2): Promise<T | null> {
   let lastError: unknown;
   for (let i = 0; i <= attempts; i++) {

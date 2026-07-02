@@ -21,9 +21,12 @@ public sealed record ProductDto(
     string? Description,
     string? SeoTitle,
     string? SeoDescription,
+    string? Brand,
     string Status,
     IReadOnlyList<ProductOptionDto> Options,
     IReadOnlyList<VariantDto> Variants,
     IReadOnlyList<ProductImageDto> Images,
     IReadOnlyList<Guid> CategoryIds,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    // Stock total (suma de variantes). Solo lo llena la búsqueda del storefront; null = desconocido.
+    int? Stock = null);
