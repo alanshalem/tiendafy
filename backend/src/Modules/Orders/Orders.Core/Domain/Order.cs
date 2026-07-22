@@ -32,6 +32,13 @@ public sealed class Order : AggregateRoot
     public string? CouponCode { get; private set; }
     public Money DiscountAmount { get; private set; }
     public Money RefundedAmount { get; private set; }
+    public Money ShippingCost { get; private set; }
+    public string? ShippingMethodName { get; private set; }
+    public string? ShippingAddress { get; private set; }
+    public string? BuyerName { get; private set; }
+    public string? BuyerPhone { get; private set; }
+    public string? DocNumber { get; private set; }
+    public string? Notes { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? PaidAtUtc { get; private set; }
     public string? Tracking { get; private set; }
@@ -68,6 +75,7 @@ public sealed class Order : AggregateRoot
             BuyerEmail = email,
             DiscountAmount = discount ?? Money.Zero(currency),
             RefundedAmount = Money.Zero(currency),
+            ShippingCost = Money.Zero(currency),
             CouponCode = string.IsNullOrWhiteSpace(couponCode) ? null : couponCode.Trim().ToUpperInvariant(),
             CreatedAtUtc = DateTime.UtcNow,
         };
@@ -80,11 +88,26 @@ public sealed class Order : AggregateRoot
 
     public Money Subtotal => _items.Aggregate(Money.Zero(Currency), (acc, i) => acc + i.LineTotal);
 
-    /// <summary>Total a cobrar = subtotal − descuento (nunca negativo).</summary>
+    /// <summary>Total a cobrar = subtotal − descuento (nunca negativo) + envío.</summary>
     public Money Total =>
-        DiscountAmount.AmountInMinorUnits >= Subtotal.AmountInMinorUnits
+        (DiscountAmount.AmountInMinorUnits >= Subtotal.AmountInMinorUnits
             ? Money.Zero(Currency)
-            : Subtotal - DiscountAmount;
+            : Subtotal - DiscountAmount) + ShippingCost;
+
+    /// <summary>Snapshot de envío y datos del comprador (vienen del checkout, nunca del cliente).</summary>
+    public void SetShippingAndBuyer(
+        Money shippingCost, string? shippingMethodName, string? shippingAddress,
+        string? buyerName, string? buyerPhone, string? docNumber, string? notes)
+    {
+        if (shippingCost.Currency == Currency && !shippingCost.IsNegative)
+            ShippingCost = shippingCost;
+        ShippingMethodName = shippingMethodName;
+        ShippingAddress = shippingAddress;
+        BuyerName = buyerName;
+        BuyerPhone = buyerPhone;
+        DocNumber = docNumber;
+        Notes = notes;
+    }
 
     public IEnumerable<Guid> ReservationIds =>
         _items.Where(i => i.ReservationId.HasValue).Select(i => i.ReservationId!.Value);

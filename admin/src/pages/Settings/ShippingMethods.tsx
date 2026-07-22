@@ -1,129 +1,349 @@
-import { useState } from 'react';
-import { Info, Package, Plus, Settings, Tag, Truck, type LucideIcon } from 'lucide-react';
-import { Switch, cn, useToast } from '@tiendafy/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
+import { Button, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { api, errMsg } from '../../lib/api';
+import { formatMoney } from '../../lib/format';
+import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
-import { useSettings } from './useSettings';
 
-interface ShippingState {
-  contingency: boolean;
+type ShippingKind = 'DELIVERY' | 'PICKUP';
+
+/** Forma wire del GET: price es Money { amount en centavos, currency }. */
+interface ShippingMethod {
+  id: string;
+  name: string;
+  kind: ShippingKind;
+  price: { amount: number; currency: string };
+  description: string | null;
+  pickupAddress: string | null;
+  active: boolean;
+  sortOrder: number;
 }
 
-const tabs = ['Nacionales', 'Internacionales', 'Retiros'] as const;
+/** Body de POST/PUT: price es decimal en unidad mayor (ej. 1500.50). */
+interface ShippingMethodRequest {
+  name: string;
+  kind: ShippingKind;
+  price: number;
+  description?: string | null;
+  pickupAddress?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+const KIND_LABEL: Record<ShippingKind, string> = {
+  DELIVERY: 'Envío a domicilio',
+  PICKUP: 'Retiro en punto',
+};
 
 export function ShippingMethodsPage() {
+  const { store } = useStore();
   const { toast } = useToast();
-  const [tab, setTab] = useState<(typeof tabs)[number]>('Nacionales');
-  const { value, update, save, dirty } = useSettings<ShippingState>('shipping', { contingency: false });
+  const confirm = useConfirm();
+
+  const [items, setItems] = useState<ShippingMethod[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  // null = cerrado, 'new' = alta, ShippingMethod = edición.
+  const [editing, setEditing] = useState<ShippingMethod | 'new' | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<{ items: ShippingMethod[] }>('/api/v1/admin/shipping/methods');
+      setItems(data.items ?? []);
+    } catch (err) {
+      setItems(null);
+      toast(errMsg(err, 'No se pudieron cargar los medios de envío.'), { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (store) load();
+  }, [store, load]);
+
+  const remove = async (method: ShippingMethod) => {
+    const ok = await confirm({
+      title: 'Eliminar medio de envío',
+      message: `Vas a eliminar "${method.name}". Los compradores ya no van a poder elegirlo en el checkout.`,
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setDeleting(method.id);
+    try {
+      await api.delete(`/api/v1/admin/shipping/methods/${method.id}`);
+      toast('Medio de envío eliminado', { variant: 'success' });
+      await load();
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo eliminar el medio de envío.'), { variant: 'error' });
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl pb-10">
-      <SettingsHeader title="Medios de envío" />
+      <SettingsHeader
+        title="Medios de envío"
+        description="Definí cómo entregás los pedidos. El comprador los elige en el checkout."
+        action={
+          items && items.length > 0 ? (
+            <Button onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> Agregar medio de envío
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div className="mb-4 flex gap-1 border-b border-border text-sm">
-        {tabs.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={cn(
-              '-mb-px border-b-2 px-4 pb-2.5 font-medium',
-              tab === t ? 'border-primary text-primary' : 'border-transparent text-fg-muted hover:text-fg',
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'Nacionales' ? (
-        <div className="space-y-5">
-          {/* Envío Tiendafy destacado */}
-          <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-primary">Envío Tiendafy</span>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Recomendada</span>
-            </div>
-            <p className="text-sm text-fg-muted">Nuestra solución logística</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {([
-                [Package, 'Formas de entrega', 'Puntos de despacho y colecta'],
-                [Truck, 'Operadores logísticos', 'Andreani, Correo Argentino y más'],
-                [Tag, 'Envíos con descuento', 'Hasta 15% de ahorro'],
-                [Settings, 'Gestión automatizada', 'Etiqueta y código de seguimiento'],
-              ] as [LucideIcon, string, string][]).map(([Icon, title, body]) => (
-                <div key={title} className="flex gap-3">
-                  <Icon className="h-5 w-5 shrink-0 text-fg-muted" />
-                  <div>
-                    <div className="text-sm font-medium text-fg">{title}</div>
-                    <div className="text-xs text-fg-muted">{body}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-center gap-3 rounded-md border border-warning/30 bg-warning-bg p-3 text-sm">
-              <Info className="h-4 w-4 shrink-0 text-warning" />
-              <span className="text-fg">
-                Activá al menos una opción de envío para que tus clientes puedan elegir cómo recibir sus pedidos.
-              </span>
-              <button className="ml-auto inline-flex h-8 items-center rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted">
-                Editar
-              </button>
-            </div>
-          </div>
-
-          <Card title="Otros medios de envío">
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"><Plus className="h-4 w-4" /> Agregar medio de envío</button>
-          </Card>
-
-          <Card title="Envío personalizado" description="Creá el medio de envío que quieras para realizar tus entregas.">
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"><Plus className="h-4 w-4" /> Agregar envío personalizado</button>
-          </Card>
-
-          <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-fg">Costo y plazo de contingencia</h3>
-                <p className="mt-0.5 text-sm text-fg-muted">
-                  Definí un costo y un plazo fijos para usar cuando todos los medios de envío fallen temporalmente.
-                </p>
-              </div>
-              <Switch checked={value.contingency} onChange={(contingency) => update({ contingency })} />
-            </div>
-          </div>
+      {loading ? (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-6 text-sm text-fg-muted shadow-card">
+          <Loader2 className="h-4 w-4 animate-spin" /> Cargando medios de envío…
+        </div>
+      ) : !items || items.length === 0 ? (
+        <div className="rounded-lg border border-border bg-surface p-10 text-center shadow-card">
+          <Truck className="mx-auto h-10 w-10 text-fg-muted" />
+          <h3 className="mt-3 text-base font-semibold text-fg">Todavía no tenés medios de envío</h3>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-fg-muted">
+            Creá al menos uno —un envío a domicilio o un punto de retiro— para que tus clientes puedan
+            completar la compra.
+          </p>
+          <Button className="mt-4" onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Agregar medio de envío
+          </Button>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-surface p-10 text-center text-sm text-fg-muted shadow-card">
-          {tab === 'Internacionales'
-            ? 'Configurá envíos al exterior cuando tu logística internacional esté activa.'
-            : 'Definí puntos de retiro para que tus clientes pasen a buscar sus pedidos.'}
+        <div className="space-y-3">
+          {items.map((m) => {
+            const Icon = m.kind === 'PICKUP' ? Store : Truck;
+            return (
+              <div
+                key={m.id}
+                className={cn(
+                  'flex items-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-card',
+                  !m.active && 'opacity-70',
+                )}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-fg">{m.name}</span>
+                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+                      {KIND_LABEL[m.kind]}
+                    </span>
+                    {!m.active && (
+                      <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                        Inactivo
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-sm text-fg">
+                    {m.price.amount === 0 ? (
+                      <span className="font-medium text-success">Gratis</span>
+                    ) : (
+                      <span className="font-medium">{formatMoney(m.price.amount, m.price.currency)}</span>
+                    )}
+                    {m.description && <span className="text-fg-muted"> · {m.description}</span>}
+                  </div>
+                  {m.kind === 'PICKUP' && m.pickupAddress && (
+                    <p className="mt-0.5 truncate text-xs text-fg-muted">{m.pickupAddress}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(m)}
+                    title="Editar"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-bg-muted hover:text-fg"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(m)}
+                    disabled={deleting === m.id}
+                    title="Eliminar"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                  >
+                    {deleting === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {dirty && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-6 py-3 backdrop-blur md:left-sidebar">
-          <div className="mx-auto flex max-w-3xl justify-end">
-            <button
-              onClick={() => {
-                save();
-                toast('Envíos guardados', { variant: 'success' });
-              }}
-              className="inline-flex h-10 items-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
-            >
-              Guardar
-            </button>
-          </div>
-        </div>
+      {editing !== null && (
+        <MethodDialog
+          method={editing === 'new' ? null : editing}
+          nextSortOrder={items?.length ?? 0}
+          onClose={() => setEditing(null)}
+          onSaved={async (created) => {
+            setEditing(null);
+            toast(created ? 'Medio de envío creado' : 'Cambios guardados', { variant: 'success' });
+            await load();
+          }}
+        />
       )}
     </div>
   );
 }
 
-function Card({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+/** Modal de alta/edición. `method` null = crear. */
+function MethodDialog({
+  method,
+  nextSortOrder,
+  onClose,
+  onSaved,
+}: {
+  method: ShippingMethod | null;
+  nextSortOrder: number;
+  onClose: () => void;
+  onSaved: (created: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = useState(method?.name ?? '');
+  const [kind, setKind] = useState<ShippingKind>(method?.kind ?? 'DELIVERY');
+  // El wire trae centavos; el input trabaja en unidad mayor (lo que se manda al API).
+  const [price, setPrice] = useState(method ? String(method.price.amount / 100) : '');
+  const [description, setDescription] = useState(method?.description ?? '');
+  const [pickupAddress, setPickupAddress] = useState(method?.pickupAddress ?? '');
+  const [active, setActive] = useState(method?.active ?? true);
+  const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
+
+  const parsedPrice = price.trim() === '' ? 0 : Number(price.replace(',', '.'));
+  const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 0;
+  const nameValid = name.trim().length > 0;
+  const pickupValid = kind !== 'PICKUP' || pickupAddress.trim().length > 0;
+  const valid = nameValid && priceValid && pickupValid;
+
+  const submit = async () => {
+    setTouched(true);
+    if (!valid || busy) return;
+    setBusy(true);
+    const body: ShippingMethodRequest = {
+      name: name.trim(),
+      kind,
+      price: parsedPrice,
+      description: description.trim() === '' ? null : description.trim(),
+      pickupAddress: kind === 'PICKUP' ? pickupAddress.trim() : null,
+      active,
+      sortOrder: method?.sortOrder ?? nextSortOrder,
+    };
+    try {
+      if (method) await api.put<ShippingMethod>(`/api/v1/admin/shipping/methods/${method.id}`, body);
+      else await api.post<ShippingMethod>('/api/v1/admin/shipping/methods', body);
+      onSaved(!method);
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo guardar el medio de envío.'), { variant: 'error' });
+      setBusy(false);
+    }
+  };
+
+  const inputCls =
+    'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
-      <h3 className="text-base font-semibold text-fg">{title}</h3>
-      {description && <p className="mt-0.5 text-sm text-fg-muted">{description}</p>}
-      <div className="mt-3">{children}</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold text-fg">
+          {method ? 'Editar medio de envío' : 'Agregar medio de envío'}
+        </h2>
+        <p className="mt-0.5 text-sm text-fg-muted">
+          El comprador lo va a ver con este nombre y precio en el checkout.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-fg">Nombre</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej.: Envío express CABA"
+              className={inputCls}
+              autoFocus
+            />
+            {touched && !nameValid && <p className="mt-1 text-xs text-danger">Ingresá un nombre.</p>}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
+            <select value={kind} onChange={(e) => setKind(e.target.value as ShippingKind)} className={inputCls}>
+              <option value="DELIVERY">Envío a domicilio</option>
+              <option value="PICKUP">Retiro en punto</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-fg">Precio</label>
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="0 = gratis"
+              className={inputCls}
+            />
+            {touched && !priceValid ? (
+              <p className="mt-1 text-xs text-danger">Ingresá un precio válido (0 o más).</p>
+            ) : (
+              <p className="mt-1 text-xs text-fg-muted">Dejalo en 0 para ofrecerlo gratis.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-fg">Plazo o descripción (opcional)</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Llega en 3 a 5 días hábiles"
+              className={inputCls}
+            />
+          </div>
+
+          {kind === 'PICKUP' && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-fg">Dirección y horarios de retiro</label>
+              <textarea
+                value={pickupAddress}
+                onChange={(e) => setPickupAddress(e.target.value)}
+                rows={2}
+                placeholder="Av. Corrientes 1234, CABA · Lun a Vie de 10 a 18 h"
+                className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {touched && !pickupValid && (
+                <p className="mt-1 text-xs text-danger">Indicá dónde y cuándo se retira el pedido.</p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between rounded-md border border-border bg-bg-muted/40 px-3 py-2.5">
+            <div>
+              <div className="text-sm font-medium text-fg">Activo</div>
+              <div className="text-xs text-fg-muted">Si lo desactivás, deja de aparecer en el checkout.</div>
+            </div>
+            <Switch checked={active} onChange={setActive} />
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {method ? 'Guardar cambios' : 'Crear medio de envío'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

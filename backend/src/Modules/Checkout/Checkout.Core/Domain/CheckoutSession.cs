@@ -28,6 +28,20 @@ public sealed class CheckoutSession : AggregateRoot
     /// <summary>Cuándo se mandó el email de recuperación (null = todavía no). Evita reenviar.</summary>
     public DateTime? RecoveryEmailSentAtUtc { get; private set; }
 
+    // Datos del destinatario / facturación (checkout en pasos).
+    public string? BuyerName { get; private set; }
+    public string? BuyerLastName { get; private set; }
+    public string? Phone { get; private set; }
+    public string? DocNumber { get; private set; }
+    public string? Notes { get; private set; }
+
+    // Envío elegido: snapshot de método y costo al momento del submit.
+    public Guid? ShippingMethodId { get; private set; }
+    public string? ShippingMethodName { get; private set; }
+    public Money ShippingCost { get; private set; }
+    /// <summary>Dirección formateada en una línea (domicilio) o dirección de retiro.</summary>
+    public string? ShippingAddress { get; private set; }
+
     private readonly List<CheckoutItem> _items = [];
     public IReadOnlyList<CheckoutItem> Items => _items.AsReadOnly();
 
@@ -38,6 +52,7 @@ public sealed class CheckoutSession : AggregateRoot
     {
         Status = CheckoutStatus.Open;
         Currency = currency;
+        ShippingCost = Money.Zero(currency);
         CreatedAtUtc = DateTime.UtcNow;
         ExpiresAtUtc = CreatedAtUtc + Ttl;
     }
@@ -97,6 +112,35 @@ public sealed class CheckoutSession : AggregateRoot
 
         Email = trimmed;
         Status = CheckoutStatus.Submitted;
+        return Result.Success();
+    }
+
+    private static string? Clip(string? v, int max)
+    {
+        var t = v?.Trim();
+        return string.IsNullOrEmpty(t) ? null : t[..Math.Min(max, t.Length)];
+    }
+
+    /// <summary>Datos del destinatario/facturación y notas (paso Entrega).</summary>
+    public void SetRecipient(string? name, string? lastName, string? phone, string? docNumber, string? notes)
+    {
+        BuyerName = Clip(name, 80);
+        BuyerLastName = Clip(lastName, 80);
+        Phone = Clip(phone, 40);
+        DocNumber = Clip(docNumber, 20);
+        Notes = Clip(notes, 500);
+    }
+
+    /// <summary>Snapshot del envío elegido: el costo queda congelado en la sesión.</summary>
+    public Result SetShipping(Guid methodId, string methodName, Money cost, string? address)
+    {
+        if (cost.Currency != Currency)
+            return Result.Failure(Error.Validation("Checkout.ShippingCurrency",
+                $"El costo de envío debe ser en {Currency}."));
+        ShippingMethodId = methodId;
+        ShippingMethodName = Clip(methodName, 120);
+        ShippingCost = cost;
+        ShippingAddress = Clip(address, 300);
         return Result.Success();
     }
 

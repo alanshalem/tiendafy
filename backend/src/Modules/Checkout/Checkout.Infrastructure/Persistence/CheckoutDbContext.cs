@@ -7,6 +7,7 @@ namespace Checkout.Infrastructure.Persistence;
 public sealed class CheckoutDbContext(DbContextOptions<CheckoutDbContext> options) : DbContext(options)
 {
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
+    public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,34 @@ public sealed class CheckoutDbContext(DbContextOptions<CheckoutDbContext> option
         session.HasIndex(s => new { s.Status, s.ExpiresAtUtc });
         session.Ignore(s => s.DomainEvents);
         session.Ignore(s => s.Subtotal);
+        session.Property(s => s.BuyerName).HasMaxLength(80);
+        session.Property(s => s.BuyerLastName).HasMaxLength(80);
+        session.Property(s => s.Phone).HasMaxLength(40);
+        session.Property(s => s.DocNumber).HasMaxLength(20);
+        session.Property(s => s.Notes).HasMaxLength(500);
+        session.Property(s => s.ShippingMethodName).HasMaxLength(120);
+        session.Property(s => s.ShippingAddress).HasMaxLength(300);
+        session.Property(s => s.ShippingCost)
+            .HasConversion(m => m.AmountInMinorUnits + "|" + m.Currency, s => ParseMoney(s))
+            .HasColumnName("shipping_cost")
+            .HasMaxLength(24)
+            .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+
+        var shipping = modelBuilder.Entity<ShippingMethod>();
+        shipping.ToTable("shipping_methods");
+        shipping.HasKey(m => m.Id);
+        shipping.Property(m => m.Id).ValueGeneratedNever();
+        shipping.Property(m => m.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        shipping.Property(m => m.Kind).HasConversion<string>().HasMaxLength(10);
+        shipping.Property(m => m.Name).HasMaxLength(120).IsRequired();
+        shipping.Property(m => m.Description).HasMaxLength(300);
+        shipping.Property(m => m.PickupAddress).HasMaxLength(300);
+        shipping.Property(m => m.Price)
+            .HasConversion(m => m.AmountInMinorUnits + "|" + m.Currency, s => ParseMoney(s))
+            .HasColumnName("price")
+            .HasMaxLength(24);
+        shipping.HasIndex(m => new { m.TenantId, m.SortOrder });
+        shipping.Ignore(m => m.DomainEvents);
 
         session.OwnsMany(s => s.Items, items =>
         {

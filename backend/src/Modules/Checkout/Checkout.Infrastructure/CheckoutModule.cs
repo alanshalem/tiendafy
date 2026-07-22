@@ -19,6 +19,7 @@ public static class CheckoutModule
             options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
 
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
+        services.AddScoped<IShippingMethodRepository, ShippingMethodRepository>();
         services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<SubmitCheckoutHandler>();
 

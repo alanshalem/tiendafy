@@ -68,6 +68,8 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailO
 builder.Services.AddHttpClient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<OrderPaidNotifier>();
 builder.Services.AddScoped<OrderNotifier>();
+builder.Services.AddScoped<BrandedEmailSender>();
+builder.Services.AddScoped<OrderItemImages>();
 builder.Services.AddHostedService<AbandonedCartWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
@@ -226,6 +228,7 @@ apiV1.MapMediaEndpoints();
 apiV1.MapSupportEndpoints();
 apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();
+apiV1.MapShippingEndpoints();
 apiV1.MapPaymentsEndpoints();
 apiV1.MapOrderEndpoints();
 apiV1.MapPaymentWebhookEndpoints();

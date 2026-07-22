@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
-import { Loader2, Tag } from 'lucide-react';
+import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
@@ -18,7 +18,17 @@ interface CartLine {
   quantity: number;
 }
 
+interface ShippingOption {
+  id: string;
+  name: string;
+  kind: 'DELIVERY' | 'PICKUP';
+  price: { amount: number; currency: string };
+  description: string | null;
+  pickupAddress: string | null;
+}
+
 type Mode = 'PRO' | 'API';
+type Step = 'entrega' | 'pago';
 
 const fmt = formatMoney;
 
@@ -29,7 +39,26 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [pubKey, setPubKey] = useState<string | null>(null);
   const [connected, setConnected] = useState(true);
 
+  const [step, setStep] = useState<Step>('entrega');
+
+  // Paso Entrega
   const [email, setEmail] = useState('');
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[] | null>(null);
+  const [shippingId, setShippingId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [doc, setDoc] = useState('');
+  const [street, setStreet] = useState('');
+  const [streetNumber, setStreetNumber] = useState('');
+  const [apartment, setApartment] = useState('');
+  const [city, setCity] = useState('');
+  const [zip, setZip] = useState('');
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  // Paso Pago
+  const [notes, setNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -49,7 +78,8 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   }, [tenantId]);
 
   useEffect(() => {
-    fetch(`${API}/api/v1/payments/mercadopago/public-config`, { headers: { 'X-Tenant-Id': tenantId } })
+    const headers = { 'X-Tenant-Id': tenantId };
+    fetch(`${API}/api/v1/payments/mercadopago/public-config`, { headers })
       .then((r) => r.json())
       .then((c) => {
         setConnected(Boolean(c.connected));
@@ -58,12 +88,20 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         if (c.checkoutMode === 'API' && c.publicKey) initMercadoPago(c.publicKey, { locale: 'es-AR' });
       })
       .catch(() => setMode('PRO'));
+
+    fetch(`${API}/api/v1/shipping/methods`, { headers })
+      .then((r) => r.json())
+      .then((d) => setShippingOptions(d.items ?? []))
+      .catch(() => setShippingOptions([]));
   }, [tenantId]);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0), [lines]);
   const currency = lines[0]?.currency ?? 'ARS';
   const discount = coupon?.discount ?? 0;
-  const net = Math.max(0, subtotal - discount);
+  const selected = shippingOptions?.find((o) => o.id === shippingId) ?? null;
+  const shipCost = selected?.price.amount ?? 0; // ya viene en centavos (ApiJson.MoneyJson)
+  const total = Math.max(0, subtotal - discount) + shipCost;
+  const needsAddress = selected?.kind === 'DELIVERY';
 
   const applyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -86,7 +124,25 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
-  // start + submit → reserva stock, devuelve sessionId.
+  const formattedAddress = () =>
+    needsAddress
+      ? [`${street.trim()} ${streetNumber.trim()}`.trim(), apartment.trim(), city.trim(), zip.trim() ? `CP ${zip.trim()}` : '']
+          .filter(Boolean).join(', ')
+      : null;
+
+  const continueToPago = () => {
+    setFieldError(null);
+    if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
+    if (shippingOptions && shippingOptions.length > 0 && !shippingId) return setFieldError('Elegí cómo querés recibir tu compra.');
+    if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
+    if (!phone.trim()) return setFieldError('Completá tu teléfono.');
+    if (needsAddress && (!street.trim() || !streetNumber.trim() || !city.trim() || !zip.trim()))
+      return setFieldError('Completá la dirección de entrega (calle, número, ciudad y código postal).');
+    setStep('pago');
+    window.scrollTo({ top: 0 });
+  };
+
+  // start + submit → reserva stock con todos los datos; devuelve sessionId.
   const reserve = async (buyerEmail: string) => {
     const headers = { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId };
     const startRes = await fetch(`${API}/api/v1/checkout/`, {
@@ -99,7 +155,16 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     const submitRes = await fetch(`${API}/api/v1/checkout/${session.id}/submit`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ email: buyerEmail }),
+      body: JSON.stringify({
+        email: buyerEmail,
+        name: name.trim() || null,
+        lastName: lastName.trim() || null,
+        phone: phone.trim() || null,
+        docNumber: doc.trim() || null,
+        notes: notes.trim() || null,
+        shippingMethodId: shippingId,
+        address: formattedAddress(),
+      }),
     });
     if (!submitRes.ok) {
       const p = await submitRes.json().catch(() => null);
@@ -109,10 +174,6 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   };
 
   const payPro = async () => {
-    if (!email.includes('@') || email.trim().length < 5) {
-      setError('Ingresá un email válido.');
-      return;
-    }
     setPaying(true);
     setError(null);
     try {
@@ -135,7 +196,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
-  // Payment Brick (on-site): el front tokeniza, el backend cobra.
+  // Payment Brick (on-site): el front tokeniza, el backend cobra el total real.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onBrickSubmit = async ({ formData }: { formData: any }) => {
     setError(null);
@@ -170,7 +231,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
 
-  if (!hydrated || mode === null)
+  if (!hydrated || mode === null || shippingOptions === null)
     return <main className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin opacity-50" /></main>;
 
   if (lines.length === 0)
@@ -179,62 +240,206 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   if (!connected)
     return <main className="mx-auto max-w-md px-4 py-20 text-center"><p className="opacity-70">Esta tienda todavía no tiene los pagos habilitados.</p><a href="/" className="mt-4 inline-block text-primary underline">Volver</a></main>;
 
-  return (
-    <main className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="mb-5 text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Finalizar compra</h1>
+  const inputCls = 'h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/30';
 
-      <div className="mb-5 rounded-lg border border-black/10 p-4 text-sm">
-        {lines.map((l) => (
-          <div key={l.variantId} className="flex justify-between py-1">
-            <span>{l.quantity}× {l.productName}</span>
-            <span className="tabular-nums">{fmt(l.priceAmount * l.quantity, l.currency)}</span>
-          </div>
-        ))}
-        {discount > 0 && (
-          <div className="flex justify-between py-1 text-green-600">
-            <span>Descuento ({coupon?.code})</span>
-            <span className="tabular-nums">- {fmt(discount, currency)}</span>
-          </div>
-        )}
-        <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-base font-bold">
-          <span>Total</span>
-          <span className="tabular-nums">{fmt(net, currency)}</span>
-        </div>
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8">
+      {/* Indicador de pasos: Carrito → Entrega → Pago */}
+      <div className="mx-auto mb-8 flex max-w-md items-center">
+        <StepDot label="Carrito" state="done" href="/" />
+        <div className="h-px flex-1 bg-black/20" />
+        <StepDot label="Entrega" state={step === 'entrega' ? 'current' : 'done'} onClick={step === 'pago' ? () => setStep('entrega') : undefined} />
+        <div className="h-px flex-1 bg-black/20" />
+        <StepDot label="Pago" state={step === 'pago' ? 'current' : 'todo'} />
       </div>
 
-      {!coupon && (
-        <div className="mb-5">
-          <div className="flex gap-2">
-            <input value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Cupón de descuento"
-              className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-            <button onClick={applyCoupon} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold">
-              <Tag className="h-4 w-4" /> Aplicar
-            </button>
+      <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div>
+          {step === 'entrega' ? (
+            <div className="space-y-7">
+              <section>
+                <h2 className="mb-3 text-lg font-bold">Datos de contacto</h2>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className={inputCls} />
+              </section>
+
+              {shippingOptions.length > 0 && (
+                <section>
+                  <h2 className="mb-3 text-lg font-bold">Entrega</h2>
+                  <div className="space-y-2">
+                    {shippingOptions.map((o) => (
+                      <label
+                        key={o.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                      >
+                        <input type="radio" name="shipping" checked={shippingId === o.id} onChange={() => setShippingId(o.id)} className="mt-1" />
+                        <span className="flex-1">
+                          <span className="flex items-center gap-1.5 font-semibold">
+                            {o.kind === 'PICKUP' ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                            {o.name}
+                          </span>
+                          {o.description && <span className="mt-0.5 block text-xs opacity-60">{o.description}</span>}
+                          {o.kind === 'PICKUP' && o.pickupAddress && <span className="mt-0.5 block text-xs opacity-60">{o.pickupAddress}</span>}
+                        </span>
+                        <span className="font-semibold">{o.price.amount === 0 ? 'Gratis' : fmt(o.price.amount, o.price.currency)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h2 className="mb-3 text-lg font-bold">{needsAddress ? 'Datos del destinatario' : 'Tus datos'}</h2>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" className={inputCls} />
+                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Apellido" className={inputCls} />
+                  <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" className={inputCls} />
+                  <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="DNI o CUIT (facturación)" className={inputCls} />
+                </div>
+                {needsAddress && (
+                  <div className="mt-2.5 grid gap-2.5">
+                    <div className="grid gap-2.5 sm:grid-cols-[1fr_140px]">
+                      <input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Calle" className={inputCls} />
+                      <input value={streetNumber} onChange={(e) => setStreetNumber(e.target.value)} placeholder="Número" className={inputCls} />
+                    </div>
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      <input value={apartment} onChange={(e) => setApartment(e.target.value)} placeholder="Departamento (opcional)" className={inputCls} />
+                      <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ciudad" className={inputCls} />
+                    </div>
+                    <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="Código Postal" className={`${inputCls} sm:max-w-[200px]`} />
+                  </div>
+                )}
+              </section>
+
+              {fieldError && <p className="text-sm text-red-600">{fieldError}</p>}
+
+              <button onClick={continueToPago} className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg sm:max-w-xs">
+                Continuar para el pago
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Resumen de lo elegido, con Cambiar */}
+              <div className="space-y-3 rounded-lg border border-black/10 p-4 text-sm">
+                <div className="flex items-start gap-2.5">
+                  <Mail className="mt-0.5 h-4 w-4 opacity-50" />
+                  <span className="flex-1">{email}</span>
+                  <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">Cambiar</button>
+                </div>
+                {selected && (
+                  <div className="flex items-start gap-2.5">
+                    {selected.kind === 'PICKUP' ? <Store className="mt-0.5 h-4 w-4 opacity-50" /> : <Truck className="mt-0.5 h-4 w-4 opacity-50" />}
+                    <span className="flex-1">
+                      <strong>{selected.name}</strong> · {selected.price.amount === 0 ? 'Gratis' : fmt(shipCost, currency)}
+                      {selected.description && <span className="block text-xs opacity-60">{selected.description}</span>}
+                    </span>
+                    <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">Cambiar</button>
+                  </div>
+                )}
+                {formattedAddress() && (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="mt-0.5 h-4 w-4 opacity-50" />
+                    <span className="flex-1">{formattedAddress()}<span className="block text-xs opacity-60">{name} {lastName} · {phone}</span></span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2.5">
+                  <MessageSquare className="mt-0.5 h-4 w-4 opacity-50" />
+                  {showNotes ? (
+                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} rows={2}
+                      placeholder="Notas del pedido (opcional)" className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black" />
+                  ) : (
+                    <>
+                      <span className="flex-1 opacity-70">{notes ? notes : 'Notas de pedido'}</span>
+                      <button onClick={() => setShowNotes(true)} className="text-xs underline opacity-70">{notes ? 'Editar' : 'Agregar'}</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <h2 className="flex items-center gap-2 text-lg font-bold"><CreditCard className="h-5 w-5" /> Medio de pago</h2>
+
+              {mode === 'API' && pubKey ? (
+                <Payment
+                  key={total}
+                  initialization={{ amount: total / 100, payer: { email: email || undefined } }}
+                  customization={{ paymentMethods: { creditCard: 'all', debitCard: 'all', ticket: 'all', bankTransfer: 'all' } }}
+                  onSubmit={onBrickSubmit}
+                  onError={() => setError('Hubo un problema con el formulario de pago.')}
+                />
+              ) : (
+                <button onClick={payPro} disabled={paying}
+                  className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:opacity-60 sm:max-w-xs">
+                  {paying ? 'Redirigiendo a Mercado Pago…' : 'Pagar con Mercado Pago'}
+                </button>
+              )}
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Resumen del pedido */}
+        <aside className="h-fit rounded-lg border border-black/10 p-4 text-sm lg:sticky lg:top-6">
+          {lines.map((l) => (
+            <div key={l.variantId} className="flex items-center gap-3 py-1.5">
+              {l.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />
+              )}
+              <span className="flex-1">{l.productName}{l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}</span>
+              <span className="tabular-nums">{fmt(l.priceAmount * l.quantity, l.currency)}</span>
+            </div>
+          ))}
+          <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
+            <div className="flex justify-between"><span className="opacity-70">Subtotal</span><span className="tabular-nums">{fmt(subtotal, currency)}</span></div>
+            {discount > 0 && (
+              <div className="flex justify-between text-green-600"><span>Descuento ({coupon?.code})</span><span className="tabular-nums">- {fmt(discount, currency)}</span></div>
+            )}
+            {selected && (
+              <div className="flex justify-between"><span className="opacity-70">Costo de envío</span><span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span></div>
+            )}
+            <div className="flex justify-between pt-1 text-base font-bold"><span>Total</span><span className="tabular-nums">{fmt(total, currency)}</span></div>
           </div>
-          {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
-        </div>
-      )}
 
-      {mode === 'API' && pubKey ? (
-        <Payment
-          key={net}
-          initialization={{ amount: net / 100, payer: { email: email || undefined } }}
-          customization={{ paymentMethods: { creditCard: 'all', debitCard: 'all', ticket: 'all', bankTransfer: 'all' } }}
-          onSubmit={onBrickSubmit}
-          onError={() => setError('Hubo un problema con el formulario de pago.')}
-        />
-      ) : (
-        <div className="space-y-2">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Tu email"
-            className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-          <button onClick={payPro} disabled={paying}
-            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:opacity-60">
-            {paying ? 'Redirigiendo a Mercado Pago…' : 'Pagar con Mercado Pago'}
-          </button>
-        </div>
-      )}
-
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {!coupon && (
+            <div className="mt-4">
+              <div className="flex gap-2">
+                <input value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Cupón de descuento"
+                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
+                <button onClick={applyCoupon} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold">
+                  <Tag className="h-4 w-4" /> Aplicar
+                </button>
+              </div>
+              {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
+            </div>
+          )}
+        </aside>
+      </div>
     </main>
   );
+}
+
+function StepDot({ label, state, href, onClick }: {
+  label: string;
+  state: 'done' | 'current' | 'todo';
+  href?: string;
+  onClick?: () => void;
+}) {
+  const dot = (
+    <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
+      state === 'current' ? 'border-black bg-black text-white'
+      : state === 'done' ? 'border-black/40 text-black/70'
+      : 'border-black/20 text-black/30'}`}
+    >
+      {state === 'done' ? <Check className="h-3.5 w-3.5" /> : ''}
+    </span>
+  );
+  const body = (
+    <span className="flex flex-col items-center gap-1">
+      {dot}
+      <span className={`text-xs ${state === 'current' ? 'font-semibold' : 'opacity-60'}`}>{label}</span>
+    </span>
+  );
+  if (href) return <a href={href}>{body}</a>;
+  if (onClick) return <button onClick={onClick}>{body}</button>;
+  return body;
 }

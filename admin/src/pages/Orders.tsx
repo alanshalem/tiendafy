@@ -18,6 +18,13 @@ interface Order {
   id: string;
   status: string;
   buyerEmail: string;
+  buyerName: string | null;
+  buyerPhone: string | null;
+  docNumber: string | null;
+  notes: string | null;
+  shipping: Money | null;
+  shippingMethod: string | null;
+  shippingAddress: string | null;
   currency: string;
   paymentId: string | null;
   couponCode: string | null;
@@ -171,6 +178,19 @@ export function OrdersPage() {
                                 <span className="tabular-nums">- {money(o.discount)}</span>
                               </div>
                             )}
+                            {o.shipping && o.shipping.amount > 0 && (
+                              <div className="flex justify-between text-xs">
+                                <span className="text-fg">Envío{o.shippingMethod ? ` · ${o.shippingMethod}` : ''}</span>
+                                <span className="tabular-nums text-fg-muted">{money(o.shipping)}</span>
+                              </div>
+                            )}
+                            {(o.buyerName || o.buyerPhone || o.shippingAddress) && (
+                              <div className="pt-1 text-xs text-fg-subtle">
+                                {[o.buyerName, o.buyerPhone, o.docNumber ? `DNI/CUIT ${o.docNumber}` : null].filter(Boolean).join(' · ')}
+                                {o.shippingAddress && <div>{o.shippingAddress}</div>}
+                              </div>
+                            )}
+                            {o.notes && <div className="text-xs italic text-fg-subtle">Nota: {o.notes}</div>}
                             {o.paymentId && <div className="pt-1 text-xs text-fg-subtle">Pago MP #{o.paymentId}{o.paidAtUtc ? ` · ${new Date(o.paidAtUtc).toLocaleString('es-AR')}` : ''}</div>}
                             {o.tracking && <div className="text-xs text-fg-subtle">Seguimiento: {o.tracking}{o.fulfilledAtUtc ? ` · enviada ${new Date(o.fulfilledAtUtc).toLocaleDateString('es-AR')}` : ''}</div>}
                             {o.refunded && o.refunded.amount > 0 && (

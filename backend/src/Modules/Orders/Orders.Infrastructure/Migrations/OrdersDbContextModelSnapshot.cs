@@ -34,6 +34,16 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("buyer_email");
 
+                    b.Property<string>("BuyerName")
+                        .HasMaxLength(170)
+                        .HasColumnType("character varying(170)")
+                        .HasColumnName("buyer_name");
+
+                    b.Property<string>("BuyerPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("buyer_phone");
+
                     b.Property<Guid>("CheckoutSessionId")
                         .HasColumnType("uuid")
                         .HasColumnName("checkout_session_id");
@@ -59,9 +69,19 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<string>("DocNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("doc_number");
+
                     b.Property<DateTime?>("FulfilledAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fulfilled_at_utc");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
 
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -90,6 +110,24 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(24)")
                         .HasDefaultValue("0|ARS")
                         .HasColumnName("refunded_amount");
+
+                    b.Property<string>("ShippingAddress")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("shipping_address");
+
+                    b.Property<string>("ShippingCost")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("0|ARS")
+                        .HasColumnName("shipping_cost");
+
+                    b.Property<string>("ShippingMethodName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("shipping_method_name");
 
                     b.Property<string>("Status")
                         .IsRequired()

@@ -12,12 +12,11 @@ public sealed record EmailTemplateDef(
 /// </summary>
 public static class EmailTemplateCatalog
 {
+    // Solo el contenido: el layout maestro brandeado (logo + color de la tienda
+    // + footer) lo aplica BrandedEmailSender al enviar.
     private static string Wrap(string title, string inner) =>
-        $@"<div style=""font-family:sans-serif;max-width:520px;margin:auto;color:#222"">
-  <h2 style=""color:#e8501e"">{title}</h2>
-  {inner}
-  <p style=""color:#999;font-size:12px;margin-top:24px"">{{{{store}}}}</p>
-</div>";
+        $@"<h2 style=""margin:0 0 12px;font-size:20px"">{title}</h2>
+{inner}";
 
     public static readonly IReadOnlyList<EmailTemplateDef> All =
     [

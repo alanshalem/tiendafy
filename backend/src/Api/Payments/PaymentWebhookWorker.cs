@@ -87,7 +87,7 @@ public sealed class PaymentWebhookWorker(
         if (result.IsFailure || result.Value.Order is null) return;
 
         // Side-effects (emails) según lo que cambió.
-        var email = sp.GetRequiredService<IEmailSender>();
+        var email = sp.GetRequiredService<BrandedEmailSender>();
         var order = result.Value.Order;
         switch (result.Value.Outcome)
         {
@@ -95,7 +95,7 @@ public sealed class PaymentWebhookWorker(
                 await sp.GetRequiredService<OrderPaidNotifier>().NotifyAsync(order, ct);
                 break;
             case SettleOutcome.Refunded:
-                await email.SendAsync(order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
+                await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
                 break;
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);

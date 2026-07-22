@@ -4,14 +4,27 @@ using SharedKernel.Common;
 
 namespace Checkout.Core.Features.SubmitCheckout;
 
-public sealed record SubmitCheckoutCommand(TenantId TenantId, Guid SessionId, string Email);
+public sealed record SubmitCheckoutCommand(
+    TenantId TenantId,
+    Guid SessionId,
+    string Email,
+    string? BuyerName = null,
+    string? BuyerLastName = null,
+    string? Phone = null,
+    string? DocNumber = null,
+    string? Notes = null,
+    Guid? ShippingMethodId = null,
+    string? ShippingAddress = null);
 
 /// <summary>
 /// La saga orquestada simple del checkout (sin framework, con disciplina):
 /// reservar stock item por item; si CUALQUIERA falla, liberar todas las
 /// reservas previas y devolver el error. Todo o nada.
 /// </summary>
-public sealed class SubmitCheckoutHandler(ICheckoutRepository repository, IInventoryService inventory)
+public sealed class SubmitCheckoutHandler(
+    ICheckoutRepository repository,
+    IShippingMethodRepository shippingMethods,
+    IInventoryService inventory)
 {
     public async Task<Result<CheckoutSession>> HandleAsync(SubmitCheckoutCommand command, CancellationToken ct = default)
     {
@@ -26,6 +39,25 @@ public sealed class SubmitCheckoutHandler(ICheckoutRepository repository, IInven
         if (session.IsExpired(DateTime.UtcNow))
             return Result.Failure<CheckoutSession>(Error.Conflict(
                 "Checkout.Expired", "Checkout session expired. Start again."));
+
+        // Envío: el costo SIEMPRE sale del método persistido, nunca del cliente.
+        if (command.ShippingMethodId is { } methodId)
+        {
+            var method = await shippingMethods.GetActiveByIdAsync(command.TenantId, methodId, ct);
+            if (method is null)
+                return Result.Failure<CheckoutSession>(Error.Validation(
+                    "Checkout.InvalidShipping", "El medio de envío elegido ya no está disponible."));
+
+            var address = method.Kind == ShippingKind.Pickup ? method.PickupAddress : command.ShippingAddress;
+            if (method.Kind == ShippingKind.Delivery && string.IsNullOrWhiteSpace(address))
+                return Result.Failure<CheckoutSession>(Error.Validation(
+                    "Checkout.MissingAddress", "Falta la dirección de entrega."));
+
+            var ship = session.SetShipping(method.Id, method.Name, method.Price, address);
+            if (ship.IsFailure) return Result.Failure<CheckoutSession>(ship.Error);
+        }
+
+        session.SetRecipient(command.BuyerName, command.BuyerLastName, command.Phone, command.DocNumber, command.Notes);
 
         // Fase de reservas, con compensación ante el primer fallo.
         var reserved = new Dictionary<Guid, Guid>(); // variantId → reservationId

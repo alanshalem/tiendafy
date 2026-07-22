@@ -38,10 +38,18 @@ public static class OrderEndpoints
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
+            // El envío viaja como ítem más de la preference (MP no tiene campo aparte
+            // en este flujo); el monto sale del snapshot de la orden, no del cliente.
+            var prefItems = order.Items.Select(ToPreferenceItem).ToList();
+            if (order.ShippingCost.AmountInMinorUnits > 0)
+                prefItems.Add(new PreferenceItem(
+                    order.ShippingMethodName is { Length: > 0 } sm ? $"Envío · {sm}" : "Envío",
+                    1, order.ShippingCost.ToDecimal()));
+
             var baseUrl = (request.ReturnUrl ?? string.Empty).TrimEnd('/');
             var prefResult = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
                 tenant.TenantId, order.Id, order.Currency,
-                order.Items.Select(ToPreferenceItem).ToList(),
+                prefItems,
                 order.BuyerEmail,
                 SuccessUrl: $"{baseUrl}/checkout/success?order={order.Id}",
                 FailureUrl: $"{baseUrl}/checkout/failure?order={order.Id}",
@@ -240,9 +248,19 @@ public static class OrderEndpoints
         var lines = session.Items.Select(i => new CreateOrderLine(
             i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId)).ToList();
 
+        var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+
         return await createOrder.HandleAsync(new CreateOrderCommand(
             tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
-            discount.IsZero ? null : discount, code.Length > 0 ? code : null), ct);
+            discount.IsZero ? null : discount, code.Length > 0 ? code : null,
+            ShippingCost: session.ShippingCost,
+            ShippingMethodName: session.ShippingMethodName,
+            ShippingAddress: session.ShippingAddress,
+            BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,
+            BuyerPhone: session.Phone,
+            DocNumber: session.DocNumber,
+            Notes: session.Notes), ct);
     }
 
     private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
@@ -265,6 +283,13 @@ public static class OrderEndpoints
         order.FulfilledAtUtc,
         subtotal = ApiJson.MoneyJson(order.Subtotal),
         discount = ApiJson.MoneyJson(order.DiscountAmount),
+        shipping = ApiJson.MoneyJson(order.ShippingCost),
+        shippingMethod = order.ShippingMethodName,
+        shippingAddress = order.ShippingAddress,
+        buyerName = order.BuyerName,
+        buyerPhone = order.BuyerPhone,
+        docNumber = order.DocNumber,
+        notes = order.Notes,
         total = ApiJson.MoneyJson(order.Total),
         refunded = ApiJson.MoneyJson(order.RefundedAmount),
         refundable = ApiJson.MoneyJson(order.RemainingRefundable),

@@ -35,6 +35,19 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
             .HasColumnName("refunded_amount")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+        order.Property(o => o.ShippingCost)
+            .HasConversion(
+                m => m.AmountInMinorUnits + "|" + m.Currency,
+                s => ParseMoney(s))
+            .HasColumnName("shipping_cost")
+            .HasMaxLength(24)
+            .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+        order.Property(o => o.ShippingMethodName).HasMaxLength(120);
+        order.Property(o => o.ShippingAddress).HasMaxLength(300);
+        order.Property(o => o.BuyerName).HasMaxLength(170);
+        order.Property(o => o.BuyerPhone).HasMaxLength(40);
+        order.Property(o => o.DocNumber).HasMaxLength(20);
+        order.Property(o => o.Notes).HasMaxLength(500);
         order.HasIndex(o => new { o.TenantId, o.CreatedAtUtc });
         order.HasIndex(o => o.PaymentId);
         order.Ignore(o => o.DomainEvents);

@@ -9,7 +9,9 @@ public sealed record CreateOrderLine(
 
 public sealed record CreateOrderCommand(
     TenantId TenantId, Guid CheckoutSessionId, string BuyerEmail, string Currency,
-    IReadOnlyList<CreateOrderLine> Lines, Money? Discount = null, string? CouponCode = null);
+    IReadOnlyList<CreateOrderLine> Lines, Money? Discount = null, string? CouponCode = null,
+    Money? ShippingCost = null, string? ShippingMethodName = null, string? ShippingAddress = null,
+    string? BuyerName = null, string? BuyerPhone = null, string? DocNumber = null, string? Notes = null);
 
 public sealed class CreateOrderHandler(IOrderRepository repository)
 {
@@ -21,6 +23,11 @@ public sealed class CreateOrderHandler(IOrderRepository repository)
             command.Discount, command.CouponCode);
 
         if (result.IsFailure) return result;
+
+        result.Value.SetShippingAndBuyer(
+            command.ShippingCost ?? Money.Zero(command.Currency),
+            command.ShippingMethodName, command.ShippingAddress,
+            command.BuyerName, command.BuyerPhone, command.DocNumber, command.Notes);
 
         await repository.AddAsync(result.Value, ct);
         await repository.SaveChangesAsync(ct);

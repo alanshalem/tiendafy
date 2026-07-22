@@ -40,7 +40,7 @@ public sealed class AbandonedCartWorker(
         var checkoutDb = sp.GetRequiredService<CheckoutDbContext>();
         var ordersDb = sp.GetRequiredService<OrdersDbContext>();
         var tenancy = sp.GetRequiredService<TenancyDbContext>();
-        var email = sp.GetRequiredService<IEmailSender>();
+        var email = sp.GetRequiredService<BrandedEmailSender>();
 
         var now = DateTime.UtcNow;
         var oldest = now - MaxAge;
@@ -84,7 +84,7 @@ public sealed class AbandonedCartWorker(
                 ? $"https://{t.CustomDomain}"
                 : $"https://{t.Subdomain}.{platform}";
 
-            await email.SendAsync(s.Email!, $"¿Te quedó algo en el carrito de {t.Name}?",
+            await email.SendAsync(s.TenantId.Value, s.Email!, $"¿Te quedó algo en el carrito de {t.Name}?",
                 Body(t.Name, storeUrl, s.Items.Count), ct);
             s.MarkRecoveryEmailed();
             sent++;

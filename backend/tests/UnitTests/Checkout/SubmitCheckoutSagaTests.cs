@@ -68,7 +68,7 @@ public class SubmitCheckoutSagaTests
         var session = TwoItemSession(out _, out _);
         var inventory = new FakeInventory();
         var repository = new FakeCheckoutRepository(session);
-        var handler = new SubmitCheckoutHandler(repository, inventory);
+        var handler = new SubmitCheckoutHandler(repository, new FakeShippingMethods(), inventory);
 
         var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com"));
 
@@ -86,7 +86,7 @@ public class SubmitCheckoutSagaTests
         var inventory = new FakeInventory();
         inventory.OutOfStock.Add(variantB);
         var repository = new FakeCheckoutRepository(session);
-        var handler = new SubmitCheckoutHandler(repository, inventory);
+        var handler = new SubmitCheckoutHandler(repository, new FakeShippingMethods(), inventory);
 
         var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "ana@mail.com"));
 
@@ -104,7 +104,7 @@ public class SubmitCheckoutSagaTests
         var session = TwoItemSession(out _, out _);
         var inventory = new FakeInventory();
         var repository = new FakeCheckoutRepository(session);
-        var handler = new SubmitCheckoutHandler(repository, inventory);
+        var handler = new SubmitCheckoutHandler(repository, new FakeShippingMethods(), inventory);
 
         var result = await handler.HandleAsync(new SubmitCheckoutCommand(Tenant, session.Id, "x"));
 
@@ -112,4 +112,23 @@ public class SubmitCheckoutSagaTests
         Assert.Equal(2, inventory.Released.Count); // ambas reservas devueltas
         Assert.Equal(CheckoutStatus.Open, session.Status);
     }
+}
+
+/// <summary>Sin métodos: el submit sin ShippingMethodId no consulta envíos.</summary>
+file sealed class FakeShippingMethods : IShippingMethodRepository
+{
+    public readonly List<ShippingMethod> Methods = [];
+
+    public Task<ShippingMethod?> GetActiveByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Methods.FirstOrDefault(m => m.Id == id && m.Active));
+
+    public Task<ShippingMethod?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Methods.FirstOrDefault(m => m.Id == id));
+
+    public Task<IReadOnlyList<ShippingMethod>> ListAsync(TenantId tenantId, bool onlyActive, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<ShippingMethod>>(Methods);
+
+    public Task AddAsync(ShippingMethod method, CancellationToken ct = default) { Methods.Add(method); return Task.CompletedTask; }
+    public Task RemoveAsync(ShippingMethod method, CancellationToken ct = default) { Methods.Remove(method); return Task.CompletedTask; }
+    public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
 }
