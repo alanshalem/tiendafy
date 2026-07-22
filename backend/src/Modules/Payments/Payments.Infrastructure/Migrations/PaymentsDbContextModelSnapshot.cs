@@ -94,6 +94,69 @@ namespace Payments.Infrastructure.Migrations
                     b.ToTable("mp_connections", (string)null);
                 });
 
+            modelBuilder.Entity("Payments.Infrastructure.Persistence.PaymentRefund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("AmountInMinorUnits")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount_in_minor_units");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<bool>("IsTotal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_total");
+
+                    b.Property<string>("MercadoPagoRefundId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("mercado_pago_refund_id");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("PaymentId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("requested_by");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payment_refunds");
+
+                    b.HasIndex("TenantId", "OrderId")
+                        .HasDatabaseName("ix_payment_refunds_tenant_id_order_id");
+
+                    b.ToTable("payment_refunds", (string)null);
+                });
+
             modelBuilder.Entity("Payments.Infrastructure.Persistence.PaymentWebhookEvent", b =>
                 {
                     b.Property<Guid>("Id")

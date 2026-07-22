@@ -514,48 +514,55 @@ tiendafy/                              # Monorepo raíz
 ├── ARCHITECTURE.md                    # Este archivo
 ├── README.md                          # Setup rápido del proyecto
 └── LICENSE
-
 ```
 
 ## Conexiones Inter-Módulos
 
 ### Backend → Storefront
+
 - Storefront llama a `/api/v1` del backend
 - Endpoints públicos: `GET /api/v1/tenants/{id}/products`, `GET /api/v1/tenants/{id}/products/{slug}`, `POST /api/v1/tenants/{id}/checkout`
 - Autenticación: JWT en Authorization header
 - Rate limiting: por IP (Cloudflare) + por user_id (Redis)
 
 ### Backend → Admin
+
 - Admin llama a `/api/v1` del backend (igual API, autenticación diferente: sesión + CSRF)
 - Endpoints privados: `POST /api/v1/admin/products`, `GET /api/v1/admin/orders`, `PATCH /api/v1/admin/settings`
 - Autenticación: sesión HTTP-only cookie + CSRF token en form
 - Permisos: granulares por usuario (productos:leer, órdenes:reembolsar, etc)
 
 ### Backend → Base de Datos
+
 - Todas las escritas con `SET LOCAL app.tenant_id` dentro de transacción
 - RLS policies filtran automáticamente por tenant
 - EF Core global query filters como segunda línea de defensa
 
 ### Backend → Message Queue (RabbitMQ)
+
 - Outbox pattern: después de cada escritura, tabla `OutboxEvent` guarda evento + timestamp
 - Worker Host consume Outbox cada N segundos, publica a RabbitMQ, marca como published
 - Si RabbitMQ falla, reintentos exponenciales hasta que se cumpla delivery
 
 ### Backend → Redis
+
 - Cache: productos catalogados (TTL 1h), sesiones de checkout (TTL 30m), rate limits
 - Reservas de stock: SETEX con TTL (checkout expira, reserva se suelta)
 - Sessions: almacenar datos de sesión de usuario si lo necesitamos
 
 ### Storefront → Redis (vía backend)
+
 - Cart: vive en localStorage del navegador + API del backend que lo persiste en Redis por user_id
 - Checkout session: guarda en Redis con idempotency key
 
 ### Admin → Storefront
+
 - No hay comunicación directa
 - Admin cambia temas/secciones → almacena en DB → Storefront relée via ISR/revalidation
 - Admin edita productos → webhook al storefront para revalidar caches
 
 ### Integración Externa: Mercado Pago
+
 - Backend inicia pago → llama a MP API → devuelve URL de MPago
 - Storefront redirige comprador a MP
 - MP redirige de vuelta a storefront con status
@@ -566,6 +573,7 @@ tiendafy/                              # Monorepo raíz
 ## Despliegue
 
 ### Local (docker-compose.dev.yml)
+
 ```
 docker-compose -f infra/docker/docker-compose.dev.yml up
 - PostgreSQL en 5432
@@ -578,6 +586,7 @@ docker-compose -f infra/docker/docker-compose.dev.yml up
 ```
 
 ### Staging
+
 - Terraform provisiona infraestructura en Cloud Run / ECS Fargate
 - CI/CD pushea imagen a container registry
 - Deployment automático desde main
@@ -585,6 +594,7 @@ docker-compose -f infra/docker/docker-compose.dev.yml up
 - Admin en `https://admin-staging.platform.com`
 
 ### Producción
+
 - Mismo flujo, con approvals manuales
 - Canary deployment: 10% tráfico → 50% → 100%
 - Feature flags para cambios arriesgados
@@ -593,11 +603,13 @@ docker-compose -f infra/docker/docker-compose.dev.yml up
 ## Observabilidad
 
 Todos los hosts (Api, Worker, Storefront, Admin) emiten:
+
 - Traces: OpenTelemetry → Grafana Tempo
 - Métricas: Prometheus → Grafana
 - Logs: Structurados (Serilog) → Grafana Loki, correlacionados por trace_id
 
 Dashboards:
+
 - API latency + throughput + error rates
 - Checkout funnel (% por etapa)
 - Worker queue depth + job duration

@@ -89,6 +89,13 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{ctx.Connection.RemoteIpAddress}:{ctx.Request.Path}",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
+
+    // Pagos: frena card-testing (probar tarjetas robadas contra pay-onsite) sin
+    // molestar a un comprador real. Por IP+ruta, más laxo que "auth".
+    options.AddPolicy("payments", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{ctx.Connection.RemoteIpAddress}:{ctx.Request.Path}",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 15, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
 });
 
 // Cifrado de secretos en reposo (tokens OAuth de MercadoPago, claves AFIP).

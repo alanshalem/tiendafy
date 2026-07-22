@@ -9,14 +9,76 @@ default 0%.
 ## Estado
 
 - ✅ Fase 1A — Conexión OAuth (connect / callback / disconnect / preferencias).
-- ✅ Fase 1B — **Checkout Pro end-to-end**:
-  - Módulo `Orders` (Order desde CheckoutSession, estados PendingPayment→Paid/Failed/…).
-  - `POST /api/v1/checkout/{id}/pay` → crea Order + preference MP → devuelve `init_point`.
-  - Webhook `POST /api/v1/payments/webhooks/mercadopago` (firma HMAC, dedup idempotente, worker async).
-  - Storefront: carrito → email → "Pagar con Mercado Pago" → redirect; páginas `/checkout/success|failure|pending`.
-  - Admin: **Ventas** (`/ventas`) con lista + detalle.
-- ⏳ Fase 2 — Checkout API/Bricks on-site.
-- ⏳ Extras — refunds, chargebacks, emails.
+- ✅ Fase 1B — **Checkout Pro end-to-end** (preference → redirect → webhook → orden Pagada).
+- ✅ Fase 2 — **Checkout API/Bricks on-site**: Payment Brick en el storefront,
+  `POST /checkout/{id}/pay-onsite`, settle inmediato + webhook como backup.
+- ✅ Modo de cobro **elegible por tienda** desde el admin (PRO/API, comparativa visual).
+- ✅ **Refunds totales y parciales** con auditoría, historial y sync desde MP.
+- ✅ Emails (compra, envío, reembolso total), chargebacks (estado `ChargedBack`).
+
+## Arquitectura
+
+```
+storefront CheckoutClient ─┬─ PRO: POST /checkout/{id}/pay        → redirect init_point
+                           └─ API: Payment Brick (tokeniza en el navegador)
+                                   POST /checkout/{id}/pay-onsite → settle inmediato
+
+admin MercadoPagoConnect ── OAuth + modo de cobro + statement descriptor
+admin Ventas ────────────── refund total/parcial + historial (GET /orders/{id}/refunds)
+
+API Modules/Payments
+  MercadoPagoOAuthClient      OAuth connect/refresh (token vence ~6 meses)
+  MercadoPagoCheckoutClient   preferences, card payments, refunds (con monto)
+  MercadoPagoWebhookValidator HMAC x-signature + anti-replay 5 min
+  PaymentWebhookEvent         inbox durable → PaymentWebhookWorker (polling 5s, 6 reintentos)
+  PaymentRefund               auditoría de reembolsos (payment_refunds)
+
+API Modules/Orders
+  Order                       PendingPayment→Paid→Fulfilled / Failed / Refunded /
+                              PartiallyRefunded / ChargedBack + RefundedAmount
+  SettlePaymentHandler        aplica resultado idempotente + sync refunds parciales
+```
+
+Claves de diseño:
+
+- **El monto SIEMPRE sale del servidor**: la Order se construye desde la
+  `CheckoutSession` (stock ya reservado) y el cupón se recalcula server-side.
+- `Order.Id` = `external_reference` en MP (reconciliación).
+- Modo API: la tarjeta se tokeniza **en el navegador** con la `publicKey` del
+  seller — el PAN jamás toca nuestra API (PCI queda en MP). `binary_mode=false`
+  permite challenge 3DS.
+
+## Reembolsos
+
+`POST /api/v1/orders/{id}/refund` (admin, `RequireTenantMembership`):
+
+```json
+{ "amount": 1500.50, "reason": "producto dañado" }   // parcial
+{ "amount": null }                                    // total (lo que quede)
+```
+
+- Validación server-side: orden `Paid|Fulfilled|PartiallyRefunded`, monto > 0 y
+  ≤ `RemainingRefundable`.
+- **Auditoría** en `payment_refunds`: quién (email admin), cuándo, monto, motivo,
+  id del refund en MP. Historial: `GET /api/v1/orders/{id}/refunds`.
+- **Idempotencia**: la `X-Idempotency-Key` hacia MP es el id del registro de
+  auditoría — única por intento (retry de red no duplica; dos parciales sí son dos).
+- Parcial → `PartiallyRefunded` (acumula `RefundedAmount`); al completar el total
+  → `Refunded` + email "cancelacion-compra".
+- Concurrencia: lock por orden (`SemaphoreSlim`).
+- Refunds hechos en el **dashboard de MP** se sincronizan por webhook: el worker
+  compara `transaction_amount_refunded` contra lo local y aplica la diferencia.
+
+## Seguridad (checklist)
+
+- [x] Firma HMAC-SHA256 en todos los webhooks (canonical `id:{data.id};request-id:{x-request-id};ts:{ts};`), 401 si inválida; anti-replay 5 min; comparación en tiempo constante.
+- [x] Monto server-side; cupones recalculados; nunca del cliente.
+- [x] `X-Idempotency-Key` en pagos (orderId) y refunds (auditId por intento).
+- [x] Tokens OAuth cifrados en reposo; nunca logueados.
+- [x] Tarjeta tokenizada en el navegador (Brick); el PAN no pasa por la API.
+- [x] `refund` y `fulfill` exigen auth + membership del tenant.
+- [x] Rate limiting: policy `payments` (15 req/5 min por IP+ruta) en `pay` y
+      `pay-onsite` contra card-testing; techo global 300/min.
 
 ## Config (NO commitear secretos)
 
@@ -48,10 +110,13 @@ Variables que el script puede setear solo (override de appsettings, separador `_
    `RedirectUri` (callback OAuth) y `PublicApiBaseUrl` (notification_url de webhooks) de la API.
 5. **Registrar el Redirect URI** en tu app de MercadoPago: `https://xxxx.trycloudflare.com/api/v1/payments/mercadopago/callback`
    (la URL del quick tunnel cambia en cada corrida; actualizala en MP).
-6. **Conectar**: admin → Configuración → Medios de pago → "Conectá tu cuenta" (logueate con el test user vendedor).
-7. **Comprar**: en el storefront agregá un producto → carrito → email → "Pagar con Mercado Pago".
-8. **Tarjeta de prueba** (forzar estado por nombre del titular): `APRO` aprueba, `OTHE` rechaza, `CONT` pendiente.
-9. El **webhook** concilia la orden solo → la ves en admin → **Ventas** como "Pagada".
+6. **Conectar**: admin → Configuración → Medios de pago → "Conectá tu cuenta" (test user vendedor).
+7. **Elegir modo**: en la misma pantalla, Checkout Pro o Checkout integrado (aplica al instante).
+8. **Comprar**: storefront → producto → carrito → checkout. Con modo API el
+   formulario de tarjeta aparece embebido; con PRO redirige a MP.
+9. **Tarjeta de prueba** (estado por nombre del titular): `APRO` aprueba, `OTHE` rechaza, `CONT` pendiente.
+10. **Reembolsar**: admin → Ventas → expandir la orden → Reembolsar (total o
+    parcial con monto y motivo). El historial queda en el mismo modal.
 
 ## Reglas no-negociables (SDK MP)
 
@@ -60,11 +125,19 @@ Variables que el script puede setear solo (override de appsettings, separador `_
 - Webhooks: validar firma HMAC-SHA256, responder 200 antes de procesar, dedup idempotente.
 - Nunca confiar en query params del redirect: reconciliar server-side con `GET /v1/payments/{id}`.
 - `access_token` del seller vence ~6 meses: se refresca solo con `refresh_token`.
+- Refunds: hasta 180 días del pago; la idempotency key debe variar entre parciales.
 
-## Notas / pendientes conocidos
+## Troubleshooting
 
-- El **descuento de cupón** del carrito todavía NO viaja al monto cobrado (el Order toma el snapshot del CheckoutSession sin cupón). Pendiente para cuando el cupón se modele en el checkout server-side.
-- Sin `WebhookSecret` configurado, el receiver rechaza los webhooks (firma inválida) → la orden queda "Pendiente". Es esperado: configurá el secret.
+| Síntoma | Causa probable |
+|---|---|
+| Webhook responde 401 | `WebhookSecret` ausente/incorrecto, o reloj desfasado > 5 min |
+| Pago aprobado pero orden Pendiente | `PublicApiBaseUrl` no accesible desde MP (falta túnel en dev) |
+| `MercadoPago.NotConnected` | El tenant no completó OAuth o desconectó la cuenta |
+| Refund falla en MP | Pago no aprobado, ya reembolsado por completo, o > 180 días |
+| Brick no carga en storefront | Modo API sin `publicKey` (reconectar OAuth) |
+| Eventos `dead` en inbox | Ver `last_error` en `payment_webhook_events` (6 reintentos máx.) |
+| 429 en checkout | Rate limit `payments` (15/5min por IP+ruta) — esperar la ventana |
 
 ## Producción
 

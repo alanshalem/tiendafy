@@ -9,9 +9,10 @@ public enum OrderStatus
     Paid = 1,           // pago aprobado; reservas de stock confirmadas
     Failed = 2,         // pago rechazado
     Cancelled = 3,      // cancelada (expiró / usuario abandonó)
-    Refunded = 4,       // reembolsada tras estar pagada
+    Refunded = 4,       // reembolsada por el total tras estar pagada
     Fulfilled = 5,      // entregada (módulo de fulfillment, futuro)
     ChargedBack = 6,    // contracargo / disputa del comprador
+    PartiallyRefunded = 7, // reembolso parcial acumulado < total
 }
 
 /// <summary>
@@ -30,6 +31,7 @@ public sealed class Order : AggregateRoot
     public string? PaymentId { get; private set; }
     public string? CouponCode { get; private set; }
     public Money DiscountAmount { get; private set; }
+    public Money RefundedAmount { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? PaidAtUtc { get; private set; }
     public string? Tracking { get; private set; }
@@ -65,6 +67,7 @@ public sealed class Order : AggregateRoot
             Currency = currency,
             BuyerEmail = email,
             DiscountAmount = discount ?? Money.Zero(currency),
+            RefundedAmount = Money.Zero(currency),
             CouponCode = string.IsNullOrWhiteSpace(couponCode) ? null : couponCode.Trim().ToUpperInvariant(),
             CreatedAtUtc = DateTime.UtcNow,
         };
@@ -131,11 +134,45 @@ public sealed class Order : AggregateRoot
         return Result.Success();
     }
 
-    /// <summary>Reembolso total tras estar pagada. Idempotente.</summary>
+    /// <summary>Monto que todavía se puede reembolsar (total − reembolsado acumulado).</summary>
+    public Money RemainingRefundable =>
+        RefundedAmount.AmountInMinorUnits >= Total.AmountInMinorUnits
+            ? Money.Zero(Currency)
+            : Total - RefundedAmount;
+
+    /// <summary>
+    /// Aplica un reembolso (parcial o total) sobre una orden pagada/despachada.
+    /// Acumula el monto; al llegar al total la orden pasa a Refunded, antes queda
+    /// en PartiallyRefunded.
+    /// </summary>
+    public Result ApplyRefund(Money amount)
+    {
+        if (amount.Currency != Currency)
+            return Result.Failure(Error.Validation("Refund.CurrencyMismatch",
+                $"El reembolso debe ser en {Currency}."));
+        if (amount.AmountInMinorUnits <= 0)
+            return Result.Failure(Error.Validation("Refund.InvalidAmount",
+                "El monto a reembolsar debe ser mayor a cero."));
+        if (Status is not (OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.PartiallyRefunded))
+            return Result.Failure(Error.Conflict("Order.NotRefundable",
+                $"Order is {Status}, solo se puede reembolsar una orden pagada."));
+        if (amount > RemainingRefundable)
+            return Result.Failure(Error.Validation("Refund.ExceedsRemaining",
+                $"El monto supera lo reembolsable ({RemainingRefundable})."));
+
+        RefundedAmount += amount;
+        Status = RefundedAmount.AmountInMinorUnits >= Total.AmountInMinorUnits
+            ? OrderStatus.Refunded
+            : OrderStatus.PartiallyRefunded;
+        return Result.Success();
+    }
+
+    /// <summary>Reembolso total (webhook "refunded" o botón total). Idempotente.</summary>
     public bool MarkRefunded()
     {
         if (Status == OrderStatus.Refunded) return false;
-        if (Status != OrderStatus.Paid && Status != OrderStatus.Fulfilled) return false;
+        if (Status is not (OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.PartiallyRefunded)) return false;
+        RefundedAmount = Total;
         Status = OrderStatus.Refunded;
         return true;
     }

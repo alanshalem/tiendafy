@@ -28,6 +28,13 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
                 s => ParseMoney(s))
             .HasColumnName("discount_amount")
             .HasMaxLength(24);
+        order.Property(o => o.RefundedAmount)
+            .HasConversion(
+                m => m.AmountInMinorUnits + "|" + m.Currency,
+                s => ParseMoney(s))
+            .HasColumnName("refunded_amount")
+            .HasMaxLength(24)
+            .HasDefaultValue(new Money(0, Money.DefaultCurrency));
         order.HasIndex(o => new { o.TenantId, o.CreatedAtUtc });
         order.HasIndex(o => o.PaymentId);
         order.Ignore(o => o.DomainEvents);
@@ -35,6 +42,7 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
         order.Ignore(o => o.Subtotal);
         order.Ignore(o => o.ReservationIds);
         order.Ignore(o => o.IsPending);
+        order.Ignore(o => o.RemainingRefundable);
 
         order.OwnsMany(o => o.Items, items =>
         {

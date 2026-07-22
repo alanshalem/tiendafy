@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Core.Features;
 using Payments.Contracts;
+using Payments.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
@@ -52,7 +53,7 @@ public static class OrderEndpoints
             order.AttachPreference(prefResult.Value.PreferenceId);
             await orders.SaveChangesAsync(ct);
             return Results.Ok(new { orderId = order.Id, initPoint = prefResult.Value.InitPoint });
-        });
+        }).RequireRateLimiting("payments");
 
         // Pagar on-site (Checkout API/Bricks): el front tokeniza la tarjeta.
         group.MapPost("/checkout/{id:guid}/pay-onsite", async (
@@ -83,12 +84,12 @@ public static class OrderEndpoints
             var card = payResult.Value;
 
             // Aplicar el resultado ya (el webhook es backup, idempotente).
-            var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct);
+            var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
             if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
                 await notifier.NotifyAsync(settleResult.Value.Order, ct);
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
-        });
+        }).RequireRateLimiting("payments");
 
         group.MapGet("/orders/{id:guid}", async (
             Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
@@ -118,13 +119,16 @@ public static class OrderEndpoints
             await orders.SaveChangesAsync(ct);
             await notifier.NotifyAsync(order, "confirmacion-envio", ct);
             return Results.Ok(ToDto(order));
-        });
+        }).RequireTenantMembership();
 
-        // Reembolso total (admin). MP refund → Refunded + email.
+        // Reembolso total o parcial (admin). MP refund → estado + auditoría + email.
         // Lock por orden + recarga dentro del lock: dos requests concurrentes no
-        // disparan dos refunds ni dos emails (el dinero ya es idempotente en MP).
+        // disparan dos refunds ni dos emails. La clave de idempotencia hacia MP es
+        // el id del registro de auditoría: única por intento, así los parciales
+        // sucesivos no se deduplican entre sí pero un retry de red sí.
         group.MapPost("/orders/{id:guid}/refund", async (
-            Guid id, ITenantContext tenant, IOrderRepository orders, IMercadoPagoPaymentService mp, OrderNotifier notifier, CancellationToken ct) =>
+            Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
@@ -136,22 +140,73 @@ public static class OrderEndpoints
                 if (order is null) return Results.NotFound();
                 if (string.IsNullOrEmpty(order.PaymentId))
                     return Error.Validation("Order.NoPayment", "El pedido no tiene un pago para reembolsar.").ToProblem();
-                if (order.Status is not (OrderStatus.Paid or OrderStatus.Fulfilled))
+                if (order.Status is not (OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.PartiallyRefunded))
                     return Error.Conflict("Order.NotRefundable", "Solo se puede reembolsar un pedido pagado.").ToProblem();
 
-                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId, ct);
-                if (refund.IsFailure) return refund.Error.ToProblem();
+                // Monto: null/0 = todo lo que queda; con valor = parcial validado server-side.
+                var remaining = order.RemainingRefundable;
+                var isTotal = req.Amount is null or <= 0m;
+                var amount = isTotal ? remaining : Money.FromDecimal(req.Amount!.Value, order.Currency);
+                if (amount.AmountInMinorUnits <= 0)
+                    return Error.Validation("Refund.InvalidAmount", "No queda monto por reembolsar.").ToProblem();
+                if (amount > remaining)
+                    return Error.Validation("Refund.ExceedsRemaining",
+                        $"El monto supera lo reembolsable ({remaining}).").ToProblem();
 
-                if (!order.MarkRefunded()) return Results.Ok(ToDto(order)); // ya estaba reembolsada
+                var requestedBy = http.User.Identity?.Name
+                    ?? http.User.GetUserId()?.ToString() ?? "admin";
+                var audit = PaymentRefund.Create(
+                    Guid.NewGuid(), tenant.TenantId.Value, order.Id, order.PaymentId!,
+                    amount.AmountInMinorUnits, order.Currency,
+                    isTotal && order.RefundedAmount.IsZero, req.Reason, requestedBy);
+
+                // MP primero (la plata), estado local después. amount null a MP = total
+                // del pago; con parciales previos siempre mandamos monto explícito.
+                var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
+                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, audit.Id.ToString(), ct);
+                if (refund.IsFailure) return refund.Error.ToProblem();
+                audit.AttachMercadoPagoId(refund.Value.RefundId);
+
+                var applied = order.ApplyRefund(amount);
+                if (applied.IsFailure) return applied.Error.ToProblem();
+
                 await orders.SaveChangesAsync(ct);
-                await notifier.NotifyAsync(order, "cancelacion-compra", ct);
+                paymentsDb.PaymentRefunds.Add(audit);
+                await paymentsDb.SaveChangesAsync(ct);
+
+                if (order.Status == OrderStatus.Refunded)
+                    await notifier.NotifyAsync(order, "cancelacion-compra", ct);
                 return Results.Ok(ToDto(order));
             }
             finally
             {
                 gate.Release();
             }
-        });
+        }).RequireTenantMembership();
+
+        // Historial de reembolsos de una orden (admin).
+        group.MapGet("/orders/{id:guid}/refunds", async (
+            Guid id, ITenantContext tenant, PaymentsDbContext paymentsDb, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+            var items = await paymentsDb.PaymentRefunds.AsNoTracking()
+                .Where(r => r.TenantId == tenant.TenantId.Value && r.OrderId == id)
+                .OrderByDescending(r => r.CreatedAtUtc)
+                .ToListAsync(ct);
+            return Results.Ok(new
+            {
+                items = items.Select(r => new
+                {
+                    r.Id,
+                    amount = ApiJson.MoneyJson(new Money(r.AmountInMinorUnits, r.Currency)),
+                    r.IsTotal,
+                    r.Reason,
+                    r.RequestedBy,
+                    mpRefundId = r.MercadoPagoRefundId,
+                    r.CreatedAtUtc,
+                }),
+            });
+        }).RequireTenantMembership();
 
         return group;
     }
@@ -211,6 +266,8 @@ public static class OrderEndpoints
         subtotal = ApiJson.MoneyJson(order.Subtotal),
         discount = ApiJson.MoneyJson(order.DiscountAmount),
         total = ApiJson.MoneyJson(order.Total),
+        refunded = ApiJson.MoneyJson(order.RefundedAmount),
+        refundable = ApiJson.MoneyJson(order.RemainingRefundable),
         items = order.Items.Select(i => new
         {
             i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.Quantity,
@@ -220,6 +277,8 @@ public static class OrderEndpoints
 }
 
 public sealed record FulfillRequest(string? Tracking);
+
+public sealed record RefundRequest(decimal? Amount, string? Reason);
 
 public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode);
 

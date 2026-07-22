@@ -83,6 +83,14 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("preference_id");
 
+                    b.Property<string>("RefundedAmount")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("0|ARS")
+                        .HasColumnName("refunded_amount");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

@@ -162,28 +162,39 @@ public sealed class MercadoPagoCheckoutClient(
             Status: root.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown",
             StatusDetail: root.TryGetProperty("status_detail", out var sd) ? sd.GetString() ?? string.Empty : string.Empty,
             ExternalReference: root.TryGetProperty("external_reference", out var er) ? er.GetString() : null,
-            TransactionAmount: root.TryGetProperty("transaction_amount", out var ta) && ta.ValueKind == JsonValueKind.Number ? ta.GetDecimal() : 0m);
+            TransactionAmount: root.TryGetProperty("transaction_amount", out var ta) && ta.ValueKind == JsonValueKind.Number ? ta.GetDecimal() : 0m,
+            TransactionAmountRefunded: root.TryGetProperty("transaction_amount_refunded", out var tar) && tar.ValueKind == JsonValueKind.Number ? tar.GetDecimal() : 0m);
     }
 
-    public async Task<Result> RefundAsync(TenantId tenantId, string paymentId, CancellationToken ct = default)
+    public async Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default)
     {
         var tokenResult = await GetSellerTokenAsync(tenantId, ct);
-        if (tokenResult.IsFailure) return Result.Failure(tokenResult.Error);
+        if (tokenResult.IsFailure) return Result.Failure<RefundResult>(tokenResult.Error);
 
-        // Refund total: POST /v1/payments/{id}/refunds con body vacío.
+        // POST /v1/payments/{id}/refunds — body vacío = total; { amount } = parcial.
+        // La clave de idempotencia viene del caller y es única POR INTENTO: una
+        // clave fija por pago haría que MP deduplique parciales sucesivos.
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/v1/payments/{paymentId}/refunds");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Value.AccessToken);
-        req.Headers.TryAddWithoutValidation("X-Idempotency-Key", $"refund-{paymentId}");
-        req.Content = JsonContent.Create(new { });
+        req.Headers.TryAddWithoutValidation("X-Idempotency-Key", idempotencyKey);
+        req.Content = amount is { } a
+            ? JsonContent.Create(new { amount = Math.Round(a, 2) })
+            : JsonContent.Create(new { });
 
         using var resp = await http.SendAsync(req, ct);
+        var json = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            var json = await resp.Content.ReadAsStringAsync(ct);
             logger.LogError("MercadoPago refund {Id} error {Status}: {Body}", paymentId, (int)resp.StatusCode, json);
-            return Result.Failure(new Error("MercadoPago.RefundFailed", "No se pudo reembolsar el pago en MercadoPago."));
+            return Result.Failure<RefundResult>(new Error("MercadoPago.RefundFailed",
+                "No se pudo reembolsar el pago en MercadoPago."));
         }
-        return Result.Success();
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        return new RefundResult(
+            RefundId: root.TryGetProperty("id", out var rid) ? rid.ToString() : string.Empty,
+            Amount: root.TryGetProperty("amount", out var am) && am.ValueKind == JsonValueKind.Number ? am.GetDecimal() : amount ?? 0m);
     }
 
     /// <summary>Carga la conexión del tenant, refresca el token si está por vencer, y devuelve el access_token descifrado.</summary>

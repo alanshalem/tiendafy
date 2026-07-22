@@ -227,18 +227,68 @@ function ConnectedView({
             onClick={() => onMode('PRO')}
             icon={<Zap className="h-4 w-4" />}
             title="Checkout Pro"
-            tag="Mayor conversión"
-            desc="El cliente paga en Mercado Pago y vuelve a tu tienda. Simple y con la mejor tasa de aprobación."
+            tag="Recomendado para empezar"
+            desc="El cliente paga en la página de Mercado Pago y vuelve a tu tienda. Cero fricción para arrancar y la mejor tasa de aprobación."
+            preview={<PreviewPro />}
           />
           <ModeCard
             active={conn.checkoutMode === 'API'}
             onClick={() => onMode('API')}
             icon={<ShieldCheck className="h-4 w-4" />}
-            title="Checkout on-site"
-            tag="En preparación"
-            desc="El cliente paga sin salir de tu tienda, con tu diseño. Se activa en una próxima actualización."
+            title="Checkout integrado"
+            tag="Experiencia premium"
+            desc="El cliente carga su tarjeta sin salir de tu tienda, con tu diseño. Más control sobre la experiencia de compra."
+            preview={<PreviewApi />}
           />
         </div>
+
+        <Helper title="¿Cuál me conviene? Comparación completa">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-xs">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-2 pr-3 font-medium text-fg-muted" />
+                  <th className="py-2 pr-3 font-semibold text-fg">Checkout Pro</th>
+                  <th className="py-2 font-semibold text-fg">Checkout integrado</th>
+                </tr>
+              </thead>
+              <tbody className="[&_td]:py-2 [&_td]:pr-3 [&_tr]:border-b [&_tr]:border-border/60">
+                <tr>
+                  <td className="font-medium text-fg-muted">Dónde paga el cliente</td>
+                  <td>En la página de Mercado Pago (sale de tu tienda y vuelve)</td>
+                  <td>Dentro de tu tienda, sin redirecciones</td>
+                </tr>
+                <tr>
+                  <td className="font-medium text-fg-muted">Diseño</td>
+                  <td>El de Mercado Pago (conocido por el comprador)</td>
+                  <td>El de tu tienda (colores y marca propios)</td>
+                </tr>
+                <tr>
+                  <td className="font-medium text-fg-muted">Medios de pago</td>
+                  <td>Todos: tarjetas, dinero en cuenta, Rapipago, Pago Fácil, cuotas</td>
+                  <td>Tarjetas de crédito y débito (con cuotas)</td>
+                </tr>
+                <tr>
+                  <td className="font-medium text-fg-muted">Tasa de aprobación</td>
+                  <td>La más alta (el comprador ya está logueado en MP)</td>
+                  <td>Muy buena, puede pedir validación extra (3DS)</td>
+                </tr>
+                <tr>
+                  <td className="font-medium text-fg-muted">Confianza del comprador</td>
+                  <td>Alta: paga en un sitio que ya conoce</td>
+                  <td>Depende de tu marca: no ve el logo de MP hasta el final</td>
+                </tr>
+                <tr>
+                  <td className="font-medium text-fg-muted">Datos de tarjeta</td>
+                  <td colSpan={2}>En ambos casos los procesa Mercado Pago: nunca tocan los servidores de tu tienda (PCI a cargo de MP)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2">
+            Podés cambiar de modo cuando quieras: aplica al instante para las compras nuevas, sin tocar nada más.
+          </p>
+        </Helper>
       </div>
 
       {/* Descriptor en el resumen de tarjeta */}
@@ -273,6 +323,7 @@ function ModeCard({
   title,
   tag,
   desc,
+  preview,
 }: {
   active: boolean;
   onClick: () => void;
@@ -280,6 +331,7 @@ function ModeCard({
   title: string;
   tag: string;
   desc: string;
+  preview?: ReactNode;
 }) {
   return (
     <button
@@ -298,7 +350,58 @@ function ModeCard({
         <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">{tag}</span>
       </div>
       <p className="mt-2 text-xs text-fg-muted">{desc}</p>
+      {preview && <div className="mt-3">{preview}</div>}
     </button>
+  );
+}
+
+/** Mini-mockup de la experiencia Checkout Pro: redirect a mercadopago.com. */
+function PreviewPro() {
+  return (
+    <div className="pointer-events-none select-none overflow-hidden rounded-md border border-border bg-bg-muted/40">
+      <div className="flex items-center gap-1.5 border-b border-border bg-bg-muted px-2 py-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">mercadopago.com.ar</span>
+      </div>
+      <div className="space-y-1.5 p-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="flex h-4 w-4 items-center justify-center rounded-sm text-[7px] font-black text-white" style={{ background: MP_BLUE }}>MP</span>
+          <div className="h-1.5 w-16 rounded bg-border" />
+        </div>
+        <div className="h-1.5 w-24 rounded bg-border/70" />
+        <div className="h-1.5 w-20 rounded bg-border/70" />
+        <div className="mt-1 flex h-5 w-full items-center justify-center rounded text-[9px] font-semibold text-white" style={{ background: MP_BLUE }}>
+          Pagar
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Mini-mockup de la experiencia integrada: formulario de tarjeta en tu tienda. */
+function PreviewApi() {
+  return (
+    <div className="pointer-events-none select-none overflow-hidden rounded-md border border-border bg-bg-muted/40">
+      <div className="flex items-center gap-1.5 border-b border-border bg-bg-muted px-2 py-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">mitienda.com.ar/checkout</span>
+      </div>
+      <div className="space-y-1.5 p-2.5">
+        <div className="h-1.5 w-16 rounded bg-primary/50" />
+        <div className="flex h-5 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">
+          •••• •••• •••• 4242
+        </div>
+        <div className="flex gap-1.5">
+          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">MM/AA</div>
+          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">CVV</div>
+        </div>
+        <div className="mt-1 flex h-5 w-full items-center justify-center rounded bg-primary text-[9px] font-semibold text-primary-fg">
+          Pagar en tu tienda
+        </div>
+      </div>
+    </div>
   );
 }
 

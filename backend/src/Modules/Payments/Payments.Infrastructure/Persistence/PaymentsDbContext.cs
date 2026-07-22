@@ -8,6 +8,7 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 {
     public DbSet<MercadoPagoConnection> MercadoPagoConnections => Set<MercadoPagoConnection>();
     public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
+    public DbSet<PaymentRefund> PaymentRefunds => Set<PaymentRefund>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,17 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
         wh.Property(x => x.DataId).HasMaxLength(64).IsRequired();
         wh.Property(x => x.Status).HasMaxLength(10).IsRequired();
         wh.Property(x => x.LastError).HasMaxLength(500);
+
+        var refund = modelBuilder.Entity<PaymentRefund>();
+        refund.ToTable("payment_refunds");
+        refund.HasKey(r => r.Id);
+        refund.Property(r => r.Id).ValueGeneratedNever();
+        refund.Property(r => r.PaymentId).HasMaxLength(64).IsRequired();
+        refund.Property(r => r.MercadoPagoRefundId).HasMaxLength(64);
+        refund.Property(r => r.Currency).HasMaxLength(3).IsRequired();
+        refund.Property(r => r.Reason).HasMaxLength(500);
+        refund.Property(r => r.RequestedBy).HasMaxLength(200).IsRequired();
+        refund.HasIndex(r => new { r.TenantId, r.OrderId });
 
         var connection = modelBuilder.Entity<MercadoPagoConnection>();
         connection.ToTable("mp_connections");

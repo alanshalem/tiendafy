@@ -6,7 +6,7 @@ using SharedKernel.Common;
 namespace Orders.Core.Features;
 
 /// <summary>Qué pasó al aplicar el pago (para que el caller dispare side-effects como emails).</summary>
-public enum SettleOutcome { NoChange, JustPaid, Failed, Refunded, ChargedBack }
+public enum SettleOutcome { NoChange, JustPaid, Failed, Refunded, ChargedBack, PartiallyRefunded }
 
 public sealed record SettleResult(SettleOutcome Outcome, Order? Order);
 
@@ -20,7 +20,9 @@ public sealed class SettlePaymentHandler(
     ILogger<SettlePaymentHandler> logger)
 {
     /// <param name="mpStatus">approved | pending | in_process | rejected | cancelled | refunded | charged_back ...</param>
-    public async Task<Result<SettleResult>> HandleAsync(Guid orderId, string mpStatus, string? paymentId, CancellationToken ct = default)
+    /// <param name="amountRefunded">transaction_amount_refunded del pago en MP: si supera lo
+    /// registrado localmente, sincroniza reembolsos parciales hechos fuera del sistema.</param>
+    public async Task<Result<SettleResult>> HandleAsync(Guid orderId, string mpStatus, string? paymentId, decimal? amountRefunded = null, CancellationToken ct = default)
     {
         var order = await repository.GetByIdAnyTenantAsync(orderId, ct);
         if (order is null)
@@ -32,6 +34,25 @@ public sealed class SettlePaymentHandler(
         {
             if (!order.IsPending)
             {
+                // Sync de refund parcial hecho en el dashboard de MP: el pago sigue
+                // "approved" pero transaction_amount_refunded crece.
+                if (amountRefunded is > 0m)
+                {
+                    var target = Money.FromDecimal(amountRefunded.Value, order.Currency);
+                    if (target > order.RefundedAmount)
+                    {
+                        var delta = target - order.RefundedAmount;
+                        var applied = order.ApplyRefund(delta);
+                        if (applied.IsSuccess)
+                        {
+                            await repository.SaveChangesAsync(ct);
+                            logger.LogInformation("Order {OrderId}: refund parcial sincronizado desde MP ({Delta}).", orderId, delta);
+                            return new SettleResult(
+                                order.Status == OrderStatus.Refunded ? SettleOutcome.Refunded : SettleOutcome.PartiallyRefunded,
+                                order);
+                        }
+                    }
+                }
                 logger.LogInformation("Order {OrderId} ya {Status}; webhook ignorado (idempotente).", orderId, order.Status);
                 return new SettleResult(SettleOutcome.NoChange, order);
             }

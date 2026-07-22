@@ -38,7 +38,10 @@ public sealed record PaymentStatusDto(
     string Status,
     string StatusDetail,
     string? ExternalReference,
-    decimal TransactionAmount);
+    decimal TransactionAmount,
+    decimal TransactionAmountRefunded = 0m);
+
+public sealed record RefundResult(string RefundId, decimal Amount);
 
 /// <summary>Cobro con MercadoPago en nombre del seller (token OAuth del tenant).</summary>
 public interface IMercadoPagoPaymentService
@@ -52,8 +55,12 @@ public interface IMercadoPagoPaymentService
     /// <summary>Consulta el estado real de un pago (server-side, nunca confiar en el redirect).</summary>
     Task<Result<PaymentStatusDto>> GetPaymentAsync(TenantId tenantId, string paymentId, CancellationToken ct = default);
 
-    /// <summary>Reembolso total de un pago aprobado (MercadoPago refunds API).</summary>
-    Task<Result> RefundAsync(TenantId tenantId, string paymentId, CancellationToken ct = default);
+    /// <summary>
+    /// Reembolso de un pago aprobado (MercadoPago refunds API). <paramref name="amount"/>
+    /// null = total; con valor = parcial. <paramref name="idempotencyKey"/> debe ser único
+    /// por intento de refund (no por pago) para permitir múltiples parciales.
+    /// </summary>
+    Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default);
 }
 
 public sealed record WebhookValidationResult(bool IsValid, string? Type, string? DataId);
