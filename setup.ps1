@@ -97,6 +97,15 @@ Write-Ok "Workspace instalado"
 
 # ---------- 4. Backend: build + tests ----------
 Write-Step "Compilando backend (.NET)"
+# Si la API quedó corriendo (dev-up), bloquea las DLLs y el build falla con
+# MSB3027 "file is locked by: Api". La paramos antes de compilar.
+$apiPids = Get-NetTCPConnection -LocalPort 5080 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique
+if ($apiPids) {
+    Write-Host "    API corriendo en :5080 — la detengo para poder compilar" -ForegroundColor Yellow
+    $apiPids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 2
+}
 dotnet build (Join-Path $root 'backend/backend.slnx') --nologo -v minimal
 if ($LASTEXITCODE -ne 0) { Fail "Build del backend falló" }
 Write-Ok "Backend compila"
