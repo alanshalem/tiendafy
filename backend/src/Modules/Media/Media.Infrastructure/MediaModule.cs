@@ -31,26 +31,30 @@ public static class MediaModule
         return services;
     }
 
-    /// <summary>Crea el bucket con lectura pública si no existe (dev/arranque).</summary>
+    /// <summary>Crea los buckets si no existen (dev/arranque): media con lectura
+    /// pública; privado (adjuntos de chat) sin policy — solo URLs firmadas.</summary>
     public static async Task EnsureMediaBucketAsync(this IServiceProvider services)
     {
         var s3 = services.GetRequiredService<IAmazonS3>();
         var options = services.GetRequiredService<MediaOptions>();
 
-        if (await AmazonS3Util.DoesS3BucketExistV2Async(s3, options.Bucket))
-            return;
-
-        await s3.PutBucketAsync(options.Bucket);
-        await s3.PutBucketPolicyAsync(options.Bucket, $$"""
+        if (!await AmazonS3Util.DoesS3BucketExistV2Async(s3, options.Bucket))
         {
-          "Version": "2012-10-17",
-          "Statement": [{
-            "Effect": "Allow",
-            "Principal": { "AWS": ["*"] },
-            "Action": ["s3:GetObject"],
-            "Resource": ["arn:aws:s3:::{{options.Bucket}}/*"]
-          }]
+            await s3.PutBucketAsync(options.Bucket);
+            await s3.PutBucketPolicyAsync(options.Bucket, $$"""
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "AWS": ["*"] },
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::{{options.Bucket}}/*"]
+              }]
+            }
+            """);
         }
-        """);
+
+        if (!await AmazonS3Util.DoesS3BucketExistV2Async(s3, options.PrivateBucket))
+            await s3.PutBucketAsync(options.PrivateBucket);
     }
 }

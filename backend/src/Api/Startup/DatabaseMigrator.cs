@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;
 using Payments.Infrastructure.Persistence;
+using Support.Infrastructure;
 using Tenancy.Infrastructure.Persistence;
 using Themes.Infrastructure;
 
@@ -45,6 +46,7 @@ public static class DatabaseMigrator
         await MigrateAsync<OrdersDbContext>(sp, logger);
         await MigrateAsync<AnalyticsDbContext>(sp, logger);
         await MigrateAsync<NotificationsDbContext>(sp, logger);
+        await MigrateAsync<SupportDbContext>(sp, logger);
     }
 
     private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)

@@ -13,6 +13,8 @@ public sealed record MediaOptions
     public required string AccessKey { get; init; }
     public required string SecretKey { get; init; }
     public string Bucket { get; init; } = "tiendafy-media";
+    /// <summary>Bucket SIN policy pública: adjuntos de chat, solo URLs firmadas.</summary>
+    public string PrivateBucket { get; init; } = "tiendafy-private";
 }
 
 public interface IMediaStorage
@@ -20,6 +22,17 @@ public interface IMediaStorage
     /// <summary>Sube el archivo y devuelve la URL pública.</summary>
     Task<Result<string>> UploadAsync(
         Guid tenantId, Stream content, string contentType, long length, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sube un archivo PRIVADO (adjuntos de chat: PDF/JPG/PNG, magic bytes
+    /// verificados) y devuelve la CLAVE de storage — nunca una URL pública.
+    /// El acceso es solo vía <see cref="GetSignedUrl"/>.
+    /// </summary>
+    Task<Result<string>> UploadPrivateAsync(
+        Guid tenantId, string prefix, Stream content, string contentType, long length, CancellationToken ct = default);
+
+    /// <summary>URL firmada de lectura, de vida corta, para una clave privada.</summary>
+    string GetSignedUrl(string key, TimeSpan validFor);
 
     /// <summary>Borra el objeto de una URL nuestra (best-effort; ignora URLs externas).</summary>
     Task DeleteAsync(string url, CancellationToken ct = default);
@@ -115,6 +128,69 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
             sanitizedStream?.Dispose();
         }
     }
+
+    public const long MaxAttachmentBytes = 10 * 1024 * 1024; // 10 MB (adjuntos de chat)
+
+    private static readonly Dictionary<string, string> AttachmentTypes = new()
+    {
+        ["application/pdf"] = "pdf",
+        ["image/jpeg"] = "jpg",
+        ["image/png"] = "png",
+    };
+
+    public async Task<Result<string>> UploadPrivateAsync(
+        Guid tenantId, string prefix, Stream content, string contentType, long length, CancellationToken ct = default)
+    {
+        var type = contentType.ToLowerInvariant();
+        if (!AttachmentTypes.TryGetValue(type, out var extension))
+            return Result.Failure<string>(Error.Validation(
+                "Media.UnsupportedType", "Solo se permiten archivos PDF, JPG o PNG."));
+
+        if (length <= 0 || length > MaxAttachmentBytes)
+            return Result.Failure<string>(Error.Validation(
+                "Media.TooLarge", $"El archivo debe pesar hasta {MaxAttachmentBytes / 1024 / 1024} MB."));
+
+        // Extensión declarada no confiable: verificar magic bytes del contenido real.
+        if (content.CanSeek)
+        {
+            var header = new byte[16];
+            var read = await ReadHeaderAsync(content, header, ct);
+            content.Seek(0, SeekOrigin.Begin);
+            var ok = type switch
+            {
+                "application/pdf" => read >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
+                _ => MatchesMagic(type, header, read),
+            };
+            if (!ok)
+                return Result.Failure<string>(Error.Validation(
+                    "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
+        }
+
+        var safePrefix = string.Join('/', prefix.Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => new string([.. s.Where(char.IsLetterOrDigit)])));
+        var key = $"{tenantId}/{safePrefix}/{Guid.NewGuid():N}.{extension}";
+
+        // Bucket privado, separado del de media: no tiene policy de lectura
+        // anónima, así que la ÚNICA forma de leer es una URL firmada.
+        await s3.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = options.PrivateBucket,
+            Key = key,
+            InputStream = content,
+            ContentType = contentType,
+        }, ct);
+
+        return key;
+    }
+
+    public string GetSignedUrl(string key, TimeSpan validFor) =>
+        s3.GetPreSignedURL(new GetPreSignedUrlRequest
+        {
+            BucketName = options.PrivateBucket,
+            Key = key,
+            Expires = DateTime.UtcNow.Add(validFor),
+            Verb = HttpVerb.GET,
+        });
 
     private static async Task<int> ReadHeaderAsync(Stream content, byte[] buffer, CancellationToken ct)
     {

@@ -83,6 +83,7 @@ const sections: NavSection[] = [
       },
       { to: '/clientes', label: 'Clientes' },
       { to: '/mensajes', label: 'Mensajes' },
+      { to: '/posventa', label: 'Chat posventa' },
       { to: '/descuentos', label: 'Descuentos' },
       { to: '/marketing', label: 'Marketing', soon: true },
     ],

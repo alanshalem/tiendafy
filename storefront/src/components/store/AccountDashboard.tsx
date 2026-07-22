@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Heart, LogOut, Package } from 'lucide-react';
+import { Heart, LogOut, MessageCircle, Package } from 'lucide-react';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useAuth } from './auth';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
+import { SupportChat } from './SupportChat';
 
 import { clientJson } from '@/lib/api-client';
 
@@ -39,6 +40,7 @@ export function AccountDashboard() {
   const href = usePreviewHref();
   const { tenantId } = useCart();
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [chatOrder, setChatOrder] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setOrders([]); return; }
@@ -98,11 +100,21 @@ export function AccountDashboard() {
                   ))}
                 </ul>
                 {o.tracking && <p className="mt-2 text-xs opacity-60">Seguimiento: <span className="font-medium">{o.tracking}</span></p>}
+                {o.status !== 'PENDINGPAYMENT' && o.status !== 'FAILED' && o.status !== 'CANCELLED' && (
+                  <button
+                    onClick={() => setChatOrder(o.id)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/15 px-3.5 py-1.5 text-xs font-medium hover:bg-black/5"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" /> Consultar sobre este pedido
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {chatOrder && <SupportChat orderId={chatOrder} tenantId={tenantId} onClose={() => setChatOrder(null)} />}
     </div>
   );
 }
