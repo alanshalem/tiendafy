@@ -71,13 +71,18 @@ public class TenancyServiceTests
     }
 
     [Fact]
-    public async Task ResolveByHost_CanceledTenant_ReturnsNull()
+    public async Task ResolveByHost_CanceledTenant_ResolvesWithCanceledStatus()
     {
         var tenant = Tenant.Create("Mi Tienda", "mitienda").Value;
         tenant.Cancel();
         _repository.Seed(tenant);
 
-        Assert.Null(await _service.ResolveByHostAsync("mitienda.tiendafy.com"));
+        // Cancelada resuelve: el storefront muestra "tienda eliminada"
+        // (page.tsx trata Status=CANCELED). Null queda sólo para hosts
+        // que nunca existieron.
+        var dto = await _service.ResolveByHostAsync("mitienda.tiendafy.com");
+        Assert.NotNull(dto);
+        Assert.Equal("CANCELED", dto.Status);
     }
 
     [Fact]
