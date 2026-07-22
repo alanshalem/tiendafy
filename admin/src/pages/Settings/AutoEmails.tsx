@@ -99,31 +99,26 @@ export function AutoEmailsPage() {
   );
 }
 
-// Valores de ejemplo para la vista previa (lo que verá el cliente).
-const SAMPLE: Record<string, string> = {
-  '{{store}}': 'Mi Tienda',
-  '{{name}}': 'Juan Pérez',
-  '{{order_id}}': 'A1B2C3',
-  '{{total}}': '$ 24.500',
-  '{{link}}': '#',
-  '{{items}}':
-    '<table style="width:100%;font-size:14px"><tr><td style="padding:4px 0">2× Remera negra</td><td style="text-align:right">$ 18.000</td></tr><tr><td style="padding:4px 0">1× Gorra</td><td style="text-align:right">$ 6.500</td></tr></table>',
-};
-
-function fillSample(html: string): string {
-  let out = html;
-  for (const [key, value] of Object.entries(SAMPLE)) out = out.split(key).join(value);
-  return out;
-}
-
 function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () => void; onSave: (subject: string, bodyHtml: string) => void }) {
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.bodyHtml);
+  const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
 
   useEffect(() => {
     setSubject(template.subject);
     setBody(template.bodyHtml);
   }, [template]);
+
+  // Preview EXACTO: lo renderiza el backend con el mismo layout brandeado
+  // (logo + color de la tienda) que usa al enviar. Debounce para no spamear.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.post<{ subject: string; html: string }>('/api/v1/email-templates/preview', { subject, bodyHtml: body })
+        .then(setPreview)
+        .catch(() => setPreview(null));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [subject, body]);
 
   return (
     <Modal
@@ -168,17 +163,29 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
           </div>
         </div>
 
-        {/* Vista previa (como lo verá el cliente) */}
+        {/* Vista previa: idéntica al email real (mismo layout brandeado del backend) */}
         <div>
           <div className="mb-1.5 text-sm font-medium text-fg">Vista previa</div>
-          <div className="rounded-lg border border-border bg-bg-muted/40 p-4">
-            <div className="mx-auto max-w-[600px] overflow-hidden rounded-md bg-white shadow-sm">
-              <div className="border-b border-black/10 px-4 py-2 text-xs text-gray-500">
-                Asunto: <span className="font-medium text-gray-800">{fillSample(subject) || '(sin asunto)'}</span>
-              </div>
-              <div className="px-4 py-4 text-[#222]" dangerouslySetInnerHTML={{ __html: fillSample(body) }} />
+          <div className="overflow-hidden rounded-lg border border-border">
+            <div className="border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
+              Asunto: <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
             </div>
+            {preview ? (
+              <iframe
+                title="Vista previa del email"
+                sandbox=""
+                srcDoc={preview.html}
+                className="h-[520px] w-full border-0 bg-[#f4f4f5]"
+              />
+            ) : (
+              <div className="flex h-[520px] items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
+                Generando vista previa…
+              </div>
+            )}
           </div>
+          <p className="mt-1.5 text-xs text-fg-muted">
+            Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con datos de ejemplo.
+          </p>
         </div>
       </div>
     </Modal>

@@ -1,4 +1,5 @@
 using Api.Auth;
+using Api.Notifications;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
@@ -63,8 +64,60 @@ public static class EmailTemplateEndpoints
             return Results.Ok(new { type, enabled = row.Enabled, subject = row.Subject, bodyHtml = row.BodyHtml });
         });
 
+        // Vista previa EXACTA: mismo pipeline que el envío real (sanitizado +
+        // variables de ejemplo + layout maestro con el branding del tenant).
+        templates.MapPost("/preview", async (
+            EmailPreviewRequest req, ITenantContext tenant, BrandedEmailSender branded, CancellationToken ct) =>
+        {
+            var branding = await branded.ResolveBrandingAsync(tenant.TenantId.Value, ct);
+
+            var vars = new Dictionary<string, string>
+            {
+                ["store"] = branding.StoreName,
+                ["name"] = "Juan Pérez",
+                ["order_id"] = "a1b2c3d4-0000-0000-0000-000000000000",
+                ["total"] = "ARS 45.381",
+                ["email"] = "cliente@ejemplo.com",
+                ["link"] = "#",
+                ["items"] = SampleItemsTable(),
+            };
+
+            string Fill(string input)
+            {
+                foreach (var (k, v) in vars) input = input.Replace("{{" + k + "}}", v);
+                return input;
+            }
+
+            var body = Sanitizer.Sanitize(req.BodyHtml ?? string.Empty);
+            return Results.Ok(new
+            {
+                subject = Fill(req.Subject ?? string.Empty),
+                html = EmailLayout.Render(branding, Fill(body)),
+            });
+        });
+
         return group;
     }
+
+    // Imagen placeholder (SVG gris inline) para que el preview muestre la tabla
+    // de items igual que el email real, que lleva la foto del producto.
+    private const string PlaceholderImg =
+        "data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' rx='6' fill='%23e5e5e5'/%3E%3C/svg%3E";
+
+    private static string SampleItemsTable() =>
+        "<table role='presentation' style='width:100%;border-collapse:collapse;font-size:14px'>" +
+        Row("Remera negra", "Talle M", 2, "ARS 18.000") +
+        Row("Gorra", "Única", 1, "ARS 6.500") +
+        "<tr><td></td><td style='padding:12px 0 2px;color:#8b8b8b'>Subtotal</td><td style='padding:12px 0 2px;text-align:right'>ARS 24.500</td></tr>" +
+        "<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Envío · Andreani Estándar</td><td style='padding:2px 0;text-align:right'>ARS 8.331</td></tr>" +
+        "<tr><td></td><td style='padding:8px 0;font-weight:bold'>Total</td><td style='padding:8px 0;text-align:right;font-weight:bold'>ARS 32.831</td></tr></table>" +
+        "<p style='color:#8b8b8b;font-size:13px;margin:10px 0 0'>Entrega: San Martín 1923, Luis Guillón, CP 1838</p>";
+
+    private static string Row(string name, string variant, int qty, string price) =>
+        $"<tr style='border-bottom:1px solid #f0f0f0'>" +
+        $"<td style='padding:10px 12px 10px 0;width:64px'><img src=\"{PlaceholderImg}\" alt='' width='56' height='56' style='width:56px;height:56px;border-radius:6px;display:block'/></td>" +
+        $"<td style='padding:10px 0'>{name}<br/><span style='color:#8b8b8b;font-size:12px'>{variant}</span><br/><span style='color:#8b8b8b;font-size:12px'>x{qty}</span></td>" +
+        $"<td style='padding:10px 0;text-align:right;white-space:nowrap;vertical-align:top'>{price}</td></tr>";
 
     // Permite el style inline que usan las plantillas de email.
     private static HtmlSanitizer CreateSanitizer()
@@ -75,5 +128,7 @@ public static class EmailTemplateEndpoints
     }
 
 }
+
+public sealed record EmailPreviewRequest(string? Subject, string? BodyHtml);
 
 public sealed record EmailTemplateRequest(bool Enabled, string? Subject, string? BodyHtml);
