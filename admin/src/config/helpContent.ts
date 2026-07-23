@@ -341,6 +341,48 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
     ],
   },
 
+  whatsappAuto: {
+    title: 'WhatsApp automático',
+    intro: 'Mensajes de WhatsApp que se envían solos con la API oficial de Meta: confirmaciones, envíos y más.',
+    category: 'Clientes y comunicación',
+    sections: [
+      {
+        heading: 'Qué necesitás',
+        steps: [
+          'Un número de WhatsApp Business dedicado a la tienda (no puede ser tu WhatsApp personal).',
+          'Una app en developers.facebook.com con el producto WhatsApp habilitado.',
+          'El Phone Number ID (está en el panel de WhatsApp de tu app) y un access token permanente (se genera con un system user en Meta Business).',
+        ],
+      },
+      {
+        heading: 'Conectar y probar',
+        steps: [
+          'En Configuración → WhatsApp automático, pegá el Phone Number ID y el token, y tocá Conectar.',
+          'Usá “Enviar mensaje de prueba” con tu propio número para validar la conexión (en modo prueba de Meta solo llega a números registrados como testers).',
+        ],
+      },
+      {
+        heading: 'Las plantillas las aprueba Meta',
+        paragraphs: [
+          'A diferencia de los emails, el texto de cada mensaje es una plantilla que creás y Meta aprueba en el Meta Business Manager (tarda 24-48 hs). En Tiendafy activás cada tipo de mensaje y le indicás el nombre exacto de tu plantilla aprobada y su idioma.',
+          'Cada tarjeta te muestra un texto sugerido para copiar al crear la plantilla en Meta, y qué variables enviamos en cada posición ({{1}}, {{2}}…).',
+        ],
+      },
+      {
+        heading: 'Qué conviene activar',
+        paragraphs: [
+          'Los transaccionales rinden oro: confirmación de pago, pedido en camino (con seguimiento) y listo para retirar. El de carritos abandonados es marketing para Meta: usalo con moderación y solo con clientes que marcaron “Quiero recibir novedades” — abusar degrada la calidad de tu número y Meta te limita el volumen.',
+        ],
+      },
+      {
+        heading: 'Se activa por tipo, igual que los emails',
+        paragraphs: [
+          'Cada tipo de mensaje tiene su interruptor por tienda. Si un mensaje no tiene plantilla configurada o está apagado, simplemente no se envía — la venta nunca se ve afectada.',
+        ],
+      },
+    ],
+  },
+
   contact: {
     title: 'Información de contacto',
     intro: 'Mostrar tus datos de contacto en la tienda es obligatorio por ley en Argentina.',

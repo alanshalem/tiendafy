@@ -75,6 +75,7 @@ public static class OrderEndpoints
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
             OrderPaidNotifier notifier,
+            WhatsAppNotifier whatsapp,
             CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
@@ -95,7 +96,10 @@ public static class OrderEndpoints
             // Aplicar el resultado ya (el webhook es backup, idempotente).
             var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
             if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
+            {
                 await notifier.NotifyAsync(settleResult.Value.Order, ct);
+                await whatsapp.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
+            }
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
         }).RequireRateLimiting("payments");
@@ -116,9 +120,9 @@ public static class OrderEndpoints
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequirePermission(Permission.OrdersRead);
 
-        // Marcar despachado (admin). Paid → Fulfilled + tracking + email de envío.
+        // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
-            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, CancellationToken ct) =>
+            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, WhatsAppNotifier whatsapp, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
@@ -127,6 +131,7 @@ public static class OrderEndpoints
             if (r.IsFailure) return r.Error.ToProblem();
             await orders.SaveChangesAsync(ct);
             await notifier.NotifyAsync(order, "confirmacion-envio", ct);
+            await whatsapp.NotifyAsync(order, "confirmacion-envio", ct);
             return Results.Ok(ToDto(order));
         }).RequirePermission(Permission.OrdersFulfill);
 
@@ -137,7 +142,7 @@ public static class OrderEndpoints
         // sucesivos no se deduplican entre sí pero un retry de red sí.
         group.MapPost("/orders/{id:guid}/refund", async (
             Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
-            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, CancellationToken ct) =>
+            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
@@ -184,7 +189,10 @@ public static class OrderEndpoints
                 await paymentsDb.SaveChangesAsync(ct);
 
                 if (order.Status == OrderStatus.Refunded)
+                {
                     await notifier.NotifyAsync(order, "cancelacion-compra", ct);
+                    await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
+                }
                 return Results.Ok(ToDto(order));
             }
             finally

@@ -86,16 +86,19 @@ public sealed class PaymentWebhookWorker(
             payment.Value.TransactionAmountRefunded, ct);
         if (result.IsFailure || result.Value.Order is null) return;
 
-        // Side-effects (emails) según lo que cambió.
+        // Side-effects (emails + WhatsApp) según lo que cambió.
         var email = sp.GetRequiredService<BrandedEmailSender>();
+        var whatsapp = sp.GetRequiredService<WhatsAppNotifier>();
         var order = result.Value.Order;
         switch (result.Value.Outcome)
         {
             case SettleOutcome.JustPaid:
                 await sp.GetRequiredService<OrderPaidNotifier>().NotifyAsync(order, ct);
+                await whatsapp.NotifyAsync(order, "confirmacion-pago", ct);
                 break;
             case SettleOutcome.Refunded:
                 await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
+                await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
                 break;
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);

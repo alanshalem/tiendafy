@@ -86,6 +86,10 @@ public sealed class AbandonedCartWorker(
 
             await email.SendAsync(s.TenantId.Value, s.Email!, $"¿Te quedó algo en el carrito de {t.Name}?",
                 Body(t.Name, storeUrl, s.Items.Count), ct);
+            // WhatsApp solo si la sesión llegó a cargar teléfono (paso Entrega)
+            // y la tienda tiene la plantilla de carrito abandonado activada.
+            await sp.GetRequiredService<WhatsAppNotifier>().NotifyAbandonedCartAsync(
+                s.TenantId.Value, s.Phone, s.BuyerName ?? "cliente", t.Name, ct);
             s.MarkRecoveryEmailed();
             sent++;
         }

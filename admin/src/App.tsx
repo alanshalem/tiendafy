@@ -4,6 +4,7 @@ import { SettingsLayout } from './pages/Settings/SettingsLayout';
 import { PaymentMethodsPage } from './pages/Settings/PaymentMethods';
 import { ShippingMethodsPage } from './pages/Settings/ShippingMethods';
 import { AutoEmailsPage } from './pages/Settings/AutoEmails';
+import { WhatsAppAutoPage } from './pages/Settings/WhatsAppAuto';
 import { CheckoutOptionsPage } from './pages/Settings/CheckoutOptions';
 import { DomainsPage } from './pages/Settings/Domains';
 import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="medios-de-envio" element={<RequirePerm perm="settings.write"><ShippingMethodsPage /></RequirePerm>} />
         <Route path="centros-de-distribucion" element={<RequirePerm perm="settings.write"><DistributionCentersPage /></RequirePerm>} />
         <Route path="emails-automaticos" element={<RequirePerm perm="settings.write"><AutoEmailsPage /></RequirePerm>} />
+        <Route path="whatsapp-automatico" element={<RequirePerm perm="settings.write"><WhatsAppAutoPage /></RequirePerm>} />
         <Route path="opciones-del-checkout" element={<RequirePerm perm="settings.write"><CheckoutOptionsPage /></RequirePerm>} />
         <Route path="usuarios" element={<RequirePerm perm="members.read"><UsersNotificationsPage /></RequirePerm>} />
         <Route path="dominios" element={<RequirePerm perm="settings.write"><DomainsPage /></RequirePerm>} />

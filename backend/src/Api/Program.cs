@@ -70,6 +70,9 @@ builder.Services.AddScoped<OrderPaidNotifier>();
 builder.Services.AddScoped<OrderNotifier>();
 builder.Services.AddScoped<BrandedEmailSender>();
 builder.Services.AddScoped<OrderItemImages>();
+builder.Services.AddHttpClient<WhatsAppSender>();
+builder.Services.AddSingleton<WhatsAppTokenProtector>();
+builder.Services.AddScoped<WhatsAppNotifier>();
 builder.Services.AddHostedService<AbandonedCartWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
@@ -226,6 +229,7 @@ apiV1.MapStatsEndpoints();
 apiV1.MapThemeEndpoints();
 apiV1.MapMediaEndpoints();
 apiV1.MapSupportEndpoints();
+apiV1.MapWhatsAppEndpoints();
 apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();
 apiV1.MapShippingEndpoints();

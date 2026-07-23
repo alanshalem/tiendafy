@@ -7,6 +7,7 @@ import {
   Globe,
   Mail,
   MapPin,
+  MessageCircle,
   Package,
   Pencil,
   ShoppingCart,
@@ -44,6 +45,7 @@ const groups: NavGroup[] = [
     heading: 'Comunicación',
     items: [
       { to: '/configuracion/emails-automaticos', label: 'E-mails automáticos', icon: Mail, perm: 'settings.write' },
+      { to: '/configuracion/whatsapp-automatico', label: 'WhatsApp automático', icon: MessageCircle, perm: 'settings.write' },
     ],
   },
   {
