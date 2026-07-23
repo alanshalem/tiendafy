@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Payments.Contracts;
 using Payments.Infrastructure.Persistence;
 
@@ -7,6 +8,11 @@ namespace Api.Endpoints;
 
 public static class PaymentWebhookEndpoints
 {
+    /// <summary>¿La excepción es una violación de unique de Postgres (SQLSTATE 23505)?</summary>
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is { } inner && inner.GetType().Name == "PostgresException"
+        && (string?)inner.GetType().GetProperty("SqlState")?.GetValue(inner) == "23505";
+
     public static RouteGroupBuilder MapPaymentWebhookEndpoints(this RouteGroupBuilder group)
     {
         // Público (sin tenant): MercadoPago notifica acá. Gateado por firma HMAC.
@@ -35,10 +41,19 @@ public static class PaymentWebhookEndpoints
 
             // Persistir el evento (inbox durable) y responder 200. El worker lo
             // procesa async con reintentos; sobrevive reinicios del proceso.
+            // Idempotente: si MP reenvía el mismo (type, data.id), el índice único
+            // lo rechaza y respondemos 200 igual (ya está encolado).
             if (result.Type == "payment" && !string.IsNullOrEmpty(result.DataId))
             {
                 db.PaymentWebhookEvents.Add(PaymentWebhookEvent.Receive(result.Type, result.DataId!, userId));
-                await db.SaveChangesAsync(ct);
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateException dup) when (IsUniqueViolation(dup))
+                {
+                    // Duplicado ya encolado: nada que hacer, seguimos a 200.
+                }
             }
 
             return Results.Ok();

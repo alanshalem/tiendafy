@@ -1,11 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
+using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
 namespace Orders.Infrastructure.Persistence;
 
-public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) : DbContext(options)
+public sealed class OrdersDbContext : DbContext
 {
+    // Filtro multi-tenant global (defensa en profundidad): toda query del path
+    // de request queda acotada al tenant actual aunque falte el .Where explícito.
+    // Cuando no hay tenant en scope (workers, design-time) se desactiva, para no
+    // romper el settle cross-tenant del webhook ni las migraciones.
+    private readonly bool _filterByTenant;
+    private readonly TenantId _currentTenant;
+
+    public OrdersDbContext(DbContextOptions<OrdersDbContext> options, ITenantContext? tenant = null) : base(options)
+    {
+        _filterByTenant = tenant?.HasTenant == true;
+        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+    }
+
     public DbSet<Order> Orders => Set<Order>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -15,7 +29,13 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
         order.HasKey(o => o.Id);
         order.Property(o => o.Id).ValueGeneratedNever();
         order.Property(o => o.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        order.HasQueryFilter(o => !_filterByTenant || o.TenantId == _currentTenant);
         order.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
+        // Token de concurrencia optimista sobre la columna de sistema xmin de
+        // Postgres (no requiere migración): dos writes concurrentes al mismo
+        // pedido → el segundo SaveChanges lanza DbUpdateConcurrencyException.
+        // Usado por el refund para evitar doble aplicación en multi-instancia.
+        order.Property<uint>("xmin").IsRowVersion().HasColumnName("xmin");
         order.Property(o => o.Currency).HasMaxLength(3);
         order.Property(o => o.BuyerEmail).HasMaxLength(200);
         order.Property(o => o.PaymentProvider).HasMaxLength(30);

@@ -24,7 +24,7 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
     let tries = 0;
     const poll = async () => {
       try {
-        const res = await fetch(`${API}/api/v1/orders/${orderId}`, { headers: { 'X-Tenant-Id': tenantId } });
+        const res = await fetch(`${API}/api/v1/orders/${orderId}/status`, { headers: { 'X-Tenant-Id': tenantId } });
         if (res.ok) {
           const order = await res.json();
           if (!active) return;

@@ -66,9 +66,10 @@ public static class TenantEndpoints
             return Results.Ok(new { subdomainValid, subdomainAvailable, nameAvailable });
         }).RequireAuthorization();
 
+        // Cambiar nombre/subdominio/dominio: acción sensible → solo el dueño.
         tenants.MapPatch("/{id:guid}", async (Guid id, UpdateTenantRequest request, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (await NotMember(user, id, memberships, ct)) return Forbidden();
+            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
             var result = await handler.UpdateAsync(
                 new UpdateTenantCommand(id, request.Name, request.Subdomain, request.CustomDomain), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
@@ -76,22 +77,23 @@ public static class TenantEndpoints
 
         tenants.MapPost("/{id:guid}/archive", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (await NotMember(user, id, memberships, ct)) return Forbidden();
+            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
             var result = await handler.ArchiveAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
         tenants.MapPost("/{id:guid}/activate", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (await NotMember(user, id, memberships, ct)) return Forbidden();
+            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
             var result = await handler.ActivateAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
         // Soft-delete: marca CANCELED. No borra físico (productos/temas referencian el id).
+        // Solo el dueño puede eliminar la tienda.
         tenants.MapDelete("/{id:guid}", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (await NotMember(user, id, memberships, ct)) return Forbidden();
+            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
             var result = await handler.DeleteAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
@@ -112,8 +114,18 @@ public static class TenantEndpoints
         return userId is null || !await memberships.IsMemberAsync(userId.Value, tenantId, ct);
     }
 
+    /// <summary>Gestión sensible de la tienda (dominio, borrado): exige rol dueño.</summary>
+    private static async Task<bool> NotOwner(ClaimsPrincipal user, Guid tenantId, IMembershipService memberships, CancellationToken ct)
+    {
+        var userId = user.GetUserId();
+        return userId is null || !await memberships.IsOwnerAsync(userId.Value, tenantId, ct);
+    }
+
     private static IResult Forbidden() =>
         Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
+
+    private static IResult OwnerOnly() =>
+        Results.Problem(title: "Auth.Forbidden", detail: "Solo el dueño de la tienda puede hacer esto.", statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>RFC 7807 problem+json desde un Error del dominio.</summary>
     public static IResult ToProblem(this Error error)

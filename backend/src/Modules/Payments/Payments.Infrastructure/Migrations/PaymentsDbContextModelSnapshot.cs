@@ -208,6 +208,10 @@ namespace Payments.Infrastructure.Migrations
                     b.HasIndex("Status", "CreatedAtUtc")
                         .HasDatabaseName("ix_payment_webhook_events_status_created_at_utc");
 
+                    b.HasIndex("Type", "DataId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payment_webhook_events_type_data_id");
+
                     b.ToTable("payment_webhook_events", (string)null);
                 });
 #pragma warning restore 612, 618

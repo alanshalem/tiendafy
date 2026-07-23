@@ -17,6 +17,10 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
         wh.HasKey(x => x.Id);
         wh.Property(x => x.Id).ValueGeneratedNever();
         wh.HasIndex(x => new { x.Status, x.CreatedAtUtc }); // cola: pendientes por orden
+        // Idempotencia de ingesta: MP reenvía el mismo evento varias veces. El
+        // índice único descarta duplicados a nivel DB (el endpoint traga la
+        // violación y responde 200), evitando doble procesamiento/notificación.
+        wh.HasIndex(x => new { x.Type, x.DataId }).IsUnique();
         wh.Property(x => x.Type).HasMaxLength(40).IsRequired();
         wh.Property(x => x.DataId).HasMaxLength(64).IsRequired();
         wh.Property(x => x.Status).HasMaxLength(10).IsRequired();

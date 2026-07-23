@@ -276,8 +276,9 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
             svg = Scrub(svg, @"<script\b[^>]*/?>");
             svg = Scrub(svg, @"<foreignObject\b[^>]*>.*?</foreignObject\s*>");
             svg = Scrub(svg, @"<foreignObject\b[^>]*/?>");
-            // Manejadores de eventos: onload=, onclick=, etc.
-            svg = Scrub(svg, @"\son\w+\s*=\s*(""[^""]*""|'[^']*'|[^\s>]+)");
+            // Manejadores de eventos: onload=, onclick=, etc. El separador puede ser
+            // whitespace O '/' (los navegadores aceptan <svg/onload=…> como atributo).
+            svg = Scrub(svg, @"[\s/]on\w+\s*=\s*(""[^""]*""|'[^']*'|[^\s>]+)");
             // URIs javascript: en href / xlink:href / src.
             svg = Scrub(svg, @"(?:href|xlink:href|src)\s*=\s*(?:""\s*javascript:[^""]*""|'\s*javascript:[^']*'|javascript:[^\s>]*)");
         }

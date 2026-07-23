@@ -66,7 +66,6 @@ builder.Services.AddHostedService<PaymentWebhookWorker>();
 // Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.AddHttpClient<IEmailSender, EmailSender>();
-builder.Services.AddScoped<OrderPaidNotifier>();
 builder.Services.AddScoped<OrderNotifier>();
 builder.Services.AddScoped<BrandedEmailSender>();
 builder.Services.AddScoped<OrderItemImages>();
@@ -113,6 +112,13 @@ var dataProtection = builder.Services.AddDataProtection().SetApplicationName("ti
 var dpKeyPath = builder.Configuration["DataProtection:KeyPath"];
 if (!string.IsNullOrWhiteSpace(dpKeyPath))
     dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dpKeyPath));
+else if (!builder.Environment.IsDevelopment())
+    // Sin keyring persistente en prod, al reiniciar se pierden las claves y NO
+    // se pueden descifrar los tokens de MercadoPago/WhatsApp ni la PII guardada:
+    // fail-fast en vez de "desconectar" silenciosamente a todos los comercios.
+    throw new InvalidOperationException(
+        "DataProtection:KeyPath es obligatorio en Producción (volumen persistente o KeyVault). " +
+        "Sin él, los tokens cifrados de los comercios se pierden al reiniciar.");
 
 // Prod: la cookie de sesión del admin solo viaja por HTTPS (Secure). En dev (http
 // localhost) queda SameAsRequest para no romper el login local.
@@ -173,10 +179,21 @@ Customers.Infrastructure.CustomersDbContext.UsePii(
 // lo hace el proxy (no la app, para evitar loops).
 if (!app.Environment.IsDevelopment())
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    var fwd = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-    });
+    };
+    // Sin KnownProxies/KnownNetworks, ASP.NET solo confía en loopback y descarta
+    // el X-Forwarded-For del LB → todo el tráfico cae en la misma IP y el
+    // rate-limiting particiona mal. Se configura el rango real del proxy por
+    // config (CIDR); si no hay, se limpian los defaults para forzar la config
+    // en el deploy en vez de aceptar un forwarded spoofeable.
+    fwd.KnownProxies.Clear();
+    fwd.KnownIPNetworks.Clear();
+    foreach (var cidr in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+        if (System.Net.IPNetwork.TryParse(cidr, out var net))
+            fwd.KnownIPNetworks.Add(net);
+    app.UseForwardedHeaders(fwd);
     app.UseHsts();
 }
 

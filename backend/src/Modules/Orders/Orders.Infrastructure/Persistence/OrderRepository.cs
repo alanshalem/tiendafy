@@ -9,8 +9,10 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
     public Task<Order?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
         context.Orders.FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == id, ct);
 
+    // Cross-tenant a propósito (settle del webhook, cuyo orderId ya viene de un
+    // evento con firma validada). Ignora el filtro global explícitamente.
     public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) =>
-        context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        context.Orders.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default)
     {
@@ -27,7 +29,7 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
         var query = context.Orders.Where(o => o.TenantId == tenantId).OrderByDescending(o => o.CreatedAtUtc).AsQueryable();
         if (afterId.HasValue)
         {
-            var after = await context.Orders.FirstOrDefaultAsync(o => o.Id == afterId.Value, ct);
+            var after = await context.Orders.FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == afterId.Value, ct);
             if (after is not null)
                 query = query.Where(o => o.CreatedAtUtc < after.CreatedAtUtc);
         }

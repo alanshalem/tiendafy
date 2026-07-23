@@ -56,16 +56,18 @@ public static class OrderEmail
         return sb.ToString();
     }
 
-    /// <summary>Variables para sustituir en las plantillas editables de email.</summary>
+    /// <summary>Variables para sustituir en las plantillas editables de email.
+    /// Los escalares se HTML-encodean (un nombre/tienda con &lt;script&gt; no debe
+    /// ejecutarse); solo `items` es HTML confiable (armado con Enc() adentro).</summary>
     public static IReadOnlyDictionary<string, string> OrderVars(
         Order o, string storeName, IReadOnlyDictionary<Guid, string>? imageByVariant = null) => new Dictionary<string, string>
     {
-        ["store"] = storeName,
-        ["name"] = o.BuyerName ?? string.Empty,
-        ["order_id"] = o.Id.ToString(),
-        ["total"] = Money(o.Total),
+        ["store"] = Enc(storeName),
+        ["name"] = Enc(o.BuyerName),
+        ["order_id"] = Enc(o.Id.ToString()),
+        ["total"] = Enc(Money(o.Total)),
         ["items"] = ItemsTable(o, imageByVariant),
-        ["email"] = o.BuyerEmail,
+        ["email"] = Enc(o.BuyerEmail),
     };
 
     public static string Refund(Order o) =>

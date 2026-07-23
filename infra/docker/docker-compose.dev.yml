@@ -37,36 +37,10 @@ services:
       postgres:
         condition: service_healthy
 
-  redis:
-    image: redis:7-alpine
-    container_name: tiendafy-redis
-    command: redis-server --appendonly yes --appendfsync everysec
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: tiendafy-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "127.0.0.1:5672:5672"        # AMQP
-      - "127.0.0.1:15672:15672"      # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+  # Redis y RabbitMQ se removieron: el sistema usa polling a Postgres (webhook
+  # inbox, workers), no colas ni cache externos. Estaban levantados pero ningún
+  # código los consumía. Si en el futuro se migra a message queue, volver a
+  # sumarlos acá y a los docs.
 
   minio:
     image: minio/minio:latest
@@ -91,6 +65,4 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
-  rabbitmq_data:
   minio_data:

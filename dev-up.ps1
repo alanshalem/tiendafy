@@ -5,8 +5,8 @@
     Infra (Docker) -> API (.NET) -> Frontends (admin + storefront).
 
 .DESCRIPTION
-    Arranca Docker Desktop si está apagado, levanta el stack (Postgres, Redis,
-    RabbitMQ, MinIO), espera a que cada puerto responda, arranca la API y solo
+    Arranca Docker Desktop si está apagado, levanta el stack (Postgres, PgBouncer,
+    MinIO), espera a que cada puerto responda, arranca la API y solo
     cuando /health da 200 lanza los frontends. Idempotente: se puede correr de
     nuevo sin romper nada.
 
@@ -178,7 +178,7 @@ Info "`n[2/4] Infra (compose)"
 function Start-Infra {
     docker compose -f $compose up -d 2>$null | Out-Null
     $ok = $true
-    foreach ($svc in 'Postgres', 'Redis', 'MinIO') {
+    foreach ($svc in 'Postgres', 'MinIO') {
         if (-not (Wait-Until "$svc :$($PORTS[$svc])" { Test-Port $PORTS[$svc] } 20 3)) { $ok = $false }
     }
     return $ok

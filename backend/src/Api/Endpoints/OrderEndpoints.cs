@@ -31,9 +31,18 @@ public static class OrderEndpoints
             CreateOrderHandler createOrder,
             IOrderRepository orders,
             IMercadoPagoPaymentService mp,
+            IConfiguration cfg,
             CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+
+            // El returnUrl (back_urls de MP) viene del cliente: validar que sea
+            // un dominio propio o MP redirige al comprador post-pago a un sitio
+            // de phishing. Sin URL segura, no se puede iniciar el pago.
+            var baseUrl = SafeRedirect.SafeAbsoluteBase(request.ReturnUrl, cfg);
+            if (baseUrl is null)
+                return Error.Validation("Checkout.BadReturnUrl",
+                    "La URL de retorno no es válida.").ToProblem();
 
             var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
@@ -47,7 +56,6 @@ public static class OrderEndpoints
                     order.ShippingMethodName is { Length: > 0 } sm ? $"Envío · {sm}" : "Envío",
                     1, order.ShippingCost.ToDecimal()));
 
-            var baseUrl = (request.ReturnUrl ?? string.Empty).TrimEnd('/');
             var prefResult = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
                 tenant.TenantId, order.Id, order.Currency,
                 prefItems,
@@ -74,7 +82,7 @@ public static class OrderEndpoints
             CreateOrderHandler createOrder,
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
-            OrderPaidNotifier notifier,
+            OrderNotifier notifier,
             WhatsAppNotifier whatsapp,
             CancellationToken ct) =>
         {
@@ -97,19 +105,51 @@ public static class OrderEndpoints
             var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
             if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
             {
-                await notifier.NotifyAsync(settleResult.Value.Order, ct);
+                await notifier.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
                 await whatsapp.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
             }
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
         }).RequireRateLimiting("payments");
 
-        group.MapGet("/orders/{id:guid}", async (
+        // Estado de la orden — PÚBLICO pero mínimo (sin PII). Lo usa la página de
+        // "gracias por tu compra" para pollear el resultado del pago sin login.
+        group.MapGet("/orders/{id:guid}/status", async (
             Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            return order is null ? Results.NotFound() : Results.Ok(ToDto(order));
+            return order is null
+                ? Results.NotFound()
+                : Results.Ok(new { status = order.Status.ToString().ToUpperInvariant() });
+        });
+
+        // Detalle completo (con PII) — solo el comprador dueño de la orden o un
+        // miembro admin de la tienda. Antes era anónimo y filtraba email/teléfono/
+        // dirección/DNI a cualquiera con el id.
+        group.MapGet("/orders/{id:guid}", async (
+            Guid id, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            Customers.Infrastructure.CustomersDbContext customersDb, IMembershipService memberships, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+
+            // ¿Shopper dueño de la orden?
+            var customer = await Api.Shop.ShopAuth.ResolveAsync(http, customersDb, ct);
+            var isOwnerShopper = customer is not null && !string.IsNullOrEmpty(customer.Email)
+                && string.Equals(order.BuyerEmail, customer.Email, StringComparison.OrdinalIgnoreCase);
+
+            // ¿Staff con permiso de lectura de órdenes?
+            var userId = http.User.GetUserId();
+            var isStaff = userId is not null
+                && await memberships.RoleAsync(userId.Value, tenant.TenantId.Value, ct) is { } role
+                && RolePermissions.Has(role, Permission.OrdersRead);
+
+            if (!isOwnerShopper && !isStaff)
+                return Results.NotFound(); // no revelar existencia a terceros
+
+            return Results.Ok(ToDto(order));
         });
 
         group.MapGet("/orders", async (
@@ -174,17 +214,35 @@ public static class OrderEndpoints
                     amount.AmountInMinorUnits, order.Currency,
                     isTotal && order.RefundedAmount.IsZero, req.Reason, requestedBy);
 
+                // Key de idempotencia DETERMINÍSTICA hacia MP: deriva del estado
+                // acumulado + este monto. Un retry (crash antes de persistir) o un
+                // doble-click con el mismo monto recomputan la MISMA key → MP
+                // deduplica y NO reembolsa dos veces. Un parcial nuevo (RefundedAmount
+                // ya avanzó) da otra key. Reemplaza el Guid aleatorio por intento.
+                var idemKey = $"refund-{order.Id:N}-{order.RefundedAmount.AmountInMinorUnits}-{amount.AmountInMinorUnits}";
+
                 // MP primero (la plata), estado local después. amount null a MP = total
                 // del pago; con parciales previos siempre mandamos monto explícito.
                 var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
-                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, audit.Id.ToString(), ct);
+                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, idemKey, ct);
                 if (refund.IsFailure) return refund.Error.ToProblem();
                 audit.AttachMercadoPagoId(refund.Value.RefundId);
 
                 var applied = order.ApplyRefund(amount);
                 if (applied.IsFailure) return applied.Error.ToProblem();
 
-                await orders.SaveChangesAsync(ct);
+                try
+                {
+                    // xmin (token de concurrencia): si otra instancia ya aplicó un
+                    // refund a esta orden, este SaveChanges falla → 409 en vez de
+                    // doble aplicación local.
+                    await orders.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Error.Conflict("Refund.Concurrent",
+                        "El pedido cambió mientras se procesaba el reembolso. Recargá y verificá el estado.").ToProblem();
+                }
                 paymentsDb.PaymentRefunds.Add(audit);
                 await paymentsDb.SaveChangesAsync(ct);
 

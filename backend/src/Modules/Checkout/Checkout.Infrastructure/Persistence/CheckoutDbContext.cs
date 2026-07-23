@@ -1,11 +1,23 @@
 using Checkout.Core.Domain;
 using Microsoft.EntityFrameworkCore;
+using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
 namespace Checkout.Infrastructure.Persistence;
 
-public sealed class CheckoutDbContext(DbContextOptions<CheckoutDbContext> options) : DbContext(options)
+public sealed class CheckoutDbContext : DbContext
 {
+    // Filtro multi-tenant global (ver OrdersDbContext). Bypass sin tenant en scope
+    // (el AbandonedCartWorker recorre sesiones de todos los tenants).
+    private readonly bool _filterByTenant;
+    private readonly TenantId _currentTenant;
+
+    public CheckoutDbContext(DbContextOptions<CheckoutDbContext> options, ITenantContext? tenant = null) : base(options)
+    {
+        _filterByTenant = tenant?.HasTenant == true;
+        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+    }
+
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
 
@@ -16,6 +28,7 @@ public sealed class CheckoutDbContext(DbContextOptions<CheckoutDbContext> option
         session.HasKey(s => s.Id);
         session.Property(s => s.Id).ValueGeneratedNever();
         session.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        session.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
         session.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
         session.Property(s => s.Email).HasMaxLength(200);
         session.Property(s => s.Currency).HasMaxLength(3);

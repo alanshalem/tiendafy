@@ -246,17 +246,8 @@ public static class ShopAuthEndpoints
     /// la plataforma (localhost/*.localhost en dev, dominio de plataforma + subdominios
     /// de tienda en prod). Evita open-redirect que filtraría el token de sesión.
     /// </summary>
-    private static bool IsSafeReturnUrl(string? url, IConfiguration cfg)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return false;
-        if (url.StartsWith('/') && !url.StartsWith("//")) return true; // relativo
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
-        if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;
-        var host = u.Host.ToLowerInvariant();
-        if (host == "localhost" || host.EndsWith(".localhost")) return true;
-        var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
-        return host == platform || host.EndsWith("." + platform);
-    }
+    private static bool IsSafeReturnUrl(string? url, IConfiguration cfg) =>
+        Api.Auth.SafeRedirect.IsSafeReturnUrl(url, cfg);
 
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
 

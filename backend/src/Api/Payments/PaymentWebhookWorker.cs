@@ -93,7 +93,7 @@ public sealed class PaymentWebhookWorker(
         switch (result.Value.Outcome)
         {
             case SettleOutcome.JustPaid:
-                await sp.GetRequiredService<OrderPaidNotifier>().NotifyAsync(order, ct);
+                await sp.GetRequiredService<OrderNotifier>().NotifyAsync(order, "confirmacion-pago", ct);
                 await whatsapp.NotifyAsync(order, "confirmacion-pago", ct);
                 break;
             case SettleOutcome.Refunded:

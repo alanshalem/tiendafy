@@ -133,9 +133,11 @@ public static class MembersEndpoints
                 if (targetRole == RolePermissions.Owner && requesterRole != RolePermissions.Owner)
                     return Results.Problem(title: "Members.OwnersOnly",
                         detail: "Solo el dueño puede modificar a otro dueño.", statusCode: 403);
-                if (RolePermissions.Rank(targetRole) > RolePermissions.Rank(requesterRole))
+                // Rango >= (no solo >): un admin no puede tocar a otro admin (par).
+                // El caso "a sí mismo" ya se excluyó arriba (tid != requesterId).
+                if (RolePermissions.Rank(targetRole) >= RolePermissions.Rank(requesterRole))
                     return Results.Problem(title: "Members.RoleTooHigh",
-                        detail: "No podés modificar a alguien con un rol superior al tuyo.", statusCode: 403);
+                        detail: "No podés modificar a alguien con un rol igual o superior al tuyo.", statusCode: 403);
             }
         }
 
