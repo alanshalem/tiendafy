@@ -81,7 +81,7 @@ public static class AuthEndpoints
                 var baseUrl = IsSafeAdminOrigin(origin, cfg) ? origin.TrimEnd('/') : string.Empty;
                 var link = $"{baseUrl}/restablecer?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
                 await email.SendAsync(user.Email, "Restablecé tu contraseña (admin)",
-                    $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Restablecé tu contraseña</h2><p>El link vence en poco. Si no fuiste vos, ignorá este email.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Cambiar contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct);
+                    $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Restablecé tu contraseña</h2><p>El link vence en poco. Si no fuiste vos, ignorá este email.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Cambiar contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct: ct);
             }
             return Results.NoContent();
         }).RequireRateLimiting("auth");

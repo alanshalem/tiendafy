@@ -23,7 +23,9 @@ public sealed class BrandedEmailSender(
     public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default)
     {
         var branding = await ResolveBrandingAsync(tenantId, ct);
-        await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml), ct);
+        // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
+        await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
+            fromName: branding.StoreName, ct: ct);
     }
 
     public async Task<EmailBranding> ResolveBrandingAsync(Guid tenantId, CancellationToken ct = default)
