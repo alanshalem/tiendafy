@@ -56,15 +56,24 @@ export const SHOW_HELP_LINKS = true;
 // El contenido real de cada manual vive en config/helpContent.ts y se muestra
 // en /ayuda/:topic dentro del admin (no depende de un sitio externo).
 export const HELP_LINKS = {
+  primerosPasos: { label: 'Guía para abrir tu tienda' },
   payments: { label: 'Más sobre medios de pago' },
+  ventas: { label: 'Más sobre ventas y reembolsos' },
+  checkout: { label: 'Más sobre checkout' },
+  cupones: { label: 'Más sobre cupones de descuento' },
   shipping: { label: 'Más sobre medios de envío' },
   distributionCenters: { label: 'Más sobre centros de distribución' },
+  productos: { label: 'Más sobre productos e inventario' },
+  clientes: { label: 'Más sobre clientes' },
+  posventa: { label: 'Más sobre el chat posventa' },
+  autoEmails: { label: 'Más sobre e-mails automáticos' },
   contact: { label: 'Más sobre información de contacto' },
   whatsapp: { label: '¿Cómo agregar el botón de WhatsApp?' },
-  autoEmails: { label: 'Más sobre e-mails automáticos' },
-  checkout: { label: 'Más sobre checkout' },
   customerMessage: { label: 'Más sobre mensaje informativo' },
-  users: { label: 'Más sobre permisos para usuarios' },
+  tema: { label: 'Más sobre el diseño de tu tienda' },
+  paginas: { label: 'Más sobre páginas de contenido' },
+  estadisticas: { label: 'Más sobre estadísticas' },
+  users: { label: 'Más sobre roles y permisos' },
   domains: { label: 'Más sobre dominios' },
 } as const;
 

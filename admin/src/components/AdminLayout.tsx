@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ExternalLink, LogOut } from 'lucide-react';
+import { ExternalLink, LifeBuoy, LogOut, Settings } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
@@ -240,8 +240,17 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        {showSettings && (
-          <div className="border-t border-border p-3">
+        <div className="space-y-0.5 border-t border-border p-3">
+          <a
+            href="/ayuda"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg"
+          >
+            <LifeBuoy className="h-4 w-4" />
+            Centro de ayuda
+          </a>
+          {showSettings && (
             <NavLink
               to="/configuracion"
               className={({ isActive }) =>
@@ -251,10 +260,11 @@ export function AdminLayout() {
                 )
               }
             >
+              <Settings className="h-4 w-4" />
               Configuración
             </NavLink>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       <div className="min-w-0 flex-1">
