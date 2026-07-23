@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Identity.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using SharedKernel.Abstractions;
 
 namespace Api.Auth;
@@ -49,6 +50,33 @@ public static class AuthExtensions
     public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder builder, Permission permission)
     {
         builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+        return builder;
+    }
+
+    /// <summary>
+    /// Defensa CSRF para endpoints con auth por cookie (shopper): en métodos que
+    /// cambian estado, exige que el header Origin sea del propio dominio. Los GET
+    /// pasan siempre. Complementa el SameSite=Lax de la cookie.
+    /// </summary>
+    public static RouteGroupBuilder RequireSameOriginForWrites(this RouteGroupBuilder builder)
+    {
+        builder.AddEndpointFilter(async (ctx, next) =>
+        {
+            var method = ctx.HttpContext.Request.Method;
+            if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method))
+                return await next(ctx);
+
+            var origin = ctx.HttpContext.Request.Headers.Origin.ToString();
+            var cfg = ctx.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+            // Sin Origin (algunos clientes no lo mandan) caemos al Referer; si tampoco,
+            // rechazamos las escrituras cross-site.
+            var check = !string.IsNullOrEmpty(origin) ? origin : ctx.HttpContext.Request.Headers.Referer.ToString();
+            if (Uri.TryCreate(check, UriKind.Absolute, out var u) && SafeRedirect.IsOwnHost(u.Host, cfg))
+                return await next(ctx);
+
+            return Results.Problem(title: "Auth.CrossOrigin",
+                detail: "Petición de origen no permitido.", statusCode: StatusCodes.Status403Forbidden);
+        });
         return builder;
     }
 

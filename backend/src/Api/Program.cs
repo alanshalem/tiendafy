@@ -147,6 +147,7 @@ builder.Services.AddOpenApi();
 // sus subdominios (tiendas) + cualquier extra de Cors:AllowedOrigins.
 var platformDomain = (builder.Configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
 var extraOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var allowLocalhost = builder.Environment.IsDevelopment();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.SetIsOriginAllowed(origin =>
@@ -154,8 +155,8 @@ builder.Services.AddCors(options =>
                 try
                 {
                     var host = new Uri(origin).Host.ToLowerInvariant();
-                    // Dev local.
-                    if (host == "localhost" || host.EndsWith(".localhost")) return true;
+                    // Dev local (solo en Development; en prod no se aceptan localhost).
+                    if (allowLocalhost && (host == "localhost" || host.EndsWith(".localhost"))) return true;
                     // Dominio de plataforma + subdominios de tienda (mitienda.dominio).
                     if (host == platformDomain || host.EndsWith("." + platformDomain)) return true;
                     // Allowlist explícita (ej. dominios propios de merchants).

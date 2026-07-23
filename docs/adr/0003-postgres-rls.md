@@ -1,8 +1,24 @@
 # ADR 0003: Multi-Tenancy con PostgreSQL RLS
 
 **Date**: 2026-06-11
-**Status**: Accepted
+**Status**: Parcialmente implementado — ver nota (2026-07-23)
 **Decision Makers**: Alan Shalem
+
+> **Nota de estado (2026-07-23).** El RLS a nivel motor (policies + `SET LOCAL
+> app.tenant_id` por transacción) que este ADR propone **NO está implementado**.
+> El aislamiento multi-tenant hoy se apoya en dos capas de aplicación:
+> 1. Filtro `WHERE tenant_id = …` explícito en cada repositorio (siempre estuvo).
+> 2. **Global query filters de EF Core** (`HasQueryFilter`) en todos los
+>    DbContexts tenant-scoped, atados a `ITenantContext`: acotan cada query del
+>    path de request al tenant actual aunque falte el `.Where`, y se desactivan
+>    solo cuando no hay tenant en scope (workers, migraciones). Ver los
+>    `*DbContext` de cada módulo.
+>
+> Esto cubre la fuga por "`.Where` olvidado" pero **no** protege contra SQL
+> crudo (hoy inexistente en el código). El RLS a nivel motor sigue siendo el
+> objetivo para defensa-en-profundidad real; requiere PgBouncer en modo
+> `session` o el `SET LOCAL` por transacción compatible con `transaction`
+> pooling. Pendiente.
 
 ## Context
 

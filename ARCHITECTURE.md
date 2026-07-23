@@ -532,28 +532,30 @@ tiendafy/                              # Monorepo raíz
 - Autenticación: sesión HTTP-only cookie + CSRF token en form
 - Permisos: granulares por usuario (productos:leer, órdenes:reembolsar, etc)
 
-### Backend → Base de Datos
+### Backend → Base de Datos (aislamiento multi-tenant)
 
-- Todas las escritas con `SET LOCAL app.tenant_id` dentro de transacción
-- RLS policies filtran automáticamente por tenant
-- EF Core global query filters como segunda línea de defensa
+> Estado real (2026-07-23): el RLS a nivel motor está **pendiente** (ver ADR 0003).
+> El aislamiento hoy es por aplicación:
 
-### Backend → Message Queue (RabbitMQ)
+- Filtro `WHERE tenant_id = …` explícito en cada repositorio.
+- **EF Core global query filters** (`HasQueryFilter`) en todos los DbContexts
+  tenant-scoped, atados a `ITenantContext`: acotan cada query del request al
+  tenant actual; se desactivan sin tenant en scope (workers, migraciones).
+- Pendiente: RLS policies + `SET LOCAL app.tenant_id` para defensa a nivel motor.
 
-- Outbox pattern: después de cada escritura, tabla `OutboxEvent` guarda evento + timestamp
-- Worker Host consume Outbox cada N segundos, publica a RabbitMQ, marca como published
-- Si RabbitMQ falla, reintentos exponenciales hasta que se cumpla delivery
+### Procesamiento asíncrono (sin message queue)
 
-### Backend → Redis
+> Estado real: **no hay RabbitMQ ni Redis**. El sistema usa polling a Postgres.
 
-- Cache: productos catalogados (TTL 1h), sesiones de checkout (TTL 30m), rate limits
-- Reservas de stock: SETEX con TTL (checkout expira, reserva se suelta)
-- Sessions: almacenar datos de sesión de usuario si lo necesitamos
+- Webhooks de pago: inbox durable (`payment_webhook_events`, índice único por
+  evento) + `PaymentWebhookWorker` que hace polling con reintentos.
+- Recuperación de carritos, imports CSV: `BackgroundService` con polling.
+- Reservas de stock: filas en Postgres con TTL; un job las libera al expirar.
+- Carrito del comprador: `localStorage` del navegador (no Redis).
+- Rate limiting: en memoria del proceso (ASP.NET rate limiter), no Redis.
 
-### Storefront → Redis (vía backend)
-
-- Cart: vive en localStorage del navegador + API del backend que lo persiste en Redis por user_id
-- Checkout session: guarda en Redis con idempotency key
+Si en el futuro se necesita una cola/cache real, volver a sumar RabbitMQ/Redis
+acá, al docker-compose y a los scripts (se removieron por no usarse).
 
 ### Admin → Storefront
 

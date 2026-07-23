@@ -1,17 +1,37 @@
 using Microsoft.EntityFrameworkCore;
 using Payments.Core.Domain;
+using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
 namespace Payments.Infrastructure.Persistence;
 
-public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> options) : DbContext(options)
+public sealed class PaymentsDbContext : DbContext
 {
+    // Filtro multi-tenant global. Bypass sin tenant en scope: el webhook worker
+    // resuelve la conexión MP por user_id de Mercado Pago, cross-tenant.
+    // PaymentWebhookEvent no tiene tenant (se resuelve al procesar) → sin filtro.
+    private readonly bool _filterByTenant;
+    private readonly TenantId _currentTenant;
+    private readonly Guid _tenantGuid;
+
+    public PaymentsDbContext(DbContextOptions<PaymentsDbContext> options, ITenantContext? tenant = null) : base(options)
+    {
+        _filterByTenant = tenant?.HasTenant == true;
+        _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+        _tenantGuid = _currentTenant.Value;
+    }
+
     public DbSet<MercadoPagoConnection> MercadoPagoConnections => Set<MercadoPagoConnection>();
     public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
     public DbSet<PaymentRefund> PaymentRefunds => Set<PaymentRefund>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<MercadoPagoConnection>()
+            .HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
+        modelBuilder.Entity<PaymentRefund>()
+            .HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+
         var wh = modelBuilder.Entity<PaymentWebhookEvent>();
         wh.ToTable("payment_webhook_events");
         wh.HasKey(x => x.Id);

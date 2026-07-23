@@ -1,9 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using SharedKernel.Abstractions;
 
 namespace Discounts.Infrastructure;
 
-public sealed class DiscountsDbContext(DbContextOptions<DiscountsDbContext> options) : DbContext(options)
+public sealed class DiscountsDbContext : DbContext
 {
+    private readonly bool _filterByTenant;
+    private readonly Guid _tenantGuid;
+
+    public DiscountsDbContext(DbContextOptions<DiscountsDbContext> options, ITenantContext? tenant = null) : base(options)
+    {
+        _filterByTenant = tenant?.HasTenant == true;
+        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+    }
+
     public DbSet<Coupon> Coupons => Set<Coupon>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -12,6 +22,7 @@ public sealed class DiscountsDbContext(DbContextOptions<DiscountsDbContext> opti
         coupon.ToTable("coupons");
         coupon.HasKey(c => c.Id);
         coupon.Property(c => c.Id).ValueGeneratedNever();
+        coupon.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
 
         // Código único por tenant (índice arranca en tenant_id).
         coupon.HasIndex(c => new { c.TenantId, c.Code }).IsUnique();

@@ -1,11 +1,23 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using SharedKernel.Abstractions;
 
 namespace Customers.Infrastructure;
 
-public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> options) : DbContext(options)
+public sealed class CustomersDbContext : DbContext
 {
+    // Filtro multi-tenant global (defensa en profundidad). Bypass sin tenant en
+    // scope (design-time). Todas las entidades acá usan Guid TenantId.
+    private readonly bool _filterByTenant;
+    private readonly Guid _tenantGuid;
+
+    public CustomersDbContext(DbContextOptions<CustomersDbContext> options, ITenantContext? tenant = null) : base(options)
+    {
+        _filterByTenant = tenant?.HasTenant == true;
+        _tenantGuid = _filterByTenant ? tenant!.TenantId.Value : default;
+    }
+
     // Cifrado de PII en reposo. Lo setea el host (Program) antes de migrar/servir.
     // Null (ej. design-time de migraciones) → columnas en claro, sin romper el schema.
     private static IDataProtector? _piiProtector;
@@ -77,5 +89,12 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         cm.Property(x => x.Name).HasMaxLength(120).IsRequired();
         cm.Property(x => x.Email).HasMaxLength(200).IsRequired();
         cm.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+
+        // Filtro multi-tenant global en todas las entidades tenant-scoped.
+        c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        f.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        t.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        cm.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

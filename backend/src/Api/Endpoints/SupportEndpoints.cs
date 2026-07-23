@@ -31,7 +31,8 @@ public static class SupportEndpoints
 
     private static void MapShopSide(RouteGroupBuilder group)
     {
-        var shop = group.MapGroup("/shop/support").RequireTenant();
+        // Auth por cookie del shopper → CSRF: exigir Origin propio en las escrituras.
+        var shop = group.MapGroup("/shop/support").RequireTenant().RequireSameOriginForWrites();
 
         // Abre (o devuelve) la conversación de una orden comprada por el cliente.
         shop.MapPost("/conversations", async (

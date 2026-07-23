@@ -4,6 +4,7 @@ using Api.Auth;
 using Api.Notifications;
 using Api.Shop;
 using Customers.Infrastructure;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using SharedKernel.Abstractions;
@@ -100,7 +101,7 @@ public static class ShopAuthEndpoints
             row.Consume();
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequireRateLimiting("auth");
 
         auth.MapPost("/login", async (ShopLoginRequest req, HttpContext http, ITenantContext tenant, Api.Captcha.ICaptchaVerifier captcha, CustomersDbContext db, CancellationToken ct) =>
         {
@@ -140,14 +141,16 @@ public static class ShopAuthEndpoints
 
         // --- Google OAuth (authorization code). Gated por config del server. ---
         // `tenant` va por query (no header): el browser navega acá directo, sin XHR.
-        auth.MapGet("/google/start", (IConfiguration cfg, HttpContext http, string tenant, string? @return) =>
+        auth.MapGet("/google/start", (IConfiguration cfg, HttpContext http, IDataProtectionProvider dp, string tenant, string? @return) =>
         {
             if (!Guid.TryParse(tenant, out var tid)) return Problem("ShopAuth.BadTenant", "Tenant inválido.", 400);
             var clientId = cfg["Authentication:Google:ClientId"];
             if (string.IsNullOrEmpty(clientId))
                 return Problem("ShopAuth.GoogleNotConfigured", "Login con Google no está configurado en el servidor.", 501);
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
-            var state = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{tid}|{@return ?? string.Empty}"));
+            // State FIRMADO y con expiración (antes era base64 plano, tamperable y sin
+            // vencimiento): evita que se forjen/reutilicen callbacks de OAuth.
+            var state = GoogleStateProtector(dp).Protect($"{tid}|{@return ?? string.Empty}", TimeSpan.FromMinutes(15));
             var url = "https://accounts.google.com/o/oauth2/v2/auth?" +
                 $"client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
                 "&response_type=code&scope=openid%20email%20profile&access_type=online&prompt=select_account" +
@@ -155,7 +158,7 @@ public static class ShopAuthEndpoints
             return Results.Redirect(url);
         });
 
-        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
+        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
         {
             var clientId = cfg["Authentication:Google:ClientId"];
             var clientSecret = cfg["Authentication:Google:ClientSecret"];
@@ -167,11 +170,11 @@ public static class ShopAuthEndpoints
             string tenantPart, returnUrl;
             try
             {
-                var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(state)).Split('|', 2);
+                var decoded = GoogleStateProtector(dp).Unprotect(state).Split('|', 2);
                 tenantPart = decoded[0];
                 returnUrl = decoded.Length > 1 ? decoded[1] : string.Empty;
             }
-            catch { return Problem("ShopAuth.GoogleError", "State inválido.", 400); }
+            catch { return Problem("ShopAuth.GoogleError", "State inválido o vencido.", 400); }
             if (!Guid.TryParse(tenantPart, out var tid)) return Problem("ShopAuth.GoogleError", "Tenant inválido.", 400);
 
             var redirectUri = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/shop/auth/google/callback";
@@ -248,6 +251,10 @@ public static class ShopAuthEndpoints
     /// </summary>
     private static bool IsSafeReturnUrl(string? url, IConfiguration cfg) =>
         Api.Auth.SafeRedirect.IsSafeReturnUrl(url, cfg);
+
+    /// <summary>Protector con expiración para el `state` del OAuth de Google (firma + TTL).</summary>
+    private static ITimeLimitedDataProtector GoogleStateProtector(IDataProtectionProvider dp) =>
+        dp.CreateProtector("tiendafy.shop.google.oauth.state").ToTimeLimitedDataProtector();
 
     private static IResult Problem(string title, string detail, int status) => Results.Problem(title: title, detail: detail, statusCode: status);
 

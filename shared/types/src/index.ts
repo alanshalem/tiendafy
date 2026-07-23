@@ -15,23 +15,11 @@ export type {
   Category,
 } from './catalog';
 
-export type {
-  Order,
-  OrderStatus,
-  OrderItem,
-  OrderCustomer,
-  Address,
-  OrderEvent,
-} from './orders';
-
-export type {
-  CheckoutSession,
-  CheckoutStatus,
-  CheckoutItem,
-  Payment,
-  PaymentStatus,
-  PaymentIntent,
-} from './checkout';
+// NOTA: los tipos de dominio de órdenes/checkout/pagos se removieron de acá:
+// estaban hand-written, drifteados respecto del DTO real del backend y sin uso
+// (admin y storefront definen sus interfaces inline según el DTO real). Si se
+// quiere un contrato compartido, generarlo desde el OpenAPI del backend
+// (openapi-typescript ya está como dependencia) en vez de mantenerlo a mano.
 
 export type {
   Tenant,
