@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Api.Notifications;
 using Ganss.Xss;
@@ -14,7 +15,7 @@ public static class EmailTemplateEndpoints
     public static RouteGroupBuilder MapEmailTemplateEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: plantillas de email del tenant. Exige membresía.
-        var templates = group.MapGroup("/email-templates").RequireTenantMembership();
+        var templates = group.MapGroup("/email-templates").RequirePermission(Permission.SettingsWrite);
 
         // Lista combinada: defaults del catálogo + overrides del tenant.
         templates.MapGet("/", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>

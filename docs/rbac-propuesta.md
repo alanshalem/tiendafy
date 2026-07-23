@@ -1,6 +1,10 @@
-# Propuesta RBAC — roles y permisos por tienda
+# RBAC — roles y permisos por tienda
 
-**Estado: PROPUESTA para discutir. No implementada.**
+**Estado: IMPLEMENTADO** (2026-07-23). Fuente de verdad de la matriz:
+`Identity.Infrastructure/Permissions.cs` (+ tests `RolePermissionsTests`).
+Enforcement: `RequirePermission` / `RequirePermissionForWrites` en
+`Api/Auth/AuthExtensions.cs`; el front consume `GET /api/v1/me/permissions`.
+Los "staff" legacy equivalen a admin.
 
 ## Punto de partida (hoy)
 

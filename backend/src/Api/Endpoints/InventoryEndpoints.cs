@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Inventory.Core.Domain;
 using SharedKernel.Abstractions;
@@ -9,7 +10,7 @@ public static class InventoryEndpoints
     public static RouteGroupBuilder MapInventoryEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: stock/ledger. Exige membresía.
-        var inventory = group.MapGroup("/inventory").RequireTenantMembership();
+        var inventory = group.MapGroup("/inventory").RequirePermission(Permission.InventoryRead).RequirePermissionForWrites(Permission.InventoryWrite);
 
         // Stock por lista de variantes: /inventory?variantIds=a,b,c
         inventory.MapGet("/", async (

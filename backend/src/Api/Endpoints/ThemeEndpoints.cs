@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using System.Text.Json;
@@ -12,7 +13,7 @@ public static class ThemeEndpoints
 {
     public static RouteGroupBuilder MapThemeEndpoints(this RouteGroupBuilder group)
     {
-        var theme = group.MapGroup("/theme").RequireTenant();
+        var theme = group.MapGroup("/theme").RequireTenant().RequirePermissionForWrites(Permission.ContentWrite);
 
         // Config PUBLICADA — la que sirve el storefront al comprador.
         theme.MapGet("/", async (ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
@@ -26,7 +27,7 @@ public static class ThemeEndpoints
         {
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
             return ConfigResult(string.IsNullOrWhiteSpace(doc.DraftConfig) ? doc.PublishedConfig : doc.DraftConfig);
-        });
+        }).RequirePermission(Permission.ContentWrite);
 
         // Autosave del borrador (no toca lo publicado).
         theme.MapPut("/draft", async (

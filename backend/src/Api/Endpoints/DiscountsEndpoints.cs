@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Discounts.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,7 @@ public static class DiscountsEndpoints
                 .OrderByDescending(c => c.CreatedAtUtc)
                 .ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });
-        }).RequireTenantMembership(); // listado de cupones = solo admin (validate es público aparte)
+        }).RequirePermission(Permission.DiscountsRead); // validate es público aparte
 
         coupons.MapPost("/", async (CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
@@ -38,7 +39,7 @@ public static class DiscountsEndpoints
             db.Coupons.Add(created.Value);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/coupons/{created.Value.Id}", ToDto(created.Value));
-        });
+        }).RequirePermission(Permission.DiscountsWrite);
 
         coupons.MapPut("/{id:guid}", async (Guid id, CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
@@ -57,7 +58,7 @@ public static class DiscountsEndpoints
 
             await db.SaveChangesAsync(ct);
             return Results.Ok(ToDto(coupon));
-        });
+        }).RequirePermission(Permission.DiscountsWrite);
 
         coupons.MapPost("/{id:guid}/toggle", async (Guid id, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
@@ -69,7 +70,7 @@ public static class DiscountsEndpoints
             coupon.SetActive(!coupon.Active);
             await db.SaveChangesAsync(ct);
             return Results.Ok(ToDto(coupon));
-        });
+        }).RequirePermission(Permission.DiscountsWrite);
 
         coupons.MapDelete("/{id:guid}", async (Guid id, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
         {
@@ -81,7 +82,7 @@ public static class DiscountsEndpoints
             db.Coupons.Remove(coupon);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequirePermission(Permission.DiscountsWrite);
 
         // Público (storefront): valida un código contra un subtotal y devuelve el descuento.
         coupons.MapPost("/validate", async (ValidateCouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>

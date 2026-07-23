@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Analytics.Infrastructure;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
@@ -20,7 +21,7 @@ public static class StatsEndpoints
     public static RouteGroupBuilder MapStatsEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: métricas de ventas/clientes. Exige membresía.
-        var stats = group.MapGroup("/stats").RequireTenantMembership();
+        var stats = group.MapGroup("/stats").RequirePermission(Permission.StatsRead);
 
         // Resumen: catálogo + descuentos + clientes + páginas + ventas (de Orders).
         stats.MapGet("/overview", async (

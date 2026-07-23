@@ -17,11 +17,14 @@ import { cn } from '@tiendafy/ui';
 import { ThemeModeToggle } from '../../components/ThemeModeToggle';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { isNavVisible } from '../../config/features';
+import { canAny, usePermissions } from '../../context/PermissionsContext';
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  /** Permiso RBAC requerido (string o lista: alcanza con uno). */
+  perm?: string | string[];
 }
 interface NavGroup {
   heading: string;
@@ -32,32 +35,32 @@ const groups: NavGroup[] = [
   {
     heading: 'Pagos y envíos',
     items: [
-      { to: '/configuracion/medios-de-pago', label: 'Medios de pago', icon: CreditCard },
-      { to: '/configuracion/medios-de-envio', label: 'Medios de envío', icon: Package },
-      { to: '/configuracion/centros-de-distribucion', label: 'Centros de distribución', icon: MapPin },
+      { to: '/configuracion/medios-de-pago', label: 'Medios de pago', icon: CreditCard, perm: 'payments.read' },
+      { to: '/configuracion/medios-de-envio', label: 'Medios de envío', icon: Package, perm: 'settings.write' },
+      { to: '/configuracion/centros-de-distribucion', label: 'Centros de distribución', icon: MapPin, perm: 'settings.write' },
     ],
   },
   {
     heading: 'Comunicación',
     items: [
-      { to: '/configuracion/emails-automaticos', label: 'E-mails automáticos', icon: Mail },
+      { to: '/configuracion/emails-automaticos', label: 'E-mails automáticos', icon: Mail, perm: 'settings.write' },
     ],
   },
   {
     heading: 'Checkout',
     items: [
-      { to: '/configuracion/opciones-del-checkout', label: 'Opciones del checkout', icon: ShoppingCart },
+      { to: '/configuracion/opciones-del-checkout', label: 'Opciones del checkout', icon: ShoppingCart, perm: 'settings.write' },
     ],
   },
   {
     heading: 'Otros',
     items: [
-      { to: '/configuracion/usuarios', label: 'Usuarios y notificaciones', icon: User },
-      { to: '/configuracion/dominios', label: 'Dominios', icon: Globe },
-      { to: '/configuracion/codigos-externos', label: 'Códigos externos', icon: Code },
-      { to: '/configuracion/idiomas-y-monedas', label: 'Idiomas y monedas', icon: Globe },
-      { to: '/configuracion/redirecciones', label: 'Redireccionamientos 301', icon: CornerDownRight },
-      { to: '/configuracion/campos-personalizados', label: 'Campos personalizados', icon: Pencil },
+      { to: '/configuracion/usuarios', label: 'Usuarios y notificaciones', icon: User, perm: 'members.read' },
+      { to: '/configuracion/dominios', label: 'Dominios', icon: Globe, perm: 'settings.write' },
+      { to: '/configuracion/codigos-externos', label: 'Códigos externos', icon: Code, perm: 'settings.write' },
+      { to: '/configuracion/idiomas-y-monedas', label: 'Idiomas y monedas', icon: Globe, perm: 'settings.write' },
+      { to: '/configuracion/redirecciones', label: 'Redireccionamientos 301', icon: CornerDownRight, perm: 'settings.write' },
+      { to: '/configuracion/campos-personalizados', label: 'Campos personalizados', icon: Pencil, perm: 'settings.write' },
     ],
   },
 ];
@@ -75,10 +78,14 @@ function LogoMark({ className }: { className?: string }) {
 
 export function SettingsLayout() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
 
-  // Filtra el menú de configuración según los flags de config/features.ts.
+  // Filtra el menú de configuración por flags de config/features.ts + permisos RBAC.
   const visibleGroups = groups
-    .map((g) => ({ ...g, items: g.items.filter((it) => isNavVisible(it.to)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((it) => isNavVisible(it.to) && (!it.perm || canAny(can, it.perm))),
+    }))
     .filter((g) => g.items.length > 0);
 
   return (

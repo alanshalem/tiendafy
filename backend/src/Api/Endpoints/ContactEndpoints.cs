@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Api.Captcha;
 using Customers.Infrastructure;
@@ -46,9 +47,9 @@ public static class ContactEndpoints
                 .ToListAsync(ct);
             var unread = items.Count(m => !m.Read);
             return Results.Ok(new { items, unread });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.MessagesRead);
 
-        // Marcar leído (escritura → el middleware ya exige auth + membresía).
+        // Marcar leído.
         contact.MapPost("/messages/{id:guid}/read", async (Guid id, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
             var tid = tenant.TenantId.Value;
@@ -57,7 +58,7 @@ public static class ContactEndpoints
             msg.MarkRead();
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequirePermission(Permission.MessagesRead);
 
         return group;
     }

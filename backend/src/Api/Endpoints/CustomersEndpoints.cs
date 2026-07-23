@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Customers.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ public static class CustomersEndpoints
     public static RouteGroupBuilder MapCustomerEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: PII de clientes. Toda lectura/escritura exige membresía.
-        var customers = group.MapGroup("/customers").RequireTenantMembership();
+        var customers = group.MapGroup("/customers").RequirePermission(Permission.CustomersRead).RequirePermissionForWrites(Permission.CustomersWrite);
 
         customers.MapGet("/", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct, string? q = null) =>
         {

@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Media.Infrastructure;
 using SharedKernel.Abstractions;
 using Api.Auth;
@@ -8,7 +9,7 @@ public static class MediaEndpoints
 {
     public static RouteGroupBuilder MapMediaEndpoints(this RouteGroupBuilder group)
     {
-        var media = group.MapGroup("/media").RequireTenant();
+        var media = group.MapGroup("/media").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
 
         // multipart/form-data con campo "file". Devuelve la URL pública.
         media.MapPost("/", async (

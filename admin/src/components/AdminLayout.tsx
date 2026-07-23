@@ -4,6 +4,7 @@ import { ExternalLink, LogOut } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
+import { canAny, usePermissions } from '../context/PermissionsContext';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
 import { isNavVisible } from '../config/features';
@@ -23,12 +24,16 @@ interface NavChild {
   to: string;
   label: string;
   soon?: boolean;
+  /** Permiso RBAC requerido (string o lista: alcanza con uno). Sin `perm` = siempre visible. */
+  perm?: string | string[];
 }
 
 interface NavItem {
   to: string;
   label: string;
   soon?: boolean;
+  /** Permiso RBAC requerido (string o lista: alcanza con uno). Sin `perm` = siempre visible. */
+  perm?: string | string[];
   children?: NavChild[];
 }
 
@@ -50,13 +55,14 @@ const sections: NavSection[] = [
       {
         to: '/estadisticas',
         label: 'Estadísticas',
+        perm: 'stats.read',
         children: [
-          { to: '/estadisticas', label: 'Visión general' },
-          { to: '/estadisticas/productos', label: 'Productos' },
-          { to: '/estadisticas/ventas', label: 'Ventas y clientes' },
-          { to: '/estadisticas/visitas', label: 'Visitas' },
-          { to: '/estadisticas/tiempo-real', label: 'Tiempo real' },
-          { to: '/estadisticas/cupones', label: 'Reporte de cupones' },
+          { to: '/estadisticas', label: 'Visión general', perm: 'stats.read' },
+          { to: '/estadisticas/productos', label: 'Productos', perm: 'stats.read' },
+          { to: '/estadisticas/ventas', label: 'Ventas y clientes', perm: 'stats.read' },
+          { to: '/estadisticas/visitas', label: 'Visitas', perm: 'stats.read' },
+          { to: '/estadisticas/tiempo-real', label: 'Tiempo real', perm: 'stats.read' },
+          { to: '/estadisticas/cupones', label: 'Reporte de cupones', perm: 'stats.read' },
         ],
       },
     ],
@@ -67,35 +73,37 @@ const sections: NavSection[] = [
       {
         to: '/ventas',
         label: 'Ventas',
+        perm: 'orders.read',
         children: [
-          { to: '/ventas', label: 'Lista de ventas' },
-          { to: '/ventas/carritos', label: 'Carritos abandonados' },
+          { to: '/ventas', label: 'Lista de ventas', perm: 'orders.read' },
+          { to: '/ventas/carritos', label: 'Carritos abandonados', perm: 'orders.read' },
         ],
       },
       {
         to: '/productos',
         label: 'Productos',
+        perm: ['inventory.read', 'catalog.write'],
         children: [
-          { to: '/productos', label: 'Lista de productos' },
-          { to: '/productos/inventario', label: 'Inventario' },
-          { to: '/productos/categorias', label: 'Categorías' },
+          { to: '/productos', label: 'Lista de productos', perm: ['inventory.read', 'catalog.write'] },
+          { to: '/productos/inventario', label: 'Inventario', perm: 'inventory.read' },
+          { to: '/productos/categorias', label: 'Categorías', perm: 'catalog.write' },
         ],
       },
-      { to: '/clientes', label: 'Clientes' },
-      { to: '/mensajes', label: 'Mensajes' },
-      { to: '/posventa', label: 'Chat posventa' },
-      { to: '/descuentos', label: 'Descuentos' },
-      { to: '/marketing', label: 'Marketing', soon: true },
+      { to: '/clientes', label: 'Clientes', perm: 'customers.read' },
+      { to: '/mensajes', label: 'Mensajes', perm: 'messages.read' },
+      { to: '/posventa', label: 'Chat posventa', perm: 'support.chat' },
+      { to: '/descuentos', label: 'Descuentos', perm: 'discounts.read' },
+      { to: '/marketing', label: 'Marketing', soon: true, perm: 'settings.write' },
     ],
   },
   {
     heading: 'Canales de venta',
     items: [
-      { to: '/canales/tienda-online', label: 'Tienda online' },
-      { to: '/paginas', label: 'Páginas' },
-      { to: '/canales/redes', label: 'Instagram y Facebook', soon: true },
-      { to: '/canales/google', label: 'Google Shopping', soon: true },
-      { to: '/canales/marketplaces', label: 'Marketplaces', soon: true },
+      { to: '/canales/tienda-online', label: 'Tienda online', perm: 'content.write' },
+      { to: '/paginas', label: 'Páginas', perm: 'content.write' },
+      { to: '/canales/redes', label: 'Instagram y Facebook', soon: true, perm: 'settings.write' },
+      { to: '/canales/google', label: 'Google Shopping', soon: true, perm: 'settings.write' },
+      { to: '/canales/marketplaces', label: 'Marketplaces', soon: true, perm: 'settings.write' },
     ],
   },
   {
@@ -186,17 +194,26 @@ function SidebarItem({ item }: { item: NavItem }) {
 export function AdminLayout() {
   const { store } = useStore();
   const { user, logout } = useAuth();
+  const { can } = usePermissions();
 
-  // Filtra el menú según los flags de config/features.ts (oculta secciones/subsecciones).
+  // Visible si pasa el flag de features Y el permiso RBAC (si el item declara uno).
+  const allowed = (x: { to: string; perm?: string | string[] }) =>
+    isNavVisible(x.to) && (!x.perm || canAny(can, x.perm));
+
+  // Filtra el menú por flags de config/features.ts + permisos del rol.
+  // Si una sección queda sin items visibles, no se muestra el heading.
   const visibleSections = sections
     .map((s) => ({
       ...s,
       items: s.items
-        .filter((it) => isNavVisible(it.to))
-        .map((it) => (it.children ? { ...it, children: it.children.filter((c) => isNavVisible(c.to)) } : it))
+        .filter(allowed)
+        .map((it) => (it.children ? { ...it, children: it.children.filter(allowed) } : it))
         .filter((it) => !it.children || it.children.length > 0),
     }))
     .filter((s) => s.items.length > 0);
+
+  // La entrada Configuración se muestra si puede ver ALGO adentro.
+  const showSettings = canAny(can, ['settings.write', 'payments.read', 'members.read']);
 
   return (
     <div className="flex min-h-screen">
@@ -223,19 +240,21 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-border p-3">
-          <NavLink
-            to="/configuracion"
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
-                isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
-              )
-            }
-          >
-            Configuración
-          </NavLink>
-        </div>
+        {showSettings && (
+          <div className="border-t border-border p-3">
+            <NavLink
+              to="/configuracion"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
+                  isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+                )
+              }
+            >
+              Configuración
+            </NavLink>
+          </div>
+        )}
       </aside>
 
       <div className="min-w-0 flex-1">

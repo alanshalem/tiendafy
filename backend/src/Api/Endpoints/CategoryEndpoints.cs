@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateCategory;
 using Catalog.Infrastructure.Persistence;
@@ -13,7 +14,7 @@ public static class CategoryEndpoints
 {
     public static RouteGroupBuilder MapCategoryEndpoints(this RouteGroupBuilder group)
     {
-        var categories = group.MapGroup("/categories").RequireTenant();
+        var categories = group.MapGroup("/categories").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
 
         categories.MapPost("/", async (
             CreateCategoryRequest request,

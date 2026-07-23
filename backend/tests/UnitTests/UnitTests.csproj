@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Modules\Inventory\Inventory.Core\Inventory.Core.csproj" />
     <ProjectReference Include="..\..\src\Modules\Checkout\Checkout.Core\Checkout.Core.csproj" />
     <ProjectReference Include="..\..\src\Modules\Orders\Orders.Core\Orders.Core.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Identity.Infrastructure\Identity.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

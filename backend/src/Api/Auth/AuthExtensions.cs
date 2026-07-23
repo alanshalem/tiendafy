@@ -37,6 +37,67 @@ public static class AuthExtensions
         return builder;
     }
 
+    /// <summary>
+    /// RBAC: exige auth + membresía + que el rol del usuario tenga el permiso.
+    /// Deny by default según la matriz de RolePermissions. Loguea denegaciones
+    /// (detección de intentos de escalación).
+    /// </summary>
+    public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder builder, Permission permission) =>
+        builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+
+    /// <summary>Igual que el anterior pero a nivel grupo.</summary>
+    public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder builder, Permission permission)
+    {
+        builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+        return builder;
+    }
+
+    /// <summary>
+    /// Para grupos mixtos público/admin (products, categories, theme, media…):
+    /// los GET siguen siendo públicos (storefront) y toda escritura
+    /// (POST/PUT/PATCH/DELETE) exige el permiso. Cierra el hueco de writes
+    /// anónimos con solo el header de tenant.
+    /// </summary>
+    public static RouteGroupBuilder RequirePermissionForWrites(this RouteGroupBuilder builder, Permission permission)
+    {
+        builder.AddEndpointFilter(async (ctx, next) =>
+        {
+            var method = ctx.HttpContext.Request.Method;
+            if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method))
+                return await next(ctx);
+            return await PermissionFilter(ctx, next, permission);
+        });
+        return builder;
+    }
+
+    private static async ValueTask<object?> PermissionFilter(
+        EndpointFilterInvocationContext ctx, EndpointFilterDelegate next, Permission permission)
+    {
+        var http = ctx.HttpContext;
+        var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
+        if (!tenant.HasTenant) return MissingTenant();
+
+        var userId = http.User.GetUserId();
+        if (userId is null) return Results.Unauthorized();
+
+        var memberships = http.RequestServices.GetRequiredService<IMembershipService>();
+        var role = await memberships.RoleAsync(userId.Value, tenant.TenantId.Value, http.RequestAborted);
+        if (role is null)
+            return Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
+
+        if (!RolePermissions.Has(role, permission))
+        {
+            http.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Rbac")
+                .LogWarning("Permiso denegado: user {UserId} rol {Role} pidió {Permission} en {Path} (tenant {TenantId}).",
+                    userId, role, permission, http.Request.Path, tenant.TenantId.Value);
+            return Results.Problem(title: "Auth.Forbidden",
+                detail: "Tu rol no tiene permiso para esta acción.", statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        return await next(ctx);
+    }
+
     /// <summary>Como RequireTenantMembership pero exige rol owner (gestión de staff, etc.).</summary>
     public static RouteGroupBuilder RequireTenantOwner(this RouteGroupBuilder builder)
     {

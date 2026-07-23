@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Api.Shop;
 using Customers.Infrastructure;
@@ -137,7 +138,7 @@ public static class SupportEndpoints
 
     private static void MapAdminSide(RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/support").RequireTenantMembership();
+        var admin = group.MapGroup("/support").RequirePermission(Permission.SupportChat);
 
         // Bandeja: todas las conversaciones del tenant, no leídas primero.
         admin.MapGet("/conversations", async (ITenantContext tenant, SupportDbContext db, CancellationToken ct) =>

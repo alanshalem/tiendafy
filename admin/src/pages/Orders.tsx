@@ -4,6 +4,7 @@ import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { formatMoney } from '../lib/format';
 
 interface OrderItem {
@@ -65,6 +66,9 @@ const money = (m: Money) => formatMoney(m.amount, m.currency);
 
 export function OrdersPage() {
   const { store } = useStore();
+  const { can } = usePermissions();
+  const canFulfill = can('orders.fulfill');
+  const canRefund = can('orders.refund');
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
@@ -198,19 +202,19 @@ export function OrdersPage() {
                                 Reembolsado: {money(o.refunded)}{o.refundable && o.refundable.amount > 0 ? ` · queda ${money(o.refundable)}` : ' (total)'}
                               </div>
                             )}
-                            {(o.status === 'PAID' || o.status === 'FULFILLED' || o.status === 'PARTIALLYREFUNDED') && (
+                            {(o.status === 'PAID' || o.status === 'FULFILLED' || o.status === 'PARTIALLYREFUNDED') && (canFulfill || canRefund) && (
                               <div className="flex flex-wrap gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
-                                {o.status === 'PAID' && (
+                                {o.status === 'PAID' && canFulfill && (
                                   <button onClick={() => fulfill(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50">
                                     {busy === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />} Marcar enviada
                                   </button>
                                 )}
-                                {o.status === 'FULFILLED' && (
+                                {o.status === 'FULFILLED' && canFulfill && (
                                   <button onClick={() => fulfill(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50">
                                     <Truck className="h-3.5 w-3.5" /> Editar seguimiento
                                   </button>
                                 )}
-                                {o.paymentId && (
+                                {o.paymentId && canRefund && (
                                   <button onClick={() => setRefunding(o)} disabled={busy === o.id} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
                                     {busy === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />} Reembolsar
                                   </button>

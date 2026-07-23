@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using System.IO.Compression;
 using Microsoft.EntityFrameworkCore;
 using Api.Auth;
@@ -17,7 +18,7 @@ public static class ProductEndpoints
 {
     public static RouteGroupBuilder MapProductEndpoints(this RouteGroupBuilder group)
     {
-        var products = group.MapGroup("/products").RequireTenant();
+        var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
 
         // TODO: proteger con permisos products:write cuando Identity tenga memberships.
         products.MapPost("/", async (

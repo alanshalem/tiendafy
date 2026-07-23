@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Microsoft.Extensions.Options;
 using Payments.Core.Domain;
@@ -25,7 +26,7 @@ public static class PaymentsEndpoints
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(ToDto(connection));
-        }).RequireTenantMembership(); // estado de conexión MP = solo admin (public-config es público aparte)
+        }).RequirePermission(Permission.PaymentsConfigRead);
 
         // Config pública para el storefront: modo de cobro + public key (no secreto).
         mp.MapGet("/public-config", async (
@@ -48,7 +49,7 @@ public static class PaymentsEndpoints
                 return AuthExtensions.MissingTenant();
 
             return Results.Ok(new { authUrl = handler.Handle(tenant.TenantId) });
-        });
+        }).RequirePermission(Permission.PaymentsConfigWrite);
 
         // Callback OAuth (lo invoca el navegador del merchant tras autorizar en MP).
         // Sin tenant header: el tenant viaja firmado en el `state`.
@@ -82,7 +83,7 @@ public static class PaymentsEndpoints
             await repository.RemoveAsync(connection, ct);
             await repository.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequirePermission(Permission.PaymentsConfigWrite);
 
         // Preferencias de cobro: modo Pro/API, comisión de plataforma, descriptor.
         mp.MapPut("/preferences", async (
@@ -110,7 +111,7 @@ public static class PaymentsEndpoints
 
             await repository.SaveChangesAsync(ct);
             return Results.Ok(ToDto(connection));
-        });
+        }).RequirePermission(Permission.PaymentsConfigWrite);
 
         return group;
     }

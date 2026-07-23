@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Link2,
   Loader2,
+  Lock,
   ShieldCheck,
   Unplug,
   Zap,
@@ -12,6 +13,7 @@ import {
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { usePermissions } from '../../context/PermissionsContext';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -29,6 +31,9 @@ const MP_BLUE = '#009ee3';
 
 export function MercadoPagoConnect() {
   const { store } = useStore();
+  const { can } = usePermissions();
+  // Sin payments.write: puede VER el estado de la conexión pero no modificar nada.
+  const readOnly = !can('payments.write');
   const { toast } = useToast();
   const confirm = useConfirm();
   const [params, setParams] = useSearchParams();
@@ -145,19 +150,30 @@ export function MercadoPagoConnect() {
             descriptor={descriptor}
             setDescriptor={setDescriptor}
             busy={busy}
+            readOnly={readOnly}
             onMode={(m) => savePrefs({ checkoutMode: m })}
             onSaveDescriptor={() => savePrefs({ statementDescriptor: descriptor })}
             onDisconnect={disconnect}
           />
         ) : (
-          <DisconnectedView busy={busy} onConnect={connect} />
+          <DisconnectedView busy={busy} readOnly={readOnly} onConnect={connect} />
         )}
       </div>
     </div>
   );
 }
 
-function DisconnectedView({ busy, onConnect }: { busy: boolean; onConnect: () => void }) {
+/** Aviso de modo solo lectura (rol sin payments.write). */
+function ReadOnlyNote() {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-bg-muted/60 px-3 py-2 text-xs text-fg-muted">
+      <Lock className="h-3.5 w-3.5 shrink-0" />
+      Solo lectura: tu rol no puede modificar los pagos.
+    </div>
+  );
+}
+
+function DisconnectedView({ busy, readOnly, onConnect }: { busy: boolean; readOnly: boolean; onConnect: () => void }) {
   return (
     <div>
       <ul className="mb-4 space-y-2 text-sm text-fg">
@@ -166,10 +182,14 @@ function DisconnectedView({ busy, onConnect }: { busy: boolean; onConnect: () =>
         <Bullet>Cada venta se concilia sola: el estado del pago actualiza el pedido automáticamente.</Bullet>
       </ul>
 
-      <Button onClick={onConnect} disabled={busy} className="w-full sm:w-auto" style={{ background: MP_BLUE }}>
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-        Conectá tu cuenta de Mercado Pago
-      </Button>
+      {readOnly ? (
+        <ReadOnlyNote />
+      ) : (
+        <Button onClick={onConnect} disabled={busy} className="w-full sm:w-auto" style={{ background: MP_BLUE }}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          Conectá tu cuenta de Mercado Pago
+        </Button>
+      )}
 
       <Helper title="¿Cómo funciona?">
         Te llevamos a Mercado Pago para que autorices a Tiendafy a cobrar <em>en tu nombre</em>. Volvés acá ya conectado.
@@ -195,6 +215,7 @@ function ConnectedView({
   descriptor,
   setDescriptor,
   busy,
+  readOnly,
   onMode,
   onSaveDescriptor,
   onDisconnect,
@@ -203,12 +224,15 @@ function ConnectedView({
   descriptor: string;
   setDescriptor: (v: string) => void;
   busy: boolean;
+  readOnly: boolean;
   onMode: (m: CheckoutMode) => void;
   onSaveDescriptor: () => void;
   onDisconnect: () => void;
 }) {
   return (
     <div className="space-y-5">
+      {readOnly && <ReadOnlyNote />}
+
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
         <span className="text-fg-muted">Cuenta MP <strong className="text-fg tabular-nums">#{conn.userId}</strong></span>
         {conn.connectedAtUtc && (
@@ -224,6 +248,7 @@ function ConnectedView({
         <div className="grid gap-3 sm:grid-cols-2">
           <ModeCard
             active={conn.checkoutMode === 'PRO'}
+            disabled={readOnly}
             onClick={() => onMode('PRO')}
             icon={<Zap className="h-4 w-4" />}
             title="Checkout Pro"
@@ -233,6 +258,7 @@ function ConnectedView({
           />
           <ModeCard
             active={conn.checkoutMode === 'API'}
+            disabled={readOnly}
             onClick={() => onMode('API')}
             icon={<ShieldCheck className="h-4 w-4" />}
             title="Checkout integrado"
@@ -298,26 +324,30 @@ function ConnectedView({
           <input
             value={descriptor}
             maxLength={22}
+            disabled={readOnly}
             onChange={(e) => setDescriptor(e.target.value)}
             placeholder="MI MARCA"
-            className="h-10 w-full max-w-xs rounded-md border border-border-strong bg-surface px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-10 w-full max-w-xs rounded-md border border-border-strong bg-surface px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-bg-muted disabled:opacity-70"
           />
-          <Button variant="secondary" onClick={onSaveDescriptor}>Guardar</Button>
+          {!readOnly && <Button variant="secondary" onClick={onSaveDescriptor}>Guardar</Button>}
         </div>
         <p className="mt-1 text-xs text-fg-muted">Hasta 22 caracteres. Es lo que ve el comprador en el resumen de su tarjeta.</p>
       </div>
 
-      <div className="border-t border-border pt-4">
-        <Button variant="ghost" onClick={onDisconnect} disabled={busy} className="text-danger hover:bg-danger/10">
-          <Unplug className="h-4 w-4" /> Desconectar cuenta
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="border-t border-border pt-4">
+          <Button variant="ghost" onClick={onDisconnect} disabled={busy} className="text-danger hover:bg-danger/10">
+            <Unplug className="h-4 w-4" /> Desconectar cuenta
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 function ModeCard({
   active,
+  disabled,
   onClick,
   icon,
   title,
@@ -326,6 +356,7 @@ function ModeCard({
   preview,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   icon: ReactNode;
   title: string;
@@ -336,10 +367,13 @@ function ModeCard({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         'rounded-lg border p-3 text-left transition',
         active ? 'border-primary bg-primary/[0.04] ring-1 ring-primary' : 'border-border hover:border-border-strong',
+        disabled && 'cursor-default',
+        disabled && !active && 'opacity-60 hover:border-border',
       )}
     >
       <div className="flex items-center gap-2">

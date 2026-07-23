@@ -39,6 +39,7 @@ import { StatsVisitsPage } from './pages/Stats/Visits';
 import { StatsRealTimePage } from './pages/Stats/RealTime';
 import { StatsCouponsPage } from './pages/Stats/Coupons';
 import { StubPage, stubs } from './pages/Stub';
+import { RequirePerm } from './context/PermissionsContext';
 
 export default function App() {
   return (
@@ -47,34 +48,34 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
 
         {/* Estadísticas */}
-        <Route path="/estadisticas" element={<StatsOverviewPage />} />
-        <Route path="/estadisticas/productos" element={<StatsProductsPage />} />
-        <Route path="/estadisticas/ventas" element={<StatsSalesPage />} />
-        <Route path="/estadisticas/visitas" element={<StatsVisitsPage />} />
-        <Route path="/estadisticas/tiempo-real" element={<StatsRealTimePage />} />
-        <Route path="/estadisticas/cupones" element={<StatsCouponsPage />} />
+        <Route path="/estadisticas" element={<RequirePerm perm="stats.read"><StatsOverviewPage /></RequirePerm>} />
+        <Route path="/estadisticas/productos" element={<RequirePerm perm="stats.read"><StatsProductsPage /></RequirePerm>} />
+        <Route path="/estadisticas/ventas" element={<RequirePerm perm="stats.read"><StatsSalesPage /></RequirePerm>} />
+        <Route path="/estadisticas/visitas" element={<RequirePerm perm="stats.read"><StatsVisitsPage /></RequirePerm>} />
+        <Route path="/estadisticas/tiempo-real" element={<RequirePerm perm="stats.read"><StatsRealTimePage /></RequirePerm>} />
+        <Route path="/estadisticas/cupones" element={<RequirePerm perm="stats.read"><StatsCouponsPage /></RequirePerm>} />
 
         {/* Productos */}
-        <Route path="/productos" element={<ProductsPage />} />
-        <Route path="/productos/nuevo" element={<NewProductPage />} />
-        <Route path="/productos/:id/editar" element={<EditProductPage />} />
-        <Route path="/productos/exportar-importar" element={<ExportImportPage />} />
-        <Route path="/productos/categorias" element={<CategoriesPage />} />
-        <Route path="/productos/inventario" element={<InventoryPage />} />
+        <Route path="/productos" element={<RequirePerm perm={['inventory.read', 'catalog.write']}><ProductsPage /></RequirePerm>} />
+        <Route path="/productos/nuevo" element={<RequirePerm perm="catalog.write"><NewProductPage /></RequirePerm>} />
+        <Route path="/productos/:id/editar" element={<RequirePerm perm="catalog.write"><EditProductPage /></RequirePerm>} />
+        <Route path="/productos/exportar-importar" element={<RequirePerm perm="catalog.write"><ExportImportPage /></RequirePerm>} />
+        <Route path="/productos/categorias" element={<RequirePerm perm="catalog.write"><CategoriesPage /></RequirePerm>} />
+        <Route path="/productos/inventario" element={<RequirePerm perm="inventory.read"><InventoryPage /></RequirePerm>} />
 
         {/* Tienda online */}
-        <Route path="/canales/tienda-online" element={<ThemeEditorPage />} />
-        <Route path="/canales/tienda-online/disenios" element={<ThemeGalleryPage />} />
+        <Route path="/canales/tienda-online" element={<RequirePerm perm="content.write"><ThemeEditorPage /></RequirePerm>} />
+        <Route path="/canales/tienda-online/disenios" element={<RequirePerm perm="content.write"><ThemeGalleryPage /></RequirePerm>} />
 
         {/* Ventas */}
-        <Route path="/ventas" element={<OrdersPage />} />
-        <Route path="/ventas/carritos" element={<AbandonedCartsPage />} />
+        <Route path="/ventas" element={<RequirePerm perm="orders.read"><OrdersPage /></RequirePerm>} />
+        <Route path="/ventas/carritos" element={<RequirePerm perm="orders.read"><AbandonedCartsPage /></RequirePerm>} />
 
-        <Route path="/descuentos" element={<DiscountsPage />} />
-        <Route path="/clientes" element={<CustomersPage />} />
-        <Route path="/mensajes" element={<MessagesPage />} />
-        <Route path="/posventa" element={<SupportChatPage />} />
-        <Route path="/paginas" element={<PagesPage />} />
+        <Route path="/descuentos" element={<RequirePerm perm="discounts.read"><DiscountsPage /></RequirePerm>} />
+        <Route path="/clientes" element={<RequirePerm perm="customers.read"><CustomersPage /></RequirePerm>} />
+        <Route path="/mensajes" element={<RequirePerm perm="messages.read"><MessagesPage /></RequirePerm>} />
+        <Route path="/posventa" element={<RequirePerm perm="support.chat"><SupportChatPage /></RequirePerm>} />
+        <Route path="/paginas" element={<RequirePerm perm="content.write"><PagesPage /></RequirePerm>} />
         <Route path="/tenants" element={<TenantsPage />} />
         {Object.keys(stubs).map((id) => (
           <Route key={id} path={`/${id}`} element={<StubPage id={id} />} />
@@ -84,17 +85,17 @@ export default function App() {
       {/* Configuración: layout propio con su nav lateral */}
       <Route path="/configuracion" element={<SettingsLayout />}>
         <Route index element={<Navigate to="/configuracion/medios-de-pago" replace />} />
-        <Route path="medios-de-pago" element={<PaymentMethodsPage />} />
-        <Route path="medios-de-envio" element={<ShippingMethodsPage />} />
-        <Route path="centros-de-distribucion" element={<DistributionCentersPage />} />
-        <Route path="emails-automaticos" element={<AutoEmailsPage />} />
-        <Route path="opciones-del-checkout" element={<CheckoutOptionsPage />} />
-        <Route path="usuarios" element={<UsersNotificationsPage />} />
-        <Route path="dominios" element={<DomainsPage />} />
-        <Route path="codigos-externos" element={<ExternalCodesPage />} />
-        <Route path="idiomas-y-monedas" element={<LanguagesCurrenciesPage />} />
-        <Route path="redirecciones" element={<RedirectsPage />} />
-        <Route path="campos-personalizados" element={<CustomFieldsPage />} />
+        <Route path="medios-de-pago" element={<RequirePerm perm="payments.read"><PaymentMethodsPage /></RequirePerm>} />
+        <Route path="medios-de-envio" element={<RequirePerm perm="settings.write"><ShippingMethodsPage /></RequirePerm>} />
+        <Route path="centros-de-distribucion" element={<RequirePerm perm="settings.write"><DistributionCentersPage /></RequirePerm>} />
+        <Route path="emails-automaticos" element={<RequirePerm perm="settings.write"><AutoEmailsPage /></RequirePerm>} />
+        <Route path="opciones-del-checkout" element={<RequirePerm perm="settings.write"><CheckoutOptionsPage /></RequirePerm>} />
+        <Route path="usuarios" element={<RequirePerm perm="members.read"><UsersNotificationsPage /></RequirePerm>} />
+        <Route path="dominios" element={<RequirePerm perm="settings.write"><DomainsPage /></RequirePerm>} />
+        <Route path="codigos-externos" element={<RequirePerm perm="settings.write"><ExternalCodesPage /></RequirePerm>} />
+        <Route path="idiomas-y-monedas" element={<RequirePerm perm="settings.write"><LanguagesCurrenciesPage /></RequirePerm>} />
+        <Route path="redirecciones" element={<RequirePerm perm="settings.write"><RedirectsPage /></RequirePerm>} />
+        <Route path="campos-personalizados" element={<RequirePerm perm="settings.write"><CustomFieldsPage /></RequirePerm>} />
       </Route>
 
       {/* Centro de ayuda (standalone, sin sidebar — se abre en pestaña nueva). */}

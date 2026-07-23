@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Content.Infrastructure;
 using Ganss.Xss;
@@ -15,7 +16,7 @@ public static class PagesEndpoints
 
     public static RouteGroupBuilder MapPageEndpoints(this RouteGroupBuilder group)
     {
-        var pages = group.MapGroup("/pages").RequireTenant();
+        var pages = group.MapGroup("/pages").RequireTenant().RequirePermissionForWrites(Permission.ContentWrite);
 
         // Admin: todas las páginas del tenant.
         pages.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
@@ -25,7 +26,7 @@ public static class PagesEndpoints
             var items = await db.Pages.AsNoTracking().Where(p => p.TenantId == tid)
                 .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
             return Results.Ok(new { items = items.Select(ToDto) });
-        }).RequireTenantMembership(); // incluye borradores → solo admin (published/by-slug son públicos)
+        }).RequirePermission(Permission.ContentWrite); // incluye borradores
 
         // Storefront: lista liviana de páginas PUBLICADAS (para el navbar). Sin body ni borradores.
         pages.MapGet("/published", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>

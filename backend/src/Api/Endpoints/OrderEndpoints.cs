@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using System.Collections.Concurrent;
 using Api.Auth;
 using Api.Notifications;
@@ -113,7 +114,7 @@ public static class OrderEndpoints
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
             return Results.Ok(new { items = items.Select(ToDto) });
-        }).RequireTenantMembership(); // lista completa de ventas = solo admin de la tienda
+        }).RequirePermission(Permission.OrdersRead);
 
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
@@ -127,7 +128,7 @@ public static class OrderEndpoints
             await orders.SaveChangesAsync(ct);
             await notifier.NotifyAsync(order, "confirmacion-envio", ct);
             return Results.Ok(ToDto(order));
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.OrdersFulfill);
 
         // Reembolso total o parcial (admin). MP refund → estado + auditoría + email.
         // Lock por orden + recarga dentro del lock: dos requests concurrentes no
@@ -190,7 +191,7 @@ public static class OrderEndpoints
             {
                 gate.Release();
             }
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.OrdersRefund);
 
         // Historial de reembolsos de una orden (admin).
         group.MapGet("/orders/{id:guid}/refunds", async (
@@ -214,7 +215,7 @@ public static class OrderEndpoints
                     r.CreatedAtUtc,
                 }),
             });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.OrdersRead);
 
         return group;
     }

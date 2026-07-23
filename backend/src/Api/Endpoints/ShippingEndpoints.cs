@@ -1,3 +1,4 @@
+using Identity.Infrastructure;
 using Api.Auth;
 using Checkout.Core.Domain;
 using SharedKernel.Abstractions;
@@ -11,7 +12,7 @@ public static class ShippingEndpoints
 {
     public static RouteGroupBuilder MapShippingEndpoints(this RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/admin/shipping/methods").RequireTenantMembership();
+        var admin = group.MapGroup("/admin/shipping/methods").RequirePermission(Permission.SettingsWrite);
 
         admin.MapGet("/", async (ITenantContext tenant, IShippingMethodRepository repository, CancellationToken ct) =>
         {
