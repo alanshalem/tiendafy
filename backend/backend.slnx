@@ -22,6 +22,11 @@
   <Folder Name="/src/Modules/Discounts/">
     <Project Path="src/Modules/Discounts/Discounts.Infrastructure/Discounts.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Fiscal/">
+    <Project Path="src/Modules/Fiscal/Fiscal.Contracts/Fiscal.Contracts.csproj" />
+    <Project Path="src/Modules/Fiscal/Fiscal.Core/Fiscal.Core.csproj" />
+    <Project Path="src/Modules/Fiscal/Fiscal.Infrastructure/Fiscal.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity/">
     <Project Path="src/Modules/Identity/Identity.Infrastructure/Identity.Infrastructure.csproj" />
   </Folder>

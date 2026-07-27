@@ -3,6 +3,7 @@ using Checkout.Infrastructure.Persistence;
 using Content.Infrastructure;
 using Customers.Infrastructure;
 using Discounts.Infrastructure;
+using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
 using Analytics.Infrastructure;
@@ -47,6 +48,7 @@ public static class DatabaseMigrator
         await MigrateAsync<AnalyticsDbContext>(sp, logger);
         await MigrateAsync<NotificationsDbContext>(sp, logger);
         await MigrateAsync<SupportDbContext>(sp, logger);
+        await MigrateAsync<FiscalDbContext>(sp, logger);
     }
 
     private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)
