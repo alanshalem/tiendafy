@@ -249,6 +249,7 @@ apiV1.MapStatsEndpoints();
 apiV1.MapThemeEndpoints();
 apiV1.MapMediaEndpoints();
 apiV1.MapSupportEndpoints();
+apiV1.MapFiscalEndpoints();
 apiV1.MapWhatsAppEndpoints();
 apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();

@@ -26,6 +26,8 @@ public enum Permission
     SettingsWrite,       // envíos, emails automáticos, opciones de checkout
     MembersRead,
     MembersManage,       // sensible: vía de escalación
+    FiscalConfig,        // sensible: cert/CUIT/punto de venta de ARCA
+    FiscalEmit,          // emitir / anular comprobantes (mueve obligaciones fiscales)
     TenantAdmin,         // dominios / plan / borrar tienda — solo owner
 }
 
@@ -70,6 +72,7 @@ public static class RolePermissions
             Permission.OrdersRead, Permission.OrdersRefund,
             Permission.CustomersRead, Permission.DiscountsRead, Permission.StatsRead,
             Permission.PaymentsConfigRead, Permission.InventoryRead,
+            Permission.FiscalConfig, Permission.FiscalEmit, // finanzas maneja la facturación
         ],
         [Soporte] =
         [
@@ -115,6 +118,8 @@ public static class RolePermissions
         Permission.SettingsWrite => "settings.write",
         Permission.MembersRead => "members.read",
         Permission.MembersManage => "members.manage",
+        Permission.FiscalConfig => "fiscal.config",
+        Permission.FiscalEmit => "fiscal.emit",
         Permission.TenantAdmin => "tenant.admin",
         _ => p.ToString().ToLowerInvariant(),
     };
