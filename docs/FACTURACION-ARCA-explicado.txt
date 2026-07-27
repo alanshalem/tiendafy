@@ -1,0 +1,253 @@
+================================================================================
+  FACTURACIÓN ELECTRÓNICA CON ARCA (ex-AFIP) EN TIENDAFY
+  Explicado para cualquiera — sin vueltas, palabra por palabra
+================================================================================
+
+Este documento explica, en criollo, qué estamos construyendo para que tus
+tiendas puedan hacer facturas de verdad (las que valen ante la AFIP/ARCA),
+qué significan todas las palabras raras, y qué tenés que hacer vos.
+
+No hace falta saber de programación para entenderlo.
+
+
+--------------------------------------------------------------------------------
+1. LA IDEA EN UNA FRASE
+--------------------------------------------------------------------------------
+
+Cuando alguien te compra en tu tienda online, la ley te obliga a darle una
+factura oficial. Esa factura no la "inventás": se la tenés que pedir a ARCA
+(el organismo del Estado, antes se llamaba AFIP), que la aprueba y le pone un
+número de autorización. Tiendafy va a hacer todo eso solo, por cada venta, o
+cuando vos aprietes un botón.
+
+
+--------------------------------------------------------------------------------
+2. DICCIONARIO DE PALABRAS RARAS (guardá esto)
+--------------------------------------------------------------------------------
+
+• ARCA / AFIP
+  Es el mismo organismo. AFIP se renombró a ARCA. Es "la AFIP de siempre":
+  la agencia del Estado que controla los impuestos. A ella le pedimos permiso
+  para cada factura.
+
+• Factura electrónica
+  Una factura que no se hace en papel ni en un talonario, sino por internet,
+  aprobada por ARCA en el momento. Es la única forma válida para vender online.
+
+• CAE (Código de Autorización Electrónico)
+  Es el "sello de aprobación" que te da ARCA por cada factura. Un número largo.
+  Sin CAE, la factura no vale. Con CAE, es oficial. También tiene una fecha de
+  vencimiento (hasta cuándo ese sello es válido para imprimir/entregar).
+
+• CUIT
+  El número de 11 dígitos que te identifica como empresa/persona ante ARCA
+  (ej: 20-12345678-6). Cada tienda factura con SU CUIT. Tiendafy valida que el
+  CUIT esté bien escrito (tiene un "dígito verificador" que detecta errores de
+  tipeo).
+
+• Punto de venta
+  Un "cajón numerado" de comprobantes. ARCA te hace numerar las facturas por
+  punto de venta (ej: punto de venta 1, factura número 1, 2, 3...). Podés tener
+  varios (ej: uno para la web, otro para MercadoLibre, otro para el local).
+  Los das de alta en ARCA y después los cargás en Tiendafy.
+
+• Certificado digital (el ".pem" o ".crt")
+  Es como el "documento de identidad" de tu tienda para hablar con ARCA por
+  internet. ARCA no confía en cualquiera: solo le contesta a quien tenga un
+  certificado válido a su nombre. Es un archivo. Vos lo generás con la ayuda de
+  ARCA y lo cargás en Tiendafy UNA vez.
+
+• Clave privada
+  El "compañero secreto" del certificado. Van de a pares: la clave privada
+  firma, el certificado verifica. La clave privada NUNCA se comparte con nadie
+  (ni con ARCA). Tiendafy la genera, la guarda CIFRADA (encriptada) y no la
+  muestra jamás. Si alguien te la roba, podría facturar en tu nombre — por eso
+  se cuida tanto.
+
+• CSR (Solicitud de Firma de Certificado)
+  Es un "formulario de pedido" del certificado. Vos no fabricás el certificado
+  vos mismo: le pedís a ARCA que te lo fabrique. Ese pedido es el CSR. Tiendafy
+  lo arma solo (con tu CUIT y razón social adentro), vos lo subís a la web de
+  ARCA, ARCA te devuelve el certificado ya fabricado, y lo cargás de vuelta en
+  Tiendafy. Es un ida y vuelta que se hace UNA sola vez.
+
+• WSAA (Web Service de Autenticación y Autorización)
+  El "portero" de ARCA. Antes de pedir cualquier factura, tu tienda le muestra
+  el certificado al WSAA y este le da un pase de entrada temporal (ver "TA").
+  Todo automático — vos no ves esto.
+
+• WSFEv1 (Web Service de Factura Electrónica)
+  La "ventanilla de facturas" de ARCA. Una vez que el WSAA te dio el pase, tu
+  tienda le pide a esta ventanilla que apruebe cada factura y le devuelva el CAE.
+  También automático.
+
+• TA (Ticket de Acceso)
+  El "pase de entrada" que da el WSAA. Dura 12 horas. Con ese pase, tu tienda
+  puede pedir todas las facturas que quiera durante ese rato, sin volver a
+  mostrar el certificado. Detalle importante: ARCA no te da un pase nuevo hasta
+  que venza el anterior, así que Tiendafy lo guarda con cuidado para no quedarse
+  sin poder facturar.
+
+• Homologación vs. Producción
+  - Homologación = el "modo de práctica". Un ambiente de ARCA idéntico al real
+    pero de mentira: las facturas que emitís ahí NO valen, son para probar sin
+    riesgo. SIEMPRE se prueba acá primero.
+  - Producción = el "modo real". Las facturas valen de verdad. Se pasa a esto
+    recién cuando todo funcionó en homologación.
+
+• Responsable Inscripto / Monotributo
+  Tu categoría ante ARCA. Define qué TIPO de factura emitís:
+  - Responsable Inscripto → emite Factura A (a otras empresas) o B (a consumidor
+    final). Lleva IVA desglosado.
+  - Monotributo → emite Factura C. Más simple, sin desglose de IVA.
+
+• Consumidor Final
+  El comprador común (una persona que compra para sí, no una empresa). Para
+  ventas chicas no hace falta pedirle los datos; sobre cierto monto sí. Ese
+  "cierto monto" es un umbral configurable (lo pone ARCA y va cambiando).
+
+• Nota de Crédito (NC)
+  La "factura al revés". Si anulás o devolvés una venta ya facturada, no se
+  borra la factura (ARCA no deja): se emite una Nota de Crédito que la compensa.
+  Cuando reembolsás una compra, Tiendafy emite la NC.
+
+
+--------------------------------------------------------------------------------
+3. CÓMO VA A FUNCIONAR, PASO A PASO
+--------------------------------------------------------------------------------
+
+PARTE A — Conectar tu tienda con ARCA (se hace UNA sola vez por tienda)
+
+  1. En Tiendafy: Configuración → Facturación. Cargás:
+       - tu CUIT
+       - tu razón social (el nombre legal de tu negocio)
+       - tu categoría (Responsable Inscripto o Monotributo)
+       - el ambiente (arrancás en "Homologación" para practicar)
+
+  2. Apretás "Generar solicitud de certificado (CSR)".
+     Tiendafy fabrica en el momento tu clave privada (que guarda cifrada) y te
+     da el CSR para descargar. VOS NO TOCÁS NADA TÉCNICO.
+
+  3. Entrás a la web de ARCA (con tu clave fiscal), a la sección de
+     administración de certificados. Subís el CSR que descargaste. ARCA te
+     genera el certificado y te deja descargarlo (un archivo .pem o .crt).
+
+  4. Volvés a Tiendafy y subís/pegás ese certificado. Tiendafy verifica que
+     sea el correcto (que corresponda a la clave que generó) y lo activa.
+
+  5. En la web de ARCA, "delegás" el servicio de factura electrónica (wsfe) a
+     ese certificado. Es un clic en el portal de ARCA. (Tiendafy te va a mostrar
+     los pasos exactos; esto ARCA obliga a hacerlo a mano, no se puede
+     automatizar).
+
+  ¡Listo! Tu tienda quedó conectada con ARCA.
+
+PARTE B — Facturar (automático, todos los días, sin que hagas nada)
+
+  1. Un cliente te compra y paga.
+  2. Tiendafy, por su cuenta, arma la factura con los datos de la venta (los
+     montos NO se pueden falsear: salen del pedido real), le pide el CAE a ARCA
+     y la aprueba.
+  3. El cliente recibe su factura oficial (PDF con el código QR de ARCA) por
+     email, junto con la confirmación de la compra.
+  4. Vos ves en "Ventas" el estado de cada factura: "Pendiente", "Autorizada"
+     (con su CAE) o, si algo falló, "Error" (con el motivo).
+
+  Podés elegir facturar apenas se paga, o recién cuando despachás el pedido.
+
+PARTE C — Facturar a mano (cuando lo necesites)
+
+  Hay una pantalla para emitir una factura suelta (como en cualquier sistema de
+  facturación): elegís el tipo, cargás los ítems, y apretás "Autorizar". Sirve
+  para ventas que no pasaron por la tienda online, o para rehacer una.
+
+PARTE D — Anular / devolver
+
+  Si reembolsás una compra, Tiendafy emite la Nota de Crédito sola. También
+  podés anular a mano desde la pantalla de comprobantes.
+
+
+--------------------------------------------------------------------------------
+4. POR QUÉ LO HACEMOS "ASÍNCRONO" (y qué significa)
+--------------------------------------------------------------------------------
+
+"Asíncrono" = que no pasa todo junto en el mismo instante.
+
+ARCA a veces está lento o se cae por mantenimiento. Si atáramos el botón de
+"Pagar" del cliente a que ARCA conteste, una caída de ARCA rompería la venta.
+Por eso: primero se cobra y se cierra la venta (el cliente ya está feliz), y la
+factura se emite un ratito después, por atrás. Si ARCA está caído, Tiendafy
+reintenta solo hasta que salga. El cliente igual recibe su factura; solo que
+unos minutos después, no en el mismo segundo. Es la forma correcta y la que usan
+los sistemas serios.
+
+
+--------------------------------------------------------------------------------
+5. CÓMO CUIDAMOS TUS DATOS SENSIBLES
+--------------------------------------------------------------------------------
+
+• La clave privada y el certificado se guardan CIFRADOS (encriptados) en la base
+  de datos. Nunca se muestran por pantalla ni por la API, nunca quedan en un
+  archivo suelto.
+• Cada tienda ve SOLO lo suyo (aislamiento por tienda, a prueba de fugas).
+• Solo los roles Dueño, Administrador y Finanzas pueden tocar la configuración
+  fiscal o emitir facturas. Un vendedor o soporte no puede.
+
+
+--------------------------------------------------------------------------------
+6. QUÉ NECESITÁS TENER A MANO
+--------------------------------------------------------------------------------
+
+  [ ] Tu CUIT.
+  [ ] Tu razón social (nombre legal del negocio).
+  [ ] Saber tu categoría: Responsable Inscripto o Monotributo.
+  [ ] Tu clave fiscal de ARCA (para entrar a su web a subir el CSR y descargar
+      el certificado). Es la misma clave con la que hacés trámites en AFIP/ARCA.
+  [ ] El/los número(s) de punto de venta que tengas habilitados en ARCA
+      (o darlos de alta ahí; es un trámite corto en su web).
+
+
+--------------------------------------------------------------------------------
+7. QUÉ ESTÁ Y QUÉ FALTA (estado a hoy)
+--------------------------------------------------------------------------------
+
+  HECHO:
+   • La base del módulo de facturación dentro de Tiendafy.
+   • Validación del CUIT (no deja cargar uno mal escrito).
+   • Generación del pedido de certificado (CSR) desde el sistema, sin que toques
+     nada técnico, y activación del certificado cuando lo subís.
+   • Guardado cifrado de la clave/certificado. Config del emisor y puntos de
+     venta.
+
+  EN CAMINO (próximos pasos):
+   • Conectarse a ARCA de verdad (pedir el "pase" y emitir el CAE) — se prueba
+     primero en homologación.
+   • Emisión automática por cada venta + Nota de Crédito al reembolsar.
+   • Las pantallas lindas en el panel y esta guía dentro del centro de ayuda.
+
+  IMPORTANTE: primero se prueba TODO en homologación (modo práctica). Recién
+  cuando funciona ahí, se pasa a producción (facturas reales).
+
+
+--------------------------------------------------------------------------------
+8. GLOSARIO RELÁMPAGO (para tener a mano en una charla)
+--------------------------------------------------------------------------------
+
+  ARCA .............. la AFIP renombrada; el organismo de impuestos.
+  CAE ............... el sello de aprobación de ARCA por cada factura.
+  CUIT .............. tu número de identificación fiscal (11 dígitos).
+  Certificado ....... el "DNI" de tu tienda para hablar con ARCA.
+  Clave privada ..... el secreto que va con el certificado (jamás se comparte).
+  CSR ............... el pedido para que ARCA te fabrique el certificado.
+  WSAA .............. el portero de ARCA (te da el pase).
+  WSFEv1 ............ la ventanilla de facturas de ARCA (te da el CAE).
+  TA ................ el pase de entrada, dura 12 horas.
+  Homologación ...... modo práctica (facturas de mentira).
+  Producción ........ modo real (facturas que valen).
+  Punto de venta .... el cajón numerado de comprobantes.
+  Nota de Crédito ... la factura al revés, para anular/devolver.
+
+================================================================================
+  Cualquier duda, este documento se puede ampliar. La versión "para el cliente"
+  final va a estar dentro del Centro de Ayuda del panel, en criollo como esta.
+================================================================================
