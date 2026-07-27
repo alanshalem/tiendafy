@@ -291,8 +291,78 @@ public static class OrderEndpoints
             });
         }).RequirePermission(Permission.OrdersRead);
 
+        // --- Facturación de la orden (ARCA) ------------------------------------------
+        // Estado fiscal de una orden: comprobantes emitidos + estado de los jobs de
+        // emisión (para la pantalla de Ventas). Sin secretos.
+        group.MapGet("/orders/{id:guid}/fiscal", async (
+            Guid id, ITenantContext tenant, global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+            var tid = tenant.TenantId.Value;
+            var docs = await fiscalDb.Documents.AsNoTracking()
+                .Where(d => d.TenantId == tid && d.OrderId == id)
+                .OrderBy(d => d.CreatedAtUtc).ToListAsync(ct);
+            var jobs = await fiscalDb.EmissionJobs.AsNoTracking()
+                .Where(j => j.TenantId == tid && j.OrderId == id)
+                .ToListAsync(ct);
+            return Results.Ok(new
+            {
+                documents = docs.Select(FiscalDocDto),
+                jobs = jobs.Select(j => new
+                {
+                    j.Id,
+                    kind = j.Kind.ToString(),
+                    status = j.Status.ToString(),
+                    j.Attempts,
+                    j.LastError,
+                    j.NextAttemptUtc,
+                }),
+            });
+        }).RequirePermission(Permission.OrdersRead);
+
+        // Facturar la orden manualmente ahora (síncrono, feedback inmediato). Gateado
+        // con FiscalEmit. La guarda anti-duplicado vive en el emisor.
+        group.MapPost("/orders/{id:guid}/invoice", async (
+            Guid id, ITenantContext tenant, IOrderRepository orders,
+            global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
+        {
+            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+            if (order.Status is OrderStatus.PendingPayment or OrderStatus.Failed or OrderStatus.Cancelled)
+                return Error.Conflict("Order.NotPayable", "Solo se puede facturar una orden pagada.").ToProblem();
+
+            var cmd = new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(
+                tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits, order.DocNumber);
+            var result = await emitter.EmitAsync(cmd, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+            var r = result.Value;
+            return Results.Ok(new
+            {
+                r.DocumentId, r.Authorized, r.PtoVta, cbteTipo = r.CbteTipo, r.Number, r.Cae,
+                caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
+                errors = r.Errors.Select(e => new { e.Code, e.Message }),
+            });
+        }).RequirePermission(Permission.FiscalEmit);
+
         return group;
     }
+
+    // DTO de comprobante fiscal para el admin (sin request/response crudos).
+    private static object FiscalDocDto(global::Fiscal.Core.Domain.FiscalDocument d) => new
+    {
+        d.Id,
+        cbteTipo = d.CbteTipo.ToString(),
+        d.PtoVta,
+        d.Number,
+        result = d.Result.ToString(),
+        d.Cae,
+        caeVto = d.CaeVtoUtc?.ToString("yyyy-MM-dd"),
+        impTotal = d.ImpTotal,
+        observations = d.Observations,
+        errors = d.Errors,
+        d.CreatedAtUtc,
+    };
 
     /// <summary>Crea la Order desde un checkout enviado, aplicando el cupón validado server-side.</summary>
     private static async Task<Result<Order>> BuildOrderAsync(

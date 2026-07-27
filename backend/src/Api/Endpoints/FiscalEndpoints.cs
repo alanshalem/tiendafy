@@ -157,6 +157,17 @@ public static class FiscalEndpoints
         // Gateado con FiscalEmit (más restrictivo que FiscalConfig). Emite un
         // comprobante puntual desde el admin (sin orden asociada).
         var emit = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalEmit);
+
+        // Reintento manual de un job en dead-letter (o pendiente): vuelve a la cola.
+        emit.MapPost("/jobs/{jobId:guid}/retry", async (
+            Guid jobId, ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
+        {
+            var job = await db.EmissionJobs.FirstOrDefaultAsync(j => j.TenantId == tenant.TenantId.Value && j.Id == jobId, ct);
+            if (job is null) return Results.NotFound();
+            job.Requeue();
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { job.Id, status = job.Status.ToString() });
+        });
         emit.MapPost("/emit", async (
             EmitRequest req, ITenantContext tenant, IInvoiceEmitter emitter, CancellationToken ct) =>
         {

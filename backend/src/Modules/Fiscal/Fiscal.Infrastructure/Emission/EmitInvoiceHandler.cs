@@ -31,6 +31,18 @@ public sealed class EmitInvoiceHandler(
             return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.NotConfigured",
                 "Falta configurar la facturación (datos del emisor)."));
 
+        // Guarda anti-duplicado: no re-facturar una orden ya facturada (protege el
+        // camino manual y el automático). No aplica a notas de crédito.
+        if (!cmd.CreditNote && cmd.OrderId is { } orderId)
+        {
+            var already = await db.Documents.AsNoTracking().AnyAsync(
+                d => d.TenantId == cmd.TenantId && d.OrderId == orderId && d.Result == FiscalResult.Authorized
+                  && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC, ct);
+            if (already)
+                return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.AlreadyInvoiced",
+                    "Esta orden ya tiene una factura autorizada."));
+        }
+
         var cuitResult = Cuit.Create(cfg.Cuit);
         if (cuitResult.IsFailure) return Result.Failure<EmitInvoiceResult>(cuitResult.Error);
         var cuit = cuitResult.Value;
