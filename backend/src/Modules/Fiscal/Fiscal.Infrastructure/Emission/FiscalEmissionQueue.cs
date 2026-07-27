@@ -45,4 +45,34 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
             return false;
         }
     }
+
+    public async Task<bool> EnqueueCreditNoteAsync(
+        Guid tenantId, Guid orderId, long grossMinorUnits, string? buyerDoc, CancellationToken ct = default)
+    {
+        var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
+        if (cfg is null || !cfg.Enabled || !cfg.AutoInvoiceEnabled) return false;
+
+        // Sólo tiene sentido acreditar si hay una factura autorizada de la orden.
+        var hasInvoice = await db.Documents.AsNoTracking().AnyAsync(
+            d => d.TenantId == tenantId && d.OrderId == orderId
+              && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC
+              && d.Result == FiscalResult.Authorized, ct);
+        if (!hasInvoice) return false;
+
+        var alreadyQueued = await db.EmissionJobs.AsNoTracking().AnyAsync(
+            j => j.TenantId == tenantId && j.OrderId == orderId && j.Kind == FiscalJobKind.CreditNote, ct);
+        if (alreadyQueued) return false;
+
+        db.EmissionJobs.Add(FiscalEmissionJob.Create(tenantId, orderId, FiscalJobKind.CreditNote, grossMinorUnits, buyerDoc));
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Nota de crédito encolada (tenant {Tenant}, orden {Order}).", tenantId, orderId);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            return false;
+        }
+    }
 }

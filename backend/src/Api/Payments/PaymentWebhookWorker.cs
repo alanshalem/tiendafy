@@ -103,6 +103,9 @@ public sealed class PaymentWebhookWorker(
             case SettleOutcome.Refunded:
                 await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);
                 await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
+                // Nota de crédito automática si la orden estaba facturada.
+                await sp.GetRequiredService<global::Fiscal.Core.Abstractions.IFiscalEmissionQueue>()
+                    .EnqueueCreditNoteAsync(order.TenantId.Value, order.Id, order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct);
                 break;
             case SettleOutcome.ChargedBack:
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);

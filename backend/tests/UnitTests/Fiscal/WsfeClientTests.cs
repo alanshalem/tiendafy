@@ -112,6 +112,48 @@ public class WsfeClientTests
     }
 
     [Fact]
+    public async Task RequestCae_RespectsXsdSequence_ImpTribBeforeImpIva()
+    {
+        var (client, handler) = Make(ApprovedResponse());
+        var draft = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto,
+            new Receptor(DocTipo.ConsumidorFinal, 0, CondicionIvaReceptor.ConsumidorFinal), 12100).Value;
+
+        await client.RequestCaeAsync(Ticket, Emisor, FiscalEnvironment.Homologacion, 1, 5, new DateOnly(2026, 7, 27), draft);
+
+        // El WSDL define xsd:sequence: ImpTrib antes que ImpIVA; Iva al final.
+        var xml = handler.LastRequest;
+        Assert.True(xml.IndexOf("ImpTrib", StringComparison.Ordinal) < xml.IndexOf("ImpIVA", StringComparison.Ordinal));
+        Assert.True(xml.IndexOf("CondicionIVAReceptorId", StringComparison.Ordinal) < xml.IndexOf("<ar:Iva>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task RequestCae_CreditNote_EmitsCbtesAsoc_BeforeIva()
+    {
+        var (client, handler) = Make(ApprovedResponse());
+        var baseDraft = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto,
+            new Receptor(DocTipo.ConsumidorFinal, 0, CondicionIvaReceptor.ConsumidorFinal), 12100, creditNote: true).Value;
+        var draft = baseDraft with { CbtesAsoc = [new CbteAsoc(CbteTipo.FacturaB, 1, 42, new DateOnly(2026, 7, 20))] };
+
+        await client.RequestCaeAsync(Ticket, Emisor, FiscalEnvironment.Homologacion, 1, 5, new DateOnly(2026, 7, 27), draft);
+
+        var xml = handler.LastRequest;
+        Assert.Contains("<ar:CbtesAsoc>", xml);
+        Assert.Contains("<ar:Tipo>6</ar:Tipo>", xml);   // Factura B original
+        Assert.Contains("<ar:Nro>42</ar:Nro>", xml);
+        // CbtesAsoc va después de CondicionIVAReceptorId y antes de Iva.
+        Assert.True(xml.IndexOf("CondicionIVAReceptorId", StringComparison.Ordinal) < xml.IndexOf("CbtesAsoc", StringComparison.Ordinal));
+        Assert.True(xml.IndexOf("CbtesAsoc", StringComparison.Ordinal) < xml.IndexOf("<ar:Iva>", StringComparison.Ordinal));
+    }
+
+    private static string ApprovedResponse() => """
+        <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+         <soap:Body><FECAESolicitarResponse xmlns="http://ar.gov.afip.dif.FEV1/"><FECAESolicitarResult>
+          <FeCabResp><Resultado>A</Resultado></FeCabResp>
+          <FeDetResp><FECAEDetResponse><Resultado>A</Resultado><CAE>75123456789012</CAE><CAEFchVto>20260806</CAEFchVto></FECAEDetResponse></FeDetResp>
+         </FECAESolicitarResult></FECAESolicitarResponse></soap:Body></soap:Envelope>
+        """;
+
+    [Fact]
     public async Task RequestCae_Rejected_MapsErrors()
     {
         var (client, _) = Make("""

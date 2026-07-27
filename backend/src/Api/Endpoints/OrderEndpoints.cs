@@ -186,7 +186,8 @@ public static class OrderEndpoints
         // sucesivos no se deduplican entre sí pero un retry de red sí.
         group.MapPost("/orders/{id:guid}/refund", async (
             Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
-            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp, CancellationToken ct) =>
+            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
+            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
@@ -254,6 +255,9 @@ public static class OrderEndpoints
                 {
                     await notifier.NotifyAsync(order, "cancelacion-compra", ct);
                     await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
+                    // Nota de crédito automática si la orden estaba facturada.
+                    await fiscalQueue.EnqueueCreditNoteAsync(tenant.TenantId.Value, order.Id,
+                        order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct);
                 }
                 return Results.Ok(ToDto(order));
             }

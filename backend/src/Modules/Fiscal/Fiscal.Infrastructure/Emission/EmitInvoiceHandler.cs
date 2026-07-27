@@ -47,6 +47,24 @@ public sealed class EmitInvoiceHandler(
         if (draftResult.IsFailure) return Result.Failure<EmitInvoiceResult>(draftResult.Error);
         var draft = draftResult.Value;
 
+        // Nota de crédito: referencia obligatoria al comprobante original (CbtesAsoc).
+        if (cmd.CreditNote)
+        {
+            if (cmd.OrderId is not { } oid)
+                return Result.Failure<EmitInvoiceResult>(Error.Validation("Fiscal.NcNeedsOrder",
+                    "Una nota de crédito necesita la orden del comprobante original."));
+
+            var original = await db.Documents
+                .Where(d => d.TenantId == cmd.TenantId && d.OrderId == oid && d.Result == FiscalResult.Authorized
+                    && (d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC))
+                .OrderByDescending(d => d.CreatedAtUtc).FirstOrDefaultAsync(ct);
+            if (original is null)
+                return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.NoOriginalInvoice",
+                    "No hay una factura autorizada para acreditar en esta orden."));
+
+            draft = draft with { CbtesAsoc = [new CbteAsoc(original.CbteTipo, original.PtoVta, original.Number)] };
+        }
+
         // TA de WSFEv1 (reusa cache o pide con advisory lock adentro).
         var ticketResult = await authenticator.GetTicketAsync(cmd.TenantId, cuit, "wsfe", env, ct);
         if (ticketResult.IsFailure) return Result.Failure<EmitInvoiceResult>(ticketResult.Error);

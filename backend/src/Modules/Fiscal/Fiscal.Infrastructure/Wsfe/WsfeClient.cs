@@ -57,6 +57,9 @@ public sealed class WsfeClient(
         FiscalTicket auth, Cuit cuit, FiscalEnvironment environment,
         int ptoVta, long number, DateOnly cbteFch, InvoiceDraft draft, CancellationToken ct = default)
     {
+        // ORDEN CRÍTICO: FECAEDetRequest es una xsd:sequence; ARCA valida por
+        // orden. Según el WSDL: ... ImpTrib, ImpIVA ... CondicionIVAReceptorId,
+        // CbtesAsoc, Tributos, Iva ...
         var det = new XElement(Ar + "FECAEDetRequest",
             new XElement(Ar + "Concepto", (int)draft.Concepto),
             new XElement(Ar + "DocTipo", (int)draft.Receptor.DocTipo),
@@ -68,11 +71,25 @@ public sealed class WsfeClient(
             new XElement(Ar + "ImpTotConc", Dec(draft.ImpTotConc)),
             new XElement(Ar + "ImpNeto", Dec(draft.ImpNeto)),
             new XElement(Ar + "ImpOpEx", Dec(draft.ImpOpEx)),
-            new XElement(Ar + "ImpIVA", Dec(draft.ImpIVA)),
             new XElement(Ar + "ImpTrib", Dec(draft.ImpTrib)),
+            new XElement(Ar + "ImpIVA", Dec(draft.ImpIVA)),
             new XElement(Ar + "MonId", draft.Currency),
             new XElement(Ar + "MonCotiz", "1"),
             new XElement(Ar + "CondicionIVAReceptorId", (int)draft.Receptor.Condicion));
+
+        // CbtesAsoc: obligatorio en notas de crédito (referencia al comprobante
+        // original). Va DESPUÉS de CondicionIVAReceptorId y ANTES de Iva.
+        if (draft.CbtesAsoc.Count > 0)
+            det.Add(new XElement(Ar + "CbtesAsoc",
+                draft.CbtesAsoc.Select(a =>
+                {
+                    var el = new XElement(Ar + "CbteAsoc",
+                        new XElement(Ar + "Tipo", (int)a.Tipo),
+                        new XElement(Ar + "PtoVta", a.PtoVta),
+                        new XElement(Ar + "Nro", a.Nro));
+                    if (a.Fecha is { } f) el.Add(new XElement(Ar + "CbteFch", f.ToString("yyyyMMdd")));
+                    return el;
+                })));
 
         // Array Iva SOLO para A/B (clase C no lleva — error 10071, H15).
         if (draft.Iva.Count > 0)

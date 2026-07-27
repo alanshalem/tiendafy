@@ -4,6 +4,12 @@ namespace Fiscal.Core.Domain;
 public sealed record IvaLine(IvaId Id, decimal BaseImp, decimal Importe);
 
 /// <summary>
+/// Comprobante asociado (CbtesAsoc): referencia al comprobante original que una
+/// nota de crédito rectifica. Obligatorio en NC.
+/// </summary>
+public sealed record CbteAsoc(CbteTipo Tipo, int PtoVta, long Nro, DateOnly? Fecha = null);
+
+/// <summary>
 /// Datos del receptor ya resueltos (tipo/número de doc + condición IVA). Lo
 /// arma ReceptorResolver aplicando el umbral de consumidor final.
 /// </summary>
@@ -26,4 +32,9 @@ public sealed record InvoiceDraft(
     decimal ImpOpEx,        // exento
     decimal ImpIVA,
     decimal ImpTrib,
-    IReadOnlyList<IvaLine> Iva);
+    IReadOnlyList<IvaLine> Iva)
+{
+    /// <summary>Comprobantes asociados (vacío salvo en notas de crédito). Se
+    /// adjunta con <c>draft with { CbtesAsoc = [...] }</c> en la emisión de NC.</summary>
+    public IReadOnlyList<CbteAsoc> CbtesAsoc { get; init; } = [];
+}
