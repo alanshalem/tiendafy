@@ -24,6 +24,7 @@ public sealed class FiscalDbContext : DbContext
     public DbSet<FiscalAccessToken> AccessTokens => Set<FiscalAccessToken>();
     public DbSet<FiscalDocument> Documents => Set<FiscalDocument>();
     public DbSet<FiscalSequence> Sequences => Set<FiscalSequence>();
+    public DbSet<FiscalEmissionJob> EmissionJobs => Set<FiscalEmissionJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +96,20 @@ public sealed class FiscalDbContext : DbContext
             .IsUnique()
             .HasFilter("result = 'Authorized'");
         doc.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+
+        var job = modelBuilder.Entity<FiscalEmissionJob>();
+        job.ToTable("fiscal_emission_jobs");
+        job.HasKey(x => x.Id);
+        job.Property(x => x.Id).ValueGeneratedNever();
+        job.Property(x => x.Kind).HasConversion<int>();
+        job.Property(x => x.Status).HasConversion<string>().HasMaxLength(15);
+        job.Property(x => x.BuyerDoc).HasMaxLength(20);
+        job.Property(x => x.LastError).HasColumnType("text");
+        // Un job por (tenant, orden, tipo): el trigger no duplica facturación.
+        job.HasIndex(x => new { x.TenantId, x.OrderId, x.Kind }).IsUnique();
+        // El worker barre pendientes listos para reintentar.
+        job.HasIndex(x => new { x.Status, x.NextAttemptUtc });
+        job.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
 
         var seq = modelBuilder.Entity<FiscalSequence>();
         seq.ToTable("fiscal_sequences");

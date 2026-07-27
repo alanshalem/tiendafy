@@ -322,6 +322,76 @@ namespace Fiscal.Infrastructure.Migrations
                     b.ToTable("fiscal_documents", (string)null);
                 });
 
+            modelBuilder.Entity("Fiscal.Core.Domain.FiscalEmissionJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("BuyerDoc")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("buyer_doc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("FiscalDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_document_id");
+
+                    b.Property<long>("GrossMinorUnits")
+                        .HasColumnType("bigint")
+                        .HasColumnName("gross_minor_units");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("NextAttemptUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_utc");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fiscal_emission_jobs");
+
+                    b.HasIndex("Status", "NextAttemptUtc")
+                        .HasDatabaseName("ix_fiscal_emission_jobs_status_next_attempt_utc");
+
+                    b.HasIndex("TenantId", "OrderId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fiscal_emission_jobs_tenant_id_order_id_kind");
+
+                    b.ToTable("fiscal_emission_jobs", (string)null);
+                });
+
             modelBuilder.Entity("Fiscal.Core.Domain.FiscalPointOfSale", b =>
                 {
                     b.Property<Guid>("Id")

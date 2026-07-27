@@ -162,7 +162,8 @@ public static class OrderEndpoints
 
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
-            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, WhatsAppNotifier whatsapp, CancellationToken ct) =>
+            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, WhatsAppNotifier whatsapp,
+            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
@@ -172,6 +173,9 @@ public static class OrderEndpoints
             await orders.SaveChangesAsync(ct);
             await notifier.NotifyAsync(order, "confirmacion-envio", ct);
             await whatsapp.NotifyAsync(order, "confirmacion-envio", ct);
+            // Factura automática si el trigger configurado es "al despachar".
+            await fiscalQueue.EnqueueInvoiceAsync(tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
+                order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnFulfillment, ct);
             return Results.Ok(ToDto(order));
         }).RequirePermission(Permission.OrdersFulfill);
 

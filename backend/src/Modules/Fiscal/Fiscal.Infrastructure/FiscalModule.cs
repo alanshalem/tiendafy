@@ -56,6 +56,7 @@ public static class FiscalModule
             });
         services.AddScoped<IFiscalGateway>(sp => sp.GetRequiredService<WsfeClient>());
         services.AddScoped<IInvoiceEmitter, EmitInvoiceHandler>();
+        services.AddScoped<IFiscalEmissionQueue, FiscalEmissionQueue>();
 
         return services;
     }

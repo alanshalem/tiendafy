@@ -112,14 +112,16 @@ public sealed class EmitInvoiceHandler(
     {
         if (cmd.PtoVta is > 0) return cmd.PtoVta.Value;
 
+        // Filtro de tenant explícito: el handler corre también sin tenant en scope
+        // (worker de emisión), donde el filtro global de EF queda bypasseado.
         if (cfg.DefaultPointOfSaleId is { } posId)
         {
-            var pos = await db.PointsOfSale.FirstOrDefaultAsync(p => p.Id == posId && p.Active, ct);
+            var pos = await db.PointsOfSale.FirstOrDefaultAsync(p => p.TenantId == cmd.TenantId && p.Id == posId && p.Active, ct);
             if (pos is not null) return pos.Number;
         }
 
         // Sin default: si hay un único punto de venta activo, usarlo.
-        var actives = await db.PointsOfSale.Where(p => p.Active).ToListAsync(ct);
+        var actives = await db.PointsOfSale.Where(p => p.TenantId == cmd.TenantId && p.Active).ToListAsync(ct);
         if (actives.Count == 1) return actives[0].Number;
 
         return Result.Failure<int>(Error.Validation("Fiscal.NoPointOfSale",

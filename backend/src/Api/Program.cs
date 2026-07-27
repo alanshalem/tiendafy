@@ -65,6 +65,9 @@ builder.Services.AddNotificationsModule(builder.Configuration);
 // Webhooks de pago: inbox durable en DB + worker que hace polling con reintentos.
 builder.Services.AddHostedService<PaymentWebhookWorker>();
 
+// Facturación automática: outbox de emisión + worker que pide el CAE a ARCA.
+builder.Services.AddHostedService<Api.Fiscal.FiscalEmissionWorker>();
+
 // Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.AddHttpClient<IEmailSender, EmailSender>();
