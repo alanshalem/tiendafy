@@ -217,6 +217,110 @@ namespace Fiscal.Infrastructure.Migrations
                     b.ToTable("fiscal_configs", (string)null);
                 });
 
+            modelBuilder.Entity("Fiscal.Core.Domain.FiscalDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Cae")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("cae");
+
+                    b.Property<DateTime?>("CaeVtoUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cae_vto_utc");
+
+                    b.Property<int>("CbteTipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("cbte_tipo");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("DocNro")
+                        .HasColumnType("bigint")
+                        .HasColumnName("doc_nro");
+
+                    b.Property<int>("DocTipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("doc_tipo");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("environment");
+
+                    b.Property<string>("Errors")
+                        .HasColumnType("text")
+                        .HasColumnName("errors");
+
+                    b.Property<decimal>("ImpIVA")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("imp_iva");
+
+                    b.Property<decimal>("ImpNeto")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("imp_neto");
+
+                    b.Property<decimal>("ImpTotal")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("imp_total");
+
+                    b.Property<long>("Number")
+                        .HasColumnType("bigint")
+                        .HasColumnName("number");
+
+                    b.Property<string>("Observations")
+                        .HasColumnType("text")
+                        .HasColumnName("observations");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("PtoVta")
+                        .HasColumnType("integer")
+                        .HasColumnName("pto_vta");
+
+                    b.Property<string>("RequestPayload")
+                        .HasColumnType("text")
+                        .HasColumnName("request_payload");
+
+                    b.Property<string>("ResponsePayload")
+                        .HasColumnType("text")
+                        .HasColumnName("response_payload");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("result");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fiscal_documents");
+
+                    b.HasIndex("TenantId", "OrderId")
+                        .HasDatabaseName("ix_fiscal_documents_tenant_id_order_id");
+
+                    b.HasIndex("TenantId", "Environment", "PtoVta", "CbteTipo", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fiscal_documents_tenant_id_environment_pto_vta_cbte_tipo_nu");
+
+                    b.ToTable("fiscal_documents", (string)null);
+                });
+
             modelBuilder.Entity("Fiscal.Core.Domain.FiscalPointOfSale", b =>
                 {
                     b.Property<Guid>("Id")
@@ -253,6 +357,48 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasDatabaseName("ix_fiscal_points_of_sale_tenant_id_number");
 
                     b.ToTable("fiscal_points_of_sale", (string)null);
+                });
+
+            modelBuilder.Entity("Fiscal.Core.Domain.FiscalSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("CbteTipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("cbte_tipo");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("environment");
+
+                    b.Property<long>("LastNumber")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_number");
+
+                    b.Property<int>("PtoVta")
+                        .HasColumnType("integer")
+                        .HasColumnName("pto_vta");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fiscal_sequences");
+
+                    b.HasIndex("TenantId", "Environment", "PtoVta", "CbteTipo")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fiscal_sequences_tenant_id_environment_pto_vta_cbte_tipo");
+
+                    b.ToTable("fiscal_sequences", (string)null);
                 });
 #pragma warning restore 612, 618
         }

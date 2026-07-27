@@ -22,6 +22,8 @@ public sealed class FiscalDbContext : DbContext
     public DbSet<FiscalPointOfSale> PointsOfSale => Set<FiscalPointOfSale>();
     public DbSet<FiscalCertificate> Certificates => Set<FiscalCertificate>();
     public DbSet<FiscalAccessToken> AccessTokens => Set<FiscalAccessToken>();
+    public DbSet<FiscalDocument> Documents => Set<FiscalDocument>();
+    public DbSet<FiscalSequence> Sequences => Set<FiscalSequence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,5 +71,34 @@ public sealed class FiscalDbContext : DbContext
         ta.Property(x => x.SignEncrypted).HasColumnType("text").IsRequired();
         ta.HasIndex(x => new { x.TenantId, x.Cuit, x.Service, x.Environment }).IsUnique();
         ta.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+
+        var doc = modelBuilder.Entity<FiscalDocument>();
+        doc.ToTable("fiscal_documents");
+        doc.HasKey(x => x.Id);
+        doc.Property(x => x.Id).ValueGeneratedNever();
+        doc.Property(x => x.Environment).HasConversion<string>().HasMaxLength(15);
+        doc.Property(x => x.CbteTipo).HasConversion<int>();
+        doc.Property(x => x.DocTipo).HasConversion<int>();
+        doc.Property(x => x.Result).HasConversion<string>().HasMaxLength(15);
+        doc.Property(x => x.ImpTotal).HasColumnType("numeric(18,2)");
+        doc.Property(x => x.ImpNeto).HasColumnType("numeric(18,2)");
+        doc.Property(x => x.ImpIVA).HasColumnType("numeric(18,2)");
+        doc.Property(x => x.Cae).HasMaxLength(20);
+        doc.Property(x => x.Observations).HasColumnType("text");
+        doc.Property(x => x.Errors).HasColumnType("text");
+        doc.Property(x => x.RequestPayload).HasColumnType("text");
+        doc.Property(x => x.ResponsePayload).HasColumnType("text");
+        doc.HasIndex(x => new { x.TenantId, x.OrderId });
+        doc.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo, x.Number }).IsUnique();
+        doc.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+
+        var seq = modelBuilder.Entity<FiscalSequence>();
+        seq.ToTable("fiscal_sequences");
+        seq.HasKey(x => x.Id);
+        seq.Property(x => x.Id).ValueGeneratedNever();
+        seq.Property(x => x.Environment).HasConversion<string>().HasMaxLength(15);
+        seq.Property(x => x.CbteTipo).HasConversion<int>();
+        seq.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo }).IsUnique();
+        seq.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

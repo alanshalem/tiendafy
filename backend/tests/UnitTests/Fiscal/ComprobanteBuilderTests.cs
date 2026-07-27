@@ -1,0 +1,124 @@
+using Fiscal.Core.Domain;
+
+namespace UnitTests.Fiscal;
+
+public class ComprobanteBuilderTests
+{
+    private static readonly Receptor ConsumidorFinal =
+        new(DocTipo.ConsumidorFinal, 0, CondicionIvaReceptor.ConsumidorFinal);
+    private static readonly Receptor Empresa =
+        new(DocTipo.Cuit, 30123456789, CondicionIvaReceptor.ResponsableInscripto);
+
+    [Fact]
+    public void Monotributo_EmitsFacturaC_NoIva()
+    {
+        var d = ComprobanteBuilder.Build(FiscalCondition.Monotributo, ConsumidorFinal, 10000).Value; // $100
+
+        Assert.Equal(CbteTipo.FacturaC, d.CbteTipo);
+        Assert.Equal(100m, d.ImpNeto);   // ImpNeto = subtotal (H15)
+        Assert.Equal(100m, d.ImpTotal);  // ImpTotal = ImpNeto + ImpTrib
+        Assert.Equal(0m, d.ImpIVA);
+        Assert.Empty(d.Iva);             // sin array Iva (error 10071 si se envía)
+    }
+
+    [Fact]
+    public void ResponsableInscripto_ConsumidorFinal_EmitsFacturaB_IvaDesarmado()
+    {
+        var d = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto, ConsumidorFinal, 12100).Value; // $121
+
+        Assert.Equal(CbteTipo.FacturaB, d.CbteTipo);
+        Assert.Equal(100m, d.ImpNeto);   // 121 / 1.21
+        Assert.Equal(21m, d.ImpIVA);
+        Assert.Equal(121m, d.ImpTotal);
+        var line = Assert.Single(d.Iva);
+        Assert.Equal(IvaId.Iva21, line.Id);
+        Assert.Equal(100m, line.BaseImp);
+        Assert.Equal(21m, line.Importe);
+    }
+
+    [Fact]
+    public void ResponsableInscripto_ConCuit_EmitsFacturaA()
+    {
+        var d = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto, Empresa, 12100).Value;
+        Assert.Equal(CbteTipo.FacturaA, d.CbteTipo);
+    }
+
+    [Theory]
+    [InlineData(FiscalCondition.Monotributo, false, CbteTipo.FacturaC)]
+    [InlineData(FiscalCondition.Monotributo, true, CbteTipo.NotaCreditoC)]
+    [InlineData(FiscalCondition.ResponsableInscripto, true, CbteTipo.NotaCreditoB)]
+    public void CreditNote_MapsToNc(FiscalCondition emisor, bool nc, CbteTipo expected)
+    {
+        var d = ComprobanteBuilder.Build(emisor, ConsumidorFinal, 10000, creditNote: nc).Value;
+        Assert.Equal(expected, d.CbteTipo);
+    }
+
+    [Theory]
+    [InlineData(10000)]   // 100.00
+    [InlineData(12100)]   // 121.00
+    [InlineData(999)]     // 9.99 (redondeo feo)
+    [InlineData(3705000)] // 37.050,00
+    public void ControlEquation_Holds_And_RoundingExact(long grossMinor)
+    {
+        var d = ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto, ConsumidorFinal, grossMinor).Value;
+
+        // H10: ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA + ImpTrib
+        Assert.Equal(d.ImpTotal, d.ImpTotConc + d.ImpOpEx + d.ImpNeto + d.ImpIVA + d.ImpTrib);
+        // neto + iva == total, al centavo (sin drift de redondeo)
+        Assert.Equal(grossMinor / 100m, d.ImpNeto + d.ImpIVA);
+        // El IVA desarmado cae dentro de la tolerancia de ARCA.
+        Assert.True(ComprobanteBuilder.IvaWithinTolerance(d.ImpNeto, d.ImpIVA, 21m, 1));
+    }
+
+    [Fact]
+    public void NonPositiveTotal_Fails()
+    {
+        Assert.True(ComprobanteBuilder.Build(FiscalCondition.Monotributo, ConsumidorFinal, 0).IsFailure);
+        Assert.True(ComprobanteBuilder.Build(FiscalCondition.ResponsableInscripto, ConsumidorFinal, -100).IsFailure);
+    }
+
+    [Fact]
+    public void Currency_IsArcaPesCode()
+    {
+        var d = ComprobanteBuilder.Build(FiscalCondition.Monotributo, ConsumidorFinal, 10000).Value;
+        Assert.Equal("PES", d.Currency); // no "ARS"
+    }
+}
+
+public class ReceptorResolverTests
+{
+    [Fact]
+    public void Cuit_ResolvesResponsableInscripto()
+    {
+        var r = ReceptorResolver.Resolve("20-12345678-6", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        Assert.Equal(DocTipo.Cuit, r.DocTipo);
+        Assert.Equal(20123456786, r.DocNro);
+        Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
+    }
+
+    [Fact]
+    public void Dni_ResolvesConsumidorIdentificado()
+    {
+        var r = ReceptorResolver.Resolve("30111222", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        Assert.Equal(DocTipo.Dni, r.DocTipo);
+        Assert.Equal(30111222, r.DocNro);
+        Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
+    }
+
+    [Fact]
+    public void NoDoc_UnderThreshold_ConsumidorFinalAnonimo()
+    {
+        var r = ReceptorResolver.Resolve(null, grossMinorUnits: 500, thresholdMinorUnits: 1000);
+        Assert.Equal(DocTipo.ConsumidorFinal, r.DocTipo);
+        Assert.Equal(0, r.DocNro);
+        Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
+    }
+
+    [Fact]
+    public void InvalidCuit_FallsBackToConsumidorFinal()
+    {
+        // 11 dígitos pero dígito verificador malo → no es CUIT.
+        var r = ReceptorResolver.Resolve("20123456780", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        Assert.Equal(DocTipo.ConsumidorFinal, r.DocTipo);
+    }
+}
