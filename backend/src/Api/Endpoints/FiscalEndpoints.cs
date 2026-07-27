@@ -1,5 +1,6 @@
 using Api.Auth;
 using Fiscal.Contracts;
+using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
 using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure;
@@ -119,6 +120,25 @@ public static class FiscalEndpoints
             cert.Activate(protector.Protect(req.CertificatePem), info.Value.SubjectCn, info.Value.NotBeforeUtc, info.Value.NotAfterUtc);
             await db.SaveChangesAsync(ct);
             return Results.Ok(CertDto(cert));
+        });
+
+        // --- Probar conexión con ARCA -------------------------------------------------
+        // Autentica contra WSAA (pide un TA) con el cert cargado. Sirve para que el
+        // merchant valide que el certificado quedó bien y que ARCA le responde,
+        // antes de intentar facturar. No emite nada.
+        fiscal.MapPost("/test-connection", async (
+            ITenantContext tenant, FiscalDbContext db, IFiscalAuthenticator auth, CancellationToken ct) =>
+        {
+            var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
+            if (cfg is null) return Error.Conflict("Fiscal.NoConfig", "Configurá primero los datos del emisor.").ToProblem();
+
+            var cuit = Cuit.Create(cfg.Cuit);
+            if (cuit.IsFailure) return cuit.Error.ToProblem();
+
+            var ticket = await auth.GetTicketAsync(tenant.TenantId.Value, cuit.Value, "wsfe", cfg.Environment, ct);
+            return ticket.IsSuccess
+                ? Results.Ok(new { ok = true, expiresAtUtc = ticket.Value.ExpiresAtUtc, environment = cfg.Environment.ToString().ToUpperInvariant() })
+                : ticket.Error.ToProblem();
         });
 
         // --- Puntos de venta ----------------------------------------------------------

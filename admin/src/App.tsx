@@ -6,6 +6,7 @@ import { ShippingMethodsPage } from './pages/Settings/ShippingMethods';
 import { AutoEmailsPage } from './pages/Settings/AutoEmails';
 import { WhatsAppAutoPage } from './pages/Settings/WhatsAppAuto';
 import { CheckoutOptionsPage } from './pages/Settings/CheckoutOptions';
+import { FiscalInvoicingPage } from './pages/Settings/FiscalInvoicing';
 import { DomainsPage } from './pages/Settings/Domains';
 import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
 import {
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="emails-automaticos" element={<RequirePerm perm="settings.write"><AutoEmailsPage /></RequirePerm>} />
         <Route path="whatsapp-automatico" element={<RequirePerm perm="settings.write"><WhatsAppAutoPage /></RequirePerm>} />
         <Route path="opciones-del-checkout" element={<RequirePerm perm="settings.write"><CheckoutOptionsPage /></RequirePerm>} />
+        <Route path="facturacion" element={<RequirePerm perm="fiscal.config"><FiscalInvoicingPage /></RequirePerm>} />
         <Route path="usuarios" element={<RequirePerm perm="members.read"><UsersNotificationsPage /></RequirePerm>} />
         <Route path="dominios" element={<RequirePerm perm="settings.write"><DomainsPage /></RequirePerm>} />
         <Route path="codigos-externos" element={<RequirePerm perm="settings.write"><ExternalCodesPage /></RequirePerm>} />

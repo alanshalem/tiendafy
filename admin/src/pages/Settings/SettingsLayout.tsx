@@ -4,6 +4,7 @@ import {
   Code,
   CornerDownRight,
   CreditCard,
+  FileText,
   Globe,
   Mail,
   MapPin,
@@ -39,6 +40,12 @@ const groups: NavGroup[] = [
       { to: '/configuracion/medios-de-pago', label: 'Medios de pago', icon: CreditCard, perm: 'payments.read' },
       { to: '/configuracion/medios-de-envio', label: 'Medios de envío', icon: Package, perm: 'settings.write' },
       { to: '/configuracion/centros-de-distribucion', label: 'Centros de distribución', icon: MapPin, perm: 'settings.write' },
+    ],
+  },
+  {
+    heading: 'Impuestos',
+    items: [
+      { to: '/configuracion/facturacion', label: 'Facturación', icon: FileText, perm: 'fiscal.config' },
     ],
   },
   {

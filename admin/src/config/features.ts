@@ -41,6 +41,7 @@ export const NAV_VISIBILITY: Record<string, boolean> = {
   '/configuracion/emails-automaticos': true,
   '/configuracion/whatsapp-automatico': true,
   '/configuracion/opciones-del-checkout': true,
+  '/configuracion/facturacion': true,
   '/configuracion/usuarios': true,
   '/configuracion/dominios': true,
   '/configuracion/codigos-externos': true,
