@@ -89,7 +89,11 @@ public sealed class FiscalDbContext : DbContext
         doc.Property(x => x.RequestPayload).HasColumnType("text");
         doc.Property(x => x.ResponsePayload).HasColumnType("text");
         doc.HasIndex(x => new { x.TenantId, x.OrderId });
-        doc.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo, x.Number }).IsUnique();
+        // Único sólo para comprobantes autorizados: un rechazo no consume número,
+        // así que puede reintentarse con el mismo (ARCA tampoco lo consumió).
+        doc.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo, x.Number })
+            .IsUnique()
+            .HasFilter("result = 'Authorized'");
         doc.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
 
         var seq = modelBuilder.Entity<FiscalSequence>();

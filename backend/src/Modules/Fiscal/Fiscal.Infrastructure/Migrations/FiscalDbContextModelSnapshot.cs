@@ -316,7 +316,8 @@ namespace Fiscal.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "Environment", "PtoVta", "CbteTipo", "Number")
                         .IsUnique()
-                        .HasDatabaseName("ix_fiscal_documents_tenant_id_environment_pto_vta_cbte_tipo_nu");
+                        .HasDatabaseName("ix_fiscal_documents_tenant_id_environment_pto_vta_cbte_tipo_nu")
+                        .HasFilter("result = 'Authorized'");
 
                     b.ToTable("fiscal_documents", (string)null);
                 });

@@ -2,9 +2,11 @@ using System.Net.Security;
 using System.Security.Authentication;
 using Fiscal.Contracts;
 using Fiscal.Core.Abstractions;
+using Fiscal.Infrastructure.Emission;
 using Fiscal.Infrastructure.Persistence;
 using Fiscal.Infrastructure.Security;
 using Fiscal.Infrastructure.Wsaa;
+using Fiscal.Infrastructure.Wsfe;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,19 @@ public static class FiscalModule
             });
 
         services.AddScoped<IFiscalAuthenticator, FiscalAuthenticator>();
+
+        // Adapter WSFEv1 (mismo TLS explícito que WSAA, H2/H3).
+        services.AddHttpClient<WsfeClient>()
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                SslOptions = new SslClientAuthenticationOptions
+                {
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                },
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            });
+        services.AddScoped<IFiscalGateway>(sp => sp.GetRequiredService<WsfeClient>());
+        services.AddScoped<IInvoiceEmitter, EmitInvoiceHandler>();
 
         return services;
     }

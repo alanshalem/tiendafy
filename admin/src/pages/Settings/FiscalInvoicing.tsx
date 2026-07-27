@@ -435,13 +435,39 @@ function CertificateStep({
   const pendingCertId = csr?.certificateId ?? (cert && cert.status === 'PENDINGCSR' ? cert.id : null);
   const showCsrFlow = !isActive;
 
+  // Dispara la descarga del CSR como archivo. Recibe el contenido directo (no del
+  // state) para poder llamarse justo después de generarlo sin esperar el re-render.
+  const triggerDownload = (pem: string, alias: string) => {
+    try {
+      const blob = new Blob([pem], { type: 'application/x-pem-file' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${alias || 'tiendafy'}.csr`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const generate = async () => {
     if (generating) return;
     setGenerating(true);
     try {
       const res = await api.post<CsrResponse>('/api/v1/fiscal/certificate/csr', {});
       setCsr(res);
-      toast('Solicitud (CSR) generada. Descargala y subila a ARCA.', { variant: 'success' });
+      // Descarga automática apenas se genera (usando res, no el state todavía viejo).
+      const downloaded = triggerDownload(res.csrPem, res.alias);
+      toast(
+        downloaded
+          ? 'Solicitud (CSR) generada y descargada. Subila a ARCA.'
+          : 'Solicitud (CSR) generada. Descargala con el botón y subila a ARCA.',
+        { variant: 'success' },
+      );
       await onChanged();
     } catch (err) {
       toast(errMsg(err, 'No se pudo generar la solicitud.'), { variant: 'error' });
@@ -452,15 +478,7 @@ function CertificateStep({
 
   const downloadCsr = () => {
     if (!csr) return;
-    const blob = new Blob([csr.csrPem], { type: 'application/x-pem-file' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${csr.alias || 'tiendafy'}.csr`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    triggerDownload(csr.csrPem, csr.alias);
   };
 
   const copyCsr = async () => {

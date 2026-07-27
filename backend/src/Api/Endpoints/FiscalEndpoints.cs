@@ -141,6 +141,42 @@ public static class FiscalEndpoints
                 : ticket.Error.ToProblem();
         });
 
+        // Chequeo de salud de WSFEv1 (FEDummy, no autenticado): ¿ARCA está arriba?
+        fiscal.MapPost("/health", async (
+            ITenantContext tenant, FiscalDbContext db, IFiscalGateway gateway, CancellationToken ct) =>
+        {
+            var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
+            var env = cfg?.Environment ?? FiscalEnvironment.Homologacion;
+            var health = await gateway.CheckHealthAsync(env, ct);
+            return health.IsSuccess
+                ? Results.Ok(new { ok = health.Value.AllOk, app = health.Value.AppOk, db = health.Value.DbOk, auth = health.Value.AuthOk, environment = env.ToString().ToUpperInvariant() })
+                : health.Error.ToProblem();
+        });
+
+        // --- Emisión manual -----------------------------------------------------------
+        // Gateado con FiscalEmit (más restrictivo que FiscalConfig). Emite un
+        // comprobante puntual desde el admin (sin orden asociada).
+        var emit = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalEmit);
+        emit.MapPost("/emit", async (
+            EmitRequest req, ITenantContext tenant, IInvoiceEmitter emitter, CancellationToken ct) =>
+        {
+            if (req.Amount <= 0) return Error.Validation("Fiscal.BadAmount", "El importe debe ser mayor a cero.").ToProblem();
+            var minor = (long)Math.Round(req.Amount * 100m, MidpointRounding.AwayFromZero);
+            var cmd = new EmitInvoiceCommand(tenant.TenantId.Value, OrderId: null, minor,
+                BuyerDoc: string.IsNullOrWhiteSpace(req.BuyerDoc) ? null : req.BuyerDoc,
+                PtoVta: req.PtoVta, CreditNote: req.CreditNote);
+            var result = await emitter.EmitAsync(cmd, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+            var r = result.Value;
+            return Results.Ok(new
+            {
+                r.DocumentId, r.Authorized, r.PtoVta, cbteTipo = r.CbteTipo, r.Number, r.Cae,
+                caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
+                observations = r.Observations.Select(o => new { o.Code, o.Message }),
+                errors = r.Errors.Select(e => new { e.Code, e.Message }),
+            });
+        });
+
         // --- Puntos de venta ----------------------------------------------------------
         fiscal.MapGet("/points-of-sale", async (ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
         {
@@ -209,3 +245,4 @@ public sealed record FiscalEmissionRequest(bool AutoInvoice, string? Trigger, Gu
 public sealed record GenerateCsrAdminRequest(string? Alias);
 public sealed record ActivateCertRequest(Guid CertificateId, string? CertificatePem);
 public sealed record PointOfSaleRequest(int Number, string? Label);
+public sealed record EmitRequest(decimal Amount, string? BuyerDoc, int? PtoVta, bool CreditNote);
