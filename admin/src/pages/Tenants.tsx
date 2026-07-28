@@ -9,6 +9,7 @@ import {
   Input,
   Modal,
   Table,
+  useConfirm,
   useToast,
   type BadgeVariant,
   type TableColumn,
@@ -38,6 +39,7 @@ const statusLabel: Record<Tenant['status'], string> = {
 export function TenantsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [deleting, setDeleting] = useState<Tenant | null>(null);
@@ -120,8 +122,14 @@ export function TenantsPage() {
               {import.meta.env.DEV && (
                 <Dropdown.Item
                   destructive
-                  onSelect={() => {
-                    if (window.confirm(`DEV: borrar "${t.name}" y TODA su data para siempre. ¿Seguro?`)) purgeMut.mutate(t);
+                  onSelect={async () => {
+                    const ok = await confirm({
+                      title: 'Borrar definitivo (dev)',
+                      message: `Se borra "${t.name}" y TODA su data para siempre. No se puede deshacer.`,
+                      confirmLabel: 'Borrar para siempre',
+                      variant: 'danger',
+                    });
+                    if (ok) purgeMut.mutate(t);
                   }}
                 >
                   <Trash2 className="mr-2 inline h-4 w-4" /> Borrar definitivo (dev)
