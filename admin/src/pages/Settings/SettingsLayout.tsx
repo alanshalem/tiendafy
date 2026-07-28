@@ -39,7 +39,6 @@ const groups: NavGroup[] = [
     items: [
       { to: '/configuracion/medios-de-pago', label: 'Medios de pago', icon: CreditCard, perm: 'payments.read' },
       { to: '/configuracion/medios-de-envio', label: 'Medios de envío', icon: Package, perm: 'settings.write' },
-      { to: '/configuracion/centros-de-distribucion', label: 'Centros de distribución', icon: MapPin, perm: 'settings.write' },
     ],
   },
   {
@@ -66,13 +65,12 @@ const groups: NavGroup[] = [
     items: [
       { to: '/configuracion/usuarios', label: 'Usuarios y notificaciones', icon: User, perm: 'members.read' },
       { to: '/configuracion/dominios', label: 'Dominios', icon: Globe, perm: 'settings.write' },
-      { to: '/configuracion/codigos-externos', label: 'Códigos externos', icon: Code, perm: 'settings.write' },
-      { to: '/configuracion/idiomas-y-monedas', label: 'Idiomas y monedas', icon: Globe, perm: 'settings.write' },
-      { to: '/configuracion/redirecciones', label: 'Redireccionamientos 301', icon: CornerDownRight, perm: 'settings.write' },
-      { to: '/configuracion/campos-personalizados', label: 'Campos personalizados', icon: Pencil, perm: 'settings.write' },
     ],
   },
 ];
+// Fuera del menú hasta que tengan backend real (hoy guardan solo en localStorage
+// o son mockups): Centros de distribución, Códigos externos, Idiomas y monedas,
+// Redireccionamientos 301, Campos personalizados. Las rutas siguen accesibles.
 
 function LogoMark({ className }: { className?: string }) {
   return (

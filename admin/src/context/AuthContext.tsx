@@ -10,6 +10,8 @@ export interface AdminUser {
 interface AuthResult {
   ok: boolean;
   error?: string;
+  /** Código RFC 7807 (title) del backend, p.ej. Auth.EmailNotVerified. */
+  code?: string;
 }
 
 interface AuthContextValue {
@@ -45,7 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
       return { ok: true };
     } catch (e) {
-      return { ok: false, error: e instanceof ApiRequestError ? e.error.message : 'No se pudo iniciar sesión.' };
+      if (e instanceof ApiRequestError) return { ok: false, error: e.error.message, code: e.error.code };
+      return { ok: false, error: 'No se pudo iniciar sesión.' };
     }
   };
 

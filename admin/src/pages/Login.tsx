@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
@@ -37,10 +37,13 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState(false); // login bloqueado por email sin verificar
+  const [resent, setResent] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsVerify(false);
     setBusy(true);
     if (mode === 'forgot') {
       try { await api.post('/api/v1/auth/forgot', { email }); setSent(true); }
@@ -50,7 +53,16 @@ export function Login() {
     }
     const res = mode === 'login' ? await login(email, password, captcha || undefined) : await register(name, email, password, captcha || undefined);
     setBusy(false);
-    if (!res.ok) setError(res.error ?? 'Algo salió mal.');
+    if (!res.ok) {
+      setError(res.error ?? 'Algo salió mal.');
+      if (res.code === 'Auth.EmailNotVerified') setNeedsVerify(true);
+    }
+  };
+
+  const resendVerification = async () => {
+    setResent(false);
+    try { await api.post('/api/v1/auth/resend-verification', { email }); } catch { /* respuesta uniforme */ }
+    setResent(true);
   };
 
   return (
@@ -82,6 +94,11 @@ export function Login() {
           {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
 
           {error && <p className="text-sm text-danger">{error}</p>}
+          {needsVerify && (
+            <button type="button" onClick={resendVerification} className="text-sm font-semibold text-primary hover:underline">
+              {resent ? 'Email reenviado — revisá tu correo (y spam).' : 'Reenviar email de verificación'}
+            </button>
+          )}
 
           <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)}
             className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60">
@@ -169,12 +186,50 @@ export function ResetPasswordForm() {
   );
 }
 
+/** Pantalla del link de verificación de email: /verificar?email=&token= */
+export function VerifyEmailScreen() {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email') ?? '';
+  const token = params.get('token') ?? '';
+  const [state, setState] = useState<'busy' | 'ok' | 'fail'>('busy');
+
+  useEffect(() => {
+    if (!email || !token) { setState('fail'); return; }
+    api.post('/api/v1/auth/verify', { email, token })
+      .then(() => setState('ok'))
+      .catch(() => setState('fail'));
+  }, [email, token]);
+
+  return (
+    <Shell>
+      {state === 'busy' && <p className="text-sm text-fg-muted">Verificando tu email…</p>}
+      {state === 'ok' && (
+        <>
+          <h1 className="text-lg font-semibold text-fg">¡Email verificado!</h1>
+          <p className="mt-1 text-sm text-fg-muted">Tu cuenta quedó confirmada.</p>
+          <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Ir al panel</a>
+        </>
+      )}
+      {state === 'fail' && (
+        <>
+          <h1 className="text-lg font-semibold text-fg">Link inválido o vencido</h1>
+          <p className="mt-1 text-sm text-fg-muted">Pedí un reenvío desde la pantalla de inicio de sesión.</p>
+          <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Volver</a>
+        </>
+      )}
+    </Shell>
+  );
+}
+
 /** Gate: muestra el login si no hay sesión; el resto de la app si la hay. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth();
-  // El link de reset llega sin sesión: se atiende antes del gate.
+  // Links del email (reset / verificación) llegan sin sesión: antes del gate.
   if (typeof window !== 'undefined' && window.location.pathname === '/restablecer') {
     return <ResetPasswordForm />;
+  }
+  if (typeof window !== 'undefined' && window.location.pathname === '/verificar') {
+    return <VerifyEmailScreen />;
   }
   if (!ready) {
     return (

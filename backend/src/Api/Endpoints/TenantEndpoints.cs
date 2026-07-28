@@ -138,10 +138,14 @@ public static class TenantEndpoints
             return Results.NoContent();
         }).RequireAuthorization();
 
-        // Resolución por host — pública (storefront + admin la usan para resolver tienda).
-        tenants.MapGet("/resolve", async (string host, ITenancyService service, CancellationToken ct) =>
+        // Resolución por host — pública (storefront + admin la usan para resolver
+        // tienda). Acepta también ?domain= porque es el "ask" del on-demand TLS de
+        // Caddy: 200 = emitir certificado para ese host, 404 = rechazar.
+        tenants.MapGet("/resolve", async (ITenancyService service, CancellationToken ct, string? host = null, string? domain = null) =>
         {
-            var tenant = await service.ResolveByHostAsync(host, ct);
+            var h = host ?? domain;
+            if (string.IsNullOrWhiteSpace(h)) return Results.BadRequest();
+            var tenant = await service.ResolveByHostAsync(h, ct);
             return tenant is null ? Results.NotFound() : Results.Ok(tenant);
         });
 

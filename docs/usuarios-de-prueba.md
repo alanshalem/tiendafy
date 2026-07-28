@@ -5,11 +5,11 @@
 En dev se siembra un usuario admin con membresía a **todas** las tiendas, así
 entrás con login y las ves todas:
 
-| Email | Contraseña |
-|-------|------------|
-| `admin@tiendafy.local` | `password123` |
+| Email                    | Contraseña |
+| ------------------------ | ----------- |
+| `admin@tiendafy.local` |             |
 
-El admin ahora **requiere login** (`/auth`). Todas las escrituras exigen sesión +
+E![1784743054984](image/usuarios-de-prueba/1784743054984.png)l admin ahora **requiere login** (`/auth`). Todas las escrituras exigen sesión +
 membresía a la tienda del `X-Tenant-Id`. Podés registrar otra cuenta desde el
 modal; arranca sin tiendas hasta que crees una (quedás como dueño).
 
@@ -28,10 +28,10 @@ storefront (favoritos, cuenta, etc.). Es idempotente: no duplica.
 
 Funcionan en cualquier tienda (subdominio):
 
-| Nombre     | Email           | Contraseña     |
-|------------|-----------------|----------------|
-| Ana Test   | `ana@test.com`  | `password123`  |
-| Bruno Test | `bruno@test.com`| `password123`  |
+| Nombre     | Email              | Contraseña     |
+| ---------- | ------------------ | --------------- |
+| Ana Test   | `ana@test.com`   | `password123` |
+| Bruno Test | `bruno@test.com` | `password123` |
 
 Ejemplo: en `http://tienda-de-gimnasio.localhost:3000`, tocá el ícono de cuenta
 → Iniciá sesión con `ana@test.com` / `password123`.

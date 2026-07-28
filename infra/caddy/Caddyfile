@@ -1,0 +1,43 @@
+# ============================================================
+# Caddy — edge de Tiendafy en producción.
+# TLS automático (Let's Encrypt) para la plataforma Y para los dominios
+# propios de los merchants (on-demand TLS): antes de emitir un certificado,
+# Caddy le pregunta a la API si ese host corresponde a una tienda
+# (GET /api/v1/tenants/resolve?host=...) — 200 emite, 404 rechaza.
+# ============================================================
+
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://api:5080/api/v1/tenants/resolve
+	}
+}
+
+# API
+api.{$PLATFORM_DOMAIN} {
+	reverse_proxy api:5080
+}
+
+# Admin (SPA)
+admin.{$PLATFORM_DOMAIN} {
+	reverse_proxy admin:80
+}
+
+# Plataforma + tiendas por subdominio: dominio pelado y *.dominio → storefront.
+# El wildcard necesita DNS-01 o, más simple, cada subdominio se emite on-demand.
+{$PLATFORM_DOMAIN}, *.{$PLATFORM_DOMAIN} {
+	tls {
+		on_demand
+	}
+	reverse_proxy storefront:3000
+}
+
+# Dominios propios de merchants (cualquier host que la API reconozca):
+# catch-all con TLS on-demand — el "ask" de arriba evita emitir certs para
+# hosts ajenos. El storefront resuelve la tienda por header Host.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy storefront:3000
+}

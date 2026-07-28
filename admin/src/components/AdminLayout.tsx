@@ -93,7 +93,6 @@ const sections: NavSection[] = [
       { to: '/mensajes', label: 'Mensajes', perm: 'messages.read' },
       { to: '/posventa', label: 'Chat posventa', perm: 'support.chat' },
       { to: '/descuentos', label: 'Descuentos', perm: 'discounts.read' },
-      { to: '/marketing', label: 'Marketing', soon: true, perm: 'settings.write' },
     ],
   },
   {
@@ -101,19 +100,17 @@ const sections: NavSection[] = [
     items: [
       { to: '/canales/tienda-online', label: 'Tienda online', perm: 'content.write' },
       { to: '/paginas', label: 'Páginas', perm: 'content.write' },
-      { to: '/canales/redes', label: 'Instagram y Facebook', soon: true, perm: 'settings.write' },
-      { to: '/canales/google', label: 'Google Shopping', soon: true, perm: 'settings.write' },
-      { to: '/canales/marketplaces', label: 'Marketplaces', soon: true, perm: 'settings.write' },
     ],
   },
   {
     heading: 'Plataforma',
     items: [
       { to: '/tenants', label: 'Mis tiendas' },
-      { to: '/aplicaciones', label: 'Aplicaciones', soon: true },
     ],
   },
 ];
+// Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
+// Marketing, Instagram/Facebook, Google Shopping, Marketplaces, Aplicaciones.
 
 function SoonBadge() {
   return (

@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Minus, Plus, Share2, Check, X, ChevronLeft, ChevronRight, ZoomIn, ShieldCheck } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
+import { useRouter } from 'next/navigation';
 import { useCart } from './cart';
-import { useLiveTheme } from './preview';
+import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 
@@ -49,6 +50,8 @@ export function ProductDetail({
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
   const cfg = live?.productDetail ?? config;
+  const router = useRouter();
+  const href = usePreviewHref();
   const { add, setOpen } = useCart();
   const hasOptions = options.length > 0;
   const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
@@ -81,9 +84,10 @@ export function ProductDetail({
       qty,
     );
 
+  // Comprar ahora = agregar y saltar directo al checkout (un paso menos que el drawer).
   const buyNow = () => {
     addToCart();
-    setOpen(true); // TODO: ir directo al checkout cuando exista el flujo de pago
+    router.push(href('/checkout'));
   };
 
   const share = async () => {

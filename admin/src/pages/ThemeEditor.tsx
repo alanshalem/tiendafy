@@ -150,6 +150,9 @@ export function ThemeEditorPage() {
   const pendingDraft = useRef<ThemeConfig | null>(null); // draft con guardado pendiente o fallido
   const postTimer = useRef<number | null>(null);
   const pendingPost = useRef<ThemeConfig | null>(null);
+  // Undo/redo: snapshots del theme (objeto chico, push por edición, tope 50).
+  const undoStack = useRef<ThemeConfig[]>([]);
+  const redoStack = useRef<ThemeConfig[]>([]);
 
   const previewBase = store ? `http://${store.subdomain}.localhost:3000` : '';
   const previewOrigin = previewBase; // origin esperado del iframe (targetOrigin + validación de e.origin)
@@ -194,6 +197,8 @@ export function ThemeEditorPage() {
     setPublished(null);
     setLoadError(false);
     setPreviewToken(undefined);
+    undoStack.current = [];
+    redoStack.current = [];
     Promise.all([
       api.get<Partial<ThemeConfig>>('/api/v1/theme/draft'),
       api.get<Partial<ThemeConfig>>('/api/v1/theme'),
@@ -292,12 +297,19 @@ export function ThemeEditorPage() {
     if (pendingDraft.current) saveDraft(pendingDraft.current, init);
   }, [saveDraft]);
 
-  // Cambio de tema: live + autosave debounced.
+  // Cambio de tema: live + autosave debounced + snapshot para deshacer.
   const updateTheme = useCallback(
     (updater: (t: ThemeConfig) => ThemeConfig) => {
       setTheme((prev) => {
         if (!prev) return prev;
         const next = updater(prev);
+        if (next === prev) return prev;
+        // Guard del doble-invoke de StrictMode: no duplicar el snapshot.
+        if (undoStack.current[undoStack.current.length - 1] !== prev) {
+          undoStack.current.push(prev);
+          if (undoStack.current.length > 50) undoStack.current.shift();
+          redoStack.current = []; // una edición nueva invalida el redo
+        }
         postToPreview(next);
         pendingDraft.current = next;
         setSaveState('saving');
@@ -308,6 +320,38 @@ export function ThemeEditorPage() {
     },
     [postToPreview, saveDraft, setSaveState],
   );
+
+  // Aplica un snapshot (undo/redo): live + autosave, SIN tocar el historial.
+  const applySnapshot = useCallback((next: ThemeConfig) => {
+    setTheme(next);
+    postToPreview(next);
+    pendingDraft.current = next;
+    setSaveState('saving');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveDraft(next), 600);
+  }, [postToPreview, saveDraft, setSaveState]);
+
+  // Ctrl/Cmd+Z deshace, Ctrl/Cmd+Shift+Z (o Ctrl+Y) rehace. Dentro de un
+  // input/textarea gana el undo nativo del campo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        const prev = undoStack.current.pop();
+        if (prev && theme) { redoStack.current.push(theme); applySnapshot(prev); }
+        e.preventDefault();
+      } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+        const next = redoStack.current.pop();
+        if (next && theme) { undoStack.current.push(theme); applySnapshot(next); }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [theme, applySnapshot]);
 
   // Al cerrar la pestaña / desmontar: flushear el draft pendiente (keepalive
   // deja terminar el PUT aunque la página muera). Solo frenamos la navegación

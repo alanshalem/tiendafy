@@ -11,6 +11,14 @@ import { AuthGate } from './pages/Login';
 import { applyMode, getInitialMode } from './lib/themeMode';
 import './index.css';
 
+// Sentry: activo solo si hay DSN (prod). Sin DSN = cero overhead en dev.
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+if (SENTRY_DSN) {
+  import('@sentry/react').then((Sentry) => {
+    Sentry.init({ dsn: SENTRY_DSN, environment: import.meta.env.MODE, tracesSampleRate: 0.1 });
+  });
+}
+
 // Aplicar el modo guardado antes del primer render (evita flash).
 applyMode(getInitialMode());
 

@@ -1,0 +1,56 @@
+# Buildea y publica las 3 imágenes en GHCR en cada push a main (y tags v*).
+# Deploy: en el server, `docker compose -f infra/docker/docker-compose.prod.yml
+# --env-file infra/docker/.env.prod pull && ... up -d`. (Deploy automático por
+# SSH: agregar un job con appleboy/ssh-action cuando haya server definido.)
+name: docker-release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: api
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - name: storefront
+            context: .
+            dockerfile: ./storefront/Dockerfile
+          - name: admin
+            context: .
+            dockerfile: ./admin/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tiendafy-${{ matrix.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

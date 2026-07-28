@@ -377,7 +377,15 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
             ))}
           </div>
         )}
-        <div className="mt-6 text-center text-xs opacity-50">© {tenantName} · Powered by Tiendafy</div>
+        {/* Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res. 424/2020). */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs opacity-60">
+          <Link href="/terminos" className="hover:underline">Términos y condiciones</Link>
+          <span aria-hidden>·</span>
+          <Link href="/privacidad" className="hover:underline">Privacidad</Link>
+          <span aria-hidden>·</span>
+          <Link href="/arrepentimiento" className="font-semibold hover:underline">Botón de arrepentimiento</Link>
+        </div>
+        <div className="mt-3 text-center text-xs opacity-50">© {tenantName} · Powered by Tiendafy</div>
       </div>
     </footer>
   );

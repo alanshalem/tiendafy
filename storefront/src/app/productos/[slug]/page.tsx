@@ -22,15 +22,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     { headers: { 'X-Tenant-Id': data.tenant.id }, cache: 'no-store' },
   ).catch(() => null);
   if (!product) return { title: data.tenant.name };
+  const base = await siteBase();
   return {
     title: `${product.name} · ${data.tenant.name}`,
     description: product.description?.slice(0, 160) ?? `${product.name} en ${data.tenant.name}.`,
+    // Canonical: la URL limpia del producto (sin ?preview ni tracking).
+    ...(base ? { alternates: { canonical: `${base}/productos/${slug}` } } : {}),
     openGraph: {
       title: product.name,
       description: product.description?.slice(0, 160) ?? undefined,
       images: product.images[0]?.url ? [product.images[0].url] : [],
     },
   };
+}
+
+/** Base absoluta del sitio a partir del Host (http en localhost, https afuera). */
+async function siteBase(): Promise<string> {
+  const host = (await headers()).get('host') ?? '';
+  return host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
 }
 
 interface ProductDto {
@@ -71,8 +80,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
         { label: product.name },
       ]
     : [];
-  const host = (await headers()).get('host') ?? '';
-  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const base = await siteBase();
   const breadcrumbJsonLd = product && base
     ? {
         '@context': 'https://schema.org',
@@ -86,12 +94,35 @@ export default async function ProductDetailPage({ params, searchParams }: { para
       }
     : null;
 
+  // Rich results de producto en Google: precio, moneda y disponibilidad.
+  const firstVariant = product?.variants[0];
+  const productJsonLd = product && firstVariant
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.name,
+        ...(product.description ? { description: product.description.slice(0, 500) } : {}),
+        ...(product.images.length ? { image: product.images.map((i) => i.url) } : {}),
+        ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: firstVariant.price.currency,
+          price: (firstVariant.price.amount / 100).toFixed(2), // minor units → pesos
+          availability: 'https://schema.org/InStock',
+          ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
+        },
+      }
+    : null;
+
   return (
     <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
       <main className="mx-auto max-w-container px-4 py-8">
         {product && <StoreBreadcrumbs items={crumbs} />}
         {breadcrumbJsonLd && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+        )}
+        {productJsonLd && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
         )}
         {product ? (
           <>

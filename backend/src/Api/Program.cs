@@ -62,11 +62,17 @@ builder.Services.AddOrdersModule(builder.Configuration);
 builder.Services.AddAnalyticsModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
 
+// Workers de background que hacen polling sobre la DB (webhooks, facturación,
+// carritos). Workers:Enabled=false los apaga en réplicas extra de la API para
+// que corran en UNA sola instancia y no procesen duplicado. Los workers de
+// importación NO se apagan: su cola es en memoria y vive junto al request.
+var runPollingWorkers = builder.Configuration.GetValue("Workers:Enabled", true);
+
 // Webhooks de pago: inbox durable en DB + worker que hace polling con reintentos.
-builder.Services.AddHostedService<PaymentWebhookWorker>();
+if (runPollingWorkers) builder.Services.AddHostedService<PaymentWebhookWorker>();
 
 // Facturación automática: outbox de emisión + worker que pide el CAE a ARCA.
-builder.Services.AddHostedService<Api.Fiscal.FiscalEmissionWorker>();
+if (runPollingWorkers) builder.Services.AddHostedService<Api.Fiscal.FiscalEmissionWorker>();
 
 // Emails transaccionales por Resend (dev: loguea). Plantillas editables por tenant.
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
@@ -77,7 +83,7 @@ builder.Services.AddScoped<OrderItemImages>();
 builder.Services.AddHttpClient<WhatsAppSender>();
 builder.Services.AddSingleton<WhatsAppTokenProtector>();
 builder.Services.AddScoped<WhatsAppNotifier>();
-builder.Services.AddHostedService<AbandonedCartWorker>();
+if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
 builder.Services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
