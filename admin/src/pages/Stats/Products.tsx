@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { StatsPageHeader, StatsToolbar, defaultStatsRange, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -13,9 +14,10 @@ const money = formatMoney;
 
 export function StatsProductsPage() {
   const { store } = useStore();
+  const [range, setRange] = useState(defaultStatsRange());
   const { data, isLoading } = useQuery({
-    queryKey: ['stats-products', store?.id],
-    queryFn: () => api.get<TopProducts>('/api/v1/stats/products/top?days=30&limit=10'),
+    queryKey: ['stats-products', store?.id, range.from, range.to],
+    queryFn: () => api.get<TopProducts>(`/api/v1/stats/products/top?limit=10&${rangeQuery(range)}`),
     enabled: !!store,
   });
 
@@ -23,9 +25,9 @@ export function StatsProductsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar />
+      <StatsToolbar value={range} onChange={setRange} />
       <StatsPageHeader title="Productos" />
-      <p className="-mt-3 text-sm text-fg-muted">Más vendidos en los últimos 30 días (por unidades).</p>
+      <p className="-mt-3 text-sm text-fg-muted">Más vendidos por unidades — {rangeLabel(range)}.</p>
 
       <ChartCard title="Top productos" info>
         {isLoading ? (

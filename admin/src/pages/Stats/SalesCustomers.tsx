@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, StatsToolbar, defaultStatsRange, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -24,17 +25,18 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function StatsSalesPage() {
   const { store } = useStore();
+  const [range, setRange] = useState(defaultStatsRange());
   const { data, isLoading } = useQuery({
-    queryKey: ['stats-sales', store?.id],
-    queryFn: () => api.get<Sales>('/api/v1/stats/sales?days=30'),
+    queryKey: ['stats-sales', store?.id, range.from, range.to],
+    queryFn: () => api.get<Sales>(`/api/v1/stats/sales?${rangeQuery(range)}`),
     enabled: !!store,
   });
 
   return (
     <div className="space-y-5">
-      <StatsToolbar />
+      <StatsToolbar value={range} onChange={setRange} />
       <StatsPageHeader title="Ventas y clientes" />
-      <p className="-mt-3 text-sm text-fg-muted">Últimos 30 días.</p>
+      <p className="-mt-3 text-sm text-fg-muted">Período: {rangeLabel(range)}.</p>
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-4">

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/AdminLayout';
+import { CommandPalette } from './components/CommandPalette';
 import { SettingsLayout } from './pages/Settings/SettingsLayout';
 import { PaymentMethodsPage } from './pages/Settings/PaymentMethods';
 import { ShippingMethodsPage } from './pages/Settings/ShippingMethods';
@@ -48,6 +49,9 @@ import { RequirePerm } from './context/PermissionsContext';
 
 export default function App() {
   return (
+    <>
+    {/* Ctrl/Cmd+K en cualquier pantalla del admin. */}
+    <CommandPalette />
     <Routes>
       <Route element={<AdminLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -131,5 +135,6 @@ export default function App() {
         <Route path="*" element={<StubPage id="aplicaciones" />} />
       </Route>
     </Routes>
+    </>
   );
 }

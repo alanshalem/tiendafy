@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -25,7 +25,7 @@ export function StatsCouponsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar />
+      {/* Sin filtro de fecha: el reporte de cupones es histórico (uso acumulado). */}
       <StatsPageHeader title="Reporte de cupones" />
 
       <div className="grid gap-4 lg:grid-cols-4">

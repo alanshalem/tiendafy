@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -28,7 +28,7 @@ export function StatsOverviewPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar />
+      {/* Sin filtro de fecha: son totales históricos (catálogo/clientes), no un período. */}
       <StatsPageHeader title="Visión general" />
       <p className="-mt-3 text-sm text-fg-muted">
         Resumen del catálogo y los clientes de tu tienda.

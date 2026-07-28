@@ -59,14 +59,14 @@ public static class StatsEndpoints
             });
         });
 
-        // Ventas y clientes (de Orders).
+        // Ventas y clientes (de Orders). Rango: from/to (fechas) o days (fallback).
         stats.MapGet("/sales", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, CustomersDbContext customers, int? days, CancellationToken ct) =>
+            ITenantContext tenant, OrdersDbContext ordersDb, CustomersDbContext customers, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
+            var (since, until) = Range(from, to, days ?? 30);
 
-            var orders = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CreatedAtUtc >= since).ToListAsync(ct);
+            var orders = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
             var paid = orders.Where(o => o.Status == OrderStatus.Paid).ToList();
             var revenue = paid.Sum(o => o.Total.AmountInMinorUnits);
             var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
@@ -79,7 +79,7 @@ public static class StatsEndpoints
             var byStatus = orders.GroupBy(o => o.Status.ToString().ToUpperInvariant())
                 .Select(g => new { status = g.Key, count = g.Count() }).ToList();
 
-            var newCustomers = await customers.Customers.CountAsync(c => c.TenantId == tid.Value && c.CreatedAtUtc >= since, ct);
+            var newCustomers = await customers.Customers.CountAsync(c => c.TenantId == tid.Value && c.CreatedAtUtc >= since && c.CreatedAtUtc < until, ct);
 
             return Results.Ok(new
             {
@@ -93,15 +93,15 @@ public static class StatsEndpoints
             });
         });
 
-        // Productos más vendidos (de OrderItems de órdenes pagadas).
+        // Productos más vendidos (de OrderItems de órdenes pagadas). Rango: from/to o days.
         stats.MapGet("/products/top", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, int? days, int? limit, CancellationToken ct) =>
+            ITenantContext tenant, OrdersDbContext ordersDb, int? days, int? limit, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
-            var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
+            var (since, until) = Range(from, to, days ?? 30);
             var take = Math.Clamp(limit ?? 10, 1, 50);
 
-            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since).ToListAsync(ct);
+            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
             var top = paid.SelectMany(o => o.Items)
                 .GroupBy(i => i.ProductName)
                 .Select(g => new { product = g.Key, units = g.Sum(i => i.Quantity), revenue = g.Sum(i => i.LineTotal.AmountInMinorUnits) })
@@ -140,14 +140,14 @@ public static class StatsEndpoints
             });
         });
 
-        // Visitas (de page_views).
+        // Visitas (de page_views). Rango: from/to o days.
         stats.MapGet("/visits", async (
-            ITenantContext tenant, AnalyticsDbContext analytics, int? days, CancellationToken ct) =>
+            ITenantContext tenant, AnalyticsDbContext analytics, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tidGuid = tenant.TenantId.Value;
-            var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 14, 1, 90));
+            var (since, until) = Range(from, to, days ?? 14);
 
-            var views = await analytics.PageViews.Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= since).ToListAsync(ct);
+            var views = await analytics.PageViews.Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= since && v.OccurredAtUtc < until).ToListAsync(ct);
             var series = views.GroupBy(v => v.OccurredAtUtc.Date)
                 .Select(g => new { date = g.Key, views = g.Count(), visitors = g.Select(x => x.VisitorId).Distinct().Count() })
                 .OrderBy(x => x.date).ToList();
@@ -227,4 +227,22 @@ public static class StatsEndpoints
         return group;
     }
 
+    /// <summary>
+    /// Ventana [since, until) del reporte: si viene from (y opcionalmente to),
+    /// manda el rango explícito (días completos UTC, tope 366); si no, los
+    /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
+    /// </summary>
+    private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
+    {
+        if (from is { } f)
+        {
+            var t = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            if (t < f) (f, t) = (t, f);
+            var until = t.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var since = f.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            if ((until - since).TotalDays > 366) since = until.AddDays(-366);
+            return (since, until);
+        }
+        return (DateTime.UtcNow.AddDays(-Math.Clamp(fallbackDays, 1, 366)), DateTime.UtcNow.AddDays(1));
+    }
 }

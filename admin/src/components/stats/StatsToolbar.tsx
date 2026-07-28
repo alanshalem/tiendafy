@@ -1,29 +1,93 @@
 import { useState, type ReactNode } from 'react';
-import { Calendar, ChevronDown, Clock, Filter } from 'lucide-react';
+import { Calendar, ChevronDown, Clock } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 
-const RANGES = ['Hoy', 'Ayer', 'Últimos 7 días', 'Últimos 30 días', 'Este mes', 'Este año'];
-const COMPARISONS = ['Ninguna', 'Período anterior', 'Mismo período año anterior'];
+/* ============================================================
+   Rango de fechas REAL de las páginas de estadísticas.
+   (Antes esta barra era un mockup: los selects no filtraban nada.)
+   ============================================================ */
 
-/** Barra de filtros de las páginas de estadísticas (fecha + comparación). */
-export function StatsToolbar({ updatedAt }: { updatedAt?: string }) {
-  const [range, setRange] = useState('Últimos 7 días');
-  const [comparison, setComparison] = useState('Ninguna');
+export interface StatsRange {
+  preset: string;
+  /** yyyy-mm-dd (fecha local del merchant). */
+  from: string;
+  to: string;
+}
+
+const iso = (d: Date) => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
+
+const PRESETS: { label: string; range: () => { from: string; to: string } }[] = [
+  { label: 'Hoy', range: () => ({ from: iso(new Date()), to: iso(new Date()) }) },
+  { label: 'Últimos 7 días', range: () => ({ from: iso(daysAgo(6)), to: iso(new Date()) }) },
+  { label: 'Últimos 30 días', range: () => ({ from: iso(daysAgo(29)), to: iso(new Date()) }) },
+  { label: 'Últimos 90 días', range: () => ({ from: iso(daysAgo(89)), to: iso(new Date()) }) },
+  { label: 'Este mes', range: () => { const d = new Date(); return { from: iso(new Date(d.getFullYear(), d.getMonth(), 1)), to: iso(d) }; } },
+  { label: 'Este año', range: () => { const d = new Date(); return { from: iso(new Date(d.getFullYear(), 0, 1)), to: iso(d) }; } },
+];
+
+export function defaultStatsRange(preset = 'Últimos 30 días'): StatsRange {
+  const p = PRESETS.find((x) => x.label === preset) ?? PRESETS[2]!;
+  return { preset: p.label, ...p.range() };
+}
+
+/** Querystring `from=…&to=…` para los endpoints de stats. */
+export function rangeQuery(r: StatsRange): string {
+  return `from=${r.from}&to=${r.to}`;
+}
+
+/** Texto legible del período elegido (para el subtítulo de la página). */
+export function rangeLabel(r: StatsRange): string {
+  if (r.preset !== 'Personalizado') return r.preset.toLowerCase();
+  const f = (s: string) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+  return `del ${f(r.from)} al ${f(r.to)}`;
+}
+
+/** Barra de filtros de estadísticas: presets + rango personalizado, controlada. */
+export function StatsToolbar({ value, onChange, updatedAt }: { value: StatsRange; onChange: (r: StatsRange) => void; updatedAt?: string }) {
+  const setPreset = (label: string) => {
+    if (label === 'Personalizado') { onChange({ ...value, preset: 'Personalizado' }); return; }
+    const p = PRESETS.find((x) => x.label === label);
+    if (p) onChange({ preset: label, ...p.range() });
+  };
+  const setDate = (key: 'from' | 'to', v: string) => {
+    if (!v) return;
+    onChange({ ...value, preset: 'Personalizado', [key]: v });
+  };
+  const today = iso(new Date());
 
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3 text-sm">
       <Field label="Fecha">
-        <Select value={range} onChange={setRange} options={RANGES} icon={<Calendar className="h-3.5 w-3.5" />} />
+        <Select
+          value={value.preset}
+          onChange={setPreset}
+          options={[...PRESETS.map((p) => p.label), 'Personalizado']}
+          icon={<Calendar className="h-3.5 w-3.5" />}
+        />
       </Field>
-      <Field label="Comparación">
-        <Select value={comparison} onChange={setComparison} options={COMPARISONS} />
+      <Field label="Desde">
+        <input
+          type="date"
+          value={value.from}
+          max={value.to || today}
+          onChange={(e) => setDate('from', e.target.value)}
+          className="h-9 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
+        />
       </Field>
-      <button
-        type="button"
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 font-medium text-fg hover:bg-bg-muted"
-      >
-        <Filter className="h-4 w-4" /> Filtros
-      </button>
+      <Field label="Hasta">
+        <input
+          type="date"
+          value={value.to}
+          min={value.from}
+          max={today}
+          onChange={(e) => setDate('to', e.target.value)}
+          className="h-9 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </Field>
       {updatedAt && (
         <span className="ml-auto flex items-center gap-1.5 text-xs text-fg-subtle">
           <Clock className="h-3.5 w-3.5" /> Última actualización: {updatedAt}
