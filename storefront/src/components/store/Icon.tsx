@@ -9,7 +9,7 @@ import {
   Menu as LuMenu, X as LuX, ChevronDown as LuChevronDown, ChevronLeft as LuChevronLeft,
   ChevronRight as LuChevronRight, Truck as LuTruck, CreditCard as LuCard, ShieldCheck as LuShield,
   Gift as LuGift, Headphones as LuSupport, RefreshCw as LuReturns, MapPin as LuMapPin,
-  Phone as LuPhone, Mail as LuMail, MessageCircle as LuChat,
+  Phone as LuPhone, Mail as LuMail, MessageCircle as LuChat, Quote as LuQuote,
 } from 'lucide-react';
 // Phosphor (renderizado con weight="fill" → sólido redondeado)
 import {
@@ -48,7 +48,7 @@ export type IconName =
   | 'cart' | 'heart' | 'user' | 'search' | 'menu' | 'close'
   | 'chevronDown' | 'chevronLeft' | 'chevronRight'
   | 'shipping' | 'card' | 'security' | 'gift' | 'support' | 'returns'
-  | 'mapPin' | 'phone' | 'mail' | 'chat';
+  | 'mapPin' | 'phone' | 'mail' | 'chat' | 'quote';
 
 // Cada librería tipa sus íconos distinto (props de stroke/weight/etc.); usamos
 // una firma laxa porque sólo les pasamos className y (para phosphor) weight.
@@ -62,6 +62,7 @@ const KITS: Record<IconKit, Partial<Record<IconName, IconCmp>>> = {
     chevronDown: LuChevronDown, chevronLeft: LuChevronLeft, chevronRight: LuChevronRight,
     shipping: LuTruck, card: LuCard, security: LuShield, gift: LuGift, support: LuSupport, returns: LuReturns,
     mapPin: LuMapPin, phone: LuPhone, mail: LuMail, chat: LuChat,
+    quote: LuQuote, // solo lucide: los demás kits caen acá (fallback del registro)
   },
   phosphor: {
     cart: PhCart, heart: PhHeart, user: PhUser, search: PhSearch, menu: PhMenu, close: PhX,

@@ -71,7 +71,10 @@ export type SectionType =
   | 'sale-products'
   | 'instagram'
   | 'info-bar'
-  | 'newsletter';
+  | 'newsletter'
+  | 'testimonials'
+  | 'faq'
+  | 'brands';
 
 export interface ThemeSection {
   id: string;

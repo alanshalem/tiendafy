@@ -147,6 +147,11 @@ interface InfoItemData { icon?: string; title?: string; description?: string; li
 interface InfoBarData { items?: InfoItemData[] }
 interface NewsletterData { image?: string; title?: string; text?: string }
 interface InstagramData { video?: string }
+interface TestimonialItem { quote?: string; name?: string; detail?: string; photo?: string }
+interface TestimonialsData { title?: string; items?: TestimonialItem[] }
+interface FaqItem { question?: string; answer?: string }
+interface FaqData { title?: string; items?: FaqItem[] }
+interface BrandsData { title?: string; images?: string[] }
 
 export interface SectionRenderProps {
   section: ThemeSection;
@@ -441,6 +446,110 @@ function InstagramSection({ section }: SectionRenderProps) {
   );
 }
 
+/** Testimonios: cards de prueba social (cita + nombre + foto opcional). */
+function TestimonialsSection({ section }: SectionRenderProps) {
+  const data = section.data as TestimonialsData;
+  const items = (Array.isArray(data.items) ? data.items : []).filter((t) => t.quote?.trim());
+  if (items.length === 0) return null;
+  const cols = items.length === 1 ? 'sm:grid-cols-1 max-w-xl' : items.length === 2 ? 'sm:grid-cols-2 max-w-3xl' : 'sm:grid-cols-3';
+  return (
+    <section className="store-section mx-auto max-w-container px-6 py-14 sm:px-4">
+      <h3 className="mb-8 text-center text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+        {data.title || 'Lo que dicen nuestros clientes'}
+      </h3>
+      <div className={`mx-auto grid gap-5 ${cols}`}>
+        {items.map((t, i) => (
+          <figure key={i} className="tf-in flex flex-col rounded-lg border border-black/10 bg-black/[0.02] p-6" style={{ animationDelay: `${Math.min(i, 6) * 60}ms` }}>
+            <Icon name="quote" className="mb-3 h-6 w-6 text-primary opacity-70" />
+            <blockquote className="flex-1 text-sm leading-relaxed opacity-85">{t.quote}</blockquote>
+            {/* mt-auto: el pie queda abajo aunque las cards tengan alturas parejas */}
+            <figcaption className="mt-5 flex items-center gap-3">
+              {t.photo ? (
+                <img src={t.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                  {(t.name || '·').trim().charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span>
+                {t.name && <span className="block text-sm font-semibold">{t.name}</span>}
+                {t.detail && <span className="block text-xs opacity-60">{t.detail}</span>}
+              </span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Preguntas frecuentes: accordion nativo (details/summary) + JSON-LD FAQPage. */
+function FaqSection({ section }: SectionRenderProps) {
+  const data = section.data as FaqData;
+  const items = (Array.isArray(data.items) ? data.items : []).filter((f) => f.question?.trim() && f.answer?.trim());
+  if (items.length === 0) return null;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((f) => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: { '@type': 'Answer', text: f.answer },
+    })),
+  };
+  return (
+    <section className="store-section mx-auto max-w-3xl px-6 py-14 sm:px-4">
+      <h3 className="mb-6 text-center text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+        {data.title || 'Preguntas frecuentes'}
+      </h3>
+      <div className="divide-y divide-black/10 rounded-lg border border-black/10">
+        {items.map((f, i) => (
+          <details key={i} className="group px-5 py-1">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              {f.question}
+              <Icon name="chevronDown" className="h-4 w-4 shrink-0 opacity-60 transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="pb-4 text-sm leading-relaxed opacity-75">{f.answer}</p>
+          </details>
+        ))}
+      </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    </section>
+  );
+}
+
+/** Marcas que vendemos: tira de logos auto-deslizante (marquee, se pausa al hover). */
+function BrandsSection({ section }: SectionRenderProps) {
+  const data = section.data as BrandsData;
+  const images = (Array.isArray(data.images) ? data.images : []).filter(Boolean);
+  if (images.length === 0) return null;
+  const logos = images.map((src, i) => (
+    <img key={i} src={src} alt="" className="mx-8 h-10 w-auto shrink-0 object-contain opacity-70 transition-opacity hover:opacity-100 sm:h-12" />
+  ));
+  return (
+    <section className="store-section overflow-hidden border-y border-black/5 py-8">
+      {data.title && (
+        <h3 className="mb-6 text-center text-sm font-bold uppercase tracking-widest opacity-60" style={{ fontFamily: 'var(--font-heading)' }}>
+          {data.title}
+        </h3>
+      )}
+      {images.length <= 4 ? (
+        // Pocas marcas: fila estática centrada (un marquee con 2 logos queda raro).
+        <div className="flex flex-wrap items-center justify-center">{logos}</div>
+      ) : (
+        // Pista duplicada para loop continuo sin salto; reduced-motion la frena (CSS).
+        <div className="tf-marquee flex w-max items-center will-change-transform">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
+              {logos}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /**
  * Registro de renderers por tipo de sección. Agregar un tipo nuevo = una
  * entrada acá (OCP): no hay `switch` que tocar.
@@ -458,6 +567,9 @@ const SECTION_RENDERERS: Record<SectionType, (props: SectionRenderProps) => Reac
   'info-bar': InfoBarSection,
   newsletter: NewsletterSection,
   instagram: InstagramSection,
+  testimonials: TestimonialsSection,
+  faq: FaqSection,
+  brands: BrandsSection,
 };
 
 /** Texto descriptivo para el botón "Editar {label}" del preview (educa al usuario). */
@@ -474,6 +586,9 @@ const SECTION_LABELS: Record<SectionType, string> = {
   'info-bar': 'la barra de información',
   newsletter: 'el newsletter',
   instagram: 'el feed de Instagram',
+  testimonials: 'los testimonios',
+  faq: 'las preguntas frecuentes',
+  brands: 'las marcas',
 };
 
 export function SectionRenderer({

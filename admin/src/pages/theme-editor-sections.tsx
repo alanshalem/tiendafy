@@ -20,6 +20,9 @@ export const sectionMeta: Record<string, string> = {
   instagram: 'Instagram / Video',
   'info-bar': 'Información de envíos, pagos y compra',
   newsletter: 'Newsletter',
+  testimonials: 'Testimonios de clientes',
+  faq: 'Preguntas frecuentes',
+  brands: 'Marcas que vendemos',
 };
 
 /** Data inicial sensata por tipo de sección (el merchant después la completa). */
@@ -29,6 +32,9 @@ function sectionData(type: SectionType): Record<string, unknown> {
     case 'featured': return { title: 'Destacados', carousel: true };
     case 'new-products': return { title: 'Recién llegados', carousel: true };
     case 'sale-products': return { title: 'Ofertas', carousel: true };
+    case 'testimonials': return { title: 'Lo que dicen nuestros clientes', items: [{ quote: '', name: '' }] };
+    case 'faq': return { title: 'Preguntas frecuentes', items: [{ question: '', answer: '' }] };
+    case 'brands': return { title: 'Marcas que vendemos', images: [] };
     default: return {};
   }
 }
@@ -103,6 +109,12 @@ function MiniBlock({ type }: { type: SectionType }) {
       return <div className={`flex h-7 items-center justify-center gap-1.5 ${base}`}><span className="h-1.5 w-10 rounded bg-fg/20" /><span className="h-3 w-6 rounded bg-primary/40" /></div>;
     case 'instagram':
       return <span className={`block h-8 ${base}`} />;
+    case 'testimonials':
+      return <div className="flex gap-1">{[0, 1, 2].map((i) => <div key={i} className={`flex h-8 flex-1 flex-col justify-center gap-1 px-1 ${base}`}><span className="h-1 w-full rounded bg-fg/20" /><span className="h-1 w-2/3 rounded bg-fg/15" /></div>)}</div>;
+    case 'faq':
+      return <div className="space-y-1">{[0, 1].map((i) => <div key={i} className={`flex h-3.5 items-center justify-between px-1.5 ${base}`}><span className="h-1 w-16 rounded bg-fg/25" /><span className="h-1 w-1.5 rounded bg-fg/25" /></div>)}</div>;
+    case 'brands':
+      return <div className="flex h-5 items-center justify-around gap-1">{[0, 1, 2, 3].map((i) => <span key={i} className="h-2.5 w-8 rounded bg-fg/15" />)}</div>;
     default:
       return <span className={`block h-5 ${base}`} />;
   }
@@ -143,7 +155,7 @@ export function HomePanel({ theme, onBack, onOpenSection, updateTheme }: { theme
 
   const remove = (id: string) => updateTheme((t) => ({ ...t, sections: t.sections.filter((s) => s.id !== id) }));
   const addSection = (type: string) =>
-    updateTheme((t) => ({ ...t, sections: [...t.sections, { id: `${type}-${Math.random().toString(36).slice(2, 8)}`, type: type as ThemeSection['type'], visible: true, data: {} }] }));
+    updateTheme((t) => ({ ...t, sections: [...t.sections, { id: `${type}-${Math.random().toString(36).slice(2, 8)}`, type: type as ThemeSection['type'], visible: true, data: sectionData(type as SectionType) }] }));
 
   const listRef = useFlipList<HTMLDivElement>(theme.sections.map((s) => s.id).join(','));
   const [dragId, setDragId] = useState<string | null>(null);
@@ -400,6 +412,69 @@ function InfoBarEditorPanel({ d, set }: SectionEditorProps) {
   return <InfoBarEditor items={(Array.isArray(d.items) ? d.items : []) as InfoItem[]} onChange={(items) => set({ items })} />;
 }
 
+interface TestimonialItem { quote?: string; name?: string; detail?: string; photo?: string }
+function TestimonialsEditor({ d, set, str }: SectionEditorProps) {
+  const items = (Array.isArray(d.items) ? d.items : []) as TestimonialItem[];
+  const update = (i: number, patch: TestimonialItem) => set({ items: items.map((t, idx) => (idx === i ? { ...t, ...patch } : t)) });
+  return (
+    <>
+      <Field label="Título"><TextInput value={str('title')} onChange={(v) => set({ title: v })} placeholder="Lo que dicen nuestros clientes" /></Field>
+      {items.map((t, i) => (
+        <div key={i} className="rounded-md border border-border p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Testimonio {i + 1}</span>
+            <button onClick={() => set({ items: items.filter((_, idx) => idx !== i) })} className="text-xs text-danger hover:underline">Quitar</button>
+          </div>
+          <div className="space-y-2">
+            <TextArea value={t.quote ?? ''} onChange={(v) => update(i, { quote: v })} />
+            <TextInput value={t.name ?? ''} onChange={(v) => update(i, { name: v })} placeholder="Nombre (ej. Laura G.)" />
+            <TextInput value={t.detail ?? ''} onChange={(v) => update(i, { detail: v })} placeholder="Detalle (ej. Compró en CABA) — opcional" />
+            <Field label="Foto (opcional)"><ImageUploader value={t.photo ?? ''} onChange={(url) => update(i, { photo: url })} /></Field>
+          </div>
+        </div>
+      ))}
+      <button onClick={() => set({ items: [...items, {}] })} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"><Plus className="h-4 w-4" /> Agregar testimonio</button>
+      <p className="text-xs text-fg-subtle">Consejo: usá opiniones reales (de WhatsApp o Instagram, con permiso). Cortas y concretas convencen más.</p>
+    </>
+  );
+}
+
+interface FaqItemData { question?: string; answer?: string }
+function FaqEditor({ d, set, str }: SectionEditorProps) {
+  const items = (Array.isArray(d.items) ? d.items : []) as FaqItemData[];
+  const update = (i: number, patch: FaqItemData) => set({ items: items.map((f, idx) => (idx === i ? { ...f, ...patch } : f)) });
+  return (
+    <>
+      <Field label="Título"><TextInput value={str('title')} onChange={(v) => set({ title: v })} placeholder="Preguntas frecuentes" /></Field>
+      {items.map((f, i) => (
+        <div key={i} className="rounded-md border border-border p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Pregunta {i + 1}</span>
+            <button onClick={() => set({ items: items.filter((_, idx) => idx !== i) })} className="text-xs text-danger hover:underline">Quitar</button>
+          </div>
+          <div className="space-y-2">
+            <TextInput value={f.question ?? ''} onChange={(v) => update(i, { question: v })} placeholder="¿Hacen envíos a todo el país?" />
+            <TextArea value={f.answer ?? ''} onChange={(v) => update(i, { answer: v })} />
+          </div>
+        </div>
+      ))}
+      <button onClick={() => set({ items: [...items, {}] })} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"><Plus className="h-4 w-4" /> Agregar pregunta</button>
+      <p className="text-xs text-fg-subtle">Respondé acá lo que te preguntan siempre por WhatsApp: envíos, cambios, talles, medios de pago.</p>
+    </>
+  );
+}
+
+function BrandsEditor({ d, set, str }: SectionEditorProps) {
+  return (
+    <>
+      <Field label="Título"><TextInput value={str('title')} onChange={(v) => set({ title: v })} placeholder="Marcas que vendemos" /></Field>
+      <Field label="Logos de marcas" hint="PNG con fondo transparente, apaisados. Con 5 o más se deslizan solos en loop; con menos quedan fijos y centrados.">
+        <MultiImageUploader images={(Array.isArray(d.images) ? d.images : []) as string[]} onChange={(images) => set({ images })} />
+      </Field>
+    </>
+  );
+}
+
 /** Registro de editores por tipo de sección (OCP, espeja el del storefront). */
 const SECTION_EDITORS: Record<SectionType, (p: SectionEditorProps) => ReactNode> = {
   'hero-video': HeroVideoEditor,
@@ -414,6 +489,9 @@ const SECTION_EDITORS: Record<SectionType, (p: SectionEditorProps) => ReactNode>
   newsletter: NewsletterEditor,
   instagram: InstagramEditor,
   'info-bar': InfoBarEditorPanel,
+  testimonials: TestimonialsEditor,
+  faq: FaqEditor,
+  brands: BrandsEditor,
 };
 
 export function SectionPanel({ section, onBack, onChange }: { section: ThemeSection; onBack: () => void; onChange: (data: Record<string, unknown>) => void }) {

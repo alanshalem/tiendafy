@@ -1,6 +1,6 @@
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { headers } from 'next/headers';
 import { StorefrontView } from '@/components/store/StorefrontView';
+import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
 import { ProductDetail } from '@/components/store/ProductDetail';
 import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
@@ -60,10 +60,39 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   // llega a 4, rellenamos con el resto del catálogo para no dejar huecos.
   const related = await buildRelated(data.tenant.id, slug, product?.categoryIds ?? [], data.products);
 
+  // Miga: Inicio › (cadena de categorías) › Producto — navegación + BreadcrumbList
+  // para que Google muestre migas en el resultado en vez de la URL.
+  const trail = product ? await buildCategoryTrail(data.tenant.id, product.categoryIds) : [];
+  const crumbs = product
+    ? [
+        { label: 'Inicio', href: '/' },
+        { label: 'Productos', href: '/productos' },
+        ...trail.map((c) => ({ label: c.name, href: `/productos?category=${c.id}` })),
+        { label: product.name },
+      ]
+    : [];
+  const host = (await headers()).get('host') ?? '';
+  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const breadcrumbJsonLd = product && base
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: crumbs.map((c, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: typeof c.label === 'string' ? c.label : product.name,
+          ...(c.href ? { item: `${base}${c.href}` } : {}),
+        })),
+      }
+    : null;
+
   return (
     <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
       <main className="mx-auto max-w-container px-4 py-8">
-        <Link href={preview ? '/productos?preview=1' : '/productos'} className="inline-flex items-center gap-1.5 text-sm opacity-60 hover:underline"><ArrowLeft className="h-4 w-4" /> Volver</Link>
+        {product && <StoreBreadcrumbs items={crumbs} />}
+        {breadcrumbJsonLd && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+        )}
         {product ? (
           <>
             <ProductDetail
@@ -133,3 +162,30 @@ async function buildRelated(
 // next/image lazy-loadea las tarjetas fuera de vista, así que 12 llena la página
 // sin penalizar la carga inicial.
 const RELATED_COUNT = 12;
+
+interface CategoryDto { id: string; name: string; parentId: string | null }
+
+/**
+ * Cadena de categorías del producto, de la raíz a la hoja (para la miga).
+ * Usa la primera categoría del producto; si algo falla, miga sin categorías.
+ */
+async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Promise<CategoryDto[]> {
+  const catId = categoryIds[0];
+  if (!catId) return [];
+  try {
+    const res = await apiGet<{ items?: CategoryDto[] }>('/api/v1/categories', {
+      headers: { 'X-Tenant-Id': tenantId },
+      cache: 'no-store',
+    });
+    const byId = new Map((res?.items ?? []).map((c) => [c.id, c]));
+    const trail: CategoryDto[] = [];
+    let cur = byId.get(catId);
+    while (cur && trail.length < 5) {
+      trail.unshift(cur);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    return trail;
+  } catch {
+    return [];
+  }
+}
