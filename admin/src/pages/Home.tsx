@@ -40,6 +40,11 @@ export function HomePage() {
     queryFn: () => api.get<Sales>('/api/v1/stats/sales?days=30'),
     enabled: !!store,
   });
+  const { data: mp } = useQuery({
+    queryKey: ['mp-connection', store?.id],
+    queryFn: () => api.get<{ connected: boolean }>('/api/v1/payments/mercadopago/connection'),
+    enabled: !!store,
+  });
 
   if (!store) {
     return <NoStoreSelected message="Elegí una tienda arriba para empezar." />;
@@ -61,10 +66,12 @@ export function HomePage() {
       to: '/productos',
     },
     {
-      done: false,
-      title: 'Conectá Mercado Pago',
-      body: 'Para cobrar tus ventas directo en tu cuenta. (Pronto)',
-      to: '/configuracion',
+      done: mp?.connected ?? false,
+      title: mp?.connected ? 'Mercado Pago conectado' : 'Conectá Mercado Pago',
+      body: mp?.connected
+        ? 'Ya podés cobrar tus ventas directo en tu cuenta.'
+        : 'Para cobrar tus ventas directo en tu cuenta.',
+      to: '/configuracion/medios-de-pago',
     },
     {
       done: false,

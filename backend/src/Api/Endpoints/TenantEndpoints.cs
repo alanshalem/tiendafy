@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Api.Auth;
 using Identity.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Common;
 using Tenancy.Contracts;
 using Tenancy.Core;
@@ -98,6 +99,45 @@ public static class TenantEndpoints
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
+        // BORRADO DEFINITIVO — SOLO EN DESARROLLO. Purga toda la data del tenant
+        // (cada tabla con columna tenant_id) y la fila de la tienda. En producción
+        // devuelve 404 (el borrado real es lógico, vía MapDelete de arriba).
+        tenants.MapDelete("/{id:guid}/purge", async (
+            Guid id, IHostEnvironment env, ClaimsPrincipal user, IMembershipService memberships,
+            Tenancy.Infrastructure.Persistence.TenancyDbContext db, CancellationToken ct) =>
+        {
+            if (!env.IsDevelopment()) return Results.NotFound();
+            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+
+            var conn = db.Database.GetDbConnection();
+            await conn.OpenAsync(ct);
+            try
+            {
+                // Mejor esfuerzo: desactivar FKs si el rol de la conexión lo permite.
+                await Exec(conn, "SET session_replication_role = replica", ct, swallow: true);
+
+                var tables = new List<string>();
+                await using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT table_name FROM information_schema.columns WHERE column_name = 'tenant_id' AND table_schema = 'public'";
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct)) tables.Add(reader.GetString(0));
+                }
+                foreach (var t in tables)
+                {
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(t, "^[a-z0-9_]+$")) continue;
+                    await Exec(conn, $"DELETE FROM \"{t}\" WHERE tenant_id = @id", ct, swallow: true, id);
+                }
+
+                // La tabla tenants usa "id" (no tenant_id); nada le hace FK, así que borra siempre.
+                await Exec(conn, "DELETE FROM tenants WHERE id = @id", ct, swallow: false, id);
+                await Exec(conn, "SET session_replication_role = DEFAULT", ct, swallow: true);
+            }
+            finally { await conn.CloseAsync(); }
+
+            return Results.NoContent();
+        }).RequireAuthorization();
+
         // Resolución por host — pública (storefront + admin la usan para resolver tienda).
         tenants.MapGet("/resolve", async (string host, ITenancyService service, CancellationToken ct) =>
         {
@@ -106,6 +146,25 @@ public static class TenantEndpoints
         });
 
         return group;
+    }
+
+    /// <summary>Ejecuta un comando ADO parametrizado por @id. Con swallow tolera errores (FK).</summary>
+    private static async Task Exec(System.Data.Common.DbConnection conn, string sql, CancellationToken ct, bool swallow, Guid? id = null)
+    {
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            if (id is { } g)
+            {
+                var p = cmd.CreateParameter();
+                p.ParameterName = "id";
+                p.Value = g;
+                cmd.Parameters.Add(p);
+            }
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch when (swallow) { /* best-effort: seguir con las demás tablas */ }
     }
 
     private static async Task<bool> NotMember(ClaimsPrincipal user, Guid tenantId, IMembershipService memberships, CancellationToken ct)

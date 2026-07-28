@@ -70,6 +70,12 @@ export function TenantsPage() {
     onSuccess: (t) => { refresh(); closeDelete(); toast(`"${t.name}" eliminada`, { variant: 'success' }); },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
+  // Solo en desarrollo: borra la tienda y toda su data para siempre.
+  const purgeMut = useMutation({
+    mutationFn: (t: Tenant) => api.delete<void>(`/api/v1/tenants/${t.id}/purge`),
+    onSuccess: (_d, t) => { refresh(); toast(`"${t.name}" borrada definitivamente`, { variant: 'success' }); },
+    onError: (e) => toast(errMsg(e), { variant: 'error' }),
+  });
 
   const columns: TableColumn<Tenant>[] = [
     { key: 'name', header: 'Nombre' },
@@ -111,6 +117,16 @@ export function TenantsPage() {
               <Dropdown.Item destructive onSelect={() => setDeleting(t)}>
                 <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
               </Dropdown.Item>
+              {import.meta.env.DEV && (
+                <Dropdown.Item
+                  destructive
+                  onSelect={() => {
+                    if (window.confirm(`DEV: borrar "${t.name}" y TODA su data para siempre. ¿Seguro?`)) purgeMut.mutate(t);
+                  }}
+                >
+                  <Trash2 className="mr-2 inline h-4 w-4" /> Borrar definitivo (dev)
+                </Dropdown.Item>
+              )}
             </Dropdown.Menu>
           </Dropdown>
         </div>
