@@ -27,6 +27,7 @@ public static class FiscalModule
 
         services.AddSingleton<IFiscalSecretProtector, FiscalSecretProtector>();
         services.AddSingleton<IFiscalCertificateFactory, FiscalCertificateFactory>();
+        services.AddSingleton<IComprobantePdfRenderer, Pdf.ComprobantePdfRenderer>();
 
         // HttpClient de WSAA con TLS explícito (H2/H3): forzar TLS 1.2/1.3 para
         // evitar el "anda en homologación, revienta en producción". El

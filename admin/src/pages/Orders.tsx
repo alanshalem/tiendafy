@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Loader2, RefreshCw, Package, Truck, Undo2, FileText } from 'lucide-react';
+import { Loader2, RefreshCw, Package, Truck, Undo2, FileText, Download } from 'lucide-react';
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api } from '../lib/api';
@@ -315,6 +315,22 @@ function FiscalPanel({ orderId, orderStatus, canEmit }: { orderId: string; order
     } finally { setBusy(false); }
   };
 
+  const downloadPdf = async (kind: 'invoice' | 'creditnote') => {
+    try {
+      const blob = await api.download(`/api/v1/orders/${orderId}/invoice.pdf${kind === 'creditnote' ? '?type=creditnote' : ''}`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo descargar el comprobante.', { variant: 'error' });
+    }
+  };
+
   const retry = async () => {
     if (!failedJob) return;
     setBusy(true);
@@ -337,9 +353,14 @@ function FiscalPanel({ orderId, orderStatus, canEmit }: { orderId: string; order
       ) : (
         <div className="space-y-1 text-xs">
           {invoice ? (
-            <div className="font-medium text-green-600">
-              {CBTE_LABEL[invoice.cbteTipo] ?? invoice.cbteTipo} {nro(invoice)} · CAE {invoice.cae}
-              {invoice.caeVto ? ` (vence ${invoice.caeVto})` : ''}
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-green-600">
+                {CBTE_LABEL[invoice.cbteTipo] ?? invoice.cbteTipo} {nro(invoice)} · CAE {invoice.cae}
+                {invoice.caeVto ? ` (vence ${invoice.caeVto})` : ''}
+              </span>
+              <button onClick={() => downloadPdf('invoice')} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted">
+                <Download className="h-3 w-3" /> PDF
+              </button>
             </div>
           ) : activeJob ? (
             <div className="flex items-center gap-1.5 text-amber-600"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Facturación en proceso…</div>
@@ -349,8 +370,13 @@ function FiscalPanel({ orderId, orderStatus, canEmit }: { orderId: string; order
             <div className="text-fg-muted">Sin factura para esta orden.</div>
           )}
           {creditNote && (
-            <div className="font-medium text-blue-600">
-              {CBTE_LABEL[creditNote.cbteTipo] ?? creditNote.cbteTipo} {nro(creditNote)} · CAE {creditNote.cae}
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-blue-600">
+                {CBTE_LABEL[creditNote.cbteTipo] ?? creditNote.cbteTipo} {nro(creditNote)} · CAE {creditNote.cae}
+              </span>
+              <button onClick={() => downloadPdf('creditnote')} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted">
+                <Download className="h-3 w-3" /> PDF
+              </button>
             </div>
           )}
           {canEmit && !invoice && payable && (
