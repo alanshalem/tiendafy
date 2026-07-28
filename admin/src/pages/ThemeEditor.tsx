@@ -797,6 +797,34 @@ export function ThemeEditorPage() {
                     onChange={(url) => updateTheme((t) => ({ ...t, shareImage: url }))}
                   />
                 </Field>
+                <div className="border-t border-border pt-4">
+                  <div className="mb-1 text-sm font-semibold text-fg">Cómo aparecés en Google</div>
+                  <p className="mb-3 text-xs text-fg-muted">
+                    Título y descripción de tu tienda en los resultados de búsqueda. Vacío = se usa el nombre
+                    de la tienda.
+                  </p>
+                  <div className="space-y-4">
+                    <Field
+                      label="Título para buscadores"
+                      hint="Ideal: hasta 60 caracteres, con lo que vendés. Ej: «Volxen — Ropa de gimnasio»"
+                    >
+                      <TextInput
+                        value={theme.seoTitle}
+                        onChange={(v) => updateTheme((t) => ({ ...t, seoTitle: v }))}
+                        placeholder={`${store.name} — Tienda online`}
+                      />
+                    </Field>
+                    <Field
+                      label="Descripción para buscadores"
+                      hint="Ideal: 150-160 caracteres que inviten a hacer click."
+                    >
+                      <TextArea
+                        value={theme.seoDescription}
+                        onChange={(v) => updateTheme((t) => ({ ...t, seoDescription: v }))}
+                      />
+                    </Field>
+                  </div>
+                </div>
               </div>
             </div>
           )}

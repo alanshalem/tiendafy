@@ -45,8 +45,10 @@ interface ProductsPage {
 }
 
 export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[]> {
+  // Data cache 30s (keyed por tenant vía _mt): baja TTFB y crawl budget sin
+  // riesgo cross-tenant. Un producto nuevo aparece en ≤30s.
   const page = await apiGetTenant<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', tenantId, {
-    cache: 'no-store',
+    next: { revalidate: 30 },
   });
   return page?.items ?? [];
 }

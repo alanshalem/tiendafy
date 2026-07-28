@@ -125,7 +125,9 @@ function ImageCarousel({ images, fullHeightMobile }: { images: string[]; fullHei
     const timer = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
     return () => clearInterval(timer);
   }, [images.length]);
-  const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-auto sm:max-h-[460px]' : 'max-h-[460px]';
+  // next/image en el hero: es el LCP de la home — priority en el primer slide,
+  // srcset responsive y lazy en el resto (antes: <img> crudo sin nada de eso).
+  const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-[460px]' : 'h-[300px] sm:h-[460px]';
   return (
     <section className="relative overflow-hidden">
       <div
@@ -133,7 +135,9 @@ function ImageCarousel({ images, fullHeightMobile }: { images: string[]; fullHei
         style={{ transform: `translateX(-${i * 100}%)` }}
       >
         {images.map((src, idx) => (
-          <img key={idx} src={src} alt="" className={`${heightClass} w-full shrink-0 object-cover`} />
+          <div key={idx} className={`relative ${heightClass} w-full shrink-0`}>
+            <StoreImage src={src} alt="" sizes="100vw" priority={idx === 0} className="object-cover" />
+          </div>
         ))}
       </div>
       {images.length > 1 && (

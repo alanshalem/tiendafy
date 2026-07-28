@@ -41,6 +41,8 @@ public sealed class ThemeDocument
       "logo": "",
       "favicon": "",
       "shareImage": "",
+      "seoTitle": "",
+      "seoDescription": "",
       "borderRadius": "rounded",
       "motion": "subtle",
       "density": "cozy",

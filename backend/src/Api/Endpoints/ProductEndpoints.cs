@@ -436,12 +436,21 @@ public static class ProductEndpoints
             string slug,
             ITenantContext tenant,
             IProductRepository repository,
+            Inventory.Core.Domain.IStockRepository stockRepository,
             CancellationToken ct) =>
         {
             var product = await repository.GetBySlugAsync(tenant.TenantId, slug, ct);
-            return product is null || product.Status != ProductStatus.Active
-                ? Results.NotFound()
-                : Results.Ok(product.ToDto());
+            if (product is null || product.Status != ProductStatus.Active)
+                return Results.NotFound();
+
+            // Stock total (suma de variantes): el detalle lo usa para el
+            // "availability" real del JSON-LD (InStock/OutOfStock) y el badge.
+            var variantIds = product.Variants.Select(v => v.Id).ToList();
+            var stock = variantIds.Count > 0
+                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).Sum(s => s.Available)
+                : 0;
+
+            return Results.Ok(product.ToDto() with { Stock = stock });
         });
 
         return group;

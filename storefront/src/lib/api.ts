@@ -7,7 +7,15 @@ const API_URL = process.env.API_URL ?? 'http://localhost:5080';
 
 /** apiGet + header X-Tenant-Id (evita repetirlo en cada fetch del storefront). */
 export function apiGetTenant<T>(path: string, tenantId: string, init?: RequestInit): Promise<T | null> {
-  return apiGet<T>(path, { ...init, headers: { 'X-Tenant-Id': tenantId, ...init?.headers } });
+  // El tenant TAMBIÉN viaja en la URL (_mt): la Data Cache de Next cachea por
+  // URL e IGNORA los headers — sin esto, dos tiendas con el mismo path (ej.
+  // /pages/by-slug/terminos con revalidate) COMPARTÍAN entrada de caché y una
+  // podía servir el contenido de la otra. El backend ignora el query extra.
+  const sep = path.includes('?') ? '&' : '?';
+  return apiGet<T>(`${path}${sep}_mt=${tenantId}`, {
+    ...init,
+    headers: { 'X-Tenant-Id': tenantId, ...init?.headers },
+  });
 }
 
 export async function apiGet<T>(path: string, init?: RequestInit, attempts = 2): Promise<T | null> {

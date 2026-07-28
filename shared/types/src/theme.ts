@@ -190,6 +190,10 @@ export interface ThemeConfig {
   logo: string;
   favicon: string;
   shareImage: string;
+  /** Título SEO de la home (<title> y og:title). Vacío = "{tienda} — Tienda online". */
+  seoTitle: string;
+  /** Meta description de la home. Vacío = texto por defecto de la plataforma. */
+  seoDescription: string;
   /** Redondeado (default) / Suave / Cuadrado. */
   borderRadius: BorderRadiusStyle;
   /** Animaciones de entrada: ninguna / sutil (default) / dinámica. */
@@ -229,6 +233,8 @@ export const baseTheme: ThemeConfig = {
   logo: '',
   favicon: '',
   shareImage: '',
+  seoTitle: '',
+  seoDescription: '',
   borderRadius: 'rounded',
   motion: 'subtle',
   density: 'cozy',
@@ -361,6 +367,8 @@ export function normalizeTheme(
     logo: typeof raw.logo === 'string' ? raw.logo : baseTheme.logo,
     favicon: typeof raw.favicon === 'string' ? raw.favicon : baseTheme.favicon,
     shareImage: typeof raw.shareImage === 'string' ? raw.shareImage : baseTheme.shareImage,
+    seoTitle: typeof raw.seoTitle === 'string' ? raw.seoTitle : baseTheme.seoTitle,
+    seoDescription: typeof raw.seoDescription === 'string' ? raw.seoDescription : baseTheme.seoDescription,
     borderRadius:
       raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
     motion: raw.motion === 'none' || raw.motion === 'dynamic' ? raw.motion : baseTheme.motion,

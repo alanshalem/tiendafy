@@ -26,10 +26,20 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   const data = await loadStorefront();
   if (!data) return { title: 'Tienda' };
   const theme = await fetchPublishedTheme(data.tenant.id).catch(() => null);
+  // El merchant define su título/descripción SEO en el editor (Identidad);
+  // sin eso, un default con la marca — nunca el nombre pelado compitiendo
+  // con el mismo texto que todas las demás tiendas.
+  const title = theme?.seoTitle?.trim() || `${data.tenant.name} — Tienda online`;
+  const description =
+    theme?.seoDescription?.trim() ||
+    `Comprá online en ${data.tenant.name}. Envíos a todo el país y pago seguro.`;
+  const host = (await headers()).get('host') ?? '';
+  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
   return {
-    title: data.tenant.name,
-    description: `Tienda online de ${data.tenant.name}. Envíos a todo el país.`,
-    openGraph: { title: data.tenant.name, images: theme?.shareImage ? [theme.shareImage] : [] },
+    title,
+    description,
+    ...(base ? { alternates: { canonical: `${base}/` } } : {}),
+    openGraph: { title, description, images: theme?.shareImage ? [theme.shareImage] : [] },
   };
 }
 
@@ -55,14 +65,40 @@ export default async function HomePage({
 
   const products = await withReferencedProducts(data.tenant.id, theme, data.products);
 
+  // Organization + WebSite: nombre, logo y redes de la tienda para el Knowledge
+  // Panel / resultados de marca. Datos que el merchant ya cargó en el theme.
+  const host = (await headers()).get('host') ?? '';
+  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const sameAs = [theme.footer.instagram, theme.footer.facebook].filter(Boolean);
+  const orgJsonLd = base
+    ? {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'Organization',
+            name: data.tenant.name,
+            url: `${base}/`,
+            ...(theme.logo ? { logo: theme.logo } : {}),
+            ...(sameAs.length ? { sameAs } : {}),
+          },
+          { '@type': 'WebSite', name: data.tenant.name, url: `${base}/` },
+        ],
+      }
+    : null;
+
   return (
-    <StorefrontView
-      tenantId={data.tenant.id}
-      tenantName={data.tenant.name}
-      theme={theme}
-      products={products}
-      live={preview}
-    />
+    <>
+      {orgJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }} />
+      )}
+      <StorefrontView
+        tenantId={data.tenant.id}
+        tenantName={data.tenant.name}
+        theme={theme}
+        products={products}
+        live={preview}
+      />
+    </>
   );
 }
 

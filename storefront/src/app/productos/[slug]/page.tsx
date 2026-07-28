@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/store/EmptyState';
 import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { loadStorefront } from '@/lib/storefront';
-import { apiGet } from '@/lib/api';
+import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
 
@@ -17,10 +17,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const data = await loadStorefront();
   if (!data) return { title: 'Tienda' };
-  const product = await apiGet<{ name: string; description: string | null; images: { url: string }[] }>(
-    `/api/v1/products/by-slug/${slug}`,
-    { headers: { 'X-Tenant-Id': data.tenant.id }, cache: 'no-store' },
-  ).catch(() => null);
+  const product = await apiGetTenant<{
+    name: string;
+    description: string | null;
+    images: { url: string }[];
+  }>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, { next: { revalidate: 30 } }).catch(() => null);
   if (!product) return { title: data.tenant.name };
   const base = await siteBase();
   return {
@@ -57,6 +58,7 @@ interface ProductDto {
   }[];
   images: { url: string; altText: string | null }[];
   categoryIds: string[];
+  stock: number | null;
 }
 
 export default async function ProductDetailPage({
@@ -71,9 +73,9 @@ export default async function ProductDetailPage({
   if (!resolved.ok) return resolved.fallback;
   const { data, theme, preview } = resolved;
 
-  const product = await apiGet<ProductDto>(`/api/v1/products/by-slug/${slug}`, {
-    headers: { 'X-Tenant-Id': data.tenant.id },
-    cache: 'no-store',
+  // Data cache 30s keyed por tenant (_mt): TTFB decente sin SSR+DB en cada hit.
+  const product = await apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, {
+    next: { revalidate: 30 },
   });
 
   // "También te puede gustar": productos de la MISMA categoría del que se está
@@ -122,7 +124,10 @@ export default async function ProductDetailPage({
             '@type': 'Offer',
             priceCurrency: firstVariant.price.currency,
             price: (firstVariant.price.amount / 100).toFixed(2), // minor units → pesos
-            availability: 'https://schema.org/InStock',
+            // Disponibilidad REAL (datos falsos = perder rich results).
+            // stock null = desconocido → optimista InStock.
+            availability:
+              product.stock === 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
             ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
           },
         }
@@ -242,9 +247,8 @@ async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Prom
   const catId = categoryIds[0];
   if (!catId) return [];
   try {
-    const res = await apiGet<{ items?: CategoryDto[] }>('/api/v1/categories', {
-      headers: { 'X-Tenant-Id': tenantId },
-      cache: 'no-store',
+    const res = await apiGetTenant<{ items?: CategoryDto[] }>('/api/v1/categories', tenantId, {
+      next: { revalidate: 60 },
     });
     const byId = new Map((res?.items ?? []).map((c) => [c.id, c]));
     const trail: CategoryDto[] = [];
