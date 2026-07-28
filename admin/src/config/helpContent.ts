@@ -360,11 +360,37 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
-        heading: 'Despachar un pedido',
+        heading: 'Qué ve y hace el comprador',
         steps: [
-          'En la venta, tocá “Crear envío en Correo Argentino”: se precargan el destinatario y la dirección — revisalos y confirmá.',
-          'El envío queda importado en tu cuenta de MiCorreo. Entrá a MiCorreo para pagarlo y generar la etiqueta.',
-          'Pegá la etiqueta, despachá en tu sucursal y cargá el número de seguimiento en la venta con “Marcar enviada” — el cliente lo recibe por email.',
+          'En el paso Entrega del checkout, pone su código postal y toca “Calcular”.',
+          'Ve las tarifas reales con el plazo estimado (ej: “Clásico a domicilio $4.500, llega en 2 a 5 días”).',
+          'Si elige a domicilio, completa su dirección como siempre. Si elige sucursal, selecciona provincia y sucursal de Correo de una lista — no carga dirección, retira él.',
+          'Paga con el envío ya sumado al total. En la venta te queda registrado el método, el costo y la dirección (o la sucursal elegida con su código, ej: “Sucursal Monte Grande (B0107)”).',
+        ],
+      },
+      {
+        heading: 'El flujo completo cuando te compran',
+        paragraphs: [
+          'Automático: la cotización, el precio (firmado por el servidor, no manipulable), la dirección o sucursal en la venta, y el aviso al cliente cuando marcás enviada.',
+          'Un click: “Crear envío en Correo Argentino” en la venta pagada — importa el envío a tu cuenta de MiCorreo con el destinatario y la dirección precargados, sin retipear nada.',
+          'Manual (en el panel de MiCorreo, la API de Correo no lo permite de otra forma): pagar el envío, generar la etiqueta y obtener el número de seguimiento. Es igual en todas las plataformas que integran MiCorreo.',
+        ],
+      },
+      {
+        heading: 'Despachar un pedido, paso a paso',
+        steps: [
+          'En la venta pagada, tocá “Crear envío en Correo Argentino”: se precargan el destinatario y la dirección — revisalos y confirmá.',
+          'El envío queda importado en tu cuenta de MiCorreo (con el número de tu orden).',
+          'Entrá al panel de MiCorreo: el envío ya está cargado. Pagalo y generá la etiqueta — recién ahí Correo te da el número de seguimiento.',
+          'Imprimí la etiqueta, pegala al paquete y llevalo a tu sucursal de Correo.',
+          'Volvé a la venta y tocá “Marcar enviada” con ese número de seguimiento: el cliente recibe el email (y WhatsApp si lo activaste) de “pedido en camino” automáticamente.',
+        ],
+      },
+      {
+        heading: 'Quién paga qué',
+        paragraphs: [
+          'El costo del envío lo cobrás VOS en la venta (va sumado al total que paga el comprador por Mercado Pago). Después vos le pagás a Correo el envío real al generar la etiqueta en MiCorreo.',
+          'Si el paquete estimado está bien configurado, queda neutro. Si tus productos varían mucho de peso, ajustá el paquete por defecto o asumí la diferencia como costo.',
         ],
       },
       {
