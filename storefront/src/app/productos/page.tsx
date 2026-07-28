@@ -1,10 +1,27 @@
+import { headers } from 'next/headers';
+import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { CatalogBrowser } from '@/components/store/CatalogBrowser';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { searchProducts, fetchCategories, toStoreProduct } from '@/lib/catalog';
+import { resolveTenant } from '@/lib/tenancy';
 import type { StoreProduct } from '@/components/store/sections';
 
 export const dynamic = 'force-dynamic';
+
+// La página de catálogo es la #2 en importancia SEO de cada tienda: sin esto
+// se titulaba "Tiendafy" (¡ni el nombre del comercio!) y sin canonical.
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await resolveTenant();
+  if (!tenant) return { title: 'Productos' };
+  const host = (await headers()).get('host') ?? '';
+  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  return {
+    title: `Productos · ${tenant.name}`,
+    description: `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,
+    ...(base ? { alternates: { canonical: `${base}/productos` } } : {}),
+  };
+}
 
 export default async function ProductsPage({
   searchParams,
