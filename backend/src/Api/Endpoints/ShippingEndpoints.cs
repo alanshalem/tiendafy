@@ -1,6 +1,6 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Checkout.Core.Domain;
+using Identity.Infrastructure;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 

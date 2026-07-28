@@ -19,6 +19,9 @@ export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): stri
 /** Fecha + hora corta (es-AR): "05 jul, 14:30". */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }

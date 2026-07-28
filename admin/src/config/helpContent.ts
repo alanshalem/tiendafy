@@ -47,7 +47,8 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
   // ---------------------------------------------------- Ventas y pagos
   payments: {
     title: 'Medios de pago',
-    intro: 'Cobrá las ventas de tu tienda conectando Mercado Pago. La plata va directo a tu cuenta — Tiendafy nunca la toca.',
+    intro:
+      'Cobrá las ventas de tu tienda conectando Mercado Pago. La plata va directo a tu cuenta — Tiendafy nunca la toca.',
     category: 'Ventas y pagos',
     sections: [
       {
@@ -343,7 +344,8 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
 
   whatsappAuto: {
     title: 'WhatsApp automático',
-    intro: 'Mensajes de WhatsApp que se envían solos con la API oficial de Meta: confirmaciones, envíos y más.',
+    intro:
+      'Mensajes de WhatsApp que se envían solos con la API oficial de Meta: confirmaciones, envíos y más.',
     category: 'Clientes y comunicación',
     sections: [
       {

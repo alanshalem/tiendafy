@@ -96,9 +96,13 @@ export function HomePage() {
           <div className="mt-1 text-2xl font-bold text-fg">
             {sales ? formatMoney(sales.revenue, sales.currency) : '—'}
           </div>
-          <div className="mt-1 text-xs text-fg-subtle">{sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}</div>
+          <div className="mt-1 text-xs text-fg-subtle">
+            {sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}
+          </div>
           {sales && sales.series.length > 1 && (
-            <div className="mt-2"><Sparkline data={sales.series.map((s) => s.revenue)} /></div>
+            <div className="mt-2">
+              <Sparkline data={sales.series.map((s) => s.revenue)} />
+            </div>
           )}
         </Card>
         <Card>
@@ -107,12 +111,16 @@ export function HomePage() {
             {overview ? overview.products.total.toLocaleString('es-AR') : '—'}
           </div>
           <div className="mt-1 text-xs text-fg-subtle">
-            {overview ? `${overview.products.published} publicados · ${overview.products.draft} borradores` : 'Cargando…'}
+            {overview
+              ? `${overview.products.published} publicados · ${overview.products.draft} borradores`
+              : 'Cargando…'}
           </div>
         </Card>
         <Card>
           <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Estado</div>
-          <div className="mt-1 text-2xl font-bold text-fg">{store.status === 'ACTIVE' ? 'Activa' : store.status}</div>
+          <div className="mt-1 text-2xl font-bold text-fg">
+            {store.status === 'ACTIVE' ? 'Activa' : store.status}
+          </div>
           <div className="mt-1 text-xs text-fg-subtle">Plan {store.plan}</div>
         </Card>
       </div>
@@ -134,12 +142,18 @@ export function HomePage() {
               {step.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
             </span>
             <span className="min-w-0">
-              <span className={`block text-sm font-semibold ${step.done ? 'text-fg-muted line-through' : 'text-fg'}`}>
+              <span
+                className={`block text-sm font-semibold ${step.done ? 'text-fg-muted line-through' : 'text-fg'}`}
+              >
                 {step.title}
               </span>
               <span className="block text-xs text-fg-muted">{step.body}</span>
             </span>
-            {step.done && <Badge variant="success" className="ml-auto shrink-0">Listo</Badge>}
+            {step.done && (
+              <Badge variant="success" className="ml-auto shrink-0">
+                Listo
+              </Badge>
+            )}
           </Link>
         ))}
       </Card>

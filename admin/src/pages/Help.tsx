@@ -1,9 +1,29 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, BadgePercent, BarChart3, BookOpen, ChevronRight, CreditCard, FileText,
-  Globe, LifeBuoy, Mail, MapPin, MessageCircle, MessageSquare, Package, Palette, Phone,
-  Rocket, Search, Settings2, ShoppingBag, Truck, Users, Warehouse,
+  ArrowLeft,
+  BadgePercent,
+  BarChart3,
+  BookOpen,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  Globe,
+  LifeBuoy,
+  Mail,
+  MapPin,
+  MessageCircle,
+  MessageSquare,
+  Package,
+  Palette,
+  Phone,
+  Rocket,
+  Search,
+  Settings2,
+  ShoppingBag,
+  Truck,
+  Users,
+  Warehouse,
 } from 'lucide-react';
 import { HELP_CONTENT, type HelpArticle } from '../config/helpContent';
 import { HELP_LINKS, type HelpLinkId } from '../config/features';
@@ -51,9 +71,14 @@ function HelpShell({ children, width = 'max-w-2xl' }: { children: ReactNode; wid
   return (
     <div className="min-h-screen bg-bg-subtle text-fg">
       <header className="sticky top-0 z-20 flex h-header items-center gap-2.5 border-b border-border bg-surface/80 px-6 backdrop-blur-xl">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-black text-primary-fg">t</span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-black text-primary-fg">
+          t
+        </span>
         <span className="text-base font-semibold tracking-tight">Centro de ayuda</span>
-        <Link to="/ayuda" className="ml-auto inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg">
+        <Link
+          to="/ayuda"
+          className="ml-auto inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg"
+        >
           <BookOpen className="h-4 w-4" /> Todos los temas
         </Link>
       </header>
@@ -70,7 +95,9 @@ function matches(article: HelpArticle, q: string): boolean {
     article.title,
     article.intro,
     ...article.sections.flatMap((s) => [s.heading, ...(s.paragraphs ?? []), ...(s.steps ?? [])]),
-  ].join(' ').toLowerCase();
+  ]
+    .join(' ')
+    .toLowerCase();
   return needle.split(/\s+/).every((word) => haystack.includes(word));
 }
 
@@ -84,7 +111,10 @@ export function HelpArticlePage() {
       <HelpShell>
         <h1 className="text-2xl font-bold tracking-tight">Tema no encontrado</h1>
         <p className="mt-2 text-fg-muted">El artículo que buscás no existe.</p>
-        <Link to="/ayuda" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+        <Link
+          to="/ayuda"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        >
           <ArrowLeft className="h-4 w-4" /> Ver todos los temas
         </Link>
       </HelpShell>
@@ -97,7 +127,10 @@ export function HelpArticlePage() {
 
   return (
     <HelpShell>
-      <Link to="/ayuda" className="inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg">
+      <Link
+        to="/ayuda"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted hover:text-fg"
+      >
         <ArrowLeft className="h-4 w-4" /> Centro de ayuda
       </Link>
       <div className="mt-5 flex items-center gap-3">
@@ -105,7 +138,9 @@ export function HelpArticlePage() {
           <TopicIcon id={id} className="h-5 w-5" />
         </span>
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">{article.category}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+            {article.category}
+          </div>
           <h1 className="text-3xl font-bold tracking-tight">{article.title}</h1>
         </div>
       </div>
@@ -116,11 +151,17 @@ export function HelpArticlePage() {
           <section key={i} className="border-b border-border pb-6 last:border-b-0 last:pb-0">
             <h2 className="text-lg font-semibold text-fg">{s.heading}</h2>
             {s.paragraphs?.map((p, j) => (
-              <p key={j} className="mt-2 leading-relaxed text-fg-muted">{p}</p>
+              <p key={j} className="mt-2 leading-relaxed text-fg-muted">
+                {p}
+              </p>
             ))}
             {s.steps && (
               <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-fg-muted marker:text-fg-subtle">
-                {s.steps.map((step, j) => <li key={j} className="leading-relaxed">{step}</li>)}
+                {s.steps.map((step, j) => (
+                  <li key={j} className="leading-relaxed">
+                    {step}
+                  </li>
+                ))}
               </ol>
             )}
           </section>
@@ -132,8 +173,11 @@ export function HelpArticlePage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-fg-subtle">Relacionados</h2>
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             {related.map((r) => (
-              <Link key={r} to={`/ayuda/${r}`}
-                className="group flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium text-fg transition-colors hover:border-primary/40">
+              <Link
+                key={r}
+                to={`/ayuda/${r}`}
+                className="group flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium text-fg transition-colors hover:border-primary/40"
+              >
                 <TopicIcon id={r} className="h-4 w-4 text-fg-subtle group-hover:text-primary" />
                 {HELP_CONTENT[r].title}
                 <ChevronRight className="ml-auto h-4 w-4 text-fg-subtle" />
@@ -181,14 +225,19 @@ export function HelpIndexPage() {
         <div className="mt-14 text-center text-fg-muted">
           <LifeBuoy className="mx-auto h-9 w-9 opacity-40" />
           <p className="mt-3">No encontramos nada con “{query}”.</p>
-          <button onClick={() => setQuery('')} className="mt-2 text-sm font-medium text-primary hover:underline">
+          <button
+            onClick={() => setQuery('')}
+            className="mt-2 text-sm font-medium text-primary hover:underline"
+          >
             Ver todos los temas
           </button>
         </div>
       ) : (
         byCategory.map(({ category, items }) => (
           <div key={category} className="mt-10">
-            <h2 className="mb-3.5 text-sm font-semibold uppercase tracking-wider text-fg-subtle">{category}</h2>
+            <h2 className="mb-3.5 text-sm font-semibold uppercase tracking-wider text-fg-subtle">
+              {category}
+            </h2>
             <div className="grid gap-3.5 sm:grid-cols-2">
               {items.map((id) => (
                 <Link
@@ -215,7 +264,10 @@ export function HelpIndexPage() {
         <LifeBuoy className="h-7 w-7 text-primary" />
         <p className="font-semibold text-fg">¿No encontraste lo que buscabas?</p>
         <p className="text-sm text-fg-muted">Escribinos y te damos una mano con tu tienda.</p>
-        <a href="mailto:soporte@tiendafy.com" className="mt-1 text-sm font-medium text-primary hover:underline">
+        <a
+          href="mailto:soporte@tiendafy.com"
+          className="mt-1 text-sm font-medium text-primary hover:underline"
+        >
           soporte@tiendafy.com
         </a>
       </div>

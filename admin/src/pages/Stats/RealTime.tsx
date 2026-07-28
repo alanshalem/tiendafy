@@ -57,7 +57,9 @@ export function StatsRealTimePage() {
                 {data.recent.map((r, i) => (
                   <tr key={i} className="border-b border-border last:border-b-0">
                     <td className="py-2 font-mono text-xs text-fg">{r.path}</td>
-                    <td className="py-2 text-right text-xs text-fg-muted">{new Date(r.occurredAtUtc).toLocaleTimeString('es-AR')}</td>
+                    <td className="py-2 text-right text-xs text-fg-muted">
+                      {new Date(r.occurredAtUtc).toLocaleTimeString('es-AR')}
+                    </td>
                   </tr>
                 ))}
               </tbody>

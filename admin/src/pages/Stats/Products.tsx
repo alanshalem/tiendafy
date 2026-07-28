@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { StatsPageHeader, StatsToolbar, defaultStatsRange, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  StatsPageHeader,
+  StatsToolbar,
+  defaultStatsRange,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';

@@ -46,11 +46,19 @@ export default async function InstitutionalPage({
   });
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
       <main className="mx-auto max-w-container px-4 py-10">
         {page ? (
           <>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{page.title}</h1>
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+              {page.title}
+            </h1>
             {/* El body ya viene sanitizado del backend (HtmlSanitizer al guardar). */}
             <div
               className="prose mt-6 max-w-none opacity-80"
@@ -59,7 +67,9 @@ export default async function InstitutionalPage({
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Página no encontrada</h1>
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+              Página no encontrada
+            </h1>
             <p className="mt-4 opacity-70">La página que buscás no existe o no está disponible.</p>
           </>
         )}

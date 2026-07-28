@@ -1,15 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  BadgeCheck,
-  ChevronDown,
-  Info,
-  KeyRound,
-  Loader2,
-  MessageCircle,
-  Send,
-  Unplug,
-} from 'lucide-react';
+import { BadgeCheck, ChevronDown, Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, cn, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { api, errMsg } from '../../lib/api';
@@ -88,8 +79,8 @@ export function WhatsAppAutoPage() {
       <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-info/30 bg-info-bg/60 p-3.5 text-sm text-fg">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
         <p>
-          El contenido de cada mensaje es una <strong>plantilla que Meta aprueba previamente</strong> (24-48 hs) desde
-          el Meta Business Manager. Acá activás cada tipo y le decís qué plantilla aprobada usar.
+          El contenido de cada mensaje es una <strong>plantilla que Meta aprueba previamente</strong> (24-48
+          hs) desde el Meta Business Manager. Acá activás cada tipo y le decís qué plantilla aprobada usar.
         </p>
       </div>
 
@@ -201,7 +192,9 @@ function ConnectionCard({ conn, loading }: { conn: ConnectionDto | null; loading
         </span>
         <div className="min-w-0 flex-1">
           <span className="text-base font-bold text-fg">WhatsApp Business</span>
-          <p className="text-xs text-fg-muted">Cloud API oficial de Meta. Los mensajes salen desde tu propio número.</p>
+          <p className="text-xs text-fg-muted">
+            Cloud API oficial de Meta. Los mensajes salen desde tu propio número.
+          </p>
         </div>
         {connected && (
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
@@ -304,8 +297,8 @@ function ConnectionForm({
   return (
     <div>
       <p className="mb-4 text-sm text-fg">
-        Conectá tu número de WhatsApp Business con la Cloud API de Meta. Necesitás una app en Meta for Developers con
-        WhatsApp habilitado.
+        Conectá tu número de WhatsApp Business con la Cloud API de Meta. Necesitás una app en Meta for
+        Developers con WhatsApp habilitado.
       </p>
 
       <form
@@ -346,7 +339,12 @@ function ConnectionForm({
         </div>
 
         <div className="flex gap-2 pt-1">
-          <Button type="submit" disabled={!canSubmit} loading={connect.isPending} style={{ background: WA_GREEN }}>
+          <Button
+            type="submit"
+            disabled={!canSubmit}
+            loading={connect.isPending}
+            style={{ background: WA_GREEN }}
+          >
             Conectar
           </Button>
           {onCancel && (
@@ -421,8 +419,8 @@ function TestModal({ onClose }: { onClose: () => void }) {
           />
         </div>
         <p className="text-xs text-fg-muted">
-          Si tu app de Meta está en modo prueba, el mensaje solo llega a números registrados como testers en el panel de
-          la app.
+          Si tu app de Meta está en modo prueba, el mensaje solo llega a números registrados como testers en
+          el panel de la app.
         </p>
       </div>
     </Modal>

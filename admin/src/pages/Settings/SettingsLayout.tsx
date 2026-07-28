@@ -1,16 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
-  Code,
-  CornerDownRight,
   CreditCard,
   FileText,
   Globe,
   Mail,
-  MapPin,
   MessageCircle,
   Package,
-  Pencil,
   ShoppingCart,
   User,
   type LucideIcon,
@@ -37,8 +33,18 @@ const groups: NavGroup[] = [
   {
     heading: 'Pagos y envíos',
     items: [
-      { to: '/configuracion/medios-de-pago', label: 'Medios de pago', icon: CreditCard, perm: 'payments.read' },
-      { to: '/configuracion/medios-de-envio', label: 'Medios de envío', icon: Package, perm: 'settings.write' },
+      {
+        to: '/configuracion/medios-de-pago',
+        label: 'Medios de pago',
+        icon: CreditCard,
+        perm: 'payments.read',
+      },
+      {
+        to: '/configuracion/medios-de-envio',
+        label: 'Medios de envío',
+        icon: Package,
+        perm: 'settings.write',
+      },
     ],
   },
   {
@@ -50,14 +56,29 @@ const groups: NavGroup[] = [
   {
     heading: 'Comunicación',
     items: [
-      { to: '/configuracion/emails-automaticos', label: 'E-mails automáticos', icon: Mail, perm: 'settings.write' },
-      { to: '/configuracion/whatsapp-automatico', label: 'WhatsApp automático', icon: MessageCircle, perm: 'settings.write' },
+      {
+        to: '/configuracion/emails-automaticos',
+        label: 'E-mails automáticos',
+        icon: Mail,
+        perm: 'settings.write',
+      },
+      {
+        to: '/configuracion/whatsapp-automatico',
+        label: 'WhatsApp automático',
+        icon: MessageCircle,
+        perm: 'settings.write',
+      },
     ],
   },
   {
     heading: 'Checkout',
     items: [
-      { to: '/configuracion/opciones-del-checkout', label: 'Opciones del checkout', icon: ShoppingCart, perm: 'settings.write' },
+      {
+        to: '/configuracion/opciones-del-checkout',
+        label: 'Opciones del checkout',
+        icon: ShoppingCart,
+        perm: 'settings.write',
+      },
     ],
   },
   {
@@ -76,7 +97,15 @@ function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
-      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">
+      <text
+        x="32"
+        y="45"
+        textAnchor="middle"
+        fontFamily="-apple-system, system-ui, sans-serif"
+        fontWeight="700"
+        fontSize="38"
+        fill="#fff"
+      >
         t
       </text>
     </svg>
@@ -173,7 +202,15 @@ export function SettingsHeader({
 }
 
 /** Barra inferior sticky de guardar/cancelar. */
-export function SaveBar({ dirty, onSave, onCancel }: { dirty: boolean; onSave: () => void; onCancel?: () => void }) {
+export function SaveBar({
+  dirty,
+  onSave,
+  onCancel,
+}: {
+  dirty: boolean;
+  onSave: () => void;
+  onCancel?: () => void;
+}) {
   if (!dirty) return null;
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-6 py-3 backdrop-blur md:left-sidebar">

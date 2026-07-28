@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Home, Loader2, ShieldOff } from 'lucide-react';
 import { api } from '../lib/api';
@@ -105,8 +98,8 @@ export function RequirePerm({ perm, children }: { perm: string | string[]; child
         </span>
         <h1 className="text-lg font-bold text-fg">No tenés permiso para ver esta sección</h1>
         <p className="max-w-sm text-sm text-fg-muted">
-          Si creés que deberías tener acceso, pedile al dueño o a un administrador de la tienda que
-          ajuste tu rol.
+          Si creés que deberías tener acceso, pedile al dueño o a un administrador de la tienda que ajuste tu
+          rol.
         </p>
         <Link
           to="/"

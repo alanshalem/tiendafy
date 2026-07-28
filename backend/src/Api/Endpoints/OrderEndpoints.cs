@@ -1,9 +1,9 @@
-using Identity.Infrastructure;
 using System.Collections.Concurrent;
 using Api.Auth;
 using Api.Notifications;
 using Checkout.Core.Domain;
 using Discounts.Infrastructure;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Core.Features;
@@ -339,7 +339,12 @@ public static class OrderEndpoints
             var r = result.Value;
             return Results.Ok(new
             {
-                r.DocumentId, r.Authorized, r.PtoVta, cbteTipo = r.CbteTipo, r.Number, r.Cae,
+                r.DocumentId,
+                r.Authorized,
+                r.PtoVta,
+                cbteTipo = r.CbteTipo,
+                r.Number,
+                r.Cae,
                 caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
                 errors = r.Errors.Select(e => new { e.Code, e.Message }),
             });
@@ -534,7 +539,11 @@ public static class OrderEndpoints
         refundable = ApiJson.MoneyJson(order.RemainingRefundable),
         items = order.Items.Select(i => new
         {
-            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.Quantity,
+            i.VariantId,
+            i.ProductName,
+            i.VariantDescription,
+            i.Sku,
+            i.Quantity,
             unitPrice = ApiJson.MoneyJson(i.UnitPrice),
         }),
     };

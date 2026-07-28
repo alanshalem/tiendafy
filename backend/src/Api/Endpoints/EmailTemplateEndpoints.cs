@@ -1,7 +1,7 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Api.Notifications;
 using Ganss.Xss;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using SharedKernel.Abstractions;

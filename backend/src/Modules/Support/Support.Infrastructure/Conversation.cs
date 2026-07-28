@@ -76,16 +76,16 @@ public sealed class SupportMessage
     public static SupportMessage Create(
         Guid conversationId, Guid tenantId, bool isFromStaff, string authorName, string body,
         string? attachmentKey = null, string? attachmentName = null, string? attachmentContentType = null) => new()
-    {
-        Id = Guid.NewGuid(),
-        ConversationId = conversationId,
-        TenantId = tenantId,
-        IsFromStaff = isFromStaff,
-        AuthorName = authorName,
-        Body = body.Trim()[..Math.Min(4000, body.Trim().Length)],
-        AttachmentKey = attachmentKey,
-        AttachmentName = attachmentName,
-        AttachmentContentType = attachmentContentType,
-        CreatedAtUtc = DateTime.UtcNow,
-    };
+        {
+            Id = Guid.NewGuid(),
+            ConversationId = conversationId,
+            TenantId = tenantId,
+            IsFromStaff = isFromStaff,
+            AuthorName = authorName,
+            Body = body.Trim()[..Math.Min(4000, body.Trim().Length)],
+            AttachmentKey = attachmentKey,
+            AttachmentName = attachmentName,
+            AttachmentContentType = attachmentContentType,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
 }

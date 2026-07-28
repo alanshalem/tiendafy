@@ -29,33 +29,59 @@ html {
 /* Motion: entrada suave (fade + subir). Para reveals en cascada se combina con
    un animation-delay inline por índice. Respeta prefers-reduced-motion. */
 @keyframes tf-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.tf-in { animation: tf-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.tf-in {
+  animation: tf-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
 /* Barra de anuncio en modo marquee: la pista se duplica (2 copias) y se desplaza
    -50% = una copia entera, en loop continuo. Pausa al pasar el mouse. */
 @keyframes tf-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
-.tf-marquee { animation: tf-marquee 22s linear infinite; }
-.tf-marquee:hover { animation-play-state: paused; }
+.tf-marquee {
+  animation: tf-marquee 22s linear infinite;
+}
+.tf-marquee:hover {
+  animation-play-state: paused;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tf-marquee { animation: none; }
+  .tf-marquee {
+    animation: none;
+  }
 }
 
 /* Flash al enfocar una sección desde el editor (abrir su panel). Ring interno que
    se desvanece — funciona en secciones full-bleed (header/pie) sin romper layout. */
 @keyframes tf-focus-flash {
-  0% { box-shadow: inset 0 0 0 3px rgb(var(--color-primary)); }
-  100% { box-shadow: inset 0 0 0 0 rgb(var(--color-primary) / 0); }
+  0% {
+    box-shadow: inset 0 0 0 3px rgb(var(--color-primary));
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgb(var(--color-primary) / 0);
+  }
 }
-.tf-focus-flash { animation: tf-focus-flash 1.4s ease-out; }
+.tf-focus-flash {
+  animation: tf-focus-flash 1.4s ease-out;
+}
 
 @keyframes tf-shimmer {
-  100% { transform: translateX(100%); }
+  100% {
+    transform: translateX(100%);
+  }
 }
 /* Skeleton con barrido de brillo. */
 .tf-skeleton {
@@ -73,8 +99,12 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tf-in { animation: none; }
-  .tf-skeleton::after { animation: none; }
+  .tf-in {
+    animation: none;
+  }
+  .tf-skeleton::after {
+    animation: none;
+  }
 }
 
 /* Estilo de bordes global del storefront (cards, botones, imágenes, inputs).

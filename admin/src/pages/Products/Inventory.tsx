@@ -21,12 +21,6 @@ interface ProductDto {
   images: { url: string }[];
 }
 
-interface StockItem {
-  variantId: string;
-  available: number;
-  reserved: number;
-}
-
 export function InventoryPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -119,9 +113,7 @@ export function InventoryPage() {
 
                 return (
                   <tr key={variant.id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-medium text-fg">
-                      {vi === 0 ? product.name : ''}
-                    </td>
+                    <td className="px-4 py-2.5 font-medium text-fg">{vi === 0 ? product.name : ''}</td>
                     <td className="px-4 py-2.5 text-fg-muted">
                       {variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única'}
                     </td>
@@ -149,7 +141,9 @@ export function InventoryPage() {
                         <Button
                           size="sm"
                           loading={save.isPending && save.variables?.variantId === variant.id}
-                          onClick={() => save.mutate({ variantId: variant.id, available: parseInt(value || '0', 10) })}
+                          onClick={() =>
+                            save.mutate({ variantId: variant.id, available: parseInt(value || '0', 10) })
+                          }
                         >
                           Guardar
                         </Button>

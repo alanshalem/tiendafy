@@ -1,8 +1,8 @@
+using Api.Auth;
 using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
 using SharedKernel.Abstractions;
-using Api.Auth;
 
 namespace Api.Endpoints;
 

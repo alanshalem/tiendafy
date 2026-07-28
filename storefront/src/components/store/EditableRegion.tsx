@@ -25,8 +25,10 @@ export function EditableRegion({
   const [hover, setHover] = useState(false);
   if (!preview) return <>{children}</>;
 
-  const open = () => window.parent?.postMessage({ type: EDITOR_MSG.editSection, target, sectionId: id }, ADMIN_ORIGIN);
-  const del = () => window.parent?.postMessage({ type: EDITOR_MSG.deleteSection, sectionId: id }, ADMIN_ORIGIN);
+  const open = () =>
+    window.parent?.postMessage({ type: EDITOR_MSG.editSection, target, sectionId: id }, ADMIN_ORIGIN);
+  const del = () =>
+    window.parent?.postMessage({ type: EDITOR_MSG.deleteSection, sectionId: id }, ADMIN_ORIGIN);
   const canDelete = target === 'section' && Boolean(id);
 
   return (
@@ -37,7 +39,9 @@ export function EditableRegion({
       onMouseLeave={() => setHover(false)}
       onClickCapture={(e) => {
         // El botón de eliminar se maneja solo; no abrir el editor en ese caso.
-        const action = (e.target as HTMLElement).closest('[data-region-action]')?.getAttribute('data-region-action');
+        const action = (e.target as HTMLElement)
+          .closest('[data-region-action]')
+          ?.getAttribute('data-region-action');
         if (action === 'delete') return;
         e.preventDefault();
         e.stopPropagation();
@@ -55,7 +59,10 @@ export function EditableRegion({
               <button
                 type="button"
                 data-region-action="delete"
-                onClick={(e) => { e.stopPropagation(); del(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  del();
+                }}
                 title="Eliminar sección"
                 className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/90 text-red-600 shadow-lg hover:bg-white"
               >

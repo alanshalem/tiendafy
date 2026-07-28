@@ -106,7 +106,16 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   const res = await apiGetTenant<ProductSearchResult>(`/api/v1/products/search?${qs.toString()}`, tenantId, {
     next: { revalidate: 30 },
   });
-  return res ?? { items: [], total: 0, page: 1, pageSize: params.pageSize ?? 24, totalPages: 0, facets: EMPTY_FACETS };
+  return (
+    res ?? {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: params.pageSize ?? 24,
+      totalPages: 0,
+      facets: EMPTY_FACETS,
+    }
+  );
 }
 
 export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> {

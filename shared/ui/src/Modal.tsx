@@ -78,9 +78,7 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
           </div>
         )}
         <div className="px-5 py-4">{children}</div>
-        {footer && (
-          <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>
-        )}
+        {footer && <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>}
       </div>
     </dialog>,
     document.body,

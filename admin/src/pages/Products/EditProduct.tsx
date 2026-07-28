@@ -18,7 +18,10 @@ interface VariantDto {
   price: MoneyDto;
   compareAtPrice: MoneyDto | null;
 }
-interface ProductImage { id: string; url: string }
+interface ProductImage {
+  id: string;
+  url: string;
+}
 interface ProductDto {
   id: string;
   name: string;
@@ -31,8 +34,16 @@ interface ProductDto {
   images: ProductImage[];
   categoryIds: string[];
 }
-interface StockItem { variantId: string; available: number }
-interface Category { id: string; name: string; path: string; depth: number }
+interface StockItem {
+  variantId: string;
+  available: number;
+}
+interface Category {
+  id: string;
+  name: string;
+  path: string;
+  depth: number;
+}
 
 export function EditProductPage() {
   const { id } = useParams<{ id: string }>();
@@ -114,7 +125,10 @@ export function EditProductPage() {
         await api.post(`/api/v1/products/${id}/images`, { url, altText: name });
       }
     },
-    onSuccess: () => { refresh(); toast('Imágenes agregadas', { variant: 'success' }); },
+    onSuccess: () => {
+      refresh();
+      toast('Imágenes agregadas', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const removeImage = useMutation({
@@ -132,7 +146,10 @@ export function EditProductPage() {
   });
 
   const onDropImage = (targetId: string) => {
-    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      return;
+    }
     const next = imageOrder.filter((x) => x !== dragId);
     const at = next.indexOf(targetId);
     next.splice(at, 0, dragId);
@@ -156,39 +173,62 @@ export function EditProductPage() {
       for (const v of product.variants) {
         const p = prices[v.id];
         if (!p) continue;
-        const { priceAmount, compareAtAmount } = toDomainPrice(toCents(p.price), p.promo ? toCents(p.promo) : null);
+        const { priceAmount, compareAtAmount } = toDomainPrice(
+          toCents(p.price),
+          p.promo ? toCents(p.promo) : null,
+        );
         if (priceAmount !== v.price.amount || compareAtAmount !== (v.compareAtPrice?.amount ?? null))
-          await api.patch(`/api/v1/products/${id}/variants/${v.id}/price`, { priceAmount, currency: v.price.currency, compareAtAmount });
+          await api.patch(`/api/v1/products/${id}/variants/${v.id}/price`, {
+            priceAmount,
+            currency: v.price.currency,
+            compareAtAmount,
+          });
 
         const sVal = stock[v.id];
         if (sVal !== undefined && sVal !== '' && !Number.isNaN(Number(sVal)))
-          await api.put(`/api/v1/inventory/${v.id}`, { available: parseInt(sVal, 10), reason: 'Edición de producto' });
+          await api.put(`/api/v1/inventory/${v.id}`, {
+            available: parseInt(sVal, 10),
+            reason: 'Edición de producto',
+          });
       }
 
       const before = [...(product.categoryIds ?? [])].sort().join(',');
       if (categoryIds.slice().sort().join(',') !== before)
         await api.put(`/api/v1/products/${id}/categories`, { categoryIds });
     },
-    onSuccess: () => { refresh(); toast('Producto guardado', { variant: 'success' }); navigate('/productos'); },
+    onSuccess: () => {
+      refresh();
+      toast('Producto guardado', { variant: 'success' });
+      navigate('/productos');
+    },
     onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
   const setStatus = useMutation({
-    mutationFn: (publish: boolean) => api.post(`/api/v1/products/${id}/${publish ? 'publish' : 'archive'}`, {}),
-    onSuccess: () => { refresh(); toast('Estado actualizado', { variant: 'success' }); },
+    mutationFn: (publish: boolean) =>
+      api.post(`/api/v1/products/${id}/${publish ? 'publish' : 'archive'}`, {}),
+    onSuccess: () => {
+      refresh();
+      toast('Estado actualizado', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const del = useMutation({
     mutationFn: () => api.delete(`/api/v1/products/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['products', store?.id] }); toast('Producto eliminado', { variant: 'success' }); navigate('/productos'); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      toast('Producto eliminado', { variant: 'success' });
+      navigate('/productos');
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const [confirmDel, setConfirmDel] = useState(false);
 
   if (!store) return <NoStoreSelected />;
-  if (isLoading || !product) return <p className="py-16 text-center text-sm text-fg-muted">Cargando producto...</p>;
+  if (isLoading || !product)
+    return <p className="py-16 text-center text-sm text-fg-muted">Cargando producto...</p>;
 
   const toggleCategory = (cid: string) =>
     setCategoryIds((prev) => (prev.includes(cid) ? prev.filter((x) => x !== cid) : [...prev, cid]));
@@ -198,7 +238,11 @@ export function EditProductPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Editar producto</h1>
         <span className="text-sm text-fg-muted">
-          {product.status === 'ACTIVE' ? 'Publicado' : product.status === 'ARCHIVED' ? 'Archivado' : 'Borrador'}
+          {product.status === 'ACTIVE'
+            ? 'Publicado'
+            : product.status === 'ARCHIVED'
+              ? 'Archivado'
+              : 'Borrador'}
         </span>
       </div>
 
@@ -233,38 +277,50 @@ export function EditProductPage() {
             .map((iid) => product.images.find((img) => img.id === iid))
             .filter((img): img is ProductImage => !!img)
             .map((img) => (
-            <div
-              key={img.id}
-              draggable
-              onDragStart={() => setDragId(img.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); onDropImage(img.id); }}
-              className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
-            >
-              <img src={img.url} alt="" className="h-24 w-24 rounded-md border border-border object-cover" />
-              <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                <GripVertical className="h-3.5 w-3.5" />
-              </span>
-              <button
-                type="button"
-                onClick={() => removeImage.mutate(img.id)}
-                aria-label="Quitar imagen"
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
+              <div
+                key={img.id}
+                draggable
+                onDragStart={() => setDragId(img.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  onDropImage(img.id);
+                }}
+                className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+                <img
+                  src={img.url}
+                  alt=""
+                  className="h-24 w-24 rounded-md border border-border object-cover"
+                />
+                <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <GripVertical className="h-3.5 w-3.5" />
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeImage.mutate(img.id)}
+                  aria-label="Quitar imagen"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
           <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary hover:bg-primary/[0.05]">
             <Plus className="h-5 w-5" />
-            <span className="text-[0.65rem] font-semibold">{addImages.isPending ? 'Subiendo…' : 'Agregar'}</span>
+            <span className="text-[0.65rem] font-semibold">
+              {addImages.isPending ? 'Subiendo…' : 'Agregar'}
+            </span>
             <input
               type="file"
               accept="image/*"
               multiple
               className="hidden"
               disabled={addImages.isPending}
-              onChange={(e) => { const f = Array.from(e.target.files ?? []); if (f.length) addImages.mutate(f); }}
+              onChange={(e) => {
+                const f = Array.from(e.target.files ?? []);
+                if (f.length) addImages.mutate(f);
+              }}
             />
           </label>
         </div>
@@ -275,17 +331,43 @@ export function EditProductPage() {
           {product.variants.map((v) => (
             <div key={v.id} className="rounded-md border border-border p-3">
               {product.variants.length > 1 && (
-                <div className="mb-2 text-sm font-medium text-fg">{v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku}</div>
+                <div className="mb-2 text-sm font-medium text-fg">
+                  {v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku}
+                </div>
               )}
               <div className="grid grid-cols-3 gap-3">
                 <FormField label="Precio (ARS)" required>
-                  <Input inputMode="decimal" value={prices[v.id]?.price ?? ''} onChange={(e) => setPrices((p) => ({ ...p, [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value } }))} />
+                  <Input
+                    inputMode="decimal"
+                    value={prices[v.id]?.price ?? ''}
+                    onChange={(e) =>
+                      setPrices((p) => ({
+                        ...p,
+                        [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value },
+                      }))
+                    }
+                  />
                 </FormField>
                 <FormField label="Promocional" hint="Opcional">
-                  <Input inputMode="decimal" value={prices[v.id]?.promo ?? ''} onChange={(e) => setPrices((p) => ({ ...p, [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value } }))} placeholder="—" />
+                  <Input
+                    inputMode="decimal"
+                    value={prices[v.id]?.promo ?? ''}
+                    onChange={(e) =>
+                      setPrices((p) => ({
+                        ...p,
+                        [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value },
+                      }))
+                    }
+                    placeholder="—"
+                  />
                 </FormField>
                 <FormField label="Stock">
-                  <Input inputMode="numeric" value={stock[v.id] ?? ''} onChange={(e) => setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))} placeholder="—" />
+                  <Input
+                    inputMode="numeric"
+                    value={stock[v.id] ?? ''}
+                    onChange={(e) => setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))}
+                    placeholder="—"
+                  />
                 </FormField>
               </div>
             </div>
@@ -333,15 +415,21 @@ export function EditProductPage() {
           <div className="mt-2 rounded-md border border-danger/30 bg-danger/[0.04] p-3">
             <p className="text-sm text-fg">¿Seguro? Esto borra el producto y no se puede deshacer.</p>
             <div className="mt-2 flex gap-2">
-              <Button variant="danger" loading={del.isPending} onClick={() => del.mutate()}>Eliminar</Button>
-              <Button variant="secondary" onClick={() => setConfirmDel(false)}>Cancelar</Button>
+              <Button variant="danger" loading={del.isPending} onClick={() => del.mutate()}>
+                Eliminar
+              </Button>
+              <Button variant="secondary" onClick={() => setConfirmDel(false)}>
+                Cancelar
+              </Button>
             </div>
           </div>
         )}
       </Section>
 
       <StickyFormBar>
-        <Button variant="secondary" onClick={() => navigate('/productos')}>Cancelar</Button>
+        <Button variant="secondary" onClick={() => navigate('/productos')}>
+          Cancelar
+        </Button>
         <Button
           loading={save.isPending}
           disabled={!name || product.variants.some((v) => !isValidPrice(prices[v.id]?.price ?? ''))}

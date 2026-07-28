@@ -17,7 +17,15 @@ export interface BreadcrumbsProps {
   className?: string;
 }
 
-function DefaultLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
+function DefaultLink({
+  href,
+  className,
+  children,
+}: {
+  href: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <a href={href} className={className}>
       {children}
@@ -35,7 +43,13 @@ export function Breadcrumbs({ items, linkComponent: Link = DefaultLink, classNam
             <li key={index} className="flex items-center gap-1.5">
               {index > 0 && (
                 <svg className="h-4 w-4 text-fg-subtle" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 6 4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="m8 6 4 4-4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               )}
               {item.href && !isLast ? (
@@ -43,7 +57,10 @@ export function Breadcrumbs({ items, linkComponent: Link = DefaultLink, classNam
                   {item.label}
                 </Link>
               ) : (
-                <span aria-current={isLast ? 'page' : undefined} className={cn(isLast ? 'font-medium text-fg' : 'text-fg-muted')}>
+                <span
+                  aria-current={isLast ? 'page' : undefined}
+                  className={cn(isLast ? 'font-medium text-fg' : 'text-fg-muted')}
+                >
                   {item.label}
                 </span>
               )}

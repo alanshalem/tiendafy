@@ -45,7 +45,10 @@ export function TenantsPage() {
   const [deleting, setDeleting] = useState<Tenant | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const confirmMatches = !!deleting && confirmText.trim() === deleting.name;
-  const closeDelete = () => { setDeleting(null); setConfirmText(''); };
+  const closeDelete = () => {
+    setDeleting(null);
+    setConfirmText('');
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tenants'],
@@ -59,23 +62,36 @@ export function TenantsPage() {
 
   const archiveMut = useMutation({
     mutationFn: (t: Tenant) => api.post<Tenant>(`/api/v1/tenants/${t.id}/archive`, {}),
-    onSuccess: (t) => { refresh(); toast(`"${t.name}" archivada`, { variant: 'success' }); },
+    onSuccess: (t) => {
+      refresh();
+      toast(`"${t.name}" archivada`, { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const activateMut = useMutation({
     mutationFn: (t: Tenant) => api.post<Tenant>(`/api/v1/tenants/${t.id}/activate`, {}),
-    onSuccess: (t) => { refresh(); toast(`"${t.name}" activada`, { variant: 'success' }); },
+    onSuccess: (t) => {
+      refresh();
+      toast(`"${t.name}" activada`, { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const deleteMut = useMutation({
     mutationFn: (t: Tenant) => api.delete<Tenant>(`/api/v1/tenants/${t.id}`),
-    onSuccess: (t) => { refresh(); closeDelete(); toast(`"${t.name}" eliminada`, { variant: 'success' }); },
+    onSuccess: (t) => {
+      refresh();
+      closeDelete();
+      toast(`"${t.name}" eliminada`, { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   // Solo en desarrollo: borra la tienda y toda su data para siempre.
   const purgeMut = useMutation({
     mutationFn: (t: Tenant) => api.delete<void>(`/api/v1/tenants/${t.id}/purge`),
-    onSuccess: (_d, t) => { refresh(); toast(`"${t.name}" borrada definitivamente`, { variant: 'success' }); },
+    onSuccess: (_d, t) => {
+      refresh();
+      toast(`"${t.name}" borrada definitivamente`, { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
@@ -85,15 +101,32 @@ export function TenantsPage() {
       key: 'subdomain',
       header: 'Tienda',
       cell: (t) => (
-        <a href={`http://${t.subdomain}.localhost:3000`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+        <a
+          href={`http://${t.subdomain}.localhost:3000`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-primary hover:underline"
+        >
           {t.subdomain}.localhost:3000
         </a>
       ),
     },
-    { key: 'customDomain', header: 'Dominio propio', cell: (t) => t.customDomain ?? <span className="text-fg-subtle">—</span> },
+    {
+      key: 'customDomain',
+      header: 'Dominio propio',
+      cell: (t) => t.customDomain ?? <span className="text-fg-subtle">—</span>,
+    },
     { key: 'plan', header: 'Plan', cell: (t) => <Badge variant="primary">{t.plan}</Badge> },
-    { key: 'status', header: 'Estado', cell: (t) => <Badge variant={statusVariant[t.status]}>{statusLabel[t.status]}</Badge> },
-    { key: 'createdAtUtc', header: 'Creada', cell: (t) => new Date(t.createdAtUtc).toLocaleDateString('es-AR') },
+    {
+      key: 'status',
+      header: 'Estado',
+      cell: (t) => <Badge variant={statusVariant[t.status]}>{statusLabel[t.status]}</Badge>,
+    },
+    {
+      key: 'createdAtUtc',
+      header: 'Creada',
+      cell: (t) => new Date(t.createdAtUtc).toLocaleDateString('es-AR'),
+    },
     {
       key: 'actions',
       header: '',
@@ -157,12 +190,28 @@ export function TenantsPage() {
           </p>
         )}
         {data && (
-          <Table columns={columns} rows={data.items} rowKey={(t) => t.id} emptyState="Todavía no hay tiendas. Creá la primera." />
+          <Table
+            columns={columns}
+            rows={data.items}
+            rowKey={(t) => t.id}
+            emptyState="Todavía no hay tiendas. Creá la primera."
+          />
         )}
       </Card>
 
-      <TenantFormModal mode="create" open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
-      <TenantFormModal mode="edit" tenant={editing ?? undefined} open={!!editing} onClose={() => setEditing(null)} onSaved={refresh} />
+      <TenantFormModal
+        mode="create"
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSaved={refresh}
+      />
+      <TenantFormModal
+        mode="edit"
+        tenant={editing ?? undefined}
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onSaved={refresh}
+      />
 
       <Modal
         open={!!deleting}
@@ -170,7 +219,9 @@ export function TenantsPage() {
         title="Eliminar tienda"
         footer={
           <>
-            <Button variant="secondary" onClick={closeDelete}>Cancelar</Button>
+            <Button variant="secondary" onClick={closeDelete}>
+              Cancelar
+            </Button>
             <Button
               variant="danger"
               loading={deleteMut.isPending}
@@ -184,9 +235,9 @@ export function TenantsPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-fg-muted">
-            Vas a eliminar <span className="font-semibold text-fg">{deleting?.name}</span>. La tienda deja de estar
-            disponible y desaparece de la lista. Sus productos, clientes y configuración quedan guardados pero
-            inaccesibles (no se borran de forma definitiva).
+            Vas a eliminar <span className="font-semibold text-fg">{deleting?.name}</span>. La tienda deja de
+            estar disponible y desaparece de la lista. Sus productos, clientes y configuración quedan
+            guardados pero inaccesibles (no se borran de forma definitiva).
           </p>
           <div className="rounded-md border border-danger/30 bg-danger-bg px-3 py-2 text-sm text-danger">
             Esta acción corta el storefront público de inmediato. Es reversible solo desde soporte.
@@ -269,18 +320,25 @@ function TenantFormModal({
   const check = useAvailability(name.trim(), subdomain.trim(), tenant?.id);
   const nameTaken = !!name.trim() && check?.nameAvailable === false;
   const subInvalid = !!subdomain.trim() && check?.subdomainValid === false;
-  const subTaken = !!subdomain.trim() && check?.subdomainValid !== false && check?.subdomainAvailable === false;
+  const subTaken =
+    !!subdomain.trim() && check?.subdomainValid !== false && check?.subdomainAvailable === false;
 
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: name.trim(), subdomain: subdomain.trim(), customDomain: customDomain.trim() || null };
+      const body = {
+        name: name.trim(),
+        subdomain: subdomain.trim(),
+        customDomain: customDomain.trim() || null,
+      };
       return mode === 'create'
         ? api.post<Tenant>('/api/v1/tenants', body)
         : api.patch<Tenant>(`/api/v1/tenants/${tenant!.id}`, body);
     },
     onSuccess: (t) => {
       onSaved();
-      toast(mode === 'create' ? `Tienda "${t.name}" creada` : `Tienda "${t.name}" actualizada`, { variant: 'success' });
+      toast(mode === 'create' ? `Tienda "${t.name}" creada` : `Tienda "${t.name}" actualizada`, {
+        variant: 'success',
+      });
       onClose();
     },
     onError: (err) => setError(errMsg(err, 'Error inesperado')),
@@ -295,7 +353,9 @@ function TenantFormModal({
       title={mode === 'create' ? 'Crear tienda' : 'Editar tienda'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button loading={save.isPending} disabled={blocked} onClick={() => save.mutate()}>
             {mode === 'create' ? 'Crear' : 'Guardar'}
           </Button>
@@ -303,23 +363,44 @@ function TenantFormModal({
       }
     >
       <div className="space-y-4">
-        <FormField label="Nombre" required error={error && !nameTaken ? error : nameTaken ? 'Ya existe una tienda con ese nombre.' : undefined}>
+        <FormField
+          label="Nombre"
+          required
+          error={error && !nameTaken ? error : nameTaken ? 'Ya existe una tienda con ese nombre.' : undefined}
+        >
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mi Tienda" />
         </FormField>
 
         <FormField
           label="URL de la tienda"
           required
-          error={subInvalid ? 'URL inválida (3-63, minúsculas, números y guiones).' : subTaken ? 'Esa URL ya está en uso.' : undefined}
+          error={
+            subInvalid
+              ? 'URL inválida (3-63, minúsculas, números y guiones).'
+              : subTaken
+                ? 'Esa URL ya está en uso.'
+                : undefined
+          }
           hint={subdomain ? `${subdomain}.localhost:3000` : 'minúsculas, números y guiones'}
         >
-          <Input value={subdomain} onChange={(e) => setSubdomain(e.target.value.toLowerCase())} placeholder="mitienda" />
+          <Input
+            value={subdomain}
+            onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
+            placeholder="mitienda"
+          />
         </FormField>
 
         {mode === 'edit' && (
           <>
-            <FormField label="Dominio propio" hint="Opcional. Ej: www.mitienda.com (la verificación de DNS llega después).">
-              <Input value={customDomain} onChange={(e) => setCustomDomain(e.target.value.toLowerCase())} placeholder="www.mitienda.com" />
+            <FormField
+              label="Dominio propio"
+              hint="Opcional. Ej: www.mitienda.com (la verificación de DNS llega después)."
+            >
+              <Input
+                value={customDomain}
+                onChange={(e) => setCustomDomain(e.target.value.toLowerCase())}
+                placeholder="www.mitienda.com"
+              />
             </FormField>
             <p className="rounded-md bg-bg-subtle px-3 py-2 text-xs text-fg-muted">
               Cambiar la URL hace que el link viejo deje de funcionar. El panel sigue andando igual.

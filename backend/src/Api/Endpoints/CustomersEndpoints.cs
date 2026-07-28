@@ -1,6 +1,6 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Customers.Infrastructure;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 
@@ -65,7 +65,13 @@ public static class CustomersEndpoints
 
     private static object ToDto(Customer c) => new
     {
-        c.Id, c.Name, c.Email, c.Phone, c.Address, c.Notes, c.CreatedAtUtc,
+        c.Id,
+        c.Name,
+        c.Email,
+        c.Phone,
+        c.Address,
+        c.Notes,
+        c.CreatedAtUtc,
     };
 }
 

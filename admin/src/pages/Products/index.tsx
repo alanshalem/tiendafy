@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowUpDown, Filter, List, MoreVertical, Plus, Search, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import {
+  Archive,
+  ArrowUpDown,
+  Filter,
+  List,
+  MoreVertical,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { Badge, Button, Dropdown, Modal, useToast, useConfirm, type BadgeVariant } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
@@ -172,7 +184,8 @@ export function ProductsPage() {
     if (filters.visibility === 'visible') list = list.filter((p) => p.status === 'ACTIVE');
     if (filters.visibility === 'hidden') list = list.filter((p) => p.status !== 'ACTIVE');
     if (filters.priceType === 'promo') list = list.filter((p) => p.variants.some((v) => v.compareAtPrice));
-    if (filters.priceType === 'noPromo') list = list.filter((p) => p.variants.every((v) => !v.compareAtPrice));
+    if (filters.priceType === 'noPromo')
+      list = list.filter((p) => p.variants.every((v) => !v.compareAtPrice));
     if (filters.stock !== 'all') {
       list = list.filter((p) => {
         const total = p.variants.reduce((sum, v) => sum + (stockMap.get(v.id)?.available ?? 0), 0);
@@ -192,7 +205,9 @@ export function ProductsPage() {
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [search, filters, sort]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters, sort]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageClamped = Math.min(page, totalPages);
   const pageItems = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
@@ -223,13 +238,23 @@ export function ProductsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Productos</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <HeaderBtn onClick={() => toast('Organizar — próximamente', { variant: 'info' })}><List className="h-4 w-4" /> Organizar</HeaderBtn>
+          <HeaderBtn onClick={() => toast('Organizar — próximamente', { variant: 'info' })}>
+            <List className="h-4 w-4" /> Organizar
+          </HeaderBtn>
           <Link to="/productos/exportar-importar">
-            <HeaderBtn><ArrowUpDown className="h-4 w-4" /> Exportar e importar</HeaderBtn>
+            <HeaderBtn>
+              <ArrowUpDown className="h-4 w-4" /> Exportar e importar
+            </HeaderBtn>
           </Link>
-          <HeaderBtn onClick={() => toast('Agregar con IA — próximamente', { variant: 'info' })}><Sparkles className="h-4 w-4" /> Agregar con IA</HeaderBtn>
+          <HeaderBtn onClick={() => toast('Agregar con IA — próximamente', { variant: 'info' })}>
+            <Sparkles className="h-4 w-4" /> Agregar con IA
+          </HeaderBtn>
           <Link to="/productos/nuevo">
-            <Button><span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Agregar producto</span></Button>
+            <Button>
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> Agregar producto
+              </span>
+            </Button>
           </Link>
         </div>
       </div>
@@ -239,7 +264,10 @@ export function ProductsPage() {
           kicker="Productos"
           title="Tu vidriera está esperando"
           body="Cargá tu primer producto con precio, fotos y descripción. En cuanto lo publiques, aparece en tu tienda."
-          action={{ label: 'Agregar mi primer producto', onClick: () => (window.location.href = '/productos/nuevo') }}
+          action={{
+            label: 'Agregar mi primer producto',
+            onClick: () => (window.location.href = '/productos/nuevo'),
+          }}
         />
       ) : (
         <>
@@ -264,7 +292,9 @@ export function ProductsPage() {
             >
               <Filter className="h-4 w-4" /> Filtrar
               {activeFilterCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 text-xs font-bold text-primary-fg">{activeFilterCount}</span>
+                <span className="rounded-full bg-primary px-1.5 text-xs font-bold text-primary-fg">
+                  {activeFilterCount}
+                </span>
               )}
             </button>
             <select
@@ -285,7 +315,10 @@ export function ProductsPage() {
             {products.length > 0 && (
               <button
                 type="button"
-                onClick={() => { setConfirmText(''); setDeleteAllOpen(true); }}
+                onClick={() => {
+                  setConfirmText('');
+                  setDeleteAllOpen(true);
+                }}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-danger hover:underline"
               >
                 <Trash2 className="h-4 w-4" /> Eliminar todos
@@ -343,7 +376,9 @@ export function ProductsPage() {
                       type="checkbox"
                       className="rounded-sm border-border-strong"
                       checked={allPageSelected}
-                      ref={(el) => { if (el) el.indeterminate = somePageSelected; }}
+                      ref={(el) => {
+                        if (el) el.indeterminate = somePageSelected;
+                      }}
                       onChange={toggleSelectAll}
                       aria-label="Seleccionar todos"
                     />
@@ -409,8 +444,15 @@ export function ProductsPage() {
         title="Eliminar todos los productos"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteAllOpen(false)}>Cancelar</Button>
-            <Button variant="danger" loading={deleteAll.isPending} disabled={confirmText !== 'ELIMINAR'} onClick={() => deleteAll.mutate()}>
+            <Button variant="secondary" onClick={() => setDeleteAllOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              loading={deleteAll.isPending}
+              disabled={confirmText !== 'ELIMINAR'}
+              onClick={() => deleteAll.mutate()}
+            >
               Eliminar todo
             </Button>
           </>
@@ -418,9 +460,12 @@ export function ProductsPage() {
       >
         <p className="text-sm text-fg-muted">
           Vas a eliminar <span className="font-semibold text-fg">{products.length} productos</span> de{' '}
-          <span className="font-semibold text-fg">{store.name}</span>, con sus variantes e imágenes. Esta acción no se puede deshacer.
+          <span className="font-semibold text-fg">{store.name}</span>, con sus variantes e imágenes. Esta
+          acción no se puede deshacer.
         </p>
-        <p className="mt-3 text-sm text-fg">Para confirmar, escribí <span className="font-mono font-semibold">ELIMINAR</span>:</p>
+        <p className="mt-3 text-sm text-fg">
+          Para confirmar, escribí <span className="font-mono font-semibold">ELIMINAR</span>:
+        </p>
         <input
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
@@ -435,7 +480,9 @@ export function ProductsPage() {
         title="Eliminar productos seleccionados"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setBulkDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setBulkDeleteOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               variant="danger"
               loading={bulkAction.isPending}
@@ -447,8 +494,11 @@ export function ProductsPage() {
         }
       >
         <p className="text-sm text-fg-muted">
-          Vas a eliminar <span className="font-semibold text-fg">{selected.size} producto{selected.size === 1 ? '' : 's'}</span>, con sus
-          variantes e imágenes. Esta acción no se puede deshacer.
+          Vas a eliminar{' '}
+          <span className="font-semibold text-fg">
+            {selected.size} producto{selected.size === 1 ? '' : 's'}
+          </span>
+          , con sus variantes e imágenes. Esta acción no se puede deshacer.
         </p>
       </Modal>
     </div>
@@ -492,7 +542,15 @@ function ProductRows({
   const confirm = useConfirm();
 
   const savePrice = useMutation({
-    mutationFn: ({ variant, regular, promo }: { variant: VariantDto; regular: number; promo: number | null }) => {
+    mutationFn: ({
+      variant,
+      regular,
+      promo,
+    }: {
+      variant: VariantDto;
+      regular: number;
+      promo: number | null;
+    }) => {
       const { priceAmount, compareAtAmount } = toDomainPrice(regular, promo);
       return api.patch(`/api/v1/products/${product.id}/variants/${variant.id}/price`, {
         priceAmount,
@@ -513,7 +571,10 @@ function ProductRows({
         const stockItem = stockMap.get(variant.id);
         const form = toFormPrice(variant.price.amount, variant.compareAtPrice?.amount ?? null);
         return (
-          <tr key={variant.id} className={vi === 0 ? 'border-t-4 border-bg-subtle' : 'border-t border-border'}>
+          <tr
+            key={variant.id}
+            className={vi === 0 ? 'border-t-4 border-bg-subtle' : 'border-t border-border'}
+          >
             {vi === 0 ? (
               <>
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
@@ -528,14 +589,21 @@ function ProductRows({
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
                   <div className="flex items-start gap-3">
                     {product.images[0] ? (
-                      <img src={product.images[0].url} alt="" className="h-12 w-12 shrink-0 rounded-md border border-border object-cover" />
+                      <img
+                        src={product.images[0].url}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-md border border-border object-cover"
+                      />
                     ) : (
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-bg-muted text-base font-bold text-fg-subtle">
                         {product.name.charAt(0)}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <Link to={`/productos/${product.id}/editar`} className="font-medium text-primary hover:underline">
+                      <Link
+                        to={`/productos/${product.id}/editar`}
+                        className="font-medium text-primary hover:underline"
+                      >
                         {product.name}
                       </Link>
                       <div className="text-xs text-fg-subtle">/{product.slug}</div>
@@ -549,7 +617,9 @@ function ProductRows({
             ) : null}
             <td className="px-3 py-2 text-center tabular-nums">
               {stockItem ? (
-                <span className={stockItem.available === 0 ? 'text-danger' : 'text-fg'}>{stockItem.available}</span>
+                <span className={stockItem.available === 0 ? 'text-danger' : 'text-fg'}>
+                  {stockItem.available}
+                </span>
               ) : (
                 <span className="text-fg-subtle">—</span>
               )}
@@ -573,16 +643,33 @@ function ProductRows({
             {vi === 0 ? (
               <td className="px-3 py-3 text-right align-top" rowSpan={product.variants.length}>
                 <Dropdown>
-                  <Dropdown.Trigger><MoreVertical className="h-4 w-4" /></Dropdown.Trigger>
+                  <Dropdown.Trigger>
+                    <MoreVertical className="h-4 w-4" />
+                  </Dropdown.Trigger>
                   <Dropdown.Menu align="end">
-                    <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>Editar</Dropdown.Item>
+                    <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>
+                      Editar
+                    </Dropdown.Item>
                     <Dropdown.Item onSelect={onDuplicate}>Duplicar</Dropdown.Item>
                     {product.status === 'ACTIVE' ? (
                       <Dropdown.Item onSelect={() => onStatus(false)}>Archivar</Dropdown.Item>
                     ) : (
                       <Dropdown.Item onSelect={() => onStatus(true)}>Publicar</Dropdown.Item>
                     )}
-                    <Dropdown.Item destructive onSelect={async () => { if (await confirm({ title: 'Eliminar producto', message: `¿Eliminar "${product.name}"? No se puede deshacer.`, confirmLabel: 'Eliminar', variant: 'danger' })) onDelete(); }}>
+                    <Dropdown.Item
+                      destructive
+                      onSelect={async () => {
+                        if (
+                          await confirm({
+                            title: 'Eliminar producto',
+                            message: `¿Eliminar "${product.name}"? No se puede deshacer.`,
+                            confirmLabel: 'Eliminar',
+                            variant: 'danger',
+                          })
+                        )
+                          onDelete();
+                      }}
+                    >
                       Eliminar
                     </Dropdown.Item>
                   </Dropdown.Menu>

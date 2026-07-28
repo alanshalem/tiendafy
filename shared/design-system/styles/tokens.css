@@ -10,38 +10,39 @@
  */
 :root {
   /* ---------- Colores: marca (rebrand "obsidiana y papel" 2026-06) ---------- */
-  --color-primary: 232 80 30;        /* bermellón Tiendafy */
-  --color-primary-hover: 196 61 18;  /* bermellón profundo */
-  --color-primary-fg: 250 245 237;   /* papel sobre primary */
+  --color-primary: 232 80 30; /* bermellón Tiendafy */
+  --color-primary-hover: 196 61 18; /* bermellón profundo */
+  --color-primary-fg: 250 245 237; /* papel sobre primary */
 
-  --color-accent: 27 21 16;          /* obsidiana (tinta cálida) */
+  --color-accent: 27 21 16; /* obsidiana (tinta cálida) */
   --color-accent-fg: 250 245 237;
 
   /* ---------- Colores: superficie ---------- */
   --color-bg: 255 255 255;
-  --color-bg-subtle: 249 250 251;    /* gray-50 */
-  --color-bg-muted: 243 244 246;     /* gray-100 */
-  --color-surface: 255 255 255;      /* cards, modals */
-  --color-border: 229 231 235;       /* gray-200 */
+  --color-bg-subtle: 249 250 251; /* gray-50 */
+  --color-bg-muted: 243 244 246; /* gray-100 */
+  --color-surface: 255 255 255; /* cards, modals */
+  --color-border: 229 231 235; /* gray-200 */
   --color-border-strong: 209 213 219; /* gray-300 */
 
   /* ---------- Colores: texto ---------- */
-  --color-fg: 17 24 39;              /* gray-900 */
-  --color-fg-muted: 107 114 128;     /* gray-500 */
-  --color-fg-subtle: 156 163 175;    /* gray-400 */
+  --color-fg: 17 24 39; /* gray-900 */
+  --color-fg-muted: 107 114 128; /* gray-500 */
+  --color-fg-subtle: 156 163 175; /* gray-400 */
 
   /* ---------- Colores: estado ---------- */
-  --color-success: 22 163 74;        /* green-600 */
-  --color-success-bg: 240 253 244;   /* green-50 */
-  --color-warning: 217 119 6;        /* amber-600 */
-  --color-warning-bg: 255 251 235;   /* amber-50 */
-  --color-danger: 220 38 38;         /* red-600 */
-  --color-danger-bg: 254 242 242;    /* red-50 */
-  --color-info: 2 132 199;           /* sky-600 */
-  --color-info-bg: 240 249 255;      /* sky-50 */
+  --color-success: 22 163 74; /* green-600 */
+  --color-success-bg: 240 253 244; /* green-50 */
+  --color-warning: 217 119 6; /* amber-600 */
+  --color-warning-bg: 255 251 235; /* amber-50 */
+  --color-danger: 220 38 38; /* red-600 */
+  --color-danger-bg: 254 242 242; /* red-50 */
+  --color-info: 2 132 199; /* sky-600 */
+  --color-info-bg: 240 249 255; /* sky-50 */
 
   /* ---------- Tipografía ---------- */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-heading: var(--font-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -56,9 +57,9 @@
   --shadow-overlay: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
   /* ---------- Layout ---------- */
-  --container-max: 80rem;            /* 1280px */
+  --container-max: 80rem; /* 1280px */
   --header-height: 4rem;
-  --sidebar-width: 16rem;            /* admin */
+  --sidebar-width: 16rem; /* admin */
 }
 
 /* ============================================================
@@ -66,7 +67,7 @@
    El acento (obsidiana) y primary (bermellón) se mantienen; cambian
    superficies, bordes y textos. Lo usa el switch del admin.
    ============================================================ */
-[data-theme="dark"] {
+[data-theme='dark'] {
   --color-bg: 16 18 22;
   --color-bg-subtle: 22 25 31;
   --color-bg-muted: 33 37 45;
@@ -90,7 +91,10 @@
 /* Transición suave de tema (fallback cuando no hay View Transitions API). */
 .theme-transition,
 .theme-transition * {
-  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease;
 }
 
 /* View Transitions: clip circular en vez de cross-fade por defecto. */

@@ -1,4 +1,14 @@
-import { Calendar, Check, ExternalLink, Lock, Pencil, Plus, Search, Settings, type LucideIcon } from 'lucide-react';
+import {
+  Calendar,
+  Check,
+  ExternalLink,
+  Lock,
+  Pencil,
+  Plus,
+  Search,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 import { Badge } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
@@ -56,13 +66,24 @@ export function DomainsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant="success"><span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {d.status}</span></Badge>
+                  <Badge variant="success">
+                    <span className="inline-flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" /> {d.status}
+                    </span>
+                  </Badge>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant="success"><span className="inline-flex items-center gap-1"><Lock className="h-3.5 w-3.5" /> {d.ssl}</span></Badge>
+                  <Badge variant="success">
+                    <span className="inline-flex items-center gap-1">
+                      <Lock className="h-3.5 w-3.5" /> {d.ssl}
+                    </span>
+                  </Badge>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted" aria-label="Editar">
+                  <button
+                    className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted"
+                    aria-label="Editar"
+                  >
                     <Pencil className="h-4 w-4" />
                   </button>
                 </td>
@@ -74,17 +95,42 @@ export function DomainsPage() {
 
       <h2 className="mb-3 mt-8 text-base font-semibold text-fg">Aprendé más</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        {([
-          { icon: Settings, title: 'Configurá tu dominio', body: 'Usá un dominio propio para destacar la identidad de tu marca.' },
-          { icon: Search, title: 'Verificá la configuración', body: 'Seguí estos pasos para revisar si tu dominio quedó vinculado correctamente.' },
-          { icon: Calendar, title: 'Consultá el vencimiento', body: 'Identificá si el registro de tu dominio debe ser renovado pronto.' },
-          { icon: Lock, title: 'Certificado de seguridad', body: 'Conocé si tu certificado de seguridad está activo.' },
-        ] as { icon: LucideIcon; title: string; body: string }[]).map((card) => (
+        {(
+          [
+            {
+              icon: Settings,
+              title: 'Configurá tu dominio',
+              body: 'Usá un dominio propio para destacar la identidad de tu marca.',
+            },
+            {
+              icon: Search,
+              title: 'Verificá la configuración',
+              body: 'Seguí estos pasos para revisar si tu dominio quedó vinculado correctamente.',
+            },
+            {
+              icon: Calendar,
+              title: 'Consultá el vencimiento',
+              body: 'Identificá si el registro de tu dominio debe ser renovado pronto.',
+            },
+            {
+              icon: Lock,
+              title: 'Certificado de seguridad',
+              body: 'Conocé si tu certificado de seguridad está activo.',
+            },
+          ] as { icon: LucideIcon; title: string; body: string }[]
+        ).map((card) => (
           <div key={card.title} className="rounded-lg border border-border bg-surface p-5 shadow-card">
             <card.icon className="h-5 w-5 text-fg-muted" />
             <h3 className="mt-2 font-semibold text-fg">{card.title}</h3>
             <p className="mt-1 text-sm text-fg-muted">{card.body}</p>
-            <a href="/ayuda/domains" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">Ver tutorial <ExternalLink className="h-3.5 w-3.5" /></a>
+            <a
+              href="/ayuda/domains"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              Ver tutorial <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
         ))}
       </div>

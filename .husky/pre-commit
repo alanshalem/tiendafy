@@ -1,0 +1,2 @@
+# Pre-commit: formatea/lintea SOLO lo staged (rápido). Config en package.json.
+pnpm lint-staged

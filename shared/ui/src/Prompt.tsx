@@ -24,14 +24,17 @@ const PromptContext = createContext<PromptFn | null>(null);
  * temático. Resuelve `null` si se cancela.
  */
 export function PromptProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<{ opts: PromptOptions; resolve: (v: string | null) => void } | null>(null);
+  const [state, setState] = useState<{ opts: PromptOptions; resolve: (v: string | null) => void } | null>(
+    null,
+  );
   const [value, setValue] = useState('');
 
   const prompt = useCallback<PromptFn>(
-    (opts) => new Promise<string | null>((resolve) => {
-      setValue(opts.defaultValue ?? '');
-      setState({ opts, resolve });
-    }),
+    (opts) =>
+      new Promise<string | null>((resolve) => {
+        setValue(opts.defaultValue ?? '');
+        setState({ opts, resolve });
+      }),
     [],
   );
 
@@ -50,15 +53,29 @@ export function PromptProvider({ children }: { children: ReactNode }) {
         title={state?.opts.title ?? ''}
         footer={
           <>
-            <Button variant="secondary" onClick={() => settle(null)}>{state?.opts.cancelLabel ?? 'Cancelar'}</Button>
-            <Button variant="primary" onClick={() => settle(value)}>{state?.opts.confirmLabel ?? 'Aceptar'}</Button>
+            <Button variant="secondary" onClick={() => settle(null)}>
+              {state?.opts.cancelLabel ?? 'Cancelar'}
+            </Button>
+            <Button variant="primary" onClick={() => settle(value)}>
+              {state?.opts.confirmLabel ?? 'Aceptar'}
+            </Button>
           </>
         }
       >
-        <form onSubmit={(e) => { e.preventDefault(); settle(value); }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            settle(value);
+          }}
+        >
           {state?.opts.message && <p className="mb-2 text-sm text-fg-muted">{state.opts.message}</p>}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-          <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder={state?.opts.placeholder} />
+          <Input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={state?.opts.placeholder}
+          />
         </form>
       </Modal>
     </PromptContext.Provider>

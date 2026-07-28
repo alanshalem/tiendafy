@@ -32,7 +32,9 @@ export function AbandonedCartsPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-6">
       <h1 className="mb-1 text-2xl font-bold text-fg">Carritos abandonados</h1>
-      <p className="mb-5 text-sm text-fg-muted">Checkouts iniciados que no terminaron en compra (últimos 30 días).</p>
+      <p className="mb-5 text-sm text-fg-muted">
+        Checkouts iniciados que no terminaron en compra (últimos 30 días).
+      </p>
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
@@ -47,7 +49,9 @@ export function AbandonedCartsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 py-16 text-sm text-fg-muted"><Loader2 className="h-4 w-4 animate-spin" /> Cargando…</div>
+        <div className="flex items-center gap-2 py-16 text-sm text-fg-muted">
+          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+        </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
           <ShoppingCart className="h-8 w-8 opacity-50" />
@@ -68,9 +72,13 @@ export function AbandonedCartsPage() {
               {items.map((c) => (
                 <tr key={c.id} className="border-b border-border last:border-b-0">
                   <td className="px-4 py-3 text-fg-muted">{formatDateTime(c.createdAtUtc)}</td>
-                  <td className="px-4 py-3 text-fg">{c.email ?? <span className="text-fg-subtle">Sin email (no recuperable)</span>}</td>
+                  <td className="px-4 py-3 text-fg">
+                    {c.email ?? <span className="text-fg-subtle">Sin email (no recuperable)</span>}
+                  </td>
                   <td className="px-4 py-3 text-center tabular-nums">{c.items}</td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">{money(c.total.amount, c.total.currency)}</td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">
+                    {money(c.total.amount, c.total.currency)}
+                  </td>
                 </tr>
               ))}
             </tbody>

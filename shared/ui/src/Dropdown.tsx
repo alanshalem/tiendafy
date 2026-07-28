@@ -104,7 +104,13 @@ function Trigger({ children, className, bare = false }: DropdownTriggerProps) {
       {children}
       {!bare && (
         <svg className="h-4 w-4 text-fg-muted" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="m6 8 4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
     </button>

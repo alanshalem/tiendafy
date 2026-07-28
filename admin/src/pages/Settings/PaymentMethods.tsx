@@ -118,7 +118,9 @@ export function PaymentMethodsPage() {
                         Recomendado
                       </span>
                     )}
-                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-xs text-fg-muted">{g.tag}</span>
+                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-xs text-fg-muted">
+                      {g.tag}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -147,7 +149,6 @@ export function PaymentMethodsPage() {
                   ))}
                 </tbody>
               </table>
-
             </div>
           );
         })}
@@ -155,7 +156,9 @@ export function PaymentMethodsPage() {
 
       <div className="mt-6 rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] p-4 text-sm">
         <div className="font-semibold text-primary">¿Necesitás otro medio?</div>
-        <p className="mt-1 text-fg-muted">Conectá apps adicionales en la Tienda de Aplicaciones. (Próximamente)</p>
+        <p className="mt-1 text-fg-muted">
+          Conectá apps adicionales en la Tienda de Aplicaciones. (Próximamente)
+        </p>
       </div>
     </div>
   );

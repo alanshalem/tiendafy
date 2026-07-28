@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, StatsToolbar, defaultStatsRange, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KpiCard,
+  StatsPageHeader,
+  StatsToolbar,
+  defaultStatsRange,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -19,8 +26,13 @@ interface Sales {
 const money = formatMoney;
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDINGPAYMENT: 'Pendiente', PAID: 'Pagada', FAILED: 'Fallida',
-  CANCELLED: 'Cancelada', REFUNDED: 'Reembolsada', CHARGEDBACK: 'Contracargo', FULFILLED: 'Entregada',
+  PENDINGPAYMENT: 'Pendiente',
+  PAID: 'Pagada',
+  FAILED: 'Fallida',
+  CANCELLED: 'Cancelada',
+  REFUNDED: 'Reembolsada',
+  CHARGEDBACK: 'Contracargo',
+  FULFILLED: 'Entregada',
 };
 
 export function StatsSalesPage() {
@@ -40,7 +52,9 @@ export function StatsSalesPage() {
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />)}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
+          ))}
         </div>
       ) : (
         <>

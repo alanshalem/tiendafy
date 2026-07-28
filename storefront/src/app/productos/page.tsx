@@ -30,19 +30,29 @@ export default async function ProductsPage({
 
   const [result, categories] = await Promise.all([
     searchProducts(data.tenant.id, {
-      q, category, sort, page, pageSize: 24, brand, options,
+      q,
+      category,
+      sort,
+      page,
+      pageSize: 24,
+      brand,
+      options,
       priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
       priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
     }),
     fetchCategories(data.tenant.id),
   ]);
 
-  const products = result.items
-    .map(toStoreProduct)
-    .filter((p): p is StoreProduct => p !== null);
+  const products = result.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={products} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={products}
+      live={preview}
+    >
       <main className="min-h-[60vh]">
         <div className="mx-auto max-w-container px-4 pt-8">
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -57,7 +67,15 @@ export default async function ProductsPage({
           categories={categories}
           facets={result.facets}
           productList={theme.productList}
-          current={{ q, sort, category, brand, options, priceMin: one(sp.priceMin), priceMax: one(sp.priceMax) }}
+          current={{
+            q,
+            sort,
+            category,
+            brand,
+            options,
+            priceMin: one(sp.priceMin),
+            priceMax: one(sp.priceMax),
+          }}
         />
       </main>
     </StorefrontView>

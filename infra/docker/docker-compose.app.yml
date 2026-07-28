@@ -13,7 +13,7 @@ name: tiendafy
 services:
   api:
     build:
-      context: ../..           # contexto = raíz del repo (los Dockerfiles copian shared/, lockfile, etc.)
+      context: ../.. # contexto = raíz del repo (los Dockerfiles copian shared/, lockfile, etc.)
       dockerfile: backend/Dockerfile
     container_name: tiendafy-api
     environment:
@@ -21,17 +21,17 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       # Postgres por nombre de servicio (red de compose), no localhost.
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=tiendafy"
+      ConnectionStrings__Default: 'Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=tiendafy'
       Tenancy__PlatformBaseDomain: localhost
       # MinIO: Endpoint interno (red docker) distinto de la URL pública (browser).
-      Media__Endpoint: "http://minio:9000"
-      Media__PublicBaseUrl: "http://localhost:9000"
+      Media__Endpoint: 'http://minio:9000'
+      Media__PublicBaseUrl: 'http://localhost:9000'
       Media__AccessKey: minioadmin
       Media__SecretKey: minioadmin
       # La API corre migraciones idempotentes en el arranque.
-      Database__MigrateOnStartup: "true"
+      Database__MigrateOnStartup: 'true'
     ports:
-      - "127.0.0.1:5080:8080"
+      - '127.0.0.1:5080:8080'
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,15 +45,15 @@ services:
       dockerfile: storefront/Dockerfile
       args:
         # Se hornean en el bundle del navegador (client-side: carrito, favoritos, auth).
-        NEXT_PUBLIC_API_URL: "http://localhost:5080"
-        NEXT_PUBLIC_ADMIN_ORIGIN: "http://localhost:3001"
+        NEXT_PUBLIC_API_URL: 'http://localhost:5080'
+        NEXT_PUBLIC_ADMIN_ORIGIN: 'http://localhost:3001'
     container_name: tiendafy-storefront
     environment:
       # SSR (server components) pega a la API por nombre de servicio dentro de la red docker.
-      API_URL: "http://api:8080"
+      API_URL: 'http://api:8080'
       PLATFORM_BASE_DOMAIN: localhost
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000'
     depends_on:
       - api
     restart: unless-stopped
@@ -64,10 +64,10 @@ services:
       dockerfile: admin/Dockerfile
       args:
         # Vite hornea VITE_API_URL en el build estático → debe ser alcanzable desde el browser.
-        VITE_API_URL: "http://localhost:5080"
+        VITE_API_URL: 'http://localhost:5080'
     container_name: tiendafy-admin
     ports:
-      - "127.0.0.1:3001:8080"
+      - '127.0.0.1:3001:8080'
     depends_on:
       - api
     restart: unless-stopped

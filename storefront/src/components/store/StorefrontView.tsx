@@ -38,7 +38,9 @@ const logoSizeClass = { sm: 'text-base', md: 'text-lg', lg: 'text-2xl' };
 /** Badge numérico (carrito / favoritos) sobre el ícono del header. */
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">{count}</span>
+    <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">
+      {count}
+    </span>
   );
 }
 
@@ -62,7 +64,13 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
         <>
           <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
           <button
-            onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, ADMIN_ORIGIN); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.parent?.postMessage(
+                { type: EDITOR_MSG.editSection, target: 'announcement' },
+                ADMIN_ORIGIN,
+              );
+            }}
             className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
           >
             <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
@@ -76,7 +84,13 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
             <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
               {annItems.map((it, i) => (
                 <span key={i} className="flex items-center">
-                  {it.link ? <a href={it.link} className="px-6 hover:underline">{it.text}</a> : <span className="px-6">{it.text}</span>}
+                  {it.link ? (
+                    <a href={it.link} className="px-6 hover:underline">
+                      {it.text}
+                    </a>
+                  ) : (
+                    <span className="px-6">{it.text}</span>
+                  )}
                   <span className="opacity-50">•</span>
                 </span>
               ))}
@@ -88,7 +102,13 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
           {annItems.map((it, i) => (
             <span key={i} className="flex items-center gap-3">
               {i > 0 && <span className="opacity-50">•</span>}
-              {it.link ? <a href={it.link} className="hover:underline">{it.text}</a> : <span>{it.text}</span>}
+              {it.link ? (
+                <a href={it.link} className="hover:underline">
+                  {it.text}
+                </a>
+              ) : (
+                <span>{it.text}</span>
+              )}
             </span>
           ))}
         </div>
@@ -98,7 +118,14 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
 }
 
 /** Mobile: panel desplegable con buscador + links (mismos ítems que el desktop). */
-function MobilePanel({ header, q, setQ, submitSearch, navLinks, onClose }: {
+function MobilePanel({
+  header,
+  q,
+  setQ,
+  submitSearch,
+  navLinks,
+  onClose,
+}: {
   header: ThemeConfig['header'];
   q: string;
   setQ: (v: string) => void;
@@ -109,17 +136,35 @@ function MobilePanel({ header, q, setQ, submitSearch, navLinks, onClose }: {
   return (
     <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${header.bg})` }}>
       {header.showSearch && (
-        <form onSubmit={submitSearch} className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3">
-          <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label="Buscar" className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60" style={{ color: 'currentColor' }} />
+        <form
+          onSubmit={submitSearch}
+          className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3"
+        >
+          <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
+            <Icon name="search" className="h-4 w-4" />
+          </button>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar"
+            aria-label="Buscar"
+            className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60"
+            style={{ color: 'currentColor' }}
+          />
         </form>
       )}
       {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
       <nav className="flex flex-col gap-0.5 text-sm">
-        <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[0].label}</Link>
-        <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[1].label}</Link>
+        <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[0].label}
+        </Link>
+        <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[1].label}
+        </Link>
         <CategoryMenuMobile onNavigate={onClose} />
-        <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">{navLinks[2].label}</Link>
+        <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[2].label}
+        </Link>
         <div className="flex flex-col [&>a]:py-1.5 [&>a]:opacity-90 [&>a:hover]:opacity-100">
           <PagesNav />
         </div>
@@ -142,7 +187,9 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const [editHover, setEditHover] = useState(false);
 
   // Cerrar el menú mobile al navegar.
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const isHome = pathname === '/' || pathname === '/preview';
   const transparent = header.transparentOnHome && isHome && !scrolled;
@@ -157,9 +204,11 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 
   const textColor = header.textColor ? `rgb(${header.textColor})` : '#fff';
   // Nivel de transparencia elegible: 'full' = totalmente transparente; 'light'/'medium' dejan un tinte del color del header.
-  const transparentAlpha = header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
+  const transparentAlpha =
+    header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
   const bg = transparent ? `rgb(${header.bg} / ${transparentAlpha})` : `rgb(${header.bg})`;
-  const borderClass = header.border === 'line' ? 'border-b border-white/15' : header.border === 'shadow' ? 'shadow-lg' : '';
+  const borderClass =
+    header.border === 'line' ? 'border-b border-white/15' : header.border === 'shadow' ? 'shadow-lg' : '';
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,9 +218,18 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const logo = (
     <Link href={href('/')} className="flex min-w-0 items-center gap-2">
       {theme.logo ? (
-        <img src={theme.logo} alt={tenantName} className={header.logoSize === 'lg' ? 'h-10' : header.logoSize === 'sm' ? 'h-6' : 'h-8'} />
+        <img
+          src={theme.logo}
+          alt={tenantName}
+          className={header.logoSize === 'lg' ? 'h-10' : header.logoSize === 'sm' ? 'h-6' : 'h-8'}
+        />
       ) : (
-        <span className={`truncate font-bold ${logoSizeClass[header.logoSize]}`} style={{ fontFamily: 'var(--font-heading)' }}>{tenantName}</span>
+        <span
+          className={`truncate font-bold ${logoSizeClass[header.logoSize]}`}
+          style={{ fontFamily: 'var(--font-heading)' }}
+        >
+          {tenantName}
+        </span>
       )}
     </Link>
   );
@@ -183,17 +241,25 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   ];
   const nav = (
     <nav className="flex items-center gap-6 text-sm">
-      <Link href={navLinks[0].href} className="opacity-90 hover:opacity-100">{navLinks[0].label}</Link>
-      <Link href={navLinks[1].href} className="opacity-90 hover:opacity-100">{navLinks[1].label}</Link>
+      <Link href={navLinks[0].href} className="opacity-90 hover:opacity-100">
+        {navLinks[0].label}
+      </Link>
+      <Link href={navLinks[1].href} className="opacity-90 hover:opacity-100">
+        {navLinks[1].label}
+      </Link>
       <CategoryMenu />
-      <Link href={navLinks[2].href} className="opacity-90 hover:opacity-100">{navLinks[2].label}</Link>
+      <Link href={navLinks[2].href} className="opacity-90 hover:opacity-100">
+        {navLinks[2].label}
+      </Link>
       <PagesNav />
     </nav>
   );
 
   const search = header.showSearch ? (
     <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3">
-      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100"><Icon name="search" className="h-4 w-4" /></button>
+      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
+        <Icon name="search" className="h-4 w-4" />
+      </button>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -206,7 +272,11 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   ) : null;
 
   const cartBtn = header.showCart ? (
-    <button onClick={() => setOpen(true)} className="relative inline-flex items-center gap-1.5 text-sm" aria-label="Abrir carrito">
+    <button
+      onClick={() => setOpen(true)}
+      className="relative inline-flex items-center gap-1.5 text-sm"
+      aria-label="Abrir carrito"
+    >
       <Icon name="cart" className="h-5 w-5" />
       {header.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
       {count > 0 && <CountBadge count={count} />}
@@ -217,7 +287,12 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   const accountBtn = <AccountButton />;
 
   const favBtn = (
-    <Link href={href('/favoritos')} className="relative inline-flex items-center opacity-90 hover:opacity-100" aria-label="Favoritos" title="Favoritos">
+    <Link
+      href={href('/favoritos')}
+      className="relative inline-flex items-center opacity-90 hover:opacity-100"
+      aria-label="Favoritos"
+      title="Favoritos"
+    >
       <Icon name="heart" className="h-5 w-5" />
       {fav.count > 0 && <CountBadge count={fav.count} />}
     </Link>
@@ -240,7 +315,11 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <div className="flex items-center gap-4">
             <div className="flex min-w-0 flex-1 items-center">{search}</div>
             <div className="flex shrink-0 justify-center">{logo}</div>
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">{accountBtn}{favBtn}{cartBtn}</div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+              {accountBtn}
+              {favBtn}
+              {cartBtn}
+            </div>
           </div>
           <div className="mt-1.5 flex justify-center">{nav}</div>
         </div>
@@ -259,7 +338,10 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
       inner = (
         <div className="flex h-16 items-center justify-between gap-4">
           {logo}
-          <div className="flex items-center gap-6">{nav}{icons}</div>
+          <div className="flex items-center gap-6">
+            {nav}
+            {icons}
+          </div>
         </div>
       );
       break;
@@ -278,7 +360,12 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
       <AnnouncementBar ann={theme.announcement} preview={preview} />
       <header
         data-tf-focus="header"
-        className={cn(header.sticky && 'sticky top-0 z-40', !header.sticky && preview && 'relative', borderClass, 'transition-colors')}
+        className={cn(
+          header.sticky && 'sticky top-0 z-40',
+          !header.sticky && preview && 'relative',
+          borderClass,
+          'transition-colors',
+        )}
         style={{ background: bg, color: textColor }}
         onMouseEnter={preview ? () => setEditHover(true) : undefined}
         onMouseLeave={preview ? () => setEditHover(false) : undefined}
@@ -287,7 +374,10 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <>
             <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-primary" />
             <button
-              onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN);
+              }}
               className="absolute right-3 top-2 z-[56] inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
             >
               <Pencil className="h-3.5 w-3.5" /> Editar encabezado
@@ -301,14 +391,27 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           {/* Mobile: barra compacta con hamburguesa */}
           <div className="flex h-14 items-center justify-between gap-3 md:hidden">
             {header.showTabsMobile ? (
-              <button type="button" onClick={() => setMobileOpen((o) => !o)} aria-label="Menú" className="shrink-0 opacity-90 hover:opacity-100">
-                {mobileOpen ? <Icon name="close" className="h-6 w-6" /> : <Icon name="menu" className="h-6 w-6" />}
+              <button
+                type="button"
+                onClick={() => setMobileOpen((o) => !o)}
+                aria-label="Menú"
+                className="shrink-0 opacity-90 hover:opacity-100"
+              >
+                {mobileOpen ? (
+                  <Icon name="close" className="h-6 w-6" />
+                ) : (
+                  <Icon name="menu" className="h-6 w-6" />
+                )}
               </button>
             ) : (
               <span className="w-6 shrink-0" />
             )}
             {logo}
-            <div className="flex shrink-0 items-center gap-3">{accountBtn}{favBtn}{cartBtn}</div>
+            <div className="flex shrink-0 items-center gap-3">
+              {accountBtn}
+              {favBtn}
+              {cartBtn}
+            </div>
           </div>
         </div>
 
@@ -328,7 +431,6 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
   );
 }
 
-
 function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
   const footer = theme.footer;
   return (
@@ -337,24 +439,56 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
         {footer.text && <p className="mx-auto max-w-xl text-center text-sm opacity-70">{footer.text}</p>}
         {footer.showSocial && (footer.instagram || footer.facebook) && (
           <div className="mt-4 flex justify-center gap-4 text-sm">
-            {footer.instagram && <a href={footer.instagram} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"><InstagramIcon /> Instagram</a>}
-            {footer.facebook && <a href={footer.facebook} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"><FacebookIcon /> Facebook</a>}
+            {footer.instagram && (
+              <a
+                href={footer.instagram}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"
+              >
+                <InstagramIcon /> Instagram
+              </a>
+            )}
+            {footer.facebook && (
+              <a
+                href={footer.facebook}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"
+              >
+                <FacebookIcon /> Facebook
+              </a>
+            )}
           </div>
         )}
         {[...footer.whatsapps, ...footer.addresses, ...footer.phones, ...footer.emails].some(Boolean) && (
           <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm opacity-75">
             {footer.whatsapps.filter(Boolean).map((w, i) => (
-              <a key={`w${i}`} href={`https://wa.me/${w.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-100">
+              <a
+                key={`w${i}`}
+                href={`https://wa.me/${w.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
                 <Icon name="chat" className="h-4 w-4" /> {w}
               </a>
             ))}
             {footer.phones.filter(Boolean).map((p, i) => (
-              <a key={`p${i}`} href={`tel:${p.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:opacity-100">
+              <a
+                key={`p${i}`}
+                href={`tel:${p.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
                 <Icon name="phone" className="h-4 w-4" /> {p}
               </a>
             ))}
             {footer.emails.filter(Boolean).map((e, i) => (
-              <a key={`e${i}`} href={`mailto:${e}`} className="inline-flex items-center gap-1.5 hover:opacity-100">
+              <a
+                key={`e${i}`}
+                href={`mailto:${e}`}
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
                 <Icon name="mail" className="h-4 w-4" /> {e}
               </a>
             ))}
@@ -379,11 +513,17 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
         )}
         {/* Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res. 424/2020). */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs opacity-60">
-          <Link href="/terminos" className="hover:underline">Términos y condiciones</Link>
+          <Link href="/terminos" className="hover:underline">
+            Términos y condiciones
+          </Link>
           <span aria-hidden>·</span>
-          <Link href="/privacidad" className="hover:underline">Privacidad</Link>
+          <Link href="/privacidad" className="hover:underline">
+            Privacidad
+          </Link>
           <span aria-hidden>·</span>
-          <Link href="/arrepentimiento" className="font-semibold hover:underline">Botón de arrepentimiento</Link>
+          <Link href="/arrepentimiento" className="font-semibold hover:underline">
+            Botón de arrepentimiento
+          </Link>
         </div>
         <div className="mt-3 text-center text-xs opacity-50">© {tenantName} · Powered by Tiendafy</div>
       </div>
@@ -394,7 +534,17 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
 // lucide-react quitó los iconos de marca; SVGs propios (heredan currentColor).
 function InstagramIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <rect x="2" y="2" width="20" height="20" rx="5" />
       <circle cx="12" cy="12" r="4" />
       <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
@@ -432,7 +582,12 @@ function Inner({ tenantName, theme, products, children }: Omit<StorefrontViewPro
       <PreviewCartSync />
       <Header theme={theme} tenantName={tenantName} />
       {children ?? (
-        <HomeSections sections={theme.sections} products={products} storeName={tenantName} productList={theme.productList} />
+        <HomeSections
+          sections={theme.sections}
+          products={products}
+          storeName={tenantName}
+          productList={theme.productList}
+        />
       )}
       <EditableRegion target="footer" label="el pie de página">
         <Footer theme={theme} tenantName={tenantName} />
@@ -442,7 +597,14 @@ function Inner({ tenantName, theme, products, children }: Omit<StorefrontViewPro
   );
 }
 
-export function StorefrontView({ tenantId, tenantName, theme: initialTheme, products: initialProducts, live, children }: StorefrontViewProps) {
+export function StorefrontView({
+  tenantId,
+  tenantName,
+  theme: initialTheme,
+  products: initialProducts,
+  live,
+  children,
+}: StorefrontViewProps) {
   const [theme, setTheme] = useState<ThemeConfig>(initialTheme);
   const [products, setProducts] = useState<StoreProduct[]>(initialProducts);
 
@@ -491,14 +653,20 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     let cancelled = false;
     Promise.all(
       missing.map((id) =>
-        clientJson<ProductDto>(`/api/v1/products/${id}`, { headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' } }),
+        clientJson<ProductDto>(`/api/v1/products/${id}`, {
+          headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' },
+        }),
       ),
     ).then((dtos) => {
       if (cancelled) return;
-      const extra = dtos.map((d) => (d ? toStoreProduct(d) : null)).filter((p): p is StoreProduct => p !== null);
+      const extra = dtos
+        .map((d) => (d ? toStoreProduct(d) : null))
+        .filter((p): p is StoreProduct => p !== null);
       if (extra.length) setProducts((prev) => [...prev, ...extra]);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [live, theme, tenantId, products]);
 
   // Favicon de la tienda en la pestaña del navegador (y en vivo en el preview).
@@ -512,39 +680,46 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     }
     const previous = link.href;
     link.href = theme.favicon;
-    return () => { if (link) link.href = previous; };
+    return () => {
+      if (link) link.href = previous;
+    };
   }, [theme.favicon]);
 
   return (
-    <div data-store-radius={theme.borderRadius} data-store-motion={theme.motion} data-store-density={theme.density} style={themeToStyle(theme) as React.CSSProperties}>
+    <div
+      data-store-radius={theme.borderRadius}
+      data-store-motion={theme.motion}
+      data-store-density={theme.density}
+      style={themeToStyle(theme) as React.CSSProperties}
+    >
       <IconKitContext.Provider value={theme.iconKit}>
-      <CashDiscountContext.Provider value={theme.productDetail.cashDiscountPercent || 0}>
-      {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
-      {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
-      {!live && tenantId && <Analytics tenantId={tenantId} />}
-      <PreviewContext.Provider value={!!live}>
-        <LiveThemeContext.Provider value={live ? theme : null}>
-          <AuthProvider storeKey={tenantId}>
-            <FavoritesProvider storeKey={tenantId}>
-              <CartProvider storeKey={tenantId}>
-                <Inner tenantName={tenantName} theme={theme} products={products}>
-                  {children}
-                </Inner>
-              </CartProvider>
-            </FavoritesProvider>
-          </AuthProvider>
-        </LiveThemeContext.Provider>
-      </PreviewContext.Provider>
-      {theme.whatsappButton?.enabled && theme.whatsappButton.phone && (
-        <WhatsAppFab
-          phone={theme.whatsappButton.phone}
-          message={theme.whatsappButton.message}
-          storeName={tenantName}
-          logo={theme.logo}
-          showPreview={theme.whatsappButton.showPreview !== false}
-        />
-      )}
-      </CashDiscountContext.Provider>
+        <CashDiscountContext.Provider value={theme.productDetail.cashDiscountPercent || 0}>
+          {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
+          {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
+          {!live && tenantId && <Analytics tenantId={tenantId} />}
+          <PreviewContext.Provider value={!!live}>
+            <LiveThemeContext.Provider value={live ? theme : null}>
+              <AuthProvider storeKey={tenantId}>
+                <FavoritesProvider storeKey={tenantId}>
+                  <CartProvider storeKey={tenantId}>
+                    <Inner tenantName={tenantName} theme={theme} products={products}>
+                      {children}
+                    </Inner>
+                  </CartProvider>
+                </FavoritesProvider>
+              </AuthProvider>
+            </LiveThemeContext.Provider>
+          </PreviewContext.Provider>
+          {theme.whatsappButton?.enabled && theme.whatsappButton.phone && (
+            <WhatsAppFab
+              phone={theme.whatsappButton.phone}
+              message={theme.whatsappButton.message}
+              storeName={tenantName}
+              logo={theme.logo}
+              showPreview={theme.whatsappButton.showPreview !== false}
+            />
+          )}
+        </CashDiscountContext.Provider>
       </IconKitContext.Provider>
     </div>
   );

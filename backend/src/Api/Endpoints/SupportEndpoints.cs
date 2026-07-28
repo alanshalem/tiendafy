@@ -1,7 +1,7 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Api.Shop;
 using Customers.Infrastructure;
+using Identity.Infrastructure;
 using Media.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;

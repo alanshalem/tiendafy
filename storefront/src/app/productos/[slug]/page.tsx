@@ -48,12 +48,24 @@ interface ProductDto {
   slug: string;
   description: string | null;
   options: { name: string; values: string[] }[];
-  variants: { id: string; sku: string; optionValues: string[]; price: { amount: number; currency: string }; compareAtPrice: { amount: number; currency: string } | null }[];
+  variants: {
+    id: string;
+    sku: string;
+    optionValues: string[];
+    price: { amount: number; currency: string };
+    compareAtPrice: { amount: number; currency: string } | null;
+  }[];
   images: { url: string; altText: string | null }[];
   categoryIds: string[];
 }
 
-export default async function ProductDetailPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ preview?: string }> }) {
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ preview?: string }>;
+}) {
   const { slug } = await params;
   const resolved = await resolveStorefrontPage(searchParams);
   if (!resolved.ok) return resolved.fallback;
@@ -81,48 +93,62 @@ export default async function ProductDetailPage({ params, searchParams }: { para
       ]
     : [];
   const base = await siteBase();
-  const breadcrumbJsonLd = product && base
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: crumbs.map((c, i) => ({
-          '@type': 'ListItem',
-          position: i + 1,
-          name: typeof c.label === 'string' ? c.label : product.name,
-          ...(c.href ? { item: `${base}${c.href}` } : {}),
-        })),
-      }
-    : null;
+  const breadcrumbJsonLd =
+    product && base
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: crumbs.map((c, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: typeof c.label === 'string' ? c.label : product.name,
+            ...(c.href ? { item: `${base}${c.href}` } : {}),
+          })),
+        }
+      : null;
 
   // Rich results de producto en Google: precio, moneda y disponibilidad.
   const firstVariant = product?.variants[0];
-  const productJsonLd = product && firstVariant
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: product.name,
-        ...(product.description ? { description: product.description.slice(0, 500) } : {}),
-        ...(product.images.length ? { image: product.images.map((i) => i.url) } : {}),
-        ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
-        offers: {
-          '@type': 'Offer',
-          priceCurrency: firstVariant.price.currency,
-          price: (firstVariant.price.amount / 100).toFixed(2), // minor units → pesos
-          availability: 'https://schema.org/InStock',
+  const productJsonLd =
+    product && firstVariant
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: product.name,
+          ...(product.description ? { description: product.description.slice(0, 500) } : {}),
+          ...(product.images.length ? { image: product.images.map((i) => i.url) } : {}),
           ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
-        },
-      }
-    : null;
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: firstVariant.price.currency,
+            price: (firstVariant.price.amount / 100).toFixed(2), // minor units → pesos
+            availability: 'https://schema.org/InStock',
+            ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
+          },
+        }
+      : null;
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
       <main className="mx-auto max-w-container px-4 py-8">
         {product && <StoreBreadcrumbs items={crumbs} />}
         {breadcrumbJsonLd && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+          />
         )}
         {productJsonLd && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+          />
         )}
         {product ? (
           <>
@@ -136,7 +162,12 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             />
             {theme.productDetail.showRelated && related.length > 0 && (
               <SectionRenderer
-                section={{ id: 'related', type: 'featured', visible: true, data: { title: 'También te puede gustar' } }}
+                section={{
+                  id: 'related',
+                  type: 'featured',
+                  visible: true,
+                  data: { title: 'También te puede gustar' },
+                }}
                 products={related}
                 storeName={data.tenant.name}
                 productList={theme.productList}
@@ -178,7 +209,10 @@ async function buildRelated(
   if (catId) {
     try {
       const res = await searchProducts(tenantId, { category: catId, pageSize: 16 });
-      res.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null).forEach(push);
+      res.items
+        .map(toStoreProduct)
+        .filter((p): p is StoreProduct => p !== null)
+        .forEach(push);
     } catch {
       // Si falla la búsqueda por categoría, seguimos con el fallback.
     }
@@ -194,7 +228,11 @@ async function buildRelated(
 // sin penalizar la carga inicial.
 const RELATED_COUNT = 12;
 
-interface CategoryDto { id: string; name: string; parentId: string | null }
+interface CategoryDto {
+  id: string;
+  name: string;
+  parentId: string | null;
+}
 
 /**
  * Cadena de categorías del producto, de la raíz a la hoja (para la miga).

@@ -2,8 +2,19 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Power, Trash2, Plus } from 'lucide-react';
 import {
-  Badge, Button, Card, Dropdown, FormField, Input, Modal, Select, useToast, useConfirm,
-  type BadgeVariant, type TableColumn, Table,
+  Badge,
+  Button,
+  Card,
+  Dropdown,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  useToast,
+  useConfirm,
+  type BadgeVariant,
+  type TableColumn,
+  Table,
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
@@ -65,35 +76,80 @@ export function DiscountsPage() {
 
   const toggle = useMutation({
     mutationFn: (c: Coupon) => api.post(`/api/v1/coupons/${c.id}/toggle`, {}),
-    onSuccess: () => { refresh(); toast('Cupón actualizado', { variant: 'success' }); },
+    onSuccess: () => {
+      refresh();
+      toast('Cupón actualizado', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
   const remove = useMutation({
     mutationFn: (c: Coupon) => api.delete(`/api/v1/coupons/${c.id}`),
-    onSuccess: () => { refresh(); toast('Cupón eliminado', { variant: 'success' }); },
+    onSuccess: () => {
+      refresh();
+      toast('Cupón eliminado', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
   const statusVariant = (c: Coupon): BadgeVariant => (c.active ? 'success' : 'neutral');
 
   const columns: TableColumn<Coupon>[] = [
-    { key: 'code', header: 'Código', cell: (c) => <span className="font-mono font-semibold text-fg">{c.code}</span> },
+    {
+      key: 'code',
+      header: 'Código',
+      cell: (c) => <span className="font-mono font-semibold text-fg">{c.code}</span>,
+    },
     { key: 'type', header: 'Descuento', cell: (c) => describe(c) },
-    { key: 'minPurchase', header: 'Compra mínima', cell: (c) => (c.minPurchase > 0 ? pesos(c.minPurchase) : <span className="text-fg-subtle">—</span>) },
-    { key: 'endsAtUtc', header: 'Vigencia', cell: (c) => <span className="text-sm text-fg-muted">{vigencia(c)}</span> },
-    { key: 'usedCount', header: 'Usos', cell: (c) => `${c.usedCount}${c.maxUses != null ? ` / ${c.maxUses}` : ''}` },
-    { key: 'active', header: 'Estado', cell: (c) => <Badge variant={statusVariant(c)}>{c.active ? 'Activo' : 'Pausado'}</Badge> },
+    {
+      key: 'minPurchase',
+      header: 'Compra mínima',
+      cell: (c) => (c.minPurchase > 0 ? pesos(c.minPurchase) : <span className="text-fg-subtle">—</span>),
+    },
+    {
+      key: 'endsAtUtc',
+      header: 'Vigencia',
+      cell: (c) => <span className="text-sm text-fg-muted">{vigencia(c)}</span>,
+    },
+    {
+      key: 'usedCount',
+      header: 'Usos',
+      cell: (c) => `${c.usedCount}${c.maxUses != null ? ` / ${c.maxUses}` : ''}`,
+    },
+    {
+      key: 'active',
+      header: 'Estado',
+      cell: (c) => <Badge variant={statusVariant(c)}>{c.active ? 'Activo' : 'Pausado'}</Badge>,
+    },
     {
       key: 'createdAtUtc',
       header: '',
       cell: (c) => (
         <div className="flex justify-end">
           <Dropdown>
-            <Dropdown.Trigger><MoreVertical className="h-4 w-4" /></Dropdown.Trigger>
+            <Dropdown.Trigger>
+              <MoreVertical className="h-4 w-4" />
+            </Dropdown.Trigger>
             <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(c)}><Pencil className="mr-2 inline h-4 w-4" /> Editar</Dropdown.Item>
-              <Dropdown.Item onSelect={() => toggle.mutate(c)}><Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}</Dropdown.Item>
-              <Dropdown.Item destructive onSelect={async () => { if (await confirm({ title: 'Eliminar cupón', message: `¿Eliminar el cupón ${c.code}?`, confirmLabel: 'Eliminar', variant: 'danger' })) remove.mutate(c); }}>
+              <Dropdown.Item onSelect={() => setEditing(c)}>
+                <Pencil className="mr-2 inline h-4 w-4" /> Editar
+              </Dropdown.Item>
+              <Dropdown.Item onSelect={() => toggle.mutate(c)}>
+                <Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}
+              </Dropdown.Item>
+              <Dropdown.Item
+                destructive
+                onSelect={async () => {
+                  if (
+                    await confirm({
+                      title: 'Eliminar cupón',
+                      message: `¿Eliminar el cupón ${c.code}?`,
+                      confirmLabel: 'Eliminar',
+                      variant: 'danger',
+                    })
+                  )
+                    remove.mutate(c);
+                }}
+              >
                 <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
               </Dropdown.Item>
             </Dropdown.Menu>
@@ -110,13 +166,21 @@ export function DiscountsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">Cupones de descuento</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos.
+          </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}><span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Crear cupón</span></Button>
+        <Button onClick={() => setCreateOpen(true)}>
+          <span className="inline-flex items-center gap-1.5">
+            <Plus className="h-4 w-4" /> Crear cupón
+          </span>
+        </Button>
       </div>
 
       {isLoading ? (
-        <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p></Card>
+        <Card>
+          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+        </Card>
       ) : coupons.length === 0 ? (
         <EmptyState
           kicker="Descuentos"
@@ -131,7 +195,12 @@ export function DiscountsPage() {
       )}
 
       <CouponModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
-      <CouponModal open={!!editing} coupon={editing ?? undefined} onClose={() => setEditing(null)} onSaved={refresh} />
+      <CouponModal
+        open={!!editing}
+        coupon={editing ?? undefined}
+        onClose={() => setEditing(null)}
+        onSaved={refresh}
+      />
     </div>
   );
 }
@@ -140,7 +209,17 @@ function toDateInput(iso: string | null): string {
   return iso ? new Date(iso).toISOString().slice(0, 10) : '';
 }
 
-function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon?: Coupon; onClose: () => void; onSaved: () => void }) {
+function CouponModal({
+  open,
+  coupon,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  coupon?: Coupon;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { toast } = useToast();
   const [code, setCode] = useState('');
   const [type, setType] = useState<CouponType>('Percentage');
@@ -158,7 +237,15 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
     if (!open) return;
     setCode(coupon?.code ?? '');
     setType(coupon?.type ?? 'Percentage');
-    setValue(coupon ? (coupon.type === 'FixedAmount' ? String(coupon.value / 100) : coupon.type === 'Percentage' ? String(coupon.value) : '') : '');
+    setValue(
+      coupon
+        ? coupon.type === 'FixedAmount'
+          ? String(coupon.value / 100)
+          : coupon.type === 'Percentage'
+            ? String(coupon.value)
+            : ''
+        : '',
+    );
     setMinPurchase(coupon && coupon.minPurchase > 0 ? String(coupon.minPurchase / 100) : '');
     setStartsAt(toDateInput(coupon?.startsAtUtc ?? null));
     setEndsAt(toDateInput(coupon?.endsAtUtc ?? null));
@@ -172,7 +259,8 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
       const body = {
         code: code.trim(),
         type,
-        value: type === 'Percentage' ? Math.round(Number(value)) : type === 'FixedAmount' ? toCents(value) : 0,
+        value:
+          type === 'Percentage' ? Math.round(Number(value)) : type === 'FixedAmount' ? toCents(value) : 0,
         minPurchase: minPurchase ? toCents(minPurchase) : 0,
         startsAtUtc: startsAt ? new Date(`${startsAt}T00:00:00`).toISOString() : null,
         endsAtUtc: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : null,
@@ -181,15 +269,20 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
       };
       return isEdit ? api.put(`/api/v1/coupons/${coupon!.id}`, body) : api.post('/api/v1/coupons', body);
     },
-    onSuccess: () => { onSaved(); toast(isEdit ? 'Cupón actualizado' : 'Cupón creado', { variant: 'success' }); onClose(); },
+    onSuccess: () => {
+      onSaved();
+      toast(isEdit ? 'Cupón actualizado' : 'Cupón creado', { variant: 'success' });
+      onClose();
+    },
     onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
-  const valueValid = type === 'FreeShipping'
-    ? true
-    : type === 'Percentage'
-      ? Number(value) >= 1 && Number(value) <= 100
-      : parseFloat(value.replace(',', '.')) > 0;
+  const valueValid =
+    type === 'FreeShipping'
+      ? true
+      : type === 'Percentage'
+        ? Number(value) >= 1 && Number(value) <= 100
+        : parseFloat(value.replace(',', '.')) > 0;
 
   return (
     <Modal
@@ -198,8 +291,14 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
       title={isEdit ? 'Editar cupón' : 'Crear cupón'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button loading={save.isPending} disabled={!code.trim() || !valueValid} onClick={() => save.mutate()}>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            loading={save.isPending}
+            disabled={!code.trim() || !valueValid}
+            onClick={() => save.mutate()}
+          >
             {isEdit ? 'Guardar' : 'Crear'}
           </Button>
         </>
@@ -207,7 +306,11 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
     >
       <div className="space-y-4">
         <FormField label="Código" required error={error} hint="Lo que el cliente escribe en el carrito.">
-          <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="VERANO20" />
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="VERANO20"
+          />
         </FormField>
 
         <FormField label="Tipo de descuento" required>
@@ -224,16 +327,31 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
 
         {type !== 'FreeShipping' && (
           <FormField label={type === 'Percentage' ? 'Porcentaje' : 'Monto del descuento (ARS)'} required>
-            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={type === 'Percentage' ? '20' : '5000'} />
+            <Input
+              inputMode="decimal"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={type === 'Percentage' ? '20' : '5000'}
+            />
           </FormField>
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Compra mínima (ARS)" hint="Opcional">
-            <Input inputMode="decimal" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="—" />
+            <Input
+              inputMode="decimal"
+              value={minPurchase}
+              onChange={(e) => setMinPurchase(e.target.value)}
+              placeholder="—"
+            />
           </FormField>
           <FormField label="Límite de usos" hint="Opcional">
-            <Input inputMode="numeric" value={maxUses} onChange={(e) => setMaxUses(e.target.value.replace(/\D/g, ''))} placeholder="Sin límite" />
+            <Input
+              inputMode="numeric"
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value.replace(/\D/g, ''))}
+              placeholder="Sin límite"
+            />
           </FormField>
         </div>
 
@@ -247,7 +365,12 @@ function CouponModal({ open, coupon, onClose, onSaved }: { open: boolean; coupon
         </div>
 
         <label className="flex items-center gap-2 text-sm font-medium text-fg">
-          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="rounded-sm" />
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="rounded-sm"
+          />
           Activo
         </label>
       </div>

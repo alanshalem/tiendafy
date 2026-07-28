@@ -16,12 +16,49 @@ interface EmptyStateProps {
 function PackageIllustration() {
   return (
     <svg viewBox="0 0 160 120" className="h-36 w-48" fill="none" aria-hidden="true">
-      <rect x="35" y="40" width="70" height="55" rx="4" fill="rgb(var(--color-bg-muted))" stroke="rgb(var(--color-fg))" strokeWidth="2.5" />
+      <rect
+        x="35"
+        y="40"
+        width="70"
+        height="55"
+        rx="4"
+        fill="rgb(var(--color-bg-muted))"
+        stroke="rgb(var(--color-fg))"
+        strokeWidth="2.5"
+      />
       <path d="M35 58h70" stroke="rgb(var(--color-fg))" strokeWidth="2.5" />
       <path d="M62 40v18M78 40v18" stroke="rgb(var(--color-fg))" strokeWidth="2.5" />
-      <rect x="92" y="28" width="34" height="34" rx="6" fill="rgb(var(--color-primary))" stroke="rgb(var(--color-fg))" strokeWidth="2.5" transform="rotate(8 109 45)" />
-      <text x="109" y="55" textAnchor="middle" fontFamily="Georgia, serif" fontStyle="italic" fontWeight="700" fontSize="24" fill="rgb(var(--color-primary-fg))" transform="rotate(8 109 45)">t</text>
-      <path d="M30 100c18 6 82 6 100 0" stroke="rgb(var(--color-fg-subtle))" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 7" />
+      <rect
+        x="92"
+        y="28"
+        width="34"
+        height="34"
+        rx="6"
+        fill="rgb(var(--color-primary))"
+        stroke="rgb(var(--color-fg))"
+        strokeWidth="2.5"
+        transform="rotate(8 109 45)"
+      />
+      <text
+        x="109"
+        y="55"
+        textAnchor="middle"
+        fontFamily="Georgia, serif"
+        fontStyle="italic"
+        fontWeight="700"
+        fontSize="24"
+        fill="rgb(var(--color-primary-fg))"
+        transform="rotate(8 109 45)"
+      >
+        t
+      </text>
+      <path
+        d="M30 100c18 6 82 6 100 0"
+        stroke="rgb(var(--color-fg-subtle))"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="1 7"
+      />
     </svg>
   );
 }

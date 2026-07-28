@@ -1,12 +1,12 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using Api.Auth;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using Themes.Infrastructure;
-using Api.Auth;
 
 namespace Api.Endpoints;
 

@@ -142,12 +142,15 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   );
 
   const logout = useCallback(() => {
-    fetch(`${API}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(() => {});
+    fetch(`${API}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(
+      () => {},
+    );
     persistUser(null);
   }, [headers, persistUser]);
 
   const googleUrl = useCallback(
-    (returnTo: string) => `${API}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`,
+    (returnTo: string) =>
+      `${API}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`,
     [storeKey],
   );
 

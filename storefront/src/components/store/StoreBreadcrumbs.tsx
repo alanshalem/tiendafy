@@ -11,8 +11,18 @@ import { usePreviewHref } from './preview';
  */
 export function StoreBreadcrumbs({ items, className }: { items: BreadcrumbItem[]; className?: string }) {
   const href = usePreviewHref();
-  const PreviewLink = ({ href: to, className: cn2, children }: { href: string; className?: string; children: ReactNode }) => (
-    <Link href={href(to)} className={cn2}>{children}</Link>
+  const PreviewLink = ({
+    href: to,
+    className: cn2,
+    children,
+  }: {
+    href: string;
+    className?: string;
+    children: ReactNode;
+  }) => (
+    <Link href={href(to)} className={cn2}>
+      {children}
+    </Link>
   );
   return <Breadcrumbs items={items} linkComponent={PreviewLink} className={className} />;
 }

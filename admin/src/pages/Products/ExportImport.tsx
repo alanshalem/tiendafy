@@ -37,14 +37,91 @@ const CSV_HEADER = [
 // La columna "Imágenes" admite varias URLs separadas por espacio; al importar
 // se descargan y re-hospedan en el storage de la tienda.
 const TEMPLATE_EXAMPLES = [
-  ['remera-oversize', 'Remera Oversize', 'Indumentaria > Remeras', 'Talle', 'S', '', '', '12990', '', '0.2', '', '', '', '10', 'REM-S', '', 'SI', 'NO', 'Remera de algodón premium', 'https://picsum.photos/seed/remera/800 https://picsum.photos/seed/remera-2/800', 'remera,oversize', '', ''],
-  ['remera-oversize', 'Remera Oversize', 'Indumentaria > Remeras', 'Talle', 'M', '', '', '12990', '9990', '0.2', '', '', '', '8', 'REM-M', '', 'SI', 'NO', '', '', '', '', ''],
-  ['mate-imperial', 'Mate Imperial', 'Bazar', '', '', '', '', '8500', '', '0.4', '', '', '', '25', 'MATE-01', '', 'SI', 'NO', 'Mate de calabaza forrado en cuero', 'https://picsum.photos/seed/mate/800', 'mate,regalo', '', ''],
+  [
+    'remera-oversize',
+    'Remera Oversize',
+    'Indumentaria > Remeras',
+    'Talle',
+    'S',
+    '',
+    '',
+    '12990',
+    '',
+    '0.2',
+    '',
+    '',
+    '',
+    '10',
+    'REM-S',
+    '',
+    'SI',
+    'NO',
+    'Remera de algodón premium',
+    'https://picsum.photos/seed/remera/800 https://picsum.photos/seed/remera-2/800',
+    'remera,oversize',
+    '',
+    '',
+  ],
+  [
+    'remera-oversize',
+    'Remera Oversize',
+    'Indumentaria > Remeras',
+    'Talle',
+    'M',
+    '',
+    '',
+    '12990',
+    '9990',
+    '0.2',
+    '',
+    '',
+    '',
+    '8',
+    'REM-M',
+    '',
+    'SI',
+    'NO',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ],
+  [
+    'mate-imperial',
+    'Mate Imperial',
+    'Bazar',
+    '',
+    '',
+    '',
+    '',
+    '8500',
+    '',
+    '0.4',
+    '',
+    '',
+    '',
+    '25',
+    'MATE-01',
+    '',
+    'SI',
+    'NO',
+    'Mate de calabaza forrado en cuero',
+    'https://picsum.photos/seed/mate/800',
+    'mate,regalo',
+    '',
+    '',
+  ],
 ];
+
+// BOM UTF-8: Excel lo necesita para abrir el CSV con acentos bien; se quita al
+// parsear un archivo importado. Construido por código para no tener el carácter
+// invisible suelto en el fuente (eslint no-irregular-whitespace).
+const BOM = String.fromCharCode(0xfeff);
 
 function buildCsv(rows: string[][]): string {
   const escape = (c: string) => `"${c.replace(/"/g, '""')}"`;
-  return '﻿' + rows.map((r) => r.map(escape).join(';')).join('\n');
+  return BOM + rows.map((r) => r.map(escape).join(';')).join('\n');
 }
 
 function downloadBlob(filename: string, blob: Blob) {
@@ -68,13 +145,17 @@ export function ExportImportPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link to="/productos" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+      <Link
+        to="/productos"
+        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+      >
         <ChevronLeft className="h-4 w-4" /> Productos
       </Link>
       <div>
         <h1 className="text-2xl font-bold text-fg">Exportar e importar</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Economizá tiempo modificando o agregando nuevos productos de forma masiva a través de un archivo .csv de Excel.
+          Economizá tiempo modificando o agregando nuevos productos de forma masiva a través de un archivo
+          .csv de Excel.
         </p>
       </div>
 
@@ -96,7 +177,9 @@ export function ExportImportPage() {
 
       {tab === 'export' ? <ExportTab /> : tab === 'import' ? <ImportTab /> : <ImagesTab />}
 
-      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">Más sobre exportar e importar productos <ExternalLink className="h-3.5 w-3.5" /></p>
+      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">
+        Más sobre exportar e importar productos <ExternalLink className="h-3.5 w-3.5" />
+      </p>
     </div>
   );
 }
@@ -144,7 +227,13 @@ function ExportTab() {
         />
       </div>
       <Button className="mt-5" disabled={count === 0 || busy} onClick={download}>
-        {busy ? 'Generando…' : <span className="inline-flex items-center gap-1.5"><Download className="h-4 w-4" /> Exportar</span>}
+        {busy ? (
+          'Generando…'
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <Download className="h-4 w-4" /> Exportar
+          </span>
+        )}
       </Button>
     </Card>
   );
@@ -189,7 +278,9 @@ function ImportTab() {
   useEffect(() => {
     if (job?.status === 'completed') {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
-      toast(`Importación lista: +${job.created} nuevos · ${job.updated} actualizados`, { variant: 'success' });
+      toast(`Importación lista: +${job.created} nuevos · ${job.updated} actualizados`, {
+        variant: 'success',
+      });
     } else if (job?.status === 'failed') {
       toast(job.failureMessage ?? 'La importación falló', { variant: 'error' });
     }
@@ -199,7 +290,7 @@ function ImportTab() {
     setFile(f);
     setJobId(null);
     const text = await f.text();
-    const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(Boolean);
+    const lines = text.replace(BOM, '').split(/\r?\n/).filter(Boolean);
     const sep = lines[0]?.includes(';') ? ';' : ',';
     const parse = (line: string) => line.split(sep).map((c) => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
     setPreview({
@@ -216,10 +307,15 @@ function ImportTab() {
       form.append('file', file);
       form.append('updateExisting', String(modifyExisting));
       form.append('updateStock', String(updateStock));
-      const res = await api.postForm<{ jobId: string; totalProducts: number }>('/api/v1/products/import', form);
+      const res = await api.postForm<{ jobId: string; totalProducts: number }>(
+        '/api/v1/products/import',
+        form,
+      );
       setJobId(res.jobId);
     } catch (e) {
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo encolar la importación', { variant: 'error' });
+      toast(e instanceof ApiRequestError ? e.message : 'No se pudo encolar la importación', {
+        variant: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -247,8 +343,8 @@ function ImportTab() {
   return (
     <Card>
       <p className="text-sm text-fg-muted">
-        Cargá un archivo de hasta 20000 líneas. Si es necesario, dividilo en más de uno. Podés usar la lista que
-        disponibilizamos al "Exportar".
+        Cargá un archivo de hasta 20000 líneas. Si es necesario, dividilo en más de uno. Podés usar la lista
+        que disponibilizamos al "Exportar".
       </p>
 
       {/* Paso 1: descargar una plantilla para completar */}
@@ -337,12 +433,26 @@ function ImportTab() {
       {!job && (
         <>
           <div className="mt-4 space-y-2">
-            <Checkbox label="Modificar productos ya existentes" checked={modifyExisting} onChange={(e) => setModifyExisting(e.target.checked)} />
-            <Checkbox label="Actualizar stock" checked={updateStock} onChange={(e) => setUpdateStock(e.target.checked)} />
+            <Checkbox
+              label="Modificar productos ya existentes"
+              checked={modifyExisting}
+              onChange={(e) => setModifyExisting(e.target.checked)}
+            />
+            <Checkbox
+              label="Actualizar stock"
+              checked={updateStock}
+              onChange={(e) => setUpdateStock(e.target.checked)}
+            />
           </div>
 
           <Button className="mt-4" disabled={!file || submitting} onClick={startImport}>
-            {submitting ? 'Encolando…' : <span className="inline-flex items-center gap-1.5"><Upload className="h-4 w-4" /> Importar</span>}
+            {submitting ? (
+              'Encolando…'
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Upload className="h-4 w-4" /> Importar
+              </span>
+            )}
           </Button>
         </>
       )}
@@ -366,8 +476,16 @@ function ImportProgress({ job }: { job: ImportJobStatus }) {
         <span className="font-semibold text-fg">
           {job.status === 'queued' && 'En cola…'}
           {job.status === 'processing' && 'Importando productos…'}
-          {job.status === 'completed' && <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" /> Importación completada</span>}
-          {job.status === 'failed' && <span className="inline-flex items-center gap-1.5"><X className="h-4 w-4" /> La importación falló</span>}
+          {job.status === 'completed' && (
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="h-4 w-4" /> Importación completada
+            </span>
+          )}
+          {job.status === 'failed' && (
+            <span className="inline-flex items-center gap-1.5">
+              <X className="h-4 w-4" /> La importación falló
+            </span>
+          )}
         </span>
         <span className="text-fg-muted">
           {job.processed}/{job.totalProducts}
@@ -467,7 +585,10 @@ function ImagesTab() {
     try {
       const form = new FormData();
       for (const f of files) form.append('files', f);
-      const res = await api.postForm<{ jobId: string; totalFiles: number }>('/api/v1/products/images/import', form);
+      const res = await api.postForm<{ jobId: string; totalFiles: number }>(
+        '/api/v1/products/images/import',
+        form,
+      );
       setJobId(res.jobId);
     } catch (e) {
       toast(e instanceof ApiRequestError ? e.message : 'No se pudo subir', { variant: 'error' });
@@ -488,15 +609,16 @@ function ImagesTab() {
   return (
     <Card>
       <p className="text-sm text-fg-muted">
-        Subí las imágenes de tus productos (o un <span className="font-medium text-fg">.zip</span>). Se asocian solas a
-        cada producto.
+        Subí las imágenes de tus productos (o un <span className="font-medium text-fg">.zip</span>). Se
+        asocian solas a cada producto.
       </p>
 
       <div className="mt-4 rounded-md border border-border bg-bg-subtle p-4 text-xs text-fg-muted">
         <div className="text-sm font-semibold text-fg">¿Cómo se asocian?</div>
         <p className="mt-1">
-          El nombre del archivo tiene que coincidir con el <span className="font-medium text-fg">Identificador de URL</span>{' '}
-          del producto. Para varias fotos, agregá <span className="font-medium text-fg">-2</span>,{' '}
+          El nombre del archivo tiene que coincidir con el{' '}
+          <span className="font-medium text-fg">Identificador de URL</span> del producto. Para varias fotos,
+          agregá <span className="font-medium text-fg">-2</span>,{' '}
           <span className="font-medium text-fg">-3</span>, etc.
         </p>
         <ul className="mt-2 space-y-0.5 font-mono text-[0.7rem] text-fg-subtle">
@@ -507,13 +629,14 @@ function ImagesTab() {
         <div className="mt-3 border-t border-border pt-3">
           <div className="text-sm font-semibold text-fg">O subí un CSV de mapeo (asociación exacta)</div>
           <p className="mt-1">
-            También podés subir, junto con las imágenes (o el <span className="font-medium text-fg">.zip</span>), un{' '}
+            También podés subir, junto con las imágenes (o el{' '}
+            <span className="font-medium text-fg">.zip</span>), un{' '}
             <span className="font-medium text-fg">CSV de mapeo</span> con las columnas{' '}
             <span className="font-medium text-fg">«Identificador de URL»</span> y{' '}
             <span className="font-medium text-fg">«Archivos»</span> (nombres de archivo separados por{' '}
             <span className="font-mono text-fg-subtle">{' | '}</span>). En ese caso la asociación es{' '}
-            <span className="font-medium text-fg">exacta</span>, sin adivinar por el nombre del archivo. Recomendado para
-            catálogos grandes o cuando los nombres no coinciden con el slug.
+            <span className="font-medium text-fg">exacta</span>, sin adivinar por el nombre del archivo.
+            Recomendado para catálogos grandes o cuando los nombres no coinciden con el slug.
           </p>
         </div>
       </div>
@@ -523,7 +646,9 @@ function ImagesTab() {
           <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-primary/40 bg-primary/[0.03] py-7 text-primary transition-colors hover:bg-primary/[0.06]">
             <Plus className="h-6 w-6" />
             <span className="text-sm font-semibold">
-              {files.length > 0 ? `${files.length} archivo(s) seleccionado(s)` : 'Elegí imágenes, un .zip o un CSV de mapeo'}
+              {files.length > 0
+                ? `${files.length} archivo(s) seleccionado(s)`
+                : 'Elegí imágenes, un .zip o un CSV de mapeo'}
             </span>
             <input
               type="file"
@@ -535,7 +660,13 @@ function ImagesTab() {
           </label>
 
           <Button className="mt-4" disabled={files.length === 0 || submitting} onClick={start}>
-            {submitting ? 'Subiendo…' : <span className="inline-flex items-center gap-1.5"><Upload className="h-4 w-4" /> Importar imágenes</span>}
+            {submitting ? (
+              'Subiendo…'
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Upload className="h-4 w-4" /> Importar imágenes
+              </span>
+            )}
           </Button>
         </>
       )}
@@ -546,8 +677,16 @@ function ImagesTab() {
             <span className="font-semibold text-fg">
               {job.status === 'queued' && 'En cola…'}
               {job.status === 'processing' && 'Subiendo imágenes…'}
-              {job.status === 'completed' && <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" /> Imágenes importadas</span>}
-              {job.status === 'failed' && <span className="inline-flex items-center gap-1.5"><X className="h-4 w-4" /> Falló</span>}
+              {job.status === 'completed' && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Check className="h-4 w-4" /> Imágenes importadas
+                </span>
+              )}
+              {job.status === 'failed' && (
+                <span className="inline-flex items-center gap-1.5">
+                  <X className="h-4 w-4" /> Falló
+                </span>
+              )}
             </span>
             <span className="text-fg-muted">
               {job.processed}/{job.totalFiles}

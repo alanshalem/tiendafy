@@ -35,13 +35,10 @@ export function useFlipList<T extends HTMLElement = HTMLElement>(orderKey: strin
       const dx = prev.left - rect.left;
       if (dy === 0 && dx === 0) return;
 
-      node.animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px)` },
-          { transform: 'translate(0, 0)' },
-        ],
-        { duration: 280, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
-      );
+      node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], {
+        duration: 280,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      });
     });
 
     prevRects.current = nextRects;

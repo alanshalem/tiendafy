@@ -20,9 +20,7 @@ function luminance(rgbRaw: string): number {
  */
 function presetHeader(t: ThemePreset['tokens']): { bg: string; textColor: string } {
   const dark = luminance(t.colorBg) < 0.5;
-  return dark
-    ? { bg: t.colorBgSubtle, textColor: t.colorFg }
-    : { bg: t.colorFg, textColor: t.colorBg };
+  return dark ? { bg: t.colorBgSubtle, textColor: t.colorFg } : { bg: t.colorFg, textColor: t.colorBg };
 }
 
 /** Convierte un preset (DSL compacto de la galería) al ThemeConfig actual. */
@@ -69,11 +67,12 @@ function PresetPreview({ preset }: { preset: ThemePreset }) {
       style={{ background: rgb(t.colorBg), aspectRatio: '4 / 3' }}
       aria-hidden="true"
     >
-      {preset.announcement && (
-        <div style={{ background: rgb(t.colorPrimary), height: '7%' }} />
-      )}
+      {preset.announcement && <div style={{ background: rgb(t.colorPrimary), height: '7%' }} />}
       {/* header (refleja la barra real: bg + texto contrastado) */}
-      <div className="flex items-center justify-between px-3" style={{ height: '12%', background: rgb(hdr.bg) }}>
+      <div
+        className="flex items-center justify-between px-3"
+        style={{ height: '12%', background: rgb(hdr.bg) }}
+      >
         <div className="h-1.5 w-12 rounded-full" style={{ background: rgb(hdr.textColor) }} />
         <div className="flex gap-1.5">
           <div className="h-1 w-6 rounded-full opacity-60" style={{ background: rgb(hdr.textColor) }} />
@@ -157,12 +156,14 @@ export function ThemeGalleryPage() {
         <div>
           <h1 className="text-xl font-semibold">Diseños para tu tienda</h1>
           <p className="mt-0.5 max-w-xl text-sm text-fg-muted">
-            Elegí un punto de partida y ajustalo en el editor: colores, secciones
-            y textos quedan a tu nombre. El diseño se aplica al borrador — tu
-            tienda no cambia hasta que publiques.
+            Elegí un punto de partida y ajustalo en el editor: colores, secciones y textos quedan a tu nombre.
+            El diseño se aplica al borrador — tu tienda no cambia hasta que publiques.
           </p>
         </div>
-        <Link to="/canales/tienda-online" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline">
+        <Link
+          to="/canales/tienda-online"
+          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
+        >
           <ChevronLeft className="h-4 w-4" /> Volver al editor
         </Link>
       </div>

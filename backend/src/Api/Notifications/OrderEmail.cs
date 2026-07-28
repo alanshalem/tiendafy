@@ -61,14 +61,14 @@ public static class OrderEmail
     /// ejecutarse); solo `items` es HTML confiable (armado con Enc() adentro).</summary>
     public static IReadOnlyDictionary<string, string> OrderVars(
         Order o, string storeName, IReadOnlyDictionary<Guid, string>? imageByVariant = null) => new Dictionary<string, string>
-    {
-        ["store"] = Enc(storeName),
-        ["name"] = Enc(o.BuyerName),
-        ["order_id"] = Enc(o.Id.ToString()),
-        ["total"] = Enc(Money(o.Total)),
-        ["items"] = ItemsTable(o, imageByVariant),
-        ["email"] = Enc(o.BuyerEmail),
-    };
+        {
+            ["store"] = Enc(storeName),
+            ["name"] = Enc(o.BuyerName),
+            ["order_id"] = Enc(o.Id.ToString()),
+            ["total"] = Enc(Money(o.Total)),
+            ["items"] = ItemsTable(o, imageByVariant),
+            ["email"] = Enc(o.BuyerEmail),
+        };
 
     public static string Refund(Order o) =>
         $@"<h2 style='margin:0 0 12px;font-size:20px'>Tu compra fue reembolsada</h2>

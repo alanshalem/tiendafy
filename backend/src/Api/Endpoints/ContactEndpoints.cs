@@ -1,7 +1,7 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Api.Captcha;
 using Customers.Infrastructure;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 

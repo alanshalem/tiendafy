@@ -14,7 +14,13 @@ export default async function CheckoutPage({
   const { data, theme, preview } = resolved;
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={[]} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={[]}
+      live={preview}
+    >
       <CheckoutClient tenantId={data.tenant.id} />
     </StorefrontView>
   );

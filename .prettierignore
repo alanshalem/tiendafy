@@ -1,0 +1,16 @@
+# Artefactos y dependencias
+node_modules
+dist
+.next
+coverage
+bin
+obj
+pnpm-lock.yaml
+
+# Backend (lo formatea dotnet format, no Prettier)
+backend
+
+# Docs largos y data (formatearlos genera diffs sin valor)
+docs
+*.md
+infra/caddy/Caddyfile

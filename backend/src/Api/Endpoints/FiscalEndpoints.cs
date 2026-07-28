@@ -181,7 +181,12 @@ public static class FiscalEndpoints
             var r = result.Value;
             return Results.Ok(new
             {
-                r.DocumentId, r.Authorized, r.PtoVta, cbteTipo = r.CbteTipo, r.Number, r.Cae,
+                r.DocumentId,
+                r.Authorized,
+                r.PtoVta,
+                cbteTipo = r.CbteTipo,
+                r.Number,
+                r.Cae,
                 caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
                 observations = r.Observations.Select(o => new { o.Code, o.Message }),
                 errors = r.Errors.Select(e => new { e.Code, e.Message }),

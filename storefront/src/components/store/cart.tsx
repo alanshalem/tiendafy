@@ -68,7 +68,9 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
         setLines((prev) => {
           const existing = prev.find((l) => l.variantId === line.variantId);
           if (existing) {
-            return prev.map((l) => (l.variantId === line.variantId ? { ...l, quantity: l.quantity + qty } : l));
+            return prev.map((l) =>
+              l.variantId === line.variantId ? { ...l, quantity: l.quantity + qty } : l,
+            );
           }
           return [...prev, { ...line, quantity: qty }];
         }),
@@ -110,7 +112,9 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
 
   const [couponInput, setCouponInput] = useState('');
-  const [coupon, setCoupon] = useState<{ code: string; discount: number; freeShipping: boolean } | null>(null);
+  const [coupon, setCoupon] = useState<{ code: string; discount: number; freeShipping: boolean } | null>(
+    null,
+  );
   const [couponError, setCouponError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -120,7 +124,9 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
   // Cerrar con Escape (consistente con los otros modales del storefront).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
@@ -179,8 +185,14 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         {/* Handle del bottom sheet (solo mobile). */}
         <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-fg/20 sm:hidden" />
         <div className="flex items-center justify-between border-b border-black/10 px-5 py-3.5">
-          <h2 id="cart-drawer-title" className="text-lg font-bold">Tu carrito</h2>
-          <button onClick={() => setOpen(false)} aria-label="Cerrar" className="inline-flex leading-none opacity-60 hover:opacity-100">
+          <h2 id="cart-drawer-title" className="text-lg font-bold">
+            Tu carrito
+          </h2>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Cerrar"
+            className="inline-flex leading-none opacity-60 hover:opacity-100"
+          >
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -188,12 +200,18 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         {cart?.freeShippingBar && lines.length > 0 && (
           <div className="border-b border-black/10 px-5 py-3 text-xs">
             {remaining > 0 ? (
-              <span className="inline-flex items-center gap-1">Te faltan <strong>{formatPrice(remaining, currency)}</strong> para el envío gratis <Truck className="h-4 w-4" /></span>
+              <span className="inline-flex items-center gap-1">
+                Te faltan <strong>{formatPrice(remaining, currency)}</strong> para el envío gratis{' '}
+                <Truck className="h-4 w-4" />
+              </span>
             ) : (
               <span className="font-semibold text-green-600">¡Tenés envío gratis! 🎉</span>
             )}
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
         )}
@@ -211,37 +229,73 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                   {l.image ? (
                     <img src={l.image} alt="" className="h-16 w-16 rounded-md object-cover" />
                   ) : (
-                    <InitialFallback name={l.productName} className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold opacity-50" />
+                    <InitialFallback
+                      name={l.productName}
+                      className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold opacity-50"
+                    />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.productName}</div>
                     <div className="text-xs opacity-60">{l.variantLabel}</div>
                     <div className="mt-1 flex items-center gap-2">
-                      <button onClick={() => setQty(l.variantId, l.quantity - 1)} aria-label="Restar" className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"><Minus className="h-4 w-4" /></button>
+                      <button
+                        onClick={() => setQty(l.variantId, l.quantity - 1)}
+                        aria-label="Restar"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
                       <span className="w-6 text-center text-sm tabular-nums">{l.quantity}</span>
-                      <button onClick={() => setQty(l.variantId, l.quantity + 1)} aria-label="Sumar" className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"><Plus className="h-4 w-4" /></button>
-                      <button onClick={() => remove(l.variantId)} className="ml-auto text-xs text-red-600 hover:underline">Quitar</button>
+                      <button
+                        onClick={() => setQty(l.variantId, l.quantity + 1)}
+                        aria-label="Sumar"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => remove(l.variantId)}
+                        className="ml-auto text-xs text-red-600 hover:underline"
+                      >
+                        Quitar
+                      </button>
                     </div>
                   </div>
-                  <div className="text-sm font-semibold tabular-nums">{formatPrice(l.priceAmount * l.quantity, l.currency)}</div>
+                  <div className="text-sm font-semibold tabular-nums">
+                    {formatPrice(l.priceAmount * l.quantity, l.currency)}
+                  </div>
                 </div>
               ))}
             </div>
             <div className="border-t border-black/10 px-5 py-4">
               {suggested.length > 0 && (
                 <div className="mb-4">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">También te puede gustar</div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">
+                    También te puede gustar
+                  </div>
                   <div className="flex gap-2 overflow-x-auto">
                     {suggested.map((s) => (
                       <button
                         key={s.variantId}
-                        onClick={() => add({ variantId: s.variantId, productName: s.name, variantLabel: s.variantLabel, priceAmount: s.priceAmount, currency: s.currency, image: s.image })}
+                        onClick={() =>
+                          add({
+                            variantId: s.variantId,
+                            productName: s.name,
+                            variantLabel: s.variantLabel,
+                            priceAmount: s.priceAmount,
+                            currency: s.currency,
+                            image: s.image,
+                          })
+                        }
                         className="w-20 shrink-0 text-left"
                       >
                         {s.image ? (
                           <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
                         ) : (
-                          <InitialFallback name={s.name} className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold opacity-40" />
+                          <InitialFallback
+                            name={s.name}
+                            className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold opacity-40"
+                          />
                         )}
                         <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
                       </button>
@@ -254,12 +308,28 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                 {coupon ? (
                   <div className="flex items-center justify-between rounded-md bg-black/5 px-3 py-2 text-sm">
                     <span className="inline-flex items-center gap-1.5 font-medium text-green-600">
-                      <Tag className="h-4 w-4" /> {coupon.code}{coupon.freeShipping ? ' · envío gratis' : ''}
+                      <Tag className="h-4 w-4" /> {coupon.code}
+                      {coupon.freeShipping ? ' · envío gratis' : ''}
                     </span>
-                    <button onClick={() => { setCoupon(null); setCouponInput(''); setCouponError(null); }} className="text-xs text-red-600 hover:underline">Quitar</button>
+                    <button
+                      onClick={() => {
+                        setCoupon(null);
+                        setCouponInput('');
+                        setCouponError(null);
+                      }}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      Quitar
+                    </button>
                   </div>
                 ) : (
-                  <form onSubmit={(e) => { e.preventDefault(); validateCoupon(couponInput); }} className="flex gap-2">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      validateCoupon(couponInput);
+                    }}
+                    className="flex gap-2"
+                  >
                     <input
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
@@ -267,7 +337,11 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                       aria-label="Cupón de descuento"
                       className="h-9 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
                     />
-                    <button type="submit" disabled={checking || !couponInput.trim()} className="h-9 shrink-0 rounded-md border border-black/20 px-3 text-sm font-semibold disabled:opacity-50">
+                    <button
+                      type="submit"
+                      disabled={checking || !couponInput.trim()}
+                      className="h-9 shrink-0 rounded-md border border-black/20 px-3 text-sm font-semibold disabled:opacity-50"
+                    >
                       {checking ? '…' : 'Aplicar'}
                     </button>
                   </form>
@@ -289,7 +363,9 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                 <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>
               )}
               <button
-                onClick={() => { window.location.href = '/checkout'; }}
+                onClick={() => {
+                  window.location.href = '/checkout';
+                }}
                 className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg"
               >
                 {cart?.checkoutButtonText || 'Iniciar compra'}

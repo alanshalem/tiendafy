@@ -1,7 +1,7 @@
-using Identity.Infrastructure;
 using Api.Auth;
 using Content.Infrastructure;
 using Ganss.Xss;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
@@ -96,7 +96,13 @@ public static class PagesEndpoints
 
     private static object ToDto(Page p) => new
     {
-        p.Id, p.Title, p.Slug, p.Body, p.Published, p.CreatedAtUtc, p.UpdatedAtUtc,
+        p.Id,
+        p.Title,
+        p.Slug,
+        p.Body,
+        p.Published,
+        p.CreatedAtUtc,
+        p.UpdatedAtUtc,
     };
 }
 

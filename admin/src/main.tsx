@@ -34,17 +34,17 @@ createRoot(document.getElementById('root')!).render(
       <ToastProvider>
         <ConfirmProvider>
           <PromptProvider>
-          <AuthProvider>
-            <AuthGate>
-              <StoreProvider>
-                <PermissionsProvider>
-                  <BrowserRouter>
-                    <App />
-                  </BrowserRouter>
-                </PermissionsProvider>
-              </StoreProvider>
-            </AuthGate>
-          </AuthProvider>
+            <AuthProvider>
+              <AuthGate>
+                <StoreProvider>
+                  <PermissionsProvider>
+                    <BrowserRouter>
+                      <App />
+                    </BrowserRouter>
+                  </PermissionsProvider>
+                </StoreProvider>
+              </AuthGate>
+            </AuthProvider>
           </PromptProvider>
         </ConfirmProvider>
       </ToastProvider>

@@ -71,7 +71,15 @@ interface FilterPanelProps {
   setDraft: (f: ProductFilters) => void;
 }
 
-export function FilterPanel({ open, onClose, categories, onApply, onClear, draft, setDraft }: FilterPanelProps) {
+export function FilterPanel({
+  open,
+  onClose,
+  categories,
+  onApply,
+  onClear,
+  draft,
+  setDraft,
+}: FilterPanelProps) {
   return (
     <>
       <div

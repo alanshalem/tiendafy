@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Copy, ExternalLink, GripVertical, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  GripVertical,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
@@ -121,7 +130,7 @@ export function CategoriesPage() {
       return;
     }
     const scope = scopeOf(target);
-    const siblings = (scope === 'root' ? tree : findNode(tree, scope)?.children ?? []).map((n) => n.id);
+    const siblings = (scope === 'root' ? tree : (findNode(tree, scope)?.children ?? [])).map((n) => n.id);
     const from = siblings.indexOf(dragId);
     const to = siblings.indexOf(target.id);
     const reordered = [...siblings];
@@ -142,17 +151,29 @@ export function CategoriesPage() {
 
   const renameMut = useMutation({
     mutationFn: (p: { id: string; name: string }) => api.put(`/api/v1/categories/${p.id}`, { name: p.name }),
-    onSuccess: () => { refresh(); setRenaming(null); toast('Categoría renombrada', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'No se pudo renombrar', { variant: 'error' }),
+    onSuccess: () => {
+      refresh();
+      setRenaming(null);
+      toast('Categoría renombrada', { variant: 'success' });
+    },
+    onError: (e) =>
+      toast(e instanceof ApiRequestError ? e.message : 'No se pudo renombrar', { variant: 'error' }),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/categories/${id}`),
-    onSuccess: () => { refresh(); toast('Categoría eliminada', { variant: 'success' }); },
-    onError: (e) => toast(e instanceof ApiRequestError ? e.message : 'No se pudo eliminar', { variant: 'error' }),
+    onSuccess: () => {
+      refresh();
+      toast('Categoría eliminada', { variant: 'success' });
+    },
+    onError: (e) =>
+      toast(e instanceof ApiRequestError ? e.message : 'No se pudo eliminar', { variant: 'error' }),
   });
 
-  const onAddSub = (node: TreeNode) => { setCreateParentId(node.id); setCreateOpen(true); };
+  const onAddSub = (node: TreeNode) => {
+    setCreateParentId(node.id);
+    setCreateOpen(true);
+  };
   const onView = (node: TreeNode) =>
     window.open(`http://${store?.subdomain}.localhost:3000/productos?category=${node.id}`, '_blank');
   const onDelete = async (node: TreeNode) => {
@@ -171,9 +192,7 @@ export function CategoriesPage() {
     setDirty(false);
   };
 
-  const listRef = useFlipList<HTMLDivElement>(
-    JSON.stringify(order) + '|' + [...collapsed].sort().join(','),
-  );
+  const listRef = useFlipList<HTMLDivElement>(JSON.stringify(order) + '|' + [...collapsed].sort().join(','));
 
   if (!store) {
     return <NoStoreSelected />;
@@ -187,11 +206,15 @@ export function CategoriesPage() {
         <div>
           <h1 className="text-2xl font-bold text-fg">Categorías</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
-            Para organizar tus productos, creá categorías y subcategorías que aparecerán en el menú de la tienda.
-            Arrastrá <GripVertical className="inline h-3.5 w-3.5 text-fg" /> para reordenar.
+            Para organizar tus productos, creá categorías y subcategorías que aparecerán en el menú de la
+            tienda. Arrastrá <GripVertical className="inline h-3.5 w-3.5 text-fg" /> para reordenar.
           </p>
         </div>
-        {!isEmpty && <Button onClick={() => setCreateOpen(true)} className="shrink-0 whitespace-nowrap">Crear categoría</Button>}
+        {!isEmpty && (
+          <Button onClick={() => setCreateOpen(true)} className="shrink-0 whitespace-nowrap">
+            Crear categoría
+          </Button>
+        )}
       </div>
 
       {isEmpty ? (
@@ -224,7 +247,9 @@ export function CategoriesPage() {
         </div>
       )}
 
-      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">Más sobre crear y organizar categorías <ExternalLink className="h-3.5 w-3.5" /></p>
+      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">
+        Más sobre crear y organizar categorías <ExternalLink className="h-3.5 w-3.5" />
+      </p>
 
       {/* Barra de cambios sin guardar */}
       {dirty && (
@@ -243,7 +268,10 @@ export function CategoriesPage() {
 
       <CreateCategoryModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); setCreateParentId(null); }}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateParentId(null);
+        }}
         storeId={store.id}
         categories={categories}
         presetParentId={createParentId}
@@ -261,7 +289,17 @@ export function CategoriesPage() {
   );
 }
 
-function RenameCategoryModal({ category, onClose, onSave, saving }: { category: CategoryDto; onClose: () => void; onSave: (name: string) => void; saving: boolean }) {
+function RenameCategoryModal({
+  category,
+  onClose,
+  onSave,
+  saving,
+}: {
+  category: CategoryDto;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  saving: boolean;
+}) {
   const [name, setName] = useState(category.name);
   return (
     <Modal
@@ -270,8 +308,12 @@ function RenameCategoryModal({ category, onClose, onSave, saving }: { category: 
       title="Editar nombre"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button loading={saving} disabled={!name.trim()} onClick={() => onSave(name.trim())}>Guardar</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button loading={saving} disabled={!name.trim()} onClick={() => onSave(name.trim())}>
+            Guardar
+          </Button>
         </>
       }
     >
@@ -305,7 +347,18 @@ interface RowHandlers {
 }
 
 function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
-  const { collapsed, onToggle, dragId, onDragStart, onDrop, onDuplicate, onEdit, onAddSub, onView, onDelete } = h;
+  const {
+    collapsed,
+    onToggle,
+    dragId,
+    onDragStart,
+    onDrop,
+    onDuplicate,
+    onEdit,
+    onAddSub,
+    onView,
+    onDelete,
+  } = h;
   const [over, setOver] = useState(false);
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.id);
@@ -333,7 +386,10 @@ function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
         )}
         style={{ paddingLeft: `${0.75 + (node.depth - 1) * 1.75}rem` }}
       >
-        <span className="cursor-grab select-none text-fg-subtle active:cursor-grabbing" title="Arrastrar para reordenar">
+        <span
+          className="cursor-grab select-none text-fg-subtle active:cursor-grabbing"
+          title="Arrastrar para reordenar"
+        >
           <GripVertical className="h-4 w-4" />
         </span>
 
@@ -362,23 +418,32 @@ function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
           <Copy className="h-4 w-4" />
         </button>
         <Dropdown>
-          <Dropdown.Trigger bare className="h-7 w-7 justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted">
+          <Dropdown.Trigger
+            bare
+            className="h-7 w-7 justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted"
+          >
             <MoreVertical className="h-4 w-4" />
           </Dropdown.Trigger>
           <Dropdown.Menu align="end">
-            <Dropdown.Item onSelect={() => onEdit(node)}><Pencil className="mr-2 inline h-4 w-4" /> Editar nombre</Dropdown.Item>
-            <Dropdown.Item onSelect={() => onAddSub(node)}><Plus className="mr-2 inline h-4 w-4" /> Agregar subcategoría</Dropdown.Item>
-            <Dropdown.Item onSelect={() => onView(node)}><ExternalLink className="mr-2 inline h-4 w-4" /> Ver en la tienda</Dropdown.Item>
-            <Dropdown.Item onSelect={() => onDelete(node)}><Trash2 className="mr-2 inline h-4 w-4 text-danger" /> Eliminar</Dropdown.Item>
+            <Dropdown.Item onSelect={() => onEdit(node)}>
+              <Pencil className="mr-2 inline h-4 w-4" /> Editar nombre
+            </Dropdown.Item>
+            <Dropdown.Item onSelect={() => onAddSub(node)}>
+              <Plus className="mr-2 inline h-4 w-4" /> Agregar subcategoría
+            </Dropdown.Item>
+            <Dropdown.Item onSelect={() => onView(node)}>
+              <ExternalLink className="mr-2 inline h-4 w-4" /> Ver en la tienda
+            </Dropdown.Item>
+            <Dropdown.Item onSelect={() => onDelete(node)}>
+              <Trash2 className="mr-2 inline h-4 w-4 text-danger" /> Eliminar
+            </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
       </div>
 
       {hasChildren &&
         !isCollapsed &&
-        node.children.map((child) => (
-          <CategoryRow key={child.id} node={child} {...h} />
-        ))}
+        node.children.map((child) => <CategoryRow key={child.id} node={child} {...h} />)}
     </>
   );
 }

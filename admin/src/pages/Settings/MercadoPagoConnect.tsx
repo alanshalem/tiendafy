@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  BadgeCheck,
-  ChevronDown,
-  Link2,
-  Loader2,
-  Lock,
-  ShieldCheck,
-  Unplug,
-  Zap,
-} from 'lucide-react';
+import { BadgeCheck, ChevronDown, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -76,7 +67,9 @@ export function MercadoPagoConnect() {
       const { authUrl } = await api.post<{ authUrl: string }>('/api/v1/payments/mercadopago/connect', {});
       window.location.href = authUrl;
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'No se pudo iniciar la conexión.', { variant: 'error' });
+      toast(err instanceof ApiRequestError ? err.message : 'No se pudo iniciar la conexión.', {
+        variant: 'error',
+      });
       setBusy(false);
     }
   };
@@ -128,9 +121,13 @@ export function MercadoPagoConnect() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-base font-bold text-fg">Mercado Pago</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Recomendado</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              Recomendado
+            </span>
           </div>
-          <p className="text-xs text-fg-muted">Cobrá con tarjeta, dinero en cuenta, Rapipago y más. La plata va directo a tu cuenta.</p>
+          <p className="text-xs text-fg-muted">
+            Cobrá con tarjeta, dinero en cuenta, Rapipago y más. La plata va directo a tu cuenta.
+          </p>
         </div>
         {conn?.connected && (
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
@@ -173,11 +170,21 @@ function ReadOnlyNote() {
   );
 }
 
-function DisconnectedView({ busy, readOnly, onConnect }: { busy: boolean; readOnly: boolean; onConnect: () => void }) {
+function DisconnectedView({
+  busy,
+  readOnly,
+  onConnect,
+}: {
+  busy: boolean;
+  readOnly: boolean;
+  onConnect: () => void;
+}) {
   return (
     <div>
       <ul className="mb-4 space-y-2 text-sm text-fg">
-        <Bullet>Conectás <strong>tu propia cuenta</strong> — Tiendafy nunca toca tu plata.</Bullet>
+        <Bullet>
+          Conectás <strong>tu propia cuenta</strong> — Tiendafy nunca toca tu plata.
+        </Bullet>
         <Bullet>Aceptás todos los medios de pago que ya tengas habilitados en Mercado Pago.</Bullet>
         <Bullet>Cada venta se concilia sola: el estado del pago actualiza el pedido automáticamente.</Bullet>
       </ul>
@@ -185,26 +192,36 @@ function DisconnectedView({ busy, readOnly, onConnect }: { busy: boolean; readOn
       {readOnly ? (
         <ReadOnlyNote />
       ) : (
-        <Button onClick={onConnect} disabled={busy} className="w-full sm:w-auto" style={{ background: MP_BLUE }}>
+        <Button
+          onClick={onConnect}
+          disabled={busy}
+          className="w-full sm:w-auto"
+          style={{ background: MP_BLUE }}
+        >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
           Conectá tu cuenta de Mercado Pago
         </Button>
       )}
 
       <Helper title="¿Cómo funciona?">
-        Te llevamos a Mercado Pago para que autorices a Tiendafy a cobrar <em>en tu nombre</em>. Volvés acá ya conectado.
-        Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña.
+        Te llevamos a Mercado Pago para que autorices a Tiendafy a cobrar <em>en tu nombre</em>. Volvés acá ya
+        conectado. Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña.
       </Helper>
 
       <Helper title="¿Cómo lo pruebo sin riesgo?">
         Mercado Pago no tiene un “sandbox” aparte: se prueba con <strong>cuentas de prueba</strong>.
         <ol className="ml-4 mt-1 list-decimal space-y-0.5">
-          <li>Creá un usuario de prueba <em>vendedor</em> y uno <em>comprador</em> en tu panel de Mercado Pago.</li>
+          <li>
+            Creá un usuario de prueba <em>vendedor</em> y uno <em>comprador</em> en tu panel de Mercado Pago.
+          </li>
           <li>Conectá el vendedor con el botón de arriba.</li>
-          <li>Pagá con las <strong>tarjetas de prueba</strong> (titular <code>APRO</code> aprueba, <code>OTHE</code> rechaza).</li>
+          <li>
+            Pagá con las <strong>tarjetas de prueba</strong> (titular <code>APRO</code> aprueba,{' '}
+            <code>OTHE</code> rechaza).
+          </li>
         </ol>
-        Para que el callback OAuth y los webhooks lleguen a tu máquina, exponé la API con un túnel
-        (<code>cloudflared</code> o <code>ngrok</code>) y registrá esa URL pública en tu app de Mercado Pago.
+        Para que el callback OAuth y los webhooks lleguen a tu máquina, exponé la API con un túnel (
+        <code>cloudflared</code> o <code>ngrok</code>) y registrá esa URL pública en tu app de Mercado Pago.
       </Helper>
     </div>
   );
@@ -234,7 +251,9 @@ function ConnectedView({
       {readOnly && <ReadOnlyNote />}
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-        <span className="text-fg-muted">Cuenta MP <strong className="text-fg tabular-nums">#{conn.userId}</strong></span>
+        <span className="text-fg-muted">
+          Cuenta MP <strong className="text-fg tabular-nums">#{conn.userId}</strong>
+        </span>
         {conn.connectedAtUtc && (
           <span className="text-fg-muted">
             Conectada el {new Date(conn.connectedAtUtc).toLocaleDateString('es-AR')}
@@ -306,13 +325,17 @@ function ConnectedView({
                 </tr>
                 <tr>
                   <td className="font-medium text-fg-muted">Datos de tarjeta</td>
-                  <td colSpan={2}>En ambos casos los procesa Mercado Pago: nunca tocan los servidores de tu tienda (PCI a cargo de MP)</td>
+                  <td colSpan={2}>
+                    En ambos casos los procesa Mercado Pago: nunca tocan los servidores de tu tienda (PCI a
+                    cargo de MP)
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p className="mt-2">
-            Podés cambiar de modo cuando quieras: aplica al instante para las compras nuevas, sin tocar nada más.
+            Podés cambiar de modo cuando quieras: aplica al instante para las compras nuevas, sin tocar nada
+            más.
           </p>
         </Helper>
       </div>
@@ -329,14 +352,25 @@ function ConnectedView({
             placeholder="MI MARCA"
             className="h-10 w-full max-w-xs rounded-md border border-border-strong bg-surface px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-bg-muted disabled:opacity-70"
           />
-          {!readOnly && <Button variant="secondary" onClick={onSaveDescriptor}>Guardar</Button>}
+          {!readOnly && (
+            <Button variant="secondary" onClick={onSaveDescriptor}>
+              Guardar
+            </Button>
+          )}
         </div>
-        <p className="mt-1 text-xs text-fg-muted">Hasta 22 caracteres. Es lo que ve el comprador en el resumen de su tarjeta.</p>
+        <p className="mt-1 text-xs text-fg-muted">
+          Hasta 22 caracteres. Es lo que ve el comprador en el resumen de su tarjeta.
+        </p>
       </div>
 
       {!readOnly && (
         <div className="border-t border-border pt-4">
-          <Button variant="ghost" onClick={onDisconnect} disabled={busy} className="text-danger hover:bg-danger/10">
+          <Button
+            variant="ghost"
+            onClick={onDisconnect}
+            disabled={busy}
+            className="text-danger hover:bg-danger/10"
+          >
             <Unplug className="h-4 w-4" /> Desconectar cuenta
           </Button>
         </div>
@@ -371,17 +405,26 @@ function ModeCard({
       onClick={onClick}
       className={cn(
         'rounded-lg border p-3 text-left transition',
-        active ? 'border-primary bg-primary/[0.04] ring-1 ring-primary' : 'border-border hover:border-border-strong',
+        active
+          ? 'border-primary bg-primary/[0.04] ring-1 ring-primary'
+          : 'border-border hover:border-border-strong',
         disabled && 'cursor-default',
         disabled && !active && 'opacity-60 hover:border-border',
       )}
     >
       <div className="flex items-center gap-2">
-        <span className={cn('flex h-7 w-7 items-center justify-center rounded-md', active ? 'bg-primary text-primary-fg' : 'bg-bg-muted text-fg-muted')}>
+        <span
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-md',
+            active ? 'bg-primary text-primary-fg' : 'bg-bg-muted text-fg-muted',
+          )}
+        >
           {icon}
         </span>
         <span className="font-semibold text-fg">{title}</span>
-        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">{tag}</span>
+        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+          {tag}
+        </span>
       </div>
       <p className="mt-2 text-xs text-fg-muted">{desc}</p>
       {preview && <div className="mt-3">{preview}</div>}
@@ -396,16 +439,26 @@ function PreviewPro() {
       <div className="flex items-center gap-1.5 border-b border-border bg-bg-muted px-2 py-1">
         <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
         <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
-        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">mercadopago.com.ar</span>
+        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">
+          mercadopago.com.ar
+        </span>
       </div>
       <div className="space-y-1.5 p-2.5">
         <div className="flex items-center gap-1.5">
-          <span className="flex h-4 w-4 items-center justify-center rounded-sm text-[7px] font-black text-white" style={{ background: MP_BLUE }}>MP</span>
+          <span
+            className="flex h-4 w-4 items-center justify-center rounded-sm text-[7px] font-black text-white"
+            style={{ background: MP_BLUE }}
+          >
+            MP
+          </span>
           <div className="h-1.5 w-16 rounded bg-border" />
         </div>
         <div className="h-1.5 w-24 rounded bg-border/70" />
         <div className="h-1.5 w-20 rounded bg-border/70" />
-        <div className="mt-1 flex h-5 w-full items-center justify-center rounded text-[9px] font-semibold text-white" style={{ background: MP_BLUE }}>
+        <div
+          className="mt-1 flex h-5 w-full items-center justify-center rounded text-[9px] font-semibold text-white"
+          style={{ background: MP_BLUE }}
+        >
           Pagar
         </div>
       </div>
@@ -420,7 +473,9 @@ function PreviewApi() {
       <div className="flex items-center gap-1.5 border-b border-border bg-bg-muted px-2 py-1">
         <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
         <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
-        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">mitienda.com.ar/checkout</span>
+        <span className="rounded-sm bg-surface px-1.5 py-px text-[9px] text-fg-muted">
+          mitienda.com.ar/checkout
+        </span>
       </div>
       <div className="space-y-1.5 p-2.5">
         <div className="h-1.5 w-16 rounded bg-primary/50" />
@@ -428,8 +483,12 @@ function PreviewApi() {
           •••• •••• •••• 4242
         </div>
         <div className="flex gap-1.5">
-          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">MM/AA</div>
-          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">CVV</div>
+          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">
+            MM/AA
+          </div>
+          <div className="flex h-5 flex-1 items-center rounded border border-border-strong bg-surface px-1.5 text-[9px] text-fg-muted">
+            CVV
+          </div>
         </div>
         <div className="mt-1 flex h-5 w-full items-center justify-center rounded bg-primary text-[9px] font-semibold text-primary-fg">
           Pagar en tu tienda
@@ -464,4 +523,3 @@ function Helper({ title, children }: { title: string; children: ReactNode }) {
     </div>
   );
 }
-

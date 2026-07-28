@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Calendar, ChevronDown, Clock } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 
@@ -18,15 +18,31 @@ const iso = (d: Date) => {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
 
 const PRESETS: { label: string; range: () => { from: string; to: string } }[] = [
   { label: 'Hoy', range: () => ({ from: iso(new Date()), to: iso(new Date()) }) },
   { label: 'Últimos 7 días', range: () => ({ from: iso(daysAgo(6)), to: iso(new Date()) }) },
   { label: 'Últimos 30 días', range: () => ({ from: iso(daysAgo(29)), to: iso(new Date()) }) },
   { label: 'Últimos 90 días', range: () => ({ from: iso(daysAgo(89)), to: iso(new Date()) }) },
-  { label: 'Este mes', range: () => { const d = new Date(); return { from: iso(new Date(d.getFullYear(), d.getMonth(), 1)), to: iso(d) }; } },
-  { label: 'Este año', range: () => { const d = new Date(); return { from: iso(new Date(d.getFullYear(), 0, 1)), to: iso(d) }; } },
+  {
+    label: 'Este mes',
+    range: () => {
+      const d = new Date();
+      return { from: iso(new Date(d.getFullYear(), d.getMonth(), 1)), to: iso(d) };
+    },
+  },
+  {
+    label: 'Este año',
+    range: () => {
+      const d = new Date();
+      return { from: iso(new Date(d.getFullYear(), 0, 1)), to: iso(d) };
+    },
+  },
 ];
 
 export function defaultStatsRange(preset = 'Últimos 30 días'): StatsRange {
@@ -42,14 +58,28 @@ export function rangeQuery(r: StatsRange): string {
 /** Texto legible del período elegido (para el subtítulo de la página). */
 export function rangeLabel(r: StatsRange): string {
   if (r.preset !== 'Personalizado') return r.preset.toLowerCase();
-  const f = (s: string) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const f = (s: string) => {
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}/${y}`;
+  };
   return `del ${f(r.from)} al ${f(r.to)}`;
 }
 
 /** Barra de filtros de estadísticas: presets + rango personalizado, controlada. */
-export function StatsToolbar({ value, onChange, updatedAt }: { value: StatsRange; onChange: (r: StatsRange) => void; updatedAt?: string }) {
+export function StatsToolbar({
+  value,
+  onChange,
+  updatedAt,
+}: {
+  value: StatsRange;
+  onChange: (r: StatsRange) => void;
+  updatedAt?: string;
+}) {
   const setPreset = (label: string) => {
-    if (label === 'Personalizado') { onChange({ ...value, preset: 'Personalizado' }); return; }
+    if (label === 'Personalizado') {
+      onChange({ ...value, preset: 'Personalizado' });
+      return;
+    }
     const p = PRESETS.find((x) => x.label === label);
     if (p) onChange({ preset: label, ...p.range() });
   };
@@ -119,7 +149,9 @@ function Select({
 }) {
   return (
     <span className="relative inline-flex items-center">
-      {icon && <span className="pointer-events-none absolute left-2.5 flex items-center text-fg-muted">{icon}</span>}
+      {icon && (
+        <span className="pointer-events-none absolute left-2.5 flex items-center text-fg-muted">{icon}</span>
+      )}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}

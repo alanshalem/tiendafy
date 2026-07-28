@@ -12,7 +12,11 @@ interface Conversation {
   unreadForStaff: number;
   lastMessageAtUtc: string;
 }
-interface Attachment { name: string; contentType: string; url: string }
+interface Attachment {
+  name: string;
+  contentType: string;
+  url: string;
+}
 interface Message {
   id: string;
   isFromStaff: boolean;
@@ -108,7 +112,9 @@ export function SupportChatPage() {
       setText('');
       await loadMessages(selected);
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo adjuntar (solo PDF/JPG/PNG, máx 10 MB).', { variant: 'error' });
+      toast(e instanceof Error ? e.message : 'No se pudo adjuntar (solo PDF/JPG/PNG, máx 10 MB).', {
+        variant: 'error',
+      });
     } finally {
       setSending(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -132,7 +138,10 @@ export function SupportChatPage() {
     <div className="mx-auto max-w-6xl px-6 py-6">
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
-        <button onClick={loadConvs} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted">
+        <button
+          onClick={loadConvs}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
+        >
           <RefreshCw className="h-4 w-4" /> Actualizar
         </button>
       </div>
@@ -141,7 +150,9 @@ export function SupportChatPage() {
         {/* Bandeja */}
         <div className={cn('overflow-y-auto border-border md:border-r', selected && 'hidden md:block')}>
           {loading ? (
-            <div className="flex items-center gap-2 p-4 text-sm text-fg-muted"><Loader2 className="h-4 w-4 animate-spin" /> Cargando…</div>
+            <div className="flex items-center gap-2 p-4 text-sm text-fg-muted">
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+            </div>
           ) : convs.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg-muted">
               <MessageCircle className="h-8 w-8 opacity-50" />
@@ -161,10 +172,20 @@ export function SupportChatPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-fg">{c.customerEmail}</span>
-                    {c.status === 'CLOSED' && <span className="rounded-full bg-bg-muted px-1.5 py-px text-[10px] text-fg-muted">Cerrada</span>}
+                    {c.status === 'CLOSED' && (
+                      <span className="rounded-full bg-bg-muted px-1.5 py-px text-[10px] text-fg-muted">
+                        Cerrada
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-fg-muted">
-                    Pedido #{c.orderId.slice(0, 8)} · {new Date(c.lastMessageAtUtc).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    Pedido #{c.orderId.slice(0, 8)} ·{' '}
+                    {new Date(c.lastMessageAtUtc).toLocaleDateString('es-AR', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
@@ -188,12 +209,20 @@ export function SupportChatPage() {
             <>
               <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
                 <div className="min-w-0">
-                  <button onClick={() => setSelected(null)} className="mr-2 text-xs text-fg-muted underline md:hidden">← Volver</button>
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="mr-2 text-xs text-fg-muted underline md:hidden"
+                  >
+                    ← Volver
+                  </button>
                   <span className="text-sm font-semibold text-fg">{current.customerEmail}</span>
                   <span className="ml-2 text-xs text-fg-muted">Pedido #{current.orderId.slice(0, 8)}</span>
                 </div>
                 {current.status === 'OPEN' && (
-                  <button onClick={close} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted">
+                  <button
+                    onClick={close}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted"
+                  >
                     <Archive className="h-3.5 w-3.5" /> Cerrar
                   </button>
                 )}
@@ -202,21 +231,45 @@ export function SupportChatPage() {
               <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
                 {messages.map((m) => (
                   <div key={m.id} className={cn('flex', m.isFromStaff ? 'justify-end' : 'justify-start')}>
-                    <div className={cn('max-w-[75%] rounded-2xl px-3.5 py-2 text-sm', m.isFromStaff ? 'bg-primary text-primary-fg' : 'bg-bg-muted text-fg')}>
+                    <div
+                      className={cn(
+                        'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
+                        m.isFromStaff ? 'bg-primary text-primary-fg' : 'bg-bg-muted text-fg',
+                      )}
+                    >
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-                      {m.attachment && (
-                        m.attachment.contentType.startsWith('image/') ? (
-                          <a href={m.attachment.url} target="_blank" rel="noopener noreferrer" className="mt-1 block">
-                            <img src={m.attachment.url} alt={m.attachment.name} className="max-h-48 rounded-lg" />
+                      {m.attachment &&
+                        (m.attachment.contentType.startsWith('image/') ? (
+                          <a
+                            href={m.attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 block"
+                          >
+                            <img
+                              src={m.attachment.url}
+                              alt={m.attachment.name}
+                              className="max-h-48 rounded-lg"
+                            />
                           </a>
                         ) : (
-                          <a href={m.attachment.url} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1.5 text-xs underline">
+                          <a
+                            href={m.attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 flex items-center gap-1.5 text-xs underline"
+                          >
                             <Paperclip className="h-3.5 w-3.5" /> {m.attachment.name}
                           </a>
-                        )
-                      )}
+                        ))}
                       <p className="mt-1 text-[10px] opacity-60">
-                        {m.authorName} · {new Date(m.createdAtUtc).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {m.authorName} ·{' '}
+                        {new Date(m.createdAtUtc).toLocaleString('es-AR', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
                     </div>
                   </div>
@@ -230,19 +283,37 @@ export function SupportChatPage() {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) sendFile(f); }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) sendFile(f);
+                  }}
                 />
-                <button onClick={() => fileRef.current?.click()} disabled={sending} className="rounded-md p-2 text-fg-muted hover:bg-bg-muted disabled:opacity-40" aria-label="Adjuntar">
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={sending}
+                  className="rounded-md p-2 text-fg-muted hover:bg-bg-muted disabled:opacity-40"
+                  aria-label="Adjuntar"
+                >
                   <Paperclip className="h-5 w-5" />
                 </button>
                 <input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
                   placeholder="Respondé al cliente…"
                   className="h-10 flex-1 rounded-full border border-border-strong bg-surface px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <button onClick={send} disabled={!text.trim() || sending} className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40" aria-label="Enviar">
+                <button
+                  onClick={send}
+                  disabled={!text.trim() || sending}
+                  className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40"
+                  aria-label="Enviar"
+                >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </div>

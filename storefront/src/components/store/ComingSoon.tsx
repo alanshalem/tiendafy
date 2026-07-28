@@ -7,7 +7,11 @@ export function ComingSoon({ theme, tenantName }: { theme: ThemeConfig; tenantNa
   return (
     <main
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
-      style={{ background: `rgb(${theme.colors.bg})`, color: `rgb(${theme.colors.text})`, fontFamily: 'var(--font-body)' }}
+      style={{
+        background: `rgb(${theme.colors.bg})`,
+        color: `rgb(${theme.colors.text})`,
+        fontFamily: 'var(--font-body)',
+      }}
     >
       {/* Halo de color de marca */}
       <div
@@ -28,13 +32,18 @@ export function ComingSoon({ theme, tenantName }: { theme: ThemeConfig; tenantNa
           style={{ background: `rgb(${theme.colors.primary} / 0.12)`, color: primary }}
         >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: primary }} />
+            <span
+              className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+              style={{ background: primary }}
+            />
             <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: primary }} />
           </span>
           Próximamente
         </div>
 
-        <h1 className="text-3xl font-bold sm:text-4xl" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl" style={{ fontFamily: 'var(--font-heading)' }}>
+          {title}
+        </h1>
         {message && <p className="mt-4 text-base opacity-70">{message}</p>}
       </div>
     </main>

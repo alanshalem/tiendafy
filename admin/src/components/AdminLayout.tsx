@@ -13,7 +13,15 @@ function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
-      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">
+      <text
+        x="32"
+        y="45"
+        textAnchor="middle"
+        fontFamily="-apple-system, system-ui, sans-serif"
+        fontWeight="700"
+        fontSize="38"
+        fill="#fff"
+      >
         t
       </text>
     </svg>
@@ -104,9 +112,7 @@ const sections: NavSection[] = [
   },
   {
     heading: 'Plataforma',
-    items: [
-      { to: '/tenants', label: 'Mis tiendas' },
-    ],
+    items: [{ to: '/tenants', label: 'Mis tiendas' }],
   },
 ];
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
@@ -129,9 +135,7 @@ function SidebarItem({ item }: { item: NavItem }) {
   const linkClass = (isActive: boolean) =>
     cn(
       'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-      isActive
-        ? 'bg-primary text-primary-fg'
-        : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+      isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
     );
 
   if (!item.children) {
@@ -145,21 +149,26 @@ function SidebarItem({ item }: { item: NavItem }) {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className={linkClass(false)}
-      >
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={linkClass(false)}>
         {item.label}
         {item.soon && <SoonBadge />}
         <svg
-          className={cn('ml-auto h-3.5 w-3.5 shrink-0 transition-transform', open && 'rotate-90', item.soon && 'ml-1')}
+          className={cn(
+            'ml-auto h-3.5 w-3.5 shrink-0 transition-transform',
+            open && 'rotate-90',
+            item.soon && 'ml-1',
+          )}
           viewBox="0 0 20 20"
           fill="none"
           aria-hidden="true"
         >
-          <path d="m8 6 4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="m8 6 4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       {open && (
@@ -172,9 +181,7 @@ function SidebarItem({ item }: { item: NavItem }) {
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-1.5 text-[0.82rem] transition-colors',
-                  isActive
-                    ? 'font-semibold text-primary'
-                    : 'text-accent-fg/50 hover:text-accent-fg',
+                  isActive ? 'font-semibold text-primary' : 'text-accent-fg/50 hover:text-accent-fg',
                 )
               }
             >
@@ -253,7 +260,9 @@ export function AdminLayout() {
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
-                  isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+                  isActive
+                    ? 'bg-primary text-primary-fg'
+                    : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
                 )
               }
             >
@@ -281,8 +290,16 @@ export function AdminLayout() {
             )}
             <ThemeModeToggle />
             <div className="flex items-center gap-2 border-l border-border pl-3">
-              <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">{user?.name}</span>
-              <button type="button" onClick={() => logout()} title="Cerrar sesión" aria-label="Cerrar sesión" className="text-fg-subtle hover:text-fg">
+              <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">
+                {user?.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => logout()}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+                className="text-fg-subtle hover:text-fg"
+              >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>

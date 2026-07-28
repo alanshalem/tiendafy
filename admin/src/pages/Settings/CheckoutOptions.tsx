@@ -51,13 +51,27 @@ export function CheckoutOptionsPage() {
           <div className="space-y-3">
             <div>
               <div className="mb-1.5 text-sm font-medium text-fg">Teléfono</div>
-              <Checkbox label="Pedir teléfono no obligatorio" checked={!value.requirePhone} onChange={(e) => update({ requirePhone: !e.target.checked })} />
+              <Checkbox
+                label="Pedir teléfono no obligatorio"
+                checked={!value.requirePhone}
+                onChange={(e) => update({ requirePhone: !e.target.checked })}
+              />
             </div>
             <div>
               <div className="mb-1.5 text-sm font-medium text-fg">Facturación</div>
               <RadioGroup legend="">
-                <Radio name="billing" label="Pedir datos para Consumidor Final (DNI / CUIT)" checked={value.billingType === 'consumerFinal'} onChange={() => update({ billingType: 'consumerFinal' })} />
-                <Radio name="billing" label="Pedir siempre datos de facturación" checked={value.billingType === 'always'} onChange={() => update({ billingType: 'always' })} />
+                <Radio
+                  name="billing"
+                  label="Pedir datos para Consumidor Final (DNI / CUIT)"
+                  checked={value.billingType === 'consumerFinal'}
+                  onChange={() => update({ billingType: 'consumerFinal' })}
+                />
+                <Radio
+                  name="billing"
+                  label="Pedir siempre datos de facturación"
+                  checked={value.billingType === 'always'}
+                  onChange={() => update({ billingType: 'always' })}
+                />
               </RadioGroup>
             </div>
           </div>
@@ -65,7 +79,9 @@ export function CheckoutOptionsPage() {
 
         <Section
           title="Nota del cliente"
-          toggle={<Switch checked={value.customerNote} onChange={(customerNote) => update({ customerNote })} />}
+          toggle={
+            <Switch checked={value.customerNote} onChange={(customerNote) => update({ customerNote })} />
+          }
           description="Tu cliente puede dejar notas sobre su pedido (texto/aclaraciones) en el carrito."
         >
           {value.customerNote && (
@@ -80,18 +96,38 @@ export function CheckoutOptionsPage() {
 
         <Section
           title="Mensaje en la página de seguimiento"
-          toggle={<Switch checked={value.trackingMessage} onChange={(trackingMessage) => update({ trackingMessage })} />}
+          toggle={
+            <Switch
+              checked={value.trackingMessage}
+              onChange={(trackingMessage) => update({ trackingMessage })}
+            />
+          }
           description="Esta página permite a tu cliente saber el estado de su compra."
         >
           {value.trackingMessage && (
-            <Textarea value={value.trackingMessageText} onChange={(e) => update({ trackingMessageText: e.target.value })} rows={2} placeholder="Aclará por tu cuenta el momento de la entrega o el estado del pedido." />
+            <Textarea
+              value={value.trackingMessageText}
+              onChange={(e) => update({ trackingMessageText: e.target.value })}
+              rows={2}
+              placeholder="Aclará por tu cuenta el momento de la entrega o el estado del pedido."
+            />
           )}
         </Section>
 
         <Section title="Restringir compras" description="Definí quiénes pueden comprar en tu tienda.">
           <RadioGroup legend="">
-            <Radio name="restrict" label="Todos los clientes" checked={value.restrict === 'all'} onChange={() => update({ restrict: 'all' })} />
-            <Radio name="restrict" label="Solo clientes registrados" checked={value.restrict === 'registered'} onChange={() => update({ restrict: 'registered' })} />
+            <Radio
+              name="restrict"
+              label="Todos los clientes"
+              checked={value.restrict === 'all'}
+              onChange={() => update({ restrict: 'all' })}
+            />
+            <Radio
+              name="restrict"
+              label="Solo clientes registrados"
+              checked={value.restrict === 'registered'}
+              onChange={() => update({ restrict: 'registered' })}
+            />
           </RadioGroup>
         </Section>
 
@@ -105,7 +141,12 @@ export function CheckoutOptionsPage() {
 
         <Section
           title="Checkout acelerado"
-          toggle={<Switch checked={value.acceleratedCheckout} onChange={(acceleratedCheckout) => update({ acceleratedCheckout })} />}
+          toggle={
+            <Switch
+              checked={value.acceleratedCheckout}
+              onChange={(acceleratedCheckout) => update({ acceleratedCheckout })}
+            />
+          }
           description="Autocompleta datos personales y direcciones. Tus clientes pueden comprar más rápido guardando sus datos de forma segura."
         />
       </div>

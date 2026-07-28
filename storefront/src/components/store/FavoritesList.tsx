@@ -26,19 +26,27 @@ export function FavoritesList({ productList }: { productList: ProductListConfig 
     let cancelled = false;
     Promise.all(
       ids.map((id) =>
-        clientJson<ProductDto>(`/api/v1/products/${id}`, { headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' } }),
+        clientJson<ProductDto>(`/api/v1/products/${id}`, {
+          headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' },
+        }),
       ),
     ).then((dtos) => {
       if (cancelled) return;
-      setProducts(dtos.map((d) => (d ? toStoreProduct(d) : null)).filter((p): p is StoreProduct => p !== null));
+      setProducts(
+        dtos.map((d) => (d ? toStoreProduct(d) : null)).filter((p): p is StoreProduct => p !== null),
+      );
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [ids, tenantId]);
 
   if (products === null) {
     return (
       <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+        {Array.from({ length: 4 }).map((_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
       </div>
     );
   }

@@ -36,15 +36,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # Por ahora solo los paquetes shared tienen src + tsconfig.
-      # Ampliar a -r (todo el workspace) cuando storefront/admin estén scaffoldeados.
-      - name: Type-check shared packages
-        run: pnpm --filter "./shared/**" run type-check
+      - name: Format check (Prettier)
+        run: pnpm format:check
 
-      # Activar cuando las apps tengan src/:
-      # - name: Build storefront
-      #   run: pnpm --filter tiendafy-storefront build
-      # - name: Build admin
-      #   run: pnpm --filter tiendafy-admin build
-      # - name: Lint
-      #   run: pnpm -r lint
+      - name: Type-check (shared + apps)
+        run: pnpm -r run type-check
+
+      - name: Lint admin
+        run: pnpm --filter ./admin run lint
+
+      - name: Lint storefront
+        run: pnpm --filter ./storefront run lint

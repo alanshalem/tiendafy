@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus, Search } from 'lucide-react';
 import {
-  Button, Card, Dropdown, FormField, Input, Modal, useToast, useConfirm,
-  type TableColumn, Table,
+  Button,
+  Card,
+  Dropdown,
+  FormField,
+  Input,
+  Modal,
+  useToast,
+  useConfirm,
+  type TableColumn,
+  Table,
 } from '@tiendafy/ui';
 import { formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -33,7 +41,8 @@ export function CustomersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', store?.id, q],
-    queryFn: () => api.get<{ items: Customer[] }>(`/api/v1/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    queryFn: () =>
+      api.get<{ items: Customer[] }>(`/api/v1/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
     enabled: !!store,
   });
   const customers = data?.items ?? [];
@@ -42,7 +51,10 @@ export function CustomersPage() {
 
   const remove = useMutation({
     mutationFn: (c: Customer) => api.delete(`/api/v1/customers/${c.id}`),
-    onSuccess: () => { refresh(); toast('Cliente eliminado', { variant: 'success' }); },
+    onSuccess: () => {
+      refresh();
+      toast('Cliente eliminado', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
@@ -53,21 +65,47 @@ export function CustomersPage() {
     {
       key: 'address',
       header: 'Dirección',
-      cell: (c) => (c.address
-        ? <span className="block max-w-[16rem] truncate text-sm text-fg-muted" title={c.address}>{c.address}</span>
-        : <span className="text-fg-subtle">—</span>),
+      cell: (c) =>
+        c.address ? (
+          <span className="block max-w-[16rem] truncate text-sm text-fg-muted" title={c.address}>
+            {c.address}
+          </span>
+        ) : (
+          <span className="text-fg-subtle">—</span>
+        ),
     },
-    { key: 'createdAtUtc', header: 'Creado', cell: (c) => <span className="text-sm text-fg-muted">{formatDate(c.createdAtUtc)}</span> },
+    {
+      key: 'createdAtUtc',
+      header: 'Creado',
+      cell: (c) => <span className="text-sm text-fg-muted">{formatDate(c.createdAtUtc)}</span>,
+    },
     {
       key: 'id',
       header: '',
       cell: (c) => (
         <div className="flex justify-end">
           <Dropdown>
-            <Dropdown.Trigger><MoreVertical className="h-4 w-4" /></Dropdown.Trigger>
+            <Dropdown.Trigger>
+              <MoreVertical className="h-4 w-4" />
+            </Dropdown.Trigger>
             <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(c)}><Pencil className="mr-2 inline h-4 w-4" /> Editar</Dropdown.Item>
-              <Dropdown.Item destructive onSelect={async () => { if (await confirm({ title: 'Eliminar cliente', message: `¿Eliminar a ${c.name}?`, confirmLabel: 'Eliminar', variant: 'danger' })) remove.mutate(c); }}>
+              <Dropdown.Item onSelect={() => setEditing(c)}>
+                <Pencil className="mr-2 inline h-4 w-4" /> Editar
+              </Dropdown.Item>
+              <Dropdown.Item
+                destructive
+                onSelect={async () => {
+                  if (
+                    await confirm({
+                      title: 'Eliminar cliente',
+                      message: `¿Eliminar a ${c.name}?`,
+                      confirmLabel: 'Eliminar',
+                      variant: 'danger',
+                    })
+                  )
+                    remove.mutate(c);
+                }}
+              >
                 <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
               </Dropdown.Item>
             </Dropdown.Menu>
@@ -84,11 +122,16 @@ export function CustomersPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-fg">Clientes</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">Tu base de contactos: nombre, datos y notas internas.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            Tu base de contactos: nombre, datos y notas internas.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <form
-            onSubmit={(e) => { e.preventDefault(); setQ(term.trim()); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQ(term.trim());
+            }}
             className="relative"
           >
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
@@ -99,15 +142,25 @@ export function CustomersPage() {
               placeholder="Buscar cliente..."
             />
           </form>
-          <Button onClick={() => setCreateOpen(true)}><span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Agregar cliente</span></Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" /> Agregar cliente
+            </span>
+          </Button>
         </div>
       </div>
 
       {isLoading ? (
-        <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p></Card>
+        <Card>
+          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+        </Card>
       ) : customers.length === 0 ? (
         q ? (
-          <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">No se encontraron clientes para “{q}”.</p></Card>
+          <Card>
+            <p className="px-4 py-12 text-center text-sm text-fg-muted">
+              No se encontraron clientes para “{q}”.
+            </p>
+          </Card>
         ) : (
           <EmptyState
             kicker="Clientes"
@@ -123,12 +176,27 @@ export function CustomersPage() {
       )}
 
       <CustomerModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
-      <CustomerModal open={!!editing} customer={editing ?? undefined} onClose={() => setEditing(null)} onSaved={refresh} />
+      <CustomerModal
+        open={!!editing}
+        customer={editing ?? undefined}
+        onClose={() => setEditing(null)}
+        onSaved={refresh}
+      />
     </div>
   );
 }
 
-function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; customer?: Customer; onClose: () => void; onSaved: () => void }) {
+function CustomerModal({
+  open,
+  customer,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  customer?: Customer;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -158,9 +226,15 @@ function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; cu
         address: address.trim() || null,
         notes: notes.trim() || null,
       };
-      return isEdit ? api.put(`/api/v1/customers/${customer!.id}`, body) : api.post('/api/v1/customers', body);
+      return isEdit
+        ? api.put(`/api/v1/customers/${customer!.id}`, body)
+        : api.post('/api/v1/customers', body);
     },
-    onSuccess: () => { onSaved(); toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', { variant: 'success' }); onClose(); },
+    onSuccess: () => {
+      onSaved();
+      toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', { variant: 'success' });
+      onClose();
+    },
     onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
@@ -171,7 +245,9 @@ function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; cu
       title={isEdit ? 'Editar cliente' : 'Agregar cliente'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button loading={save.isPending} disabled={!name.trim()} onClick={() => save.mutate()}>
             {isEdit ? 'Guardar' : 'Agregar'}
           </Button>
@@ -185,15 +261,29 @@ function CustomerModal({ open, customer, onClose, onSaved }: { open: boolean; cu
 
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Email" hint="Opcional">
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="juan@email.com" />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="juan@email.com"
+            />
           </FormField>
           <FormField label="Teléfono" hint="Opcional">
-            <Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="11 1234 5678" />
+            <Input
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="11 1234 5678"
+            />
           </FormField>
         </div>
 
         <FormField label="Dirección" hint="Opcional">
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Siempre Viva 742" />
+          <Input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Av. Siempre Viva 742"
+          />
         </FormField>
 
         <FormField label="Notas" hint="Opcional">

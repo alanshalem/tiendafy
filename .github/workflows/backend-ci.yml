@@ -32,6 +32,9 @@ jobs:
       - name: Build (warnings as errors)
         run: dotnet build backend.slnx --no-restore --configuration Release -warnaserror
 
+      - name: Format check (dotnet format)
+        run: dotnet format backend.slnx --no-restore --verify-no-changes
+
       - name: Test
         run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --results-directory ./test-results
 

@@ -10,7 +10,13 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
   const { data, theme, preview } = page;
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
       <ContactContent contact={theme.contact} />
     </StorefrontView>
   );

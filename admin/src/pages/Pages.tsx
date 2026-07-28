@@ -2,8 +2,18 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import {
-  Badge, Button, Card, Dropdown, FormField, Input, Modal, useToast, useConfirm,
-  type BadgeVariant, type TableColumn, Table,
+  Badge,
+  Button,
+  Card,
+  Dropdown,
+  FormField,
+  Input,
+  Modal,
+  useToast,
+  useConfirm,
+  type BadgeVariant,
+  type TableColumn,
+  Table,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -40,7 +50,10 @@ export function PagesPage() {
 
   const remove = useMutation({
     mutationFn: (p: PageDto) => api.delete(`/api/v1/pages/${p.id}`),
-    onSuccess: () => { refresh(); toast('Página eliminada', { variant: 'success' }); },
+    onSuccess: () => {
+      refresh();
+      toast('Página eliminada', { variant: 'success' });
+    },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
 
@@ -48,19 +61,50 @@ export function PagesPage() {
 
   const columns: TableColumn<PageDto>[] = [
     { key: 'title', header: 'Título', cell: (p) => <span className="font-semibold text-fg">{p.title}</span> },
-    { key: 'slug', header: 'URL', cell: (p) => <span className="font-mono text-sm text-fg-muted">/paginas/{p.slug}</span> },
-    { key: 'published', header: 'Estado', cell: (p) => <Badge variant={statusVariant(p)}>{p.published ? 'Publicada' : 'Borrador'}</Badge> },
-    { key: 'updatedAtUtc', header: 'Última edición', cell: (p) => <span className="text-sm text-fg-muted">{new Date(p.updatedAtUtc).toLocaleDateString('es-AR')}</span> },
+    {
+      key: 'slug',
+      header: 'URL',
+      cell: (p) => <span className="font-mono text-sm text-fg-muted">/paginas/{p.slug}</span>,
+    },
+    {
+      key: 'published',
+      header: 'Estado',
+      cell: (p) => <Badge variant={statusVariant(p)}>{p.published ? 'Publicada' : 'Borrador'}</Badge>,
+    },
+    {
+      key: 'updatedAtUtc',
+      header: 'Última edición',
+      cell: (p) => (
+        <span className="text-sm text-fg-muted">{new Date(p.updatedAtUtc).toLocaleDateString('es-AR')}</span>
+      ),
+    },
     {
       key: 'createdAtUtc',
       header: '',
       cell: (p) => (
         <div className="flex justify-end">
           <Dropdown>
-            <Dropdown.Trigger><MoreVertical className="h-4 w-4" /></Dropdown.Trigger>
+            <Dropdown.Trigger>
+              <MoreVertical className="h-4 w-4" />
+            </Dropdown.Trigger>
             <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(p)}><Pencil className="mr-2 inline h-4 w-4" /> Editar</Dropdown.Item>
-              <Dropdown.Item destructive onSelect={async () => { if (await confirm({ title: 'Eliminar página', message: `¿Eliminar la página ${p.title}?`, confirmLabel: 'Eliminar', variant: 'danger' })) remove.mutate(p); }}>
+              <Dropdown.Item onSelect={() => setEditing(p)}>
+                <Pencil className="mr-2 inline h-4 w-4" /> Editar
+              </Dropdown.Item>
+              <Dropdown.Item
+                destructive
+                onSelect={async () => {
+                  if (
+                    await confirm({
+                      title: 'Eliminar página',
+                      message: `¿Eliminar la página ${p.title}?`,
+                      confirmLabel: 'Eliminar',
+                      variant: 'danger',
+                    })
+                  )
+                    remove.mutate(p);
+                }}
+              >
                 <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
               </Dropdown.Item>
             </Dropdown.Menu>
@@ -77,13 +121,21 @@ export function PagesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">Páginas</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más.
+          </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}><span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Crear página</span></Button>
+        <Button onClick={() => setCreateOpen(true)}>
+          <span className="inline-flex items-center gap-1.5">
+            <Plus className="h-4 w-4" /> Crear página
+          </span>
+        </Button>
       </div>
 
       {isLoading ? (
-        <Card><p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p></Card>
+        <Card>
+          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+        </Card>
       ) : pages.length === 0 ? (
         <EmptyState
           kicker="Páginas"
@@ -98,12 +150,27 @@ export function PagesPage() {
       )}
 
       <PageModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
-      <PageModal open={!!editing} page={editing ?? undefined} onClose={() => setEditing(null)} onSaved={refresh} />
+      <PageModal
+        open={!!editing}
+        page={editing ?? undefined}
+        onClose={() => setEditing(null)}
+        onSaved={refresh}
+      />
     </div>
   );
 }
 
-function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: PageDto; onClose: () => void; onSaved: () => void }) {
+function PageModal({
+  open,
+  page,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  page?: PageDto;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -132,7 +199,11 @@ function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: Pag
       };
       return isEdit ? api.put(`/api/v1/pages/${page!.id}`, body_) : api.post('/api/v1/pages', body_);
     },
-    onSuccess: () => { onSaved(); toast(isEdit ? 'Página actualizada' : 'Página creada', { variant: 'success' }); onClose(); },
+    onSuccess: () => {
+      onSaved();
+      toast(isEdit ? 'Página actualizada' : 'Página creada', { variant: 'success' });
+      onClose();
+    },
     onError: (e) => setError(errMsg(e, 'Error inesperado')),
   });
 
@@ -143,7 +214,9 @@ function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: Pag
       title={isEdit ? 'Editar página' : 'Crear página'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button loading={save.isPending} disabled={!title.trim()} onClick={() => save.mutate()}>
             {isEdit ? 'Guardar' : 'Crear'}
           </Button>
@@ -164,7 +237,12 @@ function PageModal({ open, page, onClose, onSaved }: { open: boolean; page?: Pag
         </FormField>
 
         <label className="flex items-center gap-2 text-sm font-medium text-fg">
-          <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} className="rounded-sm" />
+          <input
+            type="checkbox"
+            checked={published}
+            onChange={(e) => setPublished(e.target.checked)}
+            className="rounded-sm"
+          />
           Publicada
         </label>
       </div>

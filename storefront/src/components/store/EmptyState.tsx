@@ -19,7 +19,9 @@ export function EmptyState({
       <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgb(var(--color-primary)/0.1)] text-primary">
         {icon ?? <PackageOpen className="h-8 w-8" />}
       </div>
-      <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h2>
+      <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+        {title}
+      </h2>
       {message && <p className="mt-2 max-w-sm text-sm opacity-65">{message}</p>}
       {cta && (
         <Link

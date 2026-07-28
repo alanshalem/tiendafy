@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from './cn';
 
@@ -93,7 +86,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   className="shrink-0 opacity-60 hover:opacity-100"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <path
+                      d="M6 6l8 8M14 6l-8 8"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </button>
               </div>

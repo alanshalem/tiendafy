@@ -11,7 +11,13 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
   const { data, theme, preview } = resolved;
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={data.products} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
       <main className="mx-auto min-h-[60vh] max-w-container px-4 py-8">
         <Suspense>
           <VerifyEmail />

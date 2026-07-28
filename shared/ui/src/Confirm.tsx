@@ -45,8 +45,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         title={state?.opts.title ?? 'Confirmar'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => settle(false)}>{state?.opts.cancelLabel ?? 'Cancelar'}</Button>
-            <Button variant={state?.opts.variant ?? 'primary'} onClick={() => settle(true)}>{state?.opts.confirmLabel ?? 'Confirmar'}</Button>
+            <Button variant="secondary" onClick={() => settle(false)}>
+              {state?.opts.cancelLabel ?? 'Cancelar'}
+            </Button>
+            <Button variant={state?.opts.variant ?? 'primary'} onClick={() => settle(true)}>
+              {state?.opts.confirmLabel ?? 'Confirmar'}
+            </Button>
           </>
         }
       >

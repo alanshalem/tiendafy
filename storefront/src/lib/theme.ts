@@ -1,5 +1,12 @@
 import { apiGetTenant } from './api';
-import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme, contrastText, FONT_OPTIONS } from '@tiendafy/types';
+import {
+  type ThemeConfig,
+  baseTheme,
+  DEFAULT_SECTIONS,
+  normalizeTheme,
+  contrastText,
+  FONT_OPTIONS,
+} from '@tiendafy/types';
 
 /* ============================================================
    El schema de tema vive en @tiendafy/types (fuente única, compartida

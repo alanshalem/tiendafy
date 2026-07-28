@@ -189,9 +189,7 @@ export function DonutChart({
               style={{ background: `rgb(var(--color-primary) / ${seg.tint})` }}
             />
             <span className="text-fg-muted">{seg.label}</span>
-            <span className="ml-auto font-medium text-fg">
-              {Math.round((seg.value / total) * 100)}%
-            </span>
+            <span className="ml-auto font-medium text-fg">{Math.round((seg.value / total) * 100)}%</span>
           </li>
         ))}
       </ul>
@@ -254,7 +252,10 @@ export function Legend({ items }: { items: { label: string; tint: number }[] }) 
     <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
       {items.map((it) => (
         <span key={it.label} className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: `rgb(var(--color-primary) / ${it.tint})` }} />
+          <span
+            className="h-2.5 w-2.5 rounded-sm"
+            style={{ background: `rgb(var(--color-primary) / ${it.tint})` }}
+          />
           {it.label}
         </span>
       ))}

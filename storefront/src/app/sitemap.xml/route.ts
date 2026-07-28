@@ -15,16 +15,16 @@ export async function GET() {
 
   const tenant = await resolveTenant();
   if (tenant) {
-    const products = await apiGet<{ items: { slug: string }[] }>(
-      '/api/v1/products?status=ACTIVE&limit=100',
-      { headers: { 'X-Tenant-Id': tenant.id }, cache: 'no-store' },
-    ).catch(() => null);
+    const products = await apiGet<{ items: { slug: string }[] }>('/api/v1/products?status=ACTIVE&limit=100', {
+      headers: { 'X-Tenant-Id': tenant.id },
+      cache: 'no-store',
+    }).catch(() => null);
     products?.items.forEach((p) => locs.push(`${base}/productos/${p.slug}`));
 
-    const pages = await apiGet<{ items: { slug: string }[] }>(
-      '/api/v1/pages/published',
-      { headers: { 'X-Tenant-Id': tenant.id }, cache: 'no-store' },
-    ).catch(() => null);
+    const pages = await apiGet<{ items: { slug: string }[] }>('/api/v1/pages/published', {
+      headers: { 'X-Tenant-Id': tenant.id },
+      cache: 'no-store',
+    }).catch(() => null);
     pages?.items.forEach((pg) => locs.push(`${base}/paginas/${pg.slug}`));
   }
 

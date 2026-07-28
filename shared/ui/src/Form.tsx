@@ -51,15 +51,26 @@ export function FormField({ label, error, hint, required = false, children, clas
 
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={(isValidElement<Record<string, unknown>>(children) && (children.props.id as string)) || id} className="block text-sm font-medium text-fg">
+      <label
+        htmlFor={(isValidElement<Record<string, unknown>>(children) && (children.props.id as string)) || id}
+        className="block text-sm font-medium text-fg"
+      >
         {label}
-        {required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
+        {required && (
+          <span aria-hidden="true" className="ml-0.5 text-danger">
+            *
+          </span>
+        )}
       </label>
       {control}
       {error ? (
         <FormError id={errorId}>{error}</FormError>
       ) : (
-        hint && <p id={hintId} className="text-sm text-fg-muted">{hint}</p>
+        hint && (
+          <p id={hintId} className="text-sm text-fg-muted">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );

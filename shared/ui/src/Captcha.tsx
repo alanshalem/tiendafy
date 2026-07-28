@@ -30,14 +30,18 @@ export function Captcha({ apiUrl, onToken }: CaptchaProps) {
         else onToken(''); // sin captcha
       })
       .catch(() => onToken(''));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!siteKey || !ref.current) return;
     const render = () => {
-      const w = window as unknown as { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => void } };
+      const w = window as unknown as {
+        turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => void };
+      };
       if (w.turnstile && ref.current) {
         ref.current.innerHTML = '';
         w.turnstile.render(ref.current, {

@@ -95,7 +95,7 @@ export interface ProductListConfig {
   filterOptions: boolean;
   // Cards: precio con transferencia/efectivo (usa cashDiscountPercent) + cuotas + stock.
   showCashPrice: boolean;
-  installmentsCount: number;   // 0 = no mostrar cuotas
+  installmentsCount: number; // 0 = no mostrar cuotas
   showStockBadge: boolean;
 }
 export interface ProductDetailConfig {
@@ -236,22 +236,67 @@ export const baseTheme: ThemeConfig = {
   colors: { primary: '232 80 30', accent: '27 21 16', useAccent: false, bg: '255 255 255', text: '17 24 39' },
   fonts: { heading: 'sans', body: 'sans' },
   header: {
-    bg: '27 21 16', sticky: true, logoSize: 'md', showTabsMobile: true,
-    layout: 'classic', textColor: '', transparentOnHome: false, transparentLevel: 'full',
-    showSearch: false, showCart: true, cartStyle: 'icon', showAccount: false, border: 'none',
+    bg: '27 21 16',
+    sticky: true,
+    logoSize: 'md',
+    showTabsMobile: true,
+    layout: 'classic',
+    textColor: '',
+    transparentOnHome: false,
+    transparentLevel: 'full',
+    showSearch: false,
+    showCart: true,
+    cartStyle: 'icon',
+    showAccount: false,
+    border: 'none',
   },
   announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }] },
-  comingSoon: { enabled: false, title: 'Estamos en construcción', message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!' },
+  comingSoon: {
+    enabled: false,
+    title: 'Estamos en construcción',
+    message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!',
+  },
   sections: [],
   productList: {
-    columns: 4, showPrice: true, showBuyButton: true, showCompareAt: true,
-    filterCategories: true, filterPrice: true, filterBrand: true, filterOptions: true,
-    showCashPrice: false, installmentsCount: 0, showStockBadge: false,
+    columns: 4,
+    showPrice: true,
+    showBuyButton: true,
+    showCompareAt: true,
+    filterCategories: true,
+    filterPrice: true,
+    filterBrand: true,
+    filterOptions: true,
+    showCashPrice: false,
+    installmentsCount: 0,
+    showStockBadge: false,
   },
-  productDetail: { showSku: false, showStock: true, galleryStyle: 'thumbs', showRelated: true, cashDiscountPercent: 0 },
-  cart: { freeShippingBar: false, freeShippingThreshold: 5000000, checkoutButtonText: 'Iniciar compra', showSuggested: true, notice: '' },
+  productDetail: {
+    showSku: false,
+    showStock: true,
+    galleryStyle: 'thumbs',
+    showRelated: true,
+    cashDiscountPercent: 0,
+  },
+  cart: {
+    freeShippingBar: false,
+    freeShippingThreshold: 5000000,
+    checkoutButtonText: 'Iniciar compra',
+    showSuggested: true,
+    notice: '',
+  },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
-  footer: { text: '', showSocial: true, instagram: '', facebook: '', showPaymentLogos: true, paymentLogos: ['mercadopago', 'visa', 'mastercard'], whatsapps: [], addresses: [], phones: [], emails: [] },
+  footer: {
+    text: '',
+    showSocial: true,
+    instagram: '',
+    facebook: '',
+    showPaymentLogos: true,
+    paymentLogos: ['mercadopago', 'visa', 'mastercard'],
+    whatsapps: [],
+    addresses: [],
+    phones: [],
+    emails: [],
+  },
   whatsappButton: { enabled: false, phone: '', message: '¡Hola! Tengo una consulta.', showPreview: true },
   customCss: '',
 };
@@ -307,16 +352,24 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
  * `fallbackSections` define qué secciones usar cuando el tema no trae ninguna
  * (storefront pasa DEFAULT_SECTIONS; el editor pasa []).
  */
-export function normalizeTheme(raw: Partial<ThemeConfig> | null, fallbackSections: ThemeSection[] = []): ThemeConfig {
+export function normalizeTheme(
+  raw: Partial<ThemeConfig> | null,
+  fallbackSections: ThemeSection[] = [],
+): ThemeConfig {
   if (!raw) return { ...baseTheme, sections: fallbackSections };
   return {
     logo: typeof raw.logo === 'string' ? raw.logo : baseTheme.logo,
     favicon: typeof raw.favicon === 'string' ? raw.favicon : baseTheme.favicon,
     shareImage: typeof raw.shareImage === 'string' ? raw.shareImage : baseTheme.shareImage,
-    borderRadius: raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
+    borderRadius:
+      raw.borderRadius === 'soft' || raw.borderRadius === 'sharp' ? raw.borderRadius : baseTheme.borderRadius,
     motion: raw.motion === 'none' || raw.motion === 'dynamic' ? raw.motion : baseTheme.motion,
     density: raw.density === 'compact' || raw.density === 'spacious' ? raw.density : baseTheme.density,
-    iconKit: (['lucide', 'phosphor', 'tabler', 'heroicons', 'feather'] as const).includes(raw.iconKit as IconKit) ? raw.iconKit! : baseTheme.iconKit,
+    iconKit: (['lucide', 'phosphor', 'tabler', 'heroicons', 'feather'] as const).includes(
+      raw.iconKit as IconKit,
+    )
+      ? raw.iconKit!
+      : baseTheme.iconKit,
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
     header: { ...baseTheme.header, ...raw.header },

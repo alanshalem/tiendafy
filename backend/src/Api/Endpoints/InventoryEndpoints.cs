@@ -1,5 +1,5 @@
-using Identity.Infrastructure;
 using Api.Auth;
+using Identity.Infrastructure;
 using Inventory.Core.Domain;
 using SharedKernel.Abstractions;
 

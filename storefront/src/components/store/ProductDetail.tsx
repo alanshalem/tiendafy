@@ -62,9 +62,13 @@ export function ProductDetail({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [shared, setShared] = useState(false);
 
-  const variant = (hasOptions
-    ? variants.find((v) => v.optionValues.length === selected.length && v.optionValues.every((ov, i) => ov === selected[i]))
-    : variants.find((v) => v.id === variantId)) ?? variants[0];
+  const variant =
+    (hasOptions
+      ? variants.find(
+          (v) =>
+            v.optionValues.length === selected.length && v.optionValues.every((ov, i) => ov === selected[i]),
+        )
+      : variants.find((v) => v.id === variantId)) ?? variants[0];
   if (!variant) return null;
   const label = variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
 
@@ -112,12 +116,27 @@ export function ProductDetail({
           <div className="space-y-3">
             {(images.length > 0 ? images : [null]).map((img, i) =>
               img ? (
-                <button key={i} type="button" onClick={() => setLightboxIndex(i)} className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg">
-                  <img src={img.url} alt={img.altText ?? name} className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                  <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"><ZoomIn className="h-4 w-4" /></span>
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.altText ?? name}
+                    className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                  <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                    <ZoomIn className="h-4 w-4" />
+                  </span>
                 </button>
               ) : (
-                <InitialFallback key={i} name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
+                <InitialFallback
+                  key={i}
+                  name={name}
+                  className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+                />
               ),
             )}
           </div>
@@ -126,7 +145,13 @@ export function ProductDetail({
             {images.length > 1 && (
               <div className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto pr-1">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} aria-label={`Ver imagen ${i + 1}`} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}>
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    onMouseEnter={() => setActiveImg(i)}
+                    aria-label={`Ver imagen ${i + 1}`}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}
+                  >
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -134,23 +159,43 @@ export function ProductDetail({
             )}
             <div className="min-w-0 flex-1">
               {images[activeImg] ? (
-                <MagnifierImage src={images[activeImg].url} alt={images[activeImg].altText ?? name} onOpen={() => setLightboxIndex(activeImg)} />
+                <MagnifierImage
+                  src={images[activeImg].url}
+                  alt={images[activeImg].altText ?? name}
+                  onOpen={() => setLightboxIndex(activeImg)}
+                />
               ) : (
-                <InitialFallback name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
+                <InitialFallback
+                  name={name}
+                  className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+                />
               )}
             </div>
           </div>
         ) : (
           <>
             {images[activeImg] ? (
-              <MagnifierImage src={images[activeImg].url} alt={images[activeImg].altText ?? name} onOpen={() => setLightboxIndex(activeImg)} />
+              <MagnifierImage
+                src={images[activeImg].url}
+                alt={images[activeImg].altText ?? name}
+                onOpen={() => setLightboxIndex(activeImg)}
+              />
             ) : (
-              <InitialFallback name={name} className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30" />
+              <InitialFallback
+                name={name}
+                className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+              />
             )}
             {images.length > 1 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} onMouseEnter={() => setActiveImg(i)} aria-label={`Ver imagen ${i + 1}`} className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}>
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    onMouseEnter={() => setActiveImg(i)}
+                    aria-label={`Ver imagen ${i + 1}`}
+                    className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}
+                  >
                     <img src={img.url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -161,7 +206,9 @@ export function ProductDetail({
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{name}</h1>
+        <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          {name}
+        </h1>
         {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
         {cfg.showSku && <div className="text-xs opacity-50">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
@@ -176,7 +223,9 @@ export function ProductDetail({
           <div className="mt-1">
             <span className="text-xl font-bold text-primary">{fmt(cashPrice, variant.price.currency)}</span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
-            <div className="text-xs opacity-60">{cashPct}% de descuento pagando con transferencia o efectivo</div>
+            <div className="text-xs opacity-60">
+              {cashPct}% de descuento pagando con transferencia o efectivo
+            </div>
           </div>
         )}
 
@@ -186,14 +235,22 @@ export function ProductDetail({
         {hasOptions
           ? options.map((opt, oi) => (
               <div key={opt.name} className="mt-5">
-                <label className="mb-1.5 block text-sm font-medium">{opt.name}: <span className="font-semibold">{selected[oi]}</span></label>
+                <label className="mb-1.5 block text-sm font-medium">
+                  {opt.name}: <span className="font-semibold">{selected[oi]}</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {opt.values.map((val) => {
                     const active = selected[oi] === val;
                     return (
                       <button
                         key={val}
-                        onClick={() => setSelected((s) => { const next = [...s]; next[oi] = val; return next; })}
+                        onClick={() =>
+                          setSelected((s) => {
+                            const next = [...s];
+                            next[oi] = val;
+                            return next;
+                          })
+                        }
                         aria-pressed={active}
                         className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'}`}
                       >
@@ -214,7 +271,9 @@ export function ProductDetail({
                   className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
                 >
                   {variants.map((v) => (
-                    <option key={v.id} value={v.id}>{v.sku}</option>
+                    <option key={v.id} value={v.id}>
+                      {v.sku}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -232,12 +291,27 @@ export function ProductDetail({
           {/* Cantidad + Agregar al carrito */}
           <div className="flex items-center gap-3">
             <div className="flex items-center rounded-md border border-black/15">
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Restar" className="inline-flex h-11 w-10 items-center justify-center"><Minus className="h-4 w-4" /></button>
+              <button
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                aria-label="Restar"
+                className="inline-flex h-11 w-10 items-center justify-center"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
               <span className="w-8 text-center tabular-nums">{qty}</span>
-              <button onClick={() => setQty((q) => q + 1)} aria-label="Sumar" className="inline-flex h-11 w-10 items-center justify-center"><Plus className="h-4 w-4" /></button>
+              <button
+                onClick={() => setQty((q) => q + 1)}
+                aria-label="Sumar"
+                className="inline-flex h-11 w-10 items-center justify-center"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
             <button
-              onClick={() => { addToCart(); setOpen(true); }}
+              onClick={() => {
+                addToCart();
+                setOpen(true);
+              }}
               className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary"
             >
               Agregar al carrito
@@ -249,7 +323,15 @@ export function ProductDetail({
             onClick={share}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-medium opacity-70 hover:opacity-100"
           >
-            {shared ? <><Check className="h-4 w-4" /> ¡Link copiado!</> : <><Share2 className="h-4 w-4" /> Compartir</>}
+            {shared ? (
+              <>
+                <Check className="h-4 w-4" /> ¡Link copiado!
+              </>
+            ) : (
+              <>
+                <Share2 className="h-4 w-4" /> Compartir
+              </>
+            )}
           </button>
 
           {/* Compra protegida */}
@@ -264,20 +346,23 @@ export function ProductDetail({
       </div>
 
       {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
-      >
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden">
         <div className="min-w-0">
           <div className="truncate text-xs opacity-60">{name}</div>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold">{fmt(variant.price.amount, variant.price.currency)}</span>
             {variant.compareAtPrice && (
-              <span className="text-xs line-through opacity-50">{fmt(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}</span>
+              <span className="text-xs line-through opacity-50">
+                {fmt(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+              </span>
             )}
           </div>
         </div>
         <button
-          onClick={() => { addToCart(); setOpen(true); }}
+          onClick={() => {
+            addToCart();
+            setOpen(true);
+          }}
           className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg"
         >
           Agregar al carrito
@@ -287,7 +372,13 @@ export function ProductDetail({
       <div className="h-16 md:hidden" />
 
       {lightboxIndex !== null && images[lightboxIndex] && (
-        <Lightbox images={images} index={lightboxIndex} onChange={setLightboxIndex} onClose={() => setLightboxIndex(null)} alt={name} />
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onChange={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          alt={name}
+        />
       )}
     </div>
   );
@@ -392,20 +483,44 @@ function Lightbox({
   }, [index, images.length, onChange, onClose]);
 
   const img = images[index];
-  const go = (d: number) => { setZoomed(false); onChange((index + d + images.length) % images.length); };
+  const go = (d: number) => {
+    setZoomed(false);
+    onChange((index + d + images.length) % images.length);
+  };
 
   return (
-    <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[100] flex flex-col bg-black/95 outline-none backdrop-blur-sm" onClick={onClose} role="dialog" aria-modal="true" aria-label={alt}>
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[100] flex flex-col bg-black/95 outline-none backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+    >
       <div className="flex items-center justify-between px-5 py-4 text-white/80">
-        <span className="text-sm tabular-nums">{index + 1} / {images.length}</span>
-        <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 transition-colors hover:bg-white/10 hover:text-white">
+        <span className="text-sm tabular-nums">
+          {index + 1} / {images.length}
+        </span>
+        <button
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="rounded-full p-1.5 transition-colors hover:bg-white/10 hover:text-white"
+        >
           <X className="h-7 w-7" />
         </button>
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative flex flex-1 items-center justify-center overflow-hidden px-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {images.length > 1 && (
-          <button onClick={() => go(-1)} aria-label="Anterior" className="absolute left-3 z-10 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20">
+          <button
+            onClick={() => go(-1)}
+            aria-label="Anterior"
+            className="absolute left-3 z-10 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20"
+          >
             <ChevronLeft className="h-7 w-7" />
           </button>
         )}
@@ -418,24 +533,36 @@ function Lightbox({
           onMouseMove={(e) => {
             if (!zoomed) return;
             const r = e.currentTarget.getBoundingClientRect();
-            setOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`);
+            setOrigin(
+              `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
+            );
           }}
           className={`max-h-[80vh] max-w-[92vw] select-none object-contain transition-transform duration-200 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
           style={{ transformOrigin: origin, transform: zoomed ? 'scale(2.4)' : 'scale(1)' }}
         />
         {images.length > 1 && (
-          <button onClick={() => go(1)} aria-label="Siguiente" className="absolute right-3 z-10 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20">
+          <button
+            onClick={() => go(1)}
+            aria-label="Siguiente"
+            className="absolute right-3 z-10 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20"
+          >
             <ChevronRight className="h-7 w-7" />
           </button>
         )}
       </div>
 
       {images.length > 1 && (
-        <div className="flex justify-center gap-2 overflow-x-auto px-4 py-4" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex justify-center gap-2 overflow-x-auto px-4 py-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           {images.map((im, i) => (
             <button
               key={i}
-              onClick={() => { setZoomed(false); onChange(i); }}
+              onClick={() => {
+                setZoomed(false);
+                onChange(i);
+              }}
               className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition ${i === index ? 'border-white' : 'border-transparent opacity-50 hover:opacity-100'}`}
             >
               <img src={im.url} alt="" className="h-full w-full object-cover" />

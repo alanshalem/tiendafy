@@ -169,7 +169,11 @@ export function ShippingMethodsPage() {
                     title="Eliminar"
                     className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50"
                   >
-                    {deleting === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    {deleting === m.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -277,7 +281,11 @@ function MethodDialog({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
-            <select value={kind} onChange={(e) => setKind(e.target.value as ShippingKind)} className={inputCls}>
+            <select
+              value={kind}
+              onChange={(e) => setKind(e.target.value as ShippingKind)}
+              className={inputCls}
+            >
               <option value="DELIVERY">Envío a domicilio</option>
               <option value="PICKUP">Retiro en punto</option>
             </select>

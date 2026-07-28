@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Tenant } from '@tiendafy/types';
 import { api, setActiveTenant } from '../lib/api';
@@ -56,8 +49,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     setStore((current) => {
       const target = current
-        ? stores.find((s) => s.id === current.id) ?? stores[0]!
-        : stores.find((s) => s.id === localStorage.getItem(STORAGE_KEY)) ?? stores[0]!;
+        ? (stores.find((s) => s.id === current.id) ?? stores[0]!)
+        : (stores.find((s) => s.id === localStorage.getItem(STORAGE_KEY)) ?? stores[0]!);
       setActiveTenant(target.id);
       return target;
     });

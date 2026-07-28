@@ -83,17 +83,17 @@ public sealed class FiscalAccessToken
     public static FiscalAccessToken Create(
         Guid tenantId, string cuit, string service, FiscalEnvironment environment,
         string tokenEncrypted, string signEncrypted, DateTime generationTime, DateTime expirationTime) => new()
-    {
-        Id = Guid.NewGuid(),
-        TenantId = tenantId,
-        Cuit = cuit,
-        Service = service,
-        Environment = environment,
-        TokenEncrypted = tokenEncrypted,
-        SignEncrypted = signEncrypted,
-        GenerationTimeUtc = generationTime,
-        ExpirationTimeUtc = expirationTime,
-    };
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Cuit = cuit,
+            Service = service,
+            Environment = environment,
+            TokenEncrypted = tokenEncrypted,
+            SignEncrypted = signEncrypted,
+            GenerationTimeUtc = generationTime,
+            ExpirationTimeUtc = expirationTime,
+        };
 
     public void Replace(string tokenEncrypted, string signEncrypted, DateTime generationTime, DateTime expirationTime)
     {

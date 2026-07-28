@@ -18,7 +18,10 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<import('next').Metadata> {
   if (await isPlatformHost()) {
-    return { title: 'Tiendafy — Abrí tu tienda online', description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.' };
+    return {
+      title: 'Tiendafy — Abrí tu tienda online',
+      description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.',
+    };
   }
   const data = await loadStorefront();
   if (!data) return { title: 'Tienda' };
@@ -30,7 +33,11 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   };
 }
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ preview?: string; pt?: string }> }) {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string; pt?: string }>;
+}) {
   if (await isPlatformHost()) return <PlatformLanding />;
 
   const data = await loadStorefront();
@@ -40,7 +47,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const sp = await searchParams;
   const preview = sp.preview === '1';
-  const theme = preview ? await fetchDraftTheme(data.tenant.id, sp.pt) : await fetchPublishedTheme(data.tenant.id);
+  const theme = preview
+    ? await fetchDraftTheme(data.tenant.id, sp.pt)
+    : await fetchPublishedTheme(data.tenant.id);
 
   if (!preview && theme.comingSoon.enabled) return <ComingSoon theme={theme} tenantName={data.tenant.name} />;
 
@@ -72,7 +81,9 @@ function StoreDeleted({ registerUrl }: { registerUrl: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="max-w-md text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-fg/5 text-2xl">🏷️</div>
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-fg/5 text-2xl">
+          🏷️
+        </div>
         <h1 className="text-2xl font-bold">Esta tienda ha sido eliminada</h1>
         <p className="mt-2 text-fg-muted">
           El nombre quedó libre. Si querés reclamarlo, registrate y creá tu tienda.

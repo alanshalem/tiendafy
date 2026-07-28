@@ -53,9 +53,12 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
       headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey },
       credentials: 'include',
       body: JSON.stringify({ productIds: local }),
-    })
-      .then((d) => { if (!cancelled && d) setIds(d.productIds ?? []); });
-    return () => { cancelled = true; };
+    }).then((d) => {
+      if (!cancelled && d) setIds(d.productIds ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [ready, token, key, storeKey]);
 
   const toggle = useCallback(

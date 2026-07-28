@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader, StatsToolbar, defaultStatsRange, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
+import {
+  KpiCard,
+  StatsPageHeader,
+  StatsToolbar,
+  defaultStatsRange,
+  rangeLabel,
+  rangeQuery,
+} from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -29,7 +36,9 @@ export function StatsVisitsPage() {
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />)}
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
+          ))}
         </div>
       ) : (
         <>

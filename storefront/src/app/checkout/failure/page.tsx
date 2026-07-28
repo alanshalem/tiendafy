@@ -15,7 +15,13 @@ export default async function CheckoutFailurePage({
   const sp = await searchParams;
 
   return (
-    <StorefrontView tenantId={data.tenant.id} tenantName={data.tenant.name} theme={theme} products={[]} live={preview}>
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={[]}
+      live={preview}
+    >
       <CheckoutResult tenantId={data.tenant.id} orderId={sp.order} kind="failure" />
     </StorefrontView>
   );

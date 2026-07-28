@@ -8,7 +8,17 @@ function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
-      <text x="32" y="45" textAnchor="middle" fontFamily="-apple-system, system-ui, sans-serif" fontWeight="700" fontSize="38" fill="#fff">t</text>
+      <text
+        x="32"
+        y="45"
+        textAnchor="middle"
+        fontFamily="-apple-system, system-ui, sans-serif"
+        fontWeight="700"
+        fontSize="38"
+        fill="#fff"
+      >
+        t
+      </text>
     </svg>
   );
 }
@@ -46,12 +56,21 @@ export function Login() {
     setNeedsVerify(false);
     setBusy(true);
     if (mode === 'forgot') {
-      try { await api.post('/api/v1/auth/forgot', { email }); setSent(true); }
-      catch { setSent(true); } // respuesta uniforme: no revela si el email existe
-      finally { setBusy(false); }
+      try {
+        await api.post('/api/v1/auth/forgot', { email });
+        setSent(true);
+      } catch {
+        setSent(true);
+      } finally {
+        // respuesta uniforme: no revela si el email existe
+        setBusy(false);
+      }
       return;
     }
-    const res = mode === 'login' ? await login(email, password, captcha || undefined) : await register(name, email, password, captcha || undefined);
+    const res =
+      mode === 'login'
+        ? await login(email, password, captcha || undefined)
+        : await register(name, email, password, captcha || undefined);
     setBusy(false);
     if (!res.ok) {
       setError(res.error ?? 'Algo salió mal.');
@@ -61,67 +80,135 @@ export function Login() {
 
   const resendVerification = async () => {
     setResent(false);
-    try { await api.post('/api/v1/auth/resend-verification', { email }); } catch { /* respuesta uniforme */ }
+    try {
+      await api.post('/api/v1/auth/resend-verification', { email });
+    } catch {
+      /* respuesta uniforme */
+    }
     setResent(true);
   };
 
   return (
     <Shell>
       <h1 className="text-lg font-semibold text-fg">
-        {mode === 'forgot' ? 'Recuperar contraseña' : mode === 'login' ? 'Entrá a tu panel' : 'Creá tu cuenta'}
+        {mode === 'forgot'
+          ? 'Recuperar contraseña'
+          : mode === 'login'
+            ? 'Entrá a tu panel'
+            : 'Creá tu cuenta'}
       </h1>
       <p className="mt-1 text-sm text-fg-muted">
-        {mode === 'forgot' ? 'Te enviamos un link para crear una nueva.' : mode === 'login' ? 'Administrá tus tiendas.' : 'Y empezá a vender.'}
+        {mode === 'forgot'
+          ? 'Te enviamos un link para crear una nueva.'
+          : mode === 'login'
+            ? 'Administrá tus tiendas.'
+            : 'Y empezá a vender.'}
       </p>
 
       {sent ? (
         <p className="mt-5 rounded-lg bg-bg-muted p-4 text-sm text-fg">
-          Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo (y spam).
+          Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo (y
+          spam).
         </p>
       ) : (
         <form onSubmit={submit} className="mt-5 space-y-3">
           {mode === 'register' && (
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" required
-              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tu nombre"
+              required
+              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+            />
           )}
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required
-            className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            required
+            className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+          />
           {mode !== 'forgot' && (
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" required minLength={10}
-              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              required
+              minLength={10}
+              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+            />
           )}
 
           {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
 
           {error && <p className="text-sm text-danger">{error}</p>}
           {needsVerify && (
-            <button type="button" onClick={resendVerification} className="text-sm font-semibold text-primary hover:underline">
+            <button
+              type="button"
+              onClick={resendVerification}
+              className="text-sm font-semibold text-primary hover:underline"
+            >
               {resent ? 'Email reenviado — revisá tu correo (y spam).' : 'Reenviar email de verificación'}
             </button>
           )}
 
-          <button type="submit" disabled={busy || (mode !== 'forgot' && captcha === null)}
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'forgot' ? 'Enviar link' : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          <button
+            type="submit"
+            disabled={busy || (mode !== 'forgot' && captcha === null)}
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : mode === 'forgot' ? (
+              'Enviar link'
+            ) : mode === 'login' ? (
+              'Iniciar sesión'
+            ) : (
+              'Crear cuenta'
+            )}
           </button>
         </form>
       )}
 
       {mode === 'login' && !sent && (
-        <button type="button" onClick={() => { setError(null); setMode('forgot'); }} className="mt-3 block w-full text-center text-sm text-fg-muted hover:underline">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setMode('forgot');
+          }}
+          className="mt-3 block w-full text-center text-sm text-fg-muted hover:underline"
+        >
           ¿Olvidaste tu contraseña?
         </button>
       )}
 
       <p className="mt-4 text-center text-sm text-fg-muted">
         {mode === 'forgot' ? (
-          <button type="button" onClick={() => { setError(null); setSent(false); setMode('login'); }} className="font-semibold text-primary hover:underline">
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setSent(false);
+              setMode('login');
+            }}
+            className="font-semibold text-primary hover:underline"
+          >
             Volver a iniciar sesión
           </button>
         ) : (
           <>
             {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-            <button type="button" onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setMode(mode === 'login' ? 'register' : 'login');
+              }}
+              className="font-semibold text-primary hover:underline"
+            >
               {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
             </button>
           </>
@@ -156,7 +243,13 @@ export function ResetPasswordForm() {
   };
 
   if (!email || !token) {
-    return <Shell><p className="text-sm text-fg-muted">Link inválido. Pedí uno nuevo desde &quot;Olvidaste tu contraseña&quot;.</p></Shell>;
+    return (
+      <Shell>
+        <p className="text-sm text-fg-muted">
+          Link inválido. Pedí uno nuevo desde &quot;Olvidaste tu contraseña&quot;.
+        </p>
+      </Shell>
+    );
   }
 
   if (done) {
@@ -164,7 +257,12 @@ export function ResetPasswordForm() {
       <Shell>
         <h1 className="text-lg font-semibold text-fg">¡Listo!</h1>
         <p className="mt-1 text-sm text-fg-muted">Tu contraseña fue cambiada.</p>
-        <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Iniciar sesión</a>
+        <a
+          href="/"
+          className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+        >
+          Iniciar sesión
+        </a>
       </Shell>
     );
   }
@@ -174,11 +272,21 @@ export function ResetPasswordForm() {
       <h1 className="text-lg font-semibold text-fg">Nueva contraseña</h1>
       <p className="mt-1 text-sm text-fg-muted">Para {email}. Mínimo 10 caracteres.</p>
       <form onSubmit={submit} className="mt-5 space-y-3">
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva contraseña" required minLength={10}
-          className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary" />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Nueva contraseña"
+          required
+          minLength={10}
+          className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+        />
         {error && <p className="text-sm text-danger">{error}</p>}
-        <button type="submit" disabled={busy || password.length < 10}
-          className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={busy || password.length < 10}
+          className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
+        >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
         </button>
       </form>
@@ -194,8 +302,12 @@ export function VerifyEmailScreen() {
   const [state, setState] = useState<'busy' | 'ok' | 'fail'>('busy');
 
   useEffect(() => {
-    if (!email || !token) { setState('fail'); return; }
-    api.post('/api/v1/auth/verify', { email, token })
+    if (!email || !token) {
+      setState('fail');
+      return;
+    }
+    api
+      .post('/api/v1/auth/verify', { email, token })
       .then(() => setState('ok'))
       .catch(() => setState('fail'));
   }, [email, token]);
@@ -207,14 +319,24 @@ export function VerifyEmailScreen() {
         <>
           <h1 className="text-lg font-semibold text-fg">¡Email verificado!</h1>
           <p className="mt-1 text-sm text-fg-muted">Tu cuenta quedó confirmada.</p>
-          <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Ir al panel</a>
+          <a
+            href="/"
+            className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+          >
+            Ir al panel
+          </a>
         </>
       )}
       {state === 'fail' && (
         <>
           <h1 className="text-lg font-semibold text-fg">Link inválido o vencido</h1>
           <p className="mt-1 text-sm text-fg-muted">Pedí un reenvío desde la pantalla de inicio de sesión.</p>
-          <a href="/" className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover">Volver</a>
+          <a
+            href="/"
+            className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+          >
+            Volver
+          </a>
         </>
       )}
     </Shell>

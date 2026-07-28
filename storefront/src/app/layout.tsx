@@ -47,9 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={STORE_FONTS_HREF} />
       </head>
-      <body className={`${fraunces.variable} ${archivo.variable} min-h-screen antialiased`}>
-        {children}
-      </body>
+      <body className={`${fraunces.variable} ${archivo.variable} min-h-screen antialiased`}>{children}</body>
     </html>
   );
 }

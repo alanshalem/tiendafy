@@ -64,16 +64,29 @@ export function MessagesPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {!m.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                    <span className={`truncate font-semibold ${m.read ? 'text-fg' : 'text-fg'}`}>{m.name}</span>
+                    <span className={`truncate font-semibold ${m.read ? 'text-fg' : 'text-fg'}`}>
+                      {m.name}
+                    </span>
                   </div>
-                  <a href={`mailto:${m.email}`} className="text-sm text-primary hover:underline">{m.email}</a>
+                  <a href={`mailto:${m.email}`} className="text-sm text-primary hover:underline">
+                    {m.email}
+                  </a>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <span className="text-xs text-fg-subtle">
-                    {new Date(m.createdAtUtc).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(m.createdAtUtc).toLocaleString('es-AR', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
                   {!m.read && (
-                    <button onClick={() => markRead(m.id)} title="Marcar leído" className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg">
+                    <button
+                      onClick={() => markRead(m.id)}
+                      title="Marcar leído"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg"
+                    >
                       <MailOpen className="h-4 w-4" /> Leído
                     </button>
                   )}

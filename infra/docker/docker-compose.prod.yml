@@ -16,8 +16,8 @@ x-logging: &logging
   logging:
     driver: json-file
     options:
-      max-size: "10m"
-      max-file: "3"
+      max-size: '10m'
+      max-file: '3'
 
 services:
   postgres:
@@ -31,7 +31,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tiendafy -d tiendafy"]
+      test: ['CMD-SHELL', 'pg_isready -U tiendafy -d tiendafy']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,8 +120,8 @@ services:
     restart: unless-stopped
     <<: *logging
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     environment:
       PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL:?definir en .env.prod}

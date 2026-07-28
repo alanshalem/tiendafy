@@ -1,3 +1,4 @@
+using Analytics.Infrastructure;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Infrastructure.Persistence;
 using Content.Infrastructure;
@@ -6,7 +7,6 @@ using Discounts.Infrastructure;
 using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
-using Analytics.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;

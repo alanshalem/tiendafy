@@ -14,10 +14,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'>
 
 export function Card({ title, action, footer, flush = false, className, children, ...props }: CardProps) {
   return (
-    <div
-      className={cn('rounded-lg border border-border bg-surface shadow-card', className)}
-      {...props}
-    >
+    <div className={cn('rounded-lg border border-border bg-surface shadow-card', className)} {...props}>
       {(title || action) && (
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           {title && <h3 className="text-sm font-semibold text-fg">{title}</h3>}

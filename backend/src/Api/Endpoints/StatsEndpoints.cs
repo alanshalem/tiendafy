@@ -1,5 +1,5 @@
-using Identity.Infrastructure;
 using Analytics.Infrastructure;
+using Api.Auth;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Core.Domain;
@@ -7,10 +7,10 @@ using Checkout.Infrastructure.Persistence;
 using Content.Infrastructure;
 using Customers.Infrastructure;
 using Discounts.Infrastructure;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
-using Api.Auth;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 

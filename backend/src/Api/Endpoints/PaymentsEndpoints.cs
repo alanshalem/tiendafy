@@ -1,5 +1,5 @@
-using Identity.Infrastructure;
 using Api.Auth;
+using Identity.Infrastructure;
 using Microsoft.Extensions.Options;
 using Payments.Core.Domain;
 using Payments.Core.Features.Connect;

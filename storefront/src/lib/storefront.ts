@@ -27,9 +27,7 @@ export async function loadStorefront(): Promise<StorefrontData | null> {
   if (tenant.status !== 'ACTIVE') return { tenant, products: [] };
 
   const raw = await fetchActiveProducts(tenant.id);
-  const products: StoreProduct[] = raw
-    .map(toStoreProduct)
-    .filter((p): p is StoreProduct => p !== null);
+  const products: StoreProduct[] = raw.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
 
   return { tenant, products };
 }

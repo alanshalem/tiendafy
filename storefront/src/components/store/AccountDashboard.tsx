@@ -12,7 +12,12 @@ import { SupportChat } from './SupportChat';
 
 import { clientJson } from '@/lib/api-client';
 
-interface OrderItem { productName: string; variantDescription: string; quantity: number; unitPrice: { amount: number; currency: string } }
+interface OrderItem {
+  productName: string;
+  variantDescription: string;
+  quantity: number;
+  unitPrice: { amount: number; currency: string };
+}
 interface Order {
   id: string;
   status: string;
@@ -43,11 +48,20 @@ export function AccountDashboard() {
   const [chatOrder, setChatOrder] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) { setOrders([]); return; }
+    if (!token) {
+      setOrders([]);
+      return;
+    }
     let cancelled = false;
-    clientJson<{ items: Order[] }>('/api/v1/shop/orders', { headers: { 'X-Tenant-Id': tenantId }, credentials: 'include' })
-      .then((d) => { if (!cancelled) setOrders(d?.items ?? []); });
-    return () => { cancelled = true; };
+    clientJson<{ items: Order[] }>('/api/v1/shop/orders', {
+      headers: { 'X-Tenant-Id': tenantId },
+      credentials: 'include',
+    }).then((d) => {
+      if (!cancelled) setOrders(d?.items ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [token, tenantId]);
 
   if (ready && !user) {
@@ -64,12 +78,24 @@ export function AccountDashboard() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-5">
         <div>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Hola, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+            Hola, {user?.name?.split(' ')[0]}
+          </h1>
           <p className="text-sm opacity-60">{user?.email}</p>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <Link href={href('/favoritos')} className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"><Heart className="h-4 w-4" /> Favoritos</Link>
-          <button onClick={() => logout()} className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"><LogOut className="h-4 w-4" /> Salir</button>
+          <Link
+            href={href('/favoritos')}
+            className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"
+          >
+            <Heart className="h-4 w-4" /> Favoritos
+          </Link>
+          <button
+            onClick={() => logout()}
+            className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"
+          >
+            <LogOut className="h-4 w-4" /> Salir
+          </button>
         </div>
       </div>
 
@@ -89,17 +115,30 @@ export function AccountDashboard() {
               <div key={o.id} className="rounded-2xl border border-black/10 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
-                    <span className="text-xs opacity-50">{formatDate(o.createdAtUtc, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>
+                      {st.label}
+                    </span>
+                    <span className="text-xs opacity-50">
+                      {formatDate(o.createdAtUtc, { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
                   </div>
                   <span className="font-bold">{money(o.total.amount, o.total.currency)}</span>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm opacity-75">
                   {o.items.map((i, k) => (
-                    <li key={k}>{i.quantity}× {i.productName}{i.variantDescription && i.variantDescription !== 'Única' ? ` · ${i.variantDescription}` : ''}</li>
+                    <li key={k}>
+                      {i.quantity}× {i.productName}
+                      {i.variantDescription && i.variantDescription !== 'Única'
+                        ? ` · ${i.variantDescription}`
+                        : ''}
+                    </li>
                   ))}
                 </ul>
-                {o.tracking && <p className="mt-2 text-xs opacity-60">Seguimiento: <span className="font-medium">{o.tracking}</span></p>}
+                {o.tracking && (
+                  <p className="mt-2 text-xs opacity-60">
+                    Seguimiento: <span className="font-medium">{o.tracking}</span>
+                  </p>
+                )}
                 {o.status !== 'PENDINGPAYMENT' && o.status !== 'FAILED' && o.status !== 'CANCELLED' && (
                   <button
                     onClick={() => setChatOrder(o.id)}
@@ -114,7 +153,9 @@ export function AccountDashboard() {
         </div>
       )}
 
-      {chatOrder && <SupportChat orderId={chatOrder} tenantId={tenantId} onClose={() => setChatOrder(null)} />}
+      {chatOrder && (
+        <SupportChat orderId={chatOrder} tenantId={tenantId} onClose={() => setChatOrder(null)} />
+      )}
     </div>
   );
 }

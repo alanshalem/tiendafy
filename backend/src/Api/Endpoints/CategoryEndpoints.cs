@@ -1,12 +1,11 @@
-using Identity.Infrastructure;
+using Api.Auth;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateCategory;
 using Catalog.Infrastructure.Persistence;
+using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
-
-using Api.Auth;
 
 namespace Api.Endpoints;
 

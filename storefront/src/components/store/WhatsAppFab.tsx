@@ -53,7 +53,12 @@ export function WhatsAppFab({
               </p>
               <span className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-gray-500">
                 ahora
-                <svg viewBox="0 0 16 11" className="h-3 w-3.5 text-[#34B7F1]" fill="currentColor" aria-hidden="true">
+                <svg
+                  viewBox="0 0 16 11"
+                  className="h-3 w-3.5 text-[#34B7F1]"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
                   <path d="M11.07.65a.5.5 0 0 1 .02.7l-5.4 5.9a.5.5 0 0 1-.72.02L2.4 5.06a.5.5 0 1 1 .68-.73l2.2 2.05L10.37.67a.5.5 0 0 1 .7-.02Zm3.3 0a.5.5 0 0 1 .02.7l-5.4 5.9a.5.5 0 0 1-.71.03l-.36-.33.68-.74.02.02 5.04-5.5a.5.5 0 0 1 .71-.08Z" />
                 </svg>
               </span>

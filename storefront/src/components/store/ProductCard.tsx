@@ -61,19 +61,30 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         )}
         {/* Badge de stock (bajo el de %OFF si convive). */}
         {list.showStockBadge && product.stock != null && product.stock <= 0 && (
-          <span className={`absolute left-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}>
+          <span
+            className={`absolute left-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}
+          >
             Sin stock
           </span>
         )}
-        {list.showStockBadge && product.stock != null && product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD && (
-          <span className={`absolute left-2 z-10 rounded-md bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}>
-            ¡Últimas {product.stock}!
-          </span>
-        )}
+        {list.showStockBadge &&
+          product.stock != null &&
+          product.stock > 0 &&
+          product.stock <= LOW_STOCK_THRESHOLD && (
+            <span
+              className={`absolute left-2 z-10 rounded-md bg-amber-500 px-1.5 py-0.5 text-[0.7rem] font-semibold text-white shadow-sm ${onSale && discountPct > 0 ? 'top-9' : 'top-2'}`}
+            >
+              ¡Últimas {product.stock}!
+            </span>
+          )}
         {/* Favorito: toggle sin navegar. */}
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); fav.toggle(product.id); }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fav.toggle(product.id);
+          }}
           aria-label={faved ? 'Quitar de favoritos' : 'Agregar a favoritos'}
           aria-pressed={faved}
           className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:scale-110"
@@ -81,9 +92,16 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           <Icon name="heart" className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
         </button>
         {imgs.length > 0 ? (
-          <StoreImage src={imgs[imgIdx]} alt={product.name} className="object-cover transition-transform duration-300 group-hover:scale-105" />
+          <StoreImage
+            src={imgs[imgIdx]}
+            alt={product.name}
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
         ) : (
-          <InitialFallback name={product.name} className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40" />
+          <InitialFallback
+            name={product.name}
+            className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40"
+          />
         )}
         {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. */}
         {imgs.length > 1 && (
@@ -106,20 +124,30 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             </button>
             <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1">
               {imgs.map((_, i) => (
-                <span key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+                <span
+                  key={i}
+                  className={`h-1.5 w-1.5 rounded-full transition-colors ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`}
+                />
               ))}
             </div>
           </>
         )}
       </Link>
-      <Link href={link} className="mt-2 block min-h-[2.5rem] text-sm font-medium hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+      <Link
+        href={link}
+        className="mt-2 block min-h-[2.5rem] text-sm font-medium hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+      >
         {product.name}
       </Link>
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
-          <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>{fmt(product.priceAmount, product.currency)}</span>
+          <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>
+            {fmt(product.priceAmount, product.currency)}
+          </span>
           {list.showCompareAt && product.compareAtAmount && (
-            <span className="ml-2 line-through opacity-50">{fmt(product.compareAtAmount, product.currency)}</span>
+            <span className="ml-2 line-through opacity-50">
+              {fmt(product.compareAtAmount, product.currency)}
+            </span>
           )}
         </div>
       )}
@@ -130,7 +158,8 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       )}
       {list.showPrice && list.installmentsCount > 0 && (
         <div className="text-xs opacity-70">
-          {list.installmentsCount} x {fmt(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin interés
+          {list.installmentsCount} x{' '}
+          {fmt(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin interés
         </div>
       )}
       {list.showBuyButton && (

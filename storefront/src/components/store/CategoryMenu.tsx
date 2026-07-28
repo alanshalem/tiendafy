@@ -36,8 +36,9 @@ function useCategoryTree(): CatNode[] {
   const [cats, setCats] = useState<Cat[]>([]);
   useEffect(() => {
     if (!tenantId) return;
-    clientJson<{ items?: Cat[] }>('/api/v1/categories', { headers: { 'X-Tenant-Id': tenantId } })
-      .then((d) => setCats(d?.items ?? []));
+    clientJson<{ items?: Cat[] }>('/api/v1/categories', { headers: { 'X-Tenant-Id': tenantId } }).then((d) =>
+      setCats(d?.items ?? []),
+    );
   }, [tenantId]);
   return useMemo(() => buildTree(cats), [cats]);
 }
@@ -107,7 +108,8 @@ export function CategoryMenu() {
         aria-expanded={open}
         className="flex items-center gap-1 opacity-90 hover:opacity-100"
       >
-        Categorías <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        Categorías{' '}
+        <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

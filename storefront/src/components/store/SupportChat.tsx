@@ -5,7 +5,11 @@ import { Loader2, MessageCircle, Paperclip, Send, X } from 'lucide-react';
 
 import { API_URL, clientJson } from '@/lib/api-client';
 
-interface Attachment { name: string; contentType: string; url: string }
+interface Attachment {
+  name: string;
+  contentType: string;
+  url: string;
+}
 interface Message {
   id: string;
   isFromStaff: boolean;
@@ -14,7 +18,11 @@ interface Message {
   attachment: Attachment | null;
   createdAtUtc: string;
 }
-interface Conversation { id: string; status: string; unreadForCustomer: number }
+interface Conversation {
+  id: string;
+  status: string;
+  unreadForCustomer: number;
+}
 
 const POLL_MS = 6000;
 const MAX_FILE = 10 * 1024 * 1024;
@@ -24,7 +32,15 @@ const ALLOWED = ['application/pdf', 'image/jpeg', 'image/png'];
  * Chat posventa de una orden. Abre (o retoma) la conversación al montar y
  * refresca por polling corto mientras está visible.
  */
-export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; tenantId: string; onClose: () => void }) {
+export function SupportChat({
+  orderId,
+  tenantId,
+  onClose,
+}: {
+  orderId: string;
+  tenantId: string;
+  onClose: () => void;
+}) {
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -35,16 +51,19 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
 
   const headers = { 'X-Tenant-Id': tenantId };
 
-  const loadMessages = useCallback(async (convId: string) => {
-    const d = await clientJson<{ conversation: Conversation; items: Message[] }>(
-      `/api/v1/shop/support/conversations/${convId}/messages`,
-      { headers, credentials: 'include' },
-    );
-    if (d) {
-      setConv(d.conversation);
-      setMessages(d.items);
-    }
-  }, [tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadMessages = useCallback(
+    async (convId: string) => {
+      const d = await clientJson<{ conversation: Conversation; items: Message[] }>(
+        `/api/v1/shop/support/conversations/${convId}/messages`,
+        { headers, credentials: 'include' },
+      );
+      if (d) {
+        setConv(d.conversation);
+        setMessages(d.items);
+      }
+    },
+    [tenantId],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir conversación + polling.
   useEffect(() => {
@@ -59,13 +78,19 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
         body: JSON.stringify({ orderId }),
       });
       if (cancelled) return;
-      if (!c) { setError('No pudimos abrir el chat. Probá de nuevo.'); return; }
+      if (!c) {
+        setError('No pudimos abrir el chat. Probá de nuevo.');
+        return;
+      }
       setConv(c);
       await loadMessages(c.id);
       timer = setInterval(() => loadMessages(c.id), POLL_MS);
     })();
 
-    return () => { cancelled = true; if (timer) clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   }, [orderId, loadMessages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -81,15 +106,23 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
       credentials: 'include',
       body: JSON.stringify({ body: text }),
     });
-    if (r) { setText(''); await loadMessages(conv.id); }
-    else setError('No se pudo enviar el mensaje.');
+    if (r) {
+      setText('');
+      await loadMessages(conv.id);
+    } else setError('No se pudo enviar el mensaje.');
     setSending(false);
   };
 
   const sendFile = async (file: File) => {
     if (!conv || sending) return;
-    if (!ALLOWED.includes(file.type)) { setError('Solo PDF, JPG o PNG.'); return; }
-    if (file.size > MAX_FILE) { setError('El archivo supera los 10 MB.'); return; }
+    if (!ALLOWED.includes(file.type)) {
+      setError('Solo PDF, JPG o PNG.');
+      return;
+    }
+    if (file.size > MAX_FILE) {
+      setError('El archivo supera los 10 MB.');
+      return;
+    }
     setSending(true);
     setError(null);
     const form = new FormData();
@@ -97,10 +130,15 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
     if (text.trim()) form.append('body', text.trim());
     try {
       const res = await fetch(`${API_URL}/api/v1/shop/support/conversations/${conv.id}/attachments`, {
-        method: 'POST', headers, credentials: 'include', body: form,
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: form,
       });
-      if (res.ok) { setText(''); await loadMessages(conv.id); }
-      else setError('No se pudo adjuntar el archivo.');
+      if (res.ok) {
+        setText('');
+        await loadMessages(conv.id);
+      } else setError('No se pudo adjuntar el archivo.');
     } catch {
       setError('No se pudo adjuntar el archivo.');
     } finally {
@@ -110,7 +148,10 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <div
         className="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white text-gray-900 shadow-xl sm:h-[600px] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -120,7 +161,9 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
             <MessageCircle className="h-5 w-5" />
             <span className="font-semibold">Consulta sobre tu pedido</span>
           </div>
-          <button onClick={onClose} aria-label="Cerrar chat" className="rounded-md p-1 hover:bg-black/5"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label="Cerrar chat" className="rounded-md p-1 hover:bg-black/5">
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -132,11 +175,18 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
           )}
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.isFromStaff ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${m.isFromStaff ? 'bg-gray-100' : 'bg-gray-900 text-white'}`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${m.isFromStaff ? 'bg-gray-100' : 'bg-gray-900 text-white'}`}
+              >
                 {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-                {m.attachment && (
-                  m.attachment.contentType.startsWith('image/') ? (
-                    <a href={m.attachment.url} target="_blank" rel="noopener noreferrer" className="mt-1 block">
+                {m.attachment &&
+                  (m.attachment.contentType.startsWith('image/') ? (
+                    <a
+                      href={m.attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 block"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={m.attachment.url} alt={m.attachment.name} className="max-h-48 rounded-lg" />
                     </a>
@@ -149,10 +199,14 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
                     >
                       <Paperclip className="h-3.5 w-3.5" /> {m.attachment.name}
                     </a>
-                  )
-                )}
+                  ))}
                 <p className={`mt-1 text-[10px] ${m.isFromStaff ? 'opacity-50' : 'opacity-60'}`}>
-                  {new Date(m.createdAtUtc).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {new Date(m.createdAtUtc).toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
               </div>
             </div>
@@ -168,7 +222,10 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) sendFile(f); }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) sendFile(f);
+            }}
           />
           <button
             onClick={() => fileRef.current?.click()}
@@ -180,8 +237,16 @@ export function SupportChat({ orderId, tenantId, onClose }: { orderId: string; t
           </button>
           <input
             value={text}
-            onChange={(e) => { setText(e.target.value); setError(null); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            onChange={(e) => {
+              setText(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
             placeholder="Escribí tu mensaje…"
             className="h-10 flex-1 rounded-full border border-black/15 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-black/30"
           />

@@ -133,8 +133,8 @@ function NoPermission() {
       </span>
       <h3 className="mt-3 text-base font-semibold text-fg">No tenés permiso para la facturación</h3>
       <p className="mx-auto mt-1 max-w-sm text-sm text-fg-muted">
-        La configuración fiscal solo la pueden tocar los roles Dueño, Administrador o Finanzas. Si
-        necesitás acceso, pedile a un administrador de la tienda que ajuste tu rol.
+        La configuración fiscal solo la pueden tocar los roles Dueño, Administrador o Finanzas. Si necesitás
+        acceso, pedile a un administrador de la tienda que ajuste tu rol.
       </p>
     </div>
   );
@@ -168,13 +168,13 @@ function IntroBanner() {
             llamaba AFIP), que la aprueba y le pone un número de autorización (el CAE).
           </p>
           <p>
-            La buena noticia: <strong>Tiendafy lo hace solo por vos</strong>. Vos configurás esto una vez,
-            y después cada venta se factura sin que muevas un dedo.
+            La buena noticia: <strong>Tiendafy lo hace solo por vos</strong>. Vos configurás esto una vez, y
+            después cada venta se factura sin que muevas un dedo.
           </p>
           <p>
-            Y no hay riesgo: primero se practica en modo <strong>Homologación</strong> (facturas de
-            mentira, para probar), y recién cuando todo funciona pasás a <strong>Producción</strong>{' '}
-            (facturas de verdad).
+            Y no hay riesgo: primero se practica en modo <strong>Homologación</strong> (facturas de mentira,
+            para probar), y recién cuando todo funciona pasás a <strong>Producción</strong> (facturas de
+            verdad).
           </p>
         </div>
       )}
@@ -215,9 +215,7 @@ function ProgressChecklist({ config, points }: { config: FiscalConfigDto | null;
             >
               {s.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={cn('text-sm font-medium', s.done ? 'text-fg' : 'text-fg-muted')}>
-              {s.label}
-            </span>
+            <span className={cn('text-sm font-medium', s.done ? 'text-fg' : 'text-fg-muted')}>{s.label}</span>
             {i < steps.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
           </div>
         ))}
@@ -225,8 +223,8 @@ function ProgressChecklist({ config, points }: { config: FiscalConfigDto | null;
       {!ready && (
         <p className="mt-3 flex items-start gap-2 text-xs text-fg-muted">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-          Mientras el certificado no esté activo y no tengas al menos un punto de venta, todavía no se
-          pueden emitir facturas.
+          Mientras el certificado no esté activo y no tengas al menos un punto de venta, todavía no se pueden
+          emitir facturas.
         </p>
       )}
     </div>
@@ -348,8 +346,8 @@ function IssuerStep({ config, onSaved }: { config: FiscalConfigDto | null; onSav
             inputMode="numeric"
           />
           <Hint>
-            Tu número de identificación fiscal (11 dígitos). Ej: <code>20-12345678-6</code>. Con él ARCA
-            sabe quién emite cada factura.
+            Tu número de identificación fiscal (11 dígitos). Ej: <code>20-12345678-6</code>. Con él ARCA sabe
+            quién emite cada factura.
           </Hint>
         </div>
 
@@ -374,8 +372,8 @@ function IssuerStep({ config, onSaved }: { config: FiscalConfigDto | null; onSav
             ]}
           />
           <Hint>
-            Define qué tipo de factura emitís: Responsable Inscripto emite Factura A/B (con IVA);
-            Monotributo emite Factura C (más simple, sin desglose de IVA).
+            Define qué tipo de factura emitís: Responsable Inscripto emite Factura A/B (con IVA); Monotributo
+            emite Factura C (más simple, sin desglose de IVA).
           </Hint>
         </div>
 
@@ -396,8 +394,7 @@ function IssuerStep({ config, onSaved }: { config: FiscalConfigDto | null; onSav
           {environment === 'PRODUCCION' && (
             <div className="mt-2 flex items-start gap-2 rounded-md border border-warning/30 bg-warning-bg p-2.5 text-xs text-fg">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-              Empezá siempre en Homologación. Pasá a Producción recién cuando comprobaste que todo
-              funciona.
+              Empezá siempre en Homologación. Pasá a Producción recién cuando comprobaste que todo funciona.
             </div>
           )}
         </div>
@@ -528,10 +525,10 @@ function CertificateStep({
     >
       <div className="space-y-4">
         <p className="text-sm leading-relaxed text-fg-muted">
-          El certificado es como el <strong>documento de identidad de tu tienda</strong> para hablar con
-          ARCA: sin él, ARCA no te contesta. Va de la mano de una <strong>clave privada</strong> (su
-          secreto). Tiendafy la genera y la guarda <strong>cifrada</strong>: no se muestra por pantalla ni
-          se comparte jamás, ni siquiera con ARCA.
+          El certificado es como el <strong>documento de identidad de tu tienda</strong> para hablar con ARCA:
+          sin él, ARCA no te contesta. Va de la mano de una <strong>clave privada</strong> (su secreto).
+          Tiendafy la genera y la guarda <strong>cifrada</strong>: no se muestra por pantalla ni se comparte
+          jamás, ni siquiera con ARCA.
         </p>
 
         {isActive ? (
@@ -617,8 +614,8 @@ function CertificateStep({
                   </a>
                   <p className="mt-2 flex items-start gap-2 text-xs text-fg-muted">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                    En <strong>Homologación</strong> el sitio es el <strong>WSASS</strong> (el
-                    autoservicio de homologación de ARCA), no el portal de producción.
+                    En <strong>Homologación</strong> el sitio es el <strong>WSASS</strong> (el autoservicio de
+                    homologación de ARCA), no el portal de producción.
                   </p>
                 </div>
               </div>
@@ -635,9 +632,15 @@ function CertificateStep({
                 placeholder={'-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----'}
                 className="font-mono text-xs"
               />
-              <Hint>Es el archivo .pem / .crt que descargaste de ARCA. Abrilo con un editor y copiá todo.</Hint>
+              <Hint>
+                Es el archivo .pem / .crt que descargaste de ARCA. Abrilo con un editor y copiá todo.
+              </Hint>
               <Button className="mt-2" onClick={activate} disabled={activating || !pendingCertId}>
-                {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                {activating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
                 Activar certificado
               </Button>
             </div>
@@ -648,17 +651,17 @@ function CertificateStep({
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
           <span>
             Recordá que en ARCA además hay que <strong>delegar el servicio “wsfe”</strong> (factura
-            electrónica) a este certificado: es un paso manual en el portal. Te mostramos cómo en el
-            centro de ayuda.
+            electrónica) a este certificado: es un paso manual en el portal. Te mostramos cómo en el centro de
+            ayuda.
           </span>
         </div>
 
         {showCsrFlow && (
           <Helper title="¿Qué es el CSR y por qué este ida y vuelta?">
             El CSR es un “formulario de pedido” del certificado. Vos no lo fabricás: se lo pedís a ARCA.
-            Tiendafy lo arma solo (con tu CUIT y razón social adentro), vos lo subís a la web de ARCA,
-            ARCA te devuelve el certificado ya fabricado, y lo pegás de vuelta acá. Es un trámite que se
-            hace una sola vez.
+            Tiendafy lo arma solo (con tu CUIT y razón social adentro), vos lo subís a la web de ARCA, ARCA te
+            devuelve el certificado ya fabricado, y lo pegás de vuelta acá. Es un trámite que se hace una sola
+            vez.
           </Helper>
         )}
       </div>
@@ -733,9 +736,9 @@ function PointsOfSaleStep({
       disabled={!configured}
     >
       <p className="text-sm leading-relaxed text-fg-muted">
-        Un punto de venta es el cajón numerado de tus comprobantes. Primero lo das de alta en ARCA (te
-        asignan un número) y después lo cargás acá. Podés tener varios, por ejemplo uno para tu Web y
-        otro para MercadoLibre.
+        Un punto de venta es el cajón numerado de tus comprobantes. Primero lo das de alta en ARCA (te asignan
+        un número) y después lo cargás acá. Podés tener varios, por ejemplo uno para tu Web y otro para
+        MercadoLibre.
       </p>
 
       {points.length > 0 && (
@@ -862,8 +865,8 @@ function EmissionStep({
             ]}
           />
           <Hint>
-            “Al acreditarse el pago” factura apenas entra la plata; “Al despachar” espera a que prepares
-            el envío.
+            “Al acreditarse el pago” factura apenas entra la plata; “Al despachar” espera a que prepares el
+            envío.
           </Hint>
         </div>
 

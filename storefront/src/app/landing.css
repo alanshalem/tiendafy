@@ -8,7 +8,7 @@
 /* ---- Dark mode de la landing: invierte papel→obsidiana ----
    Cuando html[data-ld-mode="dark"], las secciones claras pasan a oscuras.
    El bermellón se mantiene; las zonas ya oscuras quedan igual. */
-html[data-ld-mode="dark"] .ld-root {
+html[data-ld-mode='dark'] .ld-root {
   --ld-paper: #000000;
   --ld-paper-deep: #1c1c1e;
   --ld-tan: #2c2c2e;
@@ -22,8 +22,8 @@ html[data-ld-mode="dark"] .ld-root {
 /* Zonas oscuras: siempre negras con texto claro. En dark mode el `paper`
    global ya es negro, así que dentro de las zonas oscuras lo volvemos claro
    para que el texto (que usa var(--ld-paper)) quede visible. */
-html[data-ld-mode="dark"] .ld-root .ld-dark-zone,
-html[data-ld-mode="dark"] .ld-root .ld-header {
+html[data-ld-mode='dark'] .ld-root .ld-dark-zone,
+html[data-ld-mode='dark'] .ld-root .ld-header {
   --ld-paper: #f5f5f7;
   --ld-paper-deep: #ececf0;
   --ld-tan: #2c2c2e;
@@ -43,7 +43,9 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
   color: var(--ld-cream-muted);
   background: transparent;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 .ld-mode-toggle:hover {
   color: var(--ld-verm);
@@ -63,11 +65,11 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
   --ld-obsidian-line: #2a2a2c;
   --ld-cream-muted: #98989d;
   --ld-card: #ffffff;
-  --ld-verm: #0071e3;        /* Apple system blue */
+  --ld-verm: #0071e3; /* Apple system blue */
   --ld-verm-deep: #0058b9;
   --ld-green: #34c759;
 
-  --ld-radius: 1.25rem;      /* esquinas suaves consistentes */
+  --ld-radius: 1.25rem; /* esquinas suaves consistentes */
   --ld-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', sans-serif;
   --ld-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', sans-serif;
 
@@ -92,7 +94,10 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 
 .ld-display {
   font-family: var(--ld-display);
-  font-variation-settings: 'opsz' 144, 'SOFT' 40, 'WONK' 0;
+  font-variation-settings:
+    'opsz' 144,
+    'SOFT' 40,
+    'WONK' 0;
   letter-spacing: -0.02em;
 }
 
@@ -115,8 +120,14 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
   border-radius: 9999px;
   background: var(--ld-verm);
   color: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 18px -6px rgb(0 113 227 / 0.45);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 6px 18px -6px rgb(0 113 227 / 0.45);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    opacity 0.18s ease;
   cursor: pointer;
   text-decoration: none;
 }
@@ -160,8 +171,7 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 .ld-dark-zone {
   background:
     radial-gradient(80rem 40rem at 85% -10%, rgb(10 132 255 / 0.13), transparent 60%),
-    radial-gradient(50rem 30rem at -10% 110%, rgb(10 132 255 / 0.07), transparent 60%),
-    var(--ld-obsidian);
+    radial-gradient(50rem 30rem at -10% 110%, rgb(10 132 255 / 0.07), transparent 60%), var(--ld-obsidian);
   color: var(--ld-paper);
 }
 
@@ -237,19 +247,35 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 }
 
 @keyframes ld-fade-up {
-  from { opacity: 0; transform: translateY(26px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .ld-hero [data-stagger] {
   animation: ld-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.ld-hero [data-stagger='1'] { animation-delay: 0.05s; }
-.ld-hero [data-stagger='2'] { animation-delay: 0.18s; }
-.ld-hero [data-stagger='3'] { animation-delay: 0.32s; }
-.ld-hero [data-stagger='4'] { animation-delay: 0.46s; }
-.ld-hero [data-stagger='5'] { animation-delay: 0.6s; }
+.ld-hero [data-stagger='1'] {
+  animation-delay: 0.05s;
+}
+.ld-hero [data-stagger='2'] {
+  animation-delay: 0.18s;
+}
+.ld-hero [data-stagger='3'] {
+  animation-delay: 0.32s;
+}
+.ld-hero [data-stagger='4'] {
+  animation-delay: 0.46s;
+}
+.ld-hero [data-stagger='5'] {
+  animation-delay: 0.6s;
+}
 
 /* ---------- Composición de producto del hero ---------- */
 .ld-stage {
@@ -345,8 +371,12 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 }
 
 @keyframes ld-bar-grow {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
 }
 
 .ld-admin-row {
@@ -365,13 +395,24 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
   border-radius: 9999px;
 }
 
-.ld-pill--ok { background: rgb(34 163 74 / 0.18); color: #7fe0a7; }
-.ld-pill--warn { background: rgb(217 119 6 / 0.18); color: #f3c577; }
+.ld-pill--ok {
+  background: rgb(34 163 74 / 0.18);
+  color: #7fe0a7;
+}
+.ld-pill--warn {
+  background: rgb(217 119 6 / 0.18);
+  color: #f3c577;
+}
 
 /* Tarjetas de tienda flotantes alrededor del admin */
 @keyframes ld-float {
-  0%, 100% { transform: translateY(0) rotate(var(--tilt, -2deg)); }
-  50% { transform: translateY(-9px) rotate(var(--tilt, -2deg)); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, -2deg));
+  }
+  50% {
+    transform: translateY(-9px) rotate(var(--tilt, -2deg));
+  }
 }
 
 .ld-store-card {
@@ -410,9 +451,20 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 
 /* Toast de venta (firma de la v1, se queda) */
 @keyframes ld-toast-cycle {
-  0%, 100% { opacity: 0; transform: translateY(14px) rotate(-1deg); }
-  4%, 26% { opacity: 1; transform: translateY(0) rotate(-1deg); }
-  32% { opacity: 0; transform: translateY(-10px) rotate(-1deg); }
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(14px) rotate(-1deg);
+  }
+  4%,
+  26% {
+    opacity: 1;
+    transform: translateY(0) rotate(-1deg);
+  }
+  32% {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-1deg);
+  }
 }
 
 .ld-sale-toast {
@@ -445,8 +497,12 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 }
 
 @keyframes ld-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .ld-ticker-track {
@@ -535,7 +591,9 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 }
 
 @media (min-width: 768px) {
-  .ld-collage { grid-template-columns: repeat(3, 1fr); }
+  .ld-collage {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .ld-collage-card {
@@ -543,7 +601,9 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
   border-radius: var(--ld-radius);
   background: var(--ld-card);
   overflow: hidden;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s ease;
 }
 
 .ld-collage-card:hover {
@@ -624,7 +684,9 @@ html[data-ld-mode="dark"] .ld-root .ld-header {
 .ld-plan--featured {
   background: var(--ld-card);
   border-color: var(--ld-verm);
-  box-shadow: 0 0 0 1px var(--ld-verm), 0 24px 56px -24px rgb(0 113 227 / 0.35);
+  box-shadow:
+    0 0 0 1px var(--ld-verm),
+    0 24px 56px -24px rgb(0 113 227 / 0.35);
 }
 
 .ld-plan-sticker {

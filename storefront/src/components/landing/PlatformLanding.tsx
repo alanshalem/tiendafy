@@ -148,7 +148,12 @@ const plans = [
     name: 'Semilla',
     price: 'Gratis',
     period: 'para siempre',
-    items: ['Hasta 25 productos', 'Subdominio .tiendafy.com', 'Checkout con Mercado Pago', 'Soporte por email'],
+    items: [
+      'Hasta 25 productos',
+      'Subdominio .tiendafy.com',
+      'Checkout con Mercado Pago',
+      'Soporte por email',
+    ],
     cta: 'Empezar gratis',
     featured: false,
   },
@@ -217,7 +222,9 @@ function AdminMock() {
         <aside className="ld-admin-side">
           <div className="mb-2 flex items-center gap-1.5 px-1">
             <LogoMark className="h-3.5 w-3.5" />
-            <span className="font-bold" style={{ color: 'var(--ld-paper)' }}>tiendafy</span>
+            <span className="font-bold" style={{ color: 'var(--ld-paper)' }}>
+              tiendafy
+            </span>
           </div>
           <div className="ld-admin-nav-item active">Inicio</div>
           <div className="ld-admin-nav-item">Productos</div>
@@ -244,7 +251,9 @@ function AdminMock() {
             </div>
           </div>
           <div className="ld-stat-card">
-            <div className="mb-1.5" style={{ color: 'var(--ld-cream-muted)' }}>Últimos 8 días</div>
+            <div className="mb-1.5" style={{ color: 'var(--ld-cream-muted)' }}>
+              Últimos 8 días
+            </div>
             <div className="ld-bars">
               {bars.map((h, i) => (
                 <span key={i} style={{ height: `${h}%`, animationDelay: `${0.6 + i * 0.07}s` }} />
@@ -282,10 +291,18 @@ export function PlatformLanding() {
             tienda<em>fy</em>
           </a>
           <nav className="hidden items-center gap-8 md:flex">
-            <a href="#tiendas" className="ld-nav-link">Tiendas</a>
-            <a href="#funciones" className="ld-nav-link">Funciones</a>
-            <a href="#precios" className="ld-nav-link">Precios</a>
-            <a href="#preguntas" className="ld-nav-link">Preguntas</a>
+            <a href="#tiendas" className="ld-nav-link">
+              Tiendas
+            </a>
+            <a href="#funciones" className="ld-nav-link">
+              Funciones
+            </a>
+            <a href="#precios" className="ld-nav-link">
+              Precios
+            </a>
+            <a href="#preguntas" className="ld-nav-link">
+              Preguntas
+            </a>
           </nav>
           <div className="flex items-center gap-3">
             <LandingThemeToggle />
@@ -307,8 +324,8 @@ export function PlatformLanding() {
               Abrí tu tienda online sin pedirle <em>permiso</em> a nadie.
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: 'var(--ld-cream-muted)' }} data-stagger="3">
-              Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.
-              Panel que se entiende, tienda que no parece plantilla.
+              Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago. Panel que se entiende, tienda
+              que no parece plantilla.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4" data-stagger="4">
               <a href={ADMIN_URL} className="ld-btn ld-btn--big">
@@ -328,9 +345,17 @@ export function PlatformLanding() {
 
             <div
               className="ld-store-card"
-              style={{ top: '-2rem', right: '-0.5rem', ['--tilt' as string]: '2.5deg', animationDelay: '0.4s' }}
+              style={{
+                top: '-2rem',
+                right: '-0.5rem',
+                ['--tilt' as string]: '2.5deg',
+                animationDelay: '0.4s',
+              }}
             >
-              <div className="ld-store-img" style={{ background: 'linear-gradient(150deg,#5f7355,#8a9b7d)' }} />
+              <div
+                className="ld-store-img"
+                style={{ background: 'linear-gradient(150deg,#5f7355,#8a9b7d)' }}
+              />
               <div className="ld-store-meta">
                 <div className="name">Vivero Brote</div>
                 <div className="cat">Plantas</div>
@@ -339,9 +364,17 @@ export function PlatformLanding() {
 
             <div
               className="ld-store-card"
-              style={{ bottom: '-2.5rem', left: '-1.5rem', ['--tilt' as string]: '-3deg', animationDelay: '2.2s' }}
+              style={{
+                bottom: '-2.5rem',
+                left: '-1.5rem',
+                ['--tilt' as string]: '-3deg',
+                animationDelay: '2.2s',
+              }}
             >
-              <div className="ld-store-img" style={{ background: 'linear-gradient(140deg,#c96f4a,#a34d2d)' }} />
+              <div
+                className="ld-store-img"
+                style={{ background: 'linear-gradient(140deg,#c96f4a,#a34d2d)' }}
+              />
               <div className="ld-store-meta">
                 <div className="name">Cerámica Luna</div>
                 <div className="cat">Deco</div>
@@ -377,9 +410,7 @@ export function PlatformLanding() {
         <div className="ld-container">
           <Reveal>
             <span className="ld-eyebrow">Cómo funciona</span>
-            <h2 className="ld-display ld-section-title mt-3 max-w-xl">
-              De cero a vender en tres pasos.
-            </h2>
+            <h2 className="ld-display ld-section-title mt-3 max-w-xl">De cero a vender en tres pasos.</h2>
           </Reveal>
           <div className="mt-14 grid gap-10 md:grid-cols-3">
             {steps.map((step, i) => (
@@ -387,7 +418,9 @@ export function PlatformLanding() {
                 <div className="ld-step-card">
                   <div className="ld-step-number">{i + 1}</div>
                   <h3 className="ld-display mt-5 text-xl font-semibold">{step.title}</h3>
-                  <p className="mt-2" style={{ color: 'var(--ld-ink-soft)' }}>{step.body}</p>
+                  <p className="mt-2" style={{ color: 'var(--ld-ink-soft)' }}>
+                    {step.body}
+                  </p>
                 </div>
               </Reveal>
             ))}
@@ -401,11 +434,12 @@ export function PlatformLanding() {
           <Reveal>
             <span className="ld-eyebrow">Tiendas con identidad</span>
             <h2 className="ld-display ld-section-title mt-3 max-w-2xl">
-              Cada tienda con su propia cara. Ninguna parece <em style={{ color: 'var(--ld-verm)' }}>plantilla</em>.
+              Cada tienda con su propia cara. Ninguna parece{' '}
+              <em style={{ color: 'var(--ld-verm)' }}>plantilla</em>.
             </h2>
             <p className="mt-4 max-w-xl" style={{ color: 'var(--ld-ink-soft)' }}>
-              Temas componibles por secciones, tipografía y color tuyos. La marca
-              es del merchant — nosotros solo ponemos la imprenta.
+              Temas componibles por secciones, tipografía y color tuyos. La marca es del merchant — nosotros
+              solo ponemos la imprenta.
             </p>
           </Reveal>
           <Reveal delay={150}>
@@ -459,8 +493,8 @@ export function PlatformLanding() {
               Cada venta va directo a tu cuenta. Sin intermediarios, sin esperas.
             </h2>
             <p className="mt-4 max-w-xl" style={{ color: 'var(--ld-cream-muted)' }}>
-              Conectás tu propia cuenta de Mercado Pago. Nosotros nunca custodiamos
-              fondos: el dinero viaja del comprador hacia vos, como tiene que ser.
+              Conectás tu propia cuenta de Mercado Pago. Nosotros nunca custodiamos fondos: el dinero viaja
+              del comprador hacia vos, como tiene que ser.
             </p>
           </Reveal>
           <div className="mt-16 grid gap-12 sm:grid-cols-3">
@@ -474,7 +508,9 @@ export function PlatformLanding() {
                   {s.stat}
                   <em> {s.suffix}</em>
                 </div>
-                <p className="mt-3 text-sm" style={{ color: 'var(--ld-cream-muted)' }}>{s.label}</p>
+                <p className="mt-3 text-sm" style={{ color: 'var(--ld-cream-muted)' }}>
+                  {s.label}
+                </p>
               </Reveal>
             ))}
           </div>
@@ -494,7 +530,9 @@ export function PlatformLanding() {
                 <div className="ld-quote-mark">“</div>
                 <blockquote className="ld-quote mt-2">{t.quote}</blockquote>
                 <div className="mt-5 text-sm font-bold">{t.name}</div>
-                <div className="text-sm" style={{ color: 'var(--ld-ink-soft)' }}>{t.store}</div>
+                <div className="text-sm" style={{ color: 'var(--ld-ink-soft)' }}>
+                  {t.store}
+                </div>
               </Reveal>
             ))}
           </div>
@@ -517,7 +555,9 @@ export function PlatformLanding() {
                   {plan.featured && <span className="ld-plan-sticker">El más elegido</span>}
                   <div className="ld-eyebrow">{plan.name}</div>
                   <div className="ld-plan-price mt-4">{plan.price}</div>
-                  <div className="text-sm" style={{ color: 'var(--ld-ink-soft)' }}>{plan.period}</div>
+                  <div className="text-sm" style={{ color: 'var(--ld-ink-soft)' }}>
+                    {plan.period}
+                  </div>
                   <ul className="mt-6 flex-1">
                     {plan.items.map((item) => (
                       <li key={item}>{item}</li>
@@ -568,8 +608,8 @@ export function PlatformLanding() {
               <em style={{ color: 'var(--ld-verm)', fontStyle: 'italic' }}>Gratis.</em>
             </h2>
             <p className="mx-auto mt-6 max-w-md text-lg" style={{ color: 'var(--ld-cream-muted)' }}>
-              Tu tienda puede estar vendiendo esta misma semana. La única pregunta
-              es si va a ser la tuya o la de tu competencia.
+              Tu tienda puede estar vendiendo esta misma semana. La única pregunta es si va a ser la tuya o la
+              de tu competencia.
             </p>
             <a href={ADMIN_URL} className="ld-btn ld-btn--big mt-10">
               Crear mi tienda gratis
@@ -587,8 +627,7 @@ export function PlatformLanding() {
               tienda<em>fy</em>
             </span>
             <p className="mt-3 max-w-xs text-sm" style={{ color: 'var(--ld-cream-muted)' }}>
-              La plataforma de e-commerce hecha en América Latina, para los que
-              venden en serio.
+              La plataforma de e-commerce hecha en América Latina, para los que venden en serio.
             </p>
           </div>
           {[

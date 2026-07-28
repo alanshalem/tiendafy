@@ -11,7 +11,15 @@ type Kind = 'success' | 'failure' | 'pending';
  * Muestra el resultado del checkout. NO confía en los query params del redirect:
  * consulta el estado real de la orden server-side (que el webhook concilió).
  */
-export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; orderId?: string; kind: Kind }) {
+export function CheckoutResult({
+  tenantId,
+  orderId,
+  kind,
+}: {
+  tenantId: string;
+  orderId?: string;
+  kind: Kind;
+}) {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(orderId));
 
@@ -24,7 +32,9 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
     let tries = 0;
     const poll = async () => {
       try {
-        const res = await fetch(`${API}/api/v1/orders/${orderId}/status`, { headers: { 'X-Tenant-Id': tenantId } });
+        const res = await fetch(`${API}/api/v1/orders/${orderId}/status`, {
+          headers: { 'X-Tenant-Id': tenantId },
+        });
         if (res.ok) {
           const order = await res.json();
           if (!active) return;
@@ -49,7 +59,13 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
 
   // Estado real de la orden manda; el `kind` del redirect es solo una pista inicial.
   const resolved: Kind =
-    status === 'PAID' ? 'success' : status === 'FAILED' || status === 'CANCELLED' ? 'failure' : status === 'PENDINGPAYMENT' ? 'pending' : kind;
+    status === 'PAID'
+      ? 'success'
+      : status === 'FAILED' || status === 'CANCELLED'
+        ? 'failure'
+        : status === 'PENDINGPAYMENT'
+          ? 'pending'
+          : kind;
 
   const view = {
     success: {
@@ -58,7 +74,11 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
       text: 'Recibimos tu pago. Te enviamos la confirmación por email.',
     },
     pending: {
-      icon: loading ? <Loader2 className="h-14 w-14 animate-spin opacity-60" /> : <Clock className="h-14 w-14 text-amber-500" />,
+      icon: loading ? (
+        <Loader2 className="h-14 w-14 animate-spin opacity-60" />
+      ) : (
+        <Clock className="h-14 w-14 text-amber-500" />
+      ),
       title: loading ? 'Confirmando tu pago…' : 'Pago pendiente',
       text: loading
         ? 'Estamos verificando el pago con Mercado Pago.'
@@ -74,7 +94,9 @@ export function CheckoutResult({ tenantId, orderId, kind }: { tenantId: string; 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-container flex-col items-center justify-center gap-4 px-4 py-16 text-center">
       {view.icon}
-      <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{view.title}</h1>
+      <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+        {view.title}
+      </h1>
       <p className="max-w-md opacity-70">{view.text}</p>
       {orderId && <p className="text-xs opacity-40">Orden {orderId}</p>}
       <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">

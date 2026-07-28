@@ -1,7 +1,7 @@
+using Api.Auth;
 using Identity.Infrastructure;
 using Media.Infrastructure;
 using SharedKernel.Abstractions;
-using Api.Auth;
 
 namespace Api.Endpoints;
 

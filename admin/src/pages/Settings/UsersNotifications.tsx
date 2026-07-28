@@ -29,9 +29,19 @@ interface RoleMeta {
 
 const ROLES: RoleMeta[] = [
   { value: 'owner', label: 'Dueño', desc: 'control total', badge: 'bg-amber-100 text-amber-700' },
-  { value: 'admin', label: 'Administrador', desc: 'todo lo operativo', badge: 'bg-purple-100 text-purple-700' },
+  {
+    value: 'admin',
+    label: 'Administrador',
+    desc: 'todo lo operativo',
+    badge: 'bg-purple-100 text-purple-700',
+  },
   { value: 'vendedor', label: 'Vendedor', desc: 'ventas, clientes y chat', badge: 'bg-sky-100 text-sky-700' },
-  { value: 'catalogo', label: 'Catálogo', desc: 'productos e inventario', badge: 'bg-green-100 text-green-700' },
+  {
+    value: 'catalogo',
+    label: 'Catálogo',
+    desc: 'productos e inventario',
+    badge: 'bg-green-100 text-green-700',
+  },
   { value: 'finanzas', label: 'Finanzas', desc: 'reportes y reembolsos', badge: 'bg-blue-100 text-blue-700' },
   { value: 'soporte', label: 'Soporte', desc: 'posventa y mensajes', badge: 'bg-rose-100 text-rose-700' },
 ];

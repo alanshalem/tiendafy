@@ -24,7 +24,9 @@ export function DistributionCentersPage() {
             <div className="font-medium text-fg">Centro principal</div>
             <div className="text-sm text-fg-muted">Dirección configurada en Información de contacto</div>
           </div>
-          <span className="rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium text-fg-muted">Por defecto</span>
+          <span className="rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium text-fg-muted">
+            Por defecto
+          </span>
         </div>
       </div>
       <HelpLink id="distributionCenters" />
@@ -67,7 +69,13 @@ export function ExternalCodesPage() {
           />
         </div>
       </div>
-      <SaveBar dirty={dirty} onSave={() => { save(); toast('Códigos guardados', { variant: 'success' }); }} />
+      <SaveBar
+        dirty={dirty}
+        onSave={() => {
+          save();
+          toast('Códigos guardados', { variant: 'success' });
+        }}
+      />
     </div>
   );
 }
@@ -79,7 +87,10 @@ export function LanguagesCurrenciesPage() {
 
   return (
     <div className="mx-auto max-w-2xl pb-20">
-      <SettingsHeader title="Idiomas y monedas" description="Definí el idioma y la moneda con que opera tu tienda." />
+      <SettingsHeader
+        title="Idiomas y monedas"
+        description="Definí el idioma y la moneda con que opera tu tienda."
+      />
       <div className="space-y-4 rounded-lg border border-border bg-surface p-5 shadow-card">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Idioma de la tienda</label>
@@ -108,7 +119,13 @@ export function LanguagesCurrenciesPage() {
           />
         </div>
       </div>
-      <SaveBar dirty={dirty} onSave={() => { save(); toast('Idioma y moneda guardados', { variant: 'success' }); }} />
+      <SaveBar
+        dirty={dirty}
+        onSave={() => {
+          save();
+          toast('Idioma y moneda guardados', { variant: 'success' });
+        }}
+      />
     </div>
   );
 }
@@ -147,7 +164,9 @@ export function RedirectsPage() {
             <label className="mb-1.5 block text-sm font-medium text-fg">Hacia (URL nueva)</label>
             <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="/productos/nuevo-slug" />
           </div>
-          <Button onClick={add} disabled={!from || !to}>Agregar</Button>
+          <Button onClick={add} disabled={!from || !to}>
+            Agregar
+          </Button>
         </div>
 
         {value.rules.length > 0 && (
@@ -178,7 +197,13 @@ export function RedirectsPage() {
           </table>
         )}
       </div>
-      <SaveBar dirty={dirty} onSave={() => { save(); toast('Redirecciones guardadas', { variant: 'success' }); }} />
+      <SaveBar
+        dirty={dirty}
+        onSave={() => {
+          save();
+          toast('Redirecciones guardadas', { variant: 'success' });
+        }}
+      />
     </div>
   );
 }
@@ -190,7 +215,9 @@ interface CustomField {
 }
 export function CustomFieldsPage() {
   const { toast } = useToast();
-  const { value, update, save, dirty } = useSettings<{ fields: CustomField[] }>('customFields', { fields: [] });
+  const { value, update, save, dirty } = useSettings<{ fields: CustomField[] }>('customFields', {
+    fields: [],
+  });
   const [name, setName] = useState('');
   const [type, setType] = useState('text');
 
@@ -225,7 +252,9 @@ export function CustomFieldsPage() {
               ]}
             />
           </div>
-          <Button onClick={add} disabled={!name}>Agregar</Button>
+          <Button onClick={add} disabled={!name}>
+            Agregar
+          </Button>
         </div>
 
         {value.fields.length > 0 && (
@@ -247,7 +276,13 @@ export function CustomFieldsPage() {
           </ul>
         )}
       </div>
-      <SaveBar dirty={dirty} onSave={() => { save(); toast('Campos guardados', { variant: 'success' }); }} />
+      <SaveBar
+        dirty={dirty}
+        onSave={() => {
+          save();
+          toast('Campos guardados', { variant: 'success' });
+        }}
+      />
     </div>
   );
 }

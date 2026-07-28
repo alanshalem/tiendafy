@@ -26,18 +26,18 @@ public sealed class PaymentRefund
         Guid id, Guid tenantId, Guid orderId, string paymentId,
         long amountInMinorUnits, string currency, bool isTotal,
         string? reason, string requestedBy) => new()
-    {
-        Id = id,
-        TenantId = tenantId,
-        OrderId = orderId,
-        PaymentId = paymentId,
-        AmountInMinorUnits = amountInMinorUnits,
-        Currency = currency,
-        IsTotal = isTotal,
-        Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim()[..Math.Min(500, reason.Trim().Length)],
-        RequestedBy = requestedBy,
-        CreatedAtUtc = DateTime.UtcNow,
-    };
+        {
+            Id = id,
+            TenantId = tenantId,
+            OrderId = orderId,
+            PaymentId = paymentId,
+            AmountInMinorUnits = amountInMinorUnits,
+            Currency = currency,
+            IsTotal = isTotal,
+            Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim()[..Math.Min(500, reason.Trim().Length)],
+            RequestedBy = requestedBy,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
 
     public void AttachMercadoPagoId(string refundId) =>
         MercadoPagoRefundId = string.IsNullOrWhiteSpace(refundId) ? null : refundId;

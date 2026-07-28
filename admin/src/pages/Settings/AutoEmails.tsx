@@ -35,7 +35,11 @@ export function AutoEmailsPage() {
 
   const save = useMutation({
     mutationFn: (t: { type: string; enabled: boolean; subject: string; bodyHtml: string }) =>
-      api.put(`/api/v1/email-templates/${t.type}`, { enabled: t.enabled, subject: t.subject, bodyHtml: t.bodyHtml }),
+      api.put(`/api/v1/email-templates/${t.type}`, {
+        enabled: t.enabled,
+        subject: t.subject,
+        bodyHtml: t.bodyHtml,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-templates', store?.id] }),
     onError: () => toast('No se pudo guardar', { variant: 'error' }),
   });
@@ -67,7 +71,10 @@ export function AutoEmailsPage() {
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-fg">{t.label}</div>
                         <p className="mt-0.5 text-xs text-fg-muted">{t.description}</p>
-                        <button onClick={() => setEditing(t)} className="mt-2 text-xs font-medium text-primary hover:underline">
+                        <button
+                          onClick={() => setEditing(t)}
+                          className="mt-2 text-xs font-medium text-primary hover:underline"
+                        >
                           Editar contenido
                         </button>
                       </div>
@@ -90,7 +97,12 @@ export function AutoEmailsPage() {
           onSave={(subject, bodyHtml) =>
             save.mutate(
               { type: editing.type, enabled: editing.enabled, subject, bodyHtml },
-              { onSuccess: () => { toast('Plantilla guardada', { variant: 'success' }); setEditing(null); } },
+              {
+                onSuccess: () => {
+                  toast('Plantilla guardada', { variant: 'success' });
+                  setEditing(null);
+                },
+              },
             )
           }
         />
@@ -99,7 +111,15 @@ export function AutoEmailsPage() {
   );
 }
 
-function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () => void; onSave: (subject: string, bodyHtml: string) => void }) {
+function EditModal({
+  template,
+  onClose,
+  onSave,
+}: {
+  template: Tpl;
+  onClose: () => void;
+  onSave: (subject: string, bodyHtml: string) => void;
+}) {
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.bodyHtml);
   const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
@@ -113,7 +133,11 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
   // (logo + color de la tienda) que usa al enviar. Debounce para no spamear.
   useEffect(() => {
     const t = setTimeout(() => {
-      api.post<{ subject: string; html: string }>('/api/v1/email-templates/preview', { subject, bodyHtml: body })
+      api
+        .post<{ subject: string; html: string }>('/api/v1/email-templates/preview', {
+          subject,
+          bodyHtml: body,
+        })
         .then(setPreview)
         .catch(() => setPreview(null));
     }, 350);
@@ -128,7 +152,9 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
       title={`Editar: ${template.label}`}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button onClick={() => onSave(subject, body)}>Guardar</Button>
         </>
       }
@@ -138,7 +164,11 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Asunto del email" />
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Asunto del email"
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Contenido</label>
@@ -147,16 +177,24 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
           <div className="rounded-md bg-bg-muted/50 p-3 text-xs text-fg-muted">
             <span className="font-medium text-fg">Variables disponibles:</span>{' '}
             {VARS.map((v) => (
-              <code key={v} className="mx-0.5 rounded bg-bg-muted px-1 py-0.5">{v}</code>
+              <code key={v} className="mx-0.5 rounded bg-bg-muted px-1 py-0.5">
+                {v}
+              </code>
             ))}
             <span> — se reemplazan al enviar.</span>
           </div>
           <div className="rounded-md border border-border p-3 text-xs text-fg-muted">
             <div className="mb-1 font-medium text-fg">Recomendaciones de diseño</div>
             <ul className="list-disc space-y-0.5 pl-4">
-              <li>Ancho del email: <strong>600&nbsp;px</strong> (es el estándar de los clientes de correo).</li>
-              <li>Imagen de header / banner: <strong>600×200&nbsp;px</strong>.</li>
-              <li>Logo: hasta <strong>~160&nbsp;px</strong> de ancho.</li>
+              <li>
+                Ancho del email: <strong>600&nbsp;px</strong> (es el estándar de los clientes de correo).
+              </li>
+              <li>
+                Imagen de header / banner: <strong>600×200&nbsp;px</strong>.
+              </li>
+              <li>
+                Logo: hasta <strong>~160&nbsp;px</strong> de ancho.
+              </li>
               <li>Usá JPG, PNG o WebP livianos. Evitá imágenes muy pesadas.</li>
               <li>El footer va abajo, chico y discreto (datos de contacto / baja).</li>
             </ul>
@@ -168,7 +206,8 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
           <div className="mb-1.5 text-sm font-medium text-fg">Vista previa</div>
           <div className="overflow-hidden rounded-lg border border-border">
             <div className="border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
-              Asunto: <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
+              Asunto:{' '}
+              <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
             </div>
             {preview ? (
               <iframe
@@ -184,7 +223,8 @@ function EditModal({ template, onClose, onSave }: { template: Tpl; onClose: () =
             )}
           </div>
           <p className="mt-1.5 text-xs text-fg-muted">
-            Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con datos de ejemplo.
+            Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con
+            datos de ejemplo.
           </p>
         </div>
       </div>

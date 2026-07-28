@@ -126,14 +126,21 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   const formattedAddress = () =>
     needsAddress
-      ? [`${street.trim()} ${streetNumber.trim()}`.trim(), apartment.trim(), city.trim(), zip.trim() ? `CP ${zip.trim()}` : '']
-          .filter(Boolean).join(', ')
+      ? [
+          `${street.trim()} ${streetNumber.trim()}`.trim(),
+          apartment.trim(),
+          city.trim(),
+          zip.trim() ? `CP ${zip.trim()}` : '',
+        ]
+          .filter(Boolean)
+          .join(', ')
       : null;
 
   const continueToPago = () => {
     setFieldError(null);
     if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
-    if (shippingOptions && shippingOptions.length > 0 && !shippingId) return setFieldError('Elegí cómo querés recibir tu compra.');
+    if (shippingOptions && shippingOptions.length > 0 && !shippingId)
+      return setFieldError('Elegí cómo querés recibir tu compra.');
     if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
     if (!phone.trim()) return setFieldError('Completá tu teléfono.');
     if (needsAddress && (!street.trim() || !streetNumber.trim() || !city.trim() || !zip.trim()))
@@ -197,10 +204,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   };
 
   // Payment Brick (on-site): el front tokeniza, el backend cobra el total real.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   const onBrickSubmit = async ({ formData }: { formData: any }) => {
     setError(null);
-    const payer = (formData.payer ?? {}) as { email?: string; identification?: { type?: string; number?: string } };
+    const payer = (formData.payer ?? {}) as {
+      email?: string;
+      identification?: { type?: string; number?: string };
+    };
     const buyerEmail = payer.email || email;
     try {
       const id = await reserve(buyerEmail);
@@ -232,15 +242,34 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
 
   if (!hydrated || mode === null || shippingOptions === null)
-    return <main className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin opacity-50" /></main>;
+    return (
+      <main className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin opacity-50" />
+      </main>
+    );
 
   if (lines.length === 0)
-    return <main className="mx-auto max-w-md px-4 py-20 text-center"><p className="opacity-70">Tu carrito está vacío.</p><a href="/" className="mt-4 inline-block text-primary underline">Volver a la tienda</a></main>;
+    return (
+      <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <p className="opacity-70">Tu carrito está vacío.</p>
+        <a href="/" className="mt-4 inline-block text-primary underline">
+          Volver a la tienda
+        </a>
+      </main>
+    );
 
   if (!connected)
-    return <main className="mx-auto max-w-md px-4 py-20 text-center"><p className="opacity-70">Esta tienda todavía no tiene los pagos habilitados.</p><a href="/" className="mt-4 inline-block text-primary underline">Volver</a></main>;
+    return (
+      <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <p className="opacity-70">Esta tienda todavía no tiene los pagos habilitados.</p>
+        <a href="/" className="mt-4 inline-block text-primary underline">
+          Volver
+        </a>
+      </main>
+    );
 
-  const inputCls = 'h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/30';
+  const inputCls =
+    'h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/30';
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -248,7 +277,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       <div className="mx-auto mb-8 flex max-w-md items-center">
         <StepDot label="Carrito" state="done" href="/" />
         <div className="h-px flex-1 bg-black/20" />
-        <StepDot label="Entrega" state={step === 'entrega' ? 'current' : 'done'} onClick={step === 'pago' ? () => setStep('entrega') : undefined} />
+        <StepDot
+          label="Entrega"
+          state={step === 'entrega' ? 'current' : 'done'}
+          onClick={step === 'pago' ? () => setStep('entrega') : undefined}
+        />
         <div className="h-px flex-1 bg-black/20" />
         <StepDot label="Pago" state={step === 'pago' ? 'current' : 'todo'} />
       </div>
@@ -259,7 +292,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
             <div className="space-y-7">
               <section>
                 <h2 className="mb-3 text-lg font-bold">Datos de contacto</h2>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className={inputCls} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="E-mail"
+                  className={inputCls}
+                />
               </section>
 
               {shippingOptions.length > 0 && (
@@ -271,16 +310,32 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                         key={o.id}
                         className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
                       >
-                        <input type="radio" name="shipping" checked={shippingId === o.id} onChange={() => setShippingId(o.id)} className="mt-1" />
+                        <input
+                          type="radio"
+                          name="shipping"
+                          checked={shippingId === o.id}
+                          onChange={() => setShippingId(o.id)}
+                          className="mt-1"
+                        />
                         <span className="flex-1">
                           <span className="flex items-center gap-1.5 font-semibold">
-                            {o.kind === 'PICKUP' ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                            {o.kind === 'PICKUP' ? (
+                              <Store className="h-4 w-4" />
+                            ) : (
+                              <Truck className="h-4 w-4" />
+                            )}
                             {o.name}
                           </span>
-                          {o.description && <span className="mt-0.5 block text-xs opacity-60">{o.description}</span>}
-                          {o.kind === 'PICKUP' && o.pickupAddress && <span className="mt-0.5 block text-xs opacity-60">{o.pickupAddress}</span>}
+                          {o.description && (
+                            <span className="mt-0.5 block text-xs opacity-60">{o.description}</span>
+                          )}
+                          {o.kind === 'PICKUP' && o.pickupAddress && (
+                            <span className="mt-0.5 block text-xs opacity-60">{o.pickupAddress}</span>
+                          )}
                         </span>
-                        <span className="font-semibold">{o.price.amount === 0 ? 'Gratis' : fmt(o.price.amount, o.price.currency)}</span>
+                        <span className="font-semibold">
+                          {o.price.amount === 0 ? 'Gratis' : fmt(o.price.amount, o.price.currency)}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -288,31 +343,81 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
               )}
 
               <section>
-                <h2 className="mb-3 text-lg font-bold">{needsAddress ? 'Datos del destinatario' : 'Tus datos'}</h2>
+                <h2 className="mb-3 text-lg font-bold">
+                  {needsAddress ? 'Datos del destinatario' : 'Tus datos'}
+                </h2>
                 <div className="grid gap-2.5 sm:grid-cols-2">
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" className={inputCls} />
-                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Apellido" className={inputCls} />
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" className={inputCls} />
-                  <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="DNI o CUIT (facturación)" className={inputCls} />
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre"
+                    className={inputCls}
+                  />
+                  <input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Apellido"
+                    className={inputCls}
+                  />
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Teléfono"
+                    className={inputCls}
+                  />
+                  <input
+                    value={doc}
+                    onChange={(e) => setDoc(e.target.value)}
+                    placeholder="DNI o CUIT (facturación)"
+                    className={inputCls}
+                  />
                 </div>
                 {needsAddress && (
                   <div className="mt-2.5 grid gap-2.5">
                     <div className="grid gap-2.5 sm:grid-cols-[1fr_140px]">
-                      <input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Calle" className={inputCls} />
-                      <input value={streetNumber} onChange={(e) => setStreetNumber(e.target.value)} placeholder="Número" className={inputCls} />
+                      <input
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        placeholder="Calle"
+                        className={inputCls}
+                      />
+                      <input
+                        value={streetNumber}
+                        onChange={(e) => setStreetNumber(e.target.value)}
+                        placeholder="Número"
+                        className={inputCls}
+                      />
                     </div>
                     <div className="grid gap-2.5 sm:grid-cols-2">
-                      <input value={apartment} onChange={(e) => setApartment(e.target.value)} placeholder="Departamento (opcional)" className={inputCls} />
-                      <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ciudad" className={inputCls} />
+                      <input
+                        value={apartment}
+                        onChange={(e) => setApartment(e.target.value)}
+                        placeholder="Departamento (opcional)"
+                        className={inputCls}
+                      />
+                      <input
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Ciudad"
+                        className={inputCls}
+                      />
                     </div>
-                    <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="Código Postal" className={`${inputCls} sm:max-w-[200px]`} />
+                    <input
+                      value={zip}
+                      onChange={(e) => setZip(e.target.value)}
+                      placeholder="Código Postal"
+                      className={`${inputCls} sm:max-w-[200px]`}
+                    />
                   </div>
                 )}
               </section>
 
               {fieldError && <p className="text-sm text-red-600">{fieldError}</p>}
 
-              <button onClick={continueToPago} className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg sm:max-w-xs">
+              <button
+                onClick={continueToPago}
+                className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg sm:max-w-xs"
+              >
                 Continuar para el pago
               </button>
             </div>
@@ -323,51 +428,87 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <div className="flex items-start gap-2.5">
                   <Mail className="mt-0.5 h-4 w-4 opacity-50" />
                   <span className="flex-1">{email}</span>
-                  <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">Cambiar</button>
+                  <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">
+                    Cambiar
+                  </button>
                 </div>
                 {selected && (
                   <div className="flex items-start gap-2.5">
-                    {selected.kind === 'PICKUP' ? <Store className="mt-0.5 h-4 w-4 opacity-50" /> : <Truck className="mt-0.5 h-4 w-4 opacity-50" />}
+                    {selected.kind === 'PICKUP' ? (
+                      <Store className="mt-0.5 h-4 w-4 opacity-50" />
+                    ) : (
+                      <Truck className="mt-0.5 h-4 w-4 opacity-50" />
+                    )}
                     <span className="flex-1">
-                      <strong>{selected.name}</strong> · {selected.price.amount === 0 ? 'Gratis' : fmt(shipCost, currency)}
-                      {selected.description && <span className="block text-xs opacity-60">{selected.description}</span>}
+                      <strong>{selected.name}</strong> ·{' '}
+                      {selected.price.amount === 0 ? 'Gratis' : fmt(shipCost, currency)}
+                      {selected.description && (
+                        <span className="block text-xs opacity-60">{selected.description}</span>
+                      )}
                     </span>
-                    <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">Cambiar</button>
+                    <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">
+                      Cambiar
+                    </button>
                   </div>
                 )}
                 {formattedAddress() && (
                   <div className="flex items-start gap-2.5">
                     <MapPin className="mt-0.5 h-4 w-4 opacity-50" />
-                    <span className="flex-1">{formattedAddress()}<span className="block text-xs opacity-60">{name} {lastName} · {phone}</span></span>
+                    <span className="flex-1">
+                      {formattedAddress()}
+                      <span className="block text-xs opacity-60">
+                        {name} {lastName} · {phone}
+                      </span>
+                    </span>
                   </div>
                 )}
                 <div className="flex items-start gap-2.5">
                   <MessageSquare className="mt-0.5 h-4 w-4 opacity-50" />
                   {showNotes ? (
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} rows={2}
-                      placeholder="Notas del pedido (opcional)" className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black" />
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      maxLength={500}
+                      rows={2}
+                      placeholder="Notas del pedido (opcional)"
+                      className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black"
+                    />
                   ) : (
                     <>
                       <span className="flex-1 opacity-70">{notes ? notes : 'Notas de pedido'}</span>
-                      <button onClick={() => setShowNotes(true)} className="text-xs underline opacity-70">{notes ? 'Editar' : 'Agregar'}</button>
+                      <button onClick={() => setShowNotes(true)} className="text-xs underline opacity-70">
+                        {notes ? 'Editar' : 'Agregar'}
+                      </button>
                     </>
                   )}
                 </div>
               </div>
 
-              <h2 className="flex items-center gap-2 text-lg font-bold"><CreditCard className="h-5 w-5" /> Medio de pago</h2>
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <CreditCard className="h-5 w-5" /> Medio de pago
+              </h2>
 
               {mode === 'API' && pubKey ? (
                 <Payment
                   key={total}
                   initialization={{ amount: total / 100, payer: { email: email || undefined } }}
-                  customization={{ paymentMethods: { creditCard: 'all', debitCard: 'all', ticket: 'all', bankTransfer: 'all' } }}
+                  customization={{
+                    paymentMethods: {
+                      creditCard: 'all',
+                      debitCard: 'all',
+                      ticket: 'all',
+                      bankTransfer: 'all',
+                    },
+                  }}
                   onSubmit={onBrickSubmit}
                   onError={() => setError('Hubo un problema con el formulario de pago.')}
                 />
               ) : (
-                <button onClick={payPro} disabled={paying}
-                  className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:opacity-60 sm:max-w-xs">
+                <button
+                  onClick={payPro}
+                  disabled={paying}
+                  className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:opacity-60 sm:max-w-xs"
+                >
                   {paying ? 'Redirigiendo a Mercado Pago…' : 'Pagar con Mercado Pago'}
                 </button>
               )}
@@ -385,27 +526,49 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />
               )}
-              <span className="flex-1">{l.productName}{l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}</span>
+              <span className="flex-1">
+                {l.productName}
+                {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}
+              </span>
               <span className="tabular-nums">{fmt(l.priceAmount * l.quantity, l.currency)}</span>
             </div>
           ))}
           <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
-            <div className="flex justify-between"><span className="opacity-70">Subtotal</span><span className="tabular-nums">{fmt(subtotal, currency)}</span></div>
+            <div className="flex justify-between">
+              <span className="opacity-70">Subtotal</span>
+              <span className="tabular-nums">{fmt(subtotal, currency)}</span>
+            </div>
             {discount > 0 && (
-              <div className="flex justify-between text-green-600"><span>Descuento ({coupon?.code})</span><span className="tabular-nums">- {fmt(discount, currency)}</span></div>
+              <div className="flex justify-between text-green-600">
+                <span>Descuento ({coupon?.code})</span>
+                <span className="tabular-nums">- {fmt(discount, currency)}</span>
+              </div>
             )}
             {selected && (
-              <div className="flex justify-between"><span className="opacity-70">Costo de envío</span><span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span></div>
+              <div className="flex justify-between">
+                <span className="opacity-70">Costo de envío</span>
+                <span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span>
+              </div>
             )}
-            <div className="flex justify-between pt-1 text-base font-bold"><span>Total</span><span className="tabular-nums">{fmt(total, currency)}</span></div>
+            <div className="flex justify-between pt-1 text-base font-bold">
+              <span>Total</span>
+              <span className="tabular-nums">{fmt(total, currency)}</span>
+            </div>
           </div>
 
           {!coupon && (
             <div className="mt-4">
               <div className="flex gap-2">
-                <input value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Cupón de descuento"
-                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black" />
-                <button onClick={applyCoupon} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold">
+                <input
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="Cupón de descuento"
+                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+                />
+                <button
+                  onClick={applyCoupon}
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold"
+                >
                   <Tag className="h-4 w-4" /> Aplicar
                 </button>
               </div>
@@ -418,17 +581,26 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   );
 }
 
-function StepDot({ label, state, href, onClick }: {
+function StepDot({
+  label,
+  state,
+  href,
+  onClick,
+}: {
   label: string;
   state: 'done' | 'current' | 'todo';
   href?: string;
   onClick?: () => void;
 }) {
   const dot = (
-    <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
-      state === 'current' ? 'border-black bg-black text-white'
-      : state === 'done' ? 'border-black/40 text-black/70'
-      : 'border-black/20 text-black/30'}`}
+    <span
+      className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
+        state === 'current'
+          ? 'border-black bg-black text-white'
+          : state === 'done'
+            ? 'border-black/40 text-black/70'
+            : 'border-black/20 text-black/30'
+      }`}
     >
       {state === 'done' ? <Check className="h-3.5 w-3.5" /> : ''}
     </span>
