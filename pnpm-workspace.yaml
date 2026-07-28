@@ -2,6 +2,7 @@ packages:
   - storefront
   - admin
   - shared/*
+  - e2e
 
 # pnpm ignora los build scripts de dependencias salvo que se aprueben acá
 # (si no, `pnpm install --frozen-lockfile` falla con ERR_PNPM_IGNORED_BUILDS,

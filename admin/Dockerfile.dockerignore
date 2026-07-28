@@ -5,8 +5,9 @@
 !pnpm-workspace.yaml
 !admin
 !shared
-# Manifest del storefront: pnpm valida el lockfile contra TODOS los workspaces.
+# Manifests de los otros workspaces: pnpm valida el lockfile contra TODOS.
 !storefront/package.json
+!e2e/package.json
 admin/dist
 admin/node_modules
 admin/coverage

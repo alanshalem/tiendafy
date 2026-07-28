@@ -50,8 +50,8 @@ jobs:
       - name: Format check (dotnet format)
         run: dotnet format backend.slnx --no-restore --verify-no-changes
 
-      - name: Test
-        run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --results-directory ./test-results
+      - name: Test (con cobertura)
+        run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results
 
       - name: Upload test results
         if: always()

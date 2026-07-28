@@ -11,7 +11,7 @@ describe('normalizeTheme', () => {
 
   it('migra la barra de anuncio legacy v1 {message, link} a items[]', () => {
     const raw = { announcement: { show: true, message: '10% OFF', link: '/promo' } };
-    const t = normalizeTheme(raw as Partial<ThemeConfig>, []);
+    const t = normalizeTheme(raw as unknown as Partial<ThemeConfig>, []);
     expect(t.announcement.items).toEqual([{ text: '10% OFF', link: '/promo' }]);
     expect(t.announcement.show).toBe(true);
   });

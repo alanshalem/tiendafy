@@ -1,0 +1,14 @@
+{
+  "name": "tiendafy-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tests end-to-end (Playwright) contra el stack de dev levantado (dev-up.ps1).",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

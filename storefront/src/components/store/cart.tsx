@@ -49,9 +49,15 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
     setLines(readJson<CartLine[]>(key, []));
   }, [key]);
 
-  useEffect(() => {
-    writeJson(key, lines);
-  }, [key, lines]);
+  // Persistencia SINCRÓNICA en cada mutación (no en un useEffect post-render):
+  // "Comprar ahora" agrega y navega al instante — si el write quedara para un
+  // effect, el desmontaje de la página podía perder el ítem (lo cazó el E2E).
+  const mutate = (fn: (prev: CartLine[]) => CartLine[]) =>
+    setLines((prev) => {
+      const next = fn(prev);
+      writeJson(key, next);
+      return next;
+    });
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((s, l) => s + l.quantity, 0);
@@ -65,7 +71,7 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       open,
       setOpen,
       add: (line, qty = 1) =>
-        setLines((prev) => {
+        mutate((prev) => {
           const existing = prev.find((l) => l.variantId === line.variantId);
           if (existing) {
             return prev.map((l) =>
@@ -75,13 +81,14 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
           return [...prev, { ...line, quantity: qty }];
         }),
       setQty: (variantId, qty) =>
-        setLines((prev) =>
+        mutate((prev) =>
           qty <= 0
             ? prev.filter((l) => l.variantId !== variantId)
             : prev.map((l) => (l.variantId === variantId ? { ...l, quantity: qty } : l)),
         ),
-      remove: (variantId) => setLines((prev) => prev.filter((l) => l.variantId !== variantId)),
+      remove: (variantId) => mutate((prev) => prev.filter((l) => l.variantId !== variantId)),
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, open, storeKey]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

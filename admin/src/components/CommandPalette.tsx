@@ -165,13 +165,19 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Al abrir: foco al input y una carga de productos para buscar por nombre.
+  // Al abrir: limpiar búsqueda y foco al input. SOLO depende de `open`: si
+  // dependiera de `products`, al resolver la carga re-ejecutaría y BORRARÍA
+  // lo que el usuario ya tipeó (bug real cazado por el E2E).
   useEffect(() => {
     if (!open) return;
     setQ('');
     setActive(0);
     setTimeout(() => inputRef.current?.focus(), 0);
-    if (products === null && store && can('catalog.write')) {
+  }, [open]);
+
+  // Carga (una vez por tienda) de productos para buscar por nombre.
+  useEffect(() => {
+    if (open && products === null && store && can('catalog.write')) {
       api
         .get<{ items: { id: string; name: string; images: { url: string }[] }[] }>(
           '/api/v1/products?limit=100',

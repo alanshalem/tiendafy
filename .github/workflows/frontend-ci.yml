@@ -48,5 +48,17 @@ jobs:
       - name: Lint storefront
         run: pnpm --filter ./storefront run lint
 
-      - name: Unit tests (admin)
-        run: pnpm --filter ./admin exec vitest run
+      - name: Unit tests + coverage (admin)
+        run: pnpm --filter ./admin exec vitest run --coverage
+
+      - name: Unit tests + coverage (storefront)
+        run: pnpm --filter ./storefront exec vitest run --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: |
+            admin/coverage/lcov.info
+            storefront/coverage/lcov.info
+          retention-days: 7
