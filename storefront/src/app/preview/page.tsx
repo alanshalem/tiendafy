@@ -5,7 +5,7 @@ import { loadStorefront, withReferencedProducts } from '@/lib/storefront';
 // Preview del editor: render del DRAFT, con postMessage live.
 export const dynamic = 'force-dynamic';
 
-export default async function PreviewPage() {
+export default async function PreviewPage({ searchParams }: { searchParams: Promise<{ pt?: string }> }) {
   const data = await loadStorefront();
   if (!data) {
     return (
@@ -15,7 +15,8 @@ export default async function PreviewPage() {
     );
   }
 
-  const theme = await fetchDraftTheme(data.tenant.id);
+  const { pt } = await searchParams;
+  const theme = await fetchDraftTheme(data.tenant.id, pt);
   const products = await withReferencedProducts(data.tenant.id, theme, data.products);
 
   return (

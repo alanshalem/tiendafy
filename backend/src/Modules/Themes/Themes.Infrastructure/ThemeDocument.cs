@@ -35,16 +35,26 @@ public sealed class ThemeDocument
         UpdatedAtUtc = DateTime.UtcNow,
     };
 
-    /// <summary>Config por defecto de una tienda nueva. Espeja el default del storefront.</summary>
+    /// <summary>
+    /// Config por defecto de una tienda nueva. Espeja `baseTheme` de shared/types
+    /// (+ las secciones iniciales sembradas) — si se agrega un campo al schema del
+    /// tema, agregarlo también acá para que una tienda recién creada no sirva una
+    /// config incompleta (normalizeTheme lo rellena al leer, pero mejor no depender).
+    /// </summary>
     public const string DefaultConfig = """
     {
       "logo": "",
       "favicon": "",
       "shareImage": "",
+      "borderRadius": "rounded",
+      "motion": "subtle",
+      "density": "cozy",
+      "iconKit": "lucide",
       "colors": { "primary": "232 80 30", "accent": "27 21 16", "useAccent": false, "bg": "255 255 255", "text": "17 24 39" },
       "fonts": { "heading": "sans", "body": "sans" },
-      "header": { "bg": "27 21 16", "sticky": true, "logoSize": "md", "showTabsMobile": true, "layout": "classic", "textColor": "", "transparentOnHome": false, "showSearch": false, "showCart": true, "cartStyle": "icon", "showAccount": false, "border": "none" },
-      "announcement": { "show": false, "message": "", "link": "" },
+      "header": { "bg": "27 21 16", "sticky": true, "logoSize": "md", "showTabsMobile": true, "layout": "classic", "textColor": "", "transparentOnHome": false, "transparentLevel": "full", "showSearch": false, "showCart": true, "cartStyle": "icon", "showAccount": false, "border": "none" },
+      "announcement": { "show": false, "animation": "static", "items": [] },
+      "comingSoon": { "enabled": false, "title": "Estamos en construcción", "message": "Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!" },
       "sections": [
         { "id": "carousel", "type": "carousel", "visible": true, "data": { "images": [], "fullHeightMobile": false } },
         { "id": "featured", "type": "featured", "visible": true, "data": { "title": "Destacados", "carousel": true } },
@@ -54,11 +64,12 @@ public sealed class ThemeDocument
         { "id": "info-bar", "type": "info-bar", "visible": true, "data": {} },
         { "id": "newsletter", "type": "newsletter", "visible": false, "data": { "title": "Recibí novedades", "text": "" } }
       ],
-      "productList": { "columns": 4, "showPrice": true, "showBuyButton": true, "showCompareAt": true },
-      "productDetail": { "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true },
-      "cart": { "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true },
+      "productList": { "columns": 4, "showPrice": true, "showBuyButton": true, "showCompareAt": true, "filterCategories": true, "filterPrice": true, "filterBrand": true, "filterOptions": true, "showCashPrice": false, "installmentsCount": 0, "showStockBadge": false },
+      "productDetail": { "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true, "cashDiscountPercent": 0 },
+      "cart": { "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true, "notice": "" },
       "contact": { "showForm": true, "address": "", "phone": "", "email": "", "whatsapp": "" },
-      "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "showPaymentLogos": true, "whatsapps": [], "addresses": [], "phones": [], "emails": [] },
+      "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "showPaymentLogos": true, "paymentLogos": ["mercadopago", "visa", "mastercard"], "whatsapps": [], "addresses": [], "phones": [], "emails": [] },
+      "whatsappButton": { "enabled": false, "phone": "", "message": "¡Hola! Tengo una consulta.", "showPreview": true },
       "customCss": ""
     }
     """;

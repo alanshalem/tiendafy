@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
-import { Button, useToast } from '@tiendafy/ui';
+import { Button, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { themePresets, type ThemePreset } from '../lib/themePresets';
@@ -118,17 +118,32 @@ export function ThemeGalleryPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const navigate = useNavigate();
 
+  // Aplica al BORRADOR (antes publicaba directo: pisaba el diseño en vivo y
+  // cualquier borrador sin publicar, sin aviso). Ahora el merchant revisa en el
+  // editor y publica cuando quiere.
   const apply = useMutation({
-    mutationFn: (preset: ThemePreset) => api.post('/api/v1/theme/publish', presetToConfig(preset)),
+    mutationFn: (preset: ThemePreset) => api.put('/api/v1/theme/draft', presetToConfig(preset)),
     onSuccess: (_, preset) => {
       queryClient.invalidateQueries({ queryKey: ['theme', store?.id] });
-      toast(`Diseño "${preset.name}" aplicado a tu tienda`, { variant: 'success' });
+      toast(`Diseño "${preset.name}" aplicado al borrador. Revisalo y publicá.`, { variant: 'success' });
+      navigate('/canales/tienda-online');
     },
     onError: (err) => {
       toast(err instanceof ApiRequestError ? err.message : 'Error aplicando el diseño', { variant: 'error' });
     },
   });
+
+  const applyWithConfirm = async (preset: ThemePreset) => {
+    const ok = await confirm({
+      title: 'Usar este diseño',
+      message: `Se reemplaza el borrador actual por "${preset.name}" (colores, encabezado y secciones). Tu tienda publicada no cambia hasta que publiques.`,
+      confirmLabel: 'Aplicar al borrador',
+    });
+    if (ok) apply.mutate(preset);
+  };
 
   if (!store) {
     return <NoStoreSelected />;
@@ -141,7 +156,8 @@ export function ThemeGalleryPage() {
           <h1 className="text-xl font-semibold">Diseños para tu tienda</h1>
           <p className="mt-0.5 max-w-xl text-sm text-fg-muted">
             Elegí un punto de partida y ajustalo en el editor: colores, secciones
-            y textos quedan a tu nombre. Aplicar un diseño pisa el actual.
+            y textos quedan a tu nombre. El diseño se aplica al borrador — tu
+            tienda no cambia hasta que publiques.
           </p>
         </div>
         <Link to="/canales/tienda-online" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline">
@@ -168,7 +184,7 @@ export function ThemeGalleryPage() {
                 className="mt-3 w-full"
                 variant="secondary"
                 loading={apply.isPending && apply.variables?.id === preset.id}
-                onClick={() => apply.mutate(preset)}
+                onClick={() => applyWithConfirm(preset)}
               >
                 Usar este diseño
               </Button>
@@ -179,3 +195,5 @@ export function ThemeGalleryPage() {
     </div>
   );
 }
+
+export default ThemeGalleryPage;

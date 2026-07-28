@@ -19,7 +19,10 @@ export async function apiGet<T>(path: string, init?: RequestInit, attempts = 2):
         headers: { Accept: 'application/json', ...init?.headers },
       });
 
-      if (res.status === 404) return null;
+      // 404 = no existe; 401/403 = sin credenciales (p.ej. preview sin token
+      // válido). En ambos casos null → el caller cae a su fallback en vez de
+      // romper el Server Component (iframe/página en blanco).
+      if (res.status === 404 || res.status === 401 || res.status === 403) return null;
       if (res.status >= 500) {
         // Error del servidor: reintentar.
         lastError = new Error(`API ${path} responded ${res.status}`);

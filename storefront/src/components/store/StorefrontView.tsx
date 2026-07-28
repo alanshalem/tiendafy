@@ -17,7 +17,8 @@ import { Analytics } from './Analytics';
 import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
 import { PagesNav } from './PagesNav';
 import { WhatsAppFab } from './WhatsAppFab';
-import { PreviewContext, LiveThemeContext, usePreviewHref } from './preview';
+import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext, usePreviewHref } from './preview';
+import { sanitizeCss } from '@tiendafy/types';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { toStoreProduct, type ProductDto } from '@/lib/catalog';
 
@@ -61,7 +62,7 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
         <>
           <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
           <button
-            onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, '*'); }}
+            onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'announcement' }, ADMIN_ORIGIN); }}
             className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
           >
             <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
@@ -286,7 +287,7 @@ function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
           <>
             <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-primary" />
             <button
-              onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, '*'); }}
+              onClick={(e) => { e.stopPropagation(); window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN); }}
               className="absolute right-3 top-2 z-[56] inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
             >
               <Pencil className="h-3.5 w-3.5" /> Editar encabezado
@@ -408,6 +409,7 @@ function PreviewCartSync() {
   useEffect(() => {
     if (!preview) return;
     const onMsg = (e: MessageEvent) => {
+      if (e.origin !== ADMIN_ORIGIN) return; // solo mensajes del editor
       if (e.data?.type === EDITOR_MSG.previewCart) setOpen(e.data.open !== false);
     };
     window.addEventListener('message', onMsg);
@@ -439,6 +441,9 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
   useEffect(() => {
     if (!live) return;
     const handler = (e: MessageEvent) => {
+      // Solo mensajes del panel admin: un tercero que embeba el preview no
+      // debe poder inyectar un theme (llegaría con customCss sin sanear).
+      if (e.origin !== ADMIN_ORIGIN) return;
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
       if (e.data?.type === EDITOR_MSG.theme && e.data.theme) setTheme(mergeTheme(e.data.theme));
       // Al abrir un panel, el editor pide enfocar su sección: scroll + flash.
@@ -455,7 +460,9 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
       }
     };
     window.addEventListener('message', handler);
-    window.parent?.postMessage({ type: EDITOR_MSG.previewReady }, '*');
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: EDITOR_MSG.previewReady }, ADMIN_ORIGIN);
+    }
     return () => window.removeEventListener('message', handler);
   }, [live]);
 
@@ -504,7 +511,8 @@ export function StorefrontView({ tenantId, tenantName, theme: initialTheme, prod
     <div data-store-radius={theme.borderRadius} data-store-motion={theme.motion} data-store-density={theme.density} style={themeToStyle(theme) as React.CSSProperties}>
       <IconKitContext.Provider value={theme.iconKit}>
       <CashDiscountContext.Provider value={theme.productDetail.cashDiscountPercent || 0}>
-      {theme.customCss && <style dangerouslySetInnerHTML={{ __html: theme.customCss }} />}
+      {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
+      {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
       {!live && tenantId && <Analytics tenantId={tenantId} />}
       <PreviewContext.Provider value={!!live}>
         <LiveThemeContext.Provider value={live ? theme : null}>

@@ -258,6 +258,21 @@ export const baseTheme: ThemeConfig = {
 };
 
 /**
+ * Saneo del CSS custom del merchant — espejo del SanitizeCss del backend.
+ * El backend lo aplica al guardar/publicar; esto cubre el camino "live" del
+ * preview (postMessage → <style> sin pasar por el backend). Quita lo que
+ * permitiría romper el <style> e inyectar HTML/JS.
+ */
+export function sanitizeCss(css: string): string {
+  if (!css) return css;
+  let cleaned = css.replace(/</g, '');
+  for (const bad of ['expression\\(', 'javascript:', 'behavior:', '-moz-binding', '@import']) {
+    cleaned = cleaned.replace(new RegExp(bad, 'gi'), '');
+  }
+  return cleaned;
+}
+
+/**
  * Barra de anuncio: arma items[] desde el formato nuevo o migra el legacy
  * { message, link } a un único item. Nunca devuelve items vacío con animación,
  * pero sí puede quedar [] (el storefront no renderiza nada si no hay texto).

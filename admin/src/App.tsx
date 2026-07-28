@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/AdminLayout';
 import { SettingsLayout } from './pages/Settings/SettingsLayout';
@@ -31,8 +32,10 @@ import { OrdersPage } from './pages/Orders';
 import { AbandonedCartsPage } from './pages/AbandonedCarts';
 import { HelpArticlePage, HelpIndexPage } from './pages/Help';
 import { PagesPage } from './pages/Pages';
-import { ThemeEditorPage } from './pages/ThemeEditor';
-import { ThemeGalleryPage } from './pages/ThemeGallery';
+// El editor de diseño (+ galería) es el chunk más pesado del admin y solo se usa
+// en /canales/tienda-online → lazy para sacarlo del bundle inicial.
+const ThemeEditorPage = lazy(() => import('./pages/ThemeEditor'));
+const ThemeGalleryPage = lazy(() => import('./pages/ThemeGallery'));
 import { TenantsPage } from './pages/Tenants';
 import { StatsOverviewPage } from './pages/Stats/Overview';
 import { StatsProductsPage } from './pages/Stats/Products';
@@ -66,8 +69,26 @@ export default function App() {
         <Route path="/productos/inventario" element={<RequirePerm perm="inventory.read"><InventoryPage /></RequirePerm>} />
 
         {/* Tienda online */}
-        <Route path="/canales/tienda-online" element={<RequirePerm perm="content.write"><ThemeEditorPage /></RequirePerm>} />
-        <Route path="/canales/tienda-online/disenios" element={<RequirePerm perm="content.write"><ThemeGalleryPage /></RequirePerm>} />
+        <Route
+          path="/canales/tienda-online"
+          element={
+            <RequirePerm perm="content.write">
+              <Suspense fallback={<p className="py-16 text-center text-sm text-fg-muted">Cargando editor...</p>}>
+                <ThemeEditorPage />
+              </Suspense>
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="/canales/tienda-online/disenios"
+          element={
+            <RequirePerm perm="content.write">
+              <Suspense fallback={<p className="py-16 text-center text-sm text-fg-muted">Cargando...</p>}>
+                <ThemeGalleryPage />
+              </Suspense>
+            </RequirePerm>
+          }
+        />
 
         {/* Ventas */}
         <Route path="/ventas" element={<RequirePerm perm="orders.read"><OrdersPage /></RequirePerm>} />

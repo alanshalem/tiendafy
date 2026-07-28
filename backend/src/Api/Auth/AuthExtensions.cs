@@ -101,7 +101,16 @@ public static class AuthExtensions
     private static async ValueTask<object?> PermissionFilter(
         EndpointFilterInvocationContext ctx, EndpointFilterDelegate next, Permission permission)
     {
-        var http = ctx.HttpContext;
+        var denied = await CheckPermissionAsync(ctx.HttpContext, permission);
+        return denied is not null ? denied : await next(ctx);
+    }
+
+    /// <summary>
+    /// Chequeo RBAC reutilizable fuera del filtro (endpoints con auth alternativa,
+    /// p.ej. token de preview del editor). Null = permitido; IResult = denegación.
+    /// </summary>
+    public static async Task<IResult?> CheckPermissionAsync(HttpContext http, Permission permission)
+    {
         var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
         if (!tenant.HasTenant) return MissingTenant();
 
@@ -123,7 +132,7 @@ public static class AuthExtensions
                 detail: "Tu rol no tiene permiso para esta acción.", statusCode: StatusCodes.Status403Forbidden);
         }
 
-        return await next(ctx);
+        return null;
     }
 
     /// <summary>Como RequireTenantMembership pero exige rol owner (gestión de staff, etc.).</summary>

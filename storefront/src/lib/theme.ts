@@ -42,11 +42,20 @@ export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig
   return mergeTheme(cfg);
 }
 
-export async function fetchDraftTheme(tenantId: string): Promise<ThemeConfig> {
+/**
+ * Tema del borrador para el preview del editor. `previewToken` es el token
+ * firmado que el editor pasa en la URL del iframe (?pt=…) — el backend lo exige
+ * porque el draft no es público. Sin token válido (o ante cualquier error) cae
+ * al tema publicado, y en última instancia a los defaults: el preview nunca
+ * debe quedar en blanco (el postMessage del editor pinta el draft igual).
+ */
+export async function fetchDraftTheme(tenantId: string, previewToken?: string): Promise<ThemeConfig> {
   const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme/draft', tenantId, {
     cache: 'no-store',
-  });
-  return mergeTheme(cfg);
+    headers: previewToken ? { 'X-Preview-Token': previewToken } : undefined,
+  }).catch(() => null);
+  if (cfg) return mergeTheme(cfg);
+  return fetchPublishedTheme(tenantId).catch(() => mergeTheme(null));
 }
 
 const FONT_FAMILIES: Record<string, string> = {

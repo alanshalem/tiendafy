@@ -135,9 +135,24 @@ export function ThemeEditorPage() {
   const [device, setDevice] = useState<'mobile' | 'desktop'>('desktop');
   const [view, setView] = useState<string>('root'); // 'root' | 'colors' | 'fonts' | 'header' | 'home' | 'home:<sectionId>' | ...
   const [publishing, setPublishing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadKey, setLoadKey] = useState(0); // bump = reintentar la carga
+  // Autosave visible: el usuario tiene que saber si su borrador persistió.
+  const [saveState, _setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const saveStateRef = useRef(saveState); // para beforeunload (no ve el state)
+  const setSaveState = useCallback((s: 'saved' | 'saving' | 'error') => {
+    saveStateRef.current = s;
+    _setSaveState(s);
+  }, []);
+  // undefined = pidiéndolo (no montar el iframe todavía); null = falló (preview cae a publicado)
+  const [previewToken, setPreviewToken] = useState<string | null | undefined>(undefined);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraft = useRef<ThemeConfig | null>(null); // draft con guardado pendiente o fallido
+  const postTimer = useRef<number | null>(null);
+  const pendingPost = useRef<ThemeConfig | null>(null);
 
   const previewBase = store ? `http://${store.subdomain}.localhost:3000` : '';
+  const previewOrigin = previewBase; // origin esperado del iframe (targetOrigin + validación de e.origin)
   // El preview sigue al panel abierto: cada sección se ve en su propia página.
   const previewPath = useMemo(() => {
     switch (view) {
@@ -147,10 +162,20 @@ export function ThemeEditorPage() {
       default: return '/preview'; // inicio (header, colores, fuentes, secciones, footer…) + carrito
     }
   }, [view, firstSlug]);
-  const previewUrl = previewBase ? previewBase + previewPath : '';
+  // El token viaja en la URL (?pt=…): el SSR del storefront lo reenvía al backend
+  // para poder leer el draft (que no es público).
+  const previewUrl = useMemo(() => {
+    if (!previewBase) return '';
+    const sep = previewPath.includes('?') ? '&' : '?';
+    return previewBase + previewPath + (previewToken ? `${sep}pt=${encodeURIComponent(previewToken)}` : '');
+  }, [previewBase, previewPath, previewToken]);
 
   // ¿Hay cambios sin publicar? (draft ≠ publicado) → habilita "Publicar".
-  const dirty = !!theme && !!published && JSON.stringify(theme) !== JSON.stringify(published);
+  // Memoizado: el doble stringify del theme completo no debe correr en cada render.
+  const dirty = useMemo(
+    () => !!theme && !!published && JSON.stringify(theme) !== JSON.stringify(published),
+    [theme, published],
+  );
 
   // El editor es overlay full-screen: bloquear el scroll del body de atrás
   // (si no, queda una barra vertical inútil a la derecha).
@@ -167,31 +192,47 @@ export function ThemeEditorPage() {
     setActiveTenant(store.id);
     setTheme(null);
     setPublished(null);
+    setLoadError(false);
+    setPreviewToken(undefined);
     Promise.all([
       api.get<Partial<ThemeConfig>>('/api/v1/theme/draft'),
       api.get<Partial<ThemeConfig>>('/api/v1/theme'),
     ])
       .then(([d, p]) => { setTheme(withDefaults(d)); setPublished(withDefaults(p)); })
-      .catch(() => setTheme(null));
+      .catch(() => { setTheme(null); setLoadError(true); });
+    // Token firmado para que el iframe de preview pueda leer el draft. Si falla,
+    // el preview cae al tema publicado (el postMessage pinta el draft igual).
+    api.post<{ token: string }>('/api/v1/theme/preview-token', {})
+      .then((r) => setPreviewToken(r.token))
+      .catch(() => setPreviewToken(null));
     // Un producto real para previsualizar el panel "Detalle de producto".
     api.get<{ items: { slug: string }[] }>('/api/v1/products?limit=1')
       .then((r) => setFirstSlug(r.items[0]?.slug ?? null))
       .catch(() => setFirstSlug(null));
-  }, [store]);
+  }, [store, loadKey]);
 
-  // Postear tema al iframe (preview en vivo).
+  // Postear tema al iframe (preview en vivo), con throttle (~80ms trailing):
+  // tipear o arrastrar el selector de color emite decenas de cambios por segundo
+  // y cada postMessage re-renderiza el storefront completo del iframe.
   const postToPreview = useCallback((t: ThemeConfig) => {
-    iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.theme, theme: t }, '*');
-  }, []);
+    pendingPost.current = t;
+    if (postTimer.current != null) return;
+    postTimer.current = window.setTimeout(() => {
+      postTimer.current = null;
+      const latest = pendingPost.current;
+      if (latest) iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.theme, theme: latest }, previewOrigin || '*');
+    }, 80);
+  }, [previewOrigin]);
 
   // Abrir/cerrar el carrito en el preview (no es una página: se controla por mensaje).
   const postCart = useCallback((open: boolean) => {
-    iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.previewCart, open }, '*');
-  }, []);
+    iframeRef.current?.contentWindow?.postMessage({ type: EDITOR_MSG.previewCart, open }, previewOrigin || '*');
+  }, [previewOrigin]);
 
   // El preview avisa cuando está listo → mandamos el tema actual (+ estado del carrito).
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.origin !== previewOrigin) return; // solo mensajes del propio preview
       if (e.data?.type === EDITOR_MSG.previewReady && theme) {
         postToPreview(theme);
         postCart(view === 'cart');
@@ -199,7 +240,7 @@ export function ThemeEditorPage() {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [theme, postToPreview, postCart, view]);
+  }, [theme, postToPreview, postCart, view, previewOrigin]);
 
   // Al abrir el panel "Carrito", abrir el drawer en el preview (y cerrarlo al salir).
   useEffect(() => { postCart(view === 'cart'); }, [view, postCart]);
@@ -213,12 +254,13 @@ export function ThemeEditorPage() {
     if (view === 'header') msg = { type: EDITOR_MSG.focusSection, target: 'header' };
     else if (view === 'footer') msg = { type: EDITOR_MSG.focusSection, target: 'footer' };
     else if (view.startsWith('home:')) msg = { type: EDITOR_MSG.focusSection, target: 'section', sectionId: view.slice(5) };
-    if (msg) win.postMessage(msg, '*');
-  }, [view]);
+    if (msg) win.postMessage(msg, previewOrigin || '*');
+  }, [view, previewOrigin]);
 
   // Click en una región del preview (sección / encabezado / pie) → abre su panel.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.origin !== previewOrigin) return;
       if (e.data?.type !== EDITOR_MSG.editSection) return;
       const { target, sectionId } = e.data as { target: string; sectionId?: string };
       if (target === 'header' || target === 'announcement') setView('header');
@@ -227,7 +269,28 @@ export function ThemeEditorPage() {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [previewOrigin]);
+
+  // Persistir el draft. Guarda el resultado en saveState (nunca en silencio:
+  // si falla, el usuario tiene que enterarse antes de cerrar y perder cambios).
+  const saveDraft = useCallback((next: ThemeConfig, init?: RequestInit) => {
+    pendingDraft.current = next;
+    setSaveState('saving');
+    api.put('/api/v1/theme/draft', next, init)
+      .then(() => {
+        // Solo si no hubo un cambio más nuevo mientras viajaba el PUT.
+        if (pendingDraft.current === next) { pendingDraft.current = null; setSaveState('saved'); }
+      })
+      .catch(() => {
+        if (pendingDraft.current === next) setSaveState('error');
+      });
+  }, [setSaveState]);
+
+  // Guardado pendiente (o fallido) → mandarlo YA (cerrar editor, cambiar tienda, reintentar).
+  const flushDraft = useCallback((init?: RequestInit) => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    if (pendingDraft.current) saveDraft(pendingDraft.current, init);
+  }, [saveDraft]);
 
   // Cambio de tema: live + autosave debounced.
   const updateTheme = useCallback(
@@ -236,19 +299,36 @@ export function ThemeEditorPage() {
         if (!prev) return prev;
         const next = updater(prev);
         postToPreview(next);
+        pendingDraft.current = next;
+        setSaveState('saving');
         if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-          api.put('/api/v1/theme/draft', next).catch(() => {});
-        }, 600);
+        saveTimer.current = setTimeout(() => saveDraft(next), 600);
         return next;
       });
     },
-    [postToPreview],
+    [postToPreview, saveDraft, setSaveState],
   );
+
+  // Al cerrar la pestaña / desmontar: flushear el draft pendiente (keepalive
+  // deja terminar el PUT aunque la página muera). Solo frenamos la navegación
+  // con el diálogo nativo si el último guardado FALLÓ (riesgo real de pérdida).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!pendingDraft.current) return;
+      flushDraft({ keepalive: true });
+      if (saveStateRef.current === 'error') e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      flushDraft({ keepalive: true }); // unmount (navegar dentro del admin)
+    };
+  }, [flushDraft]);
 
   // Eliminar sección desde el preview (botón de tacho en el hover).
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.origin !== previewOrigin) return;
       if (e.data?.type !== EDITOR_MSG.deleteSection || !e.data.sectionId) return;
       const sectionId = e.data.sectionId as string;
       confirm({
@@ -264,7 +344,7 @@ export function ThemeEditorPage() {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [confirm, updateTheme]);
+  }, [confirm, updateTheme, previewOrigin]);
 
   const publish = async () => {
     if (!theme) return;
@@ -272,6 +352,10 @@ export function ThemeEditorPage() {
     try {
       await api.post('/api/v1/theme/publish', theme);
       setPublished(theme); // nuevo baseline → "Publicar" se desactiva hasta el próximo cambio
+      // El publish persiste también el draft: no queda nada pendiente.
+      if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+      pendingDraft.current = null;
+      setSaveState('saved');
       toast('Diseño publicado en tu tienda', { variant: 'success' });
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Error al publicar', { variant: 'error' });
@@ -284,9 +368,12 @@ export function ThemeEditorPage() {
     if (!(await confirm({ title: 'Descartar cambios', message: '¿Descartar los cambios sin publicar y volver al diseño publicado?', confirmLabel: 'Descartar', variant: 'danger' }))) return;
     try {
       const published = withDefaults(await api.get<Partial<ThemeConfig>>('/api/v1/theme'));
+      if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+      pendingDraft.current = null;
       setTheme(published);
       postToPreview(published);
       await api.put('/api/v1/theme/draft', published);
+      setSaveState('saved');
       toast('Cambios descartados', { variant: 'success' });
     } catch {
       toast('No se pudo descartar', { variant: 'error' });
@@ -297,6 +384,14 @@ export function ThemeEditorPage() {
     updateTheme((t) => ({ ...t, colors: { ...t.colors, [key]: value } }));
 
   if (!store) return <NoStoreSelected />;
+  if (loadError) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-fg-muted">No se pudo cargar el editor. Revisá tu conexión.</p>
+        <Button className="mt-4" onClick={() => setLoadKey((k) => k + 1)}>Reintentar</Button>
+      </div>
+    );
+  }
   if (!theme) return <p className="py-16 text-center text-sm text-fg-muted">Cargando editor...</p>;
 
   return (
@@ -309,6 +404,14 @@ export function ThemeEditorPage() {
           </button>
           <span className="font-semibold text-fg">Editar diseño</span>
           <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success">● Borrador</span>
+          {/* Estado del autosave: sin esto, un guardado fallido era invisible y se perdía trabajo. */}
+          {saveState === 'saving' && <span className="text-xs text-fg-subtle">Guardando…</span>}
+          {saveState === 'saved' && <span className="text-xs text-fg-subtle">Guardado</span>}
+          {saveState === 'error' && (
+            <button onClick={() => flushDraft()} className="inline-flex items-center gap-1 text-xs font-semibold text-danger hover:underline">
+              <AlertTriangle className="h-3.5 w-3.5" /> No se guardó — Reintentar
+            </button>
+          )}
           {stores.length > 1 && (
             <Dropdown>
               <Dropdown.Trigger>{store.name}</Dropdown.Trigger>
@@ -318,6 +421,7 @@ export function ThemeEditorPage() {
                     key={s.id}
                     onSelect={() => {
                       if (s.id === store.id) return;
+                      flushDraft(); // no perder un guardado pendiente de ESTA tienda
                       setTheme(null); // muestra "Cargando…" mientras carga la otra tienda
                       selectStore(s);
                     }}
@@ -415,17 +519,29 @@ export function ThemeEditorPage() {
             )}
             style={device === 'mobile' ? { width: 390 } : undefined}
           >
-            <iframe
-              ref={iframeRef}
-              src={previewUrl}
-              title="Preview"
-              className={cn(
-                'w-full bg-white',
-                device === 'mobile'
-                  ? 'h-[780px]'
-                  : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
-              )}
-            />
+            {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
+            {previewToken !== undefined ? (
+              <iframe
+                ref={iframeRef}
+                src={previewUrl}
+                title="Preview"
+                className={cn(
+                  'w-full bg-white',
+                  device === 'mobile'
+                    ? 'h-[780px]'
+                    : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+                )}
+              />
+            ) : (
+              <div
+                className={cn(
+                  'flex w-full items-center justify-center bg-white text-sm text-fg-muted',
+                  device === 'mobile' ? 'h-[780px]' : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+                )}
+              >
+                Cargando vista previa…
+              </div>
+            )}
           </div>
         </div>
       </div>

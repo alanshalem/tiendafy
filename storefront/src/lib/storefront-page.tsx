@@ -14,12 +14,13 @@ export type StorefrontPage =
   | { ok: false; fallback: ReactNode }
   | { ok: true; data: StorefrontData; theme: ThemeConfig; preview: boolean };
 
-export async function resolveStorefrontPage(searchParams: Promise<{ preview?: string }>): Promise<StorefrontPage> {
+export async function resolveStorefrontPage(searchParams: Promise<{ preview?: string; pt?: string }>): Promise<StorefrontPage> {
   const data = await loadStorefront();
   if (!data) return { ok: false, fallback: <div className="p-10 text-center">Tienda no encontrada.</div> };
 
-  const preview = (await searchParams).preview === '1';
-  const theme = preview ? await fetchDraftTheme(data.tenant.id) : await fetchPublishedTheme(data.tenant.id);
+  const sp = await searchParams;
+  const preview = sp.preview === '1';
+  const theme = preview ? await fetchDraftTheme(data.tenant.id, sp.pt) : await fetchPublishedTheme(data.tenant.id);
 
   if (!preview && theme.comingSoon.enabled) {
     return { ok: false, fallback: <ComingSoon theme={theme} tenantName={data.tenant.name} /> };

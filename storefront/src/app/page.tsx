@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   };
 }
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ preview?: string; pt?: string }> }) {
   if (await isPlatformHost()) return <PlatformLanding />;
 
   const data = await loadStorefront();
@@ -38,8 +38,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   if (data.tenant.status === 'CANCELED') return <StoreDeleted registerUrl={await platformUrl()} />;
   if (data.tenant.status === 'SUSPENDED') return <StoreSuspended name={data.tenant.name} />;
 
-  const preview = (await searchParams).preview === '1';
-  const theme = preview ? await fetchDraftTheme(data.tenant.id) : await fetchPublishedTheme(data.tenant.id);
+  const sp = await searchParams;
+  const preview = sp.preview === '1';
+  const theme = preview ? await fetchDraftTheme(data.tenant.id, sp.pt) : await fetchPublishedTheme(data.tenant.id);
 
   if (!preview && theme.comingSoon.enabled) return <ComingSoon theme={theme} tenantName={data.tenant.name} />;
 
