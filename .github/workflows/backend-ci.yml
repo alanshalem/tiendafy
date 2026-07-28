@@ -53,6 +53,23 @@ jobs:
       - name: Test (con cobertura)
         run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results
 
+      # Ratchet de cobertura del DOMINIO (asambleas *.Core + SharedKernel):
+      # piso actual 55% — al subir la cobertura, subir el piso. Nunca bajarlo.
+      - name: Cobertura de dominio >= 55%
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET, sys, re
+          lf = lh = 0
+          for f in glob.glob('test-results/**/coverage.cobertura.xml', recursive=True):
+              for p in ET.parse(f).getroot().iter('package'):
+                  if re.search(r'(\.Core|SharedKernel)$', p.get('name', '')):
+                      for line in p.iter('line'):
+                          lf += 1
+                          if int(line.get('hits', '0')) > 0: lh += 1
+          pct = lh * 100 / lf if lf else 0
+          print(f'Dominio (Core+SharedKernel): {pct:.1f}% ({lh}/{lf} lineas)')
+          sys.exit(0 if pct >= 55 else 1)
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

@@ -12,6 +12,9 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/lib/**'],
       reporter: ['text-summary', 'lcov'],
+      // Ratchet: piso actual medido — si baja, el CI falla. Al subir cobertura,
+      // subir el piso (nunca bajarlo).
+      thresholds: { lines: 55 },
     },
   },
 });
