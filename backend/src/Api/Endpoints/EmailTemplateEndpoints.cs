@@ -17,6 +17,48 @@ public static class EmailTemplateEndpoints
         // Grupo 100% admin: plantillas de email del tenant. Exige membresía.
         var templates = group.MapGroup("/email-templates").RequirePermission(Permission.SettingsWrite);
 
+        // Uso y costo estimado de notificaciones (emails + WhatsApp) del tenant.
+        // Tarifas configurables (Notifications:*): son ESTIMACIONES — Resend
+        // cobra por plan (Pro USD 20 / 50k emails ≈ 0.40/1000) y Meta por
+        // mensaje de plantilla (utility AR ≈ USD 0.034). El front lo aclara.
+        group.MapGet("/notifications/usage", async (
+            ITenantContext tenant, NotificationsDbContext db, IConfiguration cfg, CancellationToken ct) =>
+        {
+            var tid = tenant.TenantId.Value;
+            var now = DateTime.UtcNow;
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var rows = await db.NotificationEvents.AsNoTracking()
+                .Where(e => e.TenantId == tid)
+                .GroupBy(e => new { e.Channel, EsteMes = e.CreatedAtUtc >= monthStart })
+                .Select(g => new { g.Key.Channel, g.Key.EsteMes, Count = g.Count() })
+                .ToListAsync(ct);
+
+            int Total(string ch) => rows.Where(r => r.Channel == ch).Sum(r => r.Count);
+            int Mes(string ch) => rows.Where(r => r.Channel == ch && r.EsteMes).Sum(r => r.Count);
+
+            var emailPer1000 = cfg.GetValue("Notifications:EmailCostUsdPer1000", 0.40m);
+            var waPerMessage = cfg.GetValue("Notifications:WhatsAppCostUsdPerMessage", 0.034m);
+
+            return Results.Ok(new
+            {
+                email = new
+                {
+                    month = Mes("email"),
+                    total = Total("email"),
+                    unitUsdPer1000 = emailPer1000,
+                    estimatedMonthUsd = Math.Round(Mes("email") * emailPer1000 / 1000m, 2),
+                },
+                whatsapp = new
+                {
+                    month = Mes("whatsapp"),
+                    total = Total("whatsapp"),
+                    unitUsdPerMessage = waPerMessage,
+                    estimatedMonthUsd = Math.Round(Mes("whatsapp") * waPerMessage, 2),
+                },
+            });
+        }).RequirePermission(Permission.SettingsWrite);
+
         // Lista combinada: defaults del catálogo + overrides del tenant.
         templates.MapGet("/", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>
         {

@@ -45,6 +45,7 @@ public sealed class WhatsAppNotifier(
             await sender.SendTemplateAsync(
                 conn.PhoneNumberId, protector.Unprotect(conn.AccessTokenEncrypted),
                 to, tpl.MetaTemplateName, tpl.LanguageCode, args, ct);
+            await CountAsync(order.TenantId.Value, type, ct);
         }
         catch (Exception ex)
         {
@@ -67,10 +68,25 @@ public sealed class WhatsAppNotifier(
             await sender.SendTemplateAsync(
                 conn.PhoneNumberId, protector.Unprotect(conn.AccessTokenEncrypted),
                 to, tpl.MetaTemplateName, tpl.LanguageCode, [customerName, storeName], ct);
+            await CountAsync(tenantId, "carritos-abandonados", ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "WhatsApp carrito abandonado falló (tenant {TenantId}).", tenantId);
+        }
+    }
+
+    /// <summary>Contador de uso (panel de costos). Best-effort: nunca rompe el envío.</summary>
+    private async Task CountAsync(Guid tenantId, string template, CancellationToken ct)
+    {
+        try
+        {
+            db.NotificationEvents.Add(NotificationEvent.WhatsApp(tenantId, template));
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "No se pudo registrar el envío de WhatsApp (tenant {TenantId}).", tenantId);
         }
     }
 

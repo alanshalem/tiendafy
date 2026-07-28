@@ -67,6 +67,40 @@ namespace Notifications.Infrastructure.Migrations
                     b.ToTable("email_templates", (string)null);
                 });
 
+            modelBuilder.Entity("Notifications.Infrastructure.NotificationEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Template")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("template");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_events");
+
+                    b.HasIndex("TenantId", "Channel", "CreatedAtUtc")
+                        .HasDatabaseName("ix_notification_events_tenant_id_channel_created_at_utc");
+
+                    b.ToTable("notification_events", (string)null);
+                });
+
             modelBuilder.Entity("Notifications.Infrastructure.WhatsAppConnection", b =>
                 {
                     b.Property<Guid>("Id")

@@ -17,6 +17,7 @@ public sealed class NotificationsDbContext : DbContext
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<WhatsAppConnection> WhatsAppConnections => Set<WhatsAppConnection>();
     public DbSet<WhatsAppTemplate> WhatsAppTemplates => Set<WhatsAppTemplate>();
+    public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,5 +50,15 @@ public sealed class NotificationsDbContext : DbContext
         wt.Property(x => x.LanguageCode).HasMaxLength(10).IsRequired();
         wt.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         wt.HasIndex(x => new { x.TenantId, x.Type }).IsUnique();
+
+        var ne = modelBuilder.Entity<NotificationEvent>();
+        ne.ToTable("notification_events");
+        ne.HasKey(x => x.Id);
+        ne.Property(x => x.Id).ValueGeneratedNever();
+        ne.Property(x => x.Channel).HasMaxLength(10).IsRequired();
+        ne.Property(x => x.Template).HasMaxLength(40);
+        ne.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        // Consultas del panel de uso: conteos por tienda/canal/rango de fechas.
+        ne.HasIndex(x => new { x.TenantId, x.Channel, x.CreatedAtUtc });
     }
 }

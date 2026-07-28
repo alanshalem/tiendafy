@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
+import { NotificationUsage } from '../../components/NotificationUsage';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -56,6 +57,8 @@ export function AutoEmailsPage() {
         title="E-mails automáticos"
         description="Estos e-mails se envían a tus clientes solos. Activá los que quieras y editá el contenido."
       />
+
+      <NotificationUsage channel="email" />
 
       <div className="space-y-6">
         {GROUPS.map((group) => {

@@ -18,14 +18,27 @@ public sealed class BrandedEmailSender(
     IEmailSender inner,
     TenancyDbContext tenancy,
     ThemesDbContext themes,
+    global::Notifications.Infrastructure.NotificationsDbContext notifications,
     ILogger<BrandedEmailSender> logger)
 {
-    public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default)
+    public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null)
     {
         var branding = await ResolveBrandingAsync(tenantId, ct);
         // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
         await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
             fromName: branding.StoreName, ct: ct);
+
+        // Contador de uso (panel de costos del merchant). Nunca rompe el envío.
+        try
+        {
+            notifications.NotificationEvents.Add(
+                global::Notifications.Infrastructure.NotificationEvent.Email(tenantId, template));
+            await notifications.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "No se pudo registrar el envío de email (tenant {TenantId}).", tenantId);
+        }
     }
 
     public async Task<EmailBranding> ResolveBrandingAsync(Guid tenantId, CancellationToken ct = default)

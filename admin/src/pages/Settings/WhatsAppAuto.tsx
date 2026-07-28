@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BadgeCheck, ChevronDown, Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, cn, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
+import { NotificationUsage } from '../../components/NotificationUsage';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -72,6 +73,8 @@ export function WhatsAppAutoPage() {
         title="WhatsApp automático"
         description="Mensajes de WhatsApp que se envían solos a tus clientes, con la API oficial de Meta."
       />
+
+      <NotificationUsage channel="whatsapp" />
 
       <ConnectionCard conn={conn ?? null} loading={loadingConn} />
 
