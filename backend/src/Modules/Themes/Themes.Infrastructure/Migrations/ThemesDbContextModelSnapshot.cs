@@ -28,12 +28,6 @@ namespace Themes.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Announcement")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("announcement");
-
                     b.Property<string>("DraftConfig")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -44,19 +38,9 @@ namespace Themes.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("published_config");
 
-                    b.Property<string>("SectionsJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("sections_json");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
-
-                    b.Property<string>("TokensJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("tokens_json");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")

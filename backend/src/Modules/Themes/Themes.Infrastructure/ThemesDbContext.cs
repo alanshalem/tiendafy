@@ -24,9 +24,6 @@ public sealed class ThemesDbContext : DbContext
         theme.Property(t => t.Id).ValueGeneratedNever();
         theme.HasQueryFilter(t => !_filterByTenant || t.TenantId == _tenantGuid);
         theme.HasIndex(t => t.TenantId).IsUnique();
-        theme.Property(t => t.Announcement).HasMaxLength(200);
-        theme.Property(t => t.TokensJson).HasColumnType("jsonb");
-        theme.Property(t => t.SectionsJson).HasColumnType("jsonb");
         theme.Property(t => t.PublishedConfig).HasColumnType("jsonb");
         theme.Property(t => t.DraftConfig).HasColumnType("jsonb");
     }

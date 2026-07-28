@@ -25,7 +25,7 @@ function presetHeader(t: ThemePreset['tokens']): { bg: string; textColor: string
     : { bg: t.colorFg, textColor: t.colorBg };
 }
 
-/** Convierte un preset (shape viejo) al ThemeConfig nuevo que publica el editor. */
+/** Convierte un preset (DSL compacto de la galería) al ThemeConfig actual. */
 function presetToConfig(preset: ThemePreset) {
   const typeMap: Record<string, string> = {
     hero: 'carousel',
@@ -44,7 +44,9 @@ function presetToConfig(preset: ThemePreset) {
     },
     fonts: { heading: 'sans', body: 'sans' },
     header: { bg: hdr.bg, textColor: hdr.textColor, sticky: true, logoSize: 'md', showTabsMobile: false },
-    announcement: { show: !!preset.announcement, message: preset.announcement, link: '' },
+    announcement: preset.announcement
+      ? { show: true, animation: 'static', items: [{ text: preset.announcement, link: '' }] }
+      : { show: false, animation: 'static', items: [] },
     sections: preset.sections.map((s, i) => ({
       id: `${typeMap[s.type] ?? s.type}-${i}`,
       type: typeMap[s.type] ?? s.type,

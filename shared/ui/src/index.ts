@@ -16,7 +16,6 @@ export { PromptProvider, usePrompt, type PromptOptions } from './Prompt';
 export { Table, type TableProps, type TableColumn } from './Table';
 export { Pagination, type PaginationProps } from './Pagination';
 export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './Breadcrumbs';
-export { FormField, FormError, type FormFieldProps, type FormErrorProps } from './Form';
-export { MultiSelect, type MultiSelectProps, type MultiSelectOption } from './MultiSelect';
+export { FormField, type FormFieldProps } from './Form';
 export { Captcha, type CaptchaProps } from './Captcha';
 export { buildPageWindow } from './pageWindow';

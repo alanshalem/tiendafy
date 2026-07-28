@@ -19,11 +19,6 @@ public sealed class ThemeDocument
     /// <summary>Borrador del editor (preview, todavía no publicado). JSON.</summary>
     public string DraftConfig { get; set; } = DefaultConfig;
 
-    // Columnas legacy (v1) — se mantienen para no romper la migración previa.
-    public string Announcement { get; set; } = string.Empty;
-    public string TokensJson { get; set; } = "{}";
-    public string SectionsJson { get; set; } = "[]";
-
     public DateTime UpdatedAtUtc { get; set; }
 
     public static ThemeDocument CreateDefault(Guid tenantId) => new()

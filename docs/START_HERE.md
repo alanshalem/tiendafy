@@ -30,15 +30,15 @@ Lee en este orden:
 - Ejemplo completo: checkout → pago → confirmación
 - Trace de observabilidad end-to-end
 
-### 4. **[docs/adr/](./docs/adr/)** — Por Qué Cada Decisión
+### 4. **[adr/](./adr/)** — Por Qué Cada Decisión
 - 0001: .NET monolito vs Node/microservicios
 - 0002: Next.js (storefront) + Vite (admin) separados
 - 0003: PostgreSQL RLS para multi-tenancy
 - Template para futuros ADRs
 
-### 5. **[docs/guides/](./docs/guides/)** — Cómo Construir
-- [adding-a-feature.md](./docs/guides/adding-a-feature.md) — Paso a paso feature (command/query/handler/endpoint)
-- [adding-a-module.md](./docs/guides/adding-a-module.md) — Paso a paso módulo (estructura completa)
+### 5. **[guides/](./guides/)** — Cómo Construir
+- [adding-a-feature.md](./guides/adding-a-feature.md) — Paso a paso feature (command/query/handler/endpoint)
+- [adding-a-module.md](./guides/adding-a-module.md) — Paso a paso módulo (estructura completa)
 - coming: debugging, performance, deployment
 
 ### 6. **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** — Qué Falta Hacer
@@ -50,15 +50,15 @@ Lee en este orden:
 
 ### Soy Desarrollador Backend 👨‍💻
 1. [ARCHITECTURE.md](./ARCHITECTURE.md) → "Backend → src/Modules"
-2. [docs/adr/0001-dotnet-monolith.md](./docs/adr/0001-dotnet-monolith.md) → "Por qué .NET"
-3. [docs/guides/adding-a-feature.md](./docs/guides/adding-a-feature.md) → "Crear un feature"
-4. [docs/guides/adding-a-module.md](./docs/guides/adding-a-module.md) → "Crear un módulo"
+2. [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md) → "Por qué .NET"
+3. [guides/adding-a-feature.md](./guides/adding-a-feature.md) → "Crear un feature"
+4. [guides/adding-a-module.md](./guides/adding-a-module.md) → "Crear un módulo"
 5. [docs/database/](./docs/database/) (próximamente)
 6. [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: API ↔ Base de Datos"
 
 ### Soy Desarrollador Frontend 👩‍💼
 1. [ARCHITECTURE.md](./ARCHITECTURE.md) → "Storefront / Admin"
-2. [docs/adr/0002-next-and-vite.md](./docs/adr/0002-next-and-vite.md) → "Por qué dos apps"
+2. [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md) → "Por qué dos apps"
 3. Storefront: [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: Storefront ↔ Backend"
 4. Admin: [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: Admin ↔ Backend"
 5. [README.md](./README.md) → "Quick Start" → `pnpm dev` en ambos
@@ -73,7 +73,7 @@ Lee en este orden:
 ### Soy Product Owner / Tech Lead 📊
 1. [ARCHITECTURE.md](./ARCHITECTURE.md) → Visión de arriba
 2. [CONNECTIONS.md](./CONNECTIONS.md) → "Visión de Arriba (High Level)"
-3. [docs/adr/](./docs/adr/) → Entiende por qué cada decisión
+3. [adr/](./adr/) → Entiende por qué cada decisión
 4. [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) → Timeline de MVPs
 5. [CONNECTIONS.md](./CONNECTIONS.md) → Casos de uso (checkout → pagos → pedidos)
 
@@ -94,25 +94,25 @@ Cada decisión tiene un ADR explicando alternativas + trade-offs.
 ## Preguntas Frecuentes
 
 **P: ¿Por qué .NET en lugar de Node?**
-A: [docs/adr/0001-dotnet-monolith.md](./docs/adr/0001-dotnet-monolith.md) — TL;DR: tipado fuerte, performance, LTS estable.
+A: [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md) — TL;DR: tipado fuerte, performance, LTS estable.
 
 **P: ¿Por qué compartir schema de DB?**
-A: [docs/adr/0003-postgres-rls.md](./docs/adr/0003-postgres-rls.md) — TL;DR: migraciones 100k veces vs 1, RLS protege a nivel motor.
+A: [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md) — TL;DR: migraciones 100k veces vs 1, RLS protege a nivel motor.
 
 **P: ¿Por qué Next.js + Vite, no un solo frontend?**
-A: [docs/adr/0002-next-and-vite.md](./docs/adr/0002-next-and-vite.md) — TL;DR: perfiles distintos (SEO vs SPA), deployables independientes, seguridad.
+A: [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md) — TL;DR: perfiles distintos (SEO vs SPA), deployables independientes, seguridad.
 
 **P: ¿Cuándo migro a microservicios?**
-A: [docs/adr/0001-dotnet-monolith.md](./docs/adr/0001-dotnet-monolith.md#migration-path) — A 10k+ clientes, si el perfil de carga lo justifica.
+A: [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md#migration-path) — A 10k+ clientes, si el perfil de carga lo justifica.
 
 **P: ¿Cuándo necesito Kubernetes?**
 A: [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md#fase-4-escalabilidad-4-6-semanas) — A 100+ tiendas en staging. En MVP, contenedores administrados bastan.
 
 **P: ¿Cómo evito data leaks entre tenants?**
-A: [docs/adr/0003-postgres-rls.md](./docs/adr/0003-postgres-rls.md#implementation) — RLS en motor + global query filters en código + tests de aislamiento.
+A: [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md#implementation) — RLS en motor + global query filters en código + tests de aislamiento.
 
 **P: ¿Dónde empiezo a codificar?**
-A: [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) (Fase 0-1) → Pick Tenancy → [docs/guides/adding-a-module.md](./docs/guides/adding-a-module.md) → Code.
+A: [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) (Fase 0-1) → Pick Tenancy → [guides/adding-a-module.md](./guides/adding-a-module.md) → Code.
 
 ## Estructura de Carpetas (30-segundo summary)
 
@@ -182,11 +182,12 @@ tiendafy/
 
 ## Soporte
 
-- **Questions on architecture?** → Check docs/adr/ o CONNECTIONS.md
-- **How to add X?** → docs/guides/adding-a-{feature|module}.md
+- **Questions on architecture?** → Check adr/ o CONNECTIONS.md
+- **How to add X?** → guides/adding-a-{feature|module}.md
 - **Database question?** → docs/database/ (próx)
 - **Deployment question?** → docs/deployment/ (próx)
 
 ---
 
 **Ready?** Start with [README.md](./README.md) para setup local.
+

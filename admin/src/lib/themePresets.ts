@@ -1,7 +1,7 @@
 /**
- * Diseños listos para usar. Aplicar = PUT /api/v1/theme con estos valores;
- * el merchant los ajusta después en el editor. Tokens en RGB crudo
- * (formato de tokens.css del design system).
+ * Diseños listos para usar (DSL compacto de la galería). Aplicar = PUT del
+ * borrador con presetToConfig(preset) (ThemeGallery); el merchant los ajusta
+ * después en el editor. Tokens en RGB crudo (formato de tokens.css).
  *
  * Orden de la galería: paletas claras primero, oscuras después; las
  * verticales (gimnasio/motos/autos) quedan agrupadas.

@@ -50,7 +50,7 @@ dotnet test backend/backend.slnx
 # API (puerto 5080 — el 5000 lo ocupa Docker Desktop en Windows):
 dotnet run --project backend/src/Api        # → http://localhost:5080
 
-# Cuando estén scaffoldeados (ver IMPLEMENTATION_CHECKLIST.md):
+# Cuando estén scaffoldeados (ver docs/IMPLEMENTATION_CHECKLIST.md):
 # dotnet run --project backend/src/Worker   → http://localhost:5081
 # cd storefront && pnpm dev                 → http://localhost:3000
 # cd admin && pnpm dev                      → http://localhost:3001
@@ -86,7 +86,7 @@ http://localhost:3001
 
 ## Estructura del Proyecto
 
-Ver [ARCHITECTURE.md](./ARCHITECTURE.md) para:
+Ver [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) para:
 - Topología completa de carpetas
 - Conexiones entre módulos
 - Flujos de datos

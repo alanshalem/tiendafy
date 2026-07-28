@@ -20,7 +20,7 @@ export function sectionSetter<K extends keyof ThemeConfig>(
 }
 
 /* ---- color helpers (config guarda "R G B"; el input usa hex) ---- */
-export const rgbToHex = (raw: string, fb: string) => {
+const rgbToHex = (raw: string, fb: string) => {
   const p = raw?.trim().split(/\s+/).map(Number);
   if (!p || p.length !== 3 || p.some(Number.isNaN)) return fb;
   return `#${p.map((n) => n.toString(16).padStart(2, '0')).join('')}`;

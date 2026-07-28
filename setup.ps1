@@ -150,6 +150,6 @@ Write-Host @"
   Type-check FE:    pnpm --filter "./shared/**" run type-check
   Bajar infra:      docker compose -f infra/docker/docker-compose.dev.yml down
 
-  Estado del proyecto: IMPLEMENTATION_CHECKLIST.md
+  Estado del proyecto: docs/IMPLEMENTATION_CHECKLIST.md
 ============================================================
 "@ -ForegroundColor Green

@@ -51,10 +51,6 @@ export interface ThemeAnnouncement {
   animation: 'static' | 'marquee';
   /** Uno o varios anuncios (cada uno con su link). */
   items: AnnouncementItem[];
-  /** @deprecated Legacy de la versión de un solo texto — se migra a items[0]. */
-  message?: string;
-  /** @deprecated Legacy. */
-  link?: string;
 }
 
 export interface ComingSoonConfig {
@@ -241,7 +237,7 @@ export const baseTheme: ThemeConfig = {
     layout: 'classic', textColor: '', transparentOnHome: false, transparentLevel: 'full',
     showSearch: false, showCart: true, cartStyle: 'icon', showAccount: false, border: 'none',
   },
-  announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }], message: '', link: '' },
+  announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }] },
   comingSoon: { enabled: false, title: 'Estamos en construcción', message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!' },
   sections: [],
   productList: {
@@ -287,9 +283,12 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
       .filter((it): it is AnnouncementItem => !!it && typeof it.text === 'string')
       .map((it) => ({ text: it.text, link: typeof it.link === 'string' ? it.link : '' }));
   }
-  // Compat: tema viejo con un solo { message, link }.
-  if (items.length === 0 && typeof raw.message === 'string' && raw.message.trim()) {
-    items = [{ text: raw.message, link: typeof raw.link === 'string' ? raw.link : '' }];
+  // Compat de lectura: temas persistidos con el shape v1 { message, link } (un
+  // solo texto). El schema ya no expone esos campos, pero los datos viejos
+  // siguen en la DB hasta que el merchant vuelva a guardar.
+  const legacy = raw as { message?: unknown; link?: unknown };
+  if (items.length === 0 && typeof legacy.message === 'string' && legacy.message.trim()) {
+    items = [{ text: legacy.message, link: typeof legacy.link === 'string' ? legacy.link : '' }];
   }
   if (items.length === 0) items = [{ text: '', link: '' }];
 
@@ -297,8 +296,6 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
     show: typeof raw.show === 'boolean' ? raw.show : base.show,
     animation: raw.animation === 'marquee' ? 'marquee' : 'static',
     items,
-    message: typeof raw.message === 'string' ? raw.message : '',
-    link: typeof raw.link === 'string' ? raw.link : '',
   };
 }
 
