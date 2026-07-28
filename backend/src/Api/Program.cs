@@ -152,7 +152,33 @@ builder.Services
     .AddDbContextCheck<TenancyDbContext>("postgres");
 
 // Documentación OpenAPI (spec en /openapi/v1.json, UI Scalar en /scalar).
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((doc, ctx, ct) =>
+    {
+        doc.Info.Title = "Tiendafy API";
+        doc.Info.Version = "v1";
+        doc.Info.Description =
+            "API multi-tenant de Tiendafy. Casi todos los endpoints requieren el header " +
+            "`X-Tenant-Id` (la tienda sobre la que se opera). Las escrituras de administración " +
+            "exigen además sesión por cookie (`tiendafy.session`) y membresía en esa tienda. " +
+            "Errores en formato RFC 7807 (problem+json): `title` = código, `detail` = mensaje.";
+        return Task.CompletedTask;
+    });
+    // Tag automático por módulo (primer segmento después de /api/v1): agrupa las
+    // 130+ rutas en secciones navegables en Scalar sin anotar endpoint por endpoint.
+    options.AddOperationTransformer((op, ctx, ct) =>
+    {
+        var path = ctx.Description.RelativePath ?? string.Empty;
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var idx = Array.IndexOf(parts, "v1");
+        var tag = idx >= 0 && parts.Length > idx + 1 ? parts[idx + 1] : (parts.FirstOrDefault() ?? "api");
+        op.Tags ??= new HashSet<Microsoft.OpenApi.OpenApiTagReference>();
+        op.Tags.Clear();
+        op.Tags.Add(new Microsoft.OpenApi.OpenApiTagReference(tag, ctx.Document));
+        return Task.CompletedTask;
+    });
+});
 
 // Orígenes permitidos: dev (localhost + *.localhost) + dominio de plataforma y
 // sus subdominios (tiendas) + cualquier extra de Cors:AllowedOrigins.

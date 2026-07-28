@@ -58,6 +58,7 @@ dotnet ef database update          --project src/Modules/Themes/Themes.Infrastru
 
 ## Documentación
 
+- **API navegable** (con la API corriendo, solo en dev): [http://localhost:5080/scalar/v1](http://localhost:5080/scalar/v1) — UI Scalar con las 130+ rutas agrupadas por módulo. Spec cruda: `/openapi/v1.json`.
 - [docs/START_HERE.md](./docs/START_HERE.md) — mapa de toda la documentación
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — arquitectura y topología
 - [docs/CONNECTIONS.md](./docs/CONNECTIONS.md) — cómo se comunican las piezas
