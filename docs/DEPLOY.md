@@ -67,14 +67,33 @@ docker build -f admin/Dockerfile        -t tiendafy-admin .
 ```
 
 Notas de build (ya resueltas en los Dockerfiles):
-- **API**: usa el user no-root `app` que traen las imágenes .NET 8+ (`USER $APP_UID`);
-  Azure Linux no tiene `adduser`.
-- **Frontends**: `node:22-alpine` (pnpm 10 exige Node 22+). Los `NEXT_PUBLIC_*` /
-  `VITE_API_URL` se hornean en build-time → pasalos con `--build-arg`.
+- **API**: user no-root `app` de las imágenes .NET 8+ (`USER $APP_UID`); cache
+  mount de NuGet (cambiar código no re-descarga paquetes); `libfontconfig1` +
+  fuentes en el runtime para los PDFs de facturas (QuestPDF/Skia).
+- **Frontends**: corepack usa el pnpm pinneado en el `packageManager` del
+  package.json raíz. Capa de deps con `pnpm fetch` (solo lockfile) + cache mount
+  del store, e install `--frozen-lockfile --offline --filter ./app...` (el
+  equivalente estricto de `npm ci`, filtrado al workspace que se buildea).
+- **Storefront**: runtime = output **standalone** de Next (server.js +
+  node_modules podados por file-tracing) — la imagen no lleva el repo.
+- Los `NEXT_PUBLIC_*` / `VITE_*` se hornean en build-time → `--build-arg`.
 - **pnpm**: los build scripts nativos aprobados están en `pnpm-workspace.yaml`
-  (`onlyBuiltDependencies`), si no `--frozen-lockfile` falla.
-- El `.dockerignore` de la raíz excluye `.git`, `node_modules`, `.env*` y
-  `appsettings.*.json` para no hornear secretos ni engordar el contexto.
+  (`allowBuilds`/`onlyBuiltDependencies`), si no `--frozen-lockfile` falla.
+- Cada imagen tiene su **`Dockerfile.dockerignore`** (BuildKit): el contexto solo
+  lleva lo que esa imagen necesita, y repite las exclusiones de secretos porque
+  reemplaza al `.dockerignore` raíz.
+
+### Producción (single-host)
+
+```bash
+cp infra/docker/.env.prod.example infra/docker/.env.prod   # completar
+docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d --build
+```
+
+Caddy termina TLS (plataforma + subdominios + dominios propios con on-demand
+TLS validado contra `/tenants/resolve`), `pg-backup` hace `pg_dump` diario, y el
+volumen `dpkeys` guarda el keyring de DataProtection (backupearlo junto a la DB).
+CI publica las imágenes en GHCR (`.github/workflows/docker-release.yml`).
 
 ### Correr TODO el sistema en contenedores (local)
 

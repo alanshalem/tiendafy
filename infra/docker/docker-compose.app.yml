@@ -46,7 +46,7 @@ services:
       args:
         # Se hornean en el bundle del navegador (client-side: carrito, favoritos, auth).
         NEXT_PUBLIC_API_URL: "http://localhost:5080"
-        NEXT_PUBLIC_ADMIN_URL: "http://localhost:3001"
+        NEXT_PUBLIC_ADMIN_ORIGIN: "http://localhost:3001"
     container_name: tiendafy-storefront
     environment:
       # SSR (server components) pega a la API por nombre de servicio dentro de la red docker.

@@ -1,0 +1,22 @@
+# Ignore específico de storefront/Dockerfile (reemplaza al .dockerignore raíz):
+# el contexto solo lleva lo que el build necesita (storefront + shared + lockfile).
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!storefront
+!shared
+# Manifest de admin: pnpm valida el lockfile contra TODOS los workspaces —
+# alcanza con el package.json (la instalación va filtrada a ./storefront...).
+!admin/package.json
+storefront/.next
+storefront/node_modules
+storefront/coverage
+shared/**/node_modules
+shared/**/dist
+# Secretos (este archivo reemplaza al raíz — repetirlos acá).
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key

@@ -18,9 +18,9 @@ api.{$PLATFORM_DOMAIN} {
 	reverse_proxy api:5080
 }
 
-# Admin (SPA)
+# Admin (SPA — nginx-unprivileged escucha en 8080)
 admin.{$PLATFORM_DOMAIN} {
-	reverse_proxy admin:80
+	reverse_proxy admin:8080
 }
 
 # Plataforma + tiendas por subdominio: dominio pelado y *.dominio → storefront.

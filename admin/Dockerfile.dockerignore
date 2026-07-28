@@ -1,0 +1,20 @@
+# Ignore específico de admin/Dockerfile (reemplaza al .dockerignore raíz).
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!admin
+!shared
+# Manifest del storefront: pnpm valida el lockfile contra TODOS los workspaces.
+!storefront/package.json
+admin/dist
+admin/node_modules
+admin/coverage
+shared/**/node_modules
+shared/**/dist
+# Secretos (este archivo reemplaza al raíz — repetirlos acá).
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key

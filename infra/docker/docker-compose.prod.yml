@@ -11,10 +11,19 @@
 
 name: tiendafy-prod
 
+# Logs con tope: sin esto, json-file crece sin límite y llena el disco del VPS.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    <<: *logging
     environment:
       POSTGRES_DB: tiendafy
       POSTGRES_USER: tiendafy
@@ -31,6 +40,7 @@ services:
   pg-backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    <<: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,9 +58,10 @@ services:
   api:
     image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-api:${TAG:-latest}
     build:
-      context: ../../backend
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
+    <<: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,13 +90,18 @@ services:
     build:
       context: ../..
       dockerfile: storefront/Dockerfile
+      args:
+        # NEXT_PUBLIC_* va en BUILD (se inlinea en el bundle del browser).
+        NEXT_PUBLIC_API_URL: https://api.${PLATFORM_DOMAIN}
+        NEXT_PUBLIC_ADMIN_ORIGIN: https://admin.${PLATFORM_DOMAIN}
+        NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
     restart: unless-stopped
+    <<: *logging
     environment:
       NODE_ENV: production
       API_URL: http://api:5080
-      NEXT_PUBLIC_API_URL: https://api.${PLATFORM_DOMAIN}
-      NEXT_PUBLIC_ADMIN_ORIGIN: https://admin.${PLATFORM_DOMAIN}
       PLATFORM_BASE_DOMAIN: ${PLATFORM_DOMAIN}
+      # También en runtime para el Sentry del lado servidor (instrumentation.ts).
       NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
 
   admin:
@@ -97,10 +113,12 @@ services:
         VITE_API_URL: https://api.${PLATFORM_DOMAIN}
         VITE_SENTRY_DSN: ${SENTRY_DSN_ADMIN:-}
     restart: unless-stopped
+    <<: *logging
 
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    <<: *logging
     ports:
       - "80:80"
       - "443:443"

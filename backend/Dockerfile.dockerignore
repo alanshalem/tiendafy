@@ -1,0 +1,16 @@
+# Ignore específico de backend/Dockerfile (BuildKit lo usa EN LUGAR del
+# .dockerignore raíz): el contexto solo necesita backend/ sin artefactos.
+*
+!backend
+backend/**/bin
+backend/**/obj
+backend/tests
+backend/**/*.user
+# Secretos: nunca al contexto (este archivo REEMPLAZA al raíz — repetirlos acá).
+backend/**/.env
+backend/**/.env.*
+backend/**/appsettings.*.json
+!backend/**/appsettings.json
+!backend/**/appsettings.Development.json
+backend/**/*.pem
+backend/**/*.key

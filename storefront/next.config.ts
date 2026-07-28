@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 
 // Origen de la API (para connect-src del CSP). En build queda inline; default dev.
@@ -37,6 +38,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Docker: `next build` emite .next/standalone (server.js + node_modules podados
+  // por file-tracing) → runtime chico sin el repo entero. El tracing root es la
+  // raíz del monorepo para que resuelva los paquetes workspace (@tiendafy/*).
+  output: 'standalone',
+  outputFileTracingRoot: path.join(process.cwd(), '..'),
   // Paquetes workspace en TS source — Next los transpila.
   transpilePackages: ['@tiendafy/ui', '@tiendafy/types', '@tiendafy/design-system'],
   // Multi-tenant: cada merchant sube imágenes a hosts arbitrarios → permitimos

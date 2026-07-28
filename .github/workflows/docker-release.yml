@@ -20,8 +20,10 @@ jobs:
     strategy:
       matrix:
         include:
+          # Los 3 Dockerfiles usan la RAÍZ del repo como contexto (cada uno con su
+          # Dockerfile.dockerignore que recorta lo que no necesita).
           - name: api
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile
           - name: storefront
             context: .
@@ -52,5 +54,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          # NEXT_PUBLIC_*/VITE_* se hornean en build: definir la variable de repo
+          # PLATFORM_DOMAIN (Settings → Variables) para que las imágenes de admin
+          # y storefront salgan apuntando a prod. Sin ella, buildear en el server
+          # con `docker compose ... build` (toma los args del .env.prod).
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
+            NEXT_PUBLIC_ADMIN_ORIGIN=https://admin.${{ vars.PLATFORM_DOMAIN }}
+            VITE_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
