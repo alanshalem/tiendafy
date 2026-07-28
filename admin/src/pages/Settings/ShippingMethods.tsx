@@ -5,6 +5,7 @@ import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -194,6 +195,7 @@ export function ShippingMethodsPage() {
           }}
         />
       )}
+      <HelpLink id="shipping" />
     </div>
   );
 }

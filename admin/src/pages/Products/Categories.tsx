@@ -14,6 +14,7 @@ import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useT
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 import { EmptyState } from '../../components/EmptyState';
+import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
 
@@ -285,6 +286,7 @@ export function CategoriesPage() {
           saving={renameMut.isPending}
         />
       )}
+      <HelpLink id="productos" />
     </div>
   );
 }

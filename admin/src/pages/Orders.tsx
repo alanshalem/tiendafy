@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatMoney } from '../lib/format';
+import { HelpLink } from '../components/HelpLink';
 
 interface OrderItem {
   variantId: string;
@@ -350,6 +351,7 @@ export function OrdersPage() {
           }}
         />
       )}
+      <HelpLink id="ventas" />
     </div>
   );
 }

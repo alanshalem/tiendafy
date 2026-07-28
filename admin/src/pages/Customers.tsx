@@ -18,6 +18,7 @@ import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 
 interface Customer {
   id: string;
@@ -182,6 +183,7 @@ export function CustomersPage() {
         onClose={() => setEditing(null)}
         onSaved={refresh}
       />
+      <HelpLink id="clientes" />
     </div>
   );
 }

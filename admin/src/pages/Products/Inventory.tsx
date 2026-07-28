@@ -5,6 +5,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError } from '../../lib/api';
 import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
+import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 
@@ -158,6 +159,7 @@ export function InventoryPage() {
       </Card>
 
       <Pagination page={pageClamped} totalPages={totalPages} onPage={setPage} />
+      <HelpLink id="productos" />
     </div>
   );
 }

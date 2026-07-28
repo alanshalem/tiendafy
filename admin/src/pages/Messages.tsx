@@ -4,6 +4,7 @@ import { Badge } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 
 interface ContactMessage {
   id: string;
@@ -97,6 +98,8 @@ export function MessagesPage() {
           ))}
         </div>
       )}
+      {/* Acá caen también las solicitudes del Botón de Arrepentimiento → guía legal. */}
+      <HelpLink id="legal" />
     </div>
   );
 }

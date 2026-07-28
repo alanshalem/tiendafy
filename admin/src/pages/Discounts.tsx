@@ -18,6 +18,7 @@ import {
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
+import { HelpLink } from '../components/HelpLink';
 import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
@@ -201,6 +202,7 @@ export function DiscountsPage() {
         onClose={() => setEditing(null)}
         onSaved={refresh}
       />
+      <HelpLink id="cupones" />
     </div>
   );
 }

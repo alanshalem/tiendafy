@@ -20,6 +20,7 @@ import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { RichTextEditor } from '../components/RichTextEditor';
+import { HelpLink } from '../components/HelpLink';
 
 interface PageDto {
   id: string;
@@ -156,6 +157,7 @@ export function PagesPage() {
         onClose={() => setEditing(null)}
         onSaved={refresh}
       />
+      <HelpLink id="paginas" />
     </div>
   );
 }

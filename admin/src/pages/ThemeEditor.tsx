@@ -34,6 +34,7 @@ import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, setActiveTenant } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 import { ImageUploader } from './theme-editor-uploaders';
 import {
   BackHeader,
@@ -1925,6 +1926,7 @@ function ContactPanel({ theme, onBack, updateTheme }: PanelProps) {
             placeholder="+54 9 11 1234 5678"
           />
         </Field>
+        <HelpLink id="contact" className="mt-2" />
       </div>
     </div>
   );
@@ -1994,6 +1996,7 @@ function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
             </div>
           </>
         )}
+        <HelpLink id="whatsapp" className="mt-2" />
       </div>
     </div>
   );

@@ -78,6 +78,11 @@ export const HELP_LINKS = {
   estadisticas: { label: 'Más sobre estadísticas' },
   users: { label: 'Más sobre roles y permisos' },
   domains: { label: 'Más sobre dominios' },
+  fiscal: { label: 'Más sobre facturación electrónica (ARCA)' },
+  legal: { label: 'Requisitos legales de tu tienda' },
+  seo: { label: 'Más sobre cómo aparecer en Google' },
+  externalCodes: { label: 'Más sobre Analytics, Pixel y códigos externos' },
+  ajustesAvanzados: { label: 'Más sobre ajustes avanzados' },
 } as const;
 
 export type HelpLinkId = keyof typeof HELP_LINKS;

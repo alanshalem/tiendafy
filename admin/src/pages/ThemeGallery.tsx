@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
 import { Button, useConfirm, useToast } from '@tiendafy/ui';
+import { HelpLink } from '../components/HelpLink';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError } from '../lib/api';
 import { themePresets, type ThemePreset } from '../lib/themePresets';
@@ -195,6 +196,7 @@ export function ThemeGalleryPage() {
           </div>
         ))}
       </div>
+      <HelpLink id="tema" />
     </div>
   );
 }

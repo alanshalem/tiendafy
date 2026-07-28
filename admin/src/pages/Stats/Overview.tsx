@@ -1,10 +1,10 @@
-import { ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatMoney } from '../../lib/format';
+import { HelpLink } from '../../components/HelpLink';
 
 interface Overview {
   products: { total: number; published: number; draft: number; archived: number };
@@ -83,9 +83,7 @@ export function StatsOverviewPage() {
         </>
       )}
 
-      <p className="inline-flex w-full items-center justify-center gap-1 pt-2 text-center text-sm text-primary">
-        Más sobre estadísticas <ExternalLink className="h-3.5 w-3.5" />
-      </p>
+      <HelpLink id="estadisticas" />
     </div>
   );
 }

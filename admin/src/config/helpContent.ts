@@ -78,6 +78,121 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Mercado Pago se prueba con cuentas de prueba: creá un usuario vendedor y uno comprador en tu panel de MP, conectá el vendedor y pagá con las tarjetas de prueba (titular APRO aprueba, OTHE rechaza).',
         ],
       },
+      {
+        heading: 'Comisiones y plazos',
+        paragraphs: [
+          'Tiendafy no cobra comisión por venta. Mercado Pago sí: un porcentaje que depende del plazo de liberación del dinero que elijas en tu panel de MP (al instante cuesta más; a 10 o 18 días, menos). La comisión se descuenta antes de acreditarte — el detalle exacto está en tu panel de Mercado Pago, en “Costos”.',
+        ],
+      },
+    ],
+  },
+
+  // ------------------------------------------------- Legal y facturación
+  fiscal: {
+    title: 'Facturación electrónica (ARCA)',
+    intro:
+      'Conectá tu tienda con ARCA (ex AFIP) y cada venta se factura sola, con CAE oficial y PDF descargable.',
+    category: 'Legal y facturación',
+    sections: [
+      {
+        heading: '¿Qué es y por qué lo necesito?',
+        paragraphs: [
+          'Cuando alguien te compra, la ley te obliga a entregarle una factura oficial. Esa factura la autoriza ARCA, que le asigna un número de autorización llamado CAE. Tiendafy hace todo el trámite por vos: configurás una vez y cada venta se factura automáticamente.',
+          'Según tu condición fiscal se emite el comprobante correcto: Factura C si sos Monotributista, Factura B si sos Responsable Inscripto vendiendo a consumidor final.',
+        ],
+      },
+      {
+        heading: 'Paso 1 — Datos del emisor',
+        steps: [
+          'En Configuración → Facturación, cargá tu CUIT y razón social (como figuran en ARCA).',
+          'Elegí tu condición: Responsable Inscripto o Monotributo.',
+          'Dejá el ambiente en Homologación: es el modo de práctica, con facturas de prueba sin validez fiscal. A Producción pasás recién cuando todo funciona.',
+        ],
+      },
+      {
+        heading: 'Paso 2 — Certificado digital',
+        paragraphs: [
+          'El certificado es el “DNI” de tu tienda ante ARCA: sin él, ARCA no acepta pedidos de factura. Se obtiene con un ida y vuelta simple:',
+        ],
+        steps: [
+          'Tocá “Generar solicitud (CSR)” y descargá el archivo.',
+          'Entrá a ARCA con tu clave fiscal → “Administración de Certificados Digitales” → creá un alias y subí el CSR.',
+          'ARCA te devuelve el certificado firmado: copialo y pegalo en el panel. Listo.',
+          'Después, en “Administrador de Relaciones de Clave Fiscal”, autorizá al servicio “Facturación Electrónica” (wsfe) para ese alias.',
+        ],
+      },
+      {
+        heading: 'Tu clave privada nunca sale de acá',
+        paragraphs: [
+          'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA.',
+        ],
+      },
+      {
+        heading: 'Paso 3 — Puntos de venta',
+        paragraphs: [
+          'El punto de venta es el “talonario” numerado de tus facturas (el 0001 de “0001-00000123”). Se crea en ARCA: “Administración de puntos de venta y domicilios”, con el sistema de facturación “Web Services”. Después cargás ese número en el panel.',
+        ],
+      },
+      {
+        heading: 'Paso 4 — Preferencias de emisión',
+        paragraphs: [
+          'Elegí si la factura se emite sola (recomendado) y cuándo: al confirmarse el pago o al despachar el pedido. También podés definir el punto de venta por defecto y el umbral de consumidor final (por encima de ese monto, la factura exige DNI/CUIT del comprador — el checkout ya se lo pide).',
+        ],
+      },
+      {
+        heading: 'Probar y pasar a Producción',
+        steps: [
+          'Con todo configurado en Homologación, hacete una compra de prueba y verificá que la venta muestre su factura con CAE.',
+          'Descargá el PDF desde el detalle de la venta (panel Facturación).',
+          'Cuando funcione, repetí el certificado para el ambiente Producción (ARCA usa certificados separados) y cambiá el ambiente. Desde ahí, facturas reales.',
+        ],
+      },
+      {
+        heading: 'Reembolsos y notas de crédito',
+        paragraphs: [
+          'Si reembolsás una venta facturada, se emite la nota de crédito correspondiente ante ARCA automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+        ],
+      },
+    ],
+  },
+
+  legal: {
+    title: 'Requisitos legales en Argentina',
+    intro: 'Lo que una tienda online debe cumplir por ley — y cómo Tiendafy ya te cubre en cada punto.',
+    category: 'Legal y facturación',
+    sections: [
+      {
+        heading: 'Datos de contacto visibles',
+        paragraphs: [
+          'La Resolución 104/2005 de Defensa del Consumidor exige mostrar email, dirección y teléfono reales. Cargalos en Configuración → Opciones del checkout → Información de contacto: aparecen en la página de Contacto y en el pie de tu tienda.',
+        ],
+      },
+      {
+        heading: 'Botón de arrepentimiento',
+        paragraphs: [
+          'La Resolución 424/2020 obliga a ofrecer un “Botón de Arrepentimiento” accesible desde la home: el comprador puede revocar la compra dentro de los 10 días corridos de recibida, sin costo.',
+          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa, la solicitud te llega a la bandeja de Mensajes con el asunto normalizado y un número de constancia — respondé coordinando la devolución y hacé el reembolso desde la venta.',
+        ],
+      },
+      {
+        heading: 'Términos y condiciones / Política de privacidad',
+        paragraphs: [
+          'Tu tienda publica automáticamente Términos y condiciones y Política de privacidad genéricos en /terminos y /privacidad, enlazados desde el pie.',
+          'Si querés textos propios, creá en Páginas una página con la URL “terminos” o “privacidad”: tu versión reemplaza a la genérica automáticamente.',
+        ],
+      },
+      {
+        heading: 'Facturación obligatoria',
+        paragraphs: [
+          'Toda venta debe facturarse ante ARCA. Configurá la facturación electrónica en Configuración → Facturación y se emite sola (mirá el artículo de Facturación electrónica).',
+        ],
+      },
+      {
+        heading: 'Defensa del consumidor',
+        paragraphs: [
+          'La Ley 24.240 aplica a todas tus ventas: garantía legal de los productos, información veraz de precios (el precio final debe incluir impuestos) y derecho a devolución. Publicar una política de cambios clara en una página de contenido evita el 90% de los conflictos.',
+        ],
+      },
     ],
   },
 
@@ -339,6 +454,12 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En desarrollo los emails se registran en los logs. En producción se envían por Resend con la clave que configures.',
         ],
       },
+      {
+        heading: 'Cuánto cuesta y cómo seguirlo',
+        paragraphs: [
+          'Arriba de esta pantalla, el panel “Uso del mes” te muestra cuántos emails salieron este mes, el total histórico y un costo estimado. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
+        ],
+      },
     ],
   },
 
@@ -380,6 +501,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Se activa por tipo, igual que los emails',
         paragraphs: [
           'Cada tipo de mensaje tiene su interruptor por tienda. Si un mensaje no tiene plantilla configurada o está apagado, simplemente no se envía — la venta nunca se ve afectada.',
+        ],
+      },
+      {
+        heading: 'Cuánto cuesta y cómo seguirlo',
+        paragraphs: [
+          'Meta cobra por mensaje de plantilla entregado (en Argentina, los transaccionales rondan los US$ 0,034 por mensaje; los de marketing cuestan más). Se paga directo a Meta con la tarjeta que cargues en tu app — Tiendafy no intermedia.',
+          'El panel “Uso del mes” de esta pantalla muestra cuántos mensajes salieron y el costo estimado con esa tarifa de referencia.',
         ],
       },
     ],
@@ -528,6 +656,105 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Quién las ve',
         paragraphs: [
           'Dueño, administrador, vendedor y finanzas. Los roles catálogo y soporte no acceden a los números del negocio.',
+        ],
+      },
+    ],
+  },
+
+  seo: {
+    title: 'Aparecer en Google (SEO)',
+    intro:
+      'Tu tienda ya viene optimizada para buscadores. Esto es lo que hace sola y lo que podés mejorar vos.',
+    category: 'Tu tienda online',
+    sections: [
+      {
+        heading: 'Tu título y descripción en Google',
+        paragraphs: [
+          'En el editor de diseño (Canales de venta → Tienda online → Identidad → “Cómo aparecés en Google”) definís el título y la descripción que se muestran en los resultados de búsqueda. Un buen título: “Marca — qué vendés” en menos de 60 caracteres; la descripción, un gancho de hasta 160.',
+        ],
+      },
+      {
+        heading: 'Lo que la tienda hace sola',
+        paragraphs: [
+          'Cada tienda genera automáticamente su sitemap (/sitemap.xml), su robots.txt y las URLs canónicas. Los productos publican datos estructurados (precio, stock, fotos) para que Google pueda mostrarlos como resultados enriquecidos, y las páginas de producto usan la primera foto como imagen al compartir en redes.',
+        ],
+      },
+      {
+        heading: 'Conectá Google Search Console',
+        steps: [
+          'Entrá a search.google.com/search-console y agregá tu dominio como propiedad.',
+          'Elegí verificación por “Etiqueta HTML”, copiá la etiqueta y pegala en Configuración → Códigos externos (sección <head>). Guardá y verificá.',
+          'En Sitemaps, enviá la URL de tu sitemap: tudominio.com/sitemap.xml.',
+          'En unos días vas a ver qué búsquedas te traen visitas y si hay errores de indexación.',
+        ],
+      },
+      {
+        heading: 'Buenas prácticas de contenido',
+        paragraphs: [
+          'Nombres de producto descriptivos (lo que la gente busca, no códigos internos), descripciones únicas y completas, y categorías bien armadas. Si cambiás la URL de un producto, creá una redirección 301 en Configuración → Redireccionamientos para no perder el posicionamiento ganado.',
+          'Un dominio propio (en vez del subdominio gratis) suma confianza y marca — conectalo cuando estés listo.',
+        ],
+      },
+    ],
+  },
+
+  externalCodes: {
+    title: 'Analytics, Pixel y códigos externos',
+    intro: 'Medí tu tráfico y tus campañas insertando los scripts de Google, Meta o el chat que uses.',
+    category: 'Tu tienda online',
+    sections: [
+      {
+        heading: 'Dónde va cada cosa',
+        paragraphs: [
+          'En Configuración → Códigos externos hay dos cajas: la de <head> es para etiquetas de medición y verificación (Google Analytics, Meta Pixel, Search Console); la de antes de </body> es para widgets y chats. Lo que pegues se carga en todas las páginas de tu tienda.',
+        ],
+      },
+      {
+        heading: 'Google Analytics 4',
+        steps: [
+          'En analytics.google.com creá una propiedad para tu tienda y elegí plataforma “Web”.',
+          'Copiá el código de la etiqueta de Google (empieza con <script async src="https://www.googletagmanager.com/gtag/js…").',
+          'Pegalo en la caja de <head> y guardá. Los datos empiezan a aparecer en minutos (probá con “Tiempo real”).',
+        ],
+      },
+      {
+        heading: 'Meta Pixel (Facebook e Instagram Ads)',
+        steps: [
+          'En el Administrador de eventos de Meta creá un píxel para tu negocio.',
+          'Elegí “Instalar el código manualmente”, copiá el bloque del píxel.',
+          'Pegalo en la caja de <head> y guardá. Verificalo con la extensión Meta Pixel Helper.',
+        ],
+      },
+      {
+        heading: 'Cuidados',
+        paragraphs: [
+          'Pegá solo códigos de servicios que conozcas: un script se ejecuta con acceso total a la página. Un script roto o lento puede afectar la velocidad o el funcionamiento de tu tienda — si algo se rompe después de pegar un código, borralo y guardá.',
+        ],
+      },
+    ],
+  },
+
+  ajustesAvanzados: {
+    title: 'Ajustes avanzados',
+    intro: 'Redirecciones 301, idioma y moneda, y campos personalizados — los ajustes finos de tu tienda.',
+    category: 'Tu tienda online',
+    sections: [
+      {
+        heading: 'Redireccionamientos 301',
+        paragraphs: [
+          'Cuando una URL vieja deja de existir (cambiaste el nombre de un producto, borraste una página), creá una redirección 301 hacia la nueva. El visitante no ve un error y Google transfiere el posicionamiento a la URL nueva. Formato: desde “/producto-viejo” hacia “/productos/nuevo-slug”.',
+        ],
+      },
+      {
+        heading: 'Idiomas y monedas',
+        paragraphs: [
+          'Definí el idioma y la moneda con que opera tu tienda (por defecto, español de Argentina y pesos). Afecta textos, formatos de precio y el checkout.',
+        ],
+      },
+      {
+        heading: 'Campos personalizados',
+        paragraphs: [
+          'Agregá atributos propios a tus productos (material, dedicatoria, talle especial…) cuando las opciones estándar no alcanzan. Definí el nombre y el tipo de dato, y usalos para enriquecer tu catálogo.',
         ],
       },
     ],

@@ -19,6 +19,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -119,6 +120,7 @@ export function FiscalInvoicingPage() {
           <EmissionStep config={config} points={points} onSaved={load} />
         </div>
       )}
+      <HelpLink id="fiscal" />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronLeft, Download, ExternalLink, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronLeft, Download, Plus, Upload, X } from 'lucide-react';
 import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
+import { HelpLink } from '../../components/HelpLink';
 import { api, ApiRequestError } from '../../lib/api';
 
 // Cabecera completa del CSV (Excel es-AR usa ';').
@@ -177,9 +178,7 @@ export function ExportImportPage() {
 
       {tab === 'export' ? <ExportTab /> : tab === 'import' ? <ImportTab /> : <ImagesTab />}
 
-      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">
-        Más sobre exportar e importar productos <ExternalLink className="h-3.5 w-3.5" />
-      </p>
+      <HelpLink id="productos" />
     </div>
   );
 }

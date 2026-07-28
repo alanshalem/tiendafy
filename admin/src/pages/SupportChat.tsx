@@ -3,6 +3,7 @@ import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send } from 'luc
 import { cn, useToast } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { HelpLink } from '../components/HelpLink';
 
 interface Conversation {
   id: string;
@@ -321,6 +322,7 @@ export function SupportChatPage() {
           )}
         </div>
       </div>
+      <HelpLink id="posventa" />
     </div>
   );
 }

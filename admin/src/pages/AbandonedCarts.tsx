@@ -3,6 +3,7 @@ import { Loader2, ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime } from '../lib/format';
+import { HelpLink } from '../components/HelpLink';
 
 interface Abandoned {
   count: number;
@@ -85,6 +86,7 @@ export function AbandonedCartsPage() {
           </table>
         </div>
       )}
+      <HelpLink id="ventas" />
     </div>
   );
 }

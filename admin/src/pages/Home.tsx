@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 
 interface ProductsResponse {
   items: unknown[];
@@ -157,6 +158,7 @@ export function HomePage() {
           </Link>
         ))}
       </Card>
+      <HelpLink id="primerosPasos" />
     </div>
   );
 }

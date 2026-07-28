@@ -23,6 +23,7 @@ import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 
 interface VariantDto {
@@ -501,6 +502,7 @@ export function ProductsPage() {
           , con sus variantes e imágenes. Esta acción no se puede deshacer.
         </p>
       </Modal>
+      <HelpLink id="productos" />
     </div>
   );
 }

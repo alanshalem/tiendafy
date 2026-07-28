@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Switch, cn, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
+import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
 import { MercadoPagoConnect } from './MercadoPagoConnect';
 
@@ -160,6 +161,7 @@ export function PaymentMethodsPage() {
           Conectá apps adicionales en la Tienda de Aplicaciones. (Próximamente)
         </p>
       </div>
+      <HelpLink id="payments" />
     </div>
   );
 }

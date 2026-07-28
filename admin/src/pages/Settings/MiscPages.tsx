@@ -76,6 +76,7 @@ export function ExternalCodesPage() {
           toast('Códigos guardados', { variant: 'success' });
         }}
       />
+      <HelpLink id="externalCodes" />
     </div>
   );
 }
@@ -126,6 +127,7 @@ export function LanguagesCurrenciesPage() {
           toast('Idioma y moneda guardados', { variant: 'success' });
         }}
       />
+      <HelpLink id="ajustesAvanzados" />
     </div>
   );
 }
@@ -204,6 +206,7 @@ export function RedirectsPage() {
           toast('Redirecciones guardadas', { variant: 'success' });
         }}
       />
+      <HelpLink id="ajustesAvanzados" />
     </div>
   );
 }
@@ -283,6 +286,7 @@ export function CustomFieldsPage() {
           toast('Campos guardados', { variant: 'success' });
         }}
       />
+      <HelpLink id="ajustesAvanzados" />
     </div>
   );
 }
