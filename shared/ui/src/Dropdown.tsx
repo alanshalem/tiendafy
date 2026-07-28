@@ -126,7 +126,7 @@ export interface DropdownMenuProps {
 
 function Menu({ children, align = 'start', className }: DropdownMenuProps) {
   const { open, menuId, triggerRef, menuRef } = useDropdown();
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; flipped: boolean } | null>(null);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) {
@@ -134,8 +134,20 @@ function Menu({ children, align = 'start', className }: DropdownMenuProps) {
       return;
     }
     const rect = triggerRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: align === 'end' ? rect.right : rect.left });
+    setPos({ top: rect.bottom + 4, left: align === 'end' ? rect.right : rect.left, flipped: false });
   }, [open, align, triggerRef]);
+
+  // Flip vertical: si el menú se pasa del borde inferior del viewport (último
+  // row de una tabla larga), se abre hacia ARRIBA del trigger. Corre en layout
+  // effect (pre-paint): sin parpadeo. `flipped` corta el loop.
+  useLayoutEffect(() => {
+    if (!pos || pos.flipped || !menuRef.current || !triggerRef.current) return;
+    const menuHeight = menuRef.current.offsetHeight;
+    if (pos.top + menuHeight > window.innerHeight - 8) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos((p) => p && { ...p, top: Math.max(8, rect.top - 4 - menuHeight), flipped: true });
+    }
+  }, [pos, triggerRef, menuRef]);
 
   if (!open || !pos || typeof document === 'undefined') return null;
 
