@@ -1,0 +1,21 @@
+<!-- Config compartida de TODOS los proyectos del backend (MSBuild la hereda). -->
+<Project>
+  <PropertyGroup>
+    <!-- Analizadores de .NET (reglas CA de correctness/seguridad/perf) al nivel
+         recomendado. El estilo lo maneja dotnet format + .editorconfig. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Reglas apagadas a conciencia (el resto de recommended queda activo):
+         CA1848/CA1873: LoggerMessage delegates — micro-perf de logging, ruido puro acá.
+         CA1861: arrays constantes — dispara en las migraciones EF generadas.
+         CA1711/CA1716: naming (Permission, Error) — API pública existente, renombrar no paga.
+         CA1054/CA1056/CA2234: URIs tipadas en vez de string — estilo, no bug. -->
+    <NoWarn>$(NoWarn);CA1848;CA1873;CA1861;CA1711;CA1716;CA1054;CA1056;CA2234</NoWarn>
+    <!-- CA1707: los tests usan Nombre_Con_Guiones (convención intencional).
+         CA1304/05/10/11/1862: cultura en strings — pasada dedicada pendiente
+         (60+ sitios; la plata y lo fiscal ya usan InvariantCulture explícito).
+         CA1822/1725/1068: estilo/firmas — no pagan el churn. -->
+    <NoWarn>$(NoWarn);CA1707;CA1304;CA1305;CA1310;CA1311;CA1862;CA1822;CA1725;CA1068</NoWarn>
+  </PropertyGroup>
+</Project>

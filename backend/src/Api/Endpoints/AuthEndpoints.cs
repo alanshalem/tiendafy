@@ -20,7 +20,7 @@ public static class AuthEndpoints
             IConfiguration cfg,
             CancellationToken ct) =>
         {
-            if (!await captcha.VerifyAsync(request.Captcha))
+            if (!await captcha.VerifyAsync(request.Captcha, ct))
                 return Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida.", statusCode: 400);
 
             var user = new AppUser

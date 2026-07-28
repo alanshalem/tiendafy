@@ -82,6 +82,9 @@ services:
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).
       Workers__Enabled: ${WORKERS_ENABLED:-true}
+      # Migraciones como PASO DE DEPLOY, no al boot (evita carreras entre réplicas):
+      #   docker compose ... run --rm api dotnet Api.dll migrate
+      Database__MigrateOnStartup: 'false'
     volumes:
       - dpkeys:/keys
 

@@ -143,6 +143,12 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tracking");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_orders");
 

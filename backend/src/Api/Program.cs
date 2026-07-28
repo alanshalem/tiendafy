@@ -209,6 +209,16 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Modo one-shot para deploys: `dotnet Api.dll migrate` aplica las migraciones de
+// TODOS los módulos y sale con código 0. Es el paso de deploy explícito (antes
+// del up -d) que evita la carrera de migración entre réplicas al bootear.
+if (args.Contains("migrate"))
+{
+    await app.Services.MigrateDatabaseAsync();
+    app.Logger.LogInformation("Migraciones aplicadas (modo migrate). Saliendo.");
+    return;
+}
+
 // Migraciones pendientes de todos los módulos, antes de servir (idempotente).
 // Prod multi-instancia: poné Database__MigrateOnStartup=false y corré las
 // migraciones como paso de deploy (evita carreras de migración al boot).
@@ -217,8 +227,10 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
 else
     app.Logger.LogInformation("Migraciones en startup desactivadas (Database:MigrateOnStartup=false).");
 
-// Bucket de media listo antes de servir (idempotente).
-await app.Services.EnsureMediaBucketAsync();
+// Bucket de media listo antes de servir (idempotente). Apagable por config
+// (tests de integración corren sin MinIO).
+if (builder.Configuration.GetValue("Media:EnsureBucketOnStartup", true))
+    await app.Services.EnsureMediaBucketAsync();
 
 // Dev: admin de prueba (con membresía a todas las tiendas) + compradores.
 if (app.Environment.IsDevelopment())
@@ -245,6 +257,10 @@ app.UseMiddleware<TenantContextMiddleware>();
 app.UseMiddleware<AdminWriteAuthMiddleware>();
 
 app.MapHealthChecks("/health");
+
+// Qué build corre en este server: sha de git horneado en la imagen + entorno.
+var gitSha = Environment.GetEnvironmentVariable("APP_GIT_SHA") ?? "dev";
+app.MapGet("/version", (IHostEnvironment env) => Results.Ok(new { sha = gitSha, environment = env.EnvironmentName }));
 
 var apiV1 = app.MapGroup("/api/v1");
 apiV1.MapTenantEndpoints();
@@ -275,3 +291,6 @@ apiV1.MapContactEndpoints();
 apiV1.MapMembersEndpoints();
 
 app.Run();
+
+// Visible para WebApplicationFactory<Program> (tests de integración).
+public partial class Program { }

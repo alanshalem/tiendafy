@@ -47,3 +47,6 @@ jobs:
 
       - name: Lint storefront
         run: pnpm --filter ./storefront run lint
+
+      - name: Unit tests (admin)
+        run: pnpm --filter ./admin exec vitest run

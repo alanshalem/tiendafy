@@ -1,0 +1,39 @@
+# Dependabot: PRs automáticos ante CVEs y updates de dependencias.
+# Agrupados por semana para no inundar; security updates salen al toque igual.
+version: 2
+updates:
+  - package-ecosystem: npm # pnpm workspace (lee pnpm-lock.yaml)
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: nuget
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      nuget-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /storefront
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /admin
+    schedule:
+      interval: weekly

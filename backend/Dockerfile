@@ -23,7 +23,10 @@ COPY --from=build /app ./
 # Usuario no-root: las imágenes .NET 8+ ya traen el user `app` (APP_UID=1654).
 USER $APP_UID
 EXPOSE 8080
+# SHA de git horneado (lo expone GET /version — saber QUÉ corre en cada server).
+ARG GIT_SHA=dev
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
-    DOTNET_EnableDiagnostics=0
+    DOTNET_EnableDiagnostics=0 \
+    APP_GIT_SHA=$GIT_SHA
 ENTRYPOINT ["dotnet", "Api.dll"]

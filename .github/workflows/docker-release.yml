@@ -61,6 +61,7 @@ jobs:
           # y storefront salgan apuntando a prod. Sin ella, buildear en el server
           # con `docker compose ... build` (toma los args del .env.prod).
           build-args: |
+            GIT_SHA=${{ github.sha }}
             NEXT_PUBLIC_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
             NEXT_PUBLIC_ADMIN_ORIGIN=https://admin.${{ vars.PLATFORM_DOMAIN }}
             VITE_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}

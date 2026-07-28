@@ -95,6 +95,35 @@ TLS validado contra `/tenants/resolve`), `pg-backup` hace `pg_dump` diario, y el
 volumen `dpkeys` guarda el keyring de DataProtection (backupearlo junto a la DB).
 CI publica las imágenes en GHCR (`.github/workflows/docker-release.yml`).
 
+**Deploy de una versión nueva** (las migraciones son un paso explícito, NO
+corren al boot en prod — evita carreras entre réplicas):
+
+```bash
+docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod pull
+docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm api dotnet Api.dll migrate
+docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d
+curl -s https://api.TU_DOMINIO/version   # ¿corre el sha que esperabas?
+```
+
+### Restaurar un backup (ensayado — no improvisar en la emergencia)
+
+Los dumps diarios quedan en `infra/docker/backups/` (formato custom de pg_dump,
+retención 14 días). Restaurar:
+
+```bash
+# 1. Copiar el dump adentro del contenedor de postgres
+docker cp infra/docker/backups/tiendafy-YYYYMMDD-HHMM.dump tiendafy-prod-postgres-1:/tmp/r.dump
+# 2. Crear una DB de verificación y restaurar ahí (NUNCA pisar tiendafy directo)
+docker exec tiendafy-prod-postgres-1 createdb -U tiendafy tiendafy_restore
+docker exec tiendafy-prod-postgres-1 pg_restore -U tiendafy -d tiendafy_restore /tmp/r.dump
+# 3. Verificar (conteo de tablas y de tenants)
+docker exec tiendafy-prod-postgres-1 psql -U tiendafy -d tiendafy_restore -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'; SELECT count(*) FROM tenants;"
+# 4. Si está OK y hay que promoverla: renombrar DBs (con la API apagada)
+```
+
+Recordá: el volumen `dpkeys` (keyring de DataProtection) se backupea aparte —
+sin él, los tokens MP y certificados ARCA cifrados son irrecuperables.
+
 ### Correr TODO el sistema en contenedores (local)
 
 Overlay que suma las 3 apps a la infra, sin duplicarla:
