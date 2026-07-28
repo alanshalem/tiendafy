@@ -1,0 +1,23 @@
+# Normalización de fin de línea: LF en el repo para todo lo de texto.
+# (Mata los warnings "LF will be replaced by CRLF" en cada commit en Windows.)
+* text=auto eol=lf
+
+# Scripts de Windows: CRLF (cmd/PowerShell viejos se quejan con LF).
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binarios: nunca tocar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
