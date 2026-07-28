@@ -1,8 +1,11 @@
 using Api.Auth;
+using Api.Shipping;
 using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
+using Microsoft.AspNetCore.DataProtection;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -39,31 +42,103 @@ public static class CheckoutEndpoints
         });
 
         // Submit: reserva stock (todo o nada) + datos de entrega/facturación.
-        // El costo de envío se resuelve server-side desde el método persistido.
+        // El costo de envío se resuelve server-side: método persistido, o quote
+        // de Correo Argentino firmado por el servidor (nunca del cliente).
         checkout.MapPost("/{id:guid}/submit", async (
             Guid id,
             SubmitCheckoutRequest request,
             ITenantContext tenant,
             SubmitCheckoutHandler handler,
+            IDataProtectionProvider dp,
+            ICorreoArgentinoConfigRepository correoConfigs,
+            CorreoSecretProtector protector,
+            MiCorreoClient correoClient,
             CancellationToken ct) =>
         {
+            QuotedShipping? quote = null;
+            if (!string.IsNullOrEmpty(request.ShippingQuoteToken))
+            {
+                var payload = CorreoQuoteToken.Unprotect(dp, request.ShippingQuoteToken, tenant.TenantId.Value);
+                if (payload is null)
+                    return Error.Validation("Checkout.QuoteExpired",
+                        "La cotización de envío venció. Volvé a calcular el envío.").ToProblem();
+
+                var price = new Money(payload.PriceMinorUnits, payload.Currency);
+                if (payload.Kind == "S")
+                {
+                    if (string.IsNullOrWhiteSpace(request.CorreoAgency))
+                        return Error.Validation("Checkout.MissingAgency",
+                            "Elegí la sucursal de Correo donde retirar.").ToProblem();
+                    var agencyLabel = await ResolveAgencyLabelAsync(
+                        tenant.TenantId.Value, request.CorreoAgency.Trim(), correoConfigs, protector, correoClient, ct);
+                    quote = new QuotedShipping(payload.ServiceName, price, RequiresAddress: false, agencyLabel, payload.Units);
+                }
+                else
+                {
+                    quote = new QuotedShipping(payload.ServiceName, price, RequiresAddress: true, null, payload.Units);
+                }
+            }
+
             var result = await handler.HandleAsync(new SubmitCheckoutCommand(
                 tenant.TenantId, id, request.Email ?? string.Empty,
                 request.Name, request.LastName, request.Phone, request.DocNumber, request.Notes,
-                request.ShippingMethodId, request.Address), ct);
+                request.ShippingMethodId, request.Address, quote), ct);
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         });
 
-        // Medios de envío visibles al comprador (activos).
+        // Medios de envío visibles al comprador (activos) + si la tienda cotiza
+        // en vivo con Correo Argentino (el storefront muestra el bloque de CP).
         group.MapGet("/shipping/methods", async (
-            ITenantContext tenant, IShippingMethodRepository repository, CancellationToken ct) =>
+            ITenantContext tenant, IShippingMethodRepository repository,
+            ICorreoArgentinoConfigRepository correoConfigs, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await repository.ListAsync(tenant.TenantId, onlyActive: true, ct);
-            return Results.Ok(new { items = items.Select(ShippingDto) });
+            var correo = await correoConfigs.GetAsync(tenant.TenantId.Value, ct);
+            return Results.Ok(new
+            {
+                items = items.Select(ShippingDto),
+                correoArgentino = new
+                {
+                    enabled = correo?.Active == true && (correo.OfferHomeDelivery || correo.OfferAgencyDelivery),
+                    agency = correo?.Active == true && correo.OfferAgencyDelivery,
+                },
+            });
         });
 
         return group;
+    }
+
+    /// <summary>
+    /// "Sucursal Correo Argentino Monte Grande (B0107) — Vicente López 448".
+    /// Se resuelve server-side desde el listado cacheado (el cliente solo manda
+    /// el código); si la API no responde, cae al código pelado.
+    /// </summary>
+    private static async Task<string> ResolveAgencyLabelAsync(
+        Guid tenantId, string agencyCode, ICorreoArgentinoConfigRepository configs,
+        CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct)
+    {
+        var fallback = $"Sucursal Correo Argentino {agencyCode}";
+        var config = await configs.GetAsync(tenantId, ct);
+        if (config is null || agencyCode.Length < 2 || !char.IsAsciiLetter(agencyCode[0])) return fallback;
+        try
+        {
+            var agencies = await client.GetAgenciesAsync(
+                CorreoArgentinoEndpoints.Credentials(config, protector), config.CustomerId,
+                char.ToUpperInvariant(agencyCode[0]).ToString(), ct);
+            var agency = agencies.FirstOrDefault(a =>
+                string.Equals(a.Code, agencyCode, StringComparison.OrdinalIgnoreCase));
+            if (agency is null) return fallback;
+            var addr = agency.Location?.Address;
+            var street = addr is null ? null : $"{addr.StreetName} {addr.StreetNumber}".Trim();
+            return string.IsNullOrWhiteSpace(street)
+                ? $"Sucursal Correo Argentino {agency.Name} ({agency.Code})"
+                : $"Sucursal Correo Argentino {agency.Name} ({agency.Code}) — {street}, {addr!.Locality ?? addr.City}";
+        }
+        catch (MiCorreoException)
+        {
+            return fallback;
+        }
     }
 
     internal static object ShippingDto(ShippingMethod m) => new
@@ -115,4 +190,6 @@ public sealed record SubmitCheckoutRequest(
     string? DocNumber = null,
     string? Notes = null,
     Guid? ShippingMethodId = null,
-    string? Address = null);
+    string? Address = null,
+    string? ShippingQuoteToken = null,
+    string? CorreoAgency = null);

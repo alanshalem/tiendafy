@@ -41,6 +41,7 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   checkout: Settings2,
   cupones: BadgePercent,
   shipping: Truck,
+  correoArgentino: Truck,
   distributionCenters: Warehouse,
   productos: Package,
   clientes: Users,

@@ -83,6 +83,11 @@ builder.Services.AddScoped<OrderItemImages>();
 builder.Services.AddHttpClient<WhatsAppSender>();
 builder.Services.AddSingleton<WhatsAppTokenProtector>();
 builder.Services.AddScoped<WhatsAppNotifier>();
+
+// Correo Argentino (API MiCorreo): cotización en checkout + envíos desde admin.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<Api.Shipping.MiCorreoClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<Api.Shipping.CorreoSecretProtector>();
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
@@ -305,6 +310,7 @@ apiV1.MapWhatsAppEndpoints();
 apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();
 apiV1.MapShippingEndpoints();
+apiV1.MapCorreoArgentinoEndpoints();
 apiV1.MapPaymentsEndpoints();
 apiV1.MapOrderEndpoints();
 apiV1.MapPaymentWebhookEndpoints();

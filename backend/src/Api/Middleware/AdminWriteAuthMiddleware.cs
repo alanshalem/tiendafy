@@ -27,6 +27,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         "/api/v1/payments/webhook",
         "/api/v1/contact/submit",
         "/api/v1/captcha",
+        // Cotización de envío del checkout (pública; NO cubre /admin/shipping/correo,
+        // que además exige SettingsWrite por RequirePermission).
+        "/api/v1/shipping/correo/quote",
     };
 
     public async Task InvokeAsync(HttpContext ctx, IMembershipService memberships)

@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
+import { CorreoShipmentButton } from '../components/CorreoShipment';
 
 interface OrderItem {
   variantId: string;
@@ -303,6 +304,7 @@ export function OrdersPage() {
                                       Marcar enviada
                                     </button>
                                   )}
+                                  {o.status === 'PAID' && canFulfill && <CorreoShipmentButton order={o} />}
                                   {o.status === 'FULFILLED' && canFulfill && (
                                     <button
                                       onClick={() => fulfill(o)}

@@ -120,6 +120,90 @@ namespace Checkout.Infrastructure.Migrations
                     b.ToTable("checkout_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("Checkout.Core.Domain.CorreoArgentinoConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("customer_id");
+
+                    b.Property<int>("DefaultHeightCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_height_cm");
+
+                    b.Property<int>("DefaultLengthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_length_cm");
+
+                    b.Property<int>("DefaultWeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_weight_grams");
+
+                    b.Property<int>("DefaultWidthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_width_cm");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("environment");
+
+                    b.Property<bool>("OfferAgencyDelivery")
+                        .HasColumnType("boolean")
+                        .HasColumnName("offer_agency_delivery");
+
+                    b.Property<bool>("OfferHomeDelivery")
+                        .HasColumnType("boolean")
+                        .HasColumnName("offer_home_delivery");
+
+                    b.Property<string>("OriginPostalCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("origin_postal_code");
+
+                    b.Property<string>("PasswordTokenEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("password_token_encrypted");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("UserTokenEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_token_encrypted");
+
+                    b.HasKey("Id")
+                        .HasName("pk_correo_argentino_configs");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_correo_argentino_configs_tenant_id");
+
+                    b.ToTable("correo_argentino_configs", (string)null);
+                });
+
             modelBuilder.Entity("Checkout.Core.Domain.ShippingMethod", b =>
                 {
                     b.Property<Guid>("Id")

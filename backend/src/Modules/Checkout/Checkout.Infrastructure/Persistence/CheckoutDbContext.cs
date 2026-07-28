@@ -20,6 +20,7 @@ public sealed class CheckoutDbContext : DbContext
 
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
+    public DbSet<CorreoArgentinoConfig> CorreoArgentinoConfigs => Set<CorreoArgentinoConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,17 @@ public sealed class CheckoutDbContext : DbContext
             .HasMaxLength(24);
         shipping.HasIndex(m => new { m.TenantId, m.SortOrder });
         shipping.Ignore(m => m.DomainEvents);
+
+        var correo = modelBuilder.Entity<CorreoArgentinoConfig>();
+        correo.ToTable("correo_argentino_configs");
+        correo.HasKey(c => c.Id);
+        correo.Property(c => c.Id).ValueGeneratedNever();
+        correo.HasIndex(c => c.TenantId).IsUnique();
+        correo.Property(c => c.CustomerId).HasMaxLength(20).IsRequired();
+        correo.Property(c => c.UserTokenEncrypted).IsRequired();
+        correo.Property(c => c.PasswordTokenEncrypted).IsRequired();
+        correo.Property(c => c.Environment).HasMaxLength(10);
+        correo.Property(c => c.OriginPostalCode).HasMaxLength(8);
 
         session.OwnsMany(s => s.Items, items =>
         {

@@ -64,6 +64,7 @@ export const HELP_LINKS = {
   checkout: { label: 'Más sobre checkout' },
   cupones: { label: 'Más sobre cupones de descuento' },
   shipping: { label: 'Más sobre medios de envío' },
+  correoArgentino: { label: 'Más sobre envíos con Correo Argentino' },
   distributionCenters: { label: 'Más sobre centros de distribución' },
   productos: { label: 'Más sobre productos e inventario' },
   clientes: { label: 'Más sobre clientes' },

@@ -313,9 +313,65 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
-        heading: 'Próximamente',
+        heading: 'Cotización automática con Correo Argentino',
         paragraphs: [
-          'Cotización automática por código postal con Andreani, OCA y Correo Argentino está en el roadmap. El modelo actual ya queda preparado para enchufarla.',
+          'Además de los métodos manuales, podés conectar Correo Argentino: el comprador pone su código postal en el checkout y ve el precio real del envío, a domicilio o a sucursal. Se configura en esta misma pantalla — mirá el artículo de Correo Argentino.',
+          'Andreani y OCA están en el roadmap detrás de la misma abstracción.',
+        ],
+      },
+    ],
+  },
+
+  correoArgentino: {
+    title: 'Envíos con Correo Argentino',
+    intro:
+      'Conectá la API oficial MiCorreo: el checkout cotiza el envío en vivo por código postal y los envíos se dan de alta desde la venta.',
+    category: 'Envíos',
+    sections: [
+      {
+        heading: 'Qué hace la integración',
+        paragraphs: [
+          'Cuando está activa, el comprador ingresa su código postal en el checkout y ve las tarifas reales de Correo Argentino: entrega a domicilio y retiro en una sucursal de Correo (elige cuál, por provincia). El precio se suma al total y queda registrado en la venta.',
+          'El precio lo firma el servidor al cotizar: el comprador no puede manipularlo, y si el carrito cambia después de cotizar, el checkout pide recotizar.',
+        ],
+      },
+      {
+        heading: 'Qué necesitás',
+        steps: [
+          'Una cuenta gratuita en MiCorreo (correoargentino.com.ar/MiCorreo) con tus datos de facturación.',
+          'Las credenciales de API (userToken y passwordToken): se piden por el formulario de contacto de MiCorreo. Correo te da credenciales de PRUEBA y de PRODUCCIÓN por separado.',
+          'Tu customerId de MiCorreo. Si no lo sabés, en la configuración podés poner tu email y contraseña de MiCorreo y lo buscamos por vos (no se guardan).',
+        ],
+      },
+      {
+        heading: 'Configurarlo',
+        steps: [
+          'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Correo Argentino.',
+          'Pegá el userToken y el passwordToken. Se guardan cifrados y nunca se vuelven a mostrar.',
+          'Cargá el código postal desde donde despachás.',
+          'Definí el paquete estimado por unidad (peso y medidas): la cotización multiplica por la cantidad de productos del carrito. Límites de Correo: 25 kg y 150 cm por lado.',
+          'Elegí qué ofrecer: domicilio, sucursal o ambos. Guardá y tocá “Probar cotización” para validar todo con datos reales.',
+        ],
+      },
+      {
+        heading: 'Empezá en modo prueba',
+        paragraphs: [
+          'Con el ambiente en “Prueba (homologación)” cotizás contra el servidor de prueba de Correo: ideal para validar la configuración sin tocar tu cuenta real. Cuando funcione, cambiá a Producción con las credenciales de producción.',
+        ],
+      },
+      {
+        heading: 'Despachar un pedido',
+        steps: [
+          'En la venta, tocá “Crear envío en Correo Argentino”: se precargan el destinatario y la dirección — revisalos y confirmá.',
+          'El envío queda importado en tu cuenta de MiCorreo. Entrá a MiCorreo para pagarlo y generar la etiqueta.',
+          'Pegá la etiqueta, despachá en tu sucursal y cargá el número de seguimiento en la venta con “Marcar enviada” — el cliente lo recibe por email.',
+        ],
+      },
+      {
+        heading: 'Cómo se calcula el paquete',
+        paragraphs: [
+          'Los productos todavía no tienen peso propio, así que la cotización usa el paquete estimado por unidad que configuraste: peso × cantidad, apilados en alto. Si tus productos varían mucho de tamaño, configurá el promedio y ajustá el envío real en MiCorreo al despachar.',
+          'Si un carrito supera los límites de Correo (25 kg / 150 cm), el checkout lo avisa y el comprador puede elegir otro medio de envío o coordinar con vos.',
         ],
       },
     ],

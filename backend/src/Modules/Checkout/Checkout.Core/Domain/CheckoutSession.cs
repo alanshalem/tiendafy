@@ -144,6 +144,22 @@ public sealed class CheckoutSession : AggregateRoot
         return Result.Success();
     }
 
+    /// <summary>
+    /// Envío cotizado en vivo por un carrier (Correo Argentino): el precio viene
+    /// de un quote firmado por el servidor, no de un método persistido.
+    /// </summary>
+    public Result SetQuotedShipping(string methodName, Money cost, string? address)
+    {
+        if (cost.Currency != Currency)
+            return Result.Failure(Error.Validation("Checkout.ShippingCurrency",
+                $"El costo de envío debe ser en {Currency}."));
+        ShippingMethodId = null;
+        ShippingMethodName = Clip(methodName, 120);
+        ShippingCost = cost;
+        ShippingAddress = Clip(address, 300);
+        return Result.Success();
+    }
+
     public void Expire() => Status = CheckoutStatus.Expired;
 
     public void MarkRecoveryEmailed() => RecoveryEmailSentAtUtc = DateTime.UtcNow;

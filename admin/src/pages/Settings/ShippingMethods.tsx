@@ -6,6 +6,7 @@ import { formatMoney } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
+import { CorreoArgentinoCard } from './CorreoArgentino';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -195,7 +196,8 @@ export function ShippingMethodsPage() {
           }}
         />
       )}
-      <HelpLink id="shipping" />
+      <CorreoArgentinoCard />
+      <HelpLink id="correoArgentino" />
     </div>
   );
 }

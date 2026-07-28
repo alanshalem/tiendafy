@@ -20,6 +20,7 @@ public static class CheckoutModule
 
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<IShippingMethodRepository, ShippingMethodRepository>();
+        services.AddScoped<ICorreoArgentinoConfigRepository, CorreoArgentinoConfigRepository>();
         services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<SubmitCheckoutHandler>();
 

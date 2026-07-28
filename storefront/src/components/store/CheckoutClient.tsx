@@ -27,6 +27,48 @@ interface ShippingOption {
   pickupAddress: string | null;
 }
 
+interface CorreoOption {
+  token: string;
+  kind: 'D' | 'S';
+  name: string;
+  price: { amount: number; currency: string };
+  etaMin: string | null;
+  etaMax: string | null;
+}
+
+interface CorreoAgency {
+  code: string;
+  name: string | null;
+  address: string;
+}
+
+const CORREO_PROVINCES: [string, string][] = [
+  ['B', 'Buenos Aires'],
+  ['C', 'CABA'],
+  ['K', 'Catamarca'],
+  ['H', 'Chaco'],
+  ['U', 'Chubut'],
+  ['X', 'Córdoba'],
+  ['W', 'Corrientes'],
+  ['E', 'Entre Ríos'],
+  ['P', 'Formosa'],
+  ['Y', 'Jujuy'],
+  ['L', 'La Pampa'],
+  ['F', 'La Rioja'],
+  ['M', 'Mendoza'],
+  ['N', 'Misiones'],
+  ['Q', 'Neuquén'],
+  ['R', 'Río Negro'],
+  ['A', 'Salta'],
+  ['J', 'San Juan'],
+  ['D', 'San Luis'],
+  ['Z', 'Santa Cruz'],
+  ['S', 'Santa Fe'],
+  ['G', 'Santiago del Estero'],
+  ['V', 'Tierra del Fuego'],
+  ['T', 'Tucumán'],
+];
+
 type Mode = 'PRO' | 'API';
 type Step = 'entrega' | 'pago';
 
@@ -45,6 +87,16 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [email, setEmail] = useState('');
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[] | null>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
+
+  // Correo Argentino: cotización en vivo por código postal.
+  const [correoEnabled, setCorreoEnabled] = useState(false);
+  const [correoCp, setCorreoCp] = useState('');
+  const [correoOptions, setCorreoOptions] = useState<CorreoOption[] | null>(null);
+  const [correoError, setCorreoError] = useState<string | null>(null);
+  const [correoLoading, setCorreoLoading] = useState(false);
+  const [agencyProvince, setAgencyProvince] = useState('B');
+  const [agencies, setAgencies] = useState<CorreoAgency[] | null>(null);
+  const [agencyCode, setAgencyCode] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -91,7 +143,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
     fetch(`${API}/api/v1/shipping/methods`, { headers })
       .then((r) => r.json())
-      .then((d) => setShippingOptions(d.items ?? []))
+      .then((d) => {
+        setShippingOptions(d.items ?? []);
+        setCorreoEnabled(Boolean(d.correoArgentino?.enabled));
+      })
       .catch(() => setShippingOptions([]));
   }, [tenantId]);
 
@@ -99,9 +154,62 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const currency = lines[0]?.currency ?? 'ARS';
   const discount = coupon?.discount ?? 0;
   const selected = shippingOptions?.find((o) => o.id === shippingId) ?? null;
-  const shipCost = selected?.price.amount ?? 0; // ya viene en centavos (ApiJson.MoneyJson)
+  // Opción dinámica de Correo Argentino: shippingId = "correo-<índice>".
+  const selectedCorreo = shippingId?.startsWith('correo-')
+    ? (correoOptions?.[Number(shippingId.slice(7))] ?? null)
+    : null;
+  const shipCost = selectedCorreo ? selectedCorreo.price.amount : (selected?.price.amount ?? 0); // ya viene en centavos (ApiJson.MoneyJson)
   const total = Math.max(0, subtotal - discount) + shipCost;
-  const needsAddress = selected?.kind === 'DELIVERY';
+  const needsAddress = selected?.kind === 'DELIVERY' || selectedCorreo?.kind === 'D';
+  const shippingLabel = selectedCorreo?.name ?? selected?.name ?? null;
+
+  const quoteCorreo = async () => {
+    const cp = correoCp.trim();
+    if (!/^\d{4}$/.test(cp)) {
+      setCorreoError('Ingresá un código postal de 4 dígitos.');
+      return;
+    }
+    setCorreoLoading(true);
+    setCorreoError(null);
+    setCorreoOptions(null);
+    if (shippingId?.startsWith('correo-')) setShippingId(null);
+    setAgencyCode(null);
+    try {
+      const res = await fetch(`${API}/api/v1/shipping/correo/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+        body: JSON.stringify({
+          postalCode: cp,
+          units: lines.reduce((s, l) => s + l.quantity, 0),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
+      setCorreoOptions(data.options ?? []);
+      if (data.error) setCorreoError(data.error);
+      else if ((data.options ?? []).length === 0)
+        setCorreoError('Correo Argentino no tiene tarifas para ese código postal.');
+      if (!zip.trim()) setZip(cp);
+    } catch (e) {
+      setCorreoError(e instanceof Error ? e.message : 'No se pudo cotizar. Probá de nuevo.');
+    } finally {
+      setCorreoLoading(false);
+    }
+  };
+
+  const loadAgencies = async (prov: string) => {
+    setAgencies(null);
+    setAgencyCode(null);
+    try {
+      const res = await fetch(`${API}/api/v1/shipping/correo/agencies?province=${prov}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      const data = await res.json();
+      setAgencies(data.items ?? []);
+    } catch {
+      setAgencies([]);
+    }
+  };
 
   const applyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -139,8 +247,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const continueToPago = () => {
     setFieldError(null);
     if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
-    if (shippingOptions && shippingOptions.length > 0 && !shippingId)
+    if ((shippingOptions?.length ?? 0) + (correoOptions?.length ?? 0) > 0 && !shippingId)
       return setFieldError('Elegí cómo querés recibir tu compra.');
+    if (selectedCorreo?.kind === 'S' && !agencyCode)
+      return setFieldError('Elegí la sucursal de Correo donde querés retirar.');
     if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
     if (!phone.trim()) return setFieldError('Completá tu teléfono.');
     if (needsAddress && (!street.trim() || !streetNumber.trim() || !city.trim() || !zip.trim()))
@@ -169,8 +279,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         phone: phone.trim() || null,
         docNumber: doc.trim() || null,
         notes: notes.trim() || null,
-        shippingMethodId: shippingId,
+        shippingMethodId: selectedCorreo ? null : shippingId,
         address: formattedAddress(),
+        shippingQuoteToken: selectedCorreo?.token ?? null,
+        correoAgency: selectedCorreo?.kind === 'S' ? agencyCode : null,
       }),
     });
     if (!submitRes.ok) {
@@ -342,6 +454,127 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 </section>
               )}
 
+              {correoEnabled && (
+                <section>
+                  {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
+                  <div className="rounded-lg border border-black/15 p-3.5">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Truck className="h-4 w-4" /> Correo Argentino
+                    </div>
+                    <p className="mt-0.5 text-xs opacity-60">
+                      Poné tu código postal y cotizamos el envío al instante.
+                    </p>
+                    <div className="mt-2.5 flex gap-2">
+                      <input
+                        value={correoCp}
+                        onChange={(e) => setCorreoCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        onKeyDown={(e) => e.key === 'Enter' && quoteCorreo()}
+                        placeholder="Código postal"
+                        inputMode="numeric"
+                        aria-label="Código postal para cotizar"
+                        className={`${inputCls} max-w-[160px]`}
+                      />
+                      <button
+                        type="button"
+                        onClick={quoteCorreo}
+                        disabled={correoLoading}
+                        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
+                      >
+                        {correoLoading && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
+                      </button>
+                    </div>
+                    {correoError && <p className="mt-2 text-xs text-red-600">{correoError}</p>}
+
+                    {correoOptions && correoOptions.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {correoOptions.map((o, i) => {
+                          const id = `correo-${i}`;
+                          return (
+                            <label
+                              key={id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={shippingId === id}
+                                onChange={() => {
+                                  setShippingId(id);
+                                  if (o.kind === 'S' && agencies === null) loadAgencies(agencyProvince);
+                                }}
+                                className="mt-1"
+                              />
+                              <span className="flex-1">
+                                <span className="flex items-center gap-1.5 font-semibold">
+                                  {o.kind === 'S' ? (
+                                    <Store className="h-4 w-4" />
+                                  ) : (
+                                    <Truck className="h-4 w-4" />
+                                  )}
+                                  {o.name}
+                                </span>
+                                {o.etaMin && (
+                                  <span className="mt-0.5 block text-xs opacity-60">
+                                    Llega en {o.etaMin}
+                                    {o.etaMax && o.etaMax !== o.etaMin ? ` a ${o.etaMax}` : ''} días hábiles
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-semibold">{fmt(o.price.amount, o.price.currency)}</span>
+                            </label>
+                          );
+                        })}
+
+                        {selectedCorreo?.kind === 'S' && (
+                          <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
+                            <div className="text-xs font-semibold">¿En qué sucursal retirás?</div>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                              <select
+                                value={agencyProvince}
+                                onChange={(e) => {
+                                  setAgencyProvince(e.target.value);
+                                  loadAgencies(e.target.value);
+                                }}
+                                aria-label="Provincia"
+                                className={`${inputCls} appearance-none`}
+                              >
+                                {CORREO_PROVINCES.map(([code, label]) => (
+                                  <option key={code} value={code}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                value={agencyCode ?? ''}
+                                onChange={(e) => setAgencyCode(e.target.value || null)}
+                                aria-label="Sucursal"
+                                className={`${inputCls} appearance-none`}
+                              >
+                                <option value="">
+                                  {agencies === null ? 'Cargando sucursales…' : 'Elegí la sucursal'}
+                                </option>
+                                {(agencies ?? []).map((a) => (
+                                  <option key={a.code} value={a.code}>
+                                    {a.name ?? a.code}
+                                    {a.address ? ` — ${a.address}` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {agencies !== null && agencies.length === 0 && (
+                              <p className="mt-1.5 text-xs text-red-600">
+                                No encontramos sucursales en esa provincia. Probá con otra o elegí envío a
+                                domicilio.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
               <section>
                 <h2 className="mb-3 text-lg font-bold">
                   {needsAddress ? 'Datos del destinatario' : 'Tus datos'}
@@ -432,18 +665,22 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     Cambiar
                   </button>
                 </div>
-                {selected && (
+                {(selected || selectedCorreo) && (
                   <div className="flex items-start gap-2.5">
-                    {selected.kind === 'PICKUP' ? (
+                    {selected?.kind === 'PICKUP' || selectedCorreo?.kind === 'S' ? (
                       <Store className="mt-0.5 h-4 w-4 opacity-50" />
                     ) : (
                       <Truck className="mt-0.5 h-4 w-4 opacity-50" />
                     )}
                     <span className="flex-1">
-                      <strong>{selected.name}</strong> ·{' '}
-                      {selected.price.amount === 0 ? 'Gratis' : fmt(shipCost, currency)}
-                      {selected.description && (
+                      <strong>{shippingLabel}</strong> · {shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}
+                      {selected?.description && (
                         <span className="block text-xs opacity-60">{selected.description}</span>
+                      )}
+                      {selectedCorreo?.kind === 'S' && agencyCode && (
+                        <span className="block text-xs opacity-60">
+                          Sucursal: {agencies?.find((a) => a.code === agencyCode)?.name ?? agencyCode}
+                        </span>
                       )}
                     </span>
                     <button onClick={() => setStep('entrega')} className="text-xs underline opacity-70">
@@ -544,7 +781,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <span className="tabular-nums">- {fmt(discount, currency)}</span>
               </div>
             )}
-            {selected && (
+            {(selected || selectedCorreo) && (
               <div className="flex justify-between">
                 <span className="opacity-70">Costo de envío</span>
                 <span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span>

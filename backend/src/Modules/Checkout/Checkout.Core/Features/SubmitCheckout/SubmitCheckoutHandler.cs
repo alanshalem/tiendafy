@@ -14,7 +14,18 @@ public sealed record SubmitCheckoutCommand(
     string? DocNumber = null,
     string? Notes = null,
     Guid? ShippingMethodId = null,
-    string? ShippingAddress = null);
+    string? ShippingAddress = null,
+    QuotedShipping? Quote = null);
+
+/// <summary>
+/// Envío cotizado en vivo (Correo Argentino), YA validado por la capa API:
+/// el precio salió de un token firmado por el servidor, nunca del cliente.
+/// RequiresAddress: entrega a domicilio exige dirección del comprador;
+/// retiro en sucursal ya trae la dirección de la sucursal resuelta server-side.
+/// ExpectedUnits: unidades cotizadas — si el carrito real difiere, se recotiza.
+/// </summary>
+public sealed record QuotedShipping(
+    string Name, Money Price, bool RequiresAddress, string? ResolvedAddress, int ExpectedUnits);
 
 /// <summary>
 /// La saga orquestada simple del checkout (sin framework, con disciplina):
@@ -40,8 +51,24 @@ public sealed class SubmitCheckoutHandler(
             return Result.Failure<CheckoutSession>(Error.Conflict(
                 "Checkout.Expired", "Checkout session expired. Start again."));
 
+        // Envío cotizado por carrier: el precio sale del quote firmado (capa API).
+        if (command.Quote is { } quote)
+        {
+            if (quote.ExpectedUnits != session.Items.Sum(i => i.Quantity))
+                return Result.Failure<CheckoutSession>(Error.Validation(
+                    "Checkout.QuoteMismatch",
+                    "El carrito cambió desde que cotizaste el envío. Volvé a calcularlo."));
+
+            var address = quote.RequiresAddress ? command.ShippingAddress : quote.ResolvedAddress;
+            if (quote.RequiresAddress && string.IsNullOrWhiteSpace(address))
+                return Result.Failure<CheckoutSession>(Error.Validation(
+                    "Checkout.MissingAddress", "Falta la dirección de entrega."));
+
+            var quoted = session.SetQuotedShipping(quote.Name, quote.Price, address);
+            if (quoted.IsFailure) return Result.Failure<CheckoutSession>(quoted.Error);
+        }
         // Envío: el costo SIEMPRE sale del método persistido, nunca del cliente.
-        if (command.ShippingMethodId is { } methodId)
+        else if (command.ShippingMethodId is { } methodId)
         {
             var method = await shippingMethods.GetActiveByIdAsync(command.TenantId, methodId, ct);
             if (method is null)
