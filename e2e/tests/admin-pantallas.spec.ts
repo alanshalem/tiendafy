@@ -47,7 +47,10 @@ test.describe('pantallas críticas del admin', () => {
 
   test('configuración: la pantalla de facturación ARCA carga su wizard', async ({ page }) => {
     await page.goto(`${ADMIN}/configuracion/facturacion`);
-    await expect(page.getByText('Facturación electrónica (ARCA)')).toBeVisible({ timeout: 20_000 });
+    // Heading explícito: el texto suelto ahora matchea también el HelpLink del pie.
+    await expect(page.getByRole('heading', { name: 'Facturación electrónica (ARCA)' })).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByText('Datos del emisor').first()).toBeVisible();
   });
 });
