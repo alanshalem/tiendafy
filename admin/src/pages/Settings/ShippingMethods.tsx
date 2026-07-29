@@ -7,6 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { CorreoArgentinoCard } from './CorreoArgentino';
+import { ZipnovaCard } from './Zipnova';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -197,7 +198,9 @@ export function ShippingMethodsPage() {
         />
       )}
       <CorreoArgentinoCard />
+      <ZipnovaCard />
       <HelpLink id="correoArgentino" />
+      <HelpLink id="zipnova" className="mt-2" />
     </div>
   );
 }

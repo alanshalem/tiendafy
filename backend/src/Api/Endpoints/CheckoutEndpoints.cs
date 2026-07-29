@@ -55,27 +55,42 @@ public static class CheckoutEndpoints
             MiCorreoClient correoClient,
             CancellationToken ct) =>
         {
+            // El token es opaco: se prueba contra cada carrier (propósitos de
+            // DataProtection distintos — el ajeno siempre da null).
             QuotedShipping? quote = null;
             if (!string.IsNullOrEmpty(request.ShippingQuoteToken))
             {
-                var payload = CorreoQuoteToken.Unprotect(dp, request.ShippingQuoteToken, tenant.TenantId.Value);
-                if (payload is null)
-                    return Error.Validation("Checkout.QuoteExpired",
-                        "La cotización de envío venció. Volvé a calcular el envío.").ToProblem();
+                var correoPayload = CorreoQuoteToken.Unprotect(dp, request.ShippingQuoteToken, tenant.TenantId.Value);
+                var zipnovaPayload = correoPayload is null
+                    ? ZipnovaQuoteToken.Unprotect(dp, request.ShippingQuoteToken, tenant.TenantId.Value)
+                    : null;
 
-                var price = new Money(payload.PriceMinorUnits, payload.Currency);
-                if (payload.Kind == "S")
+                if (correoPayload is not null)
                 {
-                    if (string.IsNullOrWhiteSpace(request.CorreoAgency))
-                        return Error.Validation("Checkout.MissingAgency",
-                            "Elegí la sucursal de Correo donde retirar.").ToProblem();
-                    var agencyLabel = await ResolveAgencyLabelAsync(
-                        tenant.TenantId.Value, request.CorreoAgency.Trim(), correoConfigs, protector, correoClient, ct);
-                    quote = new QuotedShipping(payload.ServiceName, price, RequiresAddress: false, agencyLabel, payload.Units);
+                    var price = new Money(correoPayload.PriceMinorUnits, correoPayload.Currency);
+                    if (correoPayload.Kind == "S")
+                    {
+                        if (string.IsNullOrWhiteSpace(request.CorreoAgency))
+                            return Error.Validation("Checkout.MissingAgency",
+                                "Elegí la sucursal de Correo donde retirar.").ToProblem();
+                        var agencyLabel = await ResolveAgencyLabelAsync(
+                            tenant.TenantId.Value, request.CorreoAgency.Trim(), correoConfigs, protector, correoClient, ct);
+                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: false, agencyLabel, correoPayload.Units);
+                    }
+                    else
+                    {
+                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: true, null, correoPayload.Units);
+                    }
+                }
+                else if (zipnovaPayload is not null)
+                {
+                    var price = new Money(zipnovaPayload.PriceMinorUnits, zipnovaPayload.Currency);
+                    quote = new QuotedShipping(zipnovaPayload.ServiceName, price, RequiresAddress: true, null, zipnovaPayload.Units);
                 }
                 else
                 {
-                    quote = new QuotedShipping(payload.ServiceName, price, RequiresAddress: true, null, payload.Units);
+                    return Error.Validation("Checkout.QuoteExpired",
+                        "La cotización de envío venció. Volvé a calcular el envío.").ToProblem();
                 }
             }
 
@@ -90,11 +105,12 @@ public static class CheckoutEndpoints
         // en vivo con Correo Argentino (el storefront muestra el bloque de CP).
         group.MapGet("/shipping/methods", async (
             ITenantContext tenant, IShippingMethodRepository repository,
-            ICorreoArgentinoConfigRepository correoConfigs, CancellationToken ct) =>
+            ICorreoArgentinoConfigRepository correoConfigs, IZipnovaRepository zipnovaRepo, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await repository.ListAsync(tenant.TenantId, onlyActive: true, ct);
             var correo = await correoConfigs.GetAsync(tenant.TenantId.Value, ct);
+            var zipnova = await zipnovaRepo.GetConfigAsync(tenant.TenantId.Value, ct);
             return Results.Ok(new
             {
                 items = items.Select(ShippingDto),
@@ -103,6 +119,7 @@ public static class CheckoutEndpoints
                     enabled = correo?.Active == true && (correo.OfferHomeDelivery || correo.OfferAgencyDelivery),
                     agency = correo?.Active == true && correo.OfferAgencyDelivery,
                 },
+                zipnova = new { enabled = zipnova?.Active == true },
             });
         });
 

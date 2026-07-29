@@ -8,6 +8,7 @@ import { usePermissions } from '../context/PermissionsContext';
 import { formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
+import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 
 interface OrderItem {
   variantId: string;
@@ -305,6 +306,9 @@ export function OrdersPage() {
                                     </button>
                                   )}
                                   {o.status === 'PAID' && canFulfill && <CorreoShipmentButton order={o} />}
+                                  {(o.status === 'PAID' || o.status === 'FULFILLED') && canFulfill && (
+                                    <ZipnovaShipmentButton order={o} />
+                                  )}
                                   {o.status === 'FULFILLED' && canFulfill && (
                                     <button
                                       onClick={() => fulfill(o)}

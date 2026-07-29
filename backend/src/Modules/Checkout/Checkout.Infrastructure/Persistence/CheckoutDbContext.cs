@@ -21,6 +21,8 @@ public sealed class CheckoutDbContext : DbContext
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
     public DbSet<CorreoArgentinoConfig> CorreoArgentinoConfigs => Set<CorreoArgentinoConfig>();
+    public DbSet<ZipnovaConfig> ZipnovaConfigs => Set<ZipnovaConfig>();
+    public DbSet<ZipnovaShipment> ZipnovaShipments => Set<ZipnovaShipment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +78,27 @@ public sealed class CheckoutDbContext : DbContext
         correo.Property(c => c.PasswordTokenEncrypted).IsRequired();
         correo.Property(c => c.Environment).HasMaxLength(10);
         correo.Property(c => c.OriginPostalCode).HasMaxLength(8);
+
+        var zipnova = modelBuilder.Entity<ZipnovaConfig>();
+        zipnova.ToTable("zipnova_configs");
+        zipnova.HasKey(c => c.Id);
+        zipnova.Property(c => c.Id).ValueGeneratedNever();
+        zipnova.HasIndex(c => c.TenantId).IsUnique();
+        zipnova.Property(c => c.ApiTokenEncrypted).IsRequired();
+        zipnova.Property(c => c.ApiSecretEncrypted).IsRequired();
+        zipnova.Property(c => c.Country).HasMaxLength(2);
+        zipnova.Property(c => c.OriginId).HasMaxLength(20);
+
+        var zipShipment = modelBuilder.Entity<ZipnovaShipment>();
+        zipShipment.ToTable("zipnova_shipments");
+        zipShipment.HasKey(s => s.Id);
+        zipShipment.Property(s => s.Id).ValueGeneratedNever();
+        // Guard de idempotencia: un envío Zipnova por orden, garantizado por índice.
+        zipShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
+        zipShipment.Property(s => s.CarrierName).HasMaxLength(120);
+        zipShipment.Property(s => s.CarrierTrackingId).HasMaxLength(80);
+        zipShipment.Property(s => s.TrackingUrl).HasMaxLength(500);
+        zipShipment.Property(s => s.Status).HasMaxLength(40);
 
         session.OwnsMany(s => s.Items, items =>
         {

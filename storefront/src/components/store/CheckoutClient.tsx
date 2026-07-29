@@ -42,6 +42,13 @@ interface CorreoAgency {
   address: string;
 }
 
+interface ZipnovaOption {
+  token: string;
+  name: string;
+  price: { amount: number; currency: string };
+  estimatedDelivery: string | null;
+}
+
 const CORREO_PROVINCES: [string, string][] = [
   ['B', 'Buenos Aires'],
   ['C', 'CABA'],
@@ -97,6 +104,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [agencyProvince, setAgencyProvince] = useState('B');
   const [agencies, setAgencies] = useState<CorreoAgency[] | null>(null);
   const [agencyCode, setAgencyCode] = useState<string | null>(null);
+
+  // Zipnova: multi-transporte. Necesita ciudad + provincia además del CP.
+  const [zipnovaEnabled, setZipnovaEnabled] = useState(false);
+  const [quoteCity, setQuoteCity] = useState('');
+  const [quoteProvince, setQuoteProvince] = useState('');
+  const [zipnovaOptions, setZipnovaOptions] = useState<ZipnovaOption[] | null>(null);
+  const [zipnovaError, setZipnovaError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -146,6 +160,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       .then((d) => {
         setShippingOptions(d.items ?? []);
         setCorreoEnabled(Boolean(d.correoArgentino?.enabled));
+        setZipnovaEnabled(Boolean(d.zipnova?.enabled));
       })
       .catch(() => setShippingOptions([]));
   }, [tenantId]);
@@ -154,47 +169,91 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const currency = lines[0]?.currency ?? 'ARS';
   const discount = coupon?.discount ?? 0;
   const selected = shippingOptions?.find((o) => o.id === shippingId) ?? null;
-  // Opción dinámica de Correo Argentino: shippingId = "correo-<índice>".
+  // Opciones dinámicas cotizadas: "correo-<i>" | "zipnova-<i>".
   const selectedCorreo = shippingId?.startsWith('correo-')
     ? (correoOptions?.[Number(shippingId.slice(7))] ?? null)
     : null;
-  const shipCost = selectedCorreo ? selectedCorreo.price.amount : (selected?.price.amount ?? 0); // ya viene en centavos (ApiJson.MoneyJson)
+  const selectedZipnova = shippingId?.startsWith('zipnova-')
+    ? (zipnovaOptions?.[Number(shippingId.slice(8))] ?? null)
+    : null;
+  const shipCost =
+    selectedCorreo?.price.amount ?? selectedZipnova?.price.amount ?? selected?.price.amount ?? 0; // centavos (ApiJson.MoneyJson)
   const total = Math.max(0, subtotal - discount) + shipCost;
-  const needsAddress = selected?.kind === 'DELIVERY' || selectedCorreo?.kind === 'D';
-  const shippingLabel = selectedCorreo?.name ?? selected?.name ?? null;
+  const needsAddress =
+    selected?.kind === 'DELIVERY' || selectedCorreo?.kind === 'D' || selectedZipnova !== null;
+  const shippingLabel = selectedCorreo?.name ?? selectedZipnova?.name ?? selected?.name ?? null;
+  const anyQuoter = correoEnabled || zipnovaEnabled;
 
-  const quoteCorreo = async () => {
+  // Cotiza contra TODOS los carriers activos en paralelo. Correo solo pide CP;
+  // Zipnova además ciudad + provincia (su API resuelve el destino por localidad).
+  const quoteShipping = async () => {
     const cp = correoCp.trim();
     if (!/^\d{4}$/.test(cp)) {
       setCorreoError('Ingresá un código postal de 4 dígitos.');
       return;
     }
+    if (zipnovaEnabled && (!quoteCity.trim() || !quoteProvince.trim())) {
+      setZipnovaError('Completá ciudad y provincia para cotizar con Zipnova.');
+      if (!correoEnabled) return;
+    } else {
+      setZipnovaError(null);
+    }
     setCorreoLoading(true);
     setCorreoError(null);
     setCorreoOptions(null);
-    if (shippingId?.startsWith('correo-')) setShippingId(null);
+    setZipnovaOptions(null);
+    if (shippingId?.startsWith('correo-') || shippingId?.startsWith('zipnova-')) setShippingId(null);
     setAgencyCode(null);
-    try {
-      const res = await fetch(`${API}/api/v1/shipping/correo/quote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
-        body: JSON.stringify({
-          postalCode: cp,
-          units: lines.reduce((s, l) => s + l.quantity, 0),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
-      setCorreoOptions(data.options ?? []);
-      if (data.error) setCorreoError(data.error);
-      else if ((data.options ?? []).length === 0)
-        setCorreoError('Correo Argentino no tiene tarifas para ese código postal.');
-      if (!zip.trim()) setZip(cp);
-    } catch (e) {
-      setCorreoError(e instanceof Error ? e.message : 'No se pudo cotizar. Probá de nuevo.');
-    } finally {
-      setCorreoLoading(false);
-    }
+    const units = lines.reduce((s, l) => s + l.quantity, 0);
+    const headers = { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId };
+
+    const correoPromise = correoEnabled
+      ? fetch(`${API}/api/v1/shipping/correo/quote`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ postalCode: cp, units }),
+        })
+          .then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
+            setCorreoOptions(data.options ?? []);
+            if (data.error) setCorreoError(data.error);
+            else if ((data.options ?? []).length === 0)
+              setCorreoError('Correo Argentino no tiene tarifas para ese código postal.');
+          })
+          .catch((e) =>
+            setCorreoError(e instanceof Error ? e.message : 'No se pudo cotizar con Correo Argentino.'),
+          )
+      : Promise.resolve();
+
+    const zipnovaPromise =
+      zipnovaEnabled && quoteCity.trim() && quoteProvince.trim()
+        ? fetch(`${API}/api/v1/shipping/zipnova/quote`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              postalCode: cp,
+              city: quoteCity.trim(),
+              state: quoteProvince.trim(),
+              units,
+              declaredValue: subtotal / 100,
+            }),
+          })
+            .then(async (res) => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
+              setZipnovaOptions(data.options ?? []);
+              if (data.error) setZipnovaError(data.error);
+              else if ((data.options ?? []).length === 0)
+                setZipnovaError('Zipnova no tiene opciones para ese destino.');
+            })
+            .catch((e) => setZipnovaError(e instanceof Error ? e.message : 'No se pudo cotizar con Zipnova.'))
+        : Promise.resolve();
+
+    await Promise.all([correoPromise, zipnovaPromise]);
+    if (!zip.trim()) setZip(cp);
+    if (quoteCity.trim() && !city.trim()) setCity(quoteCity.trim());
+    setCorreoLoading(false);
   };
 
   const loadAgencies = async (prov: string) => {
@@ -247,7 +306,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const continueToPago = () => {
     setFieldError(null);
     if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
-    if ((shippingOptions?.length ?? 0) + (correoOptions?.length ?? 0) > 0 && !shippingId)
+    if (
+      (shippingOptions?.length ?? 0) + (correoOptions?.length ?? 0) + (zipnovaOptions?.length ?? 0) > 0 &&
+      !shippingId
+    )
       return setFieldError('Elegí cómo querés recibir tu compra.');
     if (selectedCorreo?.kind === 'S' && !agencyCode)
       return setFieldError('Elegí la sucursal de Correo donde querés retirar.');
@@ -279,9 +341,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         phone: phone.trim() || null,
         docNumber: doc.trim() || null,
         notes: notes.trim() || null,
-        shippingMethodId: selectedCorreo ? null : shippingId,
+        shippingMethodId: selectedCorreo || selectedZipnova ? null : shippingId,
         address: formattedAddress(),
-        shippingQuoteToken: selectedCorreo?.token ?? null,
+        shippingQuoteToken: selectedCorreo?.token ?? selectedZipnova?.token ?? null,
         correoAgency: selectedCorreo?.kind === 'S' ? agencyCode : null,
       }),
     });
@@ -454,29 +516,51 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 </section>
               )}
 
-              {correoEnabled && (
+              {anyQuoter && (
                 <section>
                   {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
                   <div className="rounded-lg border border-black/15 p-3.5">
                     <div className="flex items-center gap-1.5 text-sm font-semibold">
-                      <Truck className="h-4 w-4" /> Correo Argentino
+                      <Truck className="h-4 w-4" /> Calculá tu envío
                     </div>
                     <p className="mt-0.5 text-xs opacity-60">
-                      Poné tu código postal y cotizamos el envío al instante.
+                      {[correoEnabled && 'Correo Argentino', zipnovaEnabled && 'Zipnova']
+                        .filter(Boolean)
+                        .join(' y ')}{' '}
+                      cotizan al instante para tu dirección.
                     </p>
-                    <div className="mt-2.5 flex gap-2">
+                    <div className="mt-2.5 flex flex-wrap gap-2">
                       <input
                         value={correoCp}
                         onChange={(e) => setCorreoCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        onKeyDown={(e) => e.key === 'Enter' && quoteCorreo()}
+                        onKeyDown={(e) => e.key === 'Enter' && quoteShipping()}
                         placeholder="Código postal"
                         inputMode="numeric"
                         aria-label="Código postal para cotizar"
-                        className={`${inputCls} max-w-[160px]`}
+                        className={`${inputCls} max-w-[140px]`}
                       />
+                      {zipnovaEnabled && (
+                        <>
+                          <input
+                            value={quoteCity}
+                            onChange={(e) => setQuoteCity(e.target.value)}
+                            placeholder="Ciudad"
+                            aria-label="Ciudad para cotizar"
+                            className={`${inputCls} max-w-[180px]`}
+                          />
+                          <input
+                            value={quoteProvince}
+                            onChange={(e) => setQuoteProvince(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && quoteShipping()}
+                            placeholder="Provincia"
+                            aria-label="Provincia para cotizar"
+                            className={`${inputCls} max-w-[180px]`}
+                          />
+                        </>
+                      )}
                       <button
                         type="button"
-                        onClick={quoteCorreo}
+                        onClick={quoteShipping}
                         disabled={correoLoading}
                         className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
                       >
@@ -484,6 +568,47 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       </button>
                     </div>
                     {correoError && <p className="mt-2 text-xs text-red-600">{correoError}</p>}
+                    {zipnovaError && <p className="mt-2 text-xs text-red-600">{zipnovaError}</p>}
+
+                    {zipnovaOptions && zipnovaOptions.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {zipnovaOptions.map((o, i) => {
+                          const id = `zipnova-${i}`;
+                          const eta = o.estimatedDelivery
+                            ? new Date(o.estimatedDelivery).toLocaleDateString('es-AR', {
+                                day: 'numeric',
+                                month: 'long',
+                              })
+                            : null;
+                          return (
+                            <label
+                              key={id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={shippingId === id}
+                                onChange={() => setShippingId(id)}
+                                className="mt-1"
+                              />
+                              <span className="flex-1">
+                                <span className="flex items-center gap-1.5 font-semibold">
+                                  <Truck className="h-4 w-4" />
+                                  {o.name}
+                                </span>
+                                {eta && (
+                                  <span className="mt-0.5 block text-xs opacity-60">
+                                    Llega aprox. el {eta}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-semibold">{fmt(o.price.amount, o.price.currency)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {correoOptions && correoOptions.length > 0 && (
                       <div className="mt-3 space-y-2">
@@ -665,7 +790,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     Cambiar
                   </button>
                 </div>
-                {(selected || selectedCorreo) && (
+                {(selected || selectedCorreo || selectedZipnova) && (
                   <div className="flex items-start gap-2.5">
                     {selected?.kind === 'PICKUP' || selectedCorreo?.kind === 'S' ? (
                       <Store className="mt-0.5 h-4 w-4 opacity-50" />
@@ -778,7 +903,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <span className="tabular-nums">- {fmt(discount, currency)}</span>
               </div>
             )}
-            {(selected || selectedCorreo) && (
+            {(selected || selectedCorreo || selectedZipnova) && (
               <div className="flex justify-between">
                 <span className="opacity-70">Costo de envío</span>
                 <span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span>

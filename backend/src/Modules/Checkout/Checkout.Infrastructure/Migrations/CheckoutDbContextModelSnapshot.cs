@@ -17,7 +17,7 @@ namespace Checkout.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -265,6 +265,133 @@ namespace Checkout.Infrastructure.Migrations
                         .HasDatabaseName("ix_shipping_methods_tenant_id_sort_order");
 
                     b.ToTable("shipping_methods", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.ZipnovaConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("account_id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<string>("ApiSecretEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("api_secret_encrypted");
+
+                    b.Property<string>("ApiTokenEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("api_token_encrypted");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("country");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("DefaultHeightCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_height_cm");
+
+                    b.Property<int>("DefaultLengthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_length_cm");
+
+                    b.Property<int>("DefaultWeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_weight_grams");
+
+                    b.Property<int>("DefaultWidthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_width_cm");
+
+                    b.Property<string>("OriginId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origin_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_zipnova_configs");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_zipnova_configs_tenant_id");
+
+                    b.ToTable("zipnova_configs", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.ZipnovaShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CarrierName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("carrier_name");
+
+                    b.Property<string>("CarrierTrackingId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("carrier_tracking_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<long>("ShipmentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipment_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TrackingUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("tracking_url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_zipnova_shipments");
+
+                    b.HasIndex("TenantId", "OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_zipnova_shipments_tenant_id_order_id");
+
+                    b.ToTable("zipnova_shipments", (string)null);
                 });
 
             modelBuilder.Entity("Checkout.Core.Domain.CheckoutSession", b =>

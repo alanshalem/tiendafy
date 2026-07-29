@@ -42,6 +42,7 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   cupones: BadgePercent,
   shipping: Truck,
   correoArgentino: Truck,
+  zipnova: Truck,
   distributionCenters: Warehouse,
   productos: Package,
   clientes: Users,

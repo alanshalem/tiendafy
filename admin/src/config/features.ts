@@ -65,6 +65,7 @@ export const HELP_LINKS = {
   cupones: { label: 'Más sobre cupones de descuento' },
   shipping: { label: 'Más sobre medios de envío' },
   correoArgentino: { label: 'Más sobre envíos con Correo Argentino' },
+  zipnova: { label: 'Más sobre envíos con Zipnova' },
   distributionCenters: { label: 'Más sobre centros de distribución' },
   productos: { label: 'Más sobre productos e inventario' },
   clientes: { label: 'Más sobre clientes' },

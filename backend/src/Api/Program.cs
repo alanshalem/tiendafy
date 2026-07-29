@@ -88,6 +88,8 @@ builder.Services.AddScoped<WhatsAppNotifier>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<Api.Shipping.MiCorreoClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddSingleton<Api.Shipping.CorreoSecretProtector>();
+// Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
+builder.Services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
@@ -311,6 +313,7 @@ apiV1.MapInventoryEndpoints();
 apiV1.MapCheckoutEndpoints();
 apiV1.MapShippingEndpoints();
 apiV1.MapCorreoArgentinoEndpoints();
+apiV1.MapZipnovaEndpoints();
 apiV1.MapPaymentsEndpoints();
 apiV1.MapOrderEndpoints();
 apiV1.MapPaymentWebhookEndpoints();

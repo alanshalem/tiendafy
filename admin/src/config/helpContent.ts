@@ -313,10 +313,10 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
-        heading: 'Cotización automática con Correo Argentino',
+        heading: 'Cotización automática: Correo Argentino y Zipnova',
         paragraphs: [
-          'Además de los métodos manuales, podés conectar Correo Argentino: el comprador pone su código postal en el checkout y ve el precio real del envío, a domicilio o a sucursal. Se configura en esta misma pantalla — mirá el artículo de Correo Argentino.',
-          'Andreani y OCA están en el roadmap detrás de la misma abstracción.',
+          'Además de los métodos manuales, podés conectar cotizadores en vivo: Correo Argentino (a domicilio o a sucursal) y Zipnova (Andreani, OCA y más transportes detrás de una sola cuenta, con etiqueta PDF). El comprador pone su dirección en el checkout y ve los precios reales de todos los que tengas activos, juntos.',
+          'Se configuran en esta misma pantalla — mirá los artículos de Correo Argentino y de Zipnova.',
         ],
       },
     ],
@@ -398,6 +398,63 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Los productos todavía no tienen peso propio, así que la cotización usa el paquete estimado por unidad que configuraste: peso × cantidad, apilados en alto. Si tus productos varían mucho de tamaño, configurá el promedio y ajustá el envío real en MiCorreo al despachar.',
           'Si un carrito supera los límites de Correo (25 kg / 150 cm), el checkout lo avisa y el comprador puede elegir otro medio de envío o coordinar con vos.',
+        ],
+      },
+    ],
+  },
+
+  zipnova: {
+    title: 'Envíos con Zipnova',
+    intro:
+      'Andreani, OCA y más transportes detrás de una sola API: cotización en vivo en el checkout y envíos con etiqueta PDF desde la venta.',
+    category: 'Envíos',
+    sections: [
+      {
+        heading: 'Qué hace la integración',
+        paragraphs: [
+          'Zipnova es un agregador: una sola cuenta te conecta con varios transportes a la vez. Con la integración activa, el comprador pone su ciudad y código postal en el checkout y ve las opciones reales de tu cuenta (por ejemplo “Andreani Estándar $4.200” y “OCA Estándar $4.600”), cada una con su fecha estimada.',
+          'El precio lo firma el servidor al cotizar: no se puede manipular, y si el carrito cambia el checkout pide recotizar.',
+        ],
+      },
+      {
+        heading: 'Qué necesitás',
+        steps: [
+          'Una cuenta en Zipnova con al menos un transporte habilitado y saldo.',
+          'Las credenciales de API: en el panel de Zipnova, Configuración → Integraciones → Gestionar credenciales y webhooks. Ahí generás el API Token y el API Secret.',
+          'Tu número de cuenta (account ID) — figura en el mismo panel.',
+        ],
+      },
+      {
+        heading: 'Configurarlo',
+        steps: [
+          'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Zipnova.',
+          'Pegá el API Token y el API Secret. Se guardan cifrados y nunca se vuelven a mostrar.',
+          'Elegí el país de tu cuenta (define a qué servidor de Zipnova se habla) y cargá el número de cuenta.',
+          'Origen: dejalo vacío para usar el origen por defecto de tu cuenta Zipnova, o poné el ID de una ubicación puntual.',
+          'Definí el paquete estimado por unidad (peso y medidas en cm) y guardá.',
+          'Usá “Probar cotización”: cotizar es gratis y valida todo el circuito con datos reales.',
+        ],
+      },
+      {
+        heading: 'Importante: en Zipnova todo es real',
+        paragraphs: [
+          'Zipnova no tiene modo de prueba ni sandbox. Cotizar no cuesta nada, pero CREAR un envío es un envío de verdad: consume saldo de tu cuenta y genera documentación de despacho. Por eso el panel te pide confirmar antes de crear, y nunca crea dos envíos para la misma venta aunque toques el botón dos veces.',
+        ],
+      },
+      {
+        heading: 'Despachar un pedido, paso a paso',
+        steps: [
+          'En la venta pagada, tocá “Crear envío en Zipnova”: se precargan el destinatario y la dirección — revisá y completá provincia y documento (Zipnova exige nombre, documento, email y teléfono).',
+          'Al confirmar, el envío queda creado y ves el número de Zipnova, el transporte asignado y su código de seguimiento.',
+          'Tocá “Etiqueta PDF”: se descarga lista para imprimir y pegar en el paquete (si recién creaste el envío puede tardar unos minutos en estar disponible).',
+          'Despachá según la forma de tu cuenta (retiro del transporte o entrega en punto de despacho).',
+          'Cargá el código de seguimiento en la venta con “Marcar enviada” — el cliente lo recibe por email. El link “Seguimiento” te muestra el estado en Zipnova en cualquier momento.',
+        ],
+      },
+      {
+        heading: 'Correo Argentino y Zipnova a la vez',
+        paragraphs: [
+          'Podés tener las dos integraciones activas: el comprador ve todas las opciones cotizadas juntas en el checkout y elige la que prefiera. También podés pausar una sin desconectarla.',
         ],
       },
     ],
