@@ -1,5 +1,22 @@
 # Tiendafy Architecture
 
+> **⚠️ Documento histórico** — este es el blueprint de planificación (jun 2026),
+> anterior a la construcción. La foto ACTUAL y fiel del sistema está en
+> [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md). Divergencias conocidas
+> entre este plan y lo construido:
+>
+> - La API corre en el puerto **5080** (el 5000 lo ocupa Docker Desktop en Windows).
+> - **No existe host Worker separado**: los workers (webhooks MP, emisión fiscal,
+>   carritos abandonados, imports) son hosted services dentro de la API,
+>   apagables por réplica con `Workers:Enabled`.
+> - El aislamiento multi-tenant se implementó con **query filters globales de EF**
+>   por DbContext (+ tests de integración), no con RLS de Postgres.
+> - **No hay Terraform**: el deploy es Docker Compose + Caddy ([DEPLOY.md](./DEPLOY.md)).
+> - No se usa MediatR: handlers planos registrados en DI.
+> - Módulos que no estaban en el plan y existen: Fiscal (ARCA), Support (chat
+>   posventa), Analytics, Content, Customers, Discounts, Media. "Billing" (plan
+>   de suscripción de la plataforma) no se construyó.
+
 ## Topología
 
 ```

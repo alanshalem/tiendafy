@@ -36,10 +36,16 @@ Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Produc
 | `Email__From` | `Tienda <hola@tudominio.com>` | Remitente verificado en Resend |
 | `Authentication__Google__ClientId` / `__ClientSecret` | — | Opcional (login Google del comprador) |
 | `Captcha__Turnstile__SiteKey` / `__Secret` | — | Opcional. Cloudflare Turnstile anti-bots en contacto y login/signup. Vacío = sin captcha |
+| `Notifications__EmailCostUsdPer1000` | `0.40` | Opcional. Tarifa de referencia del panel "Uso del mes" (emails) |
+| `Notifications__WhatsAppCostUsdPerMessage` | `0.034` | Opcional. Ídem para WhatsApp |
+
+Correo Argentino no necesita env vars: las credenciales MiCorreo son **por
+tienda** y viven cifradas en la DB (las carga el merchant desde el admin).
 
 ### Storefront (Next.js)
 Ver `storefront/.env.example`. Claves: `API_URL`, `NEXT_PUBLIC_API_URL`,
-`NEXT_PUBLIC_ADMIN_URL`, `PLATFORM_BASE_DOMAIN`.
+`NEXT_PUBLIC_ADMIN_URL`, `NEXT_PUBLIC_ADMIN_ORIGIN` (**requerida en prod** —
+valida el origin del postMessage del editor de temas), `PLATFORM_BASE_DOMAIN`.
 
 ### Admin (Vite)
 Ver `admin/.env.example`. Clave: `VITE_API_URL` (se hornea en el build estático).

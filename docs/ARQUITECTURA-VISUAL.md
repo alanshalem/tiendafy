@@ -28,7 +28,7 @@ flowchart TB
         Identity["Identity<br/>merchants + staff, RBAC,<br/>verificación de email"]
         Catalog["Catalog<br/>productos, variantes,<br/>categorías, import CSV"]
         Inventory["Inventory<br/>stock, reservas"]
-        CheckoutM["Checkout<br/>sesiones, medios de envío"]
+        CheckoutM["Checkout<br/>sesiones, medios de envío,<br/>cotización Correo Argentino"]
         Orders["Orders<br/>órdenes, reembolsos,<br/>fulfillment"]
         Payments["Payments<br/>conexión OAuth MP,<br/>webhooks, refunds"]
         Fiscal["Fiscal<br/>facturación ARCA:<br/>WSAA + WSFEv1, CAE,<br/>PDF con QR"]
@@ -59,6 +59,7 @@ flowchart TB
         Resend["📧 Resend<br/>emails transaccionales<br/>(8 plantillas por tienda)"]
         Meta["💬 WhatsApp Cloud API (Meta)<br/>mensajes por plantilla por tienda"]
         ARCA["🧾 ARCA/AFIP<br/>WSAA (ticket de acceso) +<br/>WSFEv1 (CAE) · homologación/prod"]
+        Correo["📦 Correo Argentino (MiCorreo)<br/>cotización en vivo por CP,<br/>sucursales, alta de envíos"]
         Turnstile["🛡️ Cloudflare Turnstile<br/>captcha (login/registro/contacto)"]
         GoogleO["🔑 Google OAuth<br/>login de compradores (opcional)"]
         Sentry["🚨 Sentry<br/>errores en los 3 (gated por DSN)"]
@@ -82,11 +83,13 @@ flowchart TB
     FiscalW --> ARCA
     Notifications --> Resend
     Notifications --> Meta
+    CheckoutM <--> Correo
     API --> Turnstile
     Customers --> GoogleO
     Payments --> DP
     Fiscal --> DP
     Notifications --> DP
+    CheckoutM --> DP
 ```
 
 ## El flujo que factura (venta punta a punta)
@@ -103,7 +106,8 @@ sequenceDiagram
     participant AR as ARCA
 
     C->>S: Agrega al carrito / "Comprar ahora"
-    S->>A: POST checkout (reserva stock)
+    Note over C,A: Si la tienda tiene Correo Argentino:<br/>CP → cotización en vivo (precio firmado, TTL 30 min)
+    S->>A: POST checkout (reserva stock; el envío cotizado<br/>se valida contra el token firmado)
     A->>MP: Crea preferencia (token del SELLER, cifrado)
     C->>MP: Paga (Checkout Pro o Bricks)
     MP-->>A: Webhook "payment" (inbox durable)
@@ -122,6 +126,7 @@ sequenceDiagram
 | **Email** | Resend (único) | 8 plantillas transaccionales editables por tienda (bienvenida, activación, compra, pago, envío, cancelación, carrito abandonado, reset). Layout brandeado con logo/color de la tienda. | API key (user-secrets / env) |
 | **WhatsApp** | Cloud API de Meta (único) | Conexión por tienda (phone number id + token), mensajes por plantilla espejo de los emails. | Token por tienda, cifrado |
 | **Facturación** | ARCA/AFIP | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE online). Certificado X.509 por tienda: CSR generado en el panel → firmado en ARCA → activado. Homologación y producción. | Clave privada y cert cifrados; NUNCA salen por API |
+| **Envíos** | Correo Argentino (API MiCorreo) | Cotización en vivo por CP en el checkout (domicilio y sucursal, precio firmado server-side con TTL 30 min), listado de sucursales cacheado, alta de envíos desde la venta (`/shipping/import`). Ambientes TEST/PROD. | userToken/passwordToken por tienda, cifrados (DataProtection) |
 | **Anti-bots** | Cloudflare Turnstile | Login/registro/contacto. Sin config = pasa (dev). | Site/secret key |
 | **Login social** | Google OAuth | Solo compradores del storefront (opcional, gated por config). | Client id/secret |
 | **Media** | MinIO (dev) / S3-R2 (prod) | Bucket público para fotos/videos de producto; adjuntos de chat privados con URLs firmadas. | Access keys |

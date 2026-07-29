@@ -1,4 +1,10 @@
-﻿________________
+﻿> **📜 Documento histórico** — checkpoint de la investigación de la API de
+> ARCA/AFIP (WSAA + WSFEv1) previa a construir el módulo Fiscal. Los hallazgos
+> H1-H15 y decisiones D1-D9 de acá se convirtieron en el módulo
+> `backend/src/Modules/Fiscal` (ver también las skills en `.claude/skills/afip/`).
+> No es una guía de arranque del proyecto — para eso: [START_HERE.md](./START_HERE.md).
+
+________________
 
 
 

@@ -1,5 +1,13 @@
 # Tiendafy - Mapa de Conexiones
 
+> **⚠️ Documento histórico** — flujos del plan original (jun 2026). La foto
+> actual está en [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md). Diferencias
+> clave con lo construido: API en puerto **5080**; sin host Worker (hosted
+> services dentro de la API); el tenant se filtra con **query filters de EF**
+> (no `SET LOCAL app.tenant_id` / RLS); Redis y RabbitMQ están levantados en dev
+> pero **sin uso** todavía (no hay Outbox→RabbitMQ; el patrón outbox/inbox sí
+> existe, implementado sobre Postgres para webhooks de MP y emisión fiscal).
+
 Topología de cómo se comunican los componentes del sistema.
 
 ## Visión de Arriba (High Level)

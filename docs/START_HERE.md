@@ -1,193 +1,67 @@
-# 🚀 Tiendafy - START HERE
+# Tiendafy — START HERE
 
-Estructura arquitectónica de Tiendafy. Todo planeado, cero código. 
+Mapa de la documentación. El proyecto está **construido y funcionando** (no es
+un plano): 16 módulos backend, storefront y admin completos, CI verde, deploy
+reproducible. Este archivo te dice qué leer según lo que necesites.
 
-## En 2 Minutos
+## En 2 minutos
 
-- **Qué es**: SaaS e-commerce para merchants LATAM
-- **Stack**: .NET (backend) + Next.js (storefront) + React+Vite (admin)
-- **Multi-tenant**: Shared DB + PostgreSQL RLS
-- **State**: Estructura 100% definida, listo para codificar
+- **Qué es**: SaaS e-commerce multi-tenant para merchants de Argentina/LATAM
+- **Stack**: .NET 10 (backend modular) + Next.js 15 (storefront SSR) + React+Vite (admin SPA)
+- **Multi-tenant**: DB compartida + `tenant_id` en cada fila + query filters globales de EF por módulo + tests de aislamiento
+- **Estado**: funcional de punta a punta — venta real con Mercado Pago, factura ARCA, envío con Correo Argentino, emails/WhatsApp automáticos
 
-## Archivos Clave
+## Qué leer según lo que busques
 
-Lee en este orden:
+| Necesito… | Leé |
+|---|---|
+| Levantar el entorno y ver algo andando | [../README.md](../README.md) → Quick start |
+| Entender TODO el sistema de un vistazo | [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) — diagramas Mermaid: piezas, integraciones y el flujo de una venta |
+| Loguearme en dev | [usuarios-de-prueba.md](./usuarios-de-prueba.md) |
+| Ver las 130+ rutas de la API | http://localhost:5080/scalar/v1 (con la API corriendo) |
+| Deployar a producción | [DEPLOY.md](./DEPLOY.md) — imágenes, compose.prod, Caddy, backups, variables |
+| Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
+| Entender roles y permisos | [rbac-propuesta.md](./rbac-propuesta.md) — matriz implementada (fuente de verdad: `Permissions.cs`) |
+| Entender el chat posventa | [support-chat.md](./support-chat.md) |
+| Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) + [uicatalog.md](./uicatalog.md) (catálogo de patrones) |
+| Agregar un feature o módulo | [guides/adding-a-feature.md](./guides/adding-a-feature.md) / [guides/adding-a-module.md](./guides/adding-a-module.md) |
+| Por qué cada decisión de arquitectura | [adr/](./adr/) — monolito .NET, Next+Vite, multi-tenancy |
+| La investigación ARCA/AFIP detrás del módulo Fiscal | [ARRANQUE.md](./ARRANQUE.md) — checkpoint de investigación (histórico) |
 
-### 1. **[README.md](./README.md)** — Intro + Quick Start
-- Setup local con Docker Compose
-- Primeros pasos para testar algo corriendo
-- URLs de cada servicio
+## Documentos históricos (contexto, no estado actual)
 
-### 2. **[ARCHITECTURE.md](./ARCHITECTURE.md)** — Plano Completo
-- Topología de carpetas (backend modular, storefront, admin)
-- Estructura de módulos (.Contracts / .Core / .Infrastructure)
-- Database schema skeleton
-- CI/CD, observabilidad, deployment
+Estos capturan el **plan original** (junio 2026) y el registro de construcción.
+Son valiosos como contexto de decisiones, pero donde difieran del código, manda
+el código (y [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) como resumen fiel):
 
-### 3. **[CONNECTIONS.md](./CONNECTIONS.md)** — Cómo Se Comunican
-- Flujos de datos (browser → storefront → API → DB)
-- Messaging pattern (Outbox → RabbitMQ → Worker)
-- Ejemplo completo: checkout → pago → confirmación
-- Trace de observabilidad end-to-end
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — el blueprint de planificación. Divergencias conocidas: la API corre en **5080** (no 5000), no existe host Worker separado (los workers son hosted services dentro de la API, apagables con `Workers:Enabled`), el aislamiento se implementó con **query filters de EF** (no RLS de Postgres), no hay Terraform (deploy con Compose+Caddy), y no se usa MediatR (handlers planos en DI).
+- [CONNECTIONS.md](./CONNECTIONS.md) — flujos de datos del plan original. Mismas divergencias.
+- [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) — el registro de construcción día a día (jun 2026). Léelo como changelog.
+- [ARRANQUE.md](./ARRANQUE.md) — investigación previa al módulo Fiscal: hallazgos de la API de ARCA (WSAA/WSFEv1), decisiones D1-D9.
 
-### 4. **[adr/](./adr/)** — Por Qué Cada Decisión
-- 0001: .NET monolito vs Node/microservicios
-- 0002: Next.js (storefront) + Vite (admin) separados
-- 0003: PostgreSQL RLS para multi-tenancy
-- Template para futuros ADRs
+## Los módulos del backend (los 16 reales)
 
-### 5. **[guides/](./guides/)** — Cómo Construir
-- [adding-a-feature.md](./guides/adding-a-feature.md) — Paso a paso feature (command/query/handler/endpoint)
-- [adding-a-module.md](./guides/adding-a-module.md) — Paso a paso módulo (estructura completa)
-- coming: debugging, performance, deployment
+`Tenancy` (tiendas, dominios, resolve por host) · `Identity` (staff, RBAC, verificación email) ·
+`Catalog` (productos, variantes, categorías, CSV) · `Inventory` (stock, reservas anti-oversell) ·
+`Checkout` (sesiones, envíos manuales + Correo Argentino) · `Orders` (órdenes, reembolsos, fulfillment) ·
+`Payments` (Mercado Pago OAuth + webhooks) · `Fiscal` (ARCA: CAE, PDF con QR, NC) ·
+`Themes` (editor draft/published) · `Customers` (compradores, favoritos, mensajes) ·
+`Notifications` (email/WhatsApp por plantilla + contadores) · `Analytics` (visitas) ·
+`Media` (imágenes/videos a MinIO/S3) · `Content` (páginas CMS) · `Discounts` (cupones) ·
+`Support` (chat posventa)
 
-### 6. **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** — Qué Falta Hacer
-- Fase 1: MVP (tenancy + catalog + checkout)
-- Fase 2-4: Escala, observabilidad, optimización
-- Cada item es 1-3 días de trabajo
+Cada módulo: `{Module}.Contracts` (interfaz pública) / `.Core` (dominio+features) /
+`.Infrastructure` (persistencia, DbContext propio con filtro de tenant). Los módulos
+solo se hablan por Contracts.
 
-## Navegación por Rol
+## Preguntas frecuentes
 
-### Soy Desarrollador Backend 👨‍💻
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) → "Backend → src/Modules"
-2. [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md) → "Por qué .NET"
-3. [guides/adding-a-feature.md](./guides/adding-a-feature.md) → "Crear un feature"
-4. [guides/adding-a-module.md](./guides/adding-a-module.md) → "Crear un módulo"
-5. [docs/database/](./docs/database/) (próximamente)
-6. [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: API ↔ Base de Datos"
+**P: ¿Por qué .NET y no Node?** → [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md)
 
-### Soy Desarrollador Frontend 👩‍💼
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) → "Storefront / Admin"
-2. [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md) → "Por qué dos apps"
-3. Storefront: [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: Storefront ↔ Backend"
-4. Admin: [CONNECTIONS.md](./CONNECTIONS.md) → "Detalle: Admin ↔ Backend"
-5. [README.md](./README.md) → "Quick Start" → `pnpm dev` en ambos
+**P: ¿Por qué DB compartida entre tenants?** → [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md). Nota: el ADR propone RLS; lo implementado son query filters de EF + tests de aislamiento — el trade-off está anotado en el ADR.
 
-### Soy Devops / SRE 🛠️
-1. [infra/](./infra/) → Terraform + Docker
-2. [ARCHITECTURE.md](./ARCHITECTURE.md) → "Deployment" section
-3. [CONNECTIONS.md](./CONNECTIONS.md) → "CI/CD Pipeline"
-4. [docs/deployment/](./docs/deployment/) (próximamente)
-5. Monitoring: [CONNECTIONS.md](./CONNECTIONS.md) → "Observabilidad: Trace End-to-End"
+**P: ¿Por qué Next.js + Vite y no un solo frontend?** → [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md)
 
-### Soy Product Owner / Tech Lead 📊
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) → Visión de arriba
-2. [CONNECTIONS.md](./CONNECTIONS.md) → "Visión de Arriba (High Level)"
-3. [adr/](./adr/) → Entiende por qué cada decisión
-4. [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) → Timeline de MVPs
-5. [CONNECTIONS.md](./CONNECTIONS.md) → Casos de uso (checkout → pagos → pedidos)
+**P: ¿Cómo se evita el data leak entre tenants?** → Query filters globales por DbContext + middleware de membresía en toda escritura admin + `X-Tenant-Id` verificado contra la sesión + tests de integración (`TenantIsolationTests`) contra Postgres real.
 
-## Decisiones Ya Tomadas
-
-✅ **Backend**: .NET 10 LTS, monolito modular, ASP.NET Core
-✅ **Database**: PostgreSQL + RLS + shared schema
-✅ **Frontend**: Next.js (storefront, SSR) + React+Vite (admin, SPA)
-✅ **Messaging**: RabbitMQ + Outbox pattern
-✅ **Cache**: Redis
-✅ **Payments**: Mercado Pago (marketplace model)
-✅ **Deployment**: Docker + Terraform + GitHub Actions
-✅ **Observabilidad**: OpenTelemetry + Grafana
-✅ **Multi-tenancy**: Compartido schema con RLS (no DB-per-tenant, no schema-per-tenant)
-
-Cada decisión tiene un ADR explicando alternativas + trade-offs.
-
-## Preguntas Frecuentes
-
-**P: ¿Por qué .NET en lugar de Node?**
-A: [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md) — TL;DR: tipado fuerte, performance, LTS estable.
-
-**P: ¿Por qué compartir schema de DB?**
-A: [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md) — TL;DR: migraciones 100k veces vs 1, RLS protege a nivel motor.
-
-**P: ¿Por qué Next.js + Vite, no un solo frontend?**
-A: [adr/0002-next-and-vite.md](./adr/0002-next-and-vite.md) — TL;DR: perfiles distintos (SEO vs SPA), deployables independientes, seguridad.
-
-**P: ¿Cuándo migro a microservicios?**
-A: [adr/0001-dotnet-monolith.md](./adr/0001-dotnet-monolith.md#migration-path) — A 10k+ clientes, si el perfil de carga lo justifica.
-
-**P: ¿Cuándo necesito Kubernetes?**
-A: [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md#fase-4-escalabilidad-4-6-semanas) — A 100+ tiendas en staging. En MVP, contenedores administrados bastan.
-
-**P: ¿Cómo evito data leaks entre tenants?**
-A: [adr/0003-postgres-rls.md](./adr/0003-postgres-rls.md#implementation) — RLS en motor + global query filters en código + tests de aislamiento.
-
-**P: ¿Dónde empiezo a codificar?**
-A: [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) (Fase 0-1) → Pick Tenancy → [guides/adding-a-module.md](./guides/adding-a-module.md) → Code.
-
-## Estructura de Carpetas (30-segundo summary)
-
-```
-tiendafy/
-├── backend/                  ← .NET monolito modular
-│   ├── src/
-│   │   ├── Api/              ← HTTP host (port 5000)
-│   │   ├── Worker/           ← Background jobs (port 5001)
-│   │   ├── SharedKernel/     ← Tipos base compartidos
-│   │   └── Modules/          ← Tenancy, Identity, Catalog, Inventory, Orders, Checkout, Payments, Billing, Themes, Notifications
-│   │       ├── {Module}.Contracts/     ← Interfaz pública
-│   │       ├── {Module}.Core/          ← Dominio + features
-│   │       └── {Module}.Infrastructure/ ← Persistencia
-│   └── tests/                ← Unit, integration, architecture
-├── storefront/               ← Next.js (port 3000)
-│   └── src/
-│       ├── app/              ← Pages (SSR + ISR)
-│       ├── components/       ← React components
-│       ├── lib/              ← API client, auth, cart
-│       ├── types/            ← TS types
-│       └── styles/           ← Tailwind + CSS
-├── admin/                    ← React + Vite (port 3001)
-│   └── src/
-│       ├── pages/            ← Routes
-│       ├── components/       ← React components
-│       ├── lib/              ← API client, React Query
-│       ├── types/            ← TS types
-│       └── styles/           ← Tailwind + CSS
-├── infra/                    ← Infrastructure as Code
-│   ├── docker/               ← Docker Compose, Dockerfiles
-│   └── terraform/            ← Terraform modules (network, DB, compute, etc)
-├── docs/
-│   ├── adr/                  ← Architecture Decision Records
-│   ├── guides/               ← How-tos (adding features, modules, debugging)
-│   ├── database/             ← Schema, indexes, migrations (próx)
-│   ├── api/                  ← OpenAPI spec, webhooks (próx)
-│   └── deployment/           ← CI/CD, monitoring, SLOs (próx)
-├── .github/workflows/        ← CI/CD pipelines
-├── ARCHITECTURE.md           ← This is it (full blueprint)
-├── CONNECTIONS.md            ← How data flows
-├── IMPLEMENTATION_CHECKLIST.md ← What to build
-├── README.md                 ← Quick start
-└── START_HERE.md             ← You are here
-```
-
-## Próximos Pasos
-
-### Hoy
-1. Read [ARCHITECTURE.md](./ARCHITECTURE.md) (30 min)
-2. Understand [CONNECTIONS.md](./CONNECTIONS.md) (20 min)
-3. Skim relevant ADRs (15 min)
-
-### Esta Semana
-1. Setup Docker Compose: `docker-compose -f infra/docker/docker-compose.dev.yml up`
-2. Create Tenancy module skeleton (backend)
-3. Setup Storefront + Admin projects with Tailwind
-4. First commit: Estructura sin código de negocio
-
-### Próximas Semanas
-1. Implement Tenancy module (persona de arquitectura)
-2. Implement Catalog module (features de lectura)
-3. Implement Checkout module (lógica transaccional)
-4. Integrate Mercado Pago (pagos)
-5. Storefront UI (SSR + ISR templates)
-6. Admin dashboard (CRUD básico)
-
-## Soporte
-
-- **Questions on architecture?** → Check adr/ o CONNECTIONS.md
-- **How to add X?** → guides/adding-a-{feature|module}.md
-- **Database question?** → docs/database/ (próx)
-- **Deployment question?** → docs/deployment/ (próx)
-
----
-
-**Ready?** Start with [README.md](./README.md) para setup local.
-
+**P: ¿Dónde están los secretos?** → user-secrets en dev, env vars en prod. Credenciales de merchants (MP/ARCA/WhatsApp/MiCorreo) cifradas con DataProtection en la DB; el keyring vive en el volumen `dpkeys`.

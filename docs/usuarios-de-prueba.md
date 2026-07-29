@@ -5,11 +5,11 @@
 En dev se siembra un usuario admin con membresía a **todas** las tiendas, así
 entrás con login y las ves todas:
 
-| Email                    | Contraseña |
-| ------------------------ | ----------- |
-| `admin@tiendafy.local` |             |
+| Email                  | Contraseña    |
+| ---------------------- | ------------- |
+| `admin@tiendafy.local` | `password123` |
 
-E![1784743054984](image/usuarios-de-prueba/1784743054984.png)l admin ahora **requiere login** (`/auth`). Todas las escrituras exigen sesión +
+El admin **requiere login** (`/auth`). Todas las escrituras exigen sesión +
 membresía a la tienda del `X-Tenant-Id`. Podés registrar otra cuenta desde el
 modal; arranca sin tiendas hasta que crees una (quedás como dueño).
 

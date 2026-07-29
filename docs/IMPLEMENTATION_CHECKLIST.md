@@ -1,6 +1,14 @@
 # Implementation Checklist - Tiendafy
 
-Estructura arquitectónica definida. Checklist de qué falta construir, en orden de prioridad.
+> **📜 Registro histórico de construcción (junio 2026)** — leélo como changelog,
+> no como estado. Los ítems sin tildar de las fases 2-4 en su mayoría se
+> resolvieron por otros caminos (ver [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md)
+> para la foto actual): observabilidad = Sentry + `/version`; backups = sidecar
+> pg-backup con restore drill ejecutado; CI/CD completo con ratchets de
+> cobertura; import/export CSV, editor de temas, RBAC, fiscal ARCA, Correo
+> Argentino y centro de ayuda están construidos. Lo genuinamente pendiente vive
+> en el backlog de producción (pago alternativo en checkout, dominios propios
+> con verificación DNS, activación del certificado ARCA real).
 
 ## Fase 0: Fundación Compartida (1-2 semanas)
 
