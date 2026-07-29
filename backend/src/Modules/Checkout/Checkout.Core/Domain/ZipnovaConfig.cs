@@ -129,17 +129,17 @@ public sealed class ZipnovaShipment
     public static ZipnovaShipment Create(
         Guid tenantId, Guid orderId, long shipmentId,
         string? carrierName, string? carrierTrackingId, string? trackingUrl, string? status) => new()
-    {
-        Id = Guid.NewGuid(),
-        TenantId = tenantId,
-        OrderId = orderId,
-        ShipmentId = shipmentId,
-        CarrierName = Clip(carrierName, 120),
-        CarrierTrackingId = Clip(carrierTrackingId, 80),
-        TrackingUrl = Clip(trackingUrl, 500),
-        Status = Clip(status, 40) ?? "new",
-        CreatedAtUtc = DateTime.UtcNow,
-    };
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            OrderId = orderId,
+            ShipmentId = shipmentId,
+            CarrierName = Clip(carrierName, 120),
+            CarrierTrackingId = Clip(carrierTrackingId, 80),
+            TrackingUrl = Clip(trackingUrl, 500),
+            Status = Clip(status, 40) ?? "new",
+            CreatedAtUtc = DateTime.UtcNow,
+        };
 
     public void UpdateStatus(string? status)
     {
