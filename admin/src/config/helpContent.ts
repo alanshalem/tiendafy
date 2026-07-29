@@ -602,6 +602,43 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
     ],
   },
 
+  emailMarketing: {
+    title: 'Campañas de email',
+    intro:
+      'Mandá novedades y promociones masivas a tus clientes, con el diseño de tu tienda y baja automática.',
+    category: 'Clientes y comunicación',
+    sections: [
+      {
+        heading: 'Campañas vs. e-mails automáticos',
+        paragraphs: [
+          'Los e-mails automáticos son transaccionales: confirman compras, envíos, cuentas — se disparan solos. Las campañas son marketing: VOS decidís cuándo escribirle a tu base (“llegó la colección nueva”, “20% este finde”). Viven en Marketing, en el menú principal.',
+        ],
+      },
+      {
+        heading: 'Crear y enviar una campaña',
+        steps: [
+          'En Marketing → Nueva campaña, escribí el asunto y el contenido con el editor.',
+          'Elegí la audiencia: Compradores (todos los que te compraron alguna vez) o Todos los contactos con email. Ves el conteo exacto antes de enviar.',
+          'Enviate una prueba a tu propio email: llega EXACTAMENTE como la va a ver el cliente, con tu logo y colores.',
+          'Tocá Enviar y confirmá. El envío sale en tandas en segundo plano — ves el progreso en la lista y podés cancelar lo que falte.',
+        ],
+      },
+      {
+        heading: 'La baja es automática (y obligatoria)',
+        paragraphs: [
+          'Cada campaña sale con un link de “Dejar de recibir novedades” al pie. Quien se da de baja entra en una lista de supresión y no recibe NUNCA más campañas tuyas — aunque siga apareciendo en la audiencia. Sus emails de compra (confirmaciones, envíos) siguen llegando: son otra categoría.',
+          'Esto no es opcional: mandar marketing sin opción de baja es spam, te denuncian los proveedores de correo y arruina la entregabilidad de todos tus emails, incluidos los transaccionales.',
+        ],
+      },
+      {
+        heading: 'Buenas prácticas para no caer en spam',
+        paragraphs: [
+          'Mandá poco y bueno: una campaña quincenal con contenido real rinde más que tres semanales de relleno. Asuntos honestos (sin MAYÚSCULAS ni “GRATIS!!!”), siempre con tu dominio verificado en Resend, y mirá el panel de uso: cada envío cuenta para tu costo mensual.',
+        ],
+      },
+    ],
+  },
+
   whatsappAuto: {
     title: 'WhatsApp automático',
     intro:

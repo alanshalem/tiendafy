@@ -31,6 +31,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         // que además exige SettingsWrite por RequirePermission).
         "/api/v1/shipping/correo/quote",
         "/api/v1/shipping/zipnova/quote",
+        // Baja de campañas: el destinatario no tiene sesión (el token firmado
+        // es la autorización).
+        "/api/v1/marketing/unsubscribe",
     };
 
     public async Task InvokeAsync(HttpContext ctx, IMembershipService memberships)

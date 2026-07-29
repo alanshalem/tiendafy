@@ -101,6 +101,7 @@ const sections: NavSection[] = [
       { to: '/mensajes', label: 'Mensajes', perm: 'messages.read' },
       { to: '/posventa', label: 'Chat posventa', perm: 'support.chat' },
       { to: '/descuentos', label: 'Descuentos', perm: 'discounts.read' },
+      { to: '/marketing', label: 'Marketing', perm: 'settings.write' },
     ],
   },
   {

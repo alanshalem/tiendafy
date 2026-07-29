@@ -91,6 +91,7 @@ builder.Services.AddSingleton<Api.Shipping.CorreoSecretProtector>();
 // Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
 builder.Services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
+if (runPollingWorkers) builder.Services.AddHostedService<CampaignWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
 builder.Services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
@@ -314,6 +315,7 @@ apiV1.MapCheckoutEndpoints();
 apiV1.MapShippingEndpoints();
 apiV1.MapCorreoArgentinoEndpoints();
 apiV1.MapZipnovaEndpoints();
+apiV1.MapCampaignEndpoints();
 apiV1.MapPaymentsEndpoints();
 apiV1.MapOrderEndpoints();
 apiV1.MapPaymentWebhookEndpoints();

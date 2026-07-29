@@ -26,6 +26,7 @@ import { ExportImportPage } from './pages/Products/ExportImport';
 import { NewProductPage } from './pages/Products/NewProduct';
 import { EditProductPage } from './pages/Products/EditProduct';
 import { DiscountsPage } from './pages/Discounts';
+import { MarketingPage } from './pages/Marketing';
 import { CustomersPage } from './pages/Customers';
 import { MessagesPage } from './pages/Messages';
 import { SupportChatPage } from './pages/SupportChat';
@@ -203,6 +204,14 @@ export default function App() {
             element={
               <RequirePerm perm="discounts.read">
                 <DiscountsPage />
+              </RequirePerm>
+            }
+          />
+          <Route
+            path="/marketing"
+            element={
+              <RequirePerm perm="settings.write">
+                <MarketingPage />
               </RequirePerm>
             }
           />

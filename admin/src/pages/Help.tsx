@@ -48,6 +48,7 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   clientes: Users,
   posventa: MessageCircle,
   autoEmails: Mail,
+  emailMarketing: Mail,
   whatsappAuto: Phone,
   contact: MapPin,
   whatsapp: Phone,
