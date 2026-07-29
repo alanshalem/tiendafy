@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -42,7 +42,7 @@ jobs:
       # Advanced Security, que no está disponible en repos privados del plan
       # Free. El análisis corre igual: el SARIF se evalúa acá abajo y el
       # workflow FALLA si hay hallazgos de severidad error/warning.
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
           upload: never
