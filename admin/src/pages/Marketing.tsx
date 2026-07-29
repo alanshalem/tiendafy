@@ -907,7 +907,6 @@ function ProductPicker({
           return (
             <div key={p.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-bg-muted">
               {p.images[0]?.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.images[0].url} alt="" className="h-10 w-10 rounded-md object-cover" />
               ) : (
                 <span className="h-10 w-10 rounded-md bg-bg-muted" />
