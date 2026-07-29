@@ -16,6 +16,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 | Necesito… | Leé |
 |---|---|
 | Levantar el entorno y ver algo andando | [../README.md](../README.md) → Quick start |
+| Todas las API keys/secretos/variables (dev y prod) | [CONFIGURACION.md](./CONFIGURACION.md) — qué conseguir, dónde se consigue y dónde va |
 | Entender TODO el sistema de un vistazo | [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) — diagramas Mermaid: piezas, integraciones y el flujo de una venta |
 | Loguearme en dev | [usuarios-de-prueba.md](./usuarios-de-prueba.md) |
 | Ver las 130+ rutas de la API | http://localhost:5080/scalar/v1 (con la API corriendo) |
@@ -23,21 +24,15 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 | Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
 | Entender roles y permisos | [rbac-propuesta.md](./rbac-propuesta.md) — matriz implementada (fuente de verdad: `Permissions.cs`) |
 | Entender el chat posventa | [support-chat.md](./support-chat.md) |
-| Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) + [uicatalog.md](./uicatalog.md) (catálogo de patrones) |
+| Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) |
 | Agregar un feature o módulo | [guides/adding-a-feature.md](./guides/adding-a-feature.md) / [guides/adding-a-module.md](./guides/adding-a-module.md) |
 | Por qué cada decisión de arquitectura | [adr/](./adr/) — monolito .NET, Next+Vite, multi-tenancy |
-| La investigación ARCA/AFIP detrás del módulo Fiscal | [ARRANQUE.md](./ARRANQUE.md) — checkpoint de investigación (histórico) |
 
-## Documentos históricos (contexto, no estado actual)
-
-Estos capturan el **plan original** (junio 2026) y el registro de construcción.
-Son valiosos como contexto de decisiones, pero donde difieran del código, manda
-el código (y [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) como resumen fiel):
-
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — el blueprint de planificación. Divergencias conocidas: la API corre en **5080** (no 5000), no existe host Worker separado (los workers son hosted services dentro de la API, apagables con `Workers:Enabled`), el aislamiento se implementó con **query filters de EF** (no RLS de Postgres), no hay Terraform (deploy con Compose+Caddy), y no se usa MediatR (handlers planos en DI).
-- [CONNECTIONS.md](./CONNECTIONS.md) — flujos de datos del plan original. Mismas divergencias.
-- [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) — el registro de construcción día a día (jun 2026). Léelo como changelog.
-- [ARRANQUE.md](./ARRANQUE.md) — investigación previa al módulo Fiscal: hallazgos de la API de ARCA (WSAA/WSFEv1), decisiones D1-D9.
+> Los documentos de planificación de junio 2026 (blueprint, checklist de
+> construcción, investigación ARCA) se eliminaron: el código y esta doc son la
+> fuente de verdad. Si necesitás ese contexto, está en el historial de git.
+> La explicación de facturación "en criollo" vive ahora en el centro de ayuda
+> del admin (`/ayuda/fiscal`).
 
 ## Los módulos del backend (los 16 reales)
 

@@ -97,8 +97,17 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: '¿Qué es y por qué lo necesito?',
         paragraphs: [
-          'Cuando alguien te compra, la ley te obliga a entregarle una factura oficial. Esa factura la autoriza ARCA, que le asigna un número de autorización llamado CAE. Tiendafy hace todo el trámite por vos: configurás una vez y cada venta se factura automáticamente.',
-          'Según tu condición fiscal se emite el comprobante correcto: Factura C si sos Monotributista, Factura B si sos Responsable Inscripto vendiendo a consumidor final.',
+          'Cuando alguien te compra, la ley te obliga a entregarle una factura oficial. Esa factura no se “inventa”: se le pide a ARCA (el organismo del Estado, la ex-AFIP), que la aprueba y le pone un número de autorización llamado CAE. Tiendafy hace todo ese trámite por vos: configurás una vez y cada venta se factura sola.',
+          'Según tu condición fiscal se emite el comprobante correcto: Factura C si sos Monotributista; si sos Responsable Inscripto, Factura B a consumidor final o Factura A a otra empresa (con IVA desglosado).',
+        ],
+      },
+      {
+        heading: 'Antes de empezar, tené a mano',
+        steps: [
+          'Tu CUIT y tu razón social (el nombre legal del negocio).',
+          'Saber tu categoría: Responsable Inscripto o Monotributo.',
+          'Tu clave fiscal de ARCA (la misma con la que hacés trámites en su web).',
+          'El número de punto de venta habilitado en ARCA para Web Services — o darlo de alta ahí, es un trámite corto (el paso 3 te lo explica).',
         ],
       },
       {
@@ -124,7 +133,8 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Tu clave privada nunca sale de acá',
         paragraphs: [
-          'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA.',
+          'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA. Si alguien la tuviera podría facturar en tu nombre — por eso se cuida así.',
+          'Además, solo los roles Dueño, Administrador y Finanzas pueden tocar la configuración fiscal o emitir comprobantes; un vendedor o soporte no puede.',
         ],
       },
       {
@@ -150,7 +160,27 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Reembolsos y notas de crédito',
         paragraphs: [
-          'Si reembolsás una venta facturada, se emite la nota de crédito correspondiente ante ARCA automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada, Tiendafy la emite automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+        ],
+      },
+      {
+        heading: '¿Por qué la factura puede tardar unos minutos?',
+        paragraphs: [
+          'La factura se emite “por atrás”, después de cerrar la venta. Es a propósito: ARCA a veces está lento o en mantenimiento, y si el botón de pagar dependiera de su respuesta, una caída de ARCA te rompería la venta. Primero se cobra (tu cliente ya compró), y la factura sale minutos después; si ARCA está caído, Tiendafy reintenta solo hasta que salga. Es como lo hacen todos los sistemas serios.',
+        ],
+      },
+      {
+        heading: 'Diccionario de palabras raras',
+        steps: [
+          'ARCA: la AFIP renombrada — el organismo de impuestos al que se le pide cada factura.',
+          'CAE: el “sello de aprobación” que ARCA le pone a cada factura. Sin CAE no vale; con CAE es oficial. Tiene fecha de vencimiento.',
+          'Punto de venta: el “cajón numerado” de tus comprobantes (el 0001 de “0001-00000123”). Podés tener varios: uno para la web, otro para el local.',
+          'Certificado digital: el “DNI” de tu tienda para hablar con ARCA por internet — ARCA solo le contesta a quien tenga uno válido a su nombre.',
+          'Clave privada: el secreto que acompaña al certificado. Nunca se comparte con nadie (ni con ARCA); Tiendafy la genera y la guarda cifrada.',
+          'CSR: el “formulario de pedido” del certificado. Tiendafy lo arma, vos lo subís a ARCA, ARCA te devuelve el certificado. Una sola vez.',
+          'TA: el pase de entrada temporal que ARCA le da a tu tienda; dura 12 horas y se renueva solo.',
+          'Homologación: el modo de práctica de ARCA — idéntico al real pero las facturas no valen. Siempre se prueba ahí primero.',
+          'Nota de Crédito: la “factura al revés” que compensa una venta anulada o devuelta.',
         ],
       },
     ],
