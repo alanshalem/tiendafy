@@ -316,7 +316,7 @@ public static class ZipnovaEndpoints
             try
             {
                 var events = await client.GetTrackingAsync(Credentials(config, protector), shipment.ShipmentId, ct);
-                var latest = events.FirstOrDefault();
+                var latest = events.Count > 0 ? events[0] : null;
                 if (latest?.Status is not null)
                 {
                     shipment.UpdateStatus(latest.Status);
