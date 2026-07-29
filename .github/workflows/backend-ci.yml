@@ -50,8 +50,14 @@ jobs:
       - name: Format check (dotnet format)
         run: dotnet format backend.slnx --no-restore --verify-no-changes
 
-      - name: Test (con cobertura)
-        run: dotnet test backend.slnx --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results
+      # Separados: la cobertura del ratchet se mide SOLO sobre los unit tests.
+      # Mezclar los XML de unit + integración duplica el denominador (misma
+      # línea contada dos veces, una sin hits) y hunde el porcentaje.
+      - name: Tests unitarios (con cobertura)
+        run: dotnet test tests/UnitTests --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results/unit
+
+      - name: Tests de integración (aislamiento multi-tenant)
+        run: dotnet test tests/IntegrationTests --no-build --configuration Release --logger "trx" --results-directory ./test-results/integration
 
       # Ratchet de cobertura del DOMINIO (asambleas *.Core + SharedKernel):
       # piso 60 (medido local: 71.5% en unit) — al subir la cobertura, subir
@@ -61,7 +67,7 @@ jobs:
         run: |
           import glob, xml.etree.ElementTree as ET, sys, re
           lf = lh = 0
-          for f in glob.glob('test-results/**/coverage.cobertura.xml', recursive=True):
+          for f in glob.glob('test-results/unit/**/coverage.cobertura.xml', recursive=True):
               for p in ET.parse(f).getroot().iter('package'):
                   if re.search(r'(\.Core|SharedKernel)$', p.get('name', '')):
                       for line in p.iter('line'):
