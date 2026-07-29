@@ -11,7 +11,7 @@
 # - `--frozen-lockfile --offline` (el equivalente estricto de `npm ci`).
 # - Runtime = output STANDALONE de Next: server.js + node_modules podados por
 #   file-tracing. Antes se copiaba el repo entero (~GB); ahora ~200MB.
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH
@@ -42,7 +42,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
 RUN pnpm --filter ./storefront build
 
 # --- runtime mínimo (standalone) ---
-FROM node:22-alpine AS run
+FROM node:24-alpine AS run
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \

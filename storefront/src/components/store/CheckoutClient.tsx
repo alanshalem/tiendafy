@@ -316,7 +316,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   };
 
   // Payment Brick (on-site): el front tokeniza, el backend cobra el total real.
-  // eslint-disable-next-line
+
   const onBrickSubmit = async ({ formData }: { formData: any }) => {
     setError(null);
     const payer = (formData.payer ?? {}) as {
@@ -759,10 +759,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         <aside className="h-fit rounded-lg border border-black/10 p-4 text-sm lg:sticky lg:top-6">
           {lines.map((l) => (
             <div key={l.variantId} className="flex items-center gap-3 py-1.5">
-              {l.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />
-              )}
+              {l.image && <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />}
               <span className="flex-1">
                 {l.productName}
                 {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}

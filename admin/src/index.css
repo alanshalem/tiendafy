@@ -1,8 +1,11 @@
 @import '@tiendafy/design-system/tokens.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 en modo compatibilidad: el preset JS del design system sigue
+   siendo la fuente de tokens (colores vía CSS vars = theming sin recompilar).
+   @source suma shared/ui, que queda fuera de la auto-detección. */
+@import 'tailwindcss';
+@config '../tailwind.config.ts';
+@source '../../shared/ui/src';
 
 /* ============================================================
    Tokens de PLATAFORMA (admin) — estética estilo Apple / macOS.

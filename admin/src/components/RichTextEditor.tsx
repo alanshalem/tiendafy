@@ -44,7 +44,6 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
   // Sincronizar cuando cambia el contenido desde afuera (abrir el modal con otra página).
   useEffect(() => {
     if (editor && value !== editor.getHTML()) editor.commands.setContent(value || '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
   if (!editor) return null;

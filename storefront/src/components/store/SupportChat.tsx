@@ -63,7 +63,7 @@ export function SupportChat({
       }
     },
     [tenantId],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Abrir conversación + polling.
   useEffect(() => {
@@ -187,7 +187,7 @@ export function SupportChat({
                       rel="noopener noreferrer"
                       className="mt-1 block"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {}
                       <img src={m.attachment.url} alt={m.attachment.name} className="max-h-48 rounded-lg" />
                     </a>
                   ) : (

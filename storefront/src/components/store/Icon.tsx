@@ -138,7 +138,7 @@ export type IconName =
 
 // Cada librería tipa sus íconos distinto (props de stroke/weight/etc.); usamos
 // una firma laxa porque sólo les pasamos className y (para phosphor) weight.
-// eslint-disable-next-line
+
 type IconCmp = ComponentType<any>;
 
 // Cada kit mapea los nombres semánticos a su componente. Lo que falte cae a lucide.

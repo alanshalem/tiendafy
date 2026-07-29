@@ -10,8 +10,9 @@ export default defineConfig({
       include: ['src/lib/**', 'src/components/stats/**'],
       exclude: ['src/**/*.test.*'],
       reporter: ['text-summary', 'lcov'],
-      // Ratchet: piso actual — solo puede subir.
-      thresholds: { lines: 15 },
+      // Ratchet: piso actual — solo puede subir. Recalibrado con vitest 4
+      // (motor AST-based: 19.4% real en la escala nueva).
+      thresholds: { lines: 19 },
     },
   },
 });

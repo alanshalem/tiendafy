@@ -21,7 +21,6 @@ export function ComingSoon({ theme, tenantName }: { theme: ThemeConfig; tenantNa
 
       <div className="relative z-10 max-w-lg">
         {theme.logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={theme.logo} alt={tenantName} className="mx-auto mb-8 max-h-16 w-auto object-contain" />
         ) : (
           <div className="mb-8 text-2xl font-bold tracking-tight">{tenantName}</div>

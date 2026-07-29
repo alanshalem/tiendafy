@@ -3,7 +3,7 @@
 #   docker build -f admin/Dockerfile -t tiendafy-admin .
 # Mismo patrón que el storefront: pnpm pinneado por corepack (packageManager),
 # capa de deps con `pnpm fetch` + cache mount, install --frozen-lockfile --offline.
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH
