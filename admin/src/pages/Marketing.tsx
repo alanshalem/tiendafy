@@ -21,6 +21,7 @@ import { RichTextEditor } from '../components/RichTextEditor';
 import { NotificationUsage } from '../components/NotificationUsage';
 import { HelpLink } from '../components/HelpLink';
 import { fetchAllProducts } from '../lib/products';
+import { EmailPreview } from '../components/EmailPreview';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -560,9 +561,9 @@ function CampaignModal({
         </>
       }
     >
-      <div className="grid max-h-[70vh] gap-6 overflow-y-auto pr-1 lg:grid-cols-2">
-        {/* -------- Columna izquierda: edición -------- */}
-        <div className="space-y-4">
+      <div className="grid h-[72vh] gap-6 lg:grid-cols-2">
+        {/* -------- Columna izquierda: edición (única con scroll) -------- */}
+        <div className="min-h-0 space-y-4 overflow-y-auto pb-2 pr-2">
           {showSchedule && (
             <div className="flex items-end gap-2 rounded-md border border-info/40 bg-info-bg/40 p-3">
               <div className="flex-1">
@@ -671,28 +672,25 @@ function CampaignModal({
           </div>
         </div>
 
-        {/* -------- Columna derecha: preview brandeada en vivo -------- */}
-        <div>
+        {/* -------- Columna derecha: preview brandeada, fija, sin doble scroll -------- */}
+        <div className="flex min-h-0 flex-col">
           <div className="mb-1.5 text-sm font-medium text-fg">Vista previa</div>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <div className="border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
+            <div className="shrink-0 border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
               Asunto:{' '}
               <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
             </div>
-            {preview ? (
-              <iframe
-                title="Vista previa de la campaña"
-                sandbox=""
-                srcDoc={preview.html}
-                className="h-[560px] w-full border-0 bg-[#f4f4f5]"
-              />
-            ) : (
-              <div className="flex h-[560px] items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
-                Generando vista previa…
-              </div>
-            )}
+            <div className="min-h-0 flex-1">
+              {preview ? (
+                <EmailPreview html={preview.html} />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
+                  Generando vista previa…
+                </div>
+              )}
+            </div>
           </div>
-          <p className="mt-1.5 text-xs text-fg-muted">
+          <p className="mt-1.5 shrink-0 text-xs text-fg-muted">
             Así lo recibe tu cliente: con tu logo, tus colores, los productos y el link de baja.
           </p>
         </div>

@@ -5,6 +5,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { NotificationUsage } from '../../components/NotificationUsage';
 import { RichTextEditor } from '../../components/RichTextEditor';
+import { EmailPreview } from '../../components/EmailPreview';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -162,9 +163,9 @@ function EditModal({
         </>
       }
     >
-      <div className="grid max-h-[72vh] gap-6 overflow-y-auto lg:grid-cols-2">
-        {/* Editor */}
-        <div className="space-y-4">
+      <div className="grid h-[72vh] gap-6 lg:grid-cols-2">
+        {/* Editor (única columna con scroll) */}
+        <div className="min-h-0 space-y-4 overflow-y-auto pb-2 pr-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
             <Input
@@ -204,28 +205,25 @@ function EditModal({
           </div>
         </div>
 
-        {/* Vista previa: idéntica al email real (mismo layout brandeado del backend) */}
-        <div>
+        {/* Vista previa: idéntica al email real, fija, sin doble scroll */}
+        <div className="flex min-h-0 flex-col">
           <div className="mb-1.5 text-sm font-medium text-fg">Vista previa</div>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <div className="border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
+            <div className="shrink-0 border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
               Asunto:{' '}
               <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
             </div>
-            {preview ? (
-              <iframe
-                title="Vista previa del email"
-                sandbox=""
-                srcDoc={preview.html}
-                className="h-[520px] w-full border-0 bg-[#f4f4f5]"
-              />
-            ) : (
-              <div className="flex h-[520px] items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
-                Generando vista previa…
-              </div>
-            )}
+            <div className="min-h-0 flex-1">
+              {preview ? (
+                <EmailPreview html={preview.html} />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
+                  Generando vista previa…
+                </div>
+              )}
+            </div>
           </div>
-          <p className="mt-1.5 text-xs text-fg-muted">
+          <p className="mt-1.5 shrink-0 text-xs text-fg-muted">
             Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con
             datos de ejemplo.
           </p>
