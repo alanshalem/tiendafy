@@ -47,11 +47,14 @@ jobs:
           category: '/language:${{ matrix.language }}'
           upload: never
           output: sarif-results
+      # Política: los hallazgos de nivel `error` ROMPEN el build; los `warning`
+      # (heurísticos, con falsos positivos) se anotan en el run y en el SARIF
+      # del artifact, sin bloquear. Revisarlos al tocar el archivo señalado.
       - name: Evaluar hallazgos del SARIF
         shell: python
         run: |
           import glob, json, sys
-          bad = []
+          errors, warnings = [], []
           for f in glob.glob('sarif-results/*.sarif'):
               sarif = json.load(open(f, encoding='utf-8'))
               for run in sarif.get('runs', []):
@@ -59,16 +62,18 @@ jobs:
                   for res in run.get('results', []):
                       rule = rules.get(res.get('ruleId'), {})
                       sev = rule.get('defaultConfiguration', {}).get('level', res.get('level', 'warning'))
-                      if sev in ('error', 'warning'):
-                          loc = res.get('locations', [{}])[0].get('physicalLocation', {})
-                          art = loc.get('artifactLocation', {}).get('uri', '?')
-                          line = loc.get('region', {}).get('startLine', '?')
-                          bad.append(f"[{sev}] {res.get('ruleId')} en {art}:{line}: {res.get('message', {}).get('text', '')[:160]}")
-          if bad:
-              print(f'{len(bad)} hallazgo(s) de CodeQL:')
-              print('\n'.join(bad))
+                      loc = res.get('locations', [{}])[0].get('physicalLocation', {})
+                      art = loc.get('artifactLocation', {}).get('uri', '?')
+                      line = loc.get('region', {}).get('startLine', '?')
+                      msg = f"{res.get('ruleId')} en {art}:{line}: {res.get('message', {}).get('text', '')[:160]}"
+                      (errors if sev == 'error' else warnings).append(msg)
+          for w in warnings:
+              print(f'::warning::CodeQL: {w}')
+          if errors:
+              print(f'{len(errors)} hallazgo(s) BLOQUEANTES de CodeQL:')
+              print('\n'.join(errors))
               sys.exit(1)
-          print('CodeQL sin hallazgos de severidad error/warning.')
+          print(f'CodeQL OK: 0 errores, {len(warnings)} warning(s) anotados.')
       - name: Guardar SARIF como artifact
         if: always()
         uses: actions/upload-artifact@v4

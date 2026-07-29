@@ -127,7 +127,7 @@ public static class AuthExtensions
             http.RequestServices.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("Rbac")
                 .LogWarning("Permiso denegado: user {UserId} rol {Role} pidió {Permission} en {Path} (tenant {TenantId}).",
-                    userId, role, permission, http.Request.Path, tenant.TenantId.Value);
+                    userId, role, permission, Logging.LogValue.Safe(http.Request.Path.ToString()), tenant.TenantId.Value);
             return Results.Problem(title: "Auth.Forbidden",
                 detail: "Tu rol no tiene permiso para esta acción.", statusCode: StatusCodes.Status403Forbidden);
         }

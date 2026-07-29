@@ -137,7 +137,8 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("MiCorreo {Path} devolvió {Status}: {Body}", path, (int)response.StatusCode, Clip(body));
+                logger.LogWarning("MiCorreo {Path} devolvió {Status}: {Body}",
+                    Logging.LogValue.Safe(path), (int)response.StatusCode, Logging.LogValue.Safe(body, 300));
                 throw new MiCorreoException(ExtractMessage(body, $"MiCorreo devolvió {(int)response.StatusCode}."), response.StatusCode);
             }
 
@@ -245,5 +246,4 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
         }
     }
 
-    private static string Clip(string s) => s.Length <= 300 ? s : s[..300];
 }
