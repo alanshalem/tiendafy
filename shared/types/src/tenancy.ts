@@ -32,12 +32,7 @@ export interface ThemeTokens {
 }
 
 export type SectionType =
-  | 'hero'
-  | 'featured-products'
-  | 'collection-grid'
-  | 'newsletter'
-  | 'rich-text'
-  | 'image-banner';
+  'hero' | 'featured-products' | 'collection-grid' | 'newsletter' | 'rich-text' | 'image-banner';
 
 /** Sección componible del builder de temas. */
 export interface ThemeSection {

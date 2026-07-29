@@ -18,8 +18,9 @@ interface DropdownContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   menuId: string;
-  triggerRef: React.RefObject<HTMLButtonElement>;
-  menuRef: React.RefObject<HTMLDivElement>;
+  // RefObject<T | null>: forma que devuelve useRef(null) con @types/react 19+.
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  menuRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const DropdownContext = createContext<DropdownContextValue | null>(null);
