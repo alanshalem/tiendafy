@@ -12,9 +12,13 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read # repos privados: analyze consulta el workflow run al subir el SARIF
 
 jobs:
   analyze:
+    # Dependabot corre con token read-only: no puede subir resultados de
+    # seguridad. Sus PRs se saltean (el análisis real corre al mergear a main).
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

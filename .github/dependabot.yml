@@ -6,10 +6,26 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # pnpm 11 rechaza paquetes publicados hace <24 h (guard de supply chain,
+    # minimumReleaseAge). El cooldown hace que Dependabot solo proponga
+    # versiones con al menos 2 días de maduración — sin PRs rojos por eso.
+    cooldown:
+      default-days: 2
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # Majors que se encaran a mano y en conjunto (vite+vitest+plugin van
+      # juntos; @types/node sigue al Node de los Dockerfiles):
+      - dependency-name: vitest
+        update-types: [version-update:semver-major]
+      - dependency-name: '@vitejs/plugin-react'
+        update-types: [version-update:semver-major]
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: nuget
     directory: /backend
@@ -33,7 +49,15 @@ updates:
     directory: /storefront
     schedule:
       interval: weekly
+    ignore:
+      # El salto de major de Node (22 LTS → 24/26) se hace a mano: los
+      # Dockerfiles dependen de corepack, que Node quitó en 25+.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
   - package-ecosystem: docker
     directory: /admin
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]

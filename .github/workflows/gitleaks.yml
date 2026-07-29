@@ -8,9 +8,13 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # la action enumera los commits del PR vía API
 
 jobs:
   scan:
+    # PRs de Dependabot: token read-only sin acceso a la API de PRs (la action
+    # crashea) y sus commits no traen secretos. Se escanean igual al mergear.
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
