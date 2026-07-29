@@ -1,9 +1,28 @@
 import type { HelpLinkId } from './features';
 
+/** Demos visuales: componentes REALES del panel renderizados dentro del artículo. */
+export type HelpDemoId =
+  | 'orderStatuses' // badges de estado de una venta, idénticos a los de Ventas
+  | 'campaignStatuses' // badges de estado de una campaña de email
+  | 'switch' // el toggle on/off que se usa en todas las configuraciones
+  | 'helpLink' // el link "Más sobre…" que aparece al pie de cada pantalla
+  | 'coupon' // cómo ve el comprador un cupón aplicado en el checkout
+  | 'storefrontPreview'; // mini tienda interactiva para el artículo de diseño
+
+export type HelpBlock =
+  | { type: 'callout'; tone: 'tip' | 'info' | 'warning' | 'danger'; title?: string; text: string }
+  | { type: 'path'; label?: string; segments: string[] } // ruta dentro del panel: "Configuración → Medios de pago"
+  | { type: 'table'; headers: string[]; rows: string[][] }
+  | { type: 'terms'; items: { term: string; def: string }[] } // diccionario término → definición
+  | { type: 'checklist'; items: string[] }
+  | { type: 'demo'; demo: HelpDemoId; caption?: string };
+
 export interface HelpSection {
   heading: string;
   paragraphs?: string[];
   steps?: string[];
+  /** Bloques ricos (callouts, tablas, demos…) — se renderizan después del texto. */
+  blocks?: HelpBlock[];
 }
 
 export interface HelpArticle {
@@ -40,6 +59,31 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Antes de difundir tu tienda, hacete una compra de prueba: agregá un producto al carrito, completá el checkout (email → entrega → pago) y pagá con las tarjetas de prueba de Mercado Pago.',
           'Verificá que la orden aparezca en Ventas, que llegue el email de confirmación y que puedas marcarla como enviada.',
         ],
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'La orden aparece en Ventas como “Pagada”.',
+              'Llegó el email de confirmación con tu logo y colores.',
+              'Pudiste marcarla como enviada y llegó el aviso de “pedido en camino”.',
+              'Si configuraste facturación, la venta muestra su factura con CAE.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'La ayuda te sigue a todos lados',
+        paragraphs: [
+          'No hace falta memorizar nada: al pie de cada pantalla del panel hay un link que abre la guía de esa pantalla en una pestaña nueva.',
+        ],
+        blocks: [
+          {
+            type: 'demo',
+            demo: 'helpLink',
+            caption:
+              'Este link aparece al pie de cada pantalla del panel y abre el artículo correspondiente.',
+          },
+        ],
       },
     ],
   },
@@ -57,13 +101,32 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → Medios de pago, tocá “Conectá tu cuenta”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
           'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras (requiere rol dueño o administrador).',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
       },
       {
         heading: 'Checkout Pro vs. Checkout integrado',
         paragraphs: [
-          'Checkout Pro: el cliente paga en la página de Mercado Pago y vuelve a tu tienda. Cero fricción para arrancar, todos los medios de pago (tarjetas, dinero en cuenta, Rapipago, cuotas) y la mejor tasa de aprobación.',
-          'Checkout integrado: el cliente carga su tarjeta sin salir de tu tienda, con tu diseño. Experiencia más premium; acepta tarjetas de crédito y débito con cuotas.',
           'En ambos casos los datos de la tarjeta los procesa Mercado Pago: nunca tocan los servidores de tu tienda. Cambiás de modo cuando quieras y aplica al instante.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['', 'Checkout Pro', 'Checkout integrado'],
+            rows: [
+              [
+                'Dónde paga',
+                'En la página de Mercado Pago (y vuelve a tu tienda)',
+                'En tu tienda, sin salir, con tu diseño',
+              ],
+              [
+                'Medios de pago',
+                'Todos: tarjetas, dinero en cuenta, Rapipago, cuotas',
+                'Tarjetas de crédito y débito, con cuotas',
+              ],
+              ['Aprobación', 'La mejor tasa (el cliente ya está logueado en MP)', 'Muy buena'],
+              ['Ideal para', 'Arrancar sin fricción', 'Experiencia más premium y de marca'],
+            ],
+          },
         ],
       },
       {
@@ -75,13 +138,28 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Probar sin riesgo',
         paragraphs: [
-          'Mercado Pago se prueba con cuentas de prueba: creá un usuario vendedor y uno comprador en tu panel de MP, conectá el vendedor y pagá con las tarjetas de prueba (titular APRO aprueba, OTHE rechaza).',
+          'Mercado Pago se prueba con cuentas de prueba: creá un usuario vendedor y uno comprador en tu panel de MP, conectá el vendedor y pagá con las tarjetas de prueba.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'El truco del titular',
+            text: 'Con las tarjetas de prueba, el nombre del titular decide el resultado: “APRO” aprueba el pago, “OTHE” lo rechaza. Así probás los dos caminos.',
+          },
         ],
       },
       {
         heading: 'Comisiones y plazos',
         paragraphs: [
-          'Tiendafy no cobra comisión por venta. Mercado Pago sí: un porcentaje que depende del plazo de liberación del dinero que elijas en tu panel de MP (al instante cuesta más; a 10 o 18 días, menos). La comisión se descuenta antes de acreditarte — el detalle exacto está en tu panel de Mercado Pago, en “Costos”.',
+          'Mercado Pago cobra un porcentaje que depende del plazo de liberación del dinero que elijas en tu panel de MP (al instante cuesta más; a 10 o 18 días, menos). La comisión se descuenta antes de acreditarte — el detalle exacto está en tu panel de Mercado Pago, en “Costos”.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Tiendafy no cobra comisión por venta. Lo único que se descuenta de tus cobros es la comisión de Mercado Pago.',
+          },
         ],
       },
     ],
@@ -103,11 +181,16 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       },
       {
         heading: 'Antes de empezar, tené a mano',
-        steps: [
-          'Tu CUIT y tu razón social (el nombre legal del negocio).',
-          'Saber tu categoría: Responsable Inscripto o Monotributo.',
-          'Tu clave fiscal de ARCA (la misma con la que hacés trámites en su web).',
-          'El número de punto de venta habilitado en ARCA para Web Services — o darlo de alta ahí, es un trámite corto (el paso 3 te lo explica).',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Tu CUIT y tu razón social (el nombre legal del negocio).',
+              'Saber tu categoría: Responsable Inscripto o Monotributo.',
+              'Tu clave fiscal de ARCA (la misma con la que hacés trámites en su web).',
+              'El número de punto de venta habilitado en ARCA para Web Services — o darlo de alta ahí, es un trámite corto (el paso 3 te lo explica).',
+            ],
+          },
         ],
       },
       {
@@ -117,6 +200,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Elegí tu condición: Responsable Inscripto o Monotributo.',
           'Dejá el ambiente en Homologación: es el modo de práctica, con facturas de prueba sin validez fiscal. A Producción pasás recién cuando todo funciona.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Facturación'] }],
       },
       {
         heading: 'Paso 2 — Certificado digital',
@@ -156,6 +240,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Descargá el PDF desde el detalle de la venta (panel Facturación).',
           'Cuando funcione, repetí el certificado para el ambiente Producción (ARCA usa certificados separados) y cambiá el ambiente. Desde ahí, facturas reales.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'El certificado de Homologación NO sirve en Producción: ARCA usa certificados separados por ambiente. Al pasar a Producción hay que repetir el trámite del certificado una vez más.',
+          },
+        ],
       },
       {
         heading: 'Reembolsos y notas de crédito',
@@ -171,16 +262,48 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       },
       {
         heading: 'Diccionario de palabras raras',
-        steps: [
-          'ARCA: la AFIP renombrada — el organismo de impuestos al que se le pide cada factura.',
-          'CAE: el “sello de aprobación” que ARCA le pone a cada factura. Sin CAE no vale; con CAE es oficial. Tiene fecha de vencimiento.',
-          'Punto de venta: el “cajón numerado” de tus comprobantes (el 0001 de “0001-00000123”). Podés tener varios: uno para la web, otro para el local.',
-          'Certificado digital: el “DNI” de tu tienda para hablar con ARCA por internet — ARCA solo le contesta a quien tenga uno válido a su nombre.',
-          'Clave privada: el secreto que acompaña al certificado. Nunca se comparte con nadie (ni con ARCA); Tiendafy la genera y la guarda cifrada.',
-          'CSR: el “formulario de pedido” del certificado. Tiendafy lo arma, vos lo subís a ARCA, ARCA te devuelve el certificado. Una sola vez.',
-          'TA: el pase de entrada temporal que ARCA le da a tu tienda; dura 12 horas y se renueva solo.',
-          'Homologación: el modo de práctica de ARCA — idéntico al real pero las facturas no valen. Siempre se prueba ahí primero.',
-          'Nota de Crédito: la “factura al revés” que compensa una venta anulada o devuelta.',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'ARCA',
+                def: 'La AFIP renombrada — el organismo de impuestos al que se le pide cada factura.',
+              },
+              {
+                term: 'CAE',
+                def: 'El “sello de aprobación” que ARCA le pone a cada factura. Sin CAE no vale; con CAE es oficial. Tiene fecha de vencimiento.',
+              },
+              {
+                term: 'Punto de venta',
+                def: 'El “cajón numerado” de tus comprobantes (el 0001 de “0001-00000123”). Podés tener varios: uno para la web, otro para el local.',
+              },
+              {
+                term: 'Certificado digital',
+                def: 'El “DNI” de tu tienda para hablar con ARCA por internet — ARCA solo le contesta a quien tenga uno válido a su nombre.',
+              },
+              {
+                term: 'Clave privada',
+                def: 'El secreto que acompaña al certificado. Nunca se comparte con nadie (ni con ARCA); Tiendafy la genera y la guarda cifrada.',
+              },
+              {
+                term: 'CSR',
+                def: 'El “formulario de pedido” del certificado. Tiendafy lo arma, vos lo subís a ARCA, ARCA te devuelve el certificado. Una sola vez.',
+              },
+              {
+                term: 'TA',
+                def: 'El pase de entrada temporal que ARCA le da a tu tienda; dura 12 horas y se renueva solo.',
+              },
+              {
+                term: 'Homologación',
+                def: 'El modo de práctica de ARCA — idéntico al real pero las facturas no valen. Siempre se prueba ahí primero.',
+              },
+              {
+                term: 'Nota de Crédito',
+                def: 'La “factura al revés” que compensa una venta anulada o devuelta.',
+              },
+            ],
+          },
         ],
       },
     ],
@@ -223,6 +346,38 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'La Ley 24.240 aplica a todas tus ventas: garantía legal de los productos, información veraz de precios (el precio final debe incluir impuestos) y derecho a devolución. Publicar una política de cambios clara en una página de contenido evita el 90% de los conflictos.',
         ],
       },
+      {
+        heading: 'Resumen: qué exige la ley y quién lo resuelve',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Obligación', 'Norma', 'Cómo quedás cubierto'],
+            rows: [
+              [
+                'Datos de contacto visibles',
+                'Res. 104/2005',
+                'Vos los cargás una vez; aparecen solos en Contacto y en el pie',
+              ],
+              [
+                'Botón de arrepentimiento',
+                'Res. 424/2020',
+                'Ya está en el pie de tu tienda; las solicitudes llegan a Mensajes',
+              ],
+              [
+                'Términos y privacidad',
+                'Ley 25.326',
+                'Se publican versiones genéricas; podés reemplazarlas con tus páginas',
+              ],
+              ['Factura por cada venta', 'ARCA', 'Configurás la facturación una vez y se emite sola'],
+              [
+                'Precios finales e info veraz',
+                'Ley 24.240',
+                'Mostrá precios con impuestos y una política de cambios clara',
+              ],
+            ],
+          },
+        ],
+      },
     ],
   },
 
@@ -236,6 +391,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Cuando un cliente paga, la orden aparece en Ventas como “Pagada” (la confirmación llega por Mercado Pago automáticamente, aunque el cliente cierre el navegador).',
           'Al expandir una venta ves los productos, los datos del comprador (nombre, teléfono, DNI/CUIT), la dirección de entrega, el medio de envío elegido, las notas del pedido y el pago asociado.',
+        ],
+        blocks: [
+          {
+            type: 'demo',
+            demo: 'orderStatuses',
+            caption: 'Todos los estados posibles de una venta, tal como se ven en la tabla de Ventas.',
+          },
         ],
       },
       {
@@ -251,7 +413,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Desde la venta, tocá “Reembolsar”. Podés devolver el total restante o un monto parcial (con motivo opcional). El dinero vuelve por Mercado Pago y la orden pasa a “Reembolsada” o “Reembolso parcial”.',
           'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo.',
-          'Solo los roles dueño, administrador y finanzas pueden reembolsar. Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Solo los roles dueño, administrador y finanzas pueden reembolsar. Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos.',
+          },
         ],
       },
       {
@@ -275,6 +443,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Pago: ve el resumen de todo lo elegido (con links “Cambiar”), puede agregar notas del pedido y paga según el modo que configures: redirigido a Mercado Pago o con el formulario de tarjeta embebido.',
           'El costo de envío se suma al total automáticamente y siempre se calcula en el servidor: el cliente no puede manipularlo.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Opciones del checkout'] }],
       },
       {
         heading: 'Cupones en el checkout',
@@ -304,11 +473,26 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Opcional: monto mínimo de compra, vigencia (desde/hasta) y límite de usos.',
           'Activalo. El cliente lo ingresa en el checkout y el descuento se aplica al instante.',
         ],
+        blocks: [
+          { type: 'path', segments: ['Descuentos', 'Agregar'] },
+          {
+            type: 'demo',
+            demo: 'coupon',
+            caption: 'Así ve el comprador un cupón aplicado en el resumen del pedido.',
+          },
+        ],
       },
       {
         heading: 'Buenas prácticas',
         paragraphs: [
           'Usá códigos cortos y memorables. Poné vigencia para generar urgencia. El reporte de cupones (Estadísticas → Reporte de cupones) te muestra cuánto se usó cada uno y cuánta plata moviste con ellos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Si asociás un cupón a una campaña de email, el detalle de la campaña te muestra cuántas ventas y cuánta plata generó — la forma más confiable de medir marketing.',
+          },
         ],
       },
     ],
@@ -328,6 +512,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Definí el precio (0 = gratis) y un plazo visible, ej: “Llega en 3 a 5 días hábiles”.',
           'Guardá. Aparece al instante en el checkout de tu tienda.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío'] }],
       },
       {
         heading: 'Cómo lo ve el comprador',
@@ -347,6 +532,22 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Además de los métodos manuales, podés conectar cotizadores en vivo: Correo Argentino (a domicilio o a sucursal) y Zipnova (Andreani, OCA y más transportes detrás de una sola cuenta, con etiqueta PDF). El comprador pone su dirección en el checkout y ve los precios reales de todos los que tengas activos, juntos.',
           'Se configuran en esta misma pantalla — mirá los artículos de Correo Argentino y de Zipnova.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Opción', 'Precio', 'Etiqueta / despacho'],
+            rows: [
+              ['Domicilio (manual)', 'Fijo, lo definís vos', 'Lo coordinás vos'],
+              ['Retiro en punto', 'Fijo o gratis', 'El cliente retira'],
+              ['Correo Argentino', 'Cotizado en vivo por CP', 'Se paga y etiqueta en el panel MiCorreo'],
+              [
+                'Zipnova (Andreani, OCA…)',
+                'Cotizado en vivo por ciudad y CP',
+                'Etiqueta PDF directa desde la venta',
+              ],
+            ],
+          },
         ],
       },
     ],
@@ -372,6 +573,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Las credenciales de API (userToken y passwordToken): se piden por el formulario de contacto de MiCorreo. Correo te da credenciales de PRUEBA y de PRODUCCIÓN por separado.',
           'Tu customerId de MiCorreo. Si no lo sabés, en la configuración podés poner tu email y contraseña de MiCorreo y lo buscamos por vos (no se guardan).',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Las credenciales de PRUEBA y de PRODUCCIÓN son juegos distintos: las de prueba no funcionan en producción ni al revés. Guardá cada juego con su ambiente.',
+          },
+        ],
       },
       {
         heading: 'Configurarlo',
@@ -382,6 +590,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Definí el paquete estimado por unidad (peso y medidas): la cotización multiplica por la cantidad de productos del carrito. Límites de Correo: 25 kg y 150 cm por lado.',
           'Elegí qué ofrecer: domicilio, sucursal o ambos. Guardá y tocá “Probar cotización” para validar todo con datos reales.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Correo Argentino'] }],
       },
       {
         heading: 'Empezá en modo prueba',
@@ -464,11 +673,22 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Definí el paquete estimado por unidad (peso y medidas en cm) y guardá.',
           'Usá “Probar cotización”: cotizar es gratis y valida todo el circuito con datos reales.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Zipnova'] }],
       },
       {
         heading: 'Importante: en Zipnova todo es real',
-        paragraphs: [
-          'Zipnova no tiene modo de prueba ni sandbox. Cotizar no cuesta nada, pero CREAR un envío es un envío de verdad: consume saldo de tu cuenta y genera documentación de despacho. Por eso el panel te pide confirmar antes de crear, y nunca crea dos envíos para la misma venta aunque toques el botón dos veces.',
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Cotizar no cuesta nada, pero CREAR un envío es un envío de verdad: consume saldo de tu cuenta y genera documentación de despacho. Por eso el panel te pide confirmar antes de crear, y nunca crea dos envíos para la misma venta aunque toques el botón dos veces.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Modo de prueba',
+            text: 'Si querés probar el circuito completo sin gastar saldo, escribile a soporte de Zipnova y pedí que habiliten la modalidad “testing” en tu cuenta. Cuando arranques a operar en serio, la desactivan.',
+          },
         ],
       },
       {
@@ -500,6 +720,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Un centro de distribución es un punto desde el que salen tus envíos o donde el cliente retira. Si tenés varios, los administrás por separado.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Centros de distribución'] }],
       },
       {
         heading: 'Cómo agregar uno',
@@ -526,12 +747,21 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Asignale categorías para que aparezca en los filtros de tu tienda.',
           'Publicalo. Los borradores y archivados no se ven en la tienda.',
         ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Agregar'] }],
       },
       {
         heading: 'Inventario y reservas',
         paragraphs: [
           'El stock se controla por variante en Productos → Inventario. Cuando un cliente inicia el pago, su stock se reserva; si no paga en 30 minutos, la reserva se libera sola — nunca vendés lo que no tenés.',
           'El historial de movimientos de cada variante muestra entradas, ventas y reservas.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Anti-sobreventa',
+            text: 'Dos clientes no pueden pagar la última unidad a la vez: el primero que inicia el pago la reserva; el segundo ve “sin stock” hasta que la reserva se libere.',
+          },
         ],
       },
       {
@@ -560,6 +790,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'En Clientes ves y buscás a todas las personas registradas y a quienes te escribieron. Los roles vendedor, finanzas y soporte pueden consultarlos; editar requiere administrador.',
         ],
+        blocks: [{ type: 'path', segments: ['Clientes'] }],
       },
     ],
   },
@@ -575,6 +806,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'El cliente, desde su cuenta → Mis pedidos, toca “Consultar sobre este pedido” y abre un chat ligado a esa compra. Puede escribir y adjuntar fotos (JPG/PNG) o PDF de hasta 10 MB.',
           'Vos respondés desde Chat posventa en el menú: una bandeja con todas las conversaciones, las no leídas primero y con contador.',
         ],
+        blocks: [{ type: 'path', segments: ['Chat posventa'] }],
       },
       {
         heading: 'Seguridad de los archivos',
@@ -601,6 +833,15 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Confirmación de compra y de pago, pedido en camino (con seguimiento), listo para retirar, cancelación/reembolso, bienvenida y verificación de cuenta, recuperación de contraseña y carritos abandonados. Activás cada uno por separado.',
         ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'E-mails automáticos'] },
+          {
+            type: 'demo',
+            demo: 'switch',
+            caption:
+              'Cada tipo de email tiene su interruptor — probalo. Apagado, ese email simplemente no se envía.',
+          },
+        ],
       },
       {
         heading: 'Con la estética de tu tienda',
@@ -615,6 +856,20 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → E-mails automáticos, tocá “Editar contenido”.',
           'Cambiá el asunto y el cuerpo con el editor. Usá variables como {{name}}, {{order_id}}, {{total}} o {{items}} — se reemplazan al enviar.',
           'La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu branding y datos de ejemplo.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Variable', 'Se reemplaza por'],
+            rows: [
+              ['{{store}}', 'El nombre de tu tienda'],
+              ['{{name}}', 'El nombre del cliente'],
+              ['{{order_id}}', 'El número del pedido'],
+              ['{{total}}', 'El total pagado'],
+              ['{{items}}', 'La tabla de productos con fotos y precios'],
+              ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],
+            ],
+          },
         ],
       },
       {
@@ -643,6 +898,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Los e-mails automáticos son transaccionales: confirman compras, envíos, cuentas — se disparan solos. Las campañas son marketing: VOS decidís cuándo escribirle a tu base (“llegó la colección nueva”, “20% este finde”). Viven en Marketing, en el menú principal.',
         ],
+        blocks: [
+          { type: 'path', segments: ['Marketing'] },
+          {
+            type: 'demo',
+            demo: 'campaignStatuses',
+            caption: 'Los estados por los que pasa una campaña, tal como se ven en la lista de Marketing.',
+          },
+        ],
       },
       {
         heading: 'Crear y enviar una campaña',
@@ -663,7 +926,20 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Medir lo que pasó',
         paragraphs: [
-          'En el detalle de cada campaña enviada ves: enviados y fallidos, aperturas y clicks (las aperturas están subestimadas: muchos clientes de correo bloquean imágenes), bajas que generó, costo estimado y — si asociaste un cupón — las ventas y el dinero atribuidos a la campaña. Esa última es la métrica en la que conviene decidir.',
+          'En el detalle de cada campaña enviada ves: enviados y fallidos, aperturas y clicks, bajas que generó, costo estimado y — si asociaste un cupón — las ventas y el dinero atribuidos a la campaña.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Métrica', 'Qué tan confiable es'],
+            rows: [
+              ['Enviados / fallidos', 'Exacta'],
+              ['Aperturas', 'Subestimada: muchos clientes de correo bloquean imágenes'],
+              ['Clicks', 'Buena'],
+              ['Bajas', 'Exacta'],
+              ['Ventas por cupón', 'La más confiable — decidí con esta'],
+            ],
+          },
         ],
       },
       {
@@ -695,6 +971,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Una app en developers.facebook.com con el producto WhatsApp habilitado.',
           'El Phone Number ID (está en el panel de WhatsApp de tu app) y un access token permanente (se genera con un system user en Meta Business).',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'El número que conectes a la API deja de funcionar en la app de WhatsApp del teléfono. Usá un número dedicado a la tienda, nunca tu personal.',
+          },
+        ],
       },
       {
         heading: 'Conectar y probar',
@@ -702,6 +985,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → WhatsApp automático, pegá el Phone Number ID y el token, y tocá Conectar.',
           'Usá “Enviar mensaje de prueba” con tu propio número para validar la conexión (en modo prueba de Meta solo llega a números registrados como testers).',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'WhatsApp automático'] }],
       },
       {
         heading: 'Las plantillas las aprueba Meta',
@@ -741,7 +1025,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: '¿Por qué es obligatorio?',
         paragraphs: [
           'La Resolución N° 104/2005 de Defensa del Consumidor exige que tu tienda online muestre datos de contacto reales y visibles (email, dirección y teléfono).',
-          'No cumplir puede traerte sanciones. Cargá la info verdadera de tu negocio.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'No cumplir puede traerte sanciones. Cargá la información verdadera de tu negocio, no datos de relleno.',
+          },
         ],
       },
       {
@@ -771,7 +1061,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Cargá tu número',
         paragraphs: [
           'Ingresá el número con código de país y sin el “+”. Para Argentina el formato es: 54 + 9 (celular) + característica + número.',
-          'Ejemplo: para 11 2345-6789 (CABA, celular) se carga 5491123456789.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Ejemplo',
+            text: 'Para el 11 2345-6789 (CABA, celular) se carga: 5491123456789.',
+          },
         ],
       },
       {
@@ -795,6 +1092,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Sirve para avisos como demoras, horarios de despacho, promociones o aclaraciones. Aparece durante el checkout y en el seguimiento del pedido.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Opciones del checkout'] }],
       },
       {
         heading: 'Tiempos de entrega',
@@ -815,7 +1113,28 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'El editor visual',
         paragraphs: [
           'En Canales de venta → Tienda online armás tu tienda por secciones: portada, productos destacados, banners, beneficios, carrito y más. Todo con vista previa al instante.',
-          'Los cambios se guardan como borrador automáticamente; tu tienda pública no cambia hasta que toques “Publicar”.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Canales de venta', 'Tienda online'] },
+          {
+            type: 'demo',
+            demo: 'storefrontPreview',
+            caption:
+              'Probalo acá mismo: tocá un color y mirá cómo cambia toda la tienda. En el editor real es igual, pero con TU tienda y tus productos.',
+          },
+        ],
+      },
+      {
+        heading: 'Borrador y publicar',
+        paragraphs: [
+          'Los cambios se guardan como borrador automáticamente; tu tienda pública no cambia hasta que toques “Publicar”. Podés experimentar tranquilo: nadie ve el borrador más que vos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Si te arrepentís de un cambio, el editor tiene deshacer/rehacer. Y mientras no publiques, tu tienda pública sigue exactamente igual.',
+          },
         ],
       },
       {
@@ -845,6 +1164,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'La URL se genera sola (ej: /paginas/como-comprar).',
           'Publicala. Las no publicadas quedan como borrador, invisibles para tus clientes.',
         ],
+        blocks: [
+          { type: 'path', segments: ['Páginas', 'Agregar'] },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Si creás una página con la URL “terminos” o “privacidad”, reemplaza automáticamente a la versión genérica que publica tu tienda.',
+          },
+        ],
       },
       {
         heading: 'Dónde se ven',
@@ -870,6 +1197,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'Tiempo real: quién está navegando tu tienda ahora.',
           'Reporte de cupones: uso y descuento total de cada código.',
         ],
+        blocks: [{ type: 'path', segments: ['Estadísticas'] }],
       },
       {
         heading: 'Quién las ve',
@@ -891,6 +1219,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'En el editor de diseño (Canales de venta → Tienda online → Identidad → “Cómo aparecés en Google”) definís el título y la descripción que se muestran en los resultados de búsqueda. Un buen título: “Marca — qué vendés” en menos de 60 caracteres; la descripción, un gancho de hasta 160.',
         ],
+        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Identidad'] }],
       },
       {
         heading: 'Lo que la tienda hace sola',
@@ -925,7 +1254,22 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Dónde va cada cosa',
         paragraphs: [
-          'En Configuración → Códigos externos hay dos cajas: la de <head> es para etiquetas de medición y verificación (Google Analytics, Meta Pixel, Search Console); la de antes de </body> es para widgets y chats. Lo que pegues se carga en todas las páginas de tu tienda.',
+          'En Configuración → Códigos externos hay dos cajas. Lo que pegues se carga en todas las páginas de tu tienda.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Códigos externos'] },
+          {
+            type: 'table',
+            headers: ['Caja', 'Para qué sirve', 'Ejemplos'],
+            rows: [
+              [
+                '<head>',
+                'Etiquetas de medición y verificación',
+                'Google Analytics, Meta Pixel, Search Console',
+              ],
+              ['Antes de </body>', 'Widgets visibles y chats', 'Chats de atención, botones de terceros'],
+            ],
+          },
         ],
       },
       {
@@ -946,8 +1290,12 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       },
       {
         heading: 'Cuidados',
-        paragraphs: [
-          'Pegá solo códigos de servicios que conozcas: un script se ejecuta con acceso total a la página. Un script roto o lento puede afectar la velocidad o el funcionamiento de tu tienda — si algo se rompe después de pegar un código, borralo y guardá.',
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Pegá solo códigos de servicios que conozcas: un script se ejecuta con acceso total a la página. Un script roto o lento puede afectar la velocidad o el funcionamiento de tu tienda — si algo se rompe después de pegar un código, borralo y guardá.',
+          },
         ],
       },
     ],
@@ -962,6 +1310,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Redireccionamientos 301',
         paragraphs: [
           'Cuando una URL vieja deja de existir (cambiaste el nombre de un producto, borraste una página), creá una redirección 301 hacia la nueva. El visitante no ve un error y Google transfiere el posicionamiento a la URL nueva. Formato: desde “/producto-viejo” hacia “/productos/nuevo-slug”.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Regla simple: cada vez que cambies o borres una URL que ya estaba publicada, creá su redirección en el momento. Es un minuto que protege meses de posicionamiento.',
+          },
         ],
       },
       {
@@ -992,22 +1347,49 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → Usuarios, tocá “Agregar”, poné su email y elegí el rol.',
           'Listo: al entrar al panel ve solo las secciones y acciones de su rol.',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Usuarios'] }],
       },
       {
         heading: 'Los roles',
-        steps: [
-          'Dueño: control total. Único que gestiona dominios, el plan y a otros dueños.',
-          'Administrador: todo lo operativo y la configuración, sin plan ni gestión de dueños.',
-          'Vendedor: ventas (ver y despachar), clientes, chat posventa y mensajes. No puede reembolsar ni tocar configuración.',
-          'Catálogo: productos, categorías, inventario e imágenes. No ve ventas ni clientes.',
-          'Finanzas: lectura de ventas y estadísticas + ejecutar reembolsos + ver la configuración de pagos.',
-          'Soporte: chat posventa, mensajes de contacto y lectura de pedidos para dar contexto.',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Rol', 'Qué puede', 'Qué NO puede'],
+            rows: [
+              ['Dueño', 'Control total: dominios, plan y gestión de otros dueños', '—'],
+              ['Administrador', 'Todo lo operativo y la configuración', 'Plan y gestión de dueños'],
+              [
+                'Vendedor',
+                'Ventas (ver y despachar), clientes, chat posventa y mensajes',
+                'Reembolsar ni tocar configuración',
+              ],
+              ['Catálogo', 'Productos, categorías, inventario e imágenes', 'Ver ventas ni clientes'],
+              [
+                'Finanzas',
+                'Leer ventas y estadísticas, ejecutar reembolsos, ver config de pagos',
+                'Editar catálogo ni configuración general',
+              ],
+              [
+                'Soporte',
+                'Chat posventa, mensajes de contacto y lectura de pedidos',
+                'Modificar ventas o configuración',
+              ],
+            ],
+          },
         ],
       },
       {
         heading: 'Reglas de seguridad',
-        paragraphs: [
-          'Nadie puede asignar un rol por encima del propio, solo un dueño puede nombrar o modificar dueños, y la tienda nunca puede quedar sin dueño. Todo intento de acción sin permiso se bloquea y queda registrado.',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Nadie puede asignar un rol por encima del propio.',
+              'Solo un dueño puede nombrar o modificar dueños.',
+              'La tienda nunca puede quedar sin dueño.',
+              'Todo intento de acción sin permiso se bloquea y queda registrado.',
+            ],
+          },
         ],
       },
     ],
@@ -1031,6 +1413,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En el panel de tu registrador, apuntá un registro CNAME a la plataforma.',
           'Agregá el dominio en la sección Dominios y guardá.',
           'Esperá la propagación de DNS (puede tardar hasta 48 hs).',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'La propagación de DNS no depende de Tiendafy ni de tu registrador solamente: cada proveedor de internet actualiza a su ritmo. Si a las 48 hs sigue pendiente, ahí sí hay que revisar la configuración.',
+          },
         ],
       },
       {
