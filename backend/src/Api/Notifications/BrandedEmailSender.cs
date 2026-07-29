@@ -26,7 +26,7 @@ public sealed class BrandedEmailSender(
         var branding = await ResolveBrandingAsync(tenantId, ct);
         // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
         await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
-            fromName: branding.StoreName, ct: ct);
+            fromName: branding.StoreName, ct: ct, tenantTag: tenantId.ToString());
 
         // Contador de uso (panel de costos del merchant). Nunca rompe el envío.
         try

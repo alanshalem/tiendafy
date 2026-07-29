@@ -32,11 +32,19 @@ namespace Notifications.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("campaign_id");
 
+                    b.Property<DateTime?>("ClickedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("clicked_at_utc");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("email");
+
+                    b.Property<DateTime?>("OpenedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at_utc");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -73,10 +81,19 @@ namespace Notifications.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("audience");
 
+                    b.Property<string>("AudienceJson")
+                        .HasColumnType("text")
+                        .HasColumnName("audience_json");
+
                     b.Property<string>("BodyHtml")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("body_html");
+
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("coupon_code");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -86,9 +103,17 @@ namespace Notifications.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("failed_count");
 
+                    b.Property<string>("ProductsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("products_json");
+
                     b.Property<int>("RecipientCount")
                         .HasColumnType("integer")
                         .HasColumnName("recipient_count");
+
+                    b.Property<DateTime?>("ScheduledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at_utc");
 
                     b.Property<DateTime?>("SentAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -131,6 +156,10 @@ namespace Notifications.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("campaign_id");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")

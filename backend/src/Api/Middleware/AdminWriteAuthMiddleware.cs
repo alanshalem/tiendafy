@@ -34,6 +34,8 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         // Baja de campañas: el destinatario no tiene sesión (el token firmado
         // es la autorización).
         "/api/v1/marketing/unsubscribe",
+        // Webhook de Resend (firma svix propia; sin secret configurado, 404).
+        "/api/v1/webhooks/resend",
     };
 
     public async Task InvokeAsync(HttpContext ctx, IMembershipService memberships)

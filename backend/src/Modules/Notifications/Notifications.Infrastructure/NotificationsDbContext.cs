@@ -61,6 +61,9 @@ public sealed class NotificationsDbContext : DbContext
         ec.Property(x => x.Subject).HasMaxLength(255).IsRequired();
         ec.Property(x => x.BodyHtml).HasColumnType("text").IsRequired();
         ec.Property(x => x.Audience).HasMaxLength(20);
+        ec.Property(x => x.AudienceJson).HasColumnType("text");
+        ec.Property(x => x.CouponCode).HasMaxLength(40);
+        ec.Property(x => x.ProductsJson).HasColumnType("text");
         ec.Property(x => x.Status).HasMaxLength(20);
         ec.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         ec.HasIndex(x => new { x.TenantId, x.CreatedAtUtc });

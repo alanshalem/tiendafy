@@ -92,6 +92,7 @@ builder.Services.AddSingleton<Api.Shipping.CorreoSecretProtector>();
 builder.Services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
 if (runPollingWorkers) builder.Services.AddHostedService<CampaignWorker>();
+builder.Services.AddScoped<CampaignAudienceService>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
 builder.Services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();

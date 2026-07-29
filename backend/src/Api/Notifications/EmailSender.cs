@@ -28,8 +28,9 @@ public interface IEmailSender
 {
     /// <param name="fromName">Nombre visible del remitente (la tienda). Null = el del From configurado.</param>
     /// <param name="replyTo">A dónde van las respuestas del cliente (email de la tienda). Null = sin reply-to.</param>
+    /// <param name="tenantTag">Tag "tenant" para Resend: los webhooks (bounces) lo devuelven y permiten atribuir la supresión a la tienda correcta.</param>
     Task SendAsync(string toEmail, string subject, string htmlBody,
-        string? fromName = null, string? replyTo = null, CancellationToken ct = default);
+        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null);
 }
 
 /// <summary>
@@ -45,7 +46,7 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
     private readonly EmailOptions _o = options.Value;
 
     public async Task SendAsync(string toEmail, string subject, string htmlBody,
-        string? fromName = null, string? replyTo = null, CancellationToken ct = default)
+        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null)
     {
         // En logs el destinatario va SIEMPRE enmascarado (PII) y sanitizado
         // (anti log-forging). El email completo vive en Resend / notification_events.
@@ -68,6 +69,8 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
             subject,
             html = htmlBody,
             reply_to = string.IsNullOrWhiteSpace(replyTo) ? null : new[] { replyTo },
+            // El tag vuelve en los webhooks de Resend → atribuye bounces a la tienda.
+            tags = string.IsNullOrEmpty(tenantTag) ? null : new[] { new { name = "tenant", value = tenantTag } },
         };
 
         for (var attempt = 0; ; attempt++)

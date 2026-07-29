@@ -617,10 +617,23 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
       {
         heading: 'Crear y enviar una campaña',
         steps: [
-          'En Marketing → Nueva campaña, escribí el asunto y el contenido con el editor.',
-          'Elegí la audiencia: Compradores (todos los que te compraron alguna vez) o Todos los contactos con email. Ves el conteo exacto antes de enviar.',
-          'Enviate una prueba a tu propio email: llega EXACTAMENTE como la va a ver el cliente, con tu logo y colores.',
-          'Tocá Enviar y confirmá. El envío sale en tandas en segundo plano — ves el progreso en la lista y podés cancelar lo que falte.',
+          'En Marketing → Nueva campaña, escribí el asunto y el contenido. La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu logo y colores.',
+          'Elegí la audiencia y afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo. O elegí destinatarios uno por uno. El conteo se actualiza en vivo.',
+          'Sumá productos destacados: se muestran como tarjetas con foto, precio y link a tu tienda.',
+          'Asociá un cupón (opcional): después el detalle te dice cuántas ventas y cuánta plata generó la campaña.',
+          'Enviate una prueba, y después Enviar ahora o Programar para una fecha y hora.',
+        ],
+      },
+      {
+        heading: 'Segmentar bien vale oro',
+        paragraphs: [
+          'Ejemplos que funcionan: “gastó más de $100.000” con un cupón VIP; “sin comprar hace 90 días” con un incentivo de vuelta; “compró en los últimos 30 días” para lanzamientos. Un email relevante a 200 personas rinde más que uno genérico a 2.000 — y quema menos tu lista.',
+        ],
+      },
+      {
+        heading: 'Medir lo que pasó',
+        paragraphs: [
+          'En el detalle de cada campaña enviada ves: enviados y fallidos, aperturas y clicks (las aperturas están subestimadas: muchos clientes de correo bloquean imágenes), bajas que generó, costo estimado y — si asociaste un cupón — las ventas y el dinero atribuidos a la campaña. Esa última es la métrica en la que conviene decidir.',
         ],
       },
       {

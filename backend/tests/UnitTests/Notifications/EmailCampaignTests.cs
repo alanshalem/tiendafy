@@ -45,11 +45,11 @@ public class EmailCampaignTests
     }
 
     [Fact]
-    public void UpdateDraft_SoloEnBorrador()
+    public void UpdateDraft_SoloEnBorradorOProgramada()
     {
         var campaign = Draft();
         campaign.StartSending(10);
-        campaign.UpdateDraft("Otro asunto", "<p>otro</p>", "customers");
+        campaign.UpdateDraft("Otro asunto", "<p>otro</p>", "customers", null, null, null);
 
         // Ya no es borrador: nada cambia.
         Assert.Equal("Novedades de julio", campaign.Subject);

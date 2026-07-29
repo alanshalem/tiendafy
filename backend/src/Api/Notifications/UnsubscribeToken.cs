@@ -8,15 +8,15 @@ namespace Api.Notifications;
 /// un link de baja tiene que funcionar aunque el email quede meses en la
 /// bandeja (derecho del destinatario, y requisito de los ESP).
 /// </summary>
-public sealed record UnsubscribePayload(Guid TenantId, string Email);
+public sealed record UnsubscribePayload(Guid TenantId, string Email, Guid? CampaignId = null);
 
 public static class UnsubscribeToken
 {
     private const string Purpose = "Tiendafy.Marketing.Unsubscribe.v1";
 
-    public static string Protect(IDataProtectionProvider dp, Guid tenantId, string email) =>
+    public static string Protect(IDataProtectionProvider dp, Guid tenantId, string email, Guid? campaignId = null) =>
         dp.CreateProtector(Purpose)
-            .Protect(JsonSerializer.Serialize(new UnsubscribePayload(tenantId, email.Trim().ToLowerInvariant())));
+            .Protect(JsonSerializer.Serialize(new UnsubscribePayload(tenantId, email.Trim().ToLowerInvariant(), campaignId)));
 
     public static UnsubscribePayload? Unprotect(IDataProtectionProvider dp, string token)
     {
