@@ -6,21 +6,6 @@ using SharedKernel.Common;
 
 namespace UnitTests.Checkout;
 
-public class ZipnovaUnitsTests
-{
-    [Theory]
-    [InlineData(1, 10)]
-    [InlineData(30, 300)]
-    [InlineData(85, 850)]   // el lavarropas del ejemplo de la spec
-    [InlineData(500, 5000)] // tope de config → tope del contrato en mm
-    public void CmToMm_FactorDiez(int cm, int mm)
-    {
-        // La trampa PA-01 de la spec: quote en cm, create en mm. Un solo
-        // conversor y un test que lo clava.
-        Assert.Equal(mm, ZipnovaUnits.CmToMm(cm));
-    }
-}
-
 public class ZipnovaConfigTests
 {
     private static Result<ZipnovaConfig> Create(

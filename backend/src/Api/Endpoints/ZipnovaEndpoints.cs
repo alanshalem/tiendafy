@@ -12,9 +12,10 @@ namespace Api.Endpoints;
 /// <summary>
 /// Integración con Zipnova (API v2): configuración por tienda, cotización en
 /// vivo para el checkout, creación de envíos con etiqueta PDF y tracking.
-/// Credenciales cifradas, nunca devueltas. Reglas duras del proveedor: sin
-/// sandbox (todo es producción), sin idempotencia en creación (guard local
-/// vía zipnova_shipments) y dimensiones cm-en-quote / mm-en-create.
+/// Credenciales cifradas, nunca devueltas. Reglas duras del proveedor
+/// (confirmadas por soporte jul-2026): sin idempotencia en creación (guard
+/// local vía zipnova_shipments), dimensiones en CM en todos los endpoints,
+/// y pruebas sólo con la modalidad "testing" habilitada sobre la cuenta.
 /// </summary>
 public static class ZipnovaEndpoints
 {
@@ -87,7 +88,7 @@ public static class ZipnovaEndpoints
         });
 
         // Cotización de prueba: valida credenciales y cuenta con una cotización
-        // real (leer no crea nada; en Zipnova no hay sandbox).
+        // real (leer no crea nada ni consume saldo).
         admin.MapPost("/test", async (
             ZipnovaTestRequest req, ITenantContext tenant, IZipnovaRepository repo,
             CorreoSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
@@ -100,7 +101,7 @@ public static class ZipnovaEndpoints
             {
                 var quote = await client.QuoteAsync(Credentials(config, protector), config,
                     req.City?.Trim() ?? "Rosario", req.State?.Trim() ?? "Santa Fe",
-                    req.Zipcode?.Trim() ?? "2000", units: 1, declaredValue: 10000m, ct);
+                    NumericZip(req.Zipcode?.Trim() ?? "2000"), units: 1, declaredValue: 10000m, ct);
                 return Results.Ok(new
                 {
                     ok = true,
@@ -136,7 +137,7 @@ public static class ZipnovaEndpoints
 
             var city = req.City?.Trim();
             var state = req.State?.Trim();
-            var zipcode = req.PostalCode?.Trim();
+            var zipcode = req.PostalCode is null ? null : NumericZip(req.PostalCode.Trim());
             if (string.IsNullOrEmpty(city) || string.IsNullOrEmpty(state) || string.IsNullOrEmpty(zipcode))
                 return Error.Validation("Zipnova.MissingDestination",
                     "Completá ciudad, provincia y código postal para cotizar.").ToProblem();
@@ -224,13 +225,15 @@ public static class ZipnovaEndpoints
             var units = Math.Clamp(req.Units ?? 1, 1, 200);
             var weight = Math.Clamp(req.WeightGrams ?? config.DefaultWeightGrams,
                 ZipnovaConfig.MinWeightGrams, ZipnovaConfig.MaxWeightGrams);
-            // Dimensiones: config en CM → la creación exige MM. Único punto de conversión.
+            // Dimensiones SIEMPRE en CM: la spec pública decía mm para la creación,
+            // pero soporte de Zipnova confirmó por escrito (jul-2026) que TODOS los
+            // endpoints esperan centímetros. No convertir.
             var package = new
             {
                 weight,
-                height = ZipnovaUnits.CmToMm(Math.Clamp(req.HeightCm ?? config.DefaultHeightCm, 1, ZipnovaConfig.MaxSideCm)),
-                width = ZipnovaUnits.CmToMm(Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, ZipnovaConfig.MaxSideCm)),
-                length = ZipnovaUnits.CmToMm(Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, ZipnovaConfig.MaxSideCm)),
+                height = Math.Clamp(req.HeightCm ?? config.DefaultHeightCm, 1, ZipnovaConfig.MaxSideCm),
+                width = Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, ZipnovaConfig.MaxSideCm),
+                length = Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, ZipnovaConfig.MaxSideCm),
                 classification_id = "1",
                 description_1 = Clip($"Pedido {externalId}", 60),
             };
@@ -254,7 +257,7 @@ public static class ZipnovaEndpoints
                     street_extras = string.IsNullOrWhiteSpace(req.StreetExtras) ? null : Clip(req.StreetExtras.Trim(), 120),
                     city = Clip(req.City.Trim(), 80),
                     state = Clip(req.State.Trim(), 80),
-                    zipcode = Clip(req.Zipcode.Trim(), 10),
+                    zipcode = Clip(NumericZip(req.Zipcode.Trim()), 10),
                 },
                 ["packages"] = Enumerable.Repeat(package, units).ToArray(),
             };
@@ -373,6 +376,17 @@ public static class ZipnovaEndpoints
         };
 
     private static string Clip(string v, int max) => v.Length <= max ? v : v[..max];
+
+    /// <summary>
+    /// Soporte de Zipnova recomienda mandar SOLO la parte numérica del código
+    /// postal (un CPA "C1414BAI" geolocaliza mal): se extraen los dígitos y,
+    /// si no hay ninguno, se deja el valor original.
+    /// </summary>
+    private static string NumericZip(string zipcode)
+    {
+        var digits = new string([.. zipcode.Where(char.IsDigit)]);
+        return digits.Length > 0 ? digits : zipcode;
+    }
 }
 
 public sealed record ZipnovaConfigRequest(

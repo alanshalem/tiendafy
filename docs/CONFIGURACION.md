@@ -25,7 +25,7 @@ Hay dos niveles, no mezclarlos:
 | **WhatsApp Cloud API** | Phone Number ID + access token permanente + plantillas aprobadas | [developers.facebook.com](https://developers.facebook.com) → app con producto WhatsApp; token de system user en Meta Business | Tienda | Opcional |
 | **ARCA (facturación)** | CUIT + certificado digital (vía CSR) + punto de venta | ARCA con clave fiscal: Administración de Certificados Digitales + Puntos de venta (Web Services) — el wizard del admin te guía | Tienda | Para facturar |
 | **Correo Argentino (MiCorreo)** | userToken + passwordToken (TEST y PROD separados) + customerId | Cuenta en [MiCorreo](https://www.correoargentino.com.ar/MiCorreo/public/) + credenciales por su formulario de contacto | Tienda | Opcional |
-| **Zipnova** | API Token + API Secret + account ID | Panel Zipnova → Configuración → Integraciones → Gestionar credenciales. ⚠️ Sin sandbox: crear envíos consume saldo real | Tienda | Opcional |
+| **Zipnova** | API Token + API Secret + account ID | Panel Zipnova → Configuración → Integraciones → Gestionar credenciales. Para probar: registrarse y pedir a soporte que habilite la modalidad "testing" en la cuenta (se desactiva al operar en serio). ⚠️ Fuera de testing, crear envíos consume saldo real | Tienda | Opcional |
 
 ---
 

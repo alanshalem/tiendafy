@@ -13,18 +13,6 @@ public sealed class ZipnovaException(string message, HttpStatusCode? status = nu
     public HttpStatusCode? Status { get; } = status;
 }
 
-/// <summary>
-/// Conversión de unidades de Zipnova, EN UN SOLO LUGAR (spec PA-01):
-/// la cotización declara dimensiones en CM y la creación de envíos en MM.
-/// Tiendafy almacena TODO en cm; sólo al crear el envío se convierte.
-/// Equivocarse acá es silencioso (ambos valores pasan la validación del
-/// schema) y produce tarifas absurdas o rechazo de la carga.
-/// </summary>
-public static class ZipnovaUnits
-{
-    public static int CmToMm(int cm) => checked(cm * 10);
-}
-
 public sealed record ZipnovaCredentials(string ApiToken, string ApiSecret, string Country)
 {
     public string BaseUrl => Country switch
@@ -89,11 +77,15 @@ public sealed record ZipnovaTrackingEvent(
 
 /// <summary>
 /// Cliente de la API v2 de Zipnova. Autenticación Basic (API Token + Secret
-/// de la cuenta de la tienda). Reglas duras de la spec:
-/// - La creación de envíos NO tiene idempotencia del lado de Zipnova: acá
-///   NUNCA se reintenta un POST /shipments (un timeout reintentado puede
-///   crear dos envíos reales con costo). El guard local vive en ZipnovaShipment.
-/// - No existe sandbox: toda llamada es contra producción.
+/// de la cuenta de la tienda). Reglas duras confirmadas por soporte de
+/// Zipnova por escrito (jul-2026):
+/// - La creación de envíos NO tiene idempotencia del lado de Zipnova (un
+///   external_id repetido DUPLICA el envío): acá NUNCA se reintenta un
+///   POST /shipments. El guard local vive en ZipnovaShipment.
+/// - Dimensiones en CM en TODOS los endpoints (la spec pública decía mm en
+///   la creación; soporte lo desmintió — no convertir nunca).
+/// - Pruebas: no hay ambiente aparte; se pide a soporte habilitar la
+///   modalidad "testing" sobre la cuenta registrada.
 /// - Rate limits por IP (500/min cotización, 100/min creación).
 /// </summary>
 public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger)
@@ -160,8 +152,8 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
     }
 
     /// <summary>
-    /// POST /shipments — dimensiones en MM (contrato de esa página; conversión
-    /// vía ZipnovaUnits). SIN reintentos: Zipnova no deduplica.
+    /// POST /shipments — dimensiones en CM (confirmado por soporte; la spec
+    /// pública decía mm). SIN reintentos: Zipnova no deduplica.
     /// </summary>
     public async Task<ZipnovaShipmentResponse> CreateShipmentAsync(
         ZipnovaCredentials creds, object payload, CancellationToken ct)

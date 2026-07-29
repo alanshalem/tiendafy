@@ -27,8 +27,8 @@ interface TestOption {
 /**
  * Cotización multi-transporte con Zipnova (Andreani, OCA, etc. detrás de una
  * sola API). El checkout cotiza en vivo y los envíos se crean desde la venta,
- * con etiqueta PDF. OJO: Zipnova NO tiene sandbox — toda prueba es real
- * (cotizar es gratis; crear envíos consume saldo).
+ * con etiqueta PDF. OJO: crear envíos consume saldo real, salvo que soporte
+ * de Zipnova habilite la modalidad "testing" en la cuenta (cotizar es gratis).
  */
 export function ZipnovaCard() {
   const { store } = useStore();
@@ -213,7 +213,8 @@ function ConfigModal({
           Las credenciales se generan en tu panel de Zipnova: Configuración → Integraciones → Gestionar
           credenciales. Ahí mismo ves tu número de cuenta.{' '}
           <span className="font-medium text-fg">
-            Zipnova no tiene modo de prueba: cotizar es gratis, pero crear un envío es real y consume saldo.
+            Cotizar es gratis, pero crear un envío es real y consume saldo (salvo que soporte de Zipnova te
+            habilite la modalidad de prueba “testing”).
           </span>
         </p>
 
