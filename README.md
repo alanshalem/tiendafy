@@ -97,6 +97,7 @@ Hooks locales (husky): Prettier + `dotnet format` sobre lo stageado en cada comm
 
 - **API navegable** (con la API corriendo, solo en dev): [http://localhost:5080/scalar/v1](http://localhost:5080/scalar/v1) — UI Scalar con las 130+ rutas agrupadas por módulo. Spec cruda: `/openapi/v1.json`.
 - [docs/START_HERE.md](./docs/START_HERE.md) — **mapa de toda la documentación** (empezá acá)
+- [docs/CONFIGURACION.md](./docs/CONFIGURACION.md) — **todas las API keys, secretos y variables** para dev y producción: qué conseguir, dónde se consigue y dónde va (MP, Resend, Turnstile, Google, Sentry, MinIO, y lo que cada tienda carga en el admin)
 - [docs/ARQUITECTURA-VISUAL.md](./docs/ARQUITECTURA-VISUAL.md) — **diagramas Mermaid de TODO el sistema**: piezas, integraciones (Mercado Pago, Resend, WhatsApp, ARCA, Correo Argentino…) y el flujo de una venta
 - [docs/DEPLOY.md](./docs/DEPLOY.md) — build de imágenes y producción
 - [docs/payments-mercadopago.md](./docs/payments-mercadopago.md) — integración de pagos en detalle
