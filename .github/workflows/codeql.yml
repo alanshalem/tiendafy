@@ -38,6 +38,41 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+      # upload: never — code scanning (la pestaña Security) requiere GitHub
+      # Advanced Security, que no está disponible en repos privados del plan
+      # Free. El análisis corre igual: el SARIF se evalúa acá abajo y el
+      # workflow FALLA si hay hallazgos de severidad error/warning.
       - uses: github/codeql-action/analyze@v3
         with:
           category: '/language:${{ matrix.language }}'
+          upload: never
+          output: sarif-results
+      - name: Evaluar hallazgos del SARIF
+        shell: python
+        run: |
+          import glob, json, sys
+          bad = []
+          for f in glob.glob('sarif-results/*.sarif'):
+              sarif = json.load(open(f, encoding='utf-8'))
+              for run in sarif.get('runs', []):
+                  rules = {r['id']: r for r in run.get('tool', {}).get('driver', {}).get('rules', [])}
+                  for res in run.get('results', []):
+                      rule = rules.get(res.get('ruleId'), {})
+                      sev = rule.get('defaultConfiguration', {}).get('level', res.get('level', 'warning'))
+                      if sev in ('error', 'warning'):
+                          loc = res.get('locations', [{}])[0].get('physicalLocation', {})
+                          art = loc.get('artifactLocation', {}).get('uri', '?')
+                          line = loc.get('region', {}).get('startLine', '?')
+                          bad.append(f"[{sev}] {res.get('ruleId')} en {art}:{line}: {res.get('message', {}).get('text', '')[:160]}")
+          if bad:
+              print(f'{len(bad)} hallazgo(s) de CodeQL:')
+              print('\n'.join(bad))
+              sys.exit(1)
+          print('CodeQL sin hallazgos de severidad error/warning.')
+      - name: Guardar SARIF como artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          retention-days: 30
