@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Loader2, RefreshCw, Package, Truck, Undo2, FileText, Download } from 'lucide-react';
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
@@ -150,8 +151,21 @@ export function OrdersPage() {
     if (store) load();
   }, [store, load]);
 
+  // Deep-link desde Mensajes (arrepentimiento): /ventas?order=<id> expande esa venta.
+  const [params] = useSearchParams();
+  const focusOrder = params.get('order');
+  useEffect(() => {
+    if (focusOrder) setExpanded(focusOrder);
+  }, [focusOrder]);
+  const focusMissing = !loading && !!focusOrder && !orders.some((o) => o.id === focusOrder);
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-6">
+      {focusMissing && (
+        <p className="mb-4 rounded-lg bg-warning-bg px-3 py-2 text-sm text-warning">
+          La venta buscada no está entre las últimas 50 — usá “Actualizar” o buscala por el email del cliente.
+        </p>
+      )}
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Ventas</h1>
         <button

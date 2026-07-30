@@ -525,7 +525,7 @@ function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string 
             Botón de arrepentimiento
           </Link>
         </div>
-        <div className="mt-3 text-center text-xs opacity-50">© {tenantName} · Powered by Tiendafy</div>
+        <div className="mt-3 text-center text-xs opacity-50">© {tenantName}</div>
       </div>
     </footer>
   );

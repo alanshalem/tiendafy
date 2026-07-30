@@ -89,6 +89,9 @@ public sealed class CustomersDbContext : DbContext
         cm.Property(x => x.Name).HasMaxLength(120).IsRequired();
         cm.Property(x => x.Email).HasMaxLength(200).IsRequired();
         cm.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+        cm.Property(x => x.Kind).HasMaxLength(20).HasDefaultValue(ContactMessage.KindContact);
+        cm.Property(x => x.Reference).HasMaxLength(30);
+        cm.Property(x => x.OrderRef).HasMaxLength(60);
 
         // Filtro multi-tenant global en todas las entidades tenant-scoped.
         c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);

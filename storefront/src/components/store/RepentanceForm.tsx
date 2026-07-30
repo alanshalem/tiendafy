@@ -30,8 +30,8 @@ export function RepentanceForm() {
           <CheckCircle2 className="h-5 w-5 text-primary" /> Solicitud de arrepentimiento enviada
         </div>
         <p className="mt-2 opacity-75">
-          Número de solicitud: <strong>{receipt.ref}</strong> · Fecha: {receipt.date}. Guardá este número como
-          constancia. La tienda se va a contactar con vos por email para coordinar la devolución y el
+          Número de solicitud: <strong>{receipt.ref}</strong> · Fecha: {receipt.date}. Te enviamos la
+          constancia también por email. La tienda se va a contactar con vos para coordinar la devolución y el
           reintegro, sin costo adicional.
         </p>
       </div>
@@ -42,9 +42,8 @@ export function RepentanceForm() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const ref = `ARR-${Date.now().toString(36).toUpperCase()}`;
     const body =
-      `SOLICITUD DE ARREPENTIMIENTO (Ley 24.240 art. 34 / Res. 424/2020) — ${ref}\n` +
+      'SOLICITUD DE ARREPENTIMIENTO (Ley 24.240 art. 34 / Res. 424/2020)\n' +
       `Pedido: ${order || 'no informado'}\n` +
       (reason ? `Motivo: ${reason}\n` : '') +
       'El comprador ejerce su derecho de arrepentimiento. Corresponde revertir la operación y reintegrar el pago dentro de los plazos legales.';
@@ -52,10 +51,20 @@ export function RepentanceForm() {
       const res = await fetch(`${API}/api/v1/contact/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
-        body: JSON.stringify({ name, email, body, captcha: captcha || undefined }),
+        body: JSON.stringify({
+          name,
+          email,
+          body,
+          captcha: captcha || undefined,
+          // El número de constancia lo genera el SERVIDOR (y llega también por
+          // email como acuse) — el cliente solo declara el tipo y el pedido.
+          kind: 'repentance',
+          orderRef: order || undefined,
+        }),
       });
       if (res.ok) {
-        setReceipt({ ref, date: new Date().toLocaleDateString('es-AR') });
+        const p = (await res.json().catch(() => null)) as { reference?: string } | null;
+        setReceipt({ ref: p?.reference ?? 'registrada', date: new Date().toLocaleDateString('es-AR') });
       } else {
         const p = await res.json().catch(() => null);
         setError(p?.detail ?? 'No se pudo enviar. Probá de nuevo.');

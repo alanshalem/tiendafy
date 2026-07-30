@@ -380,7 +380,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Botón de arrepentimiento',
         paragraphs: [
           'La Resolución 424/2020 obliga a ofrecer un “Botón de Arrepentimiento” accesible desde la home: el comprador puede revocar la compra dentro de los 10 días corridos de recibida, sin costo.',
-          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa, la solicitud te llega a la bandeja de Mensajes con el asunto normalizado y un número de constancia — respondé coordinando la devolución y hacé el reembolso desde la venta.',
+          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa: la solicitud llega a Mensajes marcada con la etiqueta roja “Arrepentimiento” (hay un filtro para verlas juntas), el comprador recibe un email de acuse con su número de constancia, y si informó un número de pedido válido, el mensaje trae el botón “Ver venta” para hacer el reembolso ahí mismo.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. El filtro “Arrepentimientos” de Mensajes existe para que ninguna se pierda entre las consultas comunes.',
+          },
         ],
       },
       {
