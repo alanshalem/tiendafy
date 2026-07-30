@@ -72,6 +72,35 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
+        heading: '¿Administrás la plataforma además de la tienda?',
+        paragraphs: [
+          'Varias integraciones tienen dos niveles: una app o credencial de PLATAFORMA que se configura una sola vez en el servidor, y la conexión de cada tienda desde el panel. Si un botón de conectar avisa que “falta configuración”, casi seguro falta el nivel plataforma.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Integración', 'Nivel plataforma (una vez)', 'Nivel tienda'],
+            rows: [
+              ['Mercado Pago', 'App marketplace (Client ID/Secret + webhook)', 'OAuth con un click'],
+              ['Mercado Libre', 'App de desarrolladores (Client ID/Secret + webhook)', 'OAuth con un click'],
+              [
+                'Emails (Resend)',
+                'API key + dominio verificado + webhook de rebotes',
+                'Solo editar plantillas',
+              ],
+              ['WhatsApp', '— (no tiene)', 'App de Meta propia por tienda'],
+              ['ARCA', '— (URLs ya incluidas)', 'Certificado + punto de venta por tienda'],
+              ['Correo Argentino / Zipnova', '— (no tienen)', 'Credenciales por tienda, cifradas'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Cada guía de integración tiene su sección “Para quien administra la plataforma” con los pasos exactos. El inventario completo de claves y variables vive en docs/CONFIGURACION.md del proyecto.',
+          },
+        ],
+      },
+      {
         heading: 'La ayuda te sigue a todos lados',
         paragraphs: [
           'No hace falta memorizar nada: al pie de cada pantalla del panel hay un link que abre la guía de esa pantalla en una pestaña nueva.',
@@ -101,13 +130,24 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → Medios de pago, tocá “Conectá tu cuenta”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
           'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras (requiere rol dueño o administrador).',
         ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
+      },
+      {
+        heading: 'Para quien administra la plataforma (una sola vez)',
+        paragraphs: [
+          'El botón de conectar existe porque la plataforma tiene su propia app registrada en Mercado Pago (mismo esquema de dos niveles que Mercado Libre). Si el OAuth falla o el botón avisa que falta configuración, falta este paso:',
+        ],
+        steps: [
+          'Entrá al panel de desarrolladores de Mercado Pago (mercadopago.com.ar/developers) → crear aplicación con modelo MARKETPLACE (permite operar en nombre de otros vendedores vía OAuth).',
+          'Redirect URI: la URL pública de la API + /api/v1/payments/mercadopago/oauth/callback (en desarrollo, un túnel tipo cloudflared/ngrok).',
+          'Webhook de pagos: URL pública de la API + /api/v1/payments/webhook, con su secret — así cada pago concilia la orden aunque el comprador cierre el navegador.',
+          'Cargá Client ID, Client Secret, Redirect URI y Webhook Secret en la configuración del servidor (sección MercadoPago; detalle exacto en docs/CONFIGURACION.md) y reiniciá la API.',
+        ],
         blocks: [
-          { type: 'path', segments: ['Configuración', 'Medios de pago'] },
           {
             type: 'callout',
-            tone: 'info',
-            title: 'Si el botón falla o dice que falta configuración',
-            text: 'El OAuth necesita que la app de PLATAFORMA de Mercado Pago esté registrada en el servidor (Client ID + Client Secret, una sola vez, por quien administra la plataforma). Es el mismo esquema de dos niveles que la integración con Mercado Libre — el detalle está en docs/CONFIGURACION.md del proyecto.',
+            tone: 'warning',
+            text: 'El Client Secret y el Webhook Secret son credenciales de servidor: user-secrets en desarrollo, variables de entorno en producción. Nunca en el panel ni en un repositorio.',
           },
         ],
       },
@@ -227,6 +267,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'La clave privada del certificado se genera y se guarda cifrada en el servidor: no se muestra, no se descarga y no viaja por la API. Solo se usa internamente para firmar los pedidos a ARCA. Si alguien la tuviera podría facturar en tu nombre — por eso se cuida así.',
           'Además, solo los roles Dueño, Administrador y Finanzas pueden tocar la configuración fiscal o emitir comprobantes; un vendedor o soporte no puede.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            title: 'Para quien administra la plataforma: backup de dpkeys',
+            text: 'Todos los secretos por tienda (certificados ARCA, tokens de Mercado Pago/Libre, WhatsApp, MiCorreo, Zipnova) están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero. Verificá que esté dentro del backup diario. Lo demás no requiere nada: las URLs de ARCA (homologación y producción) ya vienen configuradas.',
+          },
         ],
       },
       {
@@ -1041,6 +1089,25 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
+        heading: 'Para quien administra la plataforma: Resend',
+        paragraphs: [
+          'Todos los emails (transaccionales y campañas, de todas las tiendas) salen por una sola cuenta de Resend a nivel plataforma. Configuración una sola vez:',
+        ],
+        steps: [
+          'Creá la cuenta en resend.com y generá una API key → variable Email:ResendApiKey del servidor.',
+          'Verificá tu dominio en Resend (registros SPF y DKIM en tu DNS) y usá un remitente de ese dominio en Email:From — sin dominio verificado, los emails van a spam o Resend los rechaza.',
+          'Webhook de rebotes: en Resend → Webhooks, eventos email.bounced y email.complained hacia la URL pública de la API + /api/v1/webhooks/resend; el signing secret va en Email:WebhookSecret. Con eso, los rebotes y quejas se suprimen solos de las campañas.',
+          'PublicApiBaseUrl = URL pública de la API: la usan los links de baja y el tracking de las campañas (sin esto, esos links quedan rotos en producción).',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Sin Email:ResendApiKey configurada, el sistema entra en modo desarrollo: los emails se escriben en los logs del servidor en vez de enviarse. Útil para probar sin gastar cuota ni ensuciar casillas reales.',
+          },
+        ],
+      },
+      {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
           'Arriba de esta pantalla, el panel “Uso del mes” te muestra cuántos emails salieron este mes, el total histórico y un costo estimado. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
@@ -1116,6 +1183,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'Mandá poco y bueno: una campaña quincenal con contenido real rinde más que tres semanales de relleno. Asuntos honestos (sin MAYÚSCULAS ni “GRATIS!!!”), siempre con tu dominio verificado en Resend, y mirá el panel de uso: cada envío cuenta para tu costo mensual.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Requisitos de plataforma en producción',
+            text: 'El tracking de aperturas/clicks y los links de baja necesitan PublicApiBaseUrl configurada en el servidor, y la supresión automática de rebotes necesita el webhook de Resend. El detalle está en la sección “Para quien administra la plataforma” del artículo de E-mails automáticos.',
+          },
+        ],
       },
     ],
   },
@@ -1166,6 +1241,13 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Se activa por tipo, igual que los emails',
         paragraphs: [
           'Cada tipo de mensaje tiene su interruptor por tienda. Si un mensaje no tiene plantilla configurada o está apagado, simplemente no se envía — la venta nunca se ve afectada.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'A diferencia de Mercado Pago/Libre o Resend, acá NO hay credenciales de plataforma: WhatsApp es 100% por tienda. Cada tienda crea su propia app en Meta con su propio número — nada que configurar en el servidor.',
+          },
         ],
       },
       {
@@ -1580,7 +1662,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Configurá tu dominio propio',
         steps: [
           'Comprá tu dominio en cualquier registrador (por ej. tudominio.com).',
-          'En el panel de tu registrador, apuntá un registro CNAME a la plataforma.',
+          'En el panel de tu registrador, creá un registro CNAME apuntando al dominio base de la plataforma.',
           'Agregá el dominio en la sección Dominios y guardá.',
           'Esperá la propagación de DNS (puede tardar hasta 48 hs).',
         ],
@@ -1608,6 +1690,35 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         heading: 'Certificado de seguridad (SSL)',
         paragraphs: [
           'El candado HTTPS se emite y renueva solo, sin que hagas nada. Cuando el dominio queda activo, el estado del certificado pasa a “SSL activado”. Puede tardar unos minutos extra después de que el dominio propague.',
+        ],
+      },
+      {
+        heading: 'Para quien administra la plataforma: DNS del servidor',
+        paragraphs: [
+          'El DNS base de la plataforma se configura una sola vez. Caddy emite y renueva el TLS solo (incluido “on-demand” para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión del certificado).',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Registro', 'Nombre', 'Apunta a', 'Para qué'],
+            rows: [
+              ['A', 'TUDOMINIO', 'IP del VPS', 'Dominio base'],
+              ['A (wildcard)', '*.TUDOMINIO', 'IP del VPS', 'Subdominios de todas las tiendas'],
+              ['A', 'api.TUDOMINIO', 'IP del VPS', 'La API (webhooks, OAuth, emails)'],
+              ['A', 'admin.TUDOMINIO', 'IP del VPS', 'El panel de administración'],
+              [
+                'CNAME',
+                'tienda del merchant',
+                'TUDOMINIO',
+                'Cada dominio propio (lo crea el dueño del dominio)',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El deploy completo (compose, Caddy, variables, backups) está en docs/DEPLOY.md y docs/CONFIGURACION.md del proyecto.',
+          },
         ],
       },
     ],
