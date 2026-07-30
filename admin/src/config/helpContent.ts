@@ -1304,6 +1304,14 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         paragraphs: [
           'El logo y el color primario que definas acá se usan también en los e-mails automáticos que reciben tus clientes. Subí un logo de hasta ~160 px de ancho para que se vea nítido.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Los emails usan el tema PUBLICADO',
+            text: 'Si cambiaste el logo y en los emails sigue apareciendo el anterior, es porque el cambio quedó en el borrador: tocá “Publicar”. Y para email usá PNG/JPG — los SVG no se muestran en Gmail ni Outlook — con colores que se vean sobre fondo blanco.',
+          },
+        ],
       },
       {
         heading: 'Galería de diseños',
