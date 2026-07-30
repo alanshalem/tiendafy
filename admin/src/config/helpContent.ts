@@ -101,7 +101,15 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           'En Configuración → Medios de pago, tocá “Conectá tu cuenta”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
           'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras (requiere rol dueño o administrador).',
         ],
-        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Medios de pago'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Si el botón falla o dice que falta configuración',
+            text: 'El OAuth necesita que la app de PLATAFORMA de Mercado Pago esté registrada en el servidor (Client ID + Client Secret, una sola vez, por quien administra la plataforma). Es el mismo esquema de dos niveles que la integración con Mercado Libre — el detalle está en docs/CONFIGURACION.md del proyecto.',
+          },
+        ],
       },
       {
         heading: 'Checkout Pro vs. Checkout integrado',
@@ -531,7 +539,53 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
         ],
       },
       {
-        heading: 'Conectar tu cuenta',
+        heading: 'Antes que nada: los dos niveles de credenciales',
+        paragraphs: [
+          'La integración tiene dos patas y conviene no confundirlas. La app de PLATAFORMA se registra UNA sola vez ante Mercado Libre (es “Tiendafy” presentándose como aplicación: un Client ID y un Client Secret que viven en el servidor). Recién con eso existe el botón de conectar. Después, CADA tienda autoriza su propia cuenta de vendedor con un click — sin cargar ninguna clave.',
+          'Es el mismo esquema que Mercado Pago (que ya tiene su app configurada, por eso su botón funciona). Ojo: aunque sea la misma empresa, Mercado Libre y Mercado Pago usan apps SEPARADAS en portales de desarrolladores distintos — la app de MP no sirve para ML.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Nivel', 'Quién lo hace', 'Cuántas veces', 'Qué se carga'],
+            rows: [
+              [
+                'App de plataforma',
+                'Quien administra el servidor',
+                'Una sola vez',
+                'Client ID + Client Secret de la app de ML, en la configuración del servidor',
+              ],
+              [
+                'Cuenta de la tienda',
+                'Cada tienda, desde el panel',
+                'Una vez por tienda',
+                'Nada: autoriza con su usuario de ML (OAuth)',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Configuración inicial de la plataforma (una sola vez)',
+        paragraphs: [
+          'Si el panel dice “faltan las credenciales de la app de Mercado Libre en el servidor”, falta este paso:',
+        ],
+        steps: [
+          'Entrá a developers.mercadolibre.com.ar con una cuenta de Mercado Libre → “Mis aplicaciones” → crear aplicación.',
+          'Redirect URI: la URL pública de la API + /api/v1/meli/oauth/callback (en desarrollo hace falta un túnel tipo cloudflared/ngrok, igual que con Mercado Pago).',
+          'Notificaciones: URL pública de la API + /api/v1/webhooks/meli, suscripta al topic orders_v2 — así cada venta de ML llega sola al panel.',
+          'Cargá el Client ID, el Client Secret y la Redirect URI en la configuración del servidor (sección MercadoLibre; el detalle exacto está en docs/CONFIGURACION.md del proyecto) y reiniciá la API.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'El Client Secret es una credencial de servidor: nunca va en el panel, en el navegador ni en un repositorio. En desarrollo se carga con user-secrets; en producción, como variable de entorno.',
+          },
+        ],
+      },
+      {
+        heading: 'Conectar la cuenta de cada tienda',
         steps: [
           'En Configuración → Mercado Libre, tocá “Conectar mi cuenta”.',
           'Te llevamos a Mercado Libre para que autorices con tu usuario de vendedor; al volver, quedás conectado.',
@@ -542,7 +596,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Usamos el OAuth oficial de Mercado Libre: guardamos tokens cifrados, nunca tu usuario ni tu contraseña. Podés desconectar cuando quieras y tus publicaciones no se tocan.',
+            text: 'Usamos el OAuth oficial de Mercado Libre: guardamos tokens cifrados, nunca tu usuario ni tu contraseña. Podés desconectar cuando quieras y tus publicaciones no se tocan. Cada tienda conecta SU cuenta de vendedor: las de la misma empresa no se mezclan.',
           },
         ],
       },
