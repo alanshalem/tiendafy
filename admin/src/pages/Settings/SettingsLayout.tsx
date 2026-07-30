@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Package,
   ShoppingCart,
+  Store,
   User,
   type LucideIcon,
 } from 'lucide-react';
@@ -43,6 +44,12 @@ const groups: NavGroup[] = [
         to: '/configuracion/medios-de-envio',
         label: 'Medios de envío',
         icon: Package,
+        perm: 'settings.write',
+      },
+      {
+        to: '/configuracion/mercadolibre',
+        label: 'Mercado Libre',
+        icon: Store,
         perm: 'settings.write',
       },
     ],

@@ -21,7 +21,9 @@ Hay dos niveles, no mezclarlos:
 | **Google OAuth** | Client ID + Client Secret | [console.cloud.google.com](https://console.cloud.google.com) → Credentials → OAuth client (web); redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores con Google) |
 | **Sentry** | 3 DSNs (backend, storefront, admin) | [sentry.io](https://sentry.io) → un proyecto por app | Plataforma | Opcional (errores en prod) |
 | **MinIO / S3** | Access key + Secret key | tu propio MinIO (compose lo incluye) o un S3 compatible | Plataforma | Sí (imágenes/videos) |
+| **Mercado Libre** | App: Client ID + Client Secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar) → crear aplicación. Redirect URI: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Opcional (canal ML) |
 | **Mercado Pago del merchant** | — (un click) | El merchant conecta su cuenta desde Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
+| **Mercado Libre del merchant** | — (un click) | El merchant conecta su cuenta de vendedor desde Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
 | **WhatsApp Cloud API** | Phone Number ID + access token permanente + plantillas aprobadas | [developers.facebook.com](https://developers.facebook.com) → app con producto WhatsApp; token de system user en Meta Business | Tienda | Opcional |
 | **ARCA (facturación)** | CUIT + certificado digital (vía CSR) + punto de venta | ARCA con clave fiscal: Administración de Certificados Digitales + Puntos de venta (Web Services) — el wizard del admin te guía | Tienda | Para facturar |
 | **Correo Argentino (MiCorreo)** | userToken + passwordToken (TEST y PROD separados) + customerId | Cuenta en [MiCorreo](https://www.correoargentino.com.ar/MiCorreo/public/) + credenciales por su formulario de contacto | Tienda | Opcional |
@@ -40,6 +42,9 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `MercadoPago:ClientId` / `MercadoPago:ClientSecret` | App marketplace de MP | user-secrets | `.env.prod` |
 | `MercadoPago:RedirectUri` | Callback OAuth público | URL del túnel (cloudflared/ngrok) | `https://api.TUDOMINIO/api/v1/payments/mercadopago/oauth/callback` |
 | `MercadoPago:WebhookSecret` | Firma de webhooks de pagos | user-secrets | `.env.prod` |
+| `MercadoLibre:ClientId` / `MercadoLibre:ClientSecret` | App de plataforma en ML (canal Mercado Libre) | user-secrets (vacío = integración apagada) | `.env.prod` |
+| `MercadoLibre:RedirectUri` | Callback OAuth registrado en la app de ML | URL del túnel + `/api/v1/meli/oauth/callback` | `https://api.TUDOMINIO/api/v1/meli/oauth/callback` |
+| `MercadoLibre:AdminReturnUrl` | A dónde vuelve el navegador tras autorizar | `http://localhost:3001/configuracion/mercadolibre` | `https://admin.TUDOMINIO/configuracion/mercadolibre` |
 | `Email:ResendApiKey` | API key de Resend | vacío = modo dev (loguea, no envía) | `.env.prod` |
 | `Email:From` | Remitente | `Tiendafy <onboarding@resend.dev>` | `Tiendafy <no-responder@TUDOMINIO>` (dominio verificado) |
 | `Email:WebhookSecret` | Firma svix del webhook de Resend | vacío = endpoint apagado | `.env.prod` |

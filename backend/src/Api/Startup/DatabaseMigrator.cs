@@ -7,6 +7,7 @@ using Discounts.Infrastructure;
 using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
+using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;
@@ -49,6 +50,7 @@ public static class DatabaseMigrator
         await MigrateAsync<NotificationsDbContext>(sp, logger);
         await MigrateAsync<SupportDbContext>(sp, logger);
         await MigrateAsync<FiscalDbContext>(sp, logger);
+        await MigrateAsync<MeliDbContext>(sp, logger);
     }
 
     private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)

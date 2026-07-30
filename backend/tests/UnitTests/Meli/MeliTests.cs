@@ -1,0 +1,186 @@
+using System.Text.Json;
+using Api.Meli;
+using MercadoLibre.Infrastructure;
+
+namespace UnitTests.Meli;
+
+public class MeliConnectionTests
+{
+    [Fact]
+    public void Create_Valido_NormalizaSite()
+    {
+        var result = MeliConnection.Create(
+            Guid.NewGuid(), 123456, "  MITIENDA ", "mla", "enc-access", "enc-refresh",
+            DateTime.UtcNow.AddHours(6));
+        Assert.True(result.IsSuccess);
+        Assert.Equal("MLA", result.Value.SiteId);
+        Assert.Equal("MITIENDA", result.Value.Nickname);
+        Assert.False(result.Value.StockSyncEnabled);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void Create_UserIdInvalido_Falla(long userId)
+    {
+        var result = MeliConnection.Create(
+            Guid.NewGuid(), userId, "nick", "MLA", "enc", "enc", DateTime.UtcNow);
+        Assert.True(result.IsFailure);
+    }
+
+    [Fact]
+    public void UpdateTokens_ConservaNicknameSiVieneVacio()
+    {
+        var c = MeliConnection.Create(
+            Guid.NewGuid(), 1, "original", "MLA", "a", "r", DateTime.UtcNow).Value;
+        c.UpdateTokens(1, "", "", "a2", "r2", DateTime.UtcNow.AddHours(6));
+        Assert.Equal("original", c.Nickname);
+        Assert.Equal("MLA", c.SiteId);
+        Assert.Equal("a2", c.AccessTokenEnc);
+    }
+}
+
+public class MeliItemLinkTests
+{
+    [Fact]
+    public void Create_NormalizaItemId()
+    {
+        var result = MeliItemLink.Create(
+            Guid.NewGuid(), " mla123456789 ", null, Guid.NewGuid(), Guid.NewGuid(), "Título");
+        Assert.True(result.IsSuccess);
+        Assert.Equal("MLA123456789", result.Value.MeliItemId);
+        Assert.True(result.Value.SyncStock);
+        Assert.Null(result.Value.LastPushedQty);
+    }
+
+    [Fact]
+    public void Create_SinVariante_Falla()
+    {
+        var result = MeliItemLink.Create(
+            Guid.NewGuid(), "MLA1", null, Guid.NewGuid(), Guid.Empty, "t");
+        Assert.True(result.IsFailure);
+    }
+
+    [Fact]
+    public void MarkPushed_GuardaUltimoValor()
+    {
+        var link = MeliItemLink.Create(
+            Guid.NewGuid(), "MLA1", 77, Guid.NewGuid(), Guid.NewGuid(), "t").Value;
+        link.MarkPushed(12);
+        Assert.Equal(12, link.LastPushedQty);
+        Assert.Equal(77, link.MeliVariationId);
+    }
+}
+
+public class MeliNotificationTests
+{
+    [Fact]
+    public void Receive_TruncaTopicYResource()
+    {
+        var n = MeliNotification.Receive(new string('t', 100), new string('r', 400), 9);
+        Assert.Equal(60, n.Topic.Length);
+        Assert.Equal(300, n.Resource.Length);
+        Assert.Equal(MeliNotification.StatusPending, n.Status);
+    }
+
+    [Fact]
+    public void MarkFailed_SeisIntentos_QuedaDead()
+    {
+        var n = MeliNotification.Receive("orders_v2", "/orders/1", 9);
+        for (var i = 0; i < MeliNotification.MaxAttempts; i++) n.MarkFailed("boom");
+        Assert.Equal(MeliNotification.StatusDead, n.Status);
+        Assert.Equal(MeliNotification.MaxAttempts, n.Attempts);
+    }
+
+    [Theory]
+    [InlineData("/orders/2000012345", 2000012345L)]
+    [InlineData("/orders/2000012345/", 2000012345L)]
+    [InlineData("/marketplace/orders/55", 55L)]
+    [InlineData("/orders/abc", null)]
+    [InlineData("", null)]
+    public void ParseOrderId_ExtraeElIdDelResource(string resource, long? expected)
+    {
+        Assert.Equal(expected, MeliNotificationWorker.ParseOrderId(resource));
+    }
+}
+
+public class MeliOrderTests
+{
+    [Fact]
+    public void Apply_MapeaYActualiza()
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 123);
+        order.Apply("paid", DateTime.UtcNow, null, 1500.50m, 1500.50m, "ARS",
+            42, "COMPRADOR", "[]", packId: 999, shipmentId: 555, shipmentStatus: null);
+
+        Assert.True(order.IsPaid);
+        Assert.False(order.StockApplied);
+        Assert.Equal(999, order.PackId);
+        Assert.Equal("COMPRADOR", order.BuyerNickname);
+
+        order.MarkStockApplied();
+        Assert.True(order.StockApplied);
+    }
+
+    [Theory]
+    [InlineData("paid", true)]
+    [InlineData("partially_refunded", true)]
+    [InlineData("confirmed", false)]
+    [InlineData("cancelled", false)]
+    public void IsPaid_SoloEstadosCobrados(string status, bool expected)
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 1);
+        order.Apply(status, DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        Assert.Equal(expected, order.IsPaid);
+    }
+}
+
+public class MeliSyncParseTests
+{
+    [Fact]
+    public void ParseItems_OrdenRealDeMl_ExtraeItemsConVariacionYSku()
+    {
+        // Shape real (recortado) de GET /orders/{id} de la API de ML.
+        const string json = """
+        {
+          "id": 2000012345,
+          "status": "paid",
+          "order_items": [
+            {
+              "item": {
+                "id": "MLA123",
+                "title": "Remera negra",
+                "variation_id": 181,
+                "seller_sku": "REM-N-M"
+              },
+              "quantity": 2,
+              "unit_price": 8500.5
+            },
+            {
+              "item": { "id": "MLA456", "title": "Gorra" },
+              "quantity": 1,
+              "unit_price": 5000
+            }
+          ]
+        }
+        """;
+        using var doc = JsonDocument.Parse(json);
+        var items = MeliSyncService.ParseItems(doc.RootElement);
+
+        Assert.Equal(2, items.Count);
+        Assert.Equal("MLA123", items[0].ItemId);
+        Assert.Equal(181, items[0].VariationId);
+        Assert.Equal("REM-N-M", items[0].Sku);
+        Assert.Equal(2, items[0].Quantity);
+        Assert.Equal(8500.5m, items[0].UnitPrice);
+        Assert.Null(items[1].VariationId);
+        Assert.Null(items[1].Sku);
+    }
+
+    [Fact]
+    public void ParseItems_SinItems_ListaVacia()
+    {
+        using var doc = JsonDocument.Parse("""{"id": 1}""");
+        Assert.Empty(MeliSyncService.ParseItems(doc.RootElement));
+    }
+}

@@ -27,6 +27,7 @@ export const NAV_VISIBILITY: Record<string, boolean> = {
   '/descuentos': true,
   '/marketing': true,
   '/canales/tienda-online': true,
+  '/mercadolibre': true,
   '/paginas': true,
   '/canales/redes': false,
   '/canales/google': false,
@@ -37,6 +38,7 @@ export const NAV_VISIBILITY: Record<string, boolean> = {
   // Configuración
   '/configuracion/medios-de-pago': true,
   '/configuracion/medios-de-envio': true,
+  '/configuracion/mercadolibre': true,
   '/configuracion/centros-de-distribucion': true,
   '/configuracion/emails-automaticos': true,
   '/configuracion/whatsapp-automatico': true,
@@ -66,6 +68,7 @@ export const HELP_LINKS = {
   shipping: { label: 'Más sobre medios de envío' },
   correoArgentino: { label: 'Más sobre envíos con Correo Argentino' },
   zipnova: { label: 'Más sobre envíos con Zipnova' },
+  mercadolibre: { label: 'Más sobre la integración con Mercado Libre' },
   distributionCenters: { label: 'Más sobre centros de distribución' },
   productos: { label: 'Más sobre productos e inventario' },
   clientes: { label: 'Más sobre clientes' },

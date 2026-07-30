@@ -27,6 +27,8 @@ import { NewProductPage } from './pages/Products/NewProduct';
 import { EditProductPage } from './pages/Products/EditProduct';
 import { DiscountsPage } from './pages/Discounts';
 import { MarketingPage } from './pages/Marketing';
+import { MercadoLibrePage } from './pages/MercadoLibre';
+import { MeliSettingsPage } from './pages/Settings/MercadoLibre';
 import { CustomersPage } from './pages/Customers';
 import { MessagesPage } from './pages/Messages';
 import { SupportChatPage } from './pages/SupportChat';
@@ -216,6 +218,14 @@ export default function App() {
             }
           />
           <Route
+            path="/mercadolibre"
+            element={
+              <RequirePerm perm="orders.read">
+                <MercadoLibrePage />
+              </RequirePerm>
+            }
+          />
+          <Route
             path="/clientes"
             element={
               <RequirePerm perm="customers.read">
@@ -269,6 +279,14 @@ export default function App() {
             element={
               <RequirePerm perm="settings.write">
                 <ShippingMethodsPage />
+              </RequirePerm>
+            }
+          />
+          <Route
+            path="mercadolibre"
+            element={
+              <RequirePerm perm="settings.write">
+                <MeliSettingsPage />
               </RequirePerm>
             }
           />

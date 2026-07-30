@@ -15,6 +15,14 @@ interface Overview {
   sales: { available: boolean; orders?: number; revenue?: number; currency?: string };
 }
 
+interface MeliStats {
+  connected: boolean;
+  orders: number;
+  revenue: number;
+  currency: string;
+  unitsSold: number;
+}
+
 const fmt = (n: number) => n.toLocaleString('es-AR');
 const money = formatMoney;
 
@@ -24,6 +32,14 @@ export function StatsOverviewPage() {
     queryKey: ['stats', store?.id],
     queryFn: () => api.get<Overview>('/api/v1/stats/overview'),
     enabled: !!store,
+  });
+
+  // Multicanal: ventas de Mercado Libre (solo si la tienda conectó su cuenta).
+  const { data: meli } = useQuery({
+    queryKey: ['stats-meli', store?.id],
+    queryFn: () => api.get<MeliStats>('/api/v1/admin/meli/stats?days=30'),
+    enabled: !!store,
+    retry: false,
   });
 
   return (
@@ -80,6 +96,31 @@ export function StatsOverviewPage() {
               </div>
             </ChartCard>
           </div>
+
+          {meli?.connected && (
+            <ChartCard title="Mercado Libre (últimos 30 días)" info>
+              <div className="flex h-full min-h-[5rem] flex-wrap items-center gap-8">
+                <div>
+                  <div className="text-sm text-fg-muted">Facturado en ML</div>
+                  <div className="mt-1 text-2xl font-bold text-fg">
+                    {meli.revenue.toLocaleString('es-AR', {
+                      style: 'currency',
+                      currency: meli.currency || 'ARS',
+                      maximumFractionDigits: 0,
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-fg-muted">Ventas en ML</div>
+                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(meli.orders)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-fg-muted">Unidades vendidas</div>
+                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(meli.unitsSold)}</div>
+                </div>
+              </div>
+            </ChartCard>
+          )}
         </>
       )}
 

@@ -108,6 +108,7 @@ const sections: NavSection[] = [
     heading: 'Canales de venta',
     items: [
       { to: '/canales/tienda-online', label: 'Tienda online', perm: 'content.write' },
+      { to: '/mercadolibre', label: 'Mercado Libre', perm: 'orders.read' },
       { to: '/paginas', label: 'Páginas', perm: 'content.write' },
     ],
   },

@@ -15,6 +15,7 @@ using Fiscal.Infrastructure;
 using Identity.Infrastructure;
 using Inventory.Infrastructure;
 using Media.Infrastructure;
+using MercadoLibre.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -61,6 +62,7 @@ builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddOrdersModule(builder.Configuration);
 builder.Services.AddAnalyticsModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
+builder.Services.AddMercadoLibreModule(builder.Configuration);
 
 // Workers de background que hacen polling sobre la DB (webhooks, facturación,
 // carritos). Workers:Enabled=false los apaga en réplicas extra de la API para
@@ -93,6 +95,15 @@ builder.Services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = Time
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();
 if (runPollingWorkers) builder.Services.AddHostedService<CampaignWorker>();
 builder.Services.AddScoped<CampaignAudienceService>();
+
+// Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,
+// stock unificado y publicación. Tokens cifrados; refresh serializado.
+builder.Services.Configure<Api.Meli.MeliOptions>(builder.Configuration.GetSection(Api.Meli.MeliOptions.SectionName));
+builder.Services.AddHttpClient<Api.Meli.MeliClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<Api.Meli.MeliTokenService>();
+builder.Services.AddScoped<Api.Meli.MeliSyncService>();
+if (runPollingWorkers) builder.Services.AddHostedService<Api.Meli.MeliNotificationWorker>();
+if (runPollingWorkers) builder.Services.AddHostedService<Api.Meli.MeliStockSyncWorker>();
 
 // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
 builder.Services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
@@ -318,6 +329,7 @@ apiV1.MapCorreoArgentinoEndpoints();
 apiV1.MapZipnovaEndpoints();
 apiV1.MapCampaignEndpoints();
 apiV1.MapPaymentsEndpoints();
+apiV1.MapMeliEndpoints();
 apiV1.MapOrderEndpoints();
 apiV1.MapPaymentWebhookEndpoints();
 apiV1.MapTrackEndpoints();

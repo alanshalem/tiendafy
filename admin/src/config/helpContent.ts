@@ -498,6 +498,114 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
     ],
   },
 
+  mercadolibre: {
+    title: 'Integración con Mercado Libre',
+    intro:
+      'Conectá tu cuenta de vendedor: tus ventas, preguntas y mensajes de ML en el panel, stock unificado entre canales y publicación desde tu catálogo.',
+    category: 'Ventas y pagos',
+    sections: [
+      {
+        heading: 'Qué hace la integración',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Función', 'Qué resuelve'],
+            rows: [
+              [
+                'Ventas ML en el panel',
+                'Cada venta de Mercado Libre aparece en la pestaña Ventas del canal, con comprador, productos y estado',
+              ],
+              ['Preguntas prevente', 'Respondés las preguntas de tus publicaciones sin entrar a ML'],
+              ['Mensajes posventa', 'El chat con el comprador de cada venta, en un modal del panel'],
+              [
+                'Stock unificado',
+                'Una venta en ML descuenta stock acá; tu stock se empuja a las publicaciones vinculadas',
+              ],
+              [
+                'Publicar desde el catálogo',
+                'Creás una publicación en ML con el título, precio, fotos y stock de tu producto',
+              ],
+              ['Reclamos', 'Los reclamos abiertos de ML, visibles antes de que escalen'],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Conectar tu cuenta',
+        steps: [
+          'En Configuración → Mercado Libre, tocá “Conectar mi cuenta”.',
+          'Te llevamos a Mercado Libre para que autorices con tu usuario de vendedor; al volver, quedás conectado.',
+          'Se importan solas tus últimas ventas (también podés tocar “Importar últimas ventas” cuando quieras).',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Mercado Libre'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Usamos el OAuth oficial de Mercado Libre: guardamos tokens cifrados, nunca tu usuario ni tu contraseña. Podés desconectar cuando quieras y tus publicaciones no se tocan.',
+          },
+        ],
+      },
+      {
+        heading: 'El panel del canal',
+        paragraphs: [
+          'En el menú, Canales de venta → Mercado Libre. Tiene cuatro pestañas: Ventas (con las métricas de los últimos 30 días), Preguntas (respondé las pendientes ahí mismo), Publicaciones (vinculá cada una con tu catálogo, o publicá productos nuevos) y Reclamos.',
+        ],
+        blocks: [{ type: 'path', segments: ['Canales de venta', 'Mercado Libre'] }],
+      },
+      {
+        heading: 'Stock unificado: cómo funciona',
+        steps: [
+          'En la pestaña Publicaciones, tocá “Vincular” en cada publicación y elegí el producto (y variante) de tu catálogo que le corresponde.',
+          'Activá “Sincronizar stock” en Configuración → Mercado Libre.',
+          'Desde ahí: cada venta en ML descuenta el stock local automáticamente, y los cambios de stock locales se empujan a las publicaciones cada ~5 minutos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Una publicación SIN vincular no sincroniza nada: la venta de ML aparece en el panel igual, pero no descuenta tu stock. Vinculá todo lo que vendas en los dos canales para no sobrevender.',
+          },
+        ],
+      },
+      {
+        heading: 'Publicar un producto en ML',
+        steps: [
+          'En Publicaciones → “Publicar un producto en ML”, elegí un producto activo de tu catálogo.',
+          'Mercado Libre sugiere la categoría según el título — elegí la correcta (una categoría mal elegida puede hacer que ML pause la publicación).',
+          'Al publicar, la publicación nace vinculada: el stock ya queda sincronizado.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Los productos con varias variantes se publican con su primera variante (Mercado Libre maneja las variaciones distinto). Si necesitás variaciones en ML, crealas en su editor y vinculalas a mano.',
+          },
+        ],
+      },
+      {
+        heading: 'Mensajes y preguntas: reglas de ML',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'La conversación posventa la inicia SIEMPRE el comprador; vos respondés.',
+              'Los mensajes tienen un máximo de 350 caracteres.',
+              'Responder preguntas rápido mejora tu reputación como vendedor (y tus ventas).',
+              'Todo lo que escribas pasa por la moderación de Mercado Libre: nada de datos de contacto ni links externos.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Métricas multicanal',
+        paragraphs: [
+          'En Estadísticas → Visión general aparece la tarjeta de Mercado Libre con lo facturado, las ventas y las unidades vendidas de los últimos 30 días — al lado de los números de tu tienda, para ver el negocio completo.',
+        ],
+      },
+    ],
+  },
+
   // -------------------------------------------------------------- Envíos
   shipping: {
     title: 'Medios de envío',

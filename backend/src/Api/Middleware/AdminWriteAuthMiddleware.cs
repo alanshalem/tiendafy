@@ -36,6 +36,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         "/api/v1/marketing/unsubscribe",
         // Webhook de Resend (firma svix propia; sin secret configurado, 404).
         "/api/v1/webhooks/resend",
+        // Webhook de Mercado Libre (sin firma; el worker re-consulta el
+        // resource con el token del vendedor, nunca confía en el payload).
+        "/api/v1/webhooks/meli",
     };
 
     public async Task InvokeAsync(HttpContext ctx, IMembershipService memberships)
