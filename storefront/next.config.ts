@@ -52,6 +52,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**' },
       { protocol: 'http', hostname: '**' },
     ],
+    // Next 16 bloquea upstreams que resuelven a IP privada (anti-SSRF). En dev
+    // las imágenes viven en el MinIO local (localhost:9000), así que sin esto
+    // next/image rompe todas las cards. En prod queda la protección activa:
+    // el bucket se sirve por URL pública (Media:PublicBaseUrl).
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== 'production',
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
