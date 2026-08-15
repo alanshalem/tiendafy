@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Badge } from '@tiendafy/ui';
+import { Badge, EmptyList, Spinner } from '@tiendafy/ui';
 import { api } from '../lib/api';
-import { Cargando, Vacio, fecha } from './mercadolibre-shared';
+import { fecha } from './mercadolibre-shared';
 
 interface MeliClaim {
   id: string;
@@ -26,9 +26,9 @@ export function ReclamosTab() {
   }, []);
 
   return claims === null ? (
-    <Cargando />
+    <Spinner />
   ) : claims.length === 0 ? (
-    <Vacio texto="Sin reclamos abiertos en Mercado Libre. 🎉" />
+    <EmptyList>Sin reclamos abiertos en Mercado Libre. 🎉</EmptyList>
   ) : (
     <div className="space-y-3">
       {claims.map((c) => (

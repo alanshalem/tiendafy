@@ -8,10 +8,8 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Api.Shipping;
 
 /// <summary>Error controlado de la API de MiCorreo, con el mensaje del server.</summary>
-public sealed class MiCorreoException(string message, HttpStatusCode? status = null) : Exception(message)
-{
-    public HttpStatusCode? Status { get; } = status;
-}
+public sealed class MiCorreoException(string message, HttpStatusCode? status = null)
+    : CarrierException(message, status);
 
 public sealed record MiCorreoCredentials(string UserToken, string PasswordToken, string Environment)
 {
@@ -225,16 +223,8 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
 
     private static string ExtractMessage(string body, string fallback)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(body);
-            var msg = doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() : null;
-            return string.IsNullOrWhiteSpace(msg) ? fallback : $"MiCorreo: {msg}";
-        }
-        catch (JsonException)
-        {
-            return fallback;
-        }
+        var msg = CarrierErrorBody.Message(body, "message");
+        return msg is null ? fallback : $"MiCorreo: {msg}";
     }
 
 }

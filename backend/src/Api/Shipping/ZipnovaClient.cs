@@ -8,10 +8,8 @@ using Checkout.Core.Domain;
 namespace Api.Shipping;
 
 /// <summary>Error controlado de la API de Zipnova, con el mensaje del server.</summary>
-public sealed class ZipnovaException(string message, HttpStatusCode? status = null) : Exception(message)
-{
-    public HttpStatusCode? Status { get; } = status;
-}
+public sealed class ZipnovaException(string message, HttpStatusCode? status = null)
+    : CarrierException(message, status);
 
 public sealed record ZipnovaCredentials(string ApiToken, string ApiSecret, string Country)
 {
@@ -227,16 +225,8 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
 
     private static string ExtractMessage(string body, HttpStatusCode status)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(body);
-            foreach (var name in new[] { "message", "error" })
-                if (doc.RootElement.ValueKind == JsonValueKind.Object
-                    && doc.RootElement.TryGetProperty(name, out var m) && m.ValueKind == JsonValueKind.String
-                    && !string.IsNullOrWhiteSpace(m.GetString()))
-                    return $"Zipnova: {m.GetString()}";
-        }
-        catch (JsonException) { /* cuerpo no-JSON */ }
+        var msg = CarrierErrorBody.Message(body, "message", "error");
+        if (msg is not null) return $"Zipnova: {msg}";
         return status == HttpStatusCode.TooManyRequests
             ? "Zipnova está limitando el tráfico. Probá de nuevo en un par de minutos."
             : $"Zipnova devolvió {(int)status}.";

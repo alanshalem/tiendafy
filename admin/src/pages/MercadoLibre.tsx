@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Store } from 'lucide-react';
+import { Tabs } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
@@ -71,20 +72,7 @@ export function MercadoLibrePage() {
             Conectado como <span className="font-medium text-fg">{status.nickname}</span>
           </p>
         </div>
-        <div className="flex rounded-lg border border-border bg-surface p-0.5 shadow-card">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                tab === t.id ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:text-fg'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs items={TABS} value={tab} onChange={setTab} />
       </div>
 
       {tab === 'ventas' && <VentasTab />}

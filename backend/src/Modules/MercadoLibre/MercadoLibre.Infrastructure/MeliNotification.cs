@@ -1,3 +1,5 @@
+using SharedKernel.Common;
+
 namespace MercadoLibre.Infrastructure;
 
 /// <summary>
@@ -7,22 +9,11 @@ namespace MercadoLibre.Infrastructure;
 /// (solo el resource a consultar), por eso nunca se confía en él: el worker
 /// re-consulta el recurso con el token del vendedor.
 /// </summary>
-public sealed class MeliNotification
+public sealed class MeliNotification : InboxEntry
 {
-    public const string StatusPending = "pending";
-    public const string StatusDone = "done";
-    public const string StatusDead = "dead";
-    public const int MaxAttempts = 6;
-
-    public Guid Id { get; private set; }
     public string Topic { get; private set; } = string.Empty;
     public string Resource { get; private set; } = string.Empty;
     public long MeliUserId { get; private set; }
-    public string Status { get; private set; } = StatusPending;
-    public int Attempts { get; private set; }
-    public string? LastError { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
-    public DateTime? ProcessedAtUtc { get; private set; }
 
     private MeliNotification() { } // EF Core
 
@@ -35,22 +26,4 @@ public sealed class MeliNotification
         Status = StatusPending,
         CreatedAtUtc = DateTime.UtcNow,
     };
-
-    public void MarkDone()
-    {
-        Status = StatusDone;
-        ProcessedAtUtc = DateTime.UtcNow;
-        LastError = null;
-    }
-
-    public void MarkFailed(string error)
-    {
-        Attempts++;
-        LastError = error.Length > 500 ? error[..500] : error;
-        if (Attempts >= MaxAttempts)
-        {
-            Status = StatusDead;
-            ProcessedAtUtc = DateTime.UtcNow;
-        }
-    }
 }

@@ -1,9 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Link2, Link2Off, Loader2, Store, Upload } from 'lucide-react';
-import { Badge, Button, Modal, Select, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  EmptyList,
+  Modal,
+  Select,
+  Spinner,
+  useConfirm,
+  useToast,
+  type BadgeVariant,
+} from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { fetchAllProducts } from '../lib/products';
-import { Cargando, Vacio, money } from './mercadolibre-shared';
+import { money } from './mercadolibre-shared';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -97,9 +107,12 @@ export function PublicacionesTab() {
       </div>
 
       {items === null ? (
-        <Cargando />
+        <Spinner />
       ) : items.length === 0 ? (
-        <Vacio texto="No tenés publicaciones en Mercado Libre todavía. Publicá un producto de tu catálogo con el botón de arriba." />
+        <EmptyList>
+          No tenés publicaciones en Mercado Libre todavía. Publicá un producto de tu catálogo con el botón de
+          arriba.
+        </EmptyList>
       ) : (
         <div className="space-y-3">
           {items.map((item) => {

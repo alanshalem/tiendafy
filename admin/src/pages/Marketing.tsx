@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
-import { Badge, Button, Modal, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
+import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
 import { formatDate, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -107,17 +107,16 @@ export function MarketingPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-6 pb-20">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Marketing</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Campañas de email para tus clientes: novedades, promos, lanzamientos.
-          </p>
-        </div>
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" /> Nueva campaña
-        </Button>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Marketing"
+        subtitle="Campañas de email para tus clientes: novedades, promos, lanzamientos."
+        actions={
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Nueva campaña
+          </Button>
+        }
+      />
 
       <NotificationUsage channel="email" />
 

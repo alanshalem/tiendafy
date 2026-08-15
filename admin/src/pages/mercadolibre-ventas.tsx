@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, MessageSquare, Send } from 'lucide-react';
-import { Badge, Button, Input, Modal, useToast, type BadgeVariant } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  EmptyList,
+  Input,
+  Modal,
+  Spinner,
+  StatCard,
+  useToast,
+  type BadgeVariant,
+} from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { Cargando, Vacio, fecha, money } from './mercadolibre-shared';
+import { fecha, money } from './mercadolibre-shared';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -72,9 +82,12 @@ export function VentasTab() {
       )}
 
       {orders === null ? (
-        <Cargando />
+        <Spinner />
       ) : orders.length === 0 ? (
-        <Vacio texto="Todavía no hay ventas de Mercado Libre. Se importan solas con cada venta nueva (o desde Configuración → Mercado Libre → Importar últimas ventas)." />
+        <EmptyList>
+          Todavía no hay ventas de Mercado Libre. Se importan solas con cada venta nueva (o desde
+          Configuración → Mercado Libre → Importar últimas ventas).
+        </EmptyList>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
           <table className="w-full min-w-[760px] text-sm">
@@ -123,15 +136,6 @@ export function VentasTab() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-4 shadow-card">
-      <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">{label}</div>
-      <div className="mt-1 text-2xl font-bold tracking-tight text-fg">{value}</div>
-    </div>
-  );
-}
-
 function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => void }) {
   const { toast } = useToast();
   const packId = order.packId ?? order.meliOrderId;
@@ -173,7 +177,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
     <Modal open onClose={onClose} title={`Chat con ${order.buyerNickname || 'el comprador'}`} size="md">
       <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg bg-bg-subtle p-3">
         {messages === null ? (
-          <Cargando />
+          <Spinner />
         ) : messages.length === 0 ? (
           <p className="py-6 text-center text-sm text-fg-muted">
             Sin mensajes. En Mercado Libre la conversación la inicia el comprador.

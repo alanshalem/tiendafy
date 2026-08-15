@@ -10,6 +10,7 @@ import {
   FormField,
   Input,
   Modal,
+  PageHeader,
   useToast,
   useConfirm,
   type BadgeVariant,
@@ -118,19 +119,17 @@ export function PagesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Páginas</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <span className="inline-flex items-center gap-1.5">
-            <Plus className="h-4 w-4" /> Crear página
-          </span>
-        </Button>
-      </div>
+      <PageHeader
+        title="Páginas"
+        subtitle="Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más."
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" /> Crear página
+            </span>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Card>

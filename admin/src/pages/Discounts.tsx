@@ -9,6 +9,7 @@ import {
   FormField,
   Input,
   Modal,
+  PageHeader,
   Select,
   useToast,
   useConfirm,
@@ -164,19 +165,17 @@ export function DiscountsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Cupones de descuento</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <span className="inline-flex items-center gap-1.5">
-            <Plus className="h-4 w-4" /> Crear cupón
-          </span>
-        </Button>
-      </div>
+      <PageHeader
+        title="Cupones de descuento"
+        subtitle="Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos."
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" /> Crear cupón
+            </span>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Card>

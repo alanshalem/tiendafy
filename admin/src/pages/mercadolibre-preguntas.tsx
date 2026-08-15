@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Button, Input, useToast } from '@tiendafy/ui';
+import { Button, EmptyList, Input, Spinner, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { Cargando, Vacio, fecha } from './mercadolibre-shared';
+import { fecha } from './mercadolibre-shared';
 
 interface MeliQuestion {
   id: number;
@@ -70,15 +70,13 @@ export function PreguntasTab() {
       </div>
 
       {questions === null ? (
-        <Cargando />
+        <Spinner />
       ) : questions.length === 0 ? (
-        <Vacio
-          texto={
-            soloSinResponder
-              ? '¡Al día! No tenés preguntas sin responder en Mercado Libre.'
-              : 'Todavía no recibiste preguntas en Mercado Libre.'
-          }
-        />
+        <EmptyList>
+          {soloSinResponder
+            ? '¡Al día! No tenés preguntas sin responder en Mercado Libre.'
+            : 'Todavía no recibiste preguntas en Mercado Libre.'}
+        </EmptyList>
       ) : (
         <div className="space-y-3">
           {questions.map((q) => (
