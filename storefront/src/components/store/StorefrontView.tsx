@@ -22,7 +22,7 @@ import { sanitizeCss } from '@tiendafy/types';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { toStoreProduct, type ProductDto } from '@/lib/catalog';
 
-import { clientJson } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 
 interface StorefrontViewProps {
   tenantId: string;
@@ -653,8 +653,8 @@ export function StorefrontView({
     let cancelled = false;
     Promise.all(
       missing.map((id) =>
-        clientJson<ProductDto>(`/api/v1/products/${id}`, {
-          headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' },
+        clientJsonTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
+          headers: { Accept: 'application/json' },
         }),
       ),
     ).then((dtos) => {

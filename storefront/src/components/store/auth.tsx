@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { API_URL as API } from '@/lib/api-client';
+import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 
 export interface ShopUser {
   id: string;
@@ -36,15 +36,6 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-async function problemMessage(res: Response): Promise<string> {
-  try {
-    const data = await res.json();
-    return data.detail || data.title || 'Algo salió mal. Probá de nuevo.';
-  } catch {
-    return 'Algo salió mal. Probá de nuevo.';
-  }
-}
-
 export function AuthProvider({ storeKey, children }: { storeKey: string; children: ReactNode }) {
   // Solo cacheamos datos NO sensibles (nombre/email) para pintar rápido; la
   // credencial real es la cookie HttpOnly que pone el backend y que JS no puede leer.
@@ -53,10 +44,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   const [ready, setReady] = useState(false);
 
   // Headers comunes. La sesión va en cookie → `credentials: 'include'` en cada fetch.
-  const headers = useMemo<Record<string, string>>(
-    () => ({ 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey }),
-    [storeKey],
-  );
+  const headers = useMemo<Record<string, string>>(() => tenantHeaders(storeKey, true), [storeKey]);
 
   const persistUser = useCallback(
     (u: ShopUser | null) => {
@@ -104,7 +92,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
         credentials: 'include',
         body: JSON.stringify({ email, password, captcha }),
       });
-      if (!res.ok) return { ok: false, error: await problemMessage(res) };
+      if (!res.ok) return { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
       const data = await res.json();
       persistUser(data.customer);
       return { ok: true };
@@ -120,7 +108,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
         credentials: 'include',
         body: JSON.stringify({ name, email, password, captcha }),
       });
-      if (!res.ok) return { ok: false, error: await problemMessage(res) };
+      if (!res.ok) return { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
       const data = await res.json();
       persistUser(data.customer);
       return { ok: true };
@@ -136,7 +124,9 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
         credentials: 'include',
         body: JSON.stringify({ email }),
       });
-      return res.ok ? { ok: true } : { ok: false, error: await problemMessage(res) };
+      return res.ok
+        ? { ok: true }
+        : { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
     },
     [headers],
   );

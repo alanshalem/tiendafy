@@ -1,4 +1,5 @@
 using Api.Notifications;
+using Api.Workers;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Features;
 using Payments.Contracts;
@@ -14,22 +15,12 @@ namespace Api.Payments;
 /// </summary>
 public sealed class PaymentWebhookWorker(
     IServiceScopeFactory scopeFactory,
-    ILogger<PaymentWebhookWorker> logger) : BackgroundService
+    ILogger<PaymentWebhookWorker> logger) : PollingWorker(TimeSpan.FromSeconds(5))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Polling de webhooks falló.");
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await PollOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Polling de webhooks falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
-
-    private async Task PollOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;

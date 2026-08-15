@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
-import { clientJson } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 
 interface Cat {
   id: string;
@@ -36,9 +36,7 @@ function useCategoryTree(): CatNode[] {
   const [cats, setCats] = useState<Cat[]>([]);
   useEffect(() => {
     if (!tenantId) return;
-    clientJson<{ items?: Cat[] }>('/api/v1/categories', { headers: { 'X-Tenant-Id': tenantId } }).then((d) =>
-      setCats(d?.items ?? []),
-    );
+    clientJsonTenant<{ items?: Cat[] }>('/api/v1/categories', tenantId).then((d) => setCats(d?.items ?? []));
   }, [tenantId]);
   return useMemo(() => buildTree(cats), [cats]);
 }

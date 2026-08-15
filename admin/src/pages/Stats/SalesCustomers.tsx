@@ -12,6 +12,7 @@ import { ChartCard, Sparkline } from '../../components/charts';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatMoney } from '../../lib/format';
+import { orderStatusLabel } from '../../lib/orderStatus';
 
 interface Sales {
   currency: string;
@@ -22,16 +23,6 @@ interface Sales {
   series: { date: string; revenue: number; orders: number }[];
   byStatus: { status: string; count: number }[];
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDINGPAYMENT: 'Pendiente',
-  PAID: 'Pagada',
-  FAILED: 'Fallida',
-  CANCELLED: 'Cancelada',
-  REFUNDED: 'Reembolsada',
-  CHARGEDBACK: 'Contracargo',
-  FULFILLED: 'Entregada',
-};
 
 export function StatsSalesPage() {
   const { store } = useStore();
@@ -73,7 +64,7 @@ export function StatsSalesPage() {
                 <tbody>
                   {data.byStatus.map((s) => (
                     <tr key={s.status} className="border-b border-border last:border-b-0">
-                      <td className="py-2 text-fg">{STATUS_LABEL[s.status] ?? s.status}</td>
+                      <td className="py-2 text-fg">{orderStatusLabel(s.status)}</td>
                       <td className="py-2 text-right tabular-nums text-fg">{s.count}</td>
                     </tr>
                   ))}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Paperclip, Send, X } from 'lucide-react';
 
-import { API_URL, clientJson } from '@/lib/api-client';
+import { API_URL, clientJson, tenantHeaders } from '@/lib/api-client';
 
 interface Attachment {
   name: string;
@@ -49,7 +49,7 @@ export function SupportChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const headers = { 'X-Tenant-Id': tenantId };
+  const headers = tenantHeaders(tenantId);
 
   const loadMessages = useCallback(
     async (convId: string) => {

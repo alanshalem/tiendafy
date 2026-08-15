@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
-import { API_URL as API } from '@/lib/api-client';
+import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 
 export function ResetPassword() {
   const params = useSearchParams();
@@ -25,15 +25,14 @@ export function ResetPassword() {
     setBusy(true);
     const res = await fetch(`${API}/api/v1/shop/auth/reset`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+      headers: tenantHeaders(tenantId, true),
       credentials: 'include',
       body: JSON.stringify({ token, password }),
     });
     setBusy(false);
     if (res.ok) setDone(true);
     else {
-      const d = await res.json().catch(() => null);
-      setError(d?.detail ?? 'El link no es válido o expiró. Pedí uno nuevo.');
+      setError(await problemMessage(res, 'El link no es válido o expiró. Pedí uno nuevo.'));
     }
   };
 

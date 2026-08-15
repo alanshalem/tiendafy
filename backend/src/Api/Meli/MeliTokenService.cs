@@ -22,29 +22,14 @@ public sealed class MeliTokenService(
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Locks = new();
 
     private readonly IDataProtector _tokens = dataProtection.CreateProtector("Tiendafy.Meli.Tokens.v1");
-    private readonly IDataProtector _state = dataProtection.CreateProtector("Tiendafy.Meli.OAuthState.v1");
+    private readonly Auth.OAuthStateProtector _state = new(dataProtection, "Tiendafy.Meli.OAuthState.v1");
 
     public string Protect(string plaintext) => _tokens.Protect(plaintext);
 
     /// <summary>State OAuth firmado (tenant + timestamp); vence a los 15 minutos.</summary>
-    public string ProtectState(Guid tenantId) =>
-        _state.Protect($"{tenantId:N}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+    public string ProtectState(Guid tenantId) => _state.Protect(tenantId);
 
-    public Guid? TryUnprotectState(string state)
-    {
-        try
-        {
-            var parts = _state.Unprotect(state).Split('|');
-            if (parts.Length != 2) return null;
-            var issuedAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(parts[1]));
-            if (DateTimeOffset.UtcNow - issuedAt > TimeSpan.FromMinutes(15)) return null;
-            return Guid.ParseExact(parts[0], "N");
-        }
-        catch
-        {
-            return null;
-        }
-    }
+    public Guid? TryUnprotectState(string state) => _state.TryUnprotect(state);
 
     /// <summary>
     /// Access token vigente de la conexión, renovando si está por vencer.

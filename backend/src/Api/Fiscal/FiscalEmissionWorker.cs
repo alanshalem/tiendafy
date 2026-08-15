@@ -1,3 +1,4 @@
+using Api.Workers;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
 using Fiscal.Infrastructure.Persistence;
@@ -15,24 +16,15 @@ namespace Api.Fiscal;
 /// </summary>
 public sealed class FiscalEmissionWorker(
     IServiceScopeFactory scopeFactory,
-    ILogger<FiscalEmissionWorker> logger) : BackgroundService
+    ILogger<FiscalEmissionWorker> logger) : PollingWorker(TimeSpan.FromSeconds(10))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
     private const int MaxAttempts = 8;
     private const int BatchSize = 20;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await PollOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Polling de emisión fiscal falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Polling de emisión fiscal falló.");
 
-    private async Task PollOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;

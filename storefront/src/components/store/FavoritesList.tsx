@@ -10,7 +10,7 @@ import { useCart } from './cart';
 import { EmptyState } from './EmptyState';
 import { ProductCardSkeleton } from './Skeletons';
 
-import { clientJson } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 
 /** Lista de favoritos: trae por id los productos guardados y los muestra. */
 export function FavoritesList({ productList }: { productList: ProductListConfig }) {
@@ -26,8 +26,8 @@ export function FavoritesList({ productList }: { productList: ProductListConfig 
     let cancelled = false;
     Promise.all(
       ids.map((id) =>
-        clientJson<ProductDto>(`/api/v1/products/${id}`, {
-          headers: { 'X-Tenant-Id': tenantId, Accept: 'application/json' },
+        clientJsonTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
+          headers: { Accept: 'application/json' },
         }),
       ),
     ).then((dtos) => {

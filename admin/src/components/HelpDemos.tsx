@@ -2,6 +2,8 @@ import { useState, type ReactElement } from 'react';
 import { Badge, Switch } from '@tiendafy/ui';
 import { HelpCircle, ShoppingBag, Ticket } from 'lucide-react';
 import type { HelpDemoId } from '../config/helpContent';
+import { ORDER_STATUS } from '../lib/orderStatus';
+import { CAMPAIGN_STATUS } from '../pages/Marketing';
 
 /**
  * Demos del centro de ayuda: los MISMOS componentes que el merchant ve en el
@@ -9,16 +11,18 @@ import type { HelpDemoId } from '../config/helpContent';
  * visual. Todo es estático/local — acá no se llama a la API.
  */
 
-// Estados de una venta, con las mismas clases que la tabla de Ventas.
+// Estados de una venta, derivados del mapa real de la tabla de Ventas.
 const ORDER_STATUSES = [
-  { label: 'Pendiente', cls: 'bg-amber-100 text-amber-700' },
-  { label: 'Pagada', cls: 'bg-green-100 text-green-700' },
-  { label: 'Enviada', cls: 'bg-green-100 text-green-700' },
-  { label: 'Reembolsada', cls: 'bg-blue-100 text-blue-700' },
-  { label: 'Reembolso parcial', cls: 'bg-sky-100 text-sky-700' },
-  { label: 'Cancelada', cls: 'bg-gray-100 text-gray-600' },
-  { label: 'Contracargo', cls: 'bg-rose-100 text-rose-700' },
-];
+  'PENDINGPAYMENT',
+  'PAID',
+  'FULFILLED',
+  'REFUNDED',
+  'PARTIALLYREFUNDED',
+  'CANCELLED',
+  'CHARGEDBACK',
+]
+  .map((s) => ORDER_STATUS[s]!)
+  .filter(Boolean);
 
 function OrderStatusesDemo() {
   return (
@@ -38,11 +42,11 @@ function OrderStatusesDemo() {
 function CampaignStatusesDemo() {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Badge variant="neutral">Borrador</Badge>
-      <Badge variant="info">Programada</Badge>
-      <Badge variant="warning">Enviando…</Badge>
-      <Badge variant="success">Enviada</Badge>
-      <Badge variant="danger">Cancelada</Badge>
+      {Object.entries(CAMPAIGN_STATUS).map(([key, s]) => (
+        <Badge key={key} variant={s.variant}>
+          {s.label}
+        </Badge>
+      ))}
     </div>
   );
 }

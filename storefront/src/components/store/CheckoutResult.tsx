@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
-import { API_URL as API } from '@/lib/api-client';
+import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 
 type Kind = 'success' | 'failure' | 'pending';
 
@@ -33,7 +33,7 @@ export function CheckoutResult({
     const poll = async () => {
       try {
         const res = await fetch(`${API}/api/v1/orders/${orderId}/status`, {
-          headers: { 'X-Tenant-Id': tenantId },
+          headers: tenantHeaders(tenantId),
         });
         if (res.ok) {
           const order = await res.json();

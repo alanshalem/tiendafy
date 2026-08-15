@@ -1,3 +1,4 @@
+using Api.Workers;
 using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,22 +11,12 @@ namespace Api.Meli;
 /// confía en el payload del webhook.
 /// </summary>
 public sealed class MeliNotificationWorker(
-    IServiceScopeFactory scopeFactory, ILogger<MeliNotificationWorker> logger) : BackgroundService
+    IServiceScopeFactory scopeFactory, ILogger<MeliNotificationWorker> logger) : PollingWorker(TimeSpan.FromSeconds(5))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Polling de notificaciones de Mercado Libre falló.");
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await PollOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Polling de notificaciones de Mercado Libre falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
-
-    private async Task PollOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;

@@ -134,21 +134,16 @@ public sealed class ZipnovaShipment
             TenantId = tenantId,
             OrderId = orderId,
             ShipmentId = shipmentId,
-            CarrierName = Clip(carrierName, 120),
-            CarrierTrackingId = Clip(carrierTrackingId, 80),
-            TrackingUrl = Clip(trackingUrl, 500),
-            Status = Clip(status, 40) ?? "new",
+            CarrierName = Text.Clip(carrierName, 120),
+            CarrierTrackingId = Text.Clip(carrierTrackingId, 80),
+            TrackingUrl = Text.Clip(trackingUrl, 500),
+            Status = Text.Clip(status, 40) ?? "new",
             CreatedAtUtc = DateTime.UtcNow,
         };
 
     public void UpdateStatus(string? status)
     {
-        if (!string.IsNullOrWhiteSpace(status)) Status = Clip(status, 40)!;
+        if (!string.IsNullOrWhiteSpace(status)) Status = Text.Clip(status, 40)!;
     }
 
-    private static string? Clip(string? v, int max)
-    {
-        var t = v?.Trim();
-        return string.IsNullOrEmpty(t) ? null : t[..Math.Min(max, t.Length)];
-    }
 }

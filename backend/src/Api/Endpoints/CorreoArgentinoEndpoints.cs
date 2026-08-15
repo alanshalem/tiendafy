@@ -29,7 +29,7 @@ public static class CorreoArgentinoEndpoints
 
         admin.MapPut("/", async (
             CorreoConfigRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository repo,
-            CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             var existing = await repo.GetAsync(tenant.TenantId.Value, ct);
 
@@ -113,7 +113,7 @@ public static class CorreoArgentinoEndpoints
         // Cotización de prueba: valida credenciales + CP de origen con datos reales.
         admin.MapPost("/test", async (
             CorreoTestRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository repo,
-            CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             var config = await repo.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -152,7 +152,7 @@ public static class CorreoArgentinoEndpoints
         // y el submit valida que la sesión real coincida.
         group.MapPost("/shipping/correo/quote", async (
             CorreoQuoteRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
-            CorreoSecretProtector protector, MiCorreoClient client,
+            ShippingSecretProtector protector, MiCorreoClient client,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
 
@@ -226,7 +226,7 @@ public static class CorreoArgentinoEndpoints
         // Sucursales que reciben paquetes, por provincia (cacheadas 12 h).
         group.MapGet("/shipping/correo/agencies", async (
             string province, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
-            CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             if (province is not { Length: 1 } || !char.IsAsciiLetterUpper(province[0]))
                 return Error.Validation("Correo.InvalidProvince", "Código de provincia inválido.").ToProblem();
@@ -259,7 +259,7 @@ public static class CorreoArgentinoEndpoints
         group.MapPost("/admin/orders/{orderId:guid}/correo-shipment", async (
             Guid orderId, CorreoShipmentRequest req, ITenantContext tenant,
             ICorreoArgentinoConfigRepository configs, IOrderRepository orders,
-            CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -328,7 +328,7 @@ public static class CorreoArgentinoEndpoints
         // Seguimiento de un envío MiCorreo (por número de tracking del carrier).
         group.MapGet("/admin/shipping/correo/tracking", async (
             string shippingId, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
-            CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -356,7 +356,7 @@ public static class CorreoArgentinoEndpoints
 
     // ---------------------------------------------------------------- Helpers
 
-    internal static MiCorreoCredentials Credentials(CorreoArgentinoConfig config, CorreoSecretProtector protector) =>
+    internal static MiCorreoCredentials Credentials(CorreoArgentinoConfig config, ShippingSecretProtector protector) =>
         new(protector.Unprotect(config.UserTokenEncrypted),
             protector.Unprotect(config.PasswordTokenEncrypted),
             config.Environment);

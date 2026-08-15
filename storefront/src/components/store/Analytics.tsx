@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { API_URL as API } from '@/lib/api-client';
+import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 
 function persistentId(key: string, storage: Storage): string {
   let value = storage.getItem(key);
@@ -25,7 +25,7 @@ export function Analytics({ tenantId }: { tenantId: string }) {
       const sessionId = persistentId('tiendafy.sid', sessionStorage);
       fetch(`${API}/api/v1/track`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+        headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ path: pathname, referrer: document.referrer || null, visitorId, sessionId }),
         keepalive: true,
       }).catch(() => {});

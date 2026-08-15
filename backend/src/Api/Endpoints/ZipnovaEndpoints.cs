@@ -32,7 +32,7 @@ public static class ZipnovaEndpoints
 
         admin.MapPut("/", async (
             ZipnovaConfigRequest req, ITenantContext tenant, IZipnovaRepository repo,
-            CorreoSecretProtector protector, CancellationToken ct) =>
+            ShippingSecretProtector protector, CancellationToken ct) =>
         {
             var existing = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
 
@@ -91,7 +91,7 @@ public static class ZipnovaEndpoints
         // real (leer no crea nada ni consume saldo).
         admin.MapPost("/test", async (
             ZipnovaTestRequest req, ITenantContext tenant, IZipnovaRepository repo,
-            CorreoSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -126,7 +126,7 @@ public static class ZipnovaEndpoints
         // --------------------------------------- Público: cotización del checkout
         group.MapPost("/shipping/zipnova/quote", async (
             ZipnovaPublicQuoteRequest req, ITenantContext tenant, IZipnovaRepository repo,
-            CorreoSecretProtector protector, ZipnovaClient client,
+            ShippingSecretProtector protector, ZipnovaClient client,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
 
@@ -191,7 +191,7 @@ public static class ZipnovaEndpoints
         group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment", async (
             Guid orderId, ZipnovaShipmentRequest req, ITenantContext tenant,
             IZipnovaRepository repo, IOrderRepository orders,
-            CorreoSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -234,7 +234,7 @@ public static class ZipnovaEndpoints
                 width = Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, ZipnovaConfig.MaxSideCm),
                 length = Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, ZipnovaConfig.MaxSideCm),
                 classification_id = "1",
-                description_1 = Clip($"Pedido {externalId}", 60),
+                description_1 = Truncate($"Pedido {externalId}", 60),
             };
 
             var payload = new Dictionary<string, object?>
@@ -247,16 +247,16 @@ public static class ZipnovaEndpoints
                 ["source"] = "tiendafy",
                 ["destination"] = new
                 {
-                    name = Clip(req.Name.Trim(), 100),
-                    document = Clip(req.Document.Trim(), 20),
-                    email = Clip(req.Email.Trim(), 150),
-                    phone = Clip(req.Phone.Trim(), 40),
-                    street = Clip(req.Street.Trim(), 100),
-                    street_number = Clip(req.StreetNumber.Trim(), 20),
-                    street_extras = string.IsNullOrWhiteSpace(req.StreetExtras) ? null : Clip(req.StreetExtras.Trim(), 120),
-                    city = Clip(req.City.Trim(), 80),
-                    state = Clip(req.State.Trim(), 80),
-                    zipcode = Clip(NumericZip(req.Zipcode.Trim()), 10),
+                    name = Truncate(req.Name.Trim(), 100),
+                    document = Truncate(req.Document.Trim(), 20),
+                    email = Truncate(req.Email.Trim(), 150),
+                    phone = Truncate(req.Phone.Trim(), 40),
+                    street = Truncate(req.Street.Trim(), 100),
+                    street_number = Truncate(req.StreetNumber.Trim(), 20),
+                    street_extras = string.IsNullOrWhiteSpace(req.StreetExtras) ? null : Truncate(req.StreetExtras.Trim(), 120),
+                    city = Truncate(req.City.Trim(), 80),
+                    state = Truncate(req.State.Trim(), 80),
+                    zipcode = Truncate(NumericZip(req.Zipcode.Trim()), 10),
                 },
                 ["packages"] = Enumerable.Repeat(package, units).ToArray(),
             };
@@ -291,7 +291,7 @@ public static class ZipnovaEndpoints
         // Etiqueta PDF, proxied (las credenciales nunca tocan el browser).
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-label", async (
             Guid orderId, ITenantContext tenant, IZipnovaRepository repo,
-            CorreoSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
@@ -310,7 +310,7 @@ public static class ZipnovaEndpoints
         // Tracking del envío de una orden.
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-tracking", async (
             Guid orderId, ITenantContext tenant, IZipnovaRepository repo,
-            CorreoSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
@@ -341,7 +341,7 @@ public static class ZipnovaEndpoints
 
     // ---------------------------------------------------------------- Helpers
 
-    private static ZipnovaCredentials Credentials(ZipnovaConfig config, CorreoSecretProtector protector) =>
+    private static ZipnovaCredentials Credentials(ZipnovaConfig config, ShippingSecretProtector protector) =>
         new(protector.Unprotect(config.ApiTokenEncrypted),
             protector.Unprotect(config.ApiSecretEncrypted),
             config.Country);
@@ -374,7 +374,7 @@ public static class ZipnovaEndpoints
             active = c.Active,
         };
 
-    private static string Clip(string v, int max) => v.Length <= max ? v : v[..max];
+    private static string Truncate(string v, int max) => v.Length <= max ? v : v[..max];
 
     /// <summary>
     /// Soporte de Zipnova recomienda mandar SOLO la parte numérica del código

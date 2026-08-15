@@ -115,20 +115,15 @@ public sealed class CheckoutSession : AggregateRoot
         return Result.Success();
     }
 
-    private static string? Clip(string? v, int max)
-    {
-        var t = v?.Trim();
-        return string.IsNullOrEmpty(t) ? null : t[..Math.Min(max, t.Length)];
-    }
 
     /// <summary>Datos del destinatario/facturación y notas (paso Entrega).</summary>
     public void SetRecipient(string? name, string? lastName, string? phone, string? docNumber, string? notes)
     {
-        BuyerName = Clip(name, 80);
-        BuyerLastName = Clip(lastName, 80);
-        Phone = Clip(phone, 40);
-        DocNumber = Clip(docNumber, 20);
-        Notes = Clip(notes, 500);
+        BuyerName = Text.Clip(name, 80);
+        BuyerLastName = Text.Clip(lastName, 80);
+        Phone = Text.Clip(phone, 40);
+        DocNumber = Text.Clip(docNumber, 20);
+        Notes = Text.Clip(notes, 500);
     }
 
     /// <summary>Snapshot del envío elegido: el costo queda congelado en la sesión.</summary>
@@ -138,9 +133,9 @@ public sealed class CheckoutSession : AggregateRoot
             return Result.Failure(Error.Validation("Checkout.ShippingCurrency",
                 $"El costo de envío debe ser en {Currency}."));
         ShippingMethodId = methodId;
-        ShippingMethodName = Clip(methodName, 120);
+        ShippingMethodName = Text.Clip(methodName, 120);
         ShippingCost = cost;
-        ShippingAddress = Clip(address, 300);
+        ShippingAddress = Text.Clip(address, 300);
         return Result.Success();
     }
 
@@ -154,9 +149,9 @@ public sealed class CheckoutSession : AggregateRoot
             return Result.Failure(Error.Validation("Checkout.ShippingCurrency",
                 $"El costo de envío debe ser en {Currency}."));
         ShippingMethodId = null;
-        ShippingMethodName = Clip(methodName, 120);
+        ShippingMethodName = Text.Clip(methodName, 120);
         ShippingCost = cost;
-        ShippingAddress = Clip(address, 300);
+        ShippingAddress = Text.Clip(address, 300);
         return Result.Success();
     }
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
-import { API_URL as API } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 
 interface Pg {
   id: string;
@@ -21,10 +21,9 @@ export function PagesNav() {
 
   useEffect(() => {
     if (!tenantId) return;
-    fetch(`${API}/api/v1/pages/published`, { headers: { 'X-Tenant-Id': tenantId } })
-      .then((r) => r.json())
-      .then((d) => setPages(d.items ?? []))
-      .catch(() => {});
+    clientJsonTenant<{ items?: Pg[] }>('/api/v1/pages/published', tenantId).then((d) =>
+      setPages(d?.items ?? []),
+    );
   }, [tenantId]);
 
   if (pages.length === 0) return null;

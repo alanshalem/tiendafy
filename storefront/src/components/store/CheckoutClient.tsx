@@ -6,7 +6,7 @@ import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Tr
 import { formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
-import { API_URL as API } from '@/lib/api-client';
+import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 
 interface CartLine {
   variantId: string;
@@ -142,7 +142,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   }, [tenantId]);
 
   useEffect(() => {
-    const headers = { 'X-Tenant-Id': tenantId };
+    const headers = tenantHeaders(tenantId);
     fetch(`${API}/api/v1/payments/mercadopago/public-config`, { headers })
       .then((r) => r.json())
       .then((c) => {
@@ -203,7 +203,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     if (shippingId?.startsWith('correo-') || shippingId?.startsWith('zipnova-')) setShippingId(null);
     setAgencyCode(null);
     const units = lines.reduce((s, l) => s + l.quantity, 0);
-    const headers = { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId };
+    const headers = tenantHeaders(tenantId, true);
 
     const correoPromise = correoEnabled
       ? fetch(`${API}/api/v1/shipping/correo/quote`, {
@@ -259,7 +259,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     setAgencyCode(null);
     try {
       const res = await fetch(`${API}/api/v1/shipping/correo/agencies?province=${prov}`, {
-        headers: { 'X-Tenant-Id': tenantId },
+        headers: tenantHeaders(tenantId),
       });
       const data = await res.json();
       setAgencies(data.items ?? []);
@@ -275,7 +275,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     try {
       const res = await fetch(`${API}/api/v1/coupons/validate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+        headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ code, subtotal }),
       });
       const data = await res.json();
@@ -321,7 +321,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   // start + submit → reserva stock con todos los datos; devuelve sessionId.
   const reserve = async (buyerEmail: string) => {
-    const headers = { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId };
+    const headers = tenantHeaders(tenantId, true);
     const startRes = await fetch(`${API}/api/v1/checkout/`, {
       method: 'POST',
       headers,
@@ -359,7 +359,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       const id = await reserve(email.trim());
       const payRes = await fetch(`${API}/api/v1/checkout/${id}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+        headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({ returnUrl: window.location.origin, couponCode: coupon?.code ?? null }),
       });
       if (!payRes.ok) {
@@ -388,7 +388,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       const id = await reserve(buyerEmail);
       const res = await fetch(`${API}/api/v1/checkout/${id}/pay-onsite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+        headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({
           token: formData.token,
           paymentMethodId: formData.payment_method_id,

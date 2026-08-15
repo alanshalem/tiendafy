@@ -247,12 +247,12 @@ public static class MeliEndpoints
                     ? qs.EnumerateArray().Select(q => (object)new
                     {
                         id = q.TryGetProperty("id", out var id) ? id.GetInt64() : 0,
-                        text = Str(q, "text"),
-                        status = Str(q, "status"),
-                        itemId = Str(q, "item_id"),
-                        dateCreated = Str(q, "date_created"),
+                        text = JsonRead.GetString(q, "text"),
+                        status = JsonRead.GetString(q, "status"),
+                        itemId = JsonRead.GetString(q, "item_id"),
+                        dateCreated = JsonRead.GetString(q, "date_created"),
                         answer = q.TryGetProperty("answer", out var a) && a.ValueKind == JsonValueKind.Object
-                            ? new { text = Str(a, "text"), dateCreated = Str(a, "date_created") }
+                            ? new { text = JsonRead.GetString(a, "text"), dateCreated = JsonRead.GetString(a, "date_created") }
                             : null,
                     }).ToArray()
                     : [];
@@ -313,9 +313,9 @@ public static class MeliEndpoints
                     ? ms.EnumerateArray().Select(m => (object)new
                     {
                         text = m.TryGetProperty("text", out var txt) ? txt.GetString() : null,
-                        dateCreated = Str(m, "message_date")
+                        dateCreated = JsonRead.GetString(m, "message_date")
                             ?? (m.TryGetProperty("message_date", out var md) && md.ValueKind == JsonValueKind.Object
-                                ? Str(md, "created") : null),
+                                ? JsonRead.GetString(md, "created") : null),
                         fromSeller = m.TryGetProperty("from", out var f) && f.ValueKind == JsonValueKind.Object
                             && f.TryGetProperty("user_id", out var fid)
                             && fid.ToString().Trim('"') == c.MeliUserId.ToString(),
@@ -385,11 +385,11 @@ public static class MeliEndpoints
                     ? data.EnumerateArray().Select(cl => (object)new
                     {
                         id = cl.TryGetProperty("id", out var id) ? id.ToString() : "",
-                        status = Str(cl, "status"),
-                        stage = Str(cl, "stage"),
-                        reasonId = Str(cl, "reason_id"),
+                        status = JsonRead.GetString(cl, "status"),
+                        stage = JsonRead.GetString(cl, "stage"),
+                        reasonId = JsonRead.GetString(cl, "reason_id"),
                         resourceId = cl.TryGetProperty("resource_id", out var rid) ? rid.ToString() : "",
-                        dateCreated = Str(cl, "date_created"),
+                        dateCreated = JsonRead.GetString(cl, "date_created"),
                     }).ToArray()
                     : [];
                 return Results.Ok(new { claims });
@@ -436,15 +436,15 @@ public static class MeliEndpoints
                     foreach (var wrapper in doc.RootElement.EnumerateArray())
                     {
                         if (!wrapper.TryGetProperty("body", out var item)) continue;
-                        var itemId = Str(item, "id") ?? "";
+                        var itemId = JsonRead.GetString(item, "id") ?? "";
                         var link = links.FirstOrDefault(l => l.MeliItemId == itemId);
                         result.Add(new
                         {
                             id = itemId,
-                            title = Str(item, "title"),
-                            status = Str(item, "status"),
-                            permalink = Str(item, "permalink"),
-                            thumbnail = Str(item, "thumbnail"),
+                            title = JsonRead.GetString(item, "title"),
+                            status = JsonRead.GetString(item, "status"),
+                            permalink = JsonRead.GetString(item, "permalink"),
+                            thumbnail = JsonRead.GetString(item, "thumbnail"),
                             price = item.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : 0m,
                             availableQuantity = item.TryGetProperty("available_quantity", out var aq) && aq.ValueKind == JsonValueKind.Number ? aq.GetInt32() : 0,
                             link = link is null ? null : new
@@ -521,9 +521,9 @@ public static class MeliEndpoints
                 var suggestions = doc.RootElement.ValueKind == JsonValueKind.Array
                     ? doc.RootElement.EnumerateArray().Select(s => (object)new
                     {
-                        categoryId = Str(s, "category_id"),
-                        categoryName = Str(s, "category_name"),
-                        domainName = Str(s, "domain_name"),
+                        categoryId = JsonRead.GetString(s, "category_id"),
+                        categoryName = JsonRead.GetString(s, "category_name"),
+                        domainName = JsonRead.GetString(s, "domain_name"),
                     }).ToArray()
                     : [];
                 return Results.Ok(new { suggestions });
@@ -589,8 +589,8 @@ public static class MeliEndpoints
             try
             {
                 using var doc = await client.PostAsync(token, "/items", payload, ct);
-                var itemId = Str(doc.RootElement, "id") ?? "";
-                var permalink = Str(doc.RootElement, "permalink");
+                var itemId = JsonRead.GetString(doc.RootElement, "id") ?? "";
+                var permalink = JsonRead.GetString(doc.RootElement, "permalink");
 
                 // Descripción aparte (así lo pide la API de ML).
                 if (!string.IsNullOrWhiteSpace(product.Description))
@@ -633,11 +633,11 @@ public static class MeliEndpoints
         {
             using var doc = await JsonDocument.ParseAsync(http.Body, cancellationToken: ct);
             var root = doc.RootElement;
-            var topic = Str(root, "topic") ?? "";
-            var resource = Str(root, "resource") ?? "";
+            var topic = JsonRead.GetString(root, "topic") ?? "";
+            var resource = JsonRead.GetString(root, "resource") ?? "";
             var userId = root.TryGetProperty("user_id", out var uid) && uid.ValueKind == JsonValueKind.Number
                 ? uid.GetInt64()
-                : long.TryParse(Str(root, "user_id"), out var parsed) ? parsed : 0;
+                : long.TryParse(JsonRead.GetString(root, "user_id"), out var parsed) ? parsed : 0;
 
             if (topic.Length == 0 || resource.Length == 0 || userId == 0)
                 return Results.Ok(); // payload raro: ACK igual para que ML no reintente
@@ -648,8 +648,6 @@ public static class MeliEndpoints
         });
     }
 
-    private static string? Str(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
 }
 
 public sealed record MeliSettingsRequest(bool StockSyncEnabled);

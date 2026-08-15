@@ -24,24 +24,11 @@ public sealed record CorreoQuotePayload(
 public static class CorreoQuoteToken
 {
     private const string Purpose = "Tiendafy.Shipping.CorreoQuote.v1";
-    private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
 
     public static string Protect(IDataProtectionProvider dp, CorreoQuotePayload payload) =>
-        dp.CreateProtector(Purpose).ToTimeLimitedDataProtector()
-            .Protect(JsonSerializer.Serialize(payload), Lifetime);
+        SignedQuoteToken.Protect(dp, Purpose, payload);
 
     /// <summary>null si el token es inválido, vencido o de otro tenant.</summary>
-    public static CorreoQuotePayload? Unprotect(IDataProtectionProvider dp, string token, Guid tenantId)
-    {
-        try
-        {
-            var raw = dp.CreateProtector(Purpose).ToTimeLimitedDataProtector().Unprotect(token);
-            var payload = JsonSerializer.Deserialize<CorreoQuotePayload>(raw);
-            return payload is null || payload.TenantId != tenantId ? null : payload;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    public static CorreoQuotePayload? Unprotect(IDataProtectionProvider dp, string token, Guid tenantId) =>
+        SignedQuoteToken.Unprotect<CorreoQuotePayload>(dp, Purpose, token, tenantId, p => p.TenantId);
 }

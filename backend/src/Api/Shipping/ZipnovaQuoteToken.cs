@@ -21,24 +21,11 @@ public sealed record ZipnovaQuotePayload(
 public static class ZipnovaQuoteToken
 {
     private const string Purpose = "Tiendafy.Shipping.ZipnovaQuote.v1";
-    private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
 
     public static string Protect(IDataProtectionProvider dp, ZipnovaQuotePayload payload) =>
-        dp.CreateProtector(Purpose).ToTimeLimitedDataProtector()
-            .Protect(JsonSerializer.Serialize(payload), Lifetime);
+        SignedQuoteToken.Protect(dp, Purpose, payload);
 
     /// <summary>null si el token es inválido, vencido o de otro tenant.</summary>
-    public static ZipnovaQuotePayload? Unprotect(IDataProtectionProvider dp, string token, Guid tenantId)
-    {
-        try
-        {
-            var raw = dp.CreateProtector(Purpose).ToTimeLimitedDataProtector().Unprotect(token);
-            var payload = JsonSerializer.Deserialize<ZipnovaQuotePayload>(raw);
-            return payload is null || payload.TenantId != tenantId ? null : payload;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    public static ZipnovaQuotePayload? Unprotect(IDataProtectionProvider dp, string token, Guid tenantId) =>
+        SignedQuoteToken.Unprotect<ZipnovaQuotePayload>(dp, Purpose, token, tenantId, p => p.TenantId);
 }

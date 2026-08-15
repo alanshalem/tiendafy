@@ -51,7 +51,7 @@ public static class CheckoutEndpoints
             SubmitCheckoutHandler handler,
             IDataProtectionProvider dp,
             ICorreoArgentinoConfigRepository correoConfigs,
-            CorreoSecretProtector protector,
+            ShippingSecretProtector protector,
             MiCorreoClient correoClient,
             CancellationToken ct) =>
         {
@@ -132,7 +132,7 @@ public static class CheckoutEndpoints
     /// </summary>
     private static async Task<string> ResolveAgencyLabelAsync(
         Guid tenantId, string agencyCode, ICorreoArgentinoConfigRepository configs,
-        CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct)
+        ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct)
     {
         var fallback = $"Sucursal Correo Argentino {agencyCode}";
         var config = await configs.GetAsync(tenantId, ct);

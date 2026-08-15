@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Api.Shipping;
@@ -12,14 +11,6 @@ namespace Api.Shipping;
 public sealed class MiCorreoException(string message, HttpStatusCode? status = null) : Exception(message)
 {
     public HttpStatusCode? Status { get; } = status;
-}
-
-/// <summary>Cifra/descifra los tokens de acceso de MiCorreo (mismo patrón que WhatsApp).</summary>
-public sealed class CorreoSecretProtector(IDataProtectionProvider provider)
-{
-    private readonly IDataProtector _protector = provider.CreateProtector("tiendafy.correo.tokens");
-    public string Protect(string plain) => _protector.Protect(plain);
-    public string Unprotect(string cipher) => _protector.Unprotect(cipher);
 }
 
 public sealed record MiCorreoCredentials(string UserToken, string PasswordToken, string Environment)

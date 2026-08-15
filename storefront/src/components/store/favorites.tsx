@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './auth';
 
-import { API_URL as API, clientJson } from '@/lib/api-client';
+import { API_URL as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 
 /**
@@ -48,9 +48,9 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
     if (!ready || !token) return;
     let cancelled = false;
     const local = readJson<string[]>(key, []);
-    clientJson<{ productIds?: string[] }>('/api/v1/shop/favorites/merge', {
+    clientJsonTenant<{ productIds?: string[] }>('/api/v1/shop/favorites/merge', storeKey, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': storeKey },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ productIds: local }),
     }).then((d) => {
@@ -68,7 +68,7 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
         if (token) {
           fetch(`${API}/api/v1/shop/favorites/${id}`, {
             method: has ? 'DELETE' : 'PUT',
-            headers: { 'X-Tenant-Id': storeKey },
+            headers: tenantHeaders(storeKey),
             credentials: 'include',
           }).catch(() => {});
         }

@@ -89,7 +89,7 @@ builder.Services.AddScoped<WhatsAppNotifier>();
 // Correo Argentino (API MiCorreo): cotización en checkout + envíos desde admin.
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<Api.Shipping.MiCorreoClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
-builder.Services.AddSingleton<Api.Shipping.CorreoSecretProtector>();
+builder.Services.AddSingleton<Api.Shipping.ShippingSecretProtector>();
 // Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
 builder.Services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 if (runPollingWorkers) builder.Services.AddHostedService<AbandonedCartWorker>();

@@ -8,6 +8,7 @@ import { downloadBlob } from '../lib/download';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatDate, formatMoney } from '../lib/format';
+import { ORDER_STATUS } from '../lib/orderStatus';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
@@ -55,17 +56,6 @@ interface RefundRecord {
   mpRefundId: string | null;
   createdAtUtc: string;
 }
-
-const STATUS: Record<string, { label: string; cls: string }> = {
-  PENDINGPAYMENT: { label: 'Pendiente', cls: 'bg-amber-100 text-amber-700' },
-  PAID: { label: 'Pagada', cls: 'bg-green-100 text-green-700' },
-  FAILED: { label: 'Fallida', cls: 'bg-red-100 text-red-700' },
-  CANCELLED: { label: 'Cancelada', cls: 'bg-gray-100 text-gray-600' },
-  REFUNDED: { label: 'Reembolsada', cls: 'bg-blue-100 text-blue-700' },
-  PARTIALLYREFUNDED: { label: 'Reembolso parcial', cls: 'bg-sky-100 text-sky-700' },
-  CHARGEDBACK: { label: 'Contracargo', cls: 'bg-rose-100 text-rose-700' },
-  FULFILLED: { label: 'Entregada', cls: 'bg-green-100 text-green-700' },
-};
 
 const money = (m: Money) => formatMoney(m.amount, m.currency);
 
@@ -200,7 +190,7 @@ export function OrdersPage() {
             </thead>
             <tbody>
               {orders.map((o) => {
-                const st = STATUS[o.status] ?? { label: o.status, cls: 'bg-gray-100 text-gray-600' };
+                const st = ORDER_STATUS[o.status] ?? { label: o.status, cls: 'bg-gray-100 text-gray-600' };
                 const open = expanded === o.id;
                 return (
                   <Fragment key={o.id}>

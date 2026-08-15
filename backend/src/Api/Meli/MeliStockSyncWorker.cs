@@ -1,3 +1,4 @@
+using Api.Workers;
 using Inventory.Core.Domain;
 using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -12,22 +13,12 @@ namespace Api.Meli;
 /// local difiere del último valor empujado — cero requests redundantes.
 /// </summary>
 public sealed class MeliStockSyncWorker(
-    IServiceScopeFactory scopeFactory, ILogger<MeliStockSyncWorker> logger) : BackgroundService
+    IServiceScopeFactory scopeFactory, ILogger<MeliStockSyncWorker> logger) : PollingWorker(TimeSpan.FromMinutes(5))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Sync de stock a Mercado Libre falló.");
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await SyncOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Sync de stock a Mercado Libre falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
-
-    private async Task SyncOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;

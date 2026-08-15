@@ -66,14 +66,14 @@ public sealed class MeliSyncService(
 
         var items = ParseItems(order);
         row.Apply(
-            status: GetString(order, "status") ?? "unknown",
-            dateCreatedUtc: GetDate(order, "date_created") ?? DateTime.UtcNow,
-            dateClosedUtc: GetDate(order, "date_closed"),
-            totalAmount: GetDecimal(order, "total_amount"),
-            paidAmount: GetDecimal(order, "paid_amount"),
-            currencyId: GetString(order, "currency_id") ?? "ARS",
-            buyerId: order.TryGetProperty("buyer", out var buyer) ? GetLong(buyer, "id") : 0,
-            buyerNickname: order.TryGetProperty("buyer", out var b2) ? GetString(b2, "nickname") ?? "" : "",
+            status: JsonRead.GetString(order, "status") ?? "unknown",
+            dateCreatedUtc: JsonRead.GetDate(order, "date_created") ?? DateTime.UtcNow,
+            dateClosedUtc: JsonRead.GetDate(order, "date_closed"),
+            totalAmount: JsonRead.GetDecimal(order, "total_amount"),
+            paidAmount: JsonRead.GetDecimal(order, "paid_amount"),
+            currencyId: JsonRead.GetString(order, "currency_id") ?? "ARS",
+            buyerId: order.TryGetProperty("buyer", out var buyer) ? JsonRead.GetLong(buyer, "id") : 0,
+            buyerNickname: order.TryGetProperty("buyer", out var b2) ? JsonRead.GetString(b2, "nickname") ?? "" : "",
             itemsJson: JsonSerializer.Serialize(items, Json),
             packId: order.TryGetProperty("pack_id", out var pack) && pack.ValueKind == JsonValueKind.Number ? pack.GetInt64() : null,
             shipmentId: order.TryGetProperty("shipping", out var ship) && ship.ValueKind == JsonValueKind.Object
@@ -130,27 +130,18 @@ public sealed class MeliSyncService(
         {
             if (!oi.TryGetProperty("item", out var item)) continue;
             list.Add(new MeliOrderItemSnapshot(
-                ItemId: GetString(item, "id") ?? "",
+                ItemId: JsonRead.GetString(item, "id") ?? "",
                 VariationId: item.TryGetProperty("variation_id", out var v) && v.ValueKind == JsonValueKind.Number
                     ? v.GetInt64() : null,
-                Title: GetString(item, "title") ?? "",
+                Title: JsonRead.GetString(item, "title") ?? "",
                 Quantity: oi.TryGetProperty("quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : 1,
-                UnitPrice: GetDecimal(oi, "unit_price"),
-                Sku: GetString(item, "seller_sku") ?? GetString(item, "seller_custom_field")));
+                UnitPrice: JsonRead.GetDecimal(oi, "unit_price"),
+                Sku: JsonRead.GetString(item, "seller_sku") ?? JsonRead.GetString(item, "seller_custom_field")));
         }
         return list;
     }
 
-    private static string? GetString(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
 
-    private static decimal GetDecimal(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : 0m;
 
-    private static long GetLong(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt64() : 0;
 
-    private static DateTime? GetDate(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
-            && DateTimeOffset.TryParse(p.GetString(), out var dto) ? dto.UtcDateTime : null;
 }

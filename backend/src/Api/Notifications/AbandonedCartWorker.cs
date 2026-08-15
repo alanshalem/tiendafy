@@ -1,3 +1,4 @@
+using Api.Workers;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,24 +17,15 @@ namespace Api.Notifications;
 public sealed class AbandonedCartWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
-    ILogger<AbandonedCartWorker> logger) : BackgroundService
+    ILogger<AbandonedCartWorker> logger) : PollingWorker(TimeSpan.FromMinutes(15))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan MinAge = TimeSpan.FromHours(1);  // esperar 1h tras abandono
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);   // no perseguir carritos viejos
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await PollOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Recuperación de carritos falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Recuperación de carritos falló.");
 
-    private async Task PollOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;

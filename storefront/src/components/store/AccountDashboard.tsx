@@ -10,7 +10,7 @@ import { usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
 import { SupportChat } from './SupportChat';
 
-import { clientJson } from '@/lib/api-client';
+import { clientJsonTenant } from '@/lib/api-client';
 
 interface OrderItem {
   productName: string;
@@ -51,8 +51,7 @@ export function AccountDashboard() {
       return;
     }
     let cancelled = false;
-    clientJson<{ items: Order[] }>('/api/v1/shop/orders', {
-      headers: { 'X-Tenant-Id': tenantId },
+    clientJsonTenant<{ items: Order[] }>('/api/v1/shop/orders', tenantId, {
       credentials: 'include',
     }).then((d) => {
       if (!cancelled) setOrders(d?.items ?? []);

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { loadStorefront, type StorefrontData } from './storefront';
 import { fetchDraftTheme, fetchPublishedTheme, type ThemeConfig } from './theme';
 import { ComingSoon } from '@/components/store/ComingSoon';
+import { StorefrontView } from '@/components/store/StorefrontView';
 
 /**
  * Resuelve lo común de toda página interna del storefront: tienda + tema
@@ -31,4 +32,40 @@ export async function resolveStorefrontPage(
   }
 
   return { ok: true, data, theme, preview };
+}
+
+/**
+ * Esqueleto de una página interna: resolveStorefrontPage + StorefrontView, que
+ * antes se copiaba idéntico en cada ruta. `children` recibe lo resuelto y
+ * devuelve el contenido específico (puede ser async, ej. fetch por slug).
+ */
+export async function StorefrontPageShell({
+  searchParams,
+  catalogProducts = true,
+  children,
+}: {
+  searchParams: Promise<{ preview?: string; pt?: string }>;
+  /** false = la página no necesita el catálogo (ej. checkout). */
+  catalogProducts?: boolean;
+  children: (page: {
+    data: StorefrontData;
+    theme: ThemeConfig;
+    preview: boolean;
+  }) => ReactNode | Promise<ReactNode>;
+}) {
+  const resolved = await resolveStorefrontPage(searchParams);
+  if (!resolved.ok) return resolved.fallback;
+  const { data, theme, preview } = resolved;
+
+  return (
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={catalogProducts ? data.products : []}
+      live={preview}
+    >
+      {await children({ data, theme, preview })}
+    </StorefrontView>
+  );
 }

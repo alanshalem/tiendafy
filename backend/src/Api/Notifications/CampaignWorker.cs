@@ -1,3 +1,4 @@
+using Api.Workers;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
@@ -18,24 +19,15 @@ namespace Api.Notifications;
 public sealed class CampaignWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
-    ILogger<CampaignWorker> logger) : BackgroundService
+    ILogger<CampaignWorker> logger) : PollingWorker(TimeSpan.FromSeconds(20))
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan PerEmailDelay = TimeSpan.FromMilliseconds(600);
     private const int BatchSize = 25;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try { await PollOnceAsync(stoppingToken); }
-            catch (Exception ex) { logger.LogError(ex, "Envío de campañas falló."); }
-            try { await Task.Delay(PollInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
-        }
-    }
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Envío de campañas falló.");
 
-    private async Task PollOnceAsync(CancellationToken ct)
+    protected override async Task PollOnceAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
