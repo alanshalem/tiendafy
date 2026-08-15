@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { resolveTenant } from '@/lib/tenancy';
-import { apiGet } from '@/lib/api';
+import { apiGetTenant } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +20,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const tenant = await resolveTenant();
   if (!tenant) return {};
-  const page = await apiGet<PageDto>(`/api/v1/pages/by-slug/${slug}`, {
-    headers: { 'X-Tenant-Id': tenant.id },
+  // apiGetTenant: el tenant también en la URL, o la Data Cache mezcla tiendas.
+  const page = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, tenant.id, {
     next: { revalidate: 30 },
   });
   if (!page) return {};
@@ -40,8 +40,7 @@ export default async function InstitutionalPage({
   const { data, theme, preview } = resolved;
 
   const { slug } = await params;
-  const page = await apiGet<PageDto>(`/api/v1/pages/by-slug/${slug}`, {
-    headers: { 'X-Tenant-Id': data.tenant.id },
+  const page = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, data.tenant.id, {
     next: { revalidate: 30 },
   });
 

@@ -1,6 +1,6 @@
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
-import { apiGet } from '@/lib/api';
+import { apiGetTenant } from '@/lib/api';
 import type { LegalDoc } from '@/lib/legal';
 
 interface PageDto {
@@ -29,8 +29,10 @@ export async function LegalPage({
 
   let custom: PageDto | null = null;
   for (const slug of slugs) {
-    custom = await apiGet<PageDto>(`/api/v1/pages/by-slug/${slug}`, {
-      headers: { 'X-Tenant-Id': data.tenant.id },
+    // apiGetTenant y no apiGet: con revalidate, la Data Cache de Next cachea
+    // por URL e ignora headers — sin el tenant en la URL, dos tiendas
+    // compartían la entrada de caché de /terminos y /privacidad.
+    custom = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, data.tenant.id, {
       next: { revalidate: 60 },
     }).catch(() => null);
     if (custom) break;
