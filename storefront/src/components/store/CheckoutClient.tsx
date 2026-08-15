@@ -79,8 +79,6 @@ const CORREO_PROVINCES: [string, string][] = [
 type Mode = 'PRO' | 'API';
 type Step = 'entrega' | 'pago';
 
-const fmt = formatMoney;
-
 export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -508,7 +506,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                           )}
                         </span>
                         <span className="font-semibold">
-                          {o.price.amount === 0 ? 'Gratis' : fmt(o.price.amount, o.price.currency)}
+                          {o.price.amount === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
                         </span>
                       </label>
                     ))}
@@ -603,7 +601,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                   </span>
                                 )}
                               </span>
-                              <span className="font-semibold">{fmt(o.price.amount, o.price.currency)}</span>
+                              <span className="font-semibold">
+                                {formatMoney(o.price.amount, o.price.currency)}
+                              </span>
                             </label>
                           );
                         })}
@@ -645,7 +645,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                   </span>
                                 )}
                               </span>
-                              <span className="font-semibold">{fmt(o.price.amount, o.price.currency)}</span>
+                              <span className="font-semibold">
+                                {formatMoney(o.price.amount, o.price.currency)}
+                              </span>
                             </label>
                           );
                         })}
@@ -798,7 +800,8 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       <Truck className="mt-0.5 h-4 w-4 opacity-50" />
                     )}
                     <span className="flex-1">
-                      <strong>{shippingLabel}</strong> · {shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}
+                      <strong>{shippingLabel}</strong> ·{' '}
+                      {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
                       {selected?.description && (
                         <span className="block text-xs opacity-60">{selected.description}</span>
                       )}
@@ -889,29 +892,31 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 {l.productName}
                 {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}
               </span>
-              <span className="tabular-nums">{fmt(l.priceAmount * l.quantity, l.currency)}</span>
+              <span className="tabular-nums">{formatMoney(l.priceAmount * l.quantity, l.currency)}</span>
             </div>
           ))}
           <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
             <div className="flex justify-between">
               <span className="opacity-70">Subtotal</span>
-              <span className="tabular-nums">{fmt(subtotal, currency)}</span>
+              <span className="tabular-nums">{formatMoney(subtotal, currency)}</span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Descuento ({coupon?.code})</span>
-                <span className="tabular-nums">- {fmt(discount, currency)}</span>
+                <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
               </div>
             )}
             {(selected || selectedCorreo || selectedZipnova) && (
               <div className="flex justify-between">
                 <span className="opacity-70">Costo de envío</span>
-                <span className="tabular-nums">{shipCost === 0 ? 'Gratis' : fmt(shipCost, currency)}</span>
+                <span className="tabular-nums">
+                  {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
+                </span>
               </div>
             )}
             <div className="flex justify-between pt-1 text-base font-bold">
               <span>Total</span>
-              <span className="tabular-nums">{fmt(total, currency)}</span>
+              <span className="tabular-nums">{formatMoney(total, currency)}</span>
             </div>
           </div>
 

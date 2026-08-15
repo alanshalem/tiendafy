@@ -5,6 +5,7 @@ import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, ApiRequestError } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
+import { formatDate } from '../../lib/format';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -255,9 +256,7 @@ function ConnectedView({
           Cuenta MP <strong className="text-fg tabular-nums">#{conn.userId}</strong>
         </span>
         {conn.connectedAtUtc && (
-          <span className="text-fg-muted">
-            Conectada el {new Date(conn.connectedAtUtc).toLocaleDateString('es-AR')}
-          </span>
+          <span className="text-fg-muted">Conectada el {formatDate(conn.connectedAtUtc)}</span>
         )}
       </div>
 

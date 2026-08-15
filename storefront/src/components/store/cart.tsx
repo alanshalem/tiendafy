@@ -94,8 +94,6 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
-const formatPrice = formatMoney;
-
 interface CartConfig {
   freeShippingBar: boolean;
   freeShippingThreshold: number;
@@ -208,7 +206,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
           <div className="border-b border-black/10 px-5 py-3 text-xs">
             {remaining > 0 ? (
               <span className="inline-flex items-center gap-1">
-                Te faltan <strong>{formatPrice(remaining, currency)}</strong> para el envío gratis{' '}
+                Te faltan <strong>{formatMoney(remaining, currency)}</strong> para el envío gratis{' '}
                 <Truck className="h-4 w-4" />
               </span>
             ) : (
@@ -269,7 +267,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                     </div>
                   </div>
                   <div className="text-sm font-semibold tabular-nums">
-                    {formatPrice(l.priceAmount * l.quantity, l.currency)}
+                    {formatMoney(l.priceAmount * l.quantity, l.currency)}
                   </div>
                 </div>
               ))}
@@ -359,12 +357,12 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
               {discount > 0 && (
                 <div className="mb-1 flex items-center justify-between text-sm text-green-600">
                   <span>Descuento ({coupon?.code})</span>
-                  <span className="tabular-nums">- {formatPrice(discount, currency)}</span>
+                  <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
                 </div>
               )}
               <div className="mb-3 flex items-center justify-between text-base font-bold">
                 <span>Total</span>
-                <span className="tabular-nums">{formatPrice(finalTotal, currency)}</span>
+                <span className="tabular-nums">{formatMoney(finalTotal, currency)}</span>
               </div>
               {cart?.notice && (
                 <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>

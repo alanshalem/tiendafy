@@ -24,7 +24,6 @@ interface MeliStats {
 }
 
 const fmt = (n: number) => n.toLocaleString('es-AR');
-const money = formatMoney;
 
 export function StatsOverviewPage() {
   const { store } = useStore();
@@ -86,7 +85,7 @@ export function StatsOverviewPage() {
                 <div>
                   <div className="text-sm text-fg-muted">Facturación (pagado)</div>
                   <div className="mt-1 text-2xl font-bold text-fg">
-                    {money(data.sales.revenue ?? 0, data.sales.currency ?? 'ARS')}
+                    {formatMoney(data.sales.revenue ?? 0, data.sales.currency ?? 'ARS')}
                   </div>
                 </div>
                 <div>

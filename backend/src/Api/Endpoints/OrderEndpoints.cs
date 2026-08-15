@@ -34,7 +34,6 @@ public static class OrderEndpoints
             IConfiguration cfg,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             // El returnUrl (back_urls de MP) viene del cliente: validar que sea
             // un dominio propio o MP redirige al comprador post-pago a un sitio
@@ -70,7 +69,7 @@ public static class OrderEndpoints
             order.AttachPreference(prefResult.Value.PreferenceId);
             await orders.SaveChangesAsync(ct);
             return Results.Ok(new { orderId = order.Id, initPoint = prefResult.Value.InitPoint });
-        }).RequireRateLimiting("payments");
+        }).RequireTenant().RequireRateLimiting("payments");
 
         // Pagar on-site (Checkout API/Bricks): el front tokeniza la tarjeta.
         group.MapPost("/checkout/{id:guid}/pay-onsite", async (
@@ -86,7 +85,6 @@ public static class OrderEndpoints
             WhatsAppNotifier whatsapp,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
@@ -110,19 +108,18 @@ public static class OrderEndpoints
             }
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
-        }).RequireRateLimiting("payments");
+        }).RequireTenant().RequireRateLimiting("payments");
 
         // Estado de la orden — PÚBLICO pero mínimo (sin PII). Lo usa la página de
         // "gracias por tu compra" para pollear el resultado del pago sin login.
         group.MapGet("/orders/{id:guid}/status", async (
             Guid id, ITenantContext tenant, IOrderRepository orders, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             return order is null
                 ? Results.NotFound()
                 : Results.Ok(new { status = order.Status.ToString().ToUpperInvariant() });
-        });
+        }).RequireTenant();
 
         // Detalle completo (con PII) — solo el comprador dueño de la orden o un
         // miembro admin de la tienda. Antes era anónimo y filtraba email/teléfono/
@@ -131,7 +128,6 @@ public static class OrderEndpoints
             Guid id, HttpContext http, ITenantContext tenant, IOrderRepository orders,
             Customers.Infrastructure.CustomersDbContext customersDb, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
 
@@ -150,12 +146,11 @@ public static class OrderEndpoints
                 return Results.NotFound(); // no revelar existencia a terceros
 
             return Results.Ok(ToDto(order));
-        });
+        }).RequireTenant();
 
         group.MapGet("/orders", async (
             ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequirePermission(Permission.OrdersRead);
@@ -165,7 +160,6 @@ public static class OrderEndpoints
             Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, WhatsAppNotifier whatsapp,
             global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
             var r = order.MarkFulfilled(req.Tracking);
@@ -189,7 +183,6 @@ public static class OrderEndpoints
             IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
             global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -271,7 +264,6 @@ public static class OrderEndpoints
         group.MapGet("/orders/{id:guid}/refunds", async (
             Guid id, ITenantContext tenant, PaymentsDbContext paymentsDb, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await paymentsDb.PaymentRefunds.AsNoTracking()
                 .Where(r => r.TenantId == tenant.TenantId.Value && r.OrderId == id)
                 .OrderByDescending(r => r.CreatedAtUtc)
@@ -297,7 +289,6 @@ public static class OrderEndpoints
         group.MapGet("/orders/{id:guid}/fiscal", async (
             Guid id, ITenantContext tenant, global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var docs = await fiscalDb.Documents.AsNoTracking()
                 .Where(d => d.TenantId == tid && d.OrderId == id)
@@ -326,7 +317,6 @@ public static class OrderEndpoints
             Guid id, ITenantContext tenant, IOrderRepository orders,
             global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
             if (order.Status is OrderStatus.PendingPayment or OrderStatus.Failed or OrderStatus.Cancelled)
@@ -356,7 +346,6 @@ public static class OrderEndpoints
             global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
             global::Fiscal.Core.Abstractions.IComprobantePdfRenderer pdf, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var tid = tenant.TenantId.Value;
             var wantNc = string.Equals(type, "creditnote", StringComparison.OrdinalIgnoreCase);
 

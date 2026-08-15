@@ -23,8 +23,6 @@ interface Sales {
   byStatus: { status: string; count: number }[];
 }
 
-const money = formatMoney;
-
 const STATUS_LABEL: Record<string, string> = {
   PENDINGPAYMENT: 'Pendiente',
   PAID: 'Pagada',
@@ -59,11 +57,11 @@ export function StatsSalesPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-4">
-            <KpiCard title="Facturación" value={money(data.revenue, data.currency)}>
+            <KpiCard title="Facturación" value={formatMoney(data.revenue, data.currency)}>
               <Sparkline data={data.series.map((s) => s.revenue)} />
             </KpiCard>
             <KpiCard title="Ventas pagadas" value={data.orders.toLocaleString('es-AR')} />
-            <KpiCard title="Ticket promedio" value={money(data.averageOrder, data.currency)} />
+            <KpiCard title="Ticket promedio" value={formatMoney(data.averageOrder, data.currency)} />
             <KpiCard title="Clientes nuevos" value={data.newCustomers.toLocaleString('es-AR')} />
           </div>
 

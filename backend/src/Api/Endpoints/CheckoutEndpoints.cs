@@ -107,7 +107,6 @@ public static class CheckoutEndpoints
             ITenantContext tenant, IShippingMethodRepository repository,
             ICorreoArgentinoConfigRepository correoConfigs, IZipnovaRepository zipnovaRepo, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var items = await repository.ListAsync(tenant.TenantId, onlyActive: true, ct);
             var correo = await correoConfigs.GetAsync(tenant.TenantId.Value, ct);
             var zipnova = await zipnovaRepo.GetConfigAsync(tenant.TenantId.Value, ct);

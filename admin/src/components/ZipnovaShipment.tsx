@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { Download, Loader2, Zap } from 'lucide-react';
 import { Button, Input, Modal, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-
-interface OrderLike {
-  id: string;
-  buyerEmail: string;
-  buyerName: string | null;
-  buyerPhone: string | null;
-  docNumber: string | null;
-  shippingMethod: string | null;
-  shippingAddress: string | null;
-  total: { amount: number; currency: string };
-}
+import { downloadBlob } from '../lib/download';
+import {
+  declaredValueFromOrder,
+  parseAddress,
+  shipmentTriggerCls,
+  type ShippingOrderLike,
+} from '../lib/shipping';
 
 interface ShipmentState {
   exists: boolean;
@@ -24,31 +20,12 @@ interface ShipmentState {
   status?: string | null;
 }
 
-/** "Av. Corrientes 1234, 2B, CABA, CP 1043" → campos sueltos (mejor esfuerzo). */
-function parseAddress(raw: string | null): { street: string; number: string; city: string; cp: string } {
-  const out = { street: '', number: '', city: '', cp: '' };
-  if (!raw) return out;
-  const parts = raw.split(',').map((p) => p.trim());
-  const cpPart = parts.find((p) => /^CP\s/i.test(p));
-  if (cpPart) out.cp = cpPart.replace(/^CP\s*/i, '');
-  const m = (parts[0] ?? '').match(/^(.*?)\s+(\d+[a-zA-Z]?)$/);
-  if (m) {
-    out.street = m[1] ?? '';
-    out.number = m[2] ?? '';
-  } else {
-    out.street = parts[0] ?? '';
-  }
-  const rest = parts.slice(1).filter((p) => !/^CP\s/i.test(p));
-  out.city = rest[rest.length - 1] ?? '';
-  return out;
-}
-
 /**
  * Envío Zipnova de una venta: creación (una sola vez — el backend garantiza
  * que no se duplica, porque Zipnova no deduplica y cada envío consume saldo
  * real), estado, tracking y descarga de la etiqueta PDF.
  */
-export function ZipnovaShipmentButton({ order }: { order: OrderLike }) {
+export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
   const { toast } = useToast();
   const [state, setState] = useState<ShipmentState | null>(null);
   const [configured, setConfigured] = useState(false);
@@ -78,12 +55,7 @@ export function ZipnovaShipmentButton({ order }: { order: OrderLike }) {
     setDownloading(true);
     try {
       const blob = await api.download(`/api/v1/admin/orders/${order.id}/zipnova-label`);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `etiqueta-zipnova-${state?.shipmentId ?? order.id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `etiqueta-zipnova-${state?.shipmentId ?? order.id}.pdf`);
     } catch (e) {
       toast(errMsg(e, 'No se pudo descargar la etiqueta.'), { variant: 'error' });
     } finally {
@@ -102,7 +74,7 @@ export function ZipnovaShipmentButton({ order }: { order: OrderLike }) {
         <button
           onClick={downloadLabel}
           disabled={downloading}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-fg hover:bg-bg-muted disabled:opacity-50"
+          className={`${shipmentTriggerCls} disabled:opacity-50`}
         >
           {downloading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -127,10 +99,7 @@ export function ZipnovaShipmentButton({ order }: { order: OrderLike }) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-fg hover:bg-bg-muted"
-      >
+      <button onClick={() => setOpen(true)} className={shipmentTriggerCls}>
         <Zap className="h-3.5 w-3.5" /> Crear envío en Zipnova
       </button>
       {open && (
@@ -152,7 +121,7 @@ function ShipmentModal({
   onClose,
   onCreated,
 }: {
-  order: OrderLike;
+  order: ShippingOrderLike;
   onClose: () => void;
   onCreated: (s: ShipmentState) => void;
 }) {
@@ -169,7 +138,7 @@ function ShipmentModal({
   const [city, setCity] = useState(parsed.city);
   const [stateName, setStateName] = useState('');
   const [zipcode, setZipcode] = useState(parsed.cp);
-  const [declared, setDeclared] = useState(String(Math.round(order.total.amount / 100)));
+  const [declared, setDeclared] = useState(declaredValueFromOrder(order));
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {

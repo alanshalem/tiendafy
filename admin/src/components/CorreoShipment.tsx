@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import {
+  declaredValueFromOrder,
+  parseAddress,
+  shipmentTriggerCls,
+  type ShippingOrderLike,
+} from '../lib/shipping';
 
 export const CORREO_PROVINCES: { value: string; label: string }[] = [
   { value: 'B', label: 'Buenos Aires' },
@@ -30,16 +36,6 @@ export const CORREO_PROVINCES: { value: string; label: string }[] = [
   { value: 'T', label: 'Tucumán' },
 ];
 
-interface OrderLike {
-  id: string;
-  buyerEmail: string;
-  buyerName: string | null;
-  buyerPhone: string | null;
-  shippingMethod: string | null;
-  shippingAddress: string | null;
-  total: { amount: number; currency: string };
-}
-
 /**
  * Alta del envío de una venta en MiCorreo (POST /shipping/import). Precarga
  * los datos del comprador y la dirección parseada BEST-EFFORT — el merchant
@@ -47,7 +43,7 @@ interface OrderLike {
  * libre; MiCorreo la exige estructurada). Después del alta, el pago del
  * envío y la etiqueta se terminan en la plataforma MiCorreo.
  */
-export function CorreoShipmentButton({ order }: { order: OrderLike }) {
+export function CorreoShipmentButton({ order }: { order: ShippingOrderLike }) {
   const [open, setOpen] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
 
@@ -66,10 +62,7 @@ export function CorreoShipmentButton({ order }: { order: OrderLike }) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-fg hover:bg-bg-muted"
-      >
+      <button onClick={() => setOpen(true)} className={shipmentTriggerCls}>
         <Send className="h-3.5 w-3.5" /> Crear envío en Correo Argentino
       </button>
       {open && <ShipmentModal order={order} onClose={() => setOpen(false)} />}
@@ -77,27 +70,7 @@ export function CorreoShipmentButton({ order }: { order: OrderLike }) {
   );
 }
 
-/** "Av. Corrientes 1234, 2B, CABA, CP 1043" → campos sueltos (mejor esfuerzo). */
-function parseAddress(raw: string | null): { street: string; number: string; city: string; cp: string } {
-  const out = { street: '', number: '', city: '', cp: '' };
-  if (!raw) return out;
-  const parts = raw.split(',').map((p) => p.trim());
-  const cpPart = parts.find((p) => /^CP\s/i.test(p));
-  if (cpPart) out.cp = cpPart.replace(/^CP\s*/i, '');
-  const streetPart = parts[0] ?? '';
-  const m = streetPart.match(/^(.*?)\s+(\d+[a-zA-Z]?)$/);
-  if (m) {
-    out.street = m[1] ?? '';
-    out.number = m[2] ?? '';
-  } else {
-    out.street = streetPart;
-  }
-  const rest = parts.slice(1).filter((p) => !/^CP\s/i.test(p));
-  out.city = rest[rest.length - 1] ?? '';
-  return out;
-}
-
-function ShipmentModal({ order, onClose }: { order: OrderLike; onClose: () => void }) {
+function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: () => void }) {
   const { toast } = useToast();
   const parsed = parseAddress(order.shippingAddress);
   const isAgencyMethod = /sucursal/i.test(order.shippingMethod ?? '');
@@ -115,7 +88,7 @@ function ShipmentModal({ order, onClose }: { order: OrderLike; onClose: () => vo
   const [province, setProvince] = useState('B');
   const [cp, setCp] = useState(parsed.cp);
   const [agency, setAgency] = useState(agencyCodeInAddress);
-  const [declared, setDeclared] = useState(String(Math.round(order.total.amount / 100)));
+  const [declared, setDeclared] = useState(declaredValueFromOrder(order));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
 

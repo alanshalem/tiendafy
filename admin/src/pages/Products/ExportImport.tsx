@@ -6,6 +6,7 @@ import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
 import { api, ApiRequestError } from '../../lib/api';
+import { downloadBlob } from '../../lib/download';
 
 // Cabecera completa del CSV (Excel es-AR usa ';').
 const CSV_HEADER = [
@@ -125,17 +126,8 @@ function buildCsv(rows: string[][]): string {
   return BOM + rows.map((r) => r.map(escape).join(';')).join('\n');
 }
 
-function downloadBlob(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function downloadCsv(filename: string, content: string) {
-  downloadBlob(filename, new Blob([content], { type: 'text/csv;charset=utf-8' }));
+  downloadBlob(new Blob([content], { type: 'text/csv;charset=utf-8' }), filename);
 }
 
 const TABS = { export: 'Exportar', import: 'Importar', images: 'Imágenes' } as const;
@@ -202,7 +194,7 @@ function ExportTab() {
     setBusy(true);
     try {
       const blob = await api.download(`/api/v1/products/export?includeDescriptions=${includeDescriptions}`);
-      downloadBlob(`productos-${store?.subdomain ?? 'tienda'}.csv`, blob);
+      downloadBlob(blob, `productos-${store?.subdomain ?? 'tienda'}.csv`);
       toast('Archivo exportado', { variant: 'success' });
     } catch (e) {
       toast(e instanceof ApiRequestError ? e.message : 'No se pudo exportar', { variant: 'error' });

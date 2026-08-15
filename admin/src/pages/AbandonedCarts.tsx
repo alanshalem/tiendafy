@@ -18,8 +18,6 @@ interface Abandoned {
   }[];
 }
 
-const money = formatMoney;
-
 export function AbandonedCartsPage() {
   const { store } = useStore();
   const { data, isLoading } = useQuery({
@@ -44,7 +42,7 @@ export function AbandonedCartsPage() {
         </div>
         <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
           <div className="text-sm font-semibold text-fg">Valor recuperable</div>
-          <div className="mt-2 text-3xl font-bold text-fg">{money(data?.recoverableValue ?? 0)}</div>
+          <div className="mt-2 text-3xl font-bold text-fg">{formatMoney(data?.recoverableValue ?? 0)}</div>
           <div className="mt-1 text-xs text-fg-subtle">De carritos con email.</div>
         </div>
       </div>
@@ -78,7 +76,7 @@ export function AbandonedCartsPage() {
                   </td>
                   <td className="px-4 py-3 text-center tabular-nums">{c.items}</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">
-                    {money(c.total.amount, c.total.currency)}
+                    {formatMoney(c.total.amount, c.total.currency)}
                   </td>
                 </tr>
               ))}

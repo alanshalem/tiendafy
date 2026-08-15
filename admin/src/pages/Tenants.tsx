@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '../lib/format';
 import {
   Badge,
   Button,
@@ -125,7 +126,7 @@ export function TenantsPage() {
     {
       key: 'createdAtUtc',
       header: 'Creada',
-      cell: (t) => new Date(t.createdAtUtc).toLocaleDateString('es-AR'),
+      cell: (t) => formatDate(t.createdAtUtc),
     },
     {
       key: 'actions',

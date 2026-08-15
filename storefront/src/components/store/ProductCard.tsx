@@ -29,8 +29,6 @@ export interface StoreProduct {
   stock?: number | null;
 }
 
-const fmt = formatMoney;
-
 // Bajo este stock la card muestra "¡Últimas N!" (badge de urgencia).
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -142,24 +140,26 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
           <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>
-            {fmt(product.priceAmount, product.currency)}
+            {formatMoney(product.priceAmount, product.currency)}
           </span>
           {list.showCompareAt && product.compareAtAmount && (
             <span className="ml-2 line-through opacity-50">
-              {fmt(product.compareAtAmount, product.currency)}
+              {formatMoney(product.compareAtAmount, product.currency)}
             </span>
           )}
         </div>
       )}
       {list.showPrice && list.showCashPrice && cashPct > 0 && (
         <div className="text-xs font-semibold text-green-700">
-          {fmt(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con transferencia
+          {formatMoney(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con
+          transferencia
         </div>
       )}
       {list.showPrice && list.installmentsCount > 0 && (
         <div className="text-xs opacity-70">
           {list.installmentsCount} x{' '}
-          {fmt(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin interés
+          {formatMoney(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin
+          interés
         </div>
       )}
       {list.showBuyButton && (

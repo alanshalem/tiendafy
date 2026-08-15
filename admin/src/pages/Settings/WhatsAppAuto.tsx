@@ -7,6 +7,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { NotificationUsage } from '../../components/NotificationUsage';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { formatDate } from '../../lib/format';
 
 const WA_GREEN = '#25D366';
 
@@ -232,9 +233,7 @@ function ConnectionCard({ conn, loading }: { conn: ConnectionDto | null; loading
                 </span>
               )}
               {conn?.connectedAtUtc && (
-                <span className="text-fg-muted">
-                  Conectada el {new Date(conn.connectedAtUtc).toLocaleDateString('es-AR')}
-                </span>
+                <span className="text-fg-muted">Conectada el {formatDate(conn.connectedAtUtc)}</span>
               )}
             </div>
 

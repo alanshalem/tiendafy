@@ -35,7 +35,6 @@ public static class ThemeEndpoints
         {
             var http = ctx.HttpContext;
             var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (HasValidPreviewToken(http, tenant.TenantId!.Value)) return await next(ctx);
             var denied = await AuthExtensions.CheckPermissionAsync(http, Permission.ContentWrite);
             return denied is not null ? denied : await next(ctx);

@@ -13,8 +13,8 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import { Badge, Button, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
-import { formatMoney } from '@tiendafy/types';
+import { Badge, Button, Input, Modal, Select, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
+import { formatDate, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -101,10 +101,7 @@ interface ProductDto {
   images: { url: string }[];
 }
 
-const STATUS: Record<
-  string,
-  { label: string; variant: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }
-> = {
+const STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
   draft: { label: 'Borrador', variant: 'neutral' },
   scheduled: { label: 'Programada', variant: 'info' },
   sending: { label: 'Enviando…', variant: 'warning' },
@@ -238,8 +235,7 @@ export function MarketingPage() {
                     </div>
                     <p className="mt-0.5 text-sm text-fg-muted">
                       {AUDIENCE_LABEL[c.audience]}
-                      {c.status === 'draft' &&
-                        ` · creada el ${new Date(c.createdAtUtc).toLocaleDateString('es-AR')}`}
+                      {c.status === 'draft' && ` · creada el ${formatDate(c.createdAtUtc)}`}
                       {c.status === 'scheduled' &&
                         c.scheduledAtUtc &&
                         ` · sale el ${new Date(c.scheduledAtUtc).toLocaleString('es-AR')}`}

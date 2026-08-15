@@ -28,8 +28,8 @@ public sealed class ZipnovaConfig
     /// <summary>ID del origen en el address book, o "auto" (default de la cuenta).</summary>
     public string OriginId { get; private set; } = "auto";
 
-    // Paquete estimado POR UNIDAD del carrito, en CM (la cotización usa cm;
-    // la creación exige mm y la conversión vive en UN solo punto: ZipnovaUnits).
+    // Paquete estimado POR UNIDAD del carrito, en CM. Todos los endpoints de
+    // Zipnova esperan centímetros (confirmado por su soporte, jul-2026).
     public int DefaultWeightGrams { get; private set; }
     public int DefaultLengthCm { get; private set; }
     public int DefaultWidthCm { get; private set; }

@@ -189,23 +189,6 @@ public static class TenantEndpoints
 
     private static IResult OwnerOnly() =>
         Results.Problem(title: "Auth.Forbidden", detail: "Solo el dueño de la tienda puede hacer esto.", statusCode: StatusCodes.Status403Forbidden);
-
-    /// <summary>RFC 7807 problem+json desde un Error del dominio.</summary>
-    public static IResult ToProblem(this Error error)
-    {
-        var status = error.Type switch
-        {
-            ErrorType.Validation => StatusCodes.Status400BadRequest,
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Results.Problem(
-            title: error.Code,
-            detail: error.Message,
-            statusCode: status);
-    }
 }
 
 public sealed record CreateTenantRequest(string Name, string Subdomain);

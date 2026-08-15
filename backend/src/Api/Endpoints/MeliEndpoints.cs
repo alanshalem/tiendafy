@@ -42,7 +42,6 @@ public static class MeliEndpoints
         config.MapGet("/connection", async (
             ITenantContext tenant, MeliDbContext db, IOptions<MeliOptions> options, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             return Results.Ok(new
             {
@@ -59,7 +58,6 @@ public static class MeliEndpoints
         config.MapPost("/connect", (
             ITenantContext tenant, MeliClient client, MeliTokenService tokens, IOptions<MeliOptions> options) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!options.Value.Configured)
                 return Error.Validation("Meli.NotConfigured",
                     "La integración con Mercado Libre no está configurada en esta plataforma.").ToProblem();
@@ -68,7 +66,6 @@ public static class MeliEndpoints
 
         config.MapDelete("/connection", async (ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.FirstOrDefaultAsync(ct);
             if (c is null) return Results.NoContent();
             db.Connections.Remove(c);
@@ -79,7 +76,6 @@ public static class MeliEndpoints
         config.MapPut("/settings", async (
             MeliSettingsRequest request, ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.FirstOrDefaultAsync(ct);
             if (c is null)
                 return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
@@ -92,7 +88,6 @@ public static class MeliEndpoints
         config.MapPost("/orders/refresh", async (
             ITenantContext tenant, MeliDbContext db, MeliSyncService sync, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             if (c is null)
                 return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
@@ -174,7 +169,6 @@ public static class MeliEndpoints
         // Estado liviano para la página del canal (sin exponer configuración).
         sales.MapGet("/status", async (ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             return Results.Ok(new { connected = c is not null, nickname = c?.Nickname });
         });
@@ -183,7 +177,6 @@ public static class MeliEndpoints
         sales.MapGet("/orders", async (
             ITenantContext tenant, MeliDbContext db, int? offset, int? limit, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var take = Math.Clamp(limit ?? 25, 1, 100);
             var skip = Math.Max(0, offset ?? 0);
 
@@ -216,7 +209,6 @@ public static class MeliEndpoints
         sales.MapGet("/stats", async (
             ITenantContext tenant, MeliDbContext db, int? days, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
 
             var paid = await db.Orders.AsNoTracking()
@@ -239,7 +231,6 @@ public static class MeliEndpoints
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client,
             string? status, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             if (c is null) return Results.Ok(new { total = 0, questions = Array.Empty<object>() });
 
@@ -283,7 +274,6 @@ public static class MeliEndpoints
             long questionId, MeliAnswerRequest request,
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(request.Text))
                 return Error.Validation("Meli.EmptyAnswer", "Escribí una respuesta.").ToProblem();
 
@@ -309,7 +299,6 @@ public static class MeliEndpoints
             long packId, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
             if (token is null)
@@ -346,7 +335,6 @@ public static class MeliEndpoints
             long packId, MeliSendMessageRequest request,
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(request.Text))
                 return Error.Validation("Meli.EmptyMessage", "Escribí un mensaje.").ToProblem();
             if (request.Text.Length > 350)
@@ -385,7 +373,6 @@ public static class MeliEndpoints
         sales.MapGet("/claims", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
             if (token is null) return Results.Ok(new { claims = Array.Empty<object>() });
@@ -425,7 +412,6 @@ public static class MeliEndpoints
         items.MapGet("/items", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
             if (token is null) return Results.Ok(new { items = Array.Empty<object>() });
@@ -485,7 +471,6 @@ public static class MeliEndpoints
             string itemId, MeliLinkRequest request,
             ITenantContext tenant, MeliDbContext db, IProductRepository products, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var product = await products.GetByIdAsync(tenant.TenantId, request.ProductId, ct);
             var variant = product?.Variants.FirstOrDefault(v => v.Id == request.VariantId);
@@ -510,7 +495,6 @@ public static class MeliEndpoints
         items.MapDelete("/items/{itemId}/link", async (
             string itemId, long? variationId, ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var normalized = itemId.Trim().ToUpperInvariant();
             var link = await db.ItemLinks.FirstOrDefaultAsync(
                 l => l.MeliItemId == normalized && l.MeliVariationId == variationId, ct);
@@ -525,7 +509,6 @@ public static class MeliEndpoints
             string title, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
             if (token is null)
@@ -558,7 +541,6 @@ public static class MeliEndpoints
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client,
             IProductRepository products, IStockRepository stock, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (string.IsNullOrWhiteSpace(request.CategoryId))
                 return Error.Validation("Meli.NoCategory",
                     "Elegí una categoría de Mercado Libre (usá la sugerencia automática).").ToProblem();

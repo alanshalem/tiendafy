@@ -17,8 +17,6 @@ interface Variant {
   compareAtPrice: { amount: number; currency: string } | null;
 }
 
-const fmt = formatMoney;
-
 interface DetailConfig {
   showSku: boolean;
   showStock: boolean;
@@ -212,16 +210,18 @@ export function ProductDetail({
         {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
         {cfg.showSku && <div className="text-xs opacity-50">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
-          {fmt(variant.price.amount, variant.price.currency)}
+          {formatMoney(variant.price.amount, variant.price.currency)}
           {variant.compareAtPrice && (
             <span className="ml-3 text-lg font-normal line-through opacity-50">
-              {fmt(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+              {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
             </span>
           )}
         </div>
         {cashPrice !== null && (
           <div className="mt-1">
-            <span className="text-xl font-bold text-primary">{fmt(cashPrice, variant.price.currency)}</span>
+            <span className="text-xl font-bold text-primary">
+              {formatMoney(cashPrice, variant.price.currency)}
+            </span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
             <div className="text-xs opacity-60">
               {cashPct}% de descuento pagando con transferencia o efectivo
@@ -350,10 +350,12 @@ export function ProductDetail({
         <div className="min-w-0">
           <div className="truncate text-xs opacity-60">{name}</div>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold">{fmt(variant.price.amount, variant.price.currency)}</span>
+            <span className="text-lg font-bold">
+              {formatMoney(variant.price.amount, variant.price.currency)}
+            </span>
             {variant.compareAtPrice && (
               <span className="text-xs line-through opacity-50">
-                {fmt(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+                {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
               </span>
             )}
           </div>

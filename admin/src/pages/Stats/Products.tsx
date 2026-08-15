@@ -16,8 +16,6 @@ interface TopProducts {
   items: { product: string; units: number; revenue: number }[];
 }
 
-const money = formatMoney;
-
 export function StatsProductsPage() {
   const { store } = useStore();
   const [range, setRange] = useState(defaultStatsRange());
@@ -54,7 +52,7 @@ export function StatsProductsPage() {
                 <tr key={i} className="border-b border-border last:border-b-0">
                   <td className="py-2.5 font-medium text-fg">{p.product}</td>
                   <td className="py-2.5 text-center tabular-nums">{p.units}</td>
-                  <td className="py-2.5 text-right tabular-nums text-fg">{money(p.revenue)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-fg">{formatMoney(p.revenue)}</td>
                 </tr>
               ))}
             </tbody>

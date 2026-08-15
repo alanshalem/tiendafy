@@ -155,7 +155,6 @@ public static class CorreoArgentinoEndpoints
             CorreoSecretProtector protector, MiCorreoClient client,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
             if (config is null || !config.Active)
@@ -222,14 +221,13 @@ public static class CorreoArgentinoEndpoints
                     error = "No pudimos cotizar con Correo Argentino en este momento. Probá de nuevo en unos minutos.",
                 });
             }
-        });
+        }).RequireTenant();
 
         // Sucursales que reciben paquetes, por provincia (cacheadas 12 h).
         group.MapGet("/shipping/correo/agencies", async (
             string province, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
             CorreoSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (province is not { Length: 1 } || !char.IsAsciiLetterUpper(province[0]))
                 return Error.Validation("Correo.InvalidProvince", "Código de provincia inválido.").ToProblem();
 
@@ -255,7 +253,7 @@ public static class CorreoArgentinoEndpoints
             {
                 return Results.Ok(new { items = Array.Empty<object>() });
             }
-        });
+        }).RequireTenant();
 
         // ------------------------------- Admin: alta de envío desde una venta
         group.MapPost("/admin/orders/{orderId:guid}/correo-shipment", async (

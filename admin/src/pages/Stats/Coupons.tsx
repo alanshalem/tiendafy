@@ -13,8 +13,6 @@ interface CouponsReport {
   items: { code: string; uses: number; paidUses: number; discountGiven: number }[];
 }
 
-const money = formatMoney;
-
 export function StatsCouponsPage() {
   const { store } = useStore();
   const { data, isLoading } = useQuery({
@@ -32,7 +30,7 @@ export function StatsCouponsPage() {
         <KpiCard title="Cupones" value={(data?.totalCoupons ?? 0).toLocaleString('es-AR')} />
         <KpiCard title="Activos" value={(data?.activeCoupons ?? 0).toLocaleString('es-AR')} />
         <KpiCard title="Usos" value={(data?.totalUses ?? 0).toLocaleString('es-AR')} />
-        <KpiCard title="Descuento otorgado" value={money(data?.totalDiscount ?? 0)} />
+        <KpiCard title="Descuento otorgado" value={formatMoney(data?.totalDiscount ?? 0)} />
       </div>
 
       <ChartCard title="Uso por cupón" info>
@@ -56,7 +54,7 @@ export function StatsCouponsPage() {
                   <td className="py-2.5 font-mono text-fg">{c.code}</td>
                   <td className="py-2.5 text-center tabular-nums">{c.uses}</td>
                   <td className="py-2.5 text-center tabular-nums">{c.paidUses}</td>
-                  <td className="py-2.5 text-right tabular-nums text-fg">{money(c.discountGiven)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-fg">{formatMoney(c.discountGiven)}</td>
                 </tr>
               ))}
             </tbody>

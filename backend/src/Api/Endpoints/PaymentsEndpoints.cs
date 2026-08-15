@@ -21,8 +21,6 @@ public static class PaymentsEndpoints
             IMercadoPagoConnectionRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(ToDto(connection));
@@ -32,7 +30,6 @@ public static class PaymentsEndpoints
         mp.MapGet("/public-config", async (
             ITenantContext tenant, IMercadoPagoConnectionRepository repository, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var c = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(new
             {
@@ -40,13 +37,11 @@ public static class PaymentsEndpoints
                 checkoutMode = (c?.CheckoutMode ?? MercadoPagoCheckoutMode.Pro).ToString().ToUpperInvariant(),
                 publicKey = c?.PublicKey,
             });
-        });
+        }).RequireTenant();
 
         // Arranca el OAuth: devuelve la URL a la que el front manda al merchant.
         mp.MapPost("/connect", (ITenantContext tenant, BuildConnectUrlHandler handler) =>
         {
-            if (!tenant.HasTenant)
-                return AuthExtensions.MissingTenant();
 
             return Results.Ok(new { authUrl = handler.Handle(tenant.TenantId) });
         }).RequirePermission(Permission.PaymentsConfigWrite);
@@ -74,8 +69,6 @@ public static class PaymentsEndpoints
             IMercadoPagoConnectionRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             if (connection is null) return Results.NoContent();
@@ -92,8 +85,6 @@ public static class PaymentsEndpoints
             IMercadoPagoConnectionRepository repository,
             CancellationToken ct) =>
         {
-            if (!tenant.HasTenant)
-                return AuthExtensions.MissingTenant();
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             if (connection is null)

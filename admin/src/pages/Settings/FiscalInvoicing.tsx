@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Select, Switch, Textarea, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
+import { downloadBlob } from '../../lib/download';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
@@ -438,15 +439,7 @@ function CertificateStep({
   // state) para poder llamarse justo después de generarlo sin esperar el re-render.
   const triggerDownload = (pem: string, alias: string) => {
     try {
-      const blob = new Blob([pem], { type: 'application/x-pem-file' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${alias || 'tiendafy'}.csr`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBlob(new Blob([pem], { type: 'application/x-pem-file' }), `${alias || 'tiendafy'}.csr`);
       return true;
     } catch {
       return false;

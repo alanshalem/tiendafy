@@ -16,7 +16,7 @@ import {
   type TableColumn,
   Table,
 } from '@tiendafy/ui';
-import { formatMoney, formatDate } from '@tiendafy/types';
+import { formatMoney, formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
 import { api, errMsg } from '../lib/api';

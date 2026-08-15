@@ -84,9 +84,8 @@ const FONT_FAMILIES: Record<string, string> = {
   archivoblack: "'Archivo Black', sans-serif",
 };
 
-/** Texto legible (blanco u oscuro) según la luminancia del color de fondo "R G B".
- *  Fuente única en @tiendafy/types; se mantiene el nombre `contrastFg` para consumidores. */
-export const contrastFg = contrastText;
+/** Texto legible (blanco u oscuro) según la luminancia del fondo "R G B" (fuente única en @tiendafy/types). */
+const contrastFg = contrastText;
 
 /** Mapa de columnas de grilla del listado (compartido por sections + CatalogBrowser). */
 export const colClass: Record<number, string> = {
@@ -113,6 +112,3 @@ export function themeToStyle(theme: ThemeConfig): Record<string, string> {
     '--font-body': FONT_FAMILIES[theme.fonts.body] ?? FONT_FAMILIES.sans!,
   };
 }
-
-/** Catálogo de fuentes: fuente única en @tiendafy/types (se conserva el nombre `fontOptions`). */
-export const fontOptions = FONT_OPTIONS;

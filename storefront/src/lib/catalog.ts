@@ -1,5 +1,5 @@
 import { apiGetTenant } from './api';
-import { formatMoney, type MoneyDto } from '@tiendafy/types';
+import { type MoneyDto } from '@tiendafy/types';
 import type { StoreProduct } from '@/components/store/sections';
 
 export interface VariantDto {
@@ -144,8 +144,4 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
     stock: p.stock ?? null,
   };
-}
-
-export function formatPrice(money: MoneyDto): string {
-  return formatMoney(money.amount, money.currency);
 }

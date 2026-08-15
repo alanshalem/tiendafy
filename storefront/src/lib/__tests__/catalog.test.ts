@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPrice, toStoreProduct, type ProductDto } from '../catalog';
+import { toStoreProduct, type ProductDto } from '../catalog';
 import { readJson, writeJson } from '../storage';
 
 const producto = (over: Partial<ProductDto> = {}): ProductDto => ({
@@ -58,12 +58,6 @@ describe('toStoreProduct', () => {
     expect(sp.variantLabel).toBe('Única');
     expect(sp.image).toBeNull();
     expect(sp.compareAtAmount).toBeNull();
-  });
-});
-
-describe('formatPrice', () => {
-  it('formatea desde unidades menores', () => {
-    expect(formatPrice({ amount: 129900, currency: 'ARS' })).toContain('1.299');
   });
 });
 

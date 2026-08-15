@@ -38,8 +38,6 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CHARGEDBACK: { label: 'Contracargo', cls: 'bg-red-100 text-red-700' },
 };
 
-const money = formatMoney;
-
 export function AccountDashboard() {
   const { user, token, ready, logout } = useAuth();
   const href = usePreviewHref();
@@ -122,7 +120,7 @@ export function AccountDashboard() {
                       {formatDate(o.createdAtUtc, { day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
-                  <span className="font-bold">{money(o.total.amount, o.total.currency)}</span>
+                  <span className="font-bold">{formatMoney(o.total.amount, o.total.currency)}</span>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm opacity-75">
                   {o.items.map((i, k) => (

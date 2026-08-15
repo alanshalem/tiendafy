@@ -129,7 +129,6 @@ public static class ZipnovaEndpoints
             CorreoSecretProtector protector, ZipnovaClient client,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
 
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null || !config.Active)
@@ -186,7 +185,7 @@ public static class ZipnovaEndpoints
                     error = "No pudimos cotizar con Zipnova en este momento. Probá de nuevo en unos minutos.",
                 });
             }
-        });
+        }).RequireTenant();
 
         // ------------------------------- Admin: envío desde una venta + etiqueta
         group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment", async (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
+import { formatDate } from '../lib/format';
 import {
   Badge,
   Button,
@@ -75,9 +76,7 @@ export function PagesPage() {
     {
       key: 'updatedAtUtc',
       header: 'Última edición',
-      cell: (p) => (
-        <span className="text-sm text-fg-muted">{new Date(p.updatedAtUtc).toLocaleDateString('es-AR')}</span>
-      ),
+      cell: (p) => <span className="text-sm text-fg-muted">{formatDate(p.updatedAtUtc)}</span>,
     },
     {
       key: 'createdAtUtc',

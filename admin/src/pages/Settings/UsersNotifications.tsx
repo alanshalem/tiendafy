@@ -6,6 +6,7 @@ import { api, errMsg } from '../../lib/api';
 import { HelpLink } from '../../components/HelpLink';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
+import { formatDate } from '../../lib/format';
 
 interface Me {
   id: string;
@@ -242,9 +243,7 @@ export function UsersNotificationsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-fg-muted">
-                        {new Date(m.createdAtUtc).toLocaleDateString('es-AR')}
-                      </td>
+                      <td className="px-4 py-3 text-xs text-fg-muted">{formatDate(m.createdAtUtc)}</td>
                       <td className="px-4 py-3 text-right">
                         {editable && (
                           <button

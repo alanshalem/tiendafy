@@ -20,7 +20,6 @@ public static class MembersEndpoints
         group.MapGet("/me/permissions", async (
             HttpContext http, ITenantContext tenant, IMembershipService memberships, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             var userId = http.User.GetUserId();
             if (userId is null) return Results.Unauthorized();
             var role = await memberships.RoleAsync(userId.Value, tenant.TenantId.Value, ct);
@@ -30,7 +29,7 @@ public static class MembersEndpoints
                 role,
                 permissions = RolePermissions.For(role).Select(RolePermissions.WireKey).OrderBy(p => p),
             });
-        }).RequireAuthorization();
+        }).RequireTenant().RequireAuthorization();
 
         var members = group.MapGroup("/members");
 

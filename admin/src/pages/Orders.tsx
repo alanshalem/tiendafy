@@ -4,9 +4,10 @@ import { Loader2, RefreshCw, Package, Truck, Undo2, FileText, Download } from 'l
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api } from '../lib/api';
+import { downloadBlob } from '../lib/download';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { formatMoney } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
@@ -275,9 +276,7 @@ export function OrdersPage() {
                             {o.tracking && (
                               <div className="text-xs text-fg-subtle">
                                 Seguimiento: {o.tracking}
-                                {o.fulfilledAtUtc
-                                  ? ` · enviada ${new Date(o.fulfilledAtUtc).toLocaleDateString('es-AR')}`
-                                  : ''}
+                                {o.fulfilledAtUtc ? ` · enviada ${formatDate(o.fulfilledAtUtc)}` : ''}
                               </div>
                             )}
                             {o.refunded && o.refunded.amount > 0 && (
@@ -471,14 +470,7 @@ function FiscalPanel({
       const blob = await api.download(
         `/api/v1/orders/${orderId}/invoice.pdf${kind === 'creditnote' ? '?type=creditnote' : ''}`,
       );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo descargar el comprobante.', { variant: 'error' });
     }
@@ -687,7 +679,7 @@ function RefundDialog({
               {history.map((r) => (
                 <div key={r.id} className="flex justify-between text-xs text-fg-muted">
                   <span>
-                    {new Date(r.createdAtUtc).toLocaleDateString('es-AR')} · {r.requestedBy}
+                    {formatDate(r.createdAtUtc)} · {r.requestedBy}
                     {r.reason ? ` · ${r.reason}` : ''}
                   </span>
                   <span className="tabular-nums font-medium text-fg">{money(r.amount)}</span>

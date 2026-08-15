@@ -28,7 +28,6 @@ public static class ContactEndpoints
             ContactSubmitRequest req, ITenantContext tenant, ICaptchaVerifier captcha,
             CustomersDbContext db, BrandedEmailSender emails, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
-            if (!tenant.HasTenant) return AuthExtensions.MissingTenant();
             if (!await captcha.VerifyAsync(req.Captcha, ct))
                 return Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida. Reintentá.", statusCode: 400);
 
