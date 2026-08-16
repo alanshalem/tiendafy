@@ -86,9 +86,8 @@ public sealed class ZipnovaConfig
         if (weight is < MinWeightGrams or > MaxWeightGrams)
             return Result.Failure(Error.Validation(
                 "Zipnova.InvalidWeight", $"El peso por unidad debe estar entre {MinWeightGrams} y {MaxWeightGrams} gramos."));
-        if (length is < 1 or > MaxSideCm || width is < 1 or > MaxSideCm || height is < 1 or > MaxSideCm)
-            return Result.Failure(Error.Validation(
-                "Zipnova.InvalidDimensions", $"Cada dimensión debe estar entre 1 y {MaxSideCm} cm."));
+        var dims = PackageLimits.ValidateDimensions("Zipnova", length, width, height, MaxSideCm);
+        if (dims.IsFailure) return dims;
 
         ApiTokenEncrypted = apiTokenEncrypted;
         ApiSecretEncrypted = apiSecretEncrypted;

@@ -10,6 +10,7 @@ using Fiscal.Infrastructure.Wsfe;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SharedKernel.Persistence;
 
 namespace Fiscal.Infrastructure;
 
@@ -17,11 +18,7 @@ public static class FiscalModule
 {
     public static IServiceCollection AddFiscalModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<FiscalDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<FiscalDbContext>(configuration);
 
         services.Configure<FiscalEndpointsOptions>(configuration.GetSection(FiscalEndpointsOptions.SectionName));
 

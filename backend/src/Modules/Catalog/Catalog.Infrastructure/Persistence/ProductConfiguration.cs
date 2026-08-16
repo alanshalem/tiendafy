@@ -2,6 +2,7 @@ using Catalog.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SharedKernel.Common;
+using SharedKernel.Persistence;
 
 namespace Catalog.Infrastructure.Persistence;
 
@@ -103,16 +104,8 @@ public sealed class VariantConfiguration : IEntityTypeConfiguration<Variant>
         // Serializado "monto|moneda" en una columna: solo se muestra, nunca
         // se filtra ni se suma por precio tachado.
         builder.Property(v => v.CompareAtPrice)
-            .HasConversion(
-                m => m == null ? null : m.Value.AmountInMinorUnits + "|" + m.Value.Currency,
-                s => string.IsNullOrEmpty(s) ? null : ParseMoney(s))
+            .HasConversion(ModuleDb.NullableMoneyConverter)
             .HasColumnName("compare_at")
             .HasMaxLength(24);
-    }
-
-    private static Money? ParseMoney(string serialized)
-    {
-        var parts = serialized.Split('|');
-        return new Money(long.Parse(parts[0]), parts[1]);
     }
 }

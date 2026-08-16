@@ -1,21 +1,13 @@
-using System.Collections.Concurrent;
-using System.Threading.Channels;
-
 namespace Api.Import;
 
 /// <summary>
-/// Cola de jobs de importación + registro de su estado, en memoria del proceso.
-/// El endpoint crea+encola; el <see cref="ProductImportWorker"/> consume.
-/// El front consulta el estado por id para mostrar el progreso en vivo.
+/// Cola de jobs de importación de productos (CSV). El endpoint crea+encola; el
+/// <see cref="ProductImportWorker"/> consume.
 /// </summary>
-public sealed class ProductImportQueue
+public sealed class ProductImportQueue : JobQueue<ImportJob>
 {
-    private readonly Channel<Guid> _channel = Channel.CreateUnbounded<Guid>();
-    private readonly ConcurrentDictionary<Guid, ImportJob> _jobs = new();
-
-    public ImportJob Create(Guid tenantId, string csv, string fileName, ImportOptions options, int totalProducts)
-    {
-        var job = new ImportJob
+    public ImportJob Create(Guid tenantId, string csv, string fileName, ImportOptions options, int totalProducts) =>
+        Register(new ImportJob
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
@@ -23,19 +15,5 @@ public sealed class ProductImportQueue
             FileName = fileName,
             Options = options,
             TotalProducts = totalProducts,
-        };
-        _jobs[job.Id] = job;
-        return job;
-    }
-
-    public void Enqueue(Guid jobId) => _channel.Writer.TryWrite(jobId);
-
-    public ChannelReader<Guid> Reader => _channel.Reader;
-
-    /// <summary>Estado del job, validando que pertenezca al tenant que pregunta.</summary>
-    public ImportJob? Get(Guid tenantId, Guid jobId) =>
-        _jobs.TryGetValue(jobId, out var job) && job.TenantId == tenantId ? job : null;
-
-    public ImportJob? Get(Guid jobId) =>
-        _jobs.TryGetValue(jobId, out var job) ? job : null;
+        });
 }

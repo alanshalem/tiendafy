@@ -72,9 +72,7 @@ public sealed class AbandonedCartWorker(
             if (paid.Contains(s.Id)) { s.MarkRecoveryEmailed(); continue; } // ya compró: no perseguir
             if (!byTenant.TryGetValue(s.TenantId.Value, out var t)) continue;
 
-            var storeUrl = !string.IsNullOrWhiteSpace(t.CustomDomain)
-                ? $"https://{t.CustomDomain}"
-                : $"https://{t.Subdomain}.{platform}";
+            var storeUrl = StoreUrls.For(t.CustomDomain, t.Subdomain, platform, "https");
 
             await email.SendAsync(s.TenantId.Value, s.Email!, $"¿Te quedó algo en el carrito de {t.Name}?",
                 Body(t.Name, storeUrl, s.Items.Count), ct);

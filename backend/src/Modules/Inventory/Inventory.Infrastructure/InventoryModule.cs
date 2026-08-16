@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SharedKernel.Common;
+using SharedKernel.Persistence;
 
 namespace Inventory.Infrastructure;
 
@@ -14,11 +15,7 @@ public static class InventoryModule
 {
     public static IServiceCollection AddInventoryModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<InventoryDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<InventoryDbContext>(configuration);
 
         services.AddScoped<IStockRepository, StockRepository>();
         services.AddScoped<IInventoryService, InventoryService>();

@@ -112,9 +112,7 @@ public static class CampaignEndpoints
             var t = await tenancy.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenant.TenantId.Value, ct);
             var storeBase = t is null
                 ? $"http://{platform}"
-                : !string.IsNullOrWhiteSpace(t.CustomDomain)
-                    ? $"https://{t.CustomDomain}"
-                    : $"http://{t.Subdomain.Value}.{platform}";
+                : StoreUrls.For(t.CustomDomain, t.Subdomain.Value, platform);
             var products = CampaignEmailComposer.ParseProducts(ProductsJson(req));
             var body = CampaignEmailComposer.ComposeForPreview(req.BodyHtml ?? string.Empty, products, storeBase);
             return Results.Ok(new
@@ -199,9 +197,7 @@ public static class CampaignEndpoints
             var t = await tenancy.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenant.TenantId.Value, ct);
             var storeBase = t is null
                 ? $"http://{platform}"
-                : !string.IsNullOrWhiteSpace(t.CustomDomain)
-                    ? $"https://{t.CustomDomain}"
-                    : $"http://{t.Subdomain.Value}.{platform}";
+                : StoreUrls.For(t.CustomDomain, t.Subdomain.Value, platform);
             var token = UnsubscribeToken.Protect(dp, tenant.TenantId.Value, to);
             var products = CampaignEmailComposer.ParseProducts(campaign.ProductsJson);
             var body = CampaignEmailComposer.ComposeForPreview(campaign.BodyHtml, products, storeBase)

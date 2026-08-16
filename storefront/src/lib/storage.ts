@@ -22,3 +22,12 @@ export function writeJson(key: string, value: unknown): void {
     /* quota / modo privado: se ignora, igual que antes */
   }
 }
+
+export function removeKey(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    /* modo privado: se ignora */
+  }
+}

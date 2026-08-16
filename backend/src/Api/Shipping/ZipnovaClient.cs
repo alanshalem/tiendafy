@@ -221,7 +221,7 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
 
     private static string ExtractMessage(string body, HttpStatusCode status)
     {
-        var msg = CarrierErrorBody.Message(body, "message", "error");
+        var msg = ExternalErrorBody.Message(body, "message", "error");
         if (msg is not null) return $"Zipnova: {msg}";
         return status == HttpStatusCode.TooManyRequests
             ? "Zipnova está limitando el tráfico. Probá de nuevo en un par de minutos."

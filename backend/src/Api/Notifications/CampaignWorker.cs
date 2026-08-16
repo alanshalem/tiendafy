@@ -101,9 +101,7 @@ public sealed class CampaignWorker(
             .FirstOrDefaultAsync(t => t.Id == campaign.TenantId, ct);
         var storeBase = tenant is null
             ? $"http://{platform}"
-            : !string.IsNullOrWhiteSpace(tenant.CustomDomain)
-                ? $"https://{tenant.CustomDomain}"
-                : $"http://{tenant.Subdomain.Value}.{platform}";
+            : StoreUrls.For(tenant.CustomDomain, tenant.Subdomain.Value, platform);
         var products = CampaignEmailComposer.ParseProducts(campaign.ProductsJson);
 
         var sent = 0;

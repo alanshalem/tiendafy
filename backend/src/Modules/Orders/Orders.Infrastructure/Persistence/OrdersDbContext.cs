@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
+using SharedKernel.Persistence;
 
 namespace Orders.Infrastructure.Persistence;
 
@@ -43,22 +44,16 @@ public sealed class OrdersDbContext : DbContext
         order.Property(o => o.PaymentId).HasMaxLength(64);
         order.Property(o => o.CouponCode).HasMaxLength(40);
         order.Property(o => o.DiscountAmount)
-            .HasConversion(
-                m => m.AmountInMinorUnits + "|" + m.Currency,
-                s => ParseMoney(s))
+            .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("discount_amount")
             .HasMaxLength(24);
         order.Property(o => o.RefundedAmount)
-            .HasConversion(
-                m => m.AmountInMinorUnits + "|" + m.Currency,
-                s => ParseMoney(s))
+            .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("refunded_amount")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
         order.Property(o => o.ShippingCost)
-            .HasConversion(
-                m => m.AmountInMinorUnits + "|" + m.Currency,
-                s => ParseMoney(s))
+            .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("shipping_cost")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
@@ -88,19 +83,11 @@ public sealed class OrdersDbContext : DbContext
             items.Property(i => i.Sku).HasMaxLength(64);
             items.Ignore(i => i.LineTotal);
             items.Property(i => i.UnitPrice)
-                .HasConversion(
-                    m => m.AmountInMinorUnits + "|" + m.Currency,
-                    s => ParseMoney(s))
+                .HasConversion(ModuleDb.MoneyConverter)
                 .HasColumnName("unit_price")
                 .HasMaxLength(24);
         });
 
         order.Navigation(o => o.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
-    }
-
-    private static Money ParseMoney(string serialized)
-    {
-        var parts = serialized.Split('|');
-        return new Money(long.Parse(parts[0]), parts[1]);
     }
 }

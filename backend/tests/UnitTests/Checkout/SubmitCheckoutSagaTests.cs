@@ -8,7 +8,7 @@ namespace UnitTests.Checkout;
 public class SubmitCheckoutSagaTests
 {
     private static readonly TenantId Tenant = TenantId.New();
-    private static Money Ars(long cents) => new(cents, "ARS");
+    private static Money Ars(long cents) => TestData.Ars(cents);
 
     private sealed class FakeCheckoutRepository(CheckoutSession session) : ICheckoutRepository
     {

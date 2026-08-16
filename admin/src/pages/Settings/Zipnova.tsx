@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Loader2, Package, Zap } from 'lucide-react';
-import { Button, Input, Modal, Select, Switch, useConfirm, useToast } from '@tiendafy/ui';
+import { useState } from 'react';
+import { Loader2, Package, Zap } from 'lucide-react';
+import { Button, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
-import { useStore } from '../../context/StoreContext';
+import { CarrierCard, useCarrierConfig } from './CarrierCard';
 
 interface ZipnovaConfig {
   configured: boolean;
@@ -31,81 +31,33 @@ interface TestOption {
  * de Zipnova habilite la modalidad "testing" en la cuenta (cotizar es gratis).
  */
 export function ZipnovaCard() {
-  const { store } = useStore();
-  const { toast } = useToast();
-  const confirm = useConfirm();
-  const [config, setConfig] = useState<ZipnovaConfig | null>(null);
+  const { config, load } = useCarrierConfig<ZipnovaConfig>('/api/v1/admin/shipping/zipnova');
   const [open, setOpen] = useState(false);
-
-  const load = useCallback(() => {
-    api
-      .get<ZipnovaConfig>('/api/v1/admin/shipping/zipnova')
-      .then(setConfig)
-      .catch(() => setConfig({ configured: false }));
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
-
-  const disconnect = async () => {
-    const ok = await confirm({
-      title: 'Desconectar Zipnova',
-      message:
-        'Se borran las credenciales guardadas y el checkout deja de cotizar con Zipnova. Los envíos ya creados siguen viviendo en tu cuenta de Zipnova.',
-      confirmLabel: 'Desconectar',
-      variant: 'danger',
-    });
-    if (!ok) return;
-    try {
-      await api.delete('/api/v1/admin/shipping/zipnova');
-      toast('Zipnova desconectado', { variant: 'success' });
-      load();
-    } catch (err) {
-      toast(errMsg(err, 'No se pudo desconectar.'), { variant: 'error' });
-    }
-  };
 
   if (!config) return null;
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-surface p-4 shadow-card">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
-          <Zap className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-fg">Zipnova</span>
-            <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
-              Multi-transporte
-            </span>
-            {config.configured && config.active && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
-                <CheckCircle2 className="h-3 w-3" /> Activo
-              </span>
-            )}
-            {config.configured && !config.active && (
-              <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
-                Pausado
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            {config.configured
-              ? `Cuenta ${config.accountId} (${config.country}). El checkout cotiza en vivo con los transportes de tu cuenta; los envíos se crean desde la venta con etiqueta PDF.`
-              : 'Andreani, OCA y más transportes detrás de una sola API: el comprador ve el precio real por código postal y vos creás el envío con etiqueta desde la venta.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {config.configured && (
-            <Button variant="secondary" onClick={disconnect}>
-              Desconectar
-            </Button>
-          )}
-          <Button onClick={() => setOpen(true)}>{config.configured ? 'Editar' : 'Configurar'}</Button>
-        </div>
-      </div>
+    <>
+      <CarrierCard
+        className="mt-3"
+        icon={<Zap className="h-5 w-5" />}
+        title="Zipnova"
+        tag="Multi-transporte"
+        description={
+          config.configured
+            ? `Cuenta ${config.accountId} (${config.country}). El checkout cotiza en vivo con los transportes de tu cuenta; los envíos se crean desde la venta con etiqueta PDF.`
+            : 'Andreani, OCA y más transportes detrás de una sola API: el comprador ve el precio real por código postal y vos creás el envío con etiqueta desde la venta.'
+        }
+        config={config}
+        disconnect={{
+          url: '/api/v1/admin/shipping/zipnova',
+          confirmMessage:
+            'Se borran las credenciales guardadas y el checkout deja de cotizar con Zipnova. Los envíos ya creados siguen viviendo en tu cuenta de Zipnova.',
+          successToast: 'Zipnova desconectado',
+          onDone: load,
+        }}
+        onConfigure={() => setOpen(true)}
+      />
 
       {open && (
         <ConfigModal
@@ -117,7 +69,7 @@ export function ZipnovaCard() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 

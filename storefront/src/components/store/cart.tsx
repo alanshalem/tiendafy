@@ -8,6 +8,7 @@ import { API_URL as CART_API, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
+import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 
 export const cartStorageKey = (storeKey: string) => `tiendafy.cart.${storeKey}`;
 
@@ -142,25 +143,15 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
     if (!code.trim()) return;
     setChecking(true);
     setCouponError(null);
-    try {
-      const res = await fetch(`${CART_API}/api/v1/coupons/validate`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ code: code.trim(), subtotal: totalAmount }),
-      });
-      const data = await res.json();
-      if (data.valid) {
-        setCoupon({ code: data.code, discount: data.discountAmount, freeShipping: data.freeShipping });
-        setCouponError(null);
-      } else {
-        setCoupon(null);
-        setCouponError(data.error ?? 'Cupón inválido.');
-      }
-    } catch {
-      setCouponError('No se pudo validar el cupón.');
-    } finally {
-      setChecking(false);
+    const r = await validateCouponApi(tenantId, code.trim(), totalAmount);
+    if (r.ok) {
+      setCoupon({ code: r.code, discount: r.discount, freeShipping: r.freeShipping });
+      setCouponError(null);
+    } else {
+      setCoupon(null);
+      setCouponError(r.error);
     }
+    setChecking(false);
   };
 
   // Re-validar el cupón aplicado si cambia el subtotal (sumar/quitar productos).

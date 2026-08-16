@@ -85,9 +85,8 @@ public sealed class CorreoArgentinoConfig
         if (weight is < 1 or > MaxWeightGrams)
             return Result.Failure(Error.Validation(
                 "Correo.InvalidWeight", $"El peso por unidad debe estar entre 1 y {MaxWeightGrams} gramos."));
-        if (length is < 1 or > MaxSideCm || width is < 1 or > MaxSideCm || height is < 1 or > MaxSideCm)
-            return Result.Failure(Error.Validation(
-                "Correo.InvalidDimensions", $"Cada dimensión debe estar entre 1 y {MaxSideCm} cm."));
+        var dims = PackageLimits.ValidateDimensions("Correo", length, width, height, MaxSideCm);
+        if (dims.IsFailure) return dims;
 
         CustomerId = customerId.Trim();
         UserTokenEncrypted = userTokenEncrypted;

@@ -6,7 +6,7 @@ namespace UnitTests.Checkout;
 public class CheckoutSessionTests
 {
     private static readonly TenantId Tenant = TenantId.New();
-    private static Money Ars(long cents) => new(cents, "ARS");
+    private static Money Ars(long cents) => TestData.Ars(cents);
 
     private static CheckoutSession CreateSession() =>
         CheckoutSession.Create(Tenant,

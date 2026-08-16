@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Fiscal.Core\Fiscal.Core.csproj" />
+    <ProjectReference Include="..\..\..\SharedKernel.Persistence\SharedKernel.Persistence.csproj" />
     <ProjectReference Include="..\Fiscal.Contracts\Fiscal.Contracts.csproj" />
   </ItemGroup>
 

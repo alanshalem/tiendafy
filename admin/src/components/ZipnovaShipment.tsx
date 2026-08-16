@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Download, Loader2, Zap } from 'lucide-react';
-import { Button, Input, Modal, useToast } from '@tiendafy/ui';
+import { Input, Modal, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import {

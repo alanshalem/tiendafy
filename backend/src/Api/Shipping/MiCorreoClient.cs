@@ -223,7 +223,7 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
 
     private static string ExtractMessage(string body, string fallback)
     {
-        var msg = CarrierErrorBody.Message(body, "message");
+        var msg = ExternalErrorBody.Message(body, "message");
         return msg is null ? fallback : $"MiCorreo: {msg}";
     }
 

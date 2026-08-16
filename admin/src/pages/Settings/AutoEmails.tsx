@@ -8,6 +8,7 @@ import { RichTextEditor } from '../../components/RichTextEditor';
 import { EmailPreview } from '../../components/EmailPreview';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { TemplateGrid } from './TemplateGrid';
 
 interface Tpl {
   type: string;
@@ -62,34 +63,13 @@ export function AutoEmailsPage() {
       <NotificationUsage channel="email" />
 
       <div className="space-y-6">
-        {GROUPS.map((group) => {
-          const groupItems = items.filter((i) => i.group === group);
-          if (groupItems.length === 0) return null;
-          return (
-            <div key={group}>
-              <h2 className="mb-3 text-base font-semibold text-fg">{group}</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {groupItems.map((t) => (
-                  <div key={t.type} className="rounded-lg border border-border bg-surface p-4 shadow-card">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-fg">{t.label}</div>
-                        <p className="mt-0.5 text-xs text-fg-muted">{t.description}</p>
-                        <button
-                          onClick={() => setEditing(t)}
-                          className="mt-2 text-xs font-medium text-primary hover:underline"
-                        >
-                          Editar contenido
-                        </button>
-                      </div>
-                      <Switch checked={t.enabled} onChange={(on) => toggle(t, on)} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        <TemplateGrid
+          groups={GROUPS}
+          items={items}
+          editLabel="Editar contenido"
+          onEdit={setEditing}
+          renderToggle={(t) => <Switch checked={t.enabled} onChange={(on) => toggle(t, on)} />}
+        />
       </div>
 
       <HelpLink id="autoEmails" />

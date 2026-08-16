@@ -14,7 +14,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Badge, Button, Dropdown, Modal, useToast, useConfirm, type BadgeVariant } from '@tiendafy/ui';
+import { Badge, Button, Dropdown, Modal, useToast, useConfirm } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';

@@ -22,27 +22,11 @@ public sealed class MeliNotificationWorker(
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<MeliDbContext>();
 
-        var pending = await db.Notifications
-            .Where(n => n.Status == MeliNotification.StatusPending)
-            .OrderBy(n => n.CreatedAtUtc)
-            .Take(20)
-            .ToListAsync(ct);
-
-        foreach (var notification in pending)
-        {
-            try
-            {
-                await ProcessAsync(sp, db, notification, ct);
-                notification.MarkDone();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Notificación ML {Id} ({Topic}) falló, intento {Attempt}.",
-                    notification.Id, notification.Topic, notification.Attempts + 1);
-                notification.MarkFailed(ex.Message);
-            }
-            await db.SaveChangesAsync(ct);
-        }
+        await InboxDrain.DrainAsync(db, db.Notifications,
+            n => ProcessAsync(sp, db, n, ct),
+            (ex, n) => logger.LogError(ex, "Notificación ML {Id} ({Topic}) falló, intento {Attempt}.",
+                n.Id, n.Topic, n.Attempts + 1),
+            ct);
     }
 
     private async Task ProcessAsync(

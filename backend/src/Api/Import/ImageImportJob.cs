@@ -5,7 +5,7 @@ namespace Api.Import;
 /// igual que el import de productos. Las imágenes subidas se guardan en un dir
 /// temporal que el worker procesa y limpia al terminar.
 /// </summary>
-public sealed class ImageImportJob
+public sealed class ImageImportJob : IImportJob
 {
     public required Guid Id { get; init; }
     public required Guid TenantId { get; init; }

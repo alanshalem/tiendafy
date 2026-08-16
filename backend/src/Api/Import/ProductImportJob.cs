@@ -19,7 +19,7 @@ public sealed record ImportRowError(int Line, string Slug, string Message);
 /// (un solo nodo en dev). No persiste entre reinicios — aceptable para el
 /// flujo de carga masiva, que es interactivo y de corta duración.
 /// </summary>
-public sealed class ImportJob
+public sealed class ImportJob : IImportJob
 {
     public required Guid Id { get; init; }
     public required Guid TenantId { get; init; }

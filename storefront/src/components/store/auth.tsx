@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { readJson, removeKey, writeJson } from '@/lib/storage';
 
 export interface ShopUser {
   id: string;
@@ -49,30 +50,18 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   const persistUser = useCallback(
     (u: ShopUser | null) => {
       setUser(u);
-      try {
-        if (u) localStorage.setItem(userKey, JSON.stringify(u));
-        else localStorage.removeItem(userKey);
-      } catch {
-        /* localStorage no disponible: seguimos solo en memoria */
-      }
+      if (u) writeJson(userKey, u);
+      else removeKey(userKey);
     },
     [userKey],
   );
 
   // Hidratación: cache optimista + validación contra /me (con la cookie).
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem(userKey);
-      if (cached) setUser(JSON.parse(cached));
-    } catch {
-      /* ignore */
-    }
+    const cached = readJson<ShopUser | null>(userKey, null);
+    if (cached) setUser(cached);
     // Migración: limpiar tokens viejos que vivían en localStorage (pre-cookie).
-    try {
-      localStorage.removeItem(`tiendafy.shop.token.${storeKey}`);
-    } catch {
-      /* ignore */
-    }
+    removeKey(`tiendafy.shop.token.${storeKey}`);
 
     fetch(`${API}/api/v1/shop/auth/me`, { headers, credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))

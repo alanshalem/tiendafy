@@ -5,6 +5,7 @@ using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SharedKernel.Persistence;
 
 namespace Checkout.Infrastructure;
 
@@ -12,11 +13,7 @@ public static class CheckoutModule
 {
     public static IServiceCollection AddCheckoutModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<CheckoutDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<CheckoutDbContext>(configuration);
 
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<IShippingMethodRepository, ShippingMethodRepository>();

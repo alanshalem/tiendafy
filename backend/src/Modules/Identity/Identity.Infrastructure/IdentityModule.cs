@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SharedKernel.Persistence;
 
 namespace Identity.Infrastructure;
 
@@ -11,11 +12,7 @@ public static class IdentityModule
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<AppIdentityDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<AppIdentityDbContext>(configuration);
 
         services
             .AddIdentityCore<AppUser>(options =>

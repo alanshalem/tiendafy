@@ -97,7 +97,7 @@ public class ZipnovaShipmentTests
 
 public class ZipnovaQuoteTokenTests
 {
-    private static readonly IDataProtectionProvider Dp = new EphemeralDataProtectionProvider();
+    private static readonly IDataProtectionProvider Dp = TestData.Dp;
 
     [Fact]
     public void RoundTrip_MismoTenant_Recupera()

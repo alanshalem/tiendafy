@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/AdminLayout';
 import { CommandPalette } from './components/CommandPalette';
@@ -50,6 +50,94 @@ import { StatsCouponsPage } from './pages/Stats/Coupons';
 import { StubPage, stubs } from './pages/Stub';
 import { RequirePerm } from './context/PermissionsContext';
 
+/** Tabla de rutas: path + permiso + elemento (el boilerplate de <RequirePerm> se arma al render). */
+interface AppRoute {
+  path: string;
+  perm?: string | string[];
+  el: ReactNode;
+}
+
+const lazyFallback = (label: string) => <p className="py-16 text-center text-sm text-fg-muted">{label}</p>;
+
+// Rutas del panel principal (AdminLayout).
+const MAIN_ROUTES: AppRoute[] = [
+  { path: '/', el: <HomePage /> },
+
+  // Estadísticas
+  { path: '/estadisticas', perm: 'stats.read', el: <StatsOverviewPage /> },
+  { path: '/estadisticas/productos', perm: 'stats.read', el: <StatsProductsPage /> },
+  { path: '/estadisticas/ventas', perm: 'stats.read', el: <StatsSalesPage /> },
+  { path: '/estadisticas/visitas', perm: 'stats.read', el: <StatsVisitsPage /> },
+  { path: '/estadisticas/tiempo-real', perm: 'stats.read', el: <StatsRealTimePage /> },
+  { path: '/estadisticas/cupones', perm: 'stats.read', el: <StatsCouponsPage /> },
+
+  // Productos
+  { path: '/productos', perm: ['inventory.read', 'catalog.write'], el: <ProductsPage /> },
+  { path: '/productos/nuevo', perm: 'catalog.write', el: <NewProductPage /> },
+  { path: '/productos/:id/editar', perm: 'catalog.write', el: <EditProductPage /> },
+  { path: '/productos/exportar-importar', perm: 'catalog.write', el: <ExportImportPage /> },
+  { path: '/productos/categorias', perm: 'catalog.write', el: <CategoriesPage /> },
+  { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
+
+  // Tienda online (chunks lazy)
+  {
+    path: '/canales/tienda-online',
+    perm: 'content.write',
+    el: (
+      <Suspense fallback={lazyFallback('Cargando editor...')}>
+        <ThemeEditorPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/canales/tienda-online/disenios',
+    perm: 'content.write',
+    el: (
+      <Suspense fallback={lazyFallback('Cargando...')}>
+        <ThemeGalleryPage />
+      </Suspense>
+    ),
+  },
+
+  // Ventas y el resto del panel
+  { path: '/ventas', perm: 'orders.read', el: <OrdersPage /> },
+  { path: '/ventas/carritos', perm: 'orders.read', el: <AbandonedCartsPage /> },
+  { path: '/descuentos', perm: 'discounts.read', el: <DiscountsPage /> },
+  { path: '/marketing', perm: 'settings.write', el: <MarketingPage /> },
+  { path: '/mercadolibre', perm: 'orders.read', el: <MercadoLibrePage /> },
+  { path: '/clientes', perm: 'customers.read', el: <CustomersPage /> },
+  { path: '/mensajes', perm: 'messages.read', el: <MessagesPage /> },
+  { path: '/posventa', perm: 'support.chat', el: <SupportChatPage /> },
+  { path: '/paginas', perm: 'content.write', el: <PagesPage /> },
+  { path: '/tenants', el: <TenantsPage /> },
+];
+
+// Rutas de Configuración (SettingsLayout, paths relativos).
+const SETTINGS_ROUTES: AppRoute[] = [
+  { path: 'medios-de-pago', perm: 'payments.read', el: <PaymentMethodsPage /> },
+  { path: 'medios-de-envio', perm: 'settings.write', el: <ShippingMethodsPage /> },
+  { path: 'mercadolibre', perm: 'settings.write', el: <MeliSettingsPage /> },
+  { path: 'centros-de-distribucion', perm: 'settings.write', el: <DistributionCentersPage /> },
+  { path: 'emails-automaticos', perm: 'settings.write', el: <AutoEmailsPage /> },
+  { path: 'whatsapp-automatico', perm: 'settings.write', el: <WhatsAppAutoPage /> },
+  { path: 'opciones-del-checkout', perm: 'settings.write', el: <CheckoutOptionsPage /> },
+  { path: 'facturacion', perm: 'fiscal.config', el: <FiscalInvoicingPage /> },
+  { path: 'usuarios', perm: 'members.read', el: <UsersNotificationsPage /> },
+  { path: 'dominios', perm: 'settings.write', el: <DomainsPage /> },
+  { path: 'codigos-externos', perm: 'settings.write', el: <ExternalCodesPage /> },
+  { path: 'idiomas-y-monedas', perm: 'settings.write', el: <LanguagesCurrenciesPage /> },
+  { path: 'redirecciones', perm: 'settings.write', el: <RedirectsPage /> },
+  { path: 'campos-personalizados', perm: 'settings.write', el: <CustomFieldsPage /> },
+];
+
+const renderRoute = (r: AppRoute) => (
+  <Route
+    key={r.path}
+    path={r.path}
+    element={r.perm ? <RequirePerm perm={r.perm}>{r.el}</RequirePerm> : r.el}
+  />
+);
+
 export default function App() {
   return (
     <>
@@ -57,207 +145,7 @@ export default function App() {
       <CommandPalette />
       <Routes>
         <Route element={<AdminLayout />}>
-          <Route path="/" element={<HomePage />} />
-
-          {/* Estadísticas */}
-          <Route
-            path="/estadisticas"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsOverviewPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/estadisticas/productos"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsProductsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/estadisticas/ventas"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsSalesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/estadisticas/visitas"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsVisitsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/estadisticas/tiempo-real"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsRealTimePage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/estadisticas/cupones"
-            element={
-              <RequirePerm perm="stats.read">
-                <StatsCouponsPage />
-              </RequirePerm>
-            }
-          />
-
-          {/* Productos */}
-          <Route
-            path="/productos"
-            element={
-              <RequirePerm perm={['inventory.read', 'catalog.write']}>
-                <ProductsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/productos/nuevo"
-            element={
-              <RequirePerm perm="catalog.write">
-                <NewProductPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/productos/:id/editar"
-            element={
-              <RequirePerm perm="catalog.write">
-                <EditProductPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/productos/exportar-importar"
-            element={
-              <RequirePerm perm="catalog.write">
-                <ExportImportPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/productos/categorias"
-            element={
-              <RequirePerm perm="catalog.write">
-                <CategoriesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/productos/inventario"
-            element={
-              <RequirePerm perm="inventory.read">
-                <InventoryPage />
-              </RequirePerm>
-            }
-          />
-
-          {/* Tienda online */}
-          <Route
-            path="/canales/tienda-online"
-            element={
-              <RequirePerm perm="content.write">
-                <Suspense
-                  fallback={<p className="py-16 text-center text-sm text-fg-muted">Cargando editor...</p>}
-                >
-                  <ThemeEditorPage />
-                </Suspense>
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/canales/tienda-online/disenios"
-            element={
-              <RequirePerm perm="content.write">
-                <Suspense fallback={<p className="py-16 text-center text-sm text-fg-muted">Cargando...</p>}>
-                  <ThemeGalleryPage />
-                </Suspense>
-              </RequirePerm>
-            }
-          />
-
-          {/* Ventas */}
-          <Route
-            path="/ventas"
-            element={
-              <RequirePerm perm="orders.read">
-                <OrdersPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/ventas/carritos"
-            element={
-              <RequirePerm perm="orders.read">
-                <AbandonedCartsPage />
-              </RequirePerm>
-            }
-          />
-
-          <Route
-            path="/descuentos"
-            element={
-              <RequirePerm perm="discounts.read">
-                <DiscountsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/marketing"
-            element={
-              <RequirePerm perm="settings.write">
-                <MarketingPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/mercadolibre"
-            element={
-              <RequirePerm perm="orders.read">
-                <MercadoLibrePage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/clientes"
-            element={
-              <RequirePerm perm="customers.read">
-                <CustomersPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/mensajes"
-            element={
-              <RequirePerm perm="messages.read">
-                <MessagesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/posventa"
-            element={
-              <RequirePerm perm="support.chat">
-                <SupportChatPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/paginas"
-            element={
-              <RequirePerm perm="content.write">
-                <PagesPage />
-              </RequirePerm>
-            }
-          />
-          <Route path="/tenants" element={<TenantsPage />} />
+          {MAIN_ROUTES.map(renderRoute)}
           {Object.keys(stubs).map((id) => (
             <Route key={id} path={`/${id}`} element={<StubPage id={id} />} />
           ))}
@@ -266,118 +154,7 @@ export default function App() {
         {/* Configuración: layout propio con su nav lateral */}
         <Route path="/configuracion" element={<SettingsLayout />}>
           <Route index element={<Navigate to="/configuracion/medios-de-pago" replace />} />
-          <Route
-            path="medios-de-pago"
-            element={
-              <RequirePerm perm="payments.read">
-                <PaymentMethodsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="medios-de-envio"
-            element={
-              <RequirePerm perm="settings.write">
-                <ShippingMethodsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="mercadolibre"
-            element={
-              <RequirePerm perm="settings.write">
-                <MeliSettingsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="centros-de-distribucion"
-            element={
-              <RequirePerm perm="settings.write">
-                <DistributionCentersPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="emails-automaticos"
-            element={
-              <RequirePerm perm="settings.write">
-                <AutoEmailsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="whatsapp-automatico"
-            element={
-              <RequirePerm perm="settings.write">
-                <WhatsAppAutoPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="opciones-del-checkout"
-            element={
-              <RequirePerm perm="settings.write">
-                <CheckoutOptionsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="facturacion"
-            element={
-              <RequirePerm perm="fiscal.config">
-                <FiscalInvoicingPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="usuarios"
-            element={
-              <RequirePerm perm="members.read">
-                <UsersNotificationsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="dominios"
-            element={
-              <RequirePerm perm="settings.write">
-                <DomainsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="codigos-externos"
-            element={
-              <RequirePerm perm="settings.write">
-                <ExternalCodesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="idiomas-y-monedas"
-            element={
-              <RequirePerm perm="settings.write">
-                <LanguagesCurrenciesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="redirecciones"
-            element={
-              <RequirePerm perm="settings.write">
-                <RedirectsPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="campos-personalizados"
-            element={
-              <RequirePerm perm="settings.write">
-                <CustomFieldsPage />
-              </RequirePerm>
-            }
-          />
+          {SETTINGS_ROUTES.map(renderRoute)}
         </Route>
 
         {/* Centro de ayuda (standalone, sin sidebar — se abre en pestaña nueva). */}

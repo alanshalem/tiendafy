@@ -8,10 +8,8 @@ using SharedKernel.Common;
 namespace Api.Meli;
 
 /// <summary>Error controlado de la API de Mercado Libre, con el mensaje del server.</summary>
-public sealed class MeliException(string message, HttpStatusCode? status = null) : Exception(message)
-{
-    public HttpStatusCode? Status { get; } = status;
-}
+public sealed class MeliException(string message, HttpStatusCode? status = null)
+    : ExternalApiException(message, status);
 
 public sealed record MeliTokens(
     string AccessToken, string RefreshToken, long UserId, int ExpiresInSeconds);
@@ -120,16 +118,8 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
 
     private static string ExtractMessage(string body, HttpStatusCode status)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(body);
-            if (doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty("message", out var m)
-                && m.ValueKind == JsonValueKind.String
-                && !string.IsNullOrWhiteSpace(m.GetString()))
-                return $"Mercado Libre: {m.GetString()}";
-        }
-        catch (JsonException) { /* cuerpo no-JSON */ }
+        var msg = ExternalErrorBody.Message(body, "message");
+        if (msg is not null) return $"Mercado Libre: {msg}";
         return status == HttpStatusCode.TooManyRequests
             ? "Mercado Libre está limitando el tráfico. Probá de nuevo en un minuto."
             : $"Mercado Libre devolvió {(int)status}.";

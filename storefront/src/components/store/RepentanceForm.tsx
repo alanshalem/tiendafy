@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useCart } from './cart';
 import { Captcha } from './Captcha';
-import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { submitContact } from '@/lib/contact';
 
 /**
  * Formulario del Botón de Arrepentimiento (Res. 424/2020). Entra por el mismo
@@ -47,32 +47,19 @@ export function RepentanceForm() {
       `Pedido: ${order || 'no informado'}\n` +
       (reason ? `Motivo: ${reason}\n` : '') +
       'El comprador ejerce su derecho de arrepentimiento. Corresponde revertir la operación y reintegrar el pago dentro de los plazos legales.';
-    try {
-      const res = await fetch(`${API}/api/v1/contact/submit`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({
-          name,
-          email,
-          body,
-          captcha: captcha || undefined,
-          // El número de constancia lo genera el SERVIDOR (y llega también por
-          // email como acuse) — el cliente solo declara el tipo y el pedido.
-          kind: 'repentance',
-          orderRef: order || undefined,
-        }),
-      });
-      if (res.ok) {
-        const p = (await res.json().catch(() => null)) as { reference?: string } | null;
-        setReceipt({ ref: p?.reference ?? 'registrada', date: new Date().toLocaleDateString('es-AR') });
-      } else {
-        setError(await problemMessage(res, 'No se pudo enviar. Probá de nuevo.'));
-      }
-    } catch {
-      setError('No se pudo enviar. Revisá tu conexión.');
-    } finally {
-      setBusy(false);
-    }
+    // El número de constancia lo genera el SERVIDOR (y llega también por
+    // email como acuse) — el cliente solo declara el tipo y el pedido.
+    const r = await submitContact(tenantId, {
+      name,
+      email,
+      body,
+      captcha: captcha || undefined,
+      kind: 'repentance',
+      orderRef: order || undefined,
+    });
+    if (r.ok) setReceipt({ ref: r.reference ?? 'registrada', date: new Date().toLocaleDateString('es-AR') });
+    else setError(r.error);
+    setBusy(false);
   };
 
   return (

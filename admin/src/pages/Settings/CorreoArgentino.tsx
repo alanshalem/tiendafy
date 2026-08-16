@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Loader2, Mail, Package } from 'lucide-react';
-import { Button, Input, Modal, Select, Switch, useConfirm, useToast } from '@tiendafy/ui';
+import { useState } from 'react';
+import { Loader2, Mail, Package } from 'lucide-react';
+import { Button, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
-import { useStore } from '../../context/StoreContext';
+import { CarrierCard, useCarrierConfig } from './CarrierCard';
 
 interface CorreoConfig {
   configured: boolean;
@@ -32,86 +32,41 @@ interface TestRate {
  * Los tokens nunca vuelven del servidor: los inputs quedan vacíos al editar.
  */
 export function CorreoArgentinoCard() {
-  const { store } = useStore();
-  const { toast } = useToast();
-  const confirm = useConfirm();
-  const [config, setConfig] = useState<CorreoConfig | null>(null);
+  const { config, load } = useCarrierConfig<CorreoConfig>('/api/v1/admin/shipping/correo');
   const [open, setOpen] = useState(false);
-
-  const load = useCallback(() => {
-    api
-      .get<CorreoConfig>('/api/v1/admin/shipping/correo')
-      .then(setConfig)
-      .catch(() => setConfig({ configured: false }));
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
-
-  const disconnect = async () => {
-    const ok = await confirm({
-      title: 'Desconectar Correo Argentino',
-      message:
-        'Se borran las credenciales guardadas y el checkout deja de cotizar con Correo Argentino. Los pedidos ya realizados no cambian.',
-      confirmLabel: 'Desconectar',
-      variant: 'danger',
-    });
-    if (!ok) return;
-    try {
-      await api.delete('/api/v1/admin/shipping/correo');
-      toast('Correo Argentino desconectado', { variant: 'success' });
-      load();
-    } catch (err) {
-      toast(errMsg(err, 'No se pudo desconectar.'), { variant: 'error' });
-    }
-  };
 
   if (!config) return null;
 
   return (
-    <div className="mt-6 rounded-lg border border-border bg-surface p-4 shadow-card">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
-          <Mail className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-fg">Correo Argentino</span>
-            <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
-              Cotización automática
+    <>
+      <CarrierCard
+        className="mt-6"
+        icon={<Mail className="h-5 w-5" />}
+        title="Correo Argentino"
+        tag="Cotización automática"
+        extraBadges={
+          config.configured &&
+          config.environment === 'TEST' && (
+            <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+              Modo prueba
             </span>
-            {config.configured && config.active && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
-                <CheckCircle2 className="h-3 w-3" /> Activo
-              </span>
-            )}
-            {config.configured && !config.active && (
-              <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
-                Pausado
-              </span>
-            )}
-            {config.configured && config.environment === 'TEST' && (
-              <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
-                Modo prueba
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            {config.configured
-              ? `El checkout cotiza en vivo por código postal desde el CP ${config.originPostalCode}. Cliente MiCorreo ${config.customerId}.`
-              : 'Cotizá el envío en vivo en el checkout con la API oficial MiCorreo: el comprador pone su código postal y ve el precio real, a domicilio o a sucursal.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {config.configured && (
-            <Button variant="secondary" onClick={disconnect}>
-              Desconectar
-            </Button>
-          )}
-          <Button onClick={() => setOpen(true)}>{config.configured ? 'Editar' : 'Configurar'}</Button>
-        </div>
-      </div>
+          )
+        }
+        description={
+          config.configured
+            ? `El checkout cotiza en vivo por código postal desde el CP ${config.originPostalCode}. Cliente MiCorreo ${config.customerId}.`
+            : 'Cotizá el envío en vivo en el checkout con la API oficial MiCorreo: el comprador pone su código postal y ve el precio real, a domicilio o a sucursal.'
+        }
+        config={config}
+        disconnect={{
+          url: '/api/v1/admin/shipping/correo',
+          confirmMessage:
+            'Se borran las credenciales guardadas y el checkout deja de cotizar con Correo Argentino. Los pedidos ya realizados no cambian.',
+          successToast: 'Correo Argentino desconectado',
+          onDone: load,
+        }}
+        onConfigure={() => setOpen(true)}
+      />
 
       {open && (
         <ConfigModal
@@ -123,7 +78,7 @@ export function CorreoArgentinoCard() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 

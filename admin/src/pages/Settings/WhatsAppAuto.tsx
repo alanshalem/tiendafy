@@ -9,6 +9,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
+import { TemplateGrid } from './TemplateGrid';
 
 const WA_GREEN = '#25D366';
 
@@ -96,36 +97,17 @@ export function WhatsAppAutoPage() {
             <Loader2 className="h-4 w-4 animate-spin" /> Cargando mensajes…
           </div>
         )}
-        {GROUPS.map((group) => {
-          const groupItems = items.filter((i) => i.group === group);
-          if (groupItems.length === 0) return null;
-          return (
-            <div key={group}>
-              <h2 className="mb-3 text-base font-semibold text-fg">{group}</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {groupItems.map((t) => (
-                  <div key={t.type} className="rounded-lg border border-border bg-surface p-4 shadow-card">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-fg">{t.label}</div>
-                        <p className="mt-0.5 text-xs text-fg-muted">{t.description}</p>
-                        <button
-                          onClick={() => setEditing(t)}
-                          className="mt-2 text-xs font-medium text-primary hover:underline"
-                        >
-                          Configurar plantilla
-                        </button>
-                      </div>
-                      <span title={!connected ? 'Conectá WhatsApp primero' : undefined}>
-                        <Switch checked={t.enabled} disabled={!connected} onChange={(on) => toggle(t, on)} />
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        <TemplateGrid
+          groups={GROUPS}
+          items={items}
+          editLabel="Configurar plantilla"
+          onEdit={setEditing}
+          renderToggle={(t) => (
+            <span title={!connected ? 'Conectá WhatsApp primero' : undefined}>
+              <Switch checked={t.enabled} disabled={!connected} onChange={(on) => toggle(t, on)} />
+            </span>
+          )}
+        />
         {!connected && !loadingTpls && items.length > 0 && (
           <p className="text-xs text-fg-muted">Conectá WhatsApp primero para poder activar los mensajes.</p>
         )}

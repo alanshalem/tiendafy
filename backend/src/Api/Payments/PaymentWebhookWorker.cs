@@ -26,26 +26,10 @@ public sealed class PaymentWebhookWorker(
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<PaymentsDbContext>();
 
-        var pending = await db.PaymentWebhookEvents
-            .Where(e => e.Status == PaymentWebhookEvent.StatusPending)
-            .OrderBy(e => e.CreatedAtUtc)
-            .Take(20)
-            .ToListAsync(ct);
-
-        foreach (var ev in pending)
-        {
-            try
-            {
-                await ProcessAsync(sp, ev, ct);
-                ev.MarkDone();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Webhook {Id} (data {DataId}) falló, intento {Attempt}.", ev.Id, ev.DataId, ev.Attempts + 1);
-                ev.MarkFailed(ex.Message);
-            }
-            await db.SaveChangesAsync(ct);
-        }
+        await InboxDrain.DrainAsync(db, db.PaymentWebhookEvents,
+            ev => ProcessAsync(sp, ev, ct),
+            (ex, ev) => logger.LogError(ex, "Webhook {Id} (data {DataId}) falló, intento {Attempt}.", ev.Id, ev.DataId, ev.Attempts + 1),
+            ct);
     }
 
     private async Task ProcessAsync(IServiceProvider sp, PaymentWebhookEvent ev, CancellationToken ct)

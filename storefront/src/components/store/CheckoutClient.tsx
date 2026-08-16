@@ -10,6 +10,7 @@ import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
 import { cartStorageKey, type CartLine } from './cart';
 import { readJson } from '@/lib/storage';
+import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 
 interface ShippingOption {
   id: string;
@@ -260,20 +261,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     const code = couponInput.trim().toUpperCase();
     if (!code) return;
     setCouponError(null);
-    try {
-      const res = await fetch(`${API}/api/v1/coupons/validate`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ code, subtotal }),
-      });
-      const data = await res.json();
-      if (data.valid) setCoupon({ code: data.code, discount: data.discountAmount });
-      else {
-        setCoupon(null);
-        setCouponError(data.error ?? 'Cupón inválido.');
-      }
-    } catch {
-      setCouponError('No se pudo validar el cupón.');
+    const r = await validateCouponApi(tenantId, code, subtotal);
+    if (r.ok) setCoupon({ code: r.code, discount: r.discount });
+    else {
+      setCoupon(null);
+      setCouponError(r.error);
     }
   };
 

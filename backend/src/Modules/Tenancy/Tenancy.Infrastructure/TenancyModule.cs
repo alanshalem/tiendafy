@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Abstractions;
+using SharedKernel.Persistence;
 using Tenancy.Contracts;
 using Tenancy.Core.Application;
 using Tenancy.Core.Domain;
@@ -16,11 +17,7 @@ public static class TenancyModule
 {
     public static IServiceCollection AddTenancyModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<TenancyDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<TenancyDbContext>(configuration);
 
         services.AddSingleton(new TenancyOptions
         {

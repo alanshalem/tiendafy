@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Orders.Core\Orders.Core.csproj" />
+    <ProjectReference Include="..\..\..\SharedKernel.Persistence\SharedKernel.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

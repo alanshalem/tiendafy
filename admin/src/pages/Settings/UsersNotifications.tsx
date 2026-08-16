@@ -5,14 +5,10 @@ import { cn, useToast, useConfirm } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { HelpLink } from '../../components/HelpLink';
 import { usePermissions } from '../../context/PermissionsContext';
+import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
 
-interface Me {
-  id: string;
-  email: string;
-  name: string;
-}
 interface Member {
   userId: string;
   role: string;
@@ -65,14 +61,10 @@ export function UsersNotificationsPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const { role: myRoleRaw, can } = usePermissions();
+  const { user: me } = useAuth();
   const myRole = normalizeRole(myRoleRaw ?? '');
   const isOwner = myRole === 'owner';
   const canManage = can('members.manage');
-
-  const { data: me } = useQuery({
-    queryKey: ['auth-me'],
-    queryFn: () => api.get<Me>('/api/v1/auth/me').catch(() => null),
-  });
 
   const membersQ = useQuery({
     queryKey: ['members'],

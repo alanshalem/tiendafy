@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orders.Core.Domain;
 using Orders.Core.Features;
 using Orders.Infrastructure.Persistence;
+using SharedKernel.Persistence;
 
 namespace Orders.Infrastructure;
 
@@ -11,11 +12,7 @@ public static class OrdersModule
 {
     public static IServiceCollection AddOrdersModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
-
-        services.AddDbContext<OrdersDbContext>(options =>
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+        services.AddModuleDbContext<OrdersDbContext>(configuration);
 
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<CreateOrderHandler>();

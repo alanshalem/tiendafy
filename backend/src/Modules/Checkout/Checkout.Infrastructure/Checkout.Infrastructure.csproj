@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Checkout.Core\Checkout.Core.csproj" />
+    <ProjectReference Include="..\..\..\SharedKernel.Persistence\SharedKernel.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

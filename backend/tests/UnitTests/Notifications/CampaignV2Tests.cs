@@ -130,7 +130,7 @@ public class CampaignEmailComposerTests
 
 public class TrackTokenTests
 {
-    private static readonly IDataProtectionProvider Dp = new EphemeralDataProtectionProvider();
+    private static readonly IDataProtectionProvider Dp = TestData.Dp;
 
     [Fact]
     public void RoundTrip_YRechazaAdulterados()

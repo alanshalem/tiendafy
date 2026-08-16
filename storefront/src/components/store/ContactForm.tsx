@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useCart } from './cart';
 import { Captcha } from './Captcha';
 
-import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { submitContact } from '@/lib/contact';
 
 export function ContactForm() {
   const { tenantId } = useCart();
@@ -29,22 +29,10 @@ export function ContactForm() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    try {
-      const res = await fetch(`${API}/api/v1/contact/submit`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ name, email, body, captcha: captcha || undefined }),
-      });
-      if (res.ok) {
-        setSent(true);
-      } else {
-        setError(await problemMessage(res, 'No se pudo enviar. Probá de nuevo.'));
-      }
-    } catch {
-      setError('No se pudo enviar. Revisá tu conexión.');
-    } finally {
-      setBusy(false);
-    }
+    const r = await submitContact(tenantId, { name, email, body, captcha: captcha || undefined });
+    if (r.ok) setSent(true);
+    else setError(r.error);
+    setBusy(false);
   };
 
   return (

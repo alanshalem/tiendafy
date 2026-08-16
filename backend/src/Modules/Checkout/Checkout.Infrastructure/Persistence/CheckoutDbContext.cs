@@ -2,6 +2,7 @@ using Checkout.Core.Domain;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
+using SharedKernel.Persistence;
 
 namespace Checkout.Infrastructure.Persistence;
 
@@ -47,7 +48,7 @@ public sealed class CheckoutDbContext : DbContext
         session.Property(s => s.ShippingMethodName).HasMaxLength(120);
         session.Property(s => s.ShippingAddress).HasMaxLength(300);
         session.Property(s => s.ShippingCost)
-            .HasConversion(m => m.AmountInMinorUnits + "|" + m.Currency, s => ParseMoney(s))
+            .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("shipping_cost")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
@@ -62,7 +63,7 @@ public sealed class CheckoutDbContext : DbContext
         shipping.Property(m => m.Description).HasMaxLength(300);
         shipping.Property(m => m.PickupAddress).HasMaxLength(300);
         shipping.Property(m => m.Price)
-            .HasConversion(m => m.AmountInMinorUnits + "|" + m.Currency, s => ParseMoney(s))
+            .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("price")
             .HasMaxLength(24);
         shipping.HasIndex(m => new { m.TenantId, m.SortOrder });
@@ -114,19 +115,11 @@ public sealed class CheckoutDbContext : DbContext
             // Money como dos columnas escalares vía conversión simple:
             // owned types no soportan ComplexProperty (mismo caso que Variant).
             items.Property(i => i.UnitPrice)
-                .HasConversion(
-                    m => m.AmountInMinorUnits + "|" + m.Currency,
-                    s => ParseMoney(s))
+                .HasConversion(ModuleDb.MoneyConverter)
                 .HasColumnName("unit_price")
                 .HasMaxLength(24);
         });
 
         session.Navigation(s => s.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
-    }
-
-    private static Money ParseMoney(string serialized)
-    {
-        var parts = serialized.Split('|');
-        return new Money(long.Parse(parts[0]), parts[1]);
     }
 }

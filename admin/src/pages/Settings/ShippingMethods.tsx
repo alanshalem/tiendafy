@@ -9,6 +9,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { CorreoArgentinoCard } from './CorreoArgentino';
 import { ZipnovaCard } from './Zipnova';
 import type { MoneyDto } from '@tiendafy/types';
+import { PlainDialog } from '../../components/PlainDialog';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -262,104 +263,95 @@ function MethodDialog({
     'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-bold text-fg">
-          {method ? 'Editar medio de envío' : 'Agregar medio de envío'}
-        </h2>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          El comprador lo va a ver con este nombre y precio en el checkout.
-        </p>
+    <PlainDialog onClose={onClose}>
+      <h2 className="text-lg font-bold text-fg">
+        {method ? 'Editar medio de envío' : 'Agregar medio de envío'}
+      </h2>
+      <p className="mt-0.5 text-sm text-fg-muted">
+        El comprador lo va a ver con este nombre y precio en el checkout.
+      </p>
 
-        <div className="mt-4 space-y-3">
+      <div className="mt-4 space-y-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Nombre</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej.: Envío express CABA"
+            className={inputCls}
+            autoFocus
+          />
+          {touched && !nameValid && <p className="mt-1 text-xs text-danger">Ingresá un nombre.</p>}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
+          <select value={kind} onChange={(e) => setKind(e.target.value as ShippingKind)} className={inputCls}>
+            <option value="DELIVERY">Envío a domicilio</option>
+            <option value="PICKUP">Retiro en punto</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Precio</label>
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            inputMode="decimal"
+            placeholder="0 = gratis"
+            className={inputCls}
+          />
+          {touched && !priceValid ? (
+            <p className="mt-1 text-xs text-danger">Ingresá un precio válido (0 o más).</p>
+          ) : (
+            <p className="mt-1 text-xs text-fg-muted">Dejalo en 0 para ofrecerlo gratis.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Plazo o descripción (opcional)</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Llega en 3 a 5 días hábiles"
+            className={inputCls}
+          />
+        </div>
+
+        {kind === 'PICKUP' && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Nombre</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej.: Envío express CABA"
-              className={inputCls}
-              autoFocus
+            <label className="mb-1 block text-sm font-medium text-fg">Dirección y horarios de retiro</label>
+            <textarea
+              value={pickupAddress}
+              onChange={(e) => setPickupAddress(e.target.value)}
+              rows={2}
+              placeholder="Av. Corrientes 1234, CABA · Lun a Vie de 10 a 18 h"
+              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            {touched && !nameValid && <p className="mt-1 text-xs text-danger">Ingresá un nombre.</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as ShippingKind)}
-              className={inputCls}
-            >
-              <option value="DELIVERY">Envío a domicilio</option>
-              <option value="PICKUP">Retiro en punto</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Precio</label>
-            <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              inputMode="decimal"
-              placeholder="0 = gratis"
-              className={inputCls}
-            />
-            {touched && !priceValid ? (
-              <p className="mt-1 text-xs text-danger">Ingresá un precio válido (0 o más).</p>
-            ) : (
-              <p className="mt-1 text-xs text-fg-muted">Dejalo en 0 para ofrecerlo gratis.</p>
+            {touched && !pickupValid && (
+              <p className="mt-1 text-xs text-danger">Indicá dónde y cuándo se retira el pedido.</p>
             )}
           </div>
+        )}
 
+        <div className="flex items-center justify-between rounded-md border border-border bg-bg-muted/40 px-3 py-2.5">
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Plazo o descripción (opcional)</label>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Llega en 3 a 5 días hábiles"
-              className={inputCls}
-            />
+            <div className="text-sm font-medium text-fg">Activo</div>
+            <div className="text-xs text-fg-muted">Si lo desactivás, deja de aparecer en el checkout.</div>
           </div>
-
-          {kind === 'PICKUP' && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg">Dirección y horarios de retiro</label>
-              <textarea
-                value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
-                rows={2}
-                placeholder="Av. Corrientes 1234, CABA · Lun a Vie de 10 a 18 h"
-                className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              {touched && !pickupValid && (
-                <p className="mt-1 text-xs text-danger">Indicá dónde y cuándo se retira el pedido.</p>
-              )}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between rounded-md border border-border bg-bg-muted/40 px-3 py-2.5">
-            <div>
-              <div className="text-sm font-medium text-fg">Activo</div>
-              <div className="text-xs text-fg-muted">Si lo desactivás, deja de aparecer en el checkout.</div>
-            </div>
-            <Switch checked={active} onChange={setActive} />
-          </div>
-        </div>
-
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
-            Cancelar
-          </Button>
-          <Button onClick={submit} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {method ? 'Guardar cambios' : 'Crear medio de envío'}
-          </Button>
+          <Switch checked={active} onChange={setActive} />
         </div>
       </div>
-    </div>
+
+      <div className="mt-5 flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose} disabled={busy}>
+          Cancelar
+        </Button>
+        <Button onClick={submit} disabled={busy}>
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {method ? 'Guardar cambios' : 'Crear medio de envío'}
+        </Button>
+      </div>
+    </PlainDialog>
   );
 }

@@ -111,7 +111,7 @@ public class CorreoArgentinoConfigTests
 
 public class CorreoQuoteTokenTests
 {
-    private static readonly IDataProtectionProvider Dp = new EphemeralDataProtectionProvider();
+    private static readonly IDataProtectionProvider Dp = TestData.Dp;
 
     private static CorreoQuotePayload Payload(Guid tenant, int units = 2) => new(
         tenant, units, "D", 498_06, "ARS", "Correo Argentino Clásico (a domicilio)", "2", "5", "1704");
