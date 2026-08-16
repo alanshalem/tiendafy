@@ -174,11 +174,6 @@ public sealed class EmitInvoiceHandler(
     private static string Serialize(IReadOnlyList<FiscalMessage> messages) =>
         JsonSerializer.Serialize(messages.Select(m => new { m.Code, m.Message }));
 
-    private static long LockKey(Guid tenantId, FiscalEnvironment env, int ptoVta, CbteTipo cbteTipo)
-    {
-        var s = $"{tenantId:N}|{(int)env}|{ptoVta}|{(int)cbteTipo}";
-        ulong hash = 14695981039346656037UL;
-        foreach (var c in s) { hash ^= c; hash *= 1099511628211UL; }
-        return unchecked((long)hash);
-    }
+    private static long LockKey(Guid tenantId, FiscalEnvironment env, int ptoVta, CbteTipo cbteTipo) =>
+        AdvisoryLock.KeyFor($"{tenantId:N}|{(int)env}|{ptoVta}|{(int)cbteTipo}");
 }

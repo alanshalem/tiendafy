@@ -101,10 +101,7 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
         {
             // El content-type del cliente no es confiable: verificamos "magic bytes" del
             // contenido real para que no suban un script/HTML disfrazado de imagen.
-            var header = new byte[16];
-            var read = await ReadHeaderAsync(content, header, ct);
-            content.Seek(0, SeekOrigin.Begin);
-            if (!MatchesMagic(type, header, read))
+            if (!await VerifyMagicAsync(content, type, ct))
                 return Result.Failure<string>(Error.Validation(
                     "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
         }
@@ -153,15 +150,7 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
         // Extensión declarada no confiable: verificar magic bytes del contenido real.
         if (content.CanSeek)
         {
-            var header = new byte[16];
-            var read = await ReadHeaderAsync(content, header, ct);
-            content.Seek(0, SeekOrigin.Begin);
-            var ok = type switch
-            {
-                "application/pdf" => read >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
-                _ => MatchesMagic(type, header, read),
-            };
-            if (!ok)
+            if (!await VerifyMagicAsync(content, type, ct))
                 return Result.Failure<string>(Error.Validation(
                     "Media.TypeMismatch", "El contenido del archivo no coincide con el tipo declarado."));
         }
@@ -305,4 +294,15 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
             // best-effort: si el objeto ya no está o falla, seguimos.
         }
     }
+    /// <summary>Verifica los magic bytes del contenido real contra el tipo declarado (rebobina el stream).</summary>
+    private static async Task<bool> VerifyMagicAsync(Stream content, string type, CancellationToken ct)
+    {
+        var header = new byte[16];
+        var read = await ReadHeaderAsync(content, header, ct);
+        content.Seek(0, SeekOrigin.Begin);
+        return type == "application/pdf"
+            ? read >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46 // %PDF
+            : MatchesMagic(type, header, read);
+    }
+
 }

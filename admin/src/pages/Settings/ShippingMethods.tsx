@@ -8,6 +8,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { CorreoArgentinoCard } from './CorreoArgentino';
 import { ZipnovaCard } from './Zipnova';
+import type { MoneyDto } from '@tiendafy/types';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -16,7 +17,7 @@ interface ShippingMethod {
   id: string;
   name: string;
   kind: ShippingKind;
-  price: { amount: number; currency: string };
+  price: MoneyDto;
   description: string | null;
   pickupAddress: string | null;
   active: boolean;

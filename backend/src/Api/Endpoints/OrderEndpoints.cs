@@ -202,8 +202,7 @@ public static class OrderEndpoints
                 if (amount.AmountInMinorUnits <= 0)
                     return Error.Validation("Refund.InvalidAmount", "No queda monto por reembolsar.").ToProblem();
                 if (amount > remaining)
-                    return Error.Validation("Refund.ExceedsRemaining",
-                        $"El monto supera lo reembolsable ({remaining}).").ToProblem();
+                    return OrderErrors.RefundExceedsRemaining(remaining).ToProblem();
 
                 var requestedBy = http.User.Identity?.Name
                     ?? http.User.GetUserId()?.ToString() ?? "admin";

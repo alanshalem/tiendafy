@@ -7,7 +7,7 @@ import { api } from '../lib/api';
 import { Field, Check, TextInput, TextArea, Select, BackHeader, INPUT_BASE } from './theme-editor-inputs';
 import { ImageUploader, VideoUploader, MultiImageUploader } from './theme-editor-uploaders';
 
-export const sectionMeta: Record<string, string> = {
+const sectionMeta: Record<string, string> = {
   'hero-video': 'Hero con video',
   carousel: 'Carrusel de imágenes',
   featured: 'Productos destacados',

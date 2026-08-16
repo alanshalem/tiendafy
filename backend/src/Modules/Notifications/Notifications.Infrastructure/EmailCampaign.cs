@@ -1,3 +1,5 @@
+using SharedKernel.Common;
+
 namespace Notifications.Infrastructure;
 
 /// <summary>
@@ -113,11 +115,7 @@ public sealed class EmailCampaign
         _ => "buyers",
     };
 
-    private static string? NormalizeCoupon(string? code)
-    {
-        var c = code?.Trim().ToUpperInvariant();
-        return string.IsNullOrEmpty(c) ? null : c[..Math.Min(40, c.Length)];
-    }
+    private static string? NormalizeCoupon(string? code) => Text.Clip(code?.ToUpperInvariant(), 40);
 }
 
 /// <summary>

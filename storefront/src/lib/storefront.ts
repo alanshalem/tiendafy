@@ -1,10 +1,16 @@
 import { headers } from 'next/headers';
-import { fetchActiveProducts, fetchProductById, toStoreProduct } from './catalog';
+import { fetchActiveProducts, fetchProductById, referencedProductIds, toStoreProducts } from './catalog';
 import type { StoreProduct } from '@/components/store/sections';
 import { resolveTenant } from './tenancy';
 import type { Tenant, ThemeConfig } from '@tiendafy/types';
 
 const PLATFORM_BASE_DOMAIN = process.env.PLATFORM_BASE_DOMAIN ?? 'localhost';
+
+/** Base absoluta del sitio a partir del Host (http en localhost, https afuera). */
+export async function siteBase(): Promise<string> {
+  const host = (await headers()).get('host') ?? '';
+  return host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+}
 
 export async function isPlatformHost(): Promise<boolean> {
   const headerList = await headers();
@@ -27,7 +33,7 @@ export async function loadStorefront(): Promise<StorefrontData | null> {
   if (tenant.status !== 'ACTIVE') return { tenant, products: [] };
 
   const raw = await fetchActiveProducts(tenant.id);
-  const products: StoreProduct[] = raw.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
+  const products: StoreProduct[] = toStoreProducts(raw);
 
   return { tenant, products };
 }
@@ -44,17 +50,9 @@ export async function withReferencedProducts(
   products: StoreProduct[],
 ): Promise<StoreProduct[]> {
   const present = new Set(products.map((p) => p.id));
-  const referenced = new Set<string>();
-  for (const s of theme.sections) {
-    const ids = (s.data as { productIds?: unknown }).productIds;
-    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && referenced.add(id));
-  }
-  const missing = [...referenced].filter((id) => !present.has(id));
+  const missing = referencedProductIds(theme.sections).filter((id) => !present.has(id));
   if (missing.length === 0) return products;
 
   const fetched = await Promise.all(missing.map((id) => fetchProductById(tenantId, id)));
-  const extra = fetched
-    .map((p) => (p ? toStoreProduct(p) : null))
-    .filter((p): p is StoreProduct => p !== null);
-  return [...products, ...extra];
+  return [...products, ...toStoreProducts(fetched)];
 }

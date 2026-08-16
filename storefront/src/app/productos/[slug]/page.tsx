@@ -6,10 +6,11 @@ import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
 import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
-import { loadStorefront } from '@/lib/storefront';
+import { loadStorefront, siteBase } from '@/lib/storefront';
 import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
+import type { MoneyDto } from '@tiendafy/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,12 +38,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-/** Base absoluta del sitio a partir del Host (http en localhost, https afuera). */
-async function siteBase(): Promise<string> {
-  const host = (await headers()).get('host') ?? '';
-  return host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
-}
-
 interface ProductDto {
   id: string;
   name: string;
@@ -53,8 +48,8 @@ interface ProductDto {
     id: string;
     sku: string;
     optionValues: string[];
-    price: { amount: number; currency: string };
-    compareAtPrice: { amount: number; currency: string } | null;
+    price: MoneyDto;
+    compareAtPrice: MoneyDto | null;
   }[];
   images: { url: string; altText: string | null }[];
   categoryIds: string[];

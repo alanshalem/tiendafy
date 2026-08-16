@@ -7,6 +7,7 @@ import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { fetchAllProducts } from '../lib/products';
 import { EmailPreview } from '../components/EmailPreview';
+import type { MoneyDto } from '@tiendafy/types';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -67,7 +68,7 @@ interface ProductDto {
   name: string;
   slug: string;
   status: string;
-  variants: { price: { amount: number; currency: string } }[];
+  variants: { price: MoneyDto }[];
   images: { url: string }[];
 }
 

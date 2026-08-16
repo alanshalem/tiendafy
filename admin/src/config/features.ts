@@ -9,7 +9,7 @@
  */
 
 // ---- Visibilidad del menú ----------------------------------------------------
-export const NAV_VISIBILITY: Record<string, boolean> = {
+const NAV_VISIBILITY: Record<string, boolean> = {
   // Menú principal
   '/': true,
   '/estadisticas': true,

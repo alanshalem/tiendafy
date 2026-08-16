@@ -20,9 +20,7 @@ import { WhatsAppFab } from './WhatsAppFab';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext, usePreviewHref } from './preview';
 import { sanitizeCss } from '@tiendafy/types';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
-import { toStoreProduct, type ProductDto } from '@/lib/catalog';
-
-import { clientJsonTenant } from '@/lib/api-client';
+import { fetchProductsByIdsClient } from '@/lib/catalog-client';
 
 interface StorefrontViewProps {
   tenantId: string;
@@ -651,17 +649,8 @@ export function StorefrontView({
     if (missing.length === 0) return;
 
     let cancelled = false;
-    Promise.all(
-      missing.map((id) =>
-        clientJsonTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
-          headers: { Accept: 'application/json' },
-        }),
-      ),
-    ).then((dtos) => {
+    fetchProductsByIdsClient(missing, tenantId).then((extra) => {
       if (cancelled) return;
-      const extra = dtos
-        .map((d) => (d ? toStoreProduct(d) : null))
-        .filter((p): p is StoreProduct => p !== null);
       if (extra.length) setProducts((prev) => [...prev, ...extra]);
     });
     return () => {

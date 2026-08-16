@@ -17,6 +17,7 @@ import {
 import { Button, Input, Select, Switch, Textarea, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
+import { Helper } from './Helper';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -207,24 +208,6 @@ function StepCard({
 /** Explicación breve bajo un campo. */
 function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-1 text-xs text-fg-muted">{children}</p>;
-}
-
-/** Bloque colapsable de ayuda. */
-function Helper({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-3 rounded-lg border border-border bg-bg-muted/40">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-fg"
-      >
-        {title}
-        <ChevronDown className={cn('h-4 w-4 text-fg-muted transition', open && 'rotate-180')} />
-      </button>
-      {open && <div className="px-3 pb-3 text-sm leading-relaxed text-fg-muted">{children}</div>}
-    </div>
-  );
 }
 
 // ---- Paso 1: Datos del emisor ------------------------------------------------

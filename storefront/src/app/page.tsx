@@ -3,7 +3,7 @@ import { PlatformLanding } from '@/components/landing/PlatformLanding';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
-import { isPlatformHost, loadStorefront, withReferencedProducts } from '@/lib/storefront';
+import { isPlatformHost, loadStorefront, siteBase, withReferencedProducts } from '@/lib/storefront';
 import './landing.css';
 
 /** URL de la plataforma (sin el subdominio de la tienda) para el CTA de registro. */
@@ -33,8 +33,7 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   const description =
     theme?.seoDescription?.trim() ||
     `Comprá online en ${data.tenant.name}. Envíos a todo el país y pago seguro.`;
-  const host = (await headers()).get('host') ?? '';
-  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const base = await siteBase();
   return {
     title,
     description,
@@ -67,8 +66,7 @@ export default async function HomePage({
 
   // Organization + WebSite: nombre, logo y redes de la tienda para el Knowledge
   // Panel / resultados de marca. Datos que el merchant ya cargó en el theme.
-  const host = (await headers()).get('host') ?? '';
-  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const base = await siteBase();
   const sameAs = [theme.footer.instagram, theme.footer.facebook].filter(Boolean);
   const orgJsonLd = base
     ? {

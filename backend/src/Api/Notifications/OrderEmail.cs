@@ -7,7 +7,7 @@ namespace Api.Notifications;
 /// El branding (logo/color/footer) lo aplica BrandedEmailSender.</summary>
 public static class OrderEmail
 {
-    private static string Money(SharedKernel.Common.Money m) => $"{m.Currency} {m.ToDecimal():N0}";
+    private static string Money(SharedKernel.Common.Money m) => MoneyFormat.ForNotification(m);
 
     private static string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
 

@@ -10,6 +10,7 @@ import { StoreImage } from './StoreImage';
 // ProductCard vive en su propio archivo; re-exportamos para consumidores externos
 // (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
 import { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
+import { baseTheme } from '@tiendafy/types';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 
 // Mapea el slug guardado en la sección al nombre semántico del kit de íconos.
@@ -22,19 +23,7 @@ const INFO_ICON_MAP: Record<string, IconName> = {
   returns: 'returns',
 };
 
-const defaultList: ProductListConfig = {
-  columns: 4,
-  showPrice: true,
-  showBuyButton: true,
-  showCompareAt: true,
-  filterCategories: true,
-  filterPrice: true,
-  filterBrand: true,
-  filterOptions: true,
-  showCashPrice: false,
-  installmentsCount: 0,
-  showStockBadge: false,
-};
+const defaultList: ProductListConfig = baseTheme.productList;
 
 /** Selecciona productos por id preservando el orden elegido. */
 function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
@@ -392,7 +381,16 @@ function ProductsSection({ section, products, productList }: SectionRenderProps)
   );
 }
 
-function PromoBannersSection({ section }: SectionRenderProps) {
+function BannerGrid({
+  section,
+  colsClass,
+  aspectClass,
+  caption,
+}: SectionRenderProps & {
+  colsClass: string;
+  aspectClass: string;
+  caption: (b: BannerItem) => ReactNode;
+}) {
   const data = section.data as BannersData;
   const banners = (Array.isArray(data.banners) ? data.banners : []).filter(
     (b) => b.show !== false && b.image,
@@ -401,7 +399,7 @@ function PromoBannersSection({ section }: SectionRenderProps) {
   const full = data.fullWidth === true;
   return (
     <section className={full ? 'w-full py-8' : 'mx-auto max-w-container px-4 py-8'}>
-      <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${full ? 'gap-0 sm:gap-0' : ''}`}>
+      <div className={`grid gap-4 ${colsClass} ${full ? 'gap-0 sm:gap-0' : ''}`}>
         {banners.map((b, i) => (
           <a
             key={i}
@@ -411,14 +409,9 @@ function PromoBannersSection({ section }: SectionRenderProps) {
             <img
               src={b.image}
               alt={b.title ?? ''}
-              className="aspect-[16/9] w-full object-cover transition-transform group-hover:scale-105"
+              className={`${aspectClass} w-full object-cover transition-transform group-hover:scale-105`}
             />
-            {(b.title || b.description) && (
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
-                {b.title && <span className="block text-lg font-bold">{b.title}</span>}
-                {b.description && <span className="block text-sm opacity-90">{b.description}</span>}
-              </span>
-            )}
+            {caption(b)}
           </a>
         ))}
       </div>
@@ -426,36 +419,38 @@ function PromoBannersSection({ section }: SectionRenderProps) {
   );
 }
 
-function CategoryBannersSection({ section }: SectionRenderProps) {
-  const data = section.data as BannersData;
-  const banners = (Array.isArray(data.banners) ? data.banners : []).filter(
-    (b) => b.show !== false && b.image,
-  );
-  if (banners.length === 0) return null;
-  const full = data.fullWidth === true;
+function PromoBannersSection(props: SectionRenderProps) {
   return (
-    <section className={full ? 'w-full py-8' : 'mx-auto max-w-container px-4 py-8'}>
-      <div className={`grid gap-4 sm:grid-cols-3 ${full ? 'gap-0 sm:gap-0' : ''}`}>
-        {banners.map((b, i) => (
-          <a
-            key={i}
-            href={b.link || '#'}
-            className={`group relative block overflow-hidden ${full ? '' : 'rounded-lg'}`}
-          >
-            <img
-              src={b.image}
-              alt={b.title ?? ''}
-              className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
-            />
-            {b.title && (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-2xl font-black uppercase text-white">
-                {b.title}
-              </span>
-            )}
-          </a>
-        ))}
-      </div>
-    </section>
+    <BannerGrid
+      {...props}
+      colsClass="sm:grid-cols-2 lg:grid-cols-3"
+      aspectClass="aspect-[16/9]"
+      caption={(b) =>
+        (b.title || b.description) && (
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
+            {b.title && <span className="block text-lg font-bold">{b.title}</span>}
+            {b.description && <span className="block text-sm opacity-90">{b.description}</span>}
+          </span>
+        )
+      }
+    />
+  );
+}
+
+function CategoryBannersSection(props: SectionRenderProps) {
+  return (
+    <BannerGrid
+      {...props}
+      colsClass="sm:grid-cols-3"
+      aspectClass="aspect-square"
+      caption={(b) =>
+        b.title && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-2xl font-black uppercase text-white">
+            {b.title}
+          </span>
+        )
+      }
+    />
   );
 }
 

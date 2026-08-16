@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
-import { api, ApiRequestError } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
 import { HelpLink } from '../../components/HelpLink';
@@ -64,7 +64,7 @@ export function InventoryPage() {
       toast('Stock actualizado', { variant: 'success' });
     },
     onError: (err) => {
-      toast(err instanceof ApiRequestError ? err.message : 'Error guardando stock', { variant: 'error' });
+      toast(errMsg(err, 'Error guardando stock'), { variant: 'error' });
     },
   });
 

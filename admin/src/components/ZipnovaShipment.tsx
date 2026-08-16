@@ -9,6 +9,7 @@ import {
   shipmentTriggerCls,
   type ShippingOrderLike,
 } from '../lib/shipping';
+import { ShipmentFooter, shipmentLabelCls } from './ShipmentBits';
 
 interface ShipmentState {
   exists: boolean;
@@ -168,24 +169,13 @@ function ShipmentModal({
     }
   };
 
-  const label = 'mb-1 block text-xs font-medium text-fg';
-
   return (
     <Modal
       open
       size="lg"
       onClose={onClose}
       title="Crear envío en Zipnova"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={submit} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Crear envío
-          </Button>
-        </>
-      }
+      footer={<ShipmentFooter busy={busy} onClose={onClose} onSubmit={submit} />}
     >
       <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
         <p className="text-xs text-fg-muted">
@@ -196,42 +186,42 @@ function ShipmentModal({
 
         <div className="grid gap-2.5 sm:grid-cols-2">
           <div>
-            <label className={label}>Nombre del destinatario</label>
+            <label className={shipmentLabelCls}>Nombre del destinatario</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className={label}>DNI / documento</label>
+            <label className={shipmentLabelCls}>DNI / documento</label>
             <Input value={document} onChange={(e) => setDocument(e.target.value)} />
           </div>
           <div>
-            <label className={label}>Email</label>
+            <label className={shipmentLabelCls}>Email</label>
             <Input value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
-            <label className={label}>Teléfono</label>
+            <label className={shipmentLabelCls}>Teléfono</label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
         </div>
 
         <div className="grid gap-2.5 sm:grid-cols-6">
           <div className="sm:col-span-3">
-            <label className={label}>Calle</label>
+            <label className={shipmentLabelCls}>Calle</label>
             <Input value={street} onChange={(e) => setStreet(e.target.value)} />
           </div>
           <div>
-            <label className={label}>Número</label>
+            <label className={shipmentLabelCls}>Número</label>
             <Input value={number} onChange={(e) => setNumber(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
-            <label className={label}>Piso / depto (opcional)</label>
+            <label className={shipmentLabelCls}>Piso / depto (opcional)</label>
             <Input value={extras} onChange={(e) => setExtras(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
-            <label className={label}>Ciudad</label>
+            <label className={shipmentLabelCls}>Ciudad</label>
             <Input value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
-            <label className={label}>Provincia</label>
+            <label className={shipmentLabelCls}>Provincia</label>
             <Input
               value={stateName}
               onChange={(e) => setStateName(e.target.value)}
@@ -239,11 +229,11 @@ function ShipmentModal({
             />
           </div>
           <div>
-            <label className={label}>CP</label>
+            <label className={shipmentLabelCls}>CP</label>
             <Input value={zipcode} onChange={(e) => setZipcode(e.target.value)} />
           </div>
           <div>
-            <label className={label}>Valor declarado ($)</label>
+            <label className={shipmentLabelCls}>Valor declarado ($)</label>
             <Input value={declared} onChange={(e) => setDeclared(e.target.value)} inputMode="numeric" />
           </div>
         </div>

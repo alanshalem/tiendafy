@@ -7,7 +7,7 @@ import { cn } from '@tiendafy/ui';
    (Antes esta barra era un mockup: los selects no filtraban nada.)
    ============================================================ */
 
-export interface StatsRange {
+interface StatsRange {
   preset: string;
   /** yyyy-mm-dd (fecha local del merchant). */
   from: string;

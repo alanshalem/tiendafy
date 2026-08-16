@@ -2,6 +2,7 @@
  * Piezas compartidas por los botones de envío de la venta (Correo Argentino,
  * Zipnova): antes vivían duplicadas verbatim en cada componente.
  */
+import type { MoneyDto } from '@tiendafy/types';
 
 /** Subconjunto de la orden que necesitan los flujos de envío. */
 export interface ShippingOrderLike {
@@ -12,7 +13,7 @@ export interface ShippingOrderLike {
   docNumber?: string | null;
   shippingMethod: string | null;
   shippingAddress: string | null;
-  total: { amount: number; currency: string };
+  total: MoneyDto;
 }
 
 /** "Av. Corrientes 1234, 2B, CABA, CP 1043" → campos sueltos (mejor esfuerzo). */

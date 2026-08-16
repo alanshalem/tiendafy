@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Payments.Contracts;
 using Payments.Infrastructure.Persistence;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -68,9 +69,7 @@ public static class PaymentWebhookEndpoints
         try
         {
             using var doc = JsonDocument.Parse(body);
-            if (!doc.RootElement.TryGetProperty("user_id", out var u)) return 0;
-            if (u.ValueKind == JsonValueKind.Number) return u.GetInt64();
-            return long.TryParse(u.GetString(), out var parsed) ? parsed : 0;
+            return JsonRead.GetLongFlexible(doc.RootElement, "user_id");
         }
         catch { return 0; }
     }

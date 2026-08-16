@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import type { ProductListConfig } from '@/lib/theme';
-import { toStoreProduct, type ProductDto } from '@/lib/catalog';
+
 import { ProductCard, type StoreProduct } from './sections';
 import { useFavorites } from './favorites';
 import { useCart } from './cart';
 import { EmptyState } from './EmptyState';
 import { ProductCardSkeleton } from './Skeletons';
 
-import { clientJsonTenant } from '@/lib/api-client';
+import { fetchProductsByIdsClient } from '@/lib/catalog-client';
 
 /** Lista de favoritos: trae por id los productos guardados y los muestra. */
 export function FavoritesList({ productList }: { productList: ProductListConfig }) {
@@ -24,17 +24,8 @@ export function FavoritesList({ productList }: { productList: ProductListConfig 
       return;
     }
     let cancelled = false;
-    Promise.all(
-      ids.map((id) =>
-        clientJsonTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
-          headers: { Accept: 'application/json' },
-        }),
-      ),
-    ).then((dtos) => {
-      if (cancelled) return;
-      setProducts(
-        dtos.map((d) => (d ? toStoreProduct(d) : null)).filter((p): p is StoreProduct => p !== null),
-      );
+    fetchProductsByIdsClient(ids, tenantId).then((list) => {
+      if (!cancelled) setProducts(list);
     });
     return () => {
       cancelled = true;

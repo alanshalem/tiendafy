@@ -8,13 +8,14 @@ import { useCart } from './cart';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
+import type { MoneyDto } from '@tiendafy/types';
 
 interface Variant {
   id: string;
   sku: string;
   optionValues: string[];
-  price: { amount: number; currency: string };
-  compareAtPrice: { amount: number; currency: string } | null;
+  price: MoneyDto;
+  compareAtPrice: MoneyDto | null;
 }
 
 interface DetailConfig {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, X, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { useToast, cn } from '@tiendafy/ui';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 
 /* Uploaders del editor de diseño (imagen / video / multi-imagen del carrusel). */
 
@@ -70,7 +70,7 @@ export function ImageUploader({
                 const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
                 onChange(url);
               } catch (err) {
-                toast(err instanceof ApiRequestError ? err.message : errorMsg, { variant: 'error' });
+                toast(errMsg(err, errorMsg), { variant: 'error' });
               } finally {
                 setUploading(false);
                 e.target.value = '';
@@ -138,12 +138,9 @@ export function VideoUploader({
                 const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
                 onChange(url);
               } catch (err) {
-                toast(
-                  err instanceof ApiRequestError
-                    ? err.message
-                    : 'Error subiendo el video. Usá MP4 o WebM (hasta 20MB).',
-                  { variant: 'error' },
-                );
+                toast(errMsg(err, 'Error subiendo el video. Usá MP4 o WebM (hasta 20MB).'), {
+                  variant: 'error',
+                });
               } finally {
                 setUploading(false);
                 e.target.value = '';

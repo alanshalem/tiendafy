@@ -5,7 +5,7 @@ import { Check, ChevronLeft, Download, Plus, Upload, X } from 'lucide-react';
 import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
-import { api, ApiRequestError } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 
 // Cabecera completa del CSV (Excel es-AR usa ';').
@@ -197,7 +197,7 @@ function ExportTab() {
       downloadBlob(blob, `productos-${store?.subdomain ?? 'tienda'}.csv`);
       toast('Archivo exportado', { variant: 'success' });
     } catch (e) {
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo exportar', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo exportar'), { variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -304,7 +304,7 @@ function ImportTab() {
       );
       setJobId(res.jobId);
     } catch (e) {
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo encolar la importación', {
+      toast(errMsg(e, 'No se pudo encolar la importación'), {
         variant: 'error',
       });
     } finally {
@@ -582,7 +582,7 @@ function ImagesTab() {
       );
       setJobId(res.jobId);
     } catch (e) {
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo subir', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo subir'), { variant: 'error' });
     } finally {
       setSubmitting(false);
     }

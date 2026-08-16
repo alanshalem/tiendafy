@@ -180,8 +180,7 @@ public sealed class Order : AggregateRoot
             return Result.Failure(Error.Conflict("Order.NotRefundable",
                 $"Order is {Status}, solo se puede reembolsar una orden pagada."));
         if (amount > RemainingRefundable)
-            return Result.Failure(Error.Validation("Refund.ExceedsRemaining",
-                $"El monto supera lo reembolsable ({RemainingRefundable})."));
+            return Result.Failure(OrderErrors.RefundExceedsRemaining(RemainingRefundable));
 
         RefundedAmount += amount;
         Status = RefundedAmount.AmountInMinorUnits >= Total.AmountInMinorUnits
@@ -235,4 +234,11 @@ public sealed class OrderItem
     }
 
     public Money LineTotal => UnitPrice * Quantity;
+}
+
+/// <summary>Errores de reembolso compartidos entre el dominio y el pre-chequeo del endpoint.</summary>
+public static class OrderErrors
+{
+    public static Error RefundExceedsRemaining(Money remaining) =>
+        Error.Validation("Refund.ExceedsRemaining", $"El monto supera lo reembolsable ({remaining}).");
 }

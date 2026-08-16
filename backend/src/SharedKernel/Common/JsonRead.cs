@@ -20,4 +20,14 @@ public static class JsonRead
     public static DateTime? GetDate(JsonElement e, string name) =>
         e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
             && DateTimeOffset.TryParse(p.GetString(), out var dto) ? dto.UtcDateTime : null;
+
+    public static int GetInt32(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0;
+
+    /// <summary>Long que puede venir como number o como string numérico (webhooks de MP/ML).</summary>
+    public static long GetLongFlexible(JsonElement e, string name) =>
+        !e.TryGetProperty(name, out var p) ? 0
+        : p.ValueKind == JsonValueKind.Number ? p.GetInt64()
+        : p.ValueKind == JsonValueKind.String && long.TryParse(p.GetString(), out var v) ? v
+        : 0;
 }

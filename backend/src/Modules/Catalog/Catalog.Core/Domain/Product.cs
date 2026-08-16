@@ -278,11 +278,7 @@ public sealed class Product : AggregateRoot
     }
 
     /// <summary>Setea la marca (normaliza vacío → null, recorta a 100 chars).</summary>
-    public void SetBrand(string? brand)
-    {
-        var trimmed = brand?.Trim();
-        Brand = string.IsNullOrEmpty(trimmed) ? null : trimmed.Length > 100 ? trimmed[..100] : trimmed;
-    }
+    public void SetBrand(string? brand) => Brand = Text.Clip(brand, 100);
 
     public Result UpdateDetails(string? name, string? description)
     {

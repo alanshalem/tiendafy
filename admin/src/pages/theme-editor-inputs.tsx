@@ -25,7 +25,7 @@ const rgbToHex = (raw: string, fb: string) => {
   if (!p || p.length !== 3 || p.some(Number.isNaN)) return fb;
   return `#${p.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 };
-export const hexToRgb = (hex: string) => {
+const hexToRgb = (hex: string) => {
   const v = hex.replace('#', '');
   return `${parseInt(v.slice(0, 2), 16)} ${parseInt(v.slice(2, 4), 16)} ${parseInt(v.slice(4, 6), 16)}`;
 };
@@ -33,7 +33,7 @@ export const hexToRgb = (hex: string) => {
 export const INPUT_BASE =
   'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
 /** Estilo completo de un input/textarea/select de alto estándar (h-10). */
-export const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
+const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
 
 export function BackHeader({
   title,

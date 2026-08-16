@@ -9,6 +9,8 @@ import { readJson, writeJson } from '@/lib/storage';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 
+export const cartStorageKey = (storeKey: string) => `tiendafy.cart.${storeKey}`;
+
 export interface CartLine {
   variantId: string;
   productName: string;
@@ -41,7 +43,7 @@ export function useCart(): CartContextValue {
 }
 
 export function CartProvider({ storeKey, children }: { storeKey: string; children: ReactNode }) {
-  const key = `tiendafy.cart.${storeKey}`;
+  const key = cartStorageKey(storeKey);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [open, setOpen] = useState(false);
 

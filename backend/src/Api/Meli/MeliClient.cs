@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using SharedKernel.Common;
 
 namespace Api.Meli;
 
@@ -27,7 +28,7 @@ public sealed record MeliTokens(
 public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, ILogger<MeliClient> logger)
 {
     private readonly MeliOptions _o = options.Value;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     public string BuildAuthorizationUrl(string state)
     {
@@ -83,8 +84,8 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         return new MeliTokens(
             AccessToken: root.GetProperty("access_token").GetString()
                 ?? throw new MeliException("Respuesta OAuth sin access_token."),
-            RefreshToken: root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() ?? string.Empty : string.Empty,
-            UserId: root.TryGetProperty("user_id", out var uid) && uid.ValueKind == JsonValueKind.Number ? uid.GetInt64() : 0,
+            RefreshToken: JsonRead.GetString(root, "refresh_token") ?? string.Empty,
+            UserId: JsonRead.GetLong(root, "user_id"),
             ExpiresInSeconds: root.TryGetProperty("expires_in", out var ex) && ex.ValueKind == JsonValueKind.Number ? ex.GetInt32() : 21600);
     }
 

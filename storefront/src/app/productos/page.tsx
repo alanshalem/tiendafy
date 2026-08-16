@@ -6,6 +6,7 @@ import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { searchProducts, fetchCategories, toStoreProduct } from '@/lib/catalog';
 import { resolveTenant } from '@/lib/tenancy';
 import type { StoreProduct } from '@/components/store/sections';
+import { siteBase } from '@/lib/storefront';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await resolveTenant();
   if (!tenant) return { title: 'Productos' };
-  const host = (await headers()).get('host') ?? '';
-  const base = host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
+  const base = await siteBase();
   return {
     title: `Productos · ${tenant.name}`,
     description: `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,

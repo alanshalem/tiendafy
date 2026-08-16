@@ -27,7 +27,8 @@ public sealed class EmailTemplates(NotificationsDbContext db) : IEmailTemplates
         return new RenderedEmail(enabled, Substitute(subject, vars), Substitute(body, vars));
     }
 
-    private static string Substitute(string template, IReadOnlyDictionary<string, string> vars)
+    /// <summary>Reemplazo de placeholders {{var}}; compartido con el preview del editor.</summary>
+    public static string Substitute(string template, IReadOnlyDictionary<string, string> vars)
     {
         foreach (var (key, value) in vars)
             template = template.Replace("{{" + key + "}}", value);

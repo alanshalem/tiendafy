@@ -15,10 +15,7 @@ public static class ShopFavoritesEndpoints
         {
             var customer = await ShopAuth.ResolveAsync(http, db, ct);
             if (customer is null) return Results.Unauthorized();
-            var ids = await db.CustomerFavorites.AsNoTracking()
-                .Where(f => f.CustomerId == customer.Id)
-                .OrderByDescending(f => f.CreatedAtUtc)
-                .Select(f => f.ProductId).ToListAsync(ct);
+            var ids = await FavoriteIdsAsync(db, customer.Id, ct);
             return Results.Ok(new { productIds = ids });
         });
 
@@ -53,15 +50,18 @@ public static class ShopFavoritesEndpoints
                 if (Guid.TryParse(pid, out var g) && existing.Add(g))
                     db.CustomerFavorites.Add(CustomerFavorite.Create(customer.Id, customer.TenantId, g));
             await db.SaveChangesAsync(ct);
-            var ids = await db.CustomerFavorites.AsNoTracking()
-                .Where(f => f.CustomerId == customer.Id)
-                .OrderByDescending(f => f.CreatedAtUtc)
-                .Select(f => f.ProductId).ToListAsync(ct);
+            var ids = await FavoriteIdsAsync(db, customer.Id, ct);
             return Results.Ok(new { productIds = ids });
         });
 
         return group;
     }
+    private static Task<List<Guid>> FavoriteIdsAsync(CustomersDbContext db, Guid customerId, CancellationToken ct) =>
+        db.CustomerFavorites.AsNoTracking()
+            .Where(f => f.CustomerId == customerId)
+            .OrderByDescending(f => f.CreatedAtUtc)
+            .Select(f => f.ProductId).ToListAsync(ct);
+
 }
 
 public sealed record MergeFavoritesRequest(string[] ProductIds);

@@ -144,7 +144,7 @@ public static class CampaignEndpoints
             var unsubs = await db.EmailSuppressions.AsNoTracking()
                 .CountAsync(s => s.TenantId == tenant.TenantId.Value && s.CampaignId == id, ct);
 
-            var ratePer1000 = cfg.GetValue("Notifications:EmailCostUsdPer1000", 0.40m);
+            var ratePer1000 = NotificationCosts.EmailUsdPer1000(cfg);
             var estimatedCostUsd = Math.Round(campaign.SentCount * ratePer1000 / 1000m, 2);
 
             object? attribution = null;

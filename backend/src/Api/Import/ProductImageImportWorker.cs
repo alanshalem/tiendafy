@@ -17,8 +17,6 @@ public sealed partial class ProductImageImportWorker(
     IMediaStorage media,
     ILogger<ProductImageImportWorker> logger) : BackgroundService
 {
-    private static readonly HashSet<string> ImageExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".avif" };
 
     [GeneratedRegex(@"^(.*)-(\d+)$")]
     private static partial Regex SuffixRegex();
@@ -58,7 +56,7 @@ public sealed partial class ProductImageImportWorker(
 
         // Agrupar los archivos por producto, con su posición de galería.
         var files = Directory.EnumerateFiles(job.TempDir)
-            .Where(f => ImageExtensions.Contains(Path.GetExtension(f)))
+            .Where(f => ImportMedia.ImageExtensions.Contains(Path.GetExtension(f)))
             .ToList();
         job.TotalFiles = files.Count;
 
@@ -204,7 +202,7 @@ public sealed partial class ProductImageImportWorker(
             foreach (var f in fileNames)
             {
                 var path = Path.Combine(tempDir, Path.GetFileName(f));
-                if (ImageExtensions.Contains(Path.GetExtension(f)) && File.Exists(path))
+                if (ImportMedia.ImageExtensions.Contains(Path.GetExtension(f)) && File.Exists(path))
                 {
                     if (!byProduct.TryGetValue(productId, out var list))
                         byProduct[productId] = list = [];

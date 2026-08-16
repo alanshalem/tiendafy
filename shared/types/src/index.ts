@@ -1,7 +1,5 @@
 export type { TenantId, Money, ApiError, CursorPage, IsoDateTime } from './common';
 
-export type { Product, ProductStatus, ProductOption, Variant, ProductImage, Category } from './catalog';
-
 // NOTA: los tipos de dominio de órdenes/checkout/pagos se removieron de acá:
 // estaban hand-written, drifteados respecto del DTO real del backend y sin uso
 // (admin y storefront definen sus interfaces inline según el DTO real). Si se

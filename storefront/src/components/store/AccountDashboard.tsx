@@ -11,12 +11,13 @@ import { EmptyState } from './EmptyState';
 import { SupportChat } from './SupportChat';
 
 import { clientJsonTenant } from '@/lib/api-client';
+import type { MoneyDto } from '@tiendafy/types';
 
 interface OrderItem {
   productName: string;
   variantDescription: string;
   quantity: number;
-  unitPrice: { amount: number; currency: string };
+  unitPrice: MoneyDto;
 }
 interface Order {
   id: string;
@@ -24,7 +25,7 @@ interface Order {
   currency: string;
   createdAtUtc: string;
   tracking: string | null;
-  total: { amount: number; currency: string };
+  total: MoneyDto;
   items: OrderItem[];
 }
 

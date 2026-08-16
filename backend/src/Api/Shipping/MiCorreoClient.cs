@@ -71,7 +71,7 @@ public sealed record MiCorreoTracking(
 /// </summary>
 public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<MiCorreoClient> logger)
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     // -------------------------------------------------------------- Auth
 

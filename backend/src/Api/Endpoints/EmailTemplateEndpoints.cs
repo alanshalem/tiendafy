@@ -37,7 +37,7 @@ public static class EmailTemplateEndpoints
             int Total(string ch) => rows.Where(r => r.Channel == ch).Sum(r => r.Count);
             int Mes(string ch) => rows.Where(r => r.Channel == ch && r.EsteMes).Sum(r => r.Count);
 
-            var emailPer1000 = cfg.GetValue("Notifications:EmailCostUsdPer1000", 0.40m);
+            var emailPer1000 = NotificationCosts.EmailUsdPer1000(cfg);
             var waPerMessage = cfg.GetValue("Notifications:WhatsAppCostUsdPerMessage", 0.034m);
 
             return Results.Ok(new
@@ -125,17 +125,11 @@ public static class EmailTemplateEndpoints
                 ["items"] = SampleItemsTable(),
             };
 
-            string Fill(string input)
-            {
-                foreach (var (k, v) in vars) input = input.Replace("{{" + k + "}}", v);
-                return input;
-            }
-
             var body = Sanitizer.Sanitize(req.BodyHtml ?? string.Empty);
             return Results.Ok(new
             {
-                subject = Fill(req.Subject ?? string.Empty),
-                html = EmailLayout.Render(branding, Fill(body)),
+                subject = EmailTemplates.Substitute(req.Subject ?? string.Empty, vars),
+                html = EmailLayout.Render(branding, EmailTemplates.Substitute(body, vars)),
             });
         });
 

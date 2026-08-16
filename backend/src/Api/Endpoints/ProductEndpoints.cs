@@ -317,7 +317,7 @@ public static class ProductEndpoints
                     await using var fs = File.Create(Path.Combine(tempDir, "__mapping.csv"));
                     await file.CopyToAsync(fs, ct);
                 }
-                else if (ImageExtensions.Contains(ext))
+                else if (ImportMedia.ImageExtensions.Contains(ext))
                 {
                     var dest = Path.Combine(tempDir, SafeFileName(file.FileName));
                     await using var fs = File.Create(dest);
@@ -499,8 +499,6 @@ public static class ProductEndpoints
         return s is "true" or "1" or "on" or "yes" or "si";
     }
 
-    private static readonly HashSet<string> ImageExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".avif" };
 
     /// <summary>Extrae las imágenes de un .zip al dir temporal (aplana, nombre base).</summary>
     private static async Task<int> ExtractZipAsync(IFormFile file, string tempDir, CancellationToken ct)
@@ -511,7 +509,7 @@ public static class ProductEndpoints
         foreach (var entry in archive.Entries)
         {
             if (string.IsNullOrEmpty(entry.Name)) continue; // carpeta
-            if (!ImageExtensions.Contains(Path.GetExtension(entry.Name))) continue;
+            if (!ImportMedia.ImageExtensions.Contains(Path.GetExtension(entry.Name))) continue;
 
             var dest = Path.Combine(tempDir, SafeFileName(entry.Name));
             await using var es = entry.Open();

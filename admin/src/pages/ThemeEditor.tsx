@@ -5,7 +5,7 @@ import { AlertTriangle, ExternalLink, Monitor, Smartphone, X } from 'lucide-reac
 import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, normalizeTheme, baseTheme } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
-import { api, ApiRequestError, setActiveTenant } from '../lib/api';
+import { api, setActiveTenant, errMsg } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { ImageUploader } from './theme-editor-uploaders';
@@ -378,7 +378,7 @@ export function ThemeEditorPage() {
       setSaveState('saved');
       toast('Diseño publicado en tu tienda', { variant: 'success' });
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Error al publicar', { variant: 'error' });
+      toast(errMsg(err, 'Error al publicar'), { variant: 'error' });
     } finally {
       setPublishing(false);
     }

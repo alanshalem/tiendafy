@@ -145,3 +145,18 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     stock: p.stock ?? null,
   };
 }
+
+/** Ids de producto referenciados por las secciones del home (destacados/ofertas). */
+export function referencedProductIds(sections: { data: unknown }[]): string[] {
+  const referenced = new Set<string>();
+  for (const s of sections) {
+    const ids = (s.data as { productIds?: unknown }).productIds;
+    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && referenced.add(id));
+  }
+  return [...referenced];
+}
+
+/** DTOs (posiblemente null) → StoreProduct, descartando inválidos. */
+export function toStoreProducts(dtos: (ProductDto | null)[]): StoreProduct[] {
+  return dtos.map((d) => (d ? toStoreProduct(d) : null)).filter((p): p is StoreProduct => p !== null);
+}

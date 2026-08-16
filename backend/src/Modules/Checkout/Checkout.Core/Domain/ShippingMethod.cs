@@ -50,8 +50,8 @@ public sealed class ShippingMethod : AggregateRoot
             Name = trimmed,
             Kind = kind,
             Price = price,
-            Description = Trim(description, 300),
-            PickupAddress = Trim(pickupAddress, 300),
+            Description = Text.Clip(description, 300),
+            PickupAddress = Text.Clip(pickupAddress, 300),
             Active = true,
             SortOrder = sortOrder,
             CreatedAtUtc = now,
@@ -73,17 +73,11 @@ public sealed class ShippingMethod : AggregateRoot
         Name = trimmed;
         Kind = kind;
         Price = price;
-        Description = Trim(description, 300);
-        PickupAddress = Trim(pickupAddress, 300);
+        Description = Text.Clip(description, 300);
+        PickupAddress = Text.Clip(pickupAddress, 300);
         Active = active;
         SortOrder = sortOrder;
         UpdatedAtUtc = DateTime.UtcNow;
         return Result.Success();
-    }
-
-    private static string? Trim(string? v, int max)
-    {
-        var t = v?.Trim();
-        return string.IsNullOrEmpty(t) ? null : t[..Math.Min(max, t.Length)];
     }
 }

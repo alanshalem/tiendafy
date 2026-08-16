@@ -4,6 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { Captcha } from '../components/Captcha';
 
+const AUTH_INPUT =
+  'h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary';
+const AUTH_SUBMIT =
+  'mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover';
+
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
@@ -118,7 +123,7 @@ export function Login() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Tu nombre"
               required
-              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+              className={AUTH_INPUT}
             />
           )}
           <input
@@ -127,7 +132,7 @@ export function Login() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             required
-            className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+            className={AUTH_INPUT}
           />
           {mode !== 'forgot' && (
             <input
@@ -137,7 +142,7 @@ export function Login() {
               placeholder="Contraseña"
               required
               minLength={10}
-              className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+              className={AUTH_INPUT}
             />
           )}
 
@@ -219,7 +224,7 @@ export function Login() {
 }
 
 /** Formulario de reset (link del email): /restablecer?email=&token= */
-export function ResetPasswordForm() {
+function ResetPasswordForm() {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') ?? '';
   const token = params.get('token') ?? '';
@@ -257,10 +262,7 @@ export function ResetPasswordForm() {
       <Shell>
         <h1 className="text-lg font-semibold text-fg">¡Listo!</h1>
         <p className="mt-1 text-sm text-fg-muted">Tu contraseña fue cambiada.</p>
-        <a
-          href="/"
-          className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
-        >
+        <a href="/" className={AUTH_SUBMIT}>
           Iniciar sesión
         </a>
       </Shell>
@@ -279,7 +281,7 @@ export function ResetPasswordForm() {
           placeholder="Nueva contraseña"
           required
           minLength={10}
-          className="h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+          className={AUTH_INPUT}
         />
         {error && <p className="text-sm text-danger">{error}</p>}
         <button
@@ -295,7 +297,7 @@ export function ResetPasswordForm() {
 }
 
 /** Pantalla del link de verificación de email: /verificar?email=&token= */
-export function VerifyEmailScreen() {
+function VerifyEmailScreen() {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') ?? '';
   const token = params.get('token') ?? '';
@@ -319,10 +321,7 @@ export function VerifyEmailScreen() {
         <>
           <h1 className="text-lg font-semibold text-fg">¡Email verificado!</h1>
           <p className="mt-1 text-sm text-fg-muted">Tu cuenta quedó confirmada.</p>
-          <a
-            href="/"
-            className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
-          >
+          <a href="/" className={AUTH_SUBMIT}>
             Ir al panel
           </a>
         </>
@@ -331,10 +330,7 @@ export function VerifyEmailScreen() {
         <>
           <h1 className="text-lg font-semibold text-fg">Link inválido o vencido</h1>
           <p className="mt-1 text-sm text-fg-muted">Pedí un reenvío desde la pantalla de inicio de sesión.</p>
-          <a
-            href="/"
-            className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover"
-          >
+          <a href="/" className={AUTH_SUBMIT}>
             Volver
           </a>
         </>

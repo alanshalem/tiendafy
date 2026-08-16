@@ -15,7 +15,7 @@ public sealed class WhatsAppNotifier(
     WhatsAppTokenProtector protector,
     ILogger<WhatsAppNotifier> logger)
 {
-    private static string Money(SharedKernel.Common.Money m) => $"{m.Currency} {m.ToDecimal():N0}";
+    private static string Money(SharedKernel.Common.Money m) => MoneyFormat.ForNotification(m);
 
     public async Task NotifyAsync(Order order, string type, CancellationToken ct = default)
     {

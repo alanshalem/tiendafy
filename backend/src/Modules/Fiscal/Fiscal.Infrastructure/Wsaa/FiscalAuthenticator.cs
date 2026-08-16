@@ -109,12 +109,6 @@ public sealed class FiscalAuthenticator(
         new(protector.Unprotect(ta.TokenEncrypted), protector.Unprotect(ta.SignEncrypted), ta.ExpirationTimeUtc);
 
     /// <summary>Clave estable (bigint) para el advisory lock por combinación lógica.</summary>
-    private static long LockKey(Guid tenantId, string cuit, string service, FiscalEnvironment env)
-    {
-        // Hash determinístico → long (FNV-1a de 64 bits sobre la clave lógica).
-        var s = $"{tenantId:N}|{cuit}|{service}|{(int)env}";
-        ulong hash = 14695981039346656037UL;
-        foreach (var c in s) { hash ^= c; hash *= 1099511628211UL; }
-        return unchecked((long)hash);
-    }
+    private static long LockKey(Guid tenantId, string cuit, string service, FiscalEnvironment env) =>
+        AdvisoryLock.KeyFor($"{tenantId:N}|{cuit}|{service}|{(int)env}");
 }

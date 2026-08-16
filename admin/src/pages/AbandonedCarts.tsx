@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
+import type { MoneyDto } from '@tiendafy/types';
 
 interface Abandoned {
   count: number;
@@ -13,7 +14,7 @@ interface Abandoned {
     email: string | null;
     createdAtUtc: string;
     items: number;
-    total: { amount: number; currency: string };
+    total: MoneyDto;
     recoverable: boolean;
   }[];
 }

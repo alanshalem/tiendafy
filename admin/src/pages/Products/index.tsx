@@ -17,7 +17,7 @@ import {
 import { Badge, Button, Dropdown, Modal, useToast, useConfirm, type BadgeVariant } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
-import { api, ApiRequestError } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { toFormPrice, toDomainPrice } from '../../lib/price';
 import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
@@ -25,6 +25,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
+import { statusLabel, statusVariant, type Category, type StockItem } from './types';
 
 interface VariantDto {
   id: string;
@@ -41,28 +42,6 @@ interface ProductDto {
   variants: VariantDto[];
   images: { url: string }[];
 }
-interface StockItem {
-  variantId: string;
-  available: number;
-  reserved: number;
-}
-interface Category {
-  id: string;
-  name: string;
-  path: string;
-  depth: number;
-}
-
-const statusVariant: Record<ProductDto['status'], BadgeVariant> = {
-  ACTIVE: 'success',
-  DRAFT: 'neutral',
-  ARCHIVED: 'warning',
-};
-const statusLabel: Record<ProductDto['status'], string> = {
-  ACTIVE: 'Publicado',
-  DRAFT: 'Borrador',
-  ARCHIVED: 'Archivado',
-};
 
 const SORTS = ['Más nuevo', 'Más viejo', 'Nombre A-Z', 'Nombre Z-A'] as const;
 
@@ -105,7 +84,7 @@ export function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast('Producto actualizado', { variant: 'success' });
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
   const deleteProduct = useMutation({
@@ -114,7 +93,7 @@ export function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast('Producto eliminado', { variant: 'success' });
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
@@ -127,7 +106,7 @@ export function ProductsPage() {
       setConfirmText('');
       toast(`${res.deleted} productos eliminados`, { variant: 'success' });
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
   const duplicateProduct = useMutation({
@@ -136,7 +115,7 @@ export function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast('Producto duplicado', { variant: 'success' });
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -170,7 +149,7 @@ export function ProductsPage() {
         { variant: 'success' },
       );
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -564,7 +543,7 @@ function ProductRows({
       queryClient.invalidateQueries({ queryKey: ['products', storeId] });
       toast('Precio actualizado', { variant: 'success' });
     },
-    onError: (err) => toast(err instanceof ApiRequestError ? err.message : 'Error', { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
   return (

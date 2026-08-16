@@ -45,7 +45,7 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
         {
             // WSAA devuelve el detalle del error (ej. coe.notAuthorized, cms.sign.invalid)
             // en un SOAP Fault. No lo tragamos: sirve para diagnosticar.
-            var fault = ExtractFault(body);
+            var fault = SoapFault.Extract(body);
             logger.LogWarning("WSAA loginCms {Status}: {Fault}", (int)resp.StatusCode, fault);
             return Result.Failure<WsaaCredentials>(Error.Conflict("Wsaa.Rejected",
                 $"ARCA rechazó la autenticación: {fault}"));
@@ -74,16 +74,5 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
             logger.LogError(ex, "WSAA loginCms: no se pudo parsear la respuesta.");
             return Result.Failure<WsaaCredentials>(Error.Conflict("Wsaa.BadResponse", "Respuesta de WSAA no válida."));
         }
-    }
-
-    private static string ExtractFault(string body)
-    {
-        try
-        {
-            var doc = XDocument.Parse(body);
-            var s = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "faultstring")?.Value;
-            return string.IsNullOrWhiteSpace(s) ? "(sin detalle)" : s.Trim();
-        }
-        catch { return "(sin detalle)"; }
     }
 }

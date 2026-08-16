@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
-import { api, ApiRequestError } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { EmptyState } from '../../components/EmptyState';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -158,8 +158,7 @@ export function CategoriesPage() {
       setRenaming(null);
       toast('Categoría renombrada', { variant: 'success' });
     },
-    onError: (e) =>
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo renombrar', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e, 'No se pudo renombrar'), { variant: 'error' }),
   });
 
   const deleteMut = useMutation({
@@ -168,8 +167,7 @@ export function CategoriesPage() {
       refresh();
       toast('Categoría eliminada', { variant: 'success' });
     },
-    onError: (e) =>
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo eliminar', { variant: 'error' }),
+    onError: (e) => toast(errMsg(e, 'No se pudo eliminar'), { variant: 'error' }),
   });
 
   const onAddSub = (node: TreeNode) => {
@@ -489,7 +487,7 @@ function CreateCategoryModal({
       setError(undefined);
       onClose();
     },
-    onError: (err) => setError(err instanceof ApiRequestError ? err.message : 'Error inesperado'),
+    onError: (err) => setError(errMsg(err, 'Error inesperado')),
   });
 
   return (

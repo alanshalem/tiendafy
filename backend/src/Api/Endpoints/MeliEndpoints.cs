@@ -22,7 +22,7 @@ public static class MeliEndpoints
 {
     // El cache de items se escribe camelCase (MeliSyncService usa Web defaults):
     // leerlo sin las mismas opciones devuelve cantidades en 0 y títulos null.
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     public static RouteGroupBuilder MapMeliEndpoints(this RouteGroupBuilder group)
     {
@@ -277,10 +277,9 @@ public static class MeliEndpoints
             if (string.IsNullOrWhiteSpace(request.Text))
                 return Error.Validation("Meli.EmptyAnswer", "Escribí una respuesta.").ToProblem();
 
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null)
-                return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return NotConnected();
+            var (c, token) = resolved.Value;
 
             try
             {
@@ -299,15 +298,14 @@ public static class MeliEndpoints
             long packId, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null)
-                return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return NotConnected();
+            var (c, token) = resolved.Value;
 
             try
             {
                 using var doc = await client.GetAsync(token,
-                    $"/messages/packs/{packId}/sellers/{c!.MeliUserId}?tag=post_sale", ct);
+                    $"/messages/packs/{packId}/sellers/{c.MeliUserId}?tag=post_sale", ct);
                 var root = doc.RootElement;
                 var messages = root.TryGetProperty("messages", out var ms) && ms.ValueKind == JsonValueKind.Array
                     ? ms.EnumerateArray().Select(m => (object)new
@@ -341,10 +339,9 @@ public static class MeliEndpoints
                 return Error.Validation("Meli.MessageTooLong",
                     "Mercado Libre limita los mensajes a 350 caracteres.").ToProblem();
 
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null)
-                return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return NotConnected();
+            var (c, token) = resolved.Value;
 
             var order = await db.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.PackId == packId || o.MeliOrderId == packId, ct);
@@ -354,7 +351,7 @@ public static class MeliEndpoints
             try
             {
                 using var _ = await client.PostAsync(token,
-                    $"/messages/packs/{packId}/sellers/{c!.MeliUserId}?tag=post_sale",
+                    $"/messages/packs/{packId}/sellers/{c.MeliUserId}?tag=post_sale",
                     new
                     {
                         from = new { user_id = c.MeliUserId.ToString() },
@@ -373,9 +370,9 @@ public static class MeliEndpoints
         sales.MapGet("/claims", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null) return Results.Ok(new { claims = Array.Empty<object>() });
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return Results.Ok(new { claims = Array.Empty<object>() });
+            var (c, token) = resolved.Value;
 
             try
             {
@@ -402,6 +399,18 @@ public static class MeliEndpoints
         });
     }
 
+    /// <summary>Conexión de la tienda + access token vigente, o null si no está conectada.</summary>
+    private static async Task<(MeliConnection Conn, string Token)?> ResolveConnectionAsync(
+        MeliDbContext db, MeliTokenService tokens, CancellationToken ct)
+    {
+        var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
+        var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
+        return token is null ? null : (c!, token);
+    }
+
+    private static IResult NotConnected() =>
+        Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+
     // ------------------------------------------ Publicaciones, links y publicar
 
     private static void MapPublications(RouteGroupBuilder group)
@@ -412,14 +421,14 @@ public static class MeliEndpoints
         items.MapGet("/items", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null) return Results.Ok(new { items = Array.Empty<object>() });
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return Results.Ok(new { items = Array.Empty<object>() });
+            var (c, token) = resolved.Value;
 
             try
             {
                 using var search = await client.GetAsync(token,
-                    $"/users/{c!.MeliUserId}/items/search?limit=50", ct);
+                    $"/users/{c.MeliUserId}/items/search?limit=50", ct);
                 var ids = search.RootElement.TryGetProperty("results", out var res) && res.ValueKind == JsonValueKind.Array
                     ? res.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrEmpty(s)).ToList()
                     : [];
@@ -445,8 +454,8 @@ public static class MeliEndpoints
                             status = JsonRead.GetString(item, "status"),
                             permalink = JsonRead.GetString(item, "permalink"),
                             thumbnail = JsonRead.GetString(item, "thumbnail"),
-                            price = item.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDecimal() : 0m,
-                            availableQuantity = item.TryGetProperty("available_quantity", out var aq) && aq.ValueKind == JsonValueKind.Number ? aq.GetInt32() : 0,
+                            price = JsonRead.GetDecimal(item, "price"),
+                            availableQuantity = JsonRead.GetInt32(item, "available_quantity"),
                             link = link is null ? null : new
                             {
                                 link.ProductId,
@@ -509,15 +518,14 @@ public static class MeliEndpoints
             string title, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null)
-                return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return NotConnected();
+            var (c, token) = resolved.Value;
 
             try
             {
                 using var doc = await client.GetAsync(token,
-                    $"/sites/{c!.SiteId}/domain_discovery/search?q={Uri.EscapeDataString(title)}&limit=3", ct);
+                    $"/sites/{c.SiteId}/domain_discovery/search?q={Uri.EscapeDataString(title)}&limit=3", ct);
                 var suggestions = doc.RootElement.ValueKind == JsonValueKind.Array
                     ? doc.RootElement.EnumerateArray().Select(s => (object)new
                     {
@@ -545,10 +553,9 @@ public static class MeliEndpoints
                 return Error.Validation("Meli.NoCategory",
                     "Elegí una categoría de Mercado Libre (usá la sugerencia automática).").ToProblem();
 
-            var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
-            var token = c is null ? null : await tokens.GetValidTokenAsync(c.TenantId, ct);
-            if (token is null)
-                return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+            var resolved = await ResolveConnectionAsync(db, tokens, ct);
+            if (resolved is null) return NotConnected();
+            var (c, token) = resolved.Value;
 
             var product = await products.GetByIdAsync(tenant.TenantId, productId, ct);
             if (product is null)
@@ -635,9 +642,7 @@ public static class MeliEndpoints
             var root = doc.RootElement;
             var topic = JsonRead.GetString(root, "topic") ?? "";
             var resource = JsonRead.GetString(root, "resource") ?? "";
-            var userId = root.TryGetProperty("user_id", out var uid) && uid.ValueKind == JsonValueKind.Number
-                ? uid.GetInt64()
-                : long.TryParse(JsonRead.GetString(root, "user_id"), out var parsed) ? parsed : 0;
+            var userId = JsonRead.GetLongFlexible(root, "user_id");
 
             if (topic.Length == 0 || resource.Length == 0 || userId == 0)
                 return Results.Ok(); // payload raro: ACK igual para que ML no reintente

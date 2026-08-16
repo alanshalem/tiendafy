@@ -10,6 +10,7 @@ import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../.
 import { Section } from './FormSection';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { statusLabel, type Category, type StockItem } from './types';
 
 interface VariantDto {
   id: string;
@@ -33,16 +34,6 @@ interface ProductDto {
   variants: VariantDto[];
   images: ProductImage[];
   categoryIds: string[];
-}
-interface StockItem {
-  variantId: string;
-  available: number;
-}
-interface Category {
-  id: string;
-  name: string;
-  path: string;
-  depth: number;
 }
 
 export function EditProductPage() {
@@ -237,13 +228,7 @@ export function EditProductPage() {
     <div className="mx-auto max-w-2xl space-y-4 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Editar producto</h1>
-        <span className="text-sm text-fg-muted">
-          {product.status === 'ACTIVE'
-            ? 'Publicado'
-            : product.status === 'ARCHIVED'
-              ? 'Archivado'
-              : 'Borrador'}
-        </span>
+        <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
       </div>
 
       <Section title="Nombre y descripción">

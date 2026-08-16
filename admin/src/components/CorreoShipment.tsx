@@ -8,8 +8,9 @@ import {
   shipmentTriggerCls,
   type ShippingOrderLike,
 } from '../lib/shipping';
+import { ShipmentFooter, shipmentLabelCls } from './ShipmentBits';
 
-export const CORREO_PROVINCES: { value: string; label: string }[] = [
+const CORREO_PROVINCES: { value: string; label: string }[] = [
   { value: 'B', label: 'Buenos Aires' },
   { value: 'C', label: 'CABA' },
   { value: 'K', label: 'Catamarca' },
@@ -122,8 +123,6 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
     }
   };
 
-  const inputLabel = 'mb-1 block text-xs font-medium text-fg';
-
   return (
     <Modal
       open
@@ -134,14 +133,7 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
         done ? (
           <Button onClick={onClose}>Listo</Button>
         ) : (
-          <>
-            <Button variant="secondary" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button onClick={submit} disabled={busy}>
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />} Crear envío
-            </Button>
-          </>
+          <ShipmentFooter busy={busy} onClose={onClose} onSubmit={submit} />
         )
       }
     >
@@ -162,7 +154,7 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
 
           <div className="grid gap-2.5 sm:grid-cols-3">
             <div className="sm:col-span-1">
-              <label className={inputLabel}>Tipo de entrega</label>
+              <label className={shipmentLabelCls}>Tipo de entrega</label>
               <Select
                 value={deliveryType}
                 onChange={(e) => setDeliveryType(e.target.value)}
@@ -173,26 +165,26 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
               />
             </div>
             <div>
-              <label className={inputLabel}>Nombre del destinatario</label>
+              <label className={shipmentLabelCls}>Nombre del destinatario</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div>
-              <label className={inputLabel}>Email</label>
+              <label className={shipmentLabelCls}>Email</label>
               <Input value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
-              <label className={inputLabel}>Teléfono</label>
+              <label className={shipmentLabelCls}>Teléfono</label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className={inputLabel}>Valor declarado ($)</label>
+              <label className={shipmentLabelCls}>Valor declarado ($)</label>
               <Input value={declared} onChange={(e) => setDeclared(e.target.value)} inputMode="numeric" />
             </div>
           </div>
 
           {deliveryType === 'S' ? (
             <div>
-              <label className={inputLabel}>Código de sucursal (ej: B0107)</label>
+              <label className={shipmentLabelCls}>Código de sucursal (ej: B0107)</label>
               <Input value={agency} onChange={(e) => setAgency(e.target.value.toUpperCase())} />
               <p className="mt-1 text-xs text-fg-subtle">
                 Si el comprador eligió sucursal en el checkout, el código figura en la dirección de la venta.
@@ -201,27 +193,27 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-6">
               <div className="sm:col-span-3">
-                <label className={inputLabel}>Calle</label>
+                <label className={shipmentLabelCls}>Calle</label>
                 <Input value={street} onChange={(e) => setStreet(e.target.value)} />
               </div>
               <div>
-                <label className={inputLabel}>Número</label>
+                <label className={shipmentLabelCls}>Número</label>
                 <Input value={number} onChange={(e) => setNumber(e.target.value)} />
               </div>
               <div>
-                <label className={inputLabel}>Piso</label>
+                <label className={shipmentLabelCls}>Piso</label>
                 <Input value={floor} onChange={(e) => setFloor(e.target.value)} />
               </div>
               <div>
-                <label className={inputLabel}>Depto</label>
+                <label className={shipmentLabelCls}>Depto</label>
                 <Input value={apartment} onChange={(e) => setApartment(e.target.value)} />
               </div>
               <div className="sm:col-span-2">
-                <label className={inputLabel}>Ciudad</label>
+                <label className={shipmentLabelCls}>Ciudad</label>
                 <Input value={city} onChange={(e) => setCity(e.target.value)} />
               </div>
               <div className="sm:col-span-2">
-                <label className={inputLabel}>Provincia</label>
+                <label className={shipmentLabelCls}>Provincia</label>
                 <Select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
@@ -229,7 +221,7 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className={inputLabel}>Código postal</label>
+                <label className={shipmentLabelCls}>Código postal</label>
                 <Input value={cp} onChange={(e) => setCp(e.target.value)} />
               </div>
             </div>

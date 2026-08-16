@@ -42,7 +42,7 @@ public sealed record TrackPayload(Guid CampaignId, string Email);
 /// </summary>
 public static partial class CampaignEmailComposer
 {
-    internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    internal static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     [GeneratedRegex(@"href\s*=\s*""(https?://[^""]+)""", RegexOptions.IgnoreCase)]
     private static partial Regex HrefRegex();

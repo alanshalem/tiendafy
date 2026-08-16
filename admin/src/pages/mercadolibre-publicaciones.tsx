@@ -14,6 +14,7 @@ import {
 import { api, errMsg } from '../lib/api';
 import { fetchAllProducts } from '../lib/products';
 import { money } from './mercadolibre-shared';
+import type { MoneyDto } from '@tiendafy/types';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -40,7 +41,7 @@ interface ProductVariantDto {
   id: string;
   sku: string;
   optionValues: string[];
-  price: { amount: number; currency: string };
+  price: MoneyDto;
 }
 
 interface ProductDto {

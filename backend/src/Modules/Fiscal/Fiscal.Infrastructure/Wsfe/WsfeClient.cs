@@ -167,7 +167,7 @@ public sealed class WsfeClient(
         var text = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
-            var fault = ExtractFault(text);
+            var fault = SoapFault.Extract(text);
             logger.LogWarning("WSFEv1 {Op} {Status}: {Fault}", operation, (int)resp.StatusCode, fault);
             return Result.Failure<XElement>(Error.Conflict("Wsfe.Fault", $"ARCA (WSFEv1): {fault}"));
         }
@@ -189,13 +189,4 @@ public sealed class WsfeClient(
 
     private static string Dec(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
 
-    private static string ExtractFault(string body)
-    {
-        try
-        {
-            var s = XDocument.Parse(body).Descendants().FirstOrDefault(e => e.Name.LocalName == "faultstring")?.Value;
-            return string.IsNullOrWhiteSpace(s) ? "(sin detalle)" : s.Trim();
-        }
-        catch { return "(sin detalle)"; }
-    }
 }

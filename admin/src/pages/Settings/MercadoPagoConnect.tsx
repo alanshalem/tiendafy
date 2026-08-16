@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BadgeCheck, ChevronDown, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
-import { api, ApiRequestError } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate } from '../../lib/format';
+import { Helper } from './Helper';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -68,7 +69,7 @@ export function MercadoPagoConnect() {
       const { authUrl } = await api.post<{ authUrl: string }>('/api/v1/payments/mercadopago/connect', {});
       window.location.href = authUrl;
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'No se pudo iniciar la conexión.', {
+      toast(errMsg(err, 'No se pudo iniciar la conexión.'), {
         variant: 'error',
       });
       setBusy(false);
@@ -89,7 +90,7 @@ export function MercadoPagoConnect() {
       toast('Cuenta desconectada', { variant: 'success' });
       await load();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'No se pudo desconectar.', { variant: 'error' });
+      toast(errMsg(err, 'No se pudo desconectar.'), { variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -105,7 +106,7 @@ export function MercadoPagoConnect() {
       setConn(updated);
       toast('Preferencias guardadas', { variant: 'success' });
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'No se pudo guardar.', { variant: 'error' });
+      toast(errMsg(err, 'No se pudo guardar.'), { variant: 'error' });
     }
   };
 
@@ -503,22 +504,5 @@ function Bullet({ children }: { children: ReactNode }) {
       <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
       <span>{children}</span>
     </li>
-  );
-}
-
-function Helper({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-3 rounded-lg border border-border bg-bg-muted/40">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-fg"
-      >
-        {title}
-        <ChevronDown className={cn('h-4 w-4 text-fg-muted transition', open && 'rotate-180')} />
-      </button>
-      {open && <div className="px-3 pb-3 text-sm leading-relaxed text-fg-muted">{children}</div>}
-    </div>
   );
 }

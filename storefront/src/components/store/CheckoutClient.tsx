@@ -7,22 +7,15 @@ import { formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
-
-interface CartLine {
-  variantId: string;
-  productName: string;
-  variantLabel: string;
-  priceAmount: number; // centavos
-  currency: string;
-  image: string | null;
-  quantity: number;
-}
+import type { MoneyDto } from '@tiendafy/types';
+import { cartStorageKey, type CartLine } from './cart';
+import { readJson } from '@/lib/storage';
 
 interface ShippingOption {
   id: string;
   name: string;
   kind: 'DELIVERY' | 'PICKUP';
-  price: { amount: number; currency: string };
+  price: MoneyDto;
   description: string | null;
   pickupAddress: string | null;
 }
@@ -31,7 +24,7 @@ interface CorreoOption {
   token: string;
   kind: 'D' | 'S';
   name: string;
-  price: { amount: number; currency: string };
+  price: MoneyDto;
   etaMin: string | null;
   etaMax: string | null;
 }
@@ -45,7 +38,7 @@ interface CorreoAgency {
 interface ZipnovaOption {
   token: string;
   name: string;
-  price: { amount: number; currency: string };
+  price: MoneyDto;
   estimatedDelivery: string | null;
 }
 
@@ -132,12 +125,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [result, setResult] = useState<'success' | 'pending' | 'failure' | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`tiendafy.cart.${tenantId}`);
-      if (raw) setLines(JSON.parse(raw));
-    } catch {
-      /* ignore */
-    }
+    setLines(readJson<CartLine[]>(cartStorageKey(tenantId), []));
     setHydrated(true);
   }, [tenantId]);
 

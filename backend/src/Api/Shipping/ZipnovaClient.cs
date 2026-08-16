@@ -88,7 +88,7 @@ public sealed record ZipnovaTrackingEvent(
 /// </summary>
 public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger)
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     private HttpRequestMessage Build(ZipnovaCredentials creds, HttpMethod method, string path, object? payload)
     {
@@ -218,10 +218,6 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
         if (array.ValueKind != JsonValueKind.Array) return [];
         return JsonSerializer.Deserialize<List<ZipnovaTrackingEvent>>(array.GetRawText(), Json) ?? [];
     }
-
-    /// <summary>POST /shipments/{id}/cancel.</summary>
-    public Task CancelAsync(ZipnovaCredentials creds, long shipmentId, CancellationToken ct) =>
-        SendAsync(creds, HttpMethod.Post, $"/shipments/{shipmentId}/cancel", new { }, ct);
 
     private static string ExtractMessage(string body, HttpStatusCode status)
     {

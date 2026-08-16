@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Payments.Core.Abstractions;
+using SharedKernel.Common;
 
 namespace Payments.Infrastructure.MercadoPago;
 
@@ -66,12 +67,12 @@ public sealed class MercadoPagoOAuthClient(HttpClient http, IOptions<MercadoPago
         var root = doc.RootElement;
 
         return new MercadoPagoTokens(
-            UserId: root.TryGetProperty("user_id", out var uid) && uid.ValueKind == JsonValueKind.Number ? uid.GetInt64() : 0,
+            UserId: JsonRead.GetLong(root, "user_id"),
             AccessToken: root.GetProperty("access_token").GetString()
                 ?? throw new InvalidOperationException("MercadoPago OAuth response missing access_token."),
-            RefreshToken: root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() ?? string.Empty : string.Empty,
-            PublicKey: root.TryGetProperty("public_key", out var pk) ? pk.GetString() : null,
-            Scope: root.TryGetProperty("scope", out var sc) ? sc.GetString() ?? string.Empty : string.Empty,
+            RefreshToken: JsonRead.GetString(root, "refresh_token") ?? string.Empty,
+            PublicKey: JsonRead.GetString(root, "public_key"),
+            Scope: JsonRead.GetString(root, "scope") ?? string.Empty,
             ExpiresInSeconds: root.TryGetProperty("expires_in", out var ex) && ex.ValueKind == JsonValueKind.Number ? ex.GetInt32() : 15552000);
     }
 }

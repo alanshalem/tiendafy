@@ -17,7 +17,7 @@ import {
   Redo,
 } from 'lucide-react';
 import { cn, useToast, usePrompt } from '@tiendafy/ui';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 
 /** Editor WYSIWYG para el contenido de páginas. Devuelve HTML (sanitizado server-side al guardar). */
 export function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
@@ -66,7 +66,7 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
       const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
       editor.chain().focus().setImage({ src: url }).run();
     } catch (e) {
-      toast(e instanceof ApiRequestError ? e.message : 'No se pudo subir la imagen.', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo subir la imagen.'), { variant: 'error' });
     }
   };
 

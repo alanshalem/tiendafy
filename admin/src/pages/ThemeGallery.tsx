@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button, useConfirm, useToast } from '@tiendafy/ui';
 import { HelpLink } from '../components/HelpLink';
 import { useStore } from '../context/StoreContext';
-import { api, ApiRequestError } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { themePresets, type ThemePreset } from '../lib/themePresets';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 
@@ -134,7 +134,7 @@ export function ThemeGalleryPage() {
       navigate('/canales/tienda-online');
     },
     onError: (err) => {
-      toast(err instanceof ApiRequestError ? err.message : 'Error aplicando el diseño', { variant: 'error' });
+      toast(errMsg(err, 'Error aplicando el diseño'), { variant: 'error' });
     },
   });
 

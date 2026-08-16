@@ -19,7 +19,6 @@ public sealed record AudienceSpec(
     int? InactiveForDays = null,
     List<string>? Emails = null)
 {
-    public static AudienceSpec Default => new("buyers");
 
     public static AudienceSpec Parse(string? json, string fallbackType)
     {
@@ -36,7 +35,7 @@ public sealed record AudienceSpec(
 
     public string Serialize() => JsonSerializer.Serialize(this, JsonOpts);
 
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOpts = ApiJson.Web;
 }
 
 /// <summary>Destinatario resuelto, con sus stats de compra (para preview y selección).</summary>

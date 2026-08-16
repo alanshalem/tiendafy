@@ -19,7 +19,7 @@ public sealed class MeliSyncService(
     MeliDbContext db, MeliClient client, MeliTokenService tokens,
     IStockRepository stock, ILogger<MeliSyncService> logger)
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     /// <summary>Trae la orden de la API y la proyecta al cache. Null si no hay token.</summary>
     public async Task<MeliOrder?> UpsertOrderAsync(Guid tenantId, long meliOrderId, CancellationToken ct)
