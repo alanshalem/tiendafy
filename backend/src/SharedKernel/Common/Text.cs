@@ -12,4 +12,7 @@ public static class Text
         var t = value?.Trim();
         return string.IsNullOrEmpty(t) ? null : t[..Math.Min(max, t.Length)];
     }
+
+    /// <summary>Corta a max caracteres, sin trim ni null-handling (a diferencia de Clip).</summary>
+    public static string Cap(string s, int max) => s.Length <= max ? s : s[..max];
 }

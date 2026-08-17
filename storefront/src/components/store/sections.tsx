@@ -11,243 +11,35 @@ import { StoreImage } from './StoreImage';
 // (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
 import { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 import { baseTheme } from '@tiendafy/types';
+import { MarqueeTrack } from './MarqueeTrack';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
-
-// Mapea el slug guardado en la sección al nombre semántico del kit de íconos.
-const INFO_ICON_MAP: Record<string, IconName> = {
-  shipping: 'shipping',
-  card: 'card',
-  security: 'security',
-  gift: 'gift',
-  support: 'support',
-  returns: 'returns',
-};
-
-const defaultList: ProductListConfig = baseTheme.productList;
-
-/** Selecciona productos por id preservando el orden elegido. */
-function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
-  const byId = new Map(products.map((p) => [p.id, p]));
-  return ids.map((id) => byId.get(id)).filter((p): p is StoreProduct => !!p);
-}
-
-function ProductGrid({
-  title,
-  products,
-  list,
-  carousel,
-}: {
-  title: string;
-  products: StoreProduct[];
-  list: ProductListConfig;
-  carousel?: boolean;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollByCards = (dir: number) => scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
-  if (products.length === 0) return null;
-  return (
-    <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
-      {title && (
-        <h3
-          className="mb-6 text-sm font-bold uppercase tracking-widest opacity-60"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
-          {title}
-        </h3>
-      )}
-      {carousel ? (
-        <div className="group/car relative">
-          <div
-            ref={scrollRef}
-            className="flex snap-x gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {products.map((p, i) => (
-              <div
-                key={p.id}
-                className="tf-in w-40 shrink-0 snap-start sm:w-52"
-                style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
-              >
-                <ProductCard product={p} list={list} />
-              </div>
-            ))}
-          </div>
-          {/* Flechas: scrollean el carrusel (desktop; en mobile se desliza). */}
-          {products.length > 2 && (
-            <>
-              <button
-                type="button"
-                onClick={() => scrollByCards(-1)}
-                aria-label="Anterior"
-                className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
-              >
-                <Icon name="chevronLeft" className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollByCards(1)}
-                aria-label="Siguiente"
-                className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
-              >
-                <Icon name="chevronRight" className="h-5 w-5" />
-              </button>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
-          {products.map((p, i) => (
-            <div key={p.id} className="tf-in" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-              <ProductCard product={p} list={list} />
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-/** Carrusel de imágenes del hero (auto-avanza, con puntos). */
-function ImageCarousel({ images, fullHeightMobile }: { images: string[]; fullHeightMobile: boolean }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (images.length < 2) return;
-    const timer = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
-    return () => clearInterval(timer);
-  }, [images.length]);
-  // next/image en el hero: es el LCP de la home — priority en el primer slide,
-  // srcset responsive y lazy en el resto (antes: <img> crudo sin nada de eso).
-  const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-[460px]' : 'h-[300px] sm:h-[460px]';
-  return (
-    <section className="relative overflow-hidden">
-      <div
-        className="flex transition-transform duration-700 ease-out"
-        style={{ transform: `translateX(-${i * 100}%)` }}
-      >
-        {images.map((src, idx) => (
-          <div key={idx} className={`relative ${heightClass} w-full shrink-0`}>
-            <StoreImage src={src} alt="" sizes="100vw" priority={idx === 0} className="object-cover" />
-          </div>
-        ))}
-      </div>
-      {images.length > 1 && (
-        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
-          {images.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setI(idx)}
-              aria-label={`Ir a imagen ${idx + 1}`}
-              className={`h-2 rounded-full bg-white transition-all ${idx === i ? 'w-5' : 'w-2 opacity-60'}`}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-const OVERLAY_CLASS: Record<string, string> = {
-  none: 'bg-transparent',
-  light: 'bg-black/20',
-  medium: 'bg-black/40',
-  strong: 'bg-black/60',
-};
-
-/* ============================================================
-   Datos tipados por tipo de sección (#7). `section.data` es JSON
-   del backend; cada componente lo lee con su forma esperada.
-   ============================================================ */
-interface CarouselData {
-  images?: string[];
-  fullHeightMobile?: boolean;
-}
-interface HeroVideoData {
-  videoWebm?: string;
-  videoMp4?: string;
-  poster?: string;
-  title?: string;
-  subtitle?: string;
-  buttonText?: string;
-  link?: string;
-  align?: string;
-  height?: string;
-  overlay?: string;
-}
-interface ProductsData {
-  productIds?: string[];
-  title?: string;
-  carousel?: boolean;
-}
-interface BannerItem {
-  image?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-  show?: boolean;
-}
-interface BannersData {
-  banners?: BannerItem[];
-  fullWidth?: boolean;
-}
-interface InstitutionalData {
-  title?: string;
-  description?: string;
-}
-interface ImageTextData {
-  image?: string;
-  title?: string;
-  description?: string;
-  buttonText?: string;
-  link?: string;
-  textColor?: string;
-}
-interface InfoItemData {
-  icon?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-}
-interface InfoBarData {
-  items?: InfoItemData[];
-}
-interface NewsletterData {
-  image?: string;
-  title?: string;
-  text?: string;
-}
-interface InstagramData {
-  video?: string;
-}
-interface TestimonialItem {
-  quote?: string;
-  name?: string;
-  detail?: string;
-  photo?: string;
-}
-interface TestimonialsData {
-  title?: string;
-  items?: TestimonialItem[];
-}
-interface FaqItem {
-  question?: string;
-  answer?: string;
-}
-interface FaqData {
-  title?: string;
-  items?: FaqItem[];
-}
-interface BrandsData {
-  title?: string;
-  images?: string[];
-}
-
-export interface SectionRenderProps {
-  section: ThemeSection;
-  products: StoreProduct[];
-  storeName: string;
-  productList: ProductListConfig;
-}
-
-/* ---- Un componente por tipo de sección (registry abajo) ---- */
+import {
+  defaultList,
+  ImageCarousel,
+  INFO_ICON_MAP,
+  OVERLAY_CLASS,
+  pickProducts,
+  ProductGrid,
+} from './section-primitives';
+import type {
+  BannerItem,
+  BannersData,
+  BrandsData,
+  CarouselData,
+  FaqData,
+  HeroVideoData,
+  ImageTextData,
+  InfoBarData,
+  InfoItemData,
+  InstagramData,
+  InstitutionalData,
+  NewsletterData,
+  ProductsData,
+  SectionRenderProps,
+  TestimonialsData,
+} from './section-types';
+export type { SectionRenderProps } from './section-types';
+export { HomeSections } from './HomeSections';
 
 function HeroVideoSection({ section }: SectionRenderProps) {
   const href = usePreviewHref();
@@ -766,13 +558,7 @@ function BrandsSection({ section }: SectionRenderProps) {
         <div className="flex flex-wrap items-center justify-center">{logos}</div>
       ) : (
         // Pista duplicada para loop continuo sin salto; reduced-motion la frena (CSS).
-        <div className="tf-marquee flex w-max items-center will-change-transform">
-          {[0, 1].map((dup) => (
-            <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
-              {logos}
-            </div>
-          ))}
-        </div>
+        <MarqueeTrack className="items-center">{logos}</MarqueeTrack>
       )}
     </section>
   );
@@ -801,7 +587,7 @@ const SECTION_RENDERERS: Record<SectionType, (props: SectionRenderProps) => Reac
 };
 
 /** Texto descriptivo para el botón "Editar {label}" del preview (educa al usuario). */
-const SECTION_LABELS: Record<SectionType, string> = {
+export const SECTION_LABELS: Record<SectionType, string> = {
   'hero-video': 'el hero con video',
   carousel: 'el carrusel',
   featured: 'los destacados',
@@ -834,143 +620,6 @@ export function SectionRenderer({
   const Render = SECTION_RENDERERS[section.type];
   if (!Render) return null;
   return <Render section={section} products={products} storeName={storeName} productList={productList} />;
-}
-
-/** Envoltorio con animación de entrada/salida: colapsa el alto + fade + leve desplazamiento. */
-function PresenceItem({ show, children }: { show: boolean; children: ReactNode }) {
-  return (
-    <div
-      className="grid transition-[grid-template-rows,opacity,transform] duration-500 ease-out motion-reduce:transition-none"
-      style={{
-        gridTemplateRows: show ? '1fr' : '0fr',
-        opacity: show ? 1 : 0,
-        transform: show ? 'none' : 'translateY(10px)',
-      }}
-    >
-      <div className="min-h-0 overflow-hidden">{children}</div>
-    </div>
-  );
-}
-
-interface PItem {
-  id: string;
-  section: ThemeSection;
-  show: boolean;
-}
-
-/** Render de las secciones del home. En preview anima cuando se agregan/quitan/ocultan. */
-export function HomeSections({
-  sections,
-  products,
-  storeName,
-  productList,
-}: {
-  sections: ThemeSection[];
-  products: StoreProduct[];
-  storeName: string;
-  productList: ProductListConfig;
-}) {
-  const preview = useContext(PreviewContext);
-  const visible = sections.filter((s) => s.visible);
-
-  // En la tienda real no hay altas/bajas en vivo: render directo.
-  if (!preview) {
-    return (
-      <main>
-        {visible.map((s) => (
-          <SectionRenderer
-            key={s.id}
-            section={s}
-            products={products}
-            storeName={storeName}
-            productList={productList}
-          />
-        ))}
-      </main>
-    );
-  }
-  return (
-    <AnimatedSections visible={visible} products={products} storeName={storeName} productList={productList} />
-  );
-  // (en preview, AnimatedSections envuelve cada sección en EditableRegion)
-}
-
-function AnimatedSections({
-  visible,
-  products,
-  storeName,
-  productList,
-}: {
-  visible: ThemeSection[];
-  products: StoreProduct[];
-  storeName: string;
-  productList: ProductListConfig;
-}) {
-  const [items, setItems] = useState<PItem[]>(() =>
-    visible.map((s) => ({ id: s.id, section: s, show: true })),
-  );
-  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  // Reconciliar al cambiar las secciones visibles (agregar / quitar / ocultar / editar).
-  useEffect(() => {
-    const visIds = new Set(visible.map((s) => s.id));
-    setItems((prev) => {
-      const prevById = new Map(prev.map((it) => [it.id, it]));
-      const next: PItem[] = visible.map((s) => ({
-        id: s.id,
-        section: s,
-        show: prevById.has(s.id) ? prevById.get(s.id)!.show : false,
-      }));
-      // Las que dejan de estar visibles y estaban a la vista: las mantenemos colapsando (show:false) en su lugar.
-      prev.forEach((it, idx) => {
-        if (!visIds.has(it.id) && it.show) {
-          next.splice(Math.min(idx, next.length), 0, { id: it.id, section: it.section, show: false });
-          if (!timers.current[it.id]) {
-            timers.current[it.id] = setTimeout(() => {
-              setItems((x) => x.filter((y) => y.id !== it.id));
-              delete timers.current[it.id];
-            }, 520);
-          }
-        }
-      });
-      return next;
-    });
-  }, [visible]);
-
-  // Disparar la entrada (show:false → true) en el frame siguiente para que transicione.
-  useEffect(() => {
-    const visIds = new Set(visible.map((s) => s.id));
-    if (items.some((it) => !it.show && visIds.has(it.id))) {
-      const raf = requestAnimationFrame(() =>
-        setItems((prev) => prev.map((it) => (visIds.has(it.id) ? { ...it, show: true } : it))),
-      );
-      return () => cancelAnimationFrame(raf);
-    }
-  }, [items, visible]);
-
-  useEffect(
-    () => () => {
-      Object.values(timers.current).forEach(clearTimeout);
-    },
-    [],
-  );
-
-  return (
-    <main>
-      {items.map((it) => (
-        <PresenceItem key={it.id} show={it.show}>
-          <EditableRegion target="section" id={it.section.id} label={SECTION_LABELS[it.section.type]}>
-            <SectionRenderer
-              section={it.section}
-              products={products}
-              storeName={storeName}
-              productList={productList}
-            />
-          </EditableRegion>
-        </PresenceItem>
-      ))}
-    </main>
-  );
 }
 
 function toEmbed(url: string): string {

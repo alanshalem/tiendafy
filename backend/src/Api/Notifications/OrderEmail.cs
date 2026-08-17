@@ -7,7 +7,6 @@ namespace Api.Notifications;
 /// El branding (logo/color/footer) lo aplica BrandedEmailSender.</summary>
 public static class OrderEmail
 {
-    private static string Money(SharedKernel.Common.Money m) => MoneyFormat.ForNotification(m);
 
     private static string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
 
@@ -34,20 +33,20 @@ public static class OrderEmail
                 sb.Append("<br/><span style='color:#8b8b8b;font-size:12px'>").Append(Enc(i.VariantDescription)).Append("</span>");
             sb.Append("<br/><span style='color:#8b8b8b;font-size:12px'>x").Append(i.Quantity).Append("</span>")
               .Append("</td><td style='padding:10px 0;text-align:right;white-space:nowrap;vertical-align:top'>")
-              .Append(Money(i.UnitPrice * i.Quantity)).Append("</td></tr>");
+              .Append(MoneyFormat.ForNotification(i.UnitPrice * i.Quantity)).Append("</td></tr>");
         }
 
         sb.Append("<tr><td></td><td style='padding:12px 0 2px;color:#8b8b8b'>Subtotal</td><td style='padding:12px 0 2px;text-align:right'>")
-          .Append(Money(o.Subtotal)).Append("</td></tr>");
+          .Append(MoneyFormat.ForNotification(o.Subtotal)).Append("</td></tr>");
         if (o.DiscountAmount.AmountInMinorUnits > 0)
             sb.Append("<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Descuento</td><td style='padding:2px 0;text-align:right'>- ")
-              .Append(Money(o.DiscountAmount)).Append("</td></tr>");
+              .Append(MoneyFormat.ForNotification(o.DiscountAmount)).Append("</td></tr>");
         if (o.ShippingCost.AmountInMinorUnits > 0)
             sb.Append("<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Envío")
               .Append(string.IsNullOrEmpty(o.ShippingMethodName) ? string.Empty : $" · {Enc(o.ShippingMethodName)}")
-              .Append("</td><td style='padding:2px 0;text-align:right'>").Append(Money(o.ShippingCost)).Append("</td></tr>");
+              .Append("</td><td style='padding:2px 0;text-align:right'>").Append(MoneyFormat.ForNotification(o.ShippingCost)).Append("</td></tr>");
         sb.Append("<tr><td></td><td style='padding:8px 0;font-weight:bold'>Total</td><td style='padding:8px 0;text-align:right;font-weight:bold'>")
-          .Append(Money(o.Total)).Append("</td></tr></table>");
+          .Append(MoneyFormat.ForNotification(o.Total)).Append("</td></tr></table>");
 
         if (!string.IsNullOrEmpty(o.ShippingAddress))
             sb.Append("<p style='color:#8b8b8b;font-size:13px;margin:10px 0 0'>Entrega: ")
@@ -65,13 +64,13 @@ public static class OrderEmail
             ["store"] = Enc(storeName),
             ["name"] = Enc(o.BuyerName),
             ["order_id"] = Enc(o.Id.ToString()),
-            ["total"] = Enc(Money(o.Total)),
+            ["total"] = Enc(MoneyFormat.ForNotification(o.Total)),
             ["items"] = ItemsTable(o, imageByVariant),
             ["email"] = Enc(o.BuyerEmail),
         };
 
     public static string Refund(Order o) =>
         $@"<h2 style='margin:0 0 12px;font-size:20px'>Tu compra fue reembolsada</h2>
-<p>Procesamos el reembolso de tu orden por {Money(o.Total)}.</p>
+<p>Procesamos el reembolso de tu orden por {MoneyFormat.ForNotification(o.Total)}.</p>
 <p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Orden {o.Id}</p>";
 }

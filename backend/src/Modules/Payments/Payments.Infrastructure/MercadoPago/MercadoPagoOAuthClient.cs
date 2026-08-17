@@ -32,36 +32,16 @@ public sealed class MercadoPagoOAuthClient(HttpClient http, IOptions<MercadoPago
     }
 
     public Task<MercadoPagoTokens> ExchangeCodeAsync(string code, CancellationToken ct = default) =>
-        PostTokenAsync(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret,
-            ["code"] = code,
-            ["redirect_uri"] = _o.RedirectUri,
-        }, ct);
+        PostTokenAsync(OAuth2.AuthorizationCodeGrant(_o.ClientId, _o.ClientSecret, code, _o.RedirectUri), ct);
 
     public Task<MercadoPagoTokens> RefreshAsync(string refreshToken, CancellationToken ct = default) =>
-        PostTokenAsync(new Dictionary<string, string>
-        {
-            ["grant_type"] = "refresh_token",
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret,
-            ["refresh_token"] = refreshToken,
-        }, ct);
+        PostTokenAsync(OAuth2.RefreshTokenGrant(_o.ClientId, _o.ClientSecret, refreshToken), ct);
 
     private async Task<MercadoPagoTokens> PostTokenAsync(Dictionary<string, string> form, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/oauth/token")
-        {
-            Content = new FormUrlEncodedContent(form),
-        };
-        request.Headers.Accept.Add(new("application/json"));
-
-        using var response = await http.SendAsync(request, ct);
-        var json = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"MercadoPago OAuth error {(int)response.StatusCode}: {json}");
+        var (status, ok, json) = await OAuth2.PostTokenAsync(http, _o.ApiBaseUrl, form, ct);
+        if (!ok)
+            throw new InvalidOperationException($"MercadoPago OAuth error {(int)status}: {json}");
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;

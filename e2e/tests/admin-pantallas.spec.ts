@@ -1,16 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const ADMIN = process.env.E2E_ADMIN_URL ?? 'http://localhost:3001';
+import { fillLogin } from './_helpers';
 
 /**
  * Una spec por pantalla crítica del admin (la UI se cubre acá, no con unit
  * tests). Usa el admin seed de dev (membresía a todas las tiendas).
  */
 async function login(page: Page) {
-  await page.goto(ADMIN);
-  await page.getByPlaceholder('Email').fill('admin@tiendafy.local');
-  await page.getByPlaceholder('Contraseña').fill('password123');
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await fillLogin(page);
   await expect(page.getByText(/Hola|Elegí una tienda/i).first()).toBeVisible({ timeout: 20_000 });
 }
 

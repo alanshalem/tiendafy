@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using SharedKernel.Common;
 
 namespace Api.Auth;
 
@@ -15,17 +16,13 @@ public sealed class OAuthStateProtector(IDataProtectionProvider provider, string
     private readonly IDataProtector _protector = provider.CreateProtector(purpose);
 
     public string Protect(Guid tenantId) =>
-        _protector.Protect($"{tenantId:N}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+        _protector.Protect(TimestampedId.Format(tenantId));
 
     public Guid? TryUnprotect(string state)
     {
         try
         {
-            var parts = _protector.Unprotect(state).Split('|');
-            if (parts.Length != 2) return null;
-            var issuedAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(parts[1]));
-            if (DateTimeOffset.UtcNow - issuedAt > MaxAge) return null;
-            return Guid.ParseExact(parts[0], "N");
+            return TimestampedId.TryParse(_protector.Unprotect(state), MaxAge);
         }
         catch
         {

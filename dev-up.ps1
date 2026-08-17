@@ -59,7 +59,6 @@ $PORTS = [ordered]@{
     'Admin'      = 3001   # vite (strictPort en vite.config.ts)
     'Storefront' = 3000   # next dev
     'Postgres'   = 5432
-    'Redis'      = 6379
     'MinIO'      = 9000
 }
 

@@ -100,46 +100,49 @@ export default async function HomePage({
   );
 }
 
-function StoreNotFound() {
+/** Pantalla de estado a viewport completo (tienda no encontrada / eliminada / suspendida). */
+function StatusScreen({ wide, children }: { wide?: boolean; children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">Tienda no encontrada</h1>
-        <p className="mt-2 text-fg-muted">No hay ninguna tienda registrada en esta dirección.</p>
-      </div>
+      <div className={wide ? 'max-w-md text-center' : 'text-center'}>{children}</div>
     </main>
+  );
+}
+
+function StoreNotFound() {
+  return (
+    <StatusScreen>
+      <h1 className="text-2xl font-bold">Tienda no encontrada</h1>
+      <p className="mt-2 text-fg-muted">No hay ninguna tienda registrada en esta dirección.</p>
+    </StatusScreen>
   );
 }
 
 function StoreDeleted({ registerUrl }: { registerUrl: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-fg/5 text-2xl">
-          🏷️
-        </div>
-        <h1 className="text-2xl font-bold">Esta tienda ha sido eliminada</h1>
-        <p className="mt-2 text-fg-muted">
-          El nombre quedó libre. Si querés reclamarlo, registrate y creá tu tienda.
-        </p>
-        <a
-          href={registerUrl}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-fg hover:opacity-90"
-        >
-          Registrate y reclamá el nombre
-        </a>
+    <StatusScreen wide>
+      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-fg/5 text-2xl">
+        🏷️
       </div>
-    </main>
+      <h1 className="text-2xl font-bold">Esta tienda ha sido eliminada</h1>
+      <p className="mt-2 text-fg-muted">
+        El nombre quedó libre. Si querés reclamarlo, registrate y creá tu tienda.
+      </p>
+      <a
+        href={registerUrl}
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-fg hover:opacity-90"
+      >
+        Registrate y reclamá el nombre
+      </a>
+    </StatusScreen>
   );
 }
 
 function StoreSuspended({ name }: { name: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">{name} está temporalmente suspendida</h1>
-        <p className="mt-2 text-fg-muted">Volvé a intentar más tarde.</p>
-      </div>
-    </main>
+    <StatusScreen>
+      <h1 className="text-2xl font-bold">{name} está temporalmente suspendida</h1>
+      <p className="mt-2 text-fg-muted">Volvé a intentar más tarde.</p>
+    </StatusScreen>
   );
 }

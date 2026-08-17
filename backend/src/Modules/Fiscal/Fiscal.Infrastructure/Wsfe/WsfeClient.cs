@@ -67,12 +67,12 @@ public sealed class WsfeClient(
             new XElement(Ar + "CbteDesde", number),
             new XElement(Ar + "CbteHasta", number),
             new XElement(Ar + "CbteFch", cbteFch.ToString("yyyyMMdd")),
-            new XElement(Ar + "ImpTotal", Dec(draft.ImpTotal)),
-            new XElement(Ar + "ImpTotConc", Dec(draft.ImpTotConc)),
-            new XElement(Ar + "ImpNeto", Dec(draft.ImpNeto)),
-            new XElement(Ar + "ImpOpEx", Dec(draft.ImpOpEx)),
-            new XElement(Ar + "ImpTrib", Dec(draft.ImpTrib)),
-            new XElement(Ar + "ImpIVA", Dec(draft.ImpIVA)),
+            new XElement(Ar + "ImpTotal", FiscalFormat.Dec(draft.ImpTotal)),
+            new XElement(Ar + "ImpTotConc", FiscalFormat.Dec(draft.ImpTotConc)),
+            new XElement(Ar + "ImpNeto", FiscalFormat.Dec(draft.ImpNeto)),
+            new XElement(Ar + "ImpOpEx", FiscalFormat.Dec(draft.ImpOpEx)),
+            new XElement(Ar + "ImpTrib", FiscalFormat.Dec(draft.ImpTrib)),
+            new XElement(Ar + "ImpIVA", FiscalFormat.Dec(draft.ImpIVA)),
             new XElement(Ar + "MonId", draft.Currency),
             new XElement(Ar + "MonCotiz", "1"),
             new XElement(Ar + "CondicionIVAReceptorId", (int)draft.Receptor.Condicion));
@@ -96,8 +96,8 @@ public sealed class WsfeClient(
             det.Add(new XElement(Ar + "Iva",
                 draft.Iva.Select(l => new XElement(Ar + "AlicIva",
                     new XElement(Ar + "Id", (int)l.Id),
-                    new XElement(Ar + "BaseImp", Dec(l.BaseImp)),
-                    new XElement(Ar + "Importe", Dec(l.Importe))))));
+                    new XElement(Ar + "BaseImp", FiscalFormat.Dec(l.BaseImp)),
+                    new XElement(Ar + "Importe", FiscalFormat.Dec(l.Importe))))));
 
         var body = new XElement(Ar + "FECAESolicitar",
             AuthElement(auth, cuit),
@@ -187,6 +187,5 @@ public sealed class WsfeClient(
                 e.Descendants().FirstOrDefault(x => x.Name.LocalName == "Msg")?.Value ?? ""))];
     }
 
-    private static string Dec(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
 
 }

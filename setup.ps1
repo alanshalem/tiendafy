@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   1. Verifica prerequisitos (Docker, .NET 10, Node 22+, pnpm)
-  2. Levanta infraestructura con Docker Compose (Postgres, PgBouncer, Redis, RabbitMQ, MinIO)
+  2. Levanta infraestructura con Docker Compose (Postgres, PgBouncer, MinIO)
   3. Instala dependencias del workspace pnpm
   4. Compila el backend y corre los tests
   5. Muestra URLs y próximos pasos
@@ -78,7 +78,7 @@ Write-Ok "pnpm $(pnpm --version)"
 
 # ---------- 2. Infraestructura Docker ----------
 if (-not $SkipDocker) {
-    Write-Step "Levantando infraestructura (Postgres, PgBouncer, Redis, RabbitMQ, MinIO)"
+    Write-Step "Levantando infraestructura (Postgres, PgBouncer, MinIO)"
     docker compose -f (Join-Path $root 'infra/docker/docker-compose.dev.yml') up -d --wait
     if ($LASTEXITCODE -ne 0) { Fail "docker compose falló. Ver logs: docker compose -f infra/docker/docker-compose.dev.yml logs" }
     Write-Ok "Servicios arriba y healthy"
@@ -127,8 +127,6 @@ Write-Host @"
   Infraestructura (Docker):
     PostgreSQL   localhost:5432  (tiendafy / tiendafy)
     PgBouncer    localhost:6432  (pool transaccional)
-    Redis        localhost:6379
-    RabbitMQ     localhost:5672  | UI: http://localhost:15672 (guest/guest)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
 
   Levantar TODO con un comando:

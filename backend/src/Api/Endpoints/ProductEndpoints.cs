@@ -241,8 +241,8 @@ public static class ProductEndpoints
             var csv = await reader.ReadToEndAsync(ct);
 
             var options = new ImportOptions(
-                ParseFormBool(form["updateExisting"], true),
-                ParseFormBool(form["updateStock"], true));
+                ProductImportEndpointHelpers.ParseFormBool(form["updateExisting"], true),
+                ProductImportEndpointHelpers.ParseFormBool(form["updateStock"], true));
             var total = ProductCsv.MapProducts(csv).Count;
 
             var job = queue.Create(tenant.TenantId.Value, csv, file.FileName, options, total);
@@ -310,7 +310,7 @@ public static class ProductEndpoints
             {
                 var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
                 if (ext == ".zip")
-                    total += await ExtractZipAsync(file, tempDir, ct);
+                    total += await ProductImportEndpointHelpers.ExtractZipAsync(file, tempDir, ct);
                 else if (ext == ".csv")
                 {
                     // CSV de mapeo (handle → archivos). El worker lo usa para asociar exacto.
@@ -319,7 +319,7 @@ public static class ProductEndpoints
                 }
                 else if (ImportMedia.ImageExtensions.Contains(ext))
                 {
-                    var dest = Path.Combine(tempDir, SafeFileName(file.FileName));
+                    var dest = Path.Combine(tempDir, ProductImportEndpointHelpers.SafeFileName(file.FileName));
                     await using var fs = File.Create(dest);
                     await file.CopyToAsync(fs, ct);
                     total++;
@@ -367,11 +367,11 @@ public static class ProductEndpoints
             CancellationToken ct,
             bool includeDescriptions = true) =>
         {
-            var all = await LoadAllProductsAsync(repository, tenant.TenantId, ct);
+            var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
 
             // Mapa id → path display ("Indumentaria > Remeras") subiendo por ParentId.
             var categories = await categoryRepository.ListAsync(tenant.TenantId, ct);
-            var paths = BuildCategoryPaths(categories);
+            var paths = ProductImportEndpointHelpers.BuildCategoryPaths(categories);
 
             var csv = ProductCsv.BuildExport(all, includeDescriptions, paths);
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
@@ -459,69 +459,6 @@ public static class ProductEndpoints
     private static IResult MultipartExpected() =>
         Results.BadRequest(new { error = "Se espera multipart/form-data." });
 
-    /// <summary>Trae TODOS los productos del tenant paginando de a 100 (para el export).</summary>
-    private static async Task<List<Product>> LoadAllProductsAsync(
-        IProductRepository repository, TenantId tenantId, CancellationToken ct)
-    {
-        var all = new List<Product>();
-        Guid? after = null;
-        while (true)
-        {
-            var page = await repository.ListAsync(tenantId, null, 100, after, ct);
-            all.AddRange(page);
-            if (page.Count < 100) break;
-            after = page[^1].Id;
-        }
-        return all;
-    }
-
-    /// <summary>Mapa id → path display ("Indumentaria > Remeras") subiendo por ParentId.</summary>
-    private static Dictionary<Guid, string> BuildCategoryPaths(IReadOnlyList<Category> categories)
-    {
-        var byId = categories.ToDictionary(c => c.Id);
-        return categories.ToDictionary(c => c.Id, c =>
-        {
-            var names = new List<string>();
-            Category? cur = c;
-            for (var guard = 0; cur is not null && guard < Category.MaxDepth + 1; guard++)
-            {
-                names.Insert(0, cur.Name);
-                cur = cur.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
-            }
-            return string.Join(" > ", names);
-        });
-    }
-
-    private static bool ParseFormBool(StringValues value, bool fallback)
-    {
-        var s = value.ToString().Trim().ToLowerInvariant();
-        if (s.Length == 0) return fallback;
-        return s is "true" or "1" or "on" or "yes" or "si";
-    }
-
-
-    /// <summary>Extrae las imágenes de un .zip al dir temporal (aplana, nombre base).</summary>
-    private static async Task<int> ExtractZipAsync(IFormFile file, string tempDir, CancellationToken ct)
-    {
-        var count = 0;
-        await using var stream = file.OpenReadStream();
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
-        foreach (var entry in archive.Entries)
-        {
-            if (string.IsNullOrEmpty(entry.Name)) continue; // carpeta
-            if (!ImportMedia.ImageExtensions.Contains(Path.GetExtension(entry.Name))) continue;
-
-            var dest = Path.Combine(tempDir, SafeFileName(entry.Name));
-            await using var es = entry.Open();
-            await using var fs = File.Create(dest);
-            await es.CopyToAsync(fs, ct);
-            count++;
-        }
-        return count;
-    }
-
-    /// <summary>Nombre de archivo seguro: solo el basename, sin componentes de path.</summary>
-    private static string SafeFileName(string name) => Path.GetFileName(name);
 }
 
 public sealed record CreateProductRequest(

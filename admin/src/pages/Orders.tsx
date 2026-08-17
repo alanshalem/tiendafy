@@ -1,10 +1,9 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, RefreshCw, Package, Truck, Undo2, FileText, Download } from 'lucide-react';
+import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api } from '../lib/api';
-import { downloadBlob } from '../lib/download';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatDate, formatMoney } from '../lib/format';
@@ -12,7 +11,8 @@ import { ORDER_STATUS } from '../lib/orderStatus';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
-import { PlainDialog } from '../components/PlainDialog';
+import { FiscalPanel } from './orders-fiscal';
+import { RefundDialog } from './orders-refund';
 
 interface OrderItem {
   variantId: string;
@@ -22,7 +22,7 @@ interface OrderItem {
   quantity: number;
   unitPrice: Money;
 }
-interface Order {
+export interface Order {
   id: string;
   status: string;
   buyerEmail: string;
@@ -48,7 +48,7 @@ interface Order {
   items: OrderItem[];
 }
 
-interface RefundRecord {
+export interface RefundRecord {
   id: string;
   amount: Money;
   isTotal: boolean;
@@ -58,7 +58,7 @@ interface RefundRecord {
   createdAtUtc: string;
 }
 
-const money = (m: Money) => formatMoney(m.amount, m.currency);
+export const money = (m: Money) => formatMoney(m.amount, m.currency);
 
 export function OrdersPage() {
   const { store } = useStore();
@@ -363,334 +363,5 @@ export function OrdersPage() {
       )}
       <HelpLink id="ventas" />
     </div>
-  );
-}
-
-interface FiscalDoc {
-  id: string;
-  cbteTipo: string;
-  ptoVta: number;
-  number: number;
-  result: string;
-  cae: string | null;
-  caeVto: string | null;
-  errors: string | null;
-}
-interface FiscalJob {
-  id: string;
-  kind: string;
-  status: string;
-  attempts: number;
-  lastError: string | null;
-}
-interface FiscalStatus {
-  documents: FiscalDoc[];
-  jobs: FiscalJob[];
-}
-
-const CBTE_LABEL: Record<string, string> = {
-  FacturaA: 'Factura A',
-  FacturaB: 'Factura B',
-  FacturaC: 'Factura C',
-  NotaCreditoA: 'NC A',
-  NotaCreditoB: 'NC B',
-  NotaCreditoC: 'NC C',
-};
-const nro = (d: FiscalDoc) => `${String(d.ptoVta).padStart(4, '0')}-${String(d.number).padStart(8, '0')}`;
-const isNc = (t: string) => t.startsWith('NotaCredito');
-
-/** Estado fiscal (ARCA) de una orden: comprobantes + jobs, con facturar/reintentar. */
-function FiscalPanel({
-  orderId,
-  orderStatus,
-  canEmit,
-}: {
-  orderId: string;
-  orderStatus: string;
-  canEmit: boolean;
-}) {
-  const { toast } = useToast();
-  const [data, setData] = useState<FiscalStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await api.get<FiscalStatus>(`/api/v1/orders/${orderId}/fiscal`));
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId]);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const invoice = data?.documents.find((d) => !isNc(d.cbteTipo) && d.result === 'Authorized');
-  const creditNote = data?.documents.find((d) => isNc(d.cbteTipo) && d.result === 'Authorized');
-  const failedJob = data?.jobs.find((j) => j.status === 'Failed');
-  const activeJob = data?.jobs.find((j) => j.status === 'Pending' || j.status === 'Processing');
-  const payable = orderStatus === 'PAID' || orderStatus === 'FULFILLED';
-
-  const emit = async () => {
-    setBusy(true);
-    try {
-      const r = await api.post<{
-        authorized: boolean;
-        cae: string | null;
-        errors?: { code: string; message: string }[];
-      }>(`/api/v1/orders/${orderId}/invoice`, {});
-      toast(
-        r.authorized
-          ? `Factura autorizada · CAE ${r.cae}`
-          : `Rechazada: ${r.errors?.[0]?.message ?? 'ver detalle'}`,
-        { variant: r.authorized ? 'success' : 'error' },
-      );
-      await load();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo facturar.', { variant: 'error' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const downloadPdf = async (kind: 'invoice' | 'creditnote') => {
-    try {
-      const blob = await api.download(
-        `/api/v1/orders/${orderId}/invoice.pdf${kind === 'creditnote' ? '?type=creditnote' : ''}`,
-      );
-      downloadBlob(blob, `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo descargar el comprobante.', { variant: 'error' });
-    }
-  };
-
-  const retry = async () => {
-    if (!failedJob) return;
-    setBusy(true);
-    try {
-      await api.post(`/api/v1/fiscal/jobs/${failedJob.id}/retry`, {});
-      toast('Reintento encolado', { variant: 'success' });
-      await load();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo reintentar.', { variant: 'error' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="mt-2 rounded-md border border-border bg-bg px-3 py-2">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-fg">
-        <FileText className="h-3.5 w-3.5" /> Facturación (ARCA)
-      </div>
-      {loading ? (
-        <div className="flex items-center gap-1.5 text-xs text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
-        </div>
-      ) : (
-        <div className="space-y-1 text-xs">
-          {invoice ? (
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-green-600">
-                {CBTE_LABEL[invoice.cbteTipo] ?? invoice.cbteTipo} {nro(invoice)} · CAE {invoice.cae}
-                {invoice.caeVto ? ` (vence ${invoice.caeVto})` : ''}
-              </span>
-              <button
-                onClick={() => downloadPdf('invoice')}
-                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted"
-              >
-                <Download className="h-3 w-3" /> PDF
-              </button>
-            </div>
-          ) : activeJob ? (
-            <div className="flex items-center gap-1.5 text-amber-600">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Facturación en proceso…
-            </div>
-          ) : failedJob ? (
-            <div className="text-red-600">
-              Falló la facturación automática{failedJob.lastError ? `: ${failedJob.lastError}` : ''}
-            </div>
-          ) : (
-            <div className="text-fg-muted">Sin factura para esta orden.</div>
-          )}
-          {creditNote && (
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-blue-600">
-                {CBTE_LABEL[creditNote.cbteTipo] ?? creditNote.cbteTipo} {nro(creditNote)} · CAE{' '}
-                {creditNote.cae}
-              </span>
-              <button
-                onClick={() => downloadPdf('creditnote')}
-                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted"
-              >
-                <Download className="h-3 w-3" /> PDF
-              </button>
-            </div>
-          )}
-          {canEmit && !invoice && payable && (
-            <button
-              onClick={emit}
-              disabled={busy}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}{' '}
-              Facturar ahora
-            </button>
-          )}
-          {canEmit && failedJob && !invoice && (
-            <button
-              onClick={retry}
-              disabled={busy}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
-            >
-              {busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}{' '}
-              Reintentar
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Modal de reembolso: total o parcial con monto y motivo, más historial. */
-function RefundDialog({
-  order,
-  busy,
-  onClose,
-  onSubmit,
-}: {
-  order: Order;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (amount: number | null, reason: string) => void;
-}) {
-  const refundable = order.refundable?.amount ?? order.total.amount;
-  const [mode, setMode] = useState<'total' | 'partial'>('total');
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
-  const [history, setHistory] = useState<RefundRecord[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    api
-      .get<{ items: RefundRecord[] }>(`/api/v1/orders/${order.id}/refunds`)
-      .then((d) => {
-        if (alive) setHistory(d.items ?? []);
-      })
-      .catch(() => {
-        if (alive) setHistory([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [order.id]);
-
-  const parsed = Number(amount.replace(',', '.'));
-  const amountValid = mode === 'total' || (Number.isFinite(parsed) && parsed > 0 && parsed <= refundable);
-
-  return (
-    <PlainDialog onClose={onClose}>
-      <h2 className="text-lg font-bold text-fg">Reembolsar pedido</h2>
-      <p className="mt-0.5 text-sm text-fg-muted">
-        {order.buyerEmail} · disponible {formatMoney(refundable, order.currency)}
-      </p>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('total')}
-          className={cn(
-            'rounded-md border px-3 py-2 text-sm font-medium',
-            mode === 'total'
-              ? 'border-primary bg-primary/[0.06] text-primary'
-              : 'border-border text-fg hover:bg-bg-muted',
-          )}
-        >
-          Total ({formatMoney(refundable, order.currency)})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('partial')}
-          className={cn(
-            'rounded-md border px-3 py-2 text-sm font-medium',
-            mode === 'partial'
-              ? 'border-primary bg-primary/[0.06] text-primary'
-              : 'border-border text-fg hover:bg-bg-muted',
-          )}
-        >
-          Parcial
-        </button>
-      </div>
-
-      {mode === 'partial' && (
-        <div className="mt-3">
-          <label className="mb-1 block text-sm font-medium text-fg">Monto a reembolsar</label>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            inputMode="decimal"
-            placeholder={`Hasta ${formatMoney(refundable, order.currency)}`}
-            className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {amount && !amountValid && (
-            <p className="mt-1 text-xs text-red-600">
-              Ingresá un monto mayor a 0 y hasta {formatMoney(refundable, order.currency)}.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3">
-        <label className="mb-1 block text-sm font-medium text-fg">Motivo (opcional)</label>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          maxLength={500}
-          placeholder="Ej: producto dañado, arrepentimiento…"
-          className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-
-      {history && history.length > 0 && (
-        <div className="mt-4 rounded-md border border-border bg-bg-muted/40 p-3">
-          <div className="mb-1.5 text-xs font-semibold text-fg">Reembolsos anteriores</div>
-          <div className="space-y-1">
-            {history.map((r) => (
-              <div key={r.id} className="flex justify-between text-xs text-fg-muted">
-                <span>
-                  {formatDate(r.createdAtUtc)} · {r.requestedBy}
-                  {r.reason ? ` · ${r.reason}` : ''}
-                </span>
-                <span className="tabular-nums font-medium text-fg">{money(r.amount)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium text-fg hover:bg-bg-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={() => onSubmit(mode === 'total' ? null : parsed, reason)}
-          disabled={busy || !amountValid}
-          className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} Reembolsar
-        </button>
-      </div>
-    </PlainDialog>
   );
 }

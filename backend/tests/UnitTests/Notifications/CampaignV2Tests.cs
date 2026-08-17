@@ -188,9 +188,9 @@ public class SvixVerificationTests
         var sig = Convert.ToBase64String(hmac.ComputeHash(
             System.Text.Encoding.UTF8.GetBytes($"{id}.{ts}.{payload}")));
 
-        Assert.True(CampaignEndpoints.VerifySvix(secret, id, ts, $"v1,{sig}", payload));
-        Assert.False(CampaignEndpoints.VerifySvix(secret, id, ts, $"v1,{sig}", payload + "x"));
-        Assert.False(CampaignEndpoints.VerifySvix(secret, id, ts, "v1,AAAA", payload));
-        Assert.False(CampaignEndpoints.VerifySvix(secret, null, ts, $"v1,{sig}", payload));
+        Assert.True(ResendWebhook.VerifySvix(secret, id, ts, $"v1,{sig}", payload));
+        Assert.False(ResendWebhook.VerifySvix(secret, id, ts, $"v1,{sig}", payload + "x"));
+        Assert.False(ResendWebhook.VerifySvix(secret, id, ts, "v1,AAAA", payload));
+        Assert.False(ResendWebhook.VerifySvix(secret, null, ts, $"v1,{sig}", payload));
     }
 }

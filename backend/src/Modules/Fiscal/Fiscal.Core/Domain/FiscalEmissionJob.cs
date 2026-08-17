@@ -1,3 +1,4 @@
+using SharedKernel.Common;
 namespace Fiscal.Core.Domain;
 
 /// <summary>Qué comprobante hay que emitir para el job.</summary>
@@ -84,7 +85,7 @@ public sealed class FiscalEmissionJob
     public void Reschedule(string error, DateTime nextAttemptUtc)
     {
         Status = FiscalJobStatus.Pending;
-        LastError = Truncate(error);
+        LastError = Text.Cap(error, 1000);
         NextAttemptUtc = nextAttemptUtc;
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -93,7 +94,7 @@ public sealed class FiscalEmissionJob
     public void MarkFailed(string error)
     {
         Status = FiscalJobStatus.Failed;
-        LastError = Truncate(error);
+        LastError = Text.Cap(error, 1000);
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
@@ -105,5 +106,4 @@ public sealed class FiscalEmissionJob
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private static string Truncate(string s) => s.Length <= 1000 ? s : s[..1000];
 }

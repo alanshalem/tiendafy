@@ -39,7 +39,13 @@ import {
   Users,
   Warehouse,
 } from 'lucide-react';
-import { HELP_CONTENT, type HelpArticle, type HelpBlock } from '../config/helpContent';
+import {
+  HELP_CONTENT,
+  type HelpArticle,
+  type HelpBlock,
+  HELP_CATEGORIES,
+  type HelpCategory,
+} from '../config/helpContent';
 import type { HelpLinkId } from '../config/features';
 import { HelpDemo } from '../components/HelpDemos';
 
@@ -76,18 +82,9 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   ajustesAvanzados: SlidersHorizontal,
 };
 
-const CATEGORY_ORDER = [
-  'Empezar',
-  'Ventas y pagos',
-  'Legal y facturación',
-  'Envíos',
-  'Catálogo',
-  'Clientes y comunicación',
-  'Tu tienda online',
-  'Equipo',
-];
+const CATEGORY_ORDER = HELP_CATEGORIES;
 
-const CATEGORY_ICONS: Record<string, typeof BookOpen> = {
+const CATEGORY_ICONS: Record<HelpCategory, typeof BookOpen> = {
   Empezar: Rocket,
   'Ventas y pagos': CreditCard,
   'Legal y facturación': Scale,
@@ -105,7 +102,7 @@ const slug = (s: string) =>
   s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-');
 
 function TopicIcon({ id, className }: { id: HelpLinkId; className?: string }) {
@@ -136,6 +133,16 @@ function HelpShell({ children, width = 'max-w-2xl' }: { children: ReactNode; wid
 // ---------------------------------------------------------------- Búsqueda
 
 /** Texto plano de un bloque, para que la búsqueda también lo encuentre. */
+/** Todos los textos de las secciones (headings, párrafos, pasos, bloques). */
+function sectionTexts(article: HelpArticle): string[] {
+  return article.sections.flatMap((s) => [
+    s.heading,
+    ...(s.paragraphs ?? []),
+    ...(s.steps ?? []),
+    ...(s.blocks ?? []).map(blockText),
+  ]);
+}
+
 function blockText(b: HelpBlock): string {
   switch (b.type) {
     case 'callout':
@@ -157,18 +164,7 @@ function blockText(b: HelpBlock): string {
 function matches(article: HelpArticle, q: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
-  const haystack = [
-    article.title,
-    article.intro,
-    ...article.sections.flatMap((s) => [
-      s.heading,
-      ...(s.paragraphs ?? []),
-      ...(s.steps ?? []),
-      ...(s.blocks ?? []).map(blockText),
-    ]),
-  ]
-    .join(' ')
-    .toLowerCase();
+  const haystack = [article.title, article.intro, ...sectionTexts(article)].join(' ').toLowerCase();
   return needle.split(/\s+/).every((word) => haystack.includes(word));
 }
 
@@ -304,17 +300,7 @@ function BlockView({ block }: { block: HelpBlock }) {
 
 /** Minutos de lectura estimados (200 palabras/min, mínimo 1). */
 function readingMinutes(article: HelpArticle): number {
-  const words = [
-    article.intro,
-    ...article.sections.flatMap((s) => [
-      s.heading,
-      ...(s.paragraphs ?? []),
-      ...(s.steps ?? []),
-      ...(s.blocks ?? []).map(blockText),
-    ]),
-  ]
-    .join(' ')
-    .split(/\s+/).length;
+  const words = [article.intro, ...sectionTexts(article)].join(' ').split(/\s+/).length;
   return Math.max(1, Math.round(words / 200));
 }
 

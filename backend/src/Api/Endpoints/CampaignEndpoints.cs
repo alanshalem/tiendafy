@@ -270,9 +270,9 @@ public static class CampaignEndpoints
         {
             var payload = token is null ? null : UnsubscribeToken.Unprotect(dp, token);
             if (payload is null)
-                return Results.Content(Page("Link inválido",
+                return Results.Content(PublicPage.Render("Link inválido",
                     "<p>El link de baja no es válido o está incompleto.</p>"), "text/html");
-            return Results.Content(Page("Dejar de recibir novedades", $"""
+            return Results.Content(PublicPage.Render("Dejar de recibir novedades", $"""
                 <p>¿Querés dejar de recibir emails de novedades y promociones de esta tienda?</p>
                 <p style="color:#71717a;font-size:14px">Los emails de tus compras (confirmaciones, envíos) van a seguir llegando normalmente.</p>
                 <form method="post" action="/api/v1/marketing/unsubscribe?token={Uri.EscapeDataString(token!)}">
@@ -286,7 +286,7 @@ public static class CampaignEndpoints
         {
             var payload = token is null ? null : UnsubscribeToken.Unprotect(dp, token);
             if (payload is null)
-                return Results.Content(Page("Link inválido",
+                return Results.Content(PublicPage.Render("Link inválido",
                     "<p>El link de baja no es válido o está incompleto.</p>"), "text/html");
 
             var exists = await db.EmailSuppressions
@@ -297,7 +297,7 @@ public static class CampaignEndpoints
                     payload.TenantId, payload.Email, "unsubscribe", payload.CampaignId));
                 await db.SaveChangesAsync(ct);
             }
-            return Results.Content(Page("Listo",
+            return Results.Content(PublicPage.Render("Listo",
                 "<p>No vas a recibir más emails de novedades de esta tienda.</p>"), "text/html");
         });
 
@@ -354,7 +354,7 @@ public static class CampaignEndpoints
 
             using var reader = new StreamReader(http.Body);
             var body = await reader.ReadToEndAsync(ct);
-            if (!VerifySvix(secret, http.Headers["svix-id"], http.Headers["svix-timestamp"],
+            if (!ResendWebhook.VerifySvix(secret, http.Headers["svix-id"], http.Headers["svix-timestamp"],
                     http.Headers["svix-signature"], body))
                 return Results.Unauthorized();
 
@@ -365,7 +365,7 @@ public static class CampaignEndpoints
                 if (type is not ("email.bounced" or "email.complained")) return Results.Ok();
 
                 var data = doc.RootElement.GetProperty("data");
-                var tenantId = ExtractTenantTag(data);
+                var tenantId = ResendWebhook.ExtractTenantTag(data);
                 if (tenantId is null) return Results.Ok(); // email viejo sin tag: no se puede atribuir
 
                 var reason = type == "email.bounced" ? "bounce" : "complaint";
@@ -397,37 +397,6 @@ public static class CampaignEndpoints
     }
 
     // ---------------------------------------------------------------- Helpers
-
-    /// <summary>Verificación de firma svix: HMAC-SHA256 de "{id}.{timestamp}.{payload}".</summary>
-    public static bool VerifySvix(string secret, string? id, string? timestamp, string? signatureHeader, string payload)
-    {
-        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(timestamp) || string.IsNullOrEmpty(signatureHeader))
-            return false;
-        var key = Convert.FromBase64String(secret.StartsWith("whsec_", StringComparison.Ordinal) ? secret[6..] : secret);
-        using var hmac = new HMACSHA256(key);
-        var expected = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes($"{id}.{timestamp}.{payload}")));
-        // Header: "v1,<base64> v1,<base64> ..." — alcanza con que una coincida.
-        return signatureHeader.Split(' ')
-            .Select(part => part.Split(',', 2))
-            .Any(parts => parts.Length == 2 && parts[0] == "v1"
-                && CryptographicOperations.FixedTimeEquals(
-                    Encoding.UTF8.GetBytes(parts[1]), Encoding.UTF8.GetBytes(expected)));
-    }
-
-    /// <summary>El tag "tenant" del envío (objeto o array, según versión del payload).</summary>
-    private static Guid? ExtractTenantTag(JsonElement data)
-    {
-        if (!data.TryGetProperty("tags", out var tags)) return null;
-        string? value = null;
-        if (tags.ValueKind == JsonValueKind.Object && tags.TryGetProperty("tenant", out var v))
-            value = v.GetString();
-        else if (tags.ValueKind == JsonValueKind.Array)
-            foreach (var tag in tags.EnumerateArray())
-                if (tag.TryGetProperty("name", out var n) && n.GetString() == "tenant"
-                    && tag.TryGetProperty("value", out var val))
-                    value = val.GetString();
-        return Guid.TryParse(value, out var g) ? g : null;
-    }
 
     private static string? SpecJson(CampaignRequest req) =>
         new AudienceSpec(req.Audience ?? "buyers", req.MinSpentMinor, req.MinOrders,
@@ -467,17 +436,6 @@ public static class CampaignEndpoints
         c.SentAtUtc,
     };
 
-    private static string Page(string title, string bodyHtml) => $"""
-        <!DOCTYPE html>
-        <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>{title}</title></head>
-        <body style="margin:0;background:#fafafa;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#18181b">
-          <div style="max-width:440px;margin:80px auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:32px;text-align:center">
-            <h1 style="font-size:20px;margin:0 0 12px">{title}</h1>
-            {bodyHtml}
-          </div>
-        </body></html>
-        """;
 }
 
 public sealed record CampaignRequest(

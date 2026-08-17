@@ -153,7 +153,7 @@ public sealed class ComprobantePdfRenderer : IComprobantePdfRenderer
             ptoVta = d.PtoVta,
             tipoCmp = d.TipoCmp,
             nroCmp = d.Number,
-            importe = decimal.Parse(Dec(d.ImpTotal), CultureInfo.InvariantCulture),
+            importe = decimal.Parse(FiscalFormat.Dec(d.ImpTotal), CultureInfo.InvariantCulture),
             moneda = d.Currency,
             ctz = 1,
             tipoDocRec = d.TipoDocRec,
@@ -176,7 +176,6 @@ public sealed class ComprobantePdfRenderer : IComprobantePdfRenderer
         return $"{s[..2]}-{s.Substring(2, 8)}-{s[10..]}";
     }
 
-    private static string Dec(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
     private static string Money(decimal v, string currency) =>
         (currency == "PES" ? "$ " : currency + " ") + v.ToString("N2", CultureInfo.GetCultureInfo("es-AR"));
 }

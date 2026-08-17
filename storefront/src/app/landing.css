@@ -82,11 +82,6 @@ html[data-ld-mode='dark'] .ld-root .ld-header {
   position: relative;
 }
 
-/* Grano desactivado (estética Apple = superficies limpias). */
-.ld-root::before {
-  content: none;
-}
-
 .ld-root > * {
   position: relative;
   z-index: 2;

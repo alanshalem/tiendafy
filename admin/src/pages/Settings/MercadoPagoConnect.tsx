@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BadgeCheck, ChevronDown, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
+import { Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
+import { BadgeCheck } from 'lucide-react';
+import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -131,18 +133,12 @@ export function MercadoPagoConnect() {
             Cobrá con tarjeta, dinero en cuenta, Rapipago y más. La plata va directo a tu cuenta.
           </p>
         </div>
-        {conn?.connected && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
-            <BadgeCheck className="h-4 w-4" /> Conectada
-          </span>
-        )}
+        {conn?.connected && <ConnectedBadge />}
       </div>
 
       <div className="p-5">
         {loading ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando estado de la conexión…
-          </div>
+          <ConnectionLoading />
         ) : conn?.connected ? (
           <ConnectedView
             conn={conn}

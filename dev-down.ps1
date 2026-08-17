@@ -3,7 +3,7 @@
 .SYNOPSIS
     Para el entorno de desarrollo de Tiendafy.
 .PARAMETER KeepInfra
-    No frena los contenedores Docker (Postgres/Redis/etc), solo API + frontends.
+    No frena los contenedores Docker (Postgres/MinIO/etc), solo API + frontends.
 .PARAMETER Docker
     Baja el stack full-docker (lo que levanta `dev-up.ps1 -Docker`): infra + API +
     storefront + admin en contenedores.

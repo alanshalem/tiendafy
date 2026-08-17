@@ -15,7 +15,6 @@ public sealed class WhatsAppNotifier(
     WhatsAppTokenProtector protector,
     ILogger<WhatsAppNotifier> logger)
 {
-    private static string Money(SharedKernel.Common.Money m) => MoneyFormat.ForNotification(m);
 
     public async Task NotifyAsync(Order order, string type, CancellationToken ct = default)
     {
@@ -39,7 +38,7 @@ public sealed class WhatsAppNotifier(
             {
                 "confirmacion-envio" => [name, shortId, string.IsNullOrWhiteSpace(order.Tracking) ? "a coordinar" : order.Tracking!],
                 "lista-para-retirar" => [name, shortId],
-                _ => [name, shortId, Money(order.Total)],
+                _ => [name, shortId, MoneyFormat.ForNotification(order.Total)],
             };
 
             await sender.SendTemplateAsync(

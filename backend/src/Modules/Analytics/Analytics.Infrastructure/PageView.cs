@@ -1,3 +1,5 @@
+using SharedKernel.Common;
+
 namespace Analytics.Infrastructure;
 
 /// <summary>
@@ -21,12 +23,11 @@ public sealed class PageView
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            Path = Trunc(string.IsNullOrWhiteSpace(path) ? "/" : path!, 512),
-            Referrer = string.IsNullOrWhiteSpace(referrer) ? null : Trunc(referrer!, 512),
-            VisitorId = Trunc(visitorId ?? "", 64),
-            SessionId = Trunc(sessionId ?? "", 64),
+            Path = Text.Cap(string.IsNullOrWhiteSpace(path) ? "/" : path!, 512),
+            Referrer = string.IsNullOrWhiteSpace(referrer) ? null : Text.Cap(referrer!, 512),
+            VisitorId = Text.Cap(visitorId ?? "", 64),
+            SessionId = Text.Cap(sessionId ?? "", 64),
             OccurredAtUtc = DateTime.UtcNow,
         };
 
-    private static string Trunc(string s, int max) => s.Length <= max ? s : s[..max];
 }

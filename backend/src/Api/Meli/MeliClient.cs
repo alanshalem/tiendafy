@@ -30,51 +30,29 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
 
     public string BuildAuthorizationUrl(string state)
     {
-        var query = new Dictionary<string, string>
+        return OAuth2.BuildAuthorizationUrl(_o.AuthBaseUrl, new Dictionary<string, string>
         {
             ["response_type"] = "code",
             ["client_id"] = _o.ClientId,
             ["redirect_uri"] = _o.RedirectUri,
             ["state"] = state,
-        };
-        var qs = string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
-        return $"{_o.AuthBaseUrl.TrimEnd('/')}/authorization?{qs}";
+        });
     }
 
     public Task<MeliTokens> ExchangeCodeAsync(string code, CancellationToken ct) =>
-        PostTokenAsync(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret,
-            ["code"] = code,
-            ["redirect_uri"] = _o.RedirectUri,
-        }, ct);
+        PostTokenAsync(OAuth2.AuthorizationCodeGrant(_o.ClientId, _o.ClientSecret, code, _o.RedirectUri), ct);
 
     public Task<MeliTokens> RefreshAsync(string refreshToken, CancellationToken ct) =>
-        PostTokenAsync(new Dictionary<string, string>
-        {
-            ["grant_type"] = "refresh_token",
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret,
-            ["refresh_token"] = refreshToken,
-        }, ct);
+        PostTokenAsync(OAuth2.RefreshTokenGrant(_o.ClientId, _o.ClientSecret, refreshToken), ct);
 
     private async Task<MeliTokens> PostTokenAsync(Dictionary<string, string> form, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_o.ApiBaseUrl.TrimEnd('/')}/oauth/token")
-        {
-            Content = new FormUrlEncodedContent(form),
-        };
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-        using var response = await http.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
+        var (status, ok, body) = await OAuth2.PostTokenAsync(http, _o.ApiBaseUrl, form, ct);
+        if (!ok)
         {
             logger.LogWarning("Mercado Libre OAuth devolvió {Status}: {Body}",
-                (int)response.StatusCode, Logging.LogValue.Safe(body, 300));
-            throw new MeliException(ExtractMessage(body, response.StatusCode), response.StatusCode);
+                (int)status, Logging.LogValue.Safe(body, 300));
+            throw new MeliException(ExtractMessage(body, status), status);
         }
 
         using var doc = JsonDocument.Parse(body);

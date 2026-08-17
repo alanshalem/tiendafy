@@ -234,7 +234,7 @@ public static class ZipnovaEndpoints
                 width = Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, ZipnovaConfig.MaxSideCm),
                 length = Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, ZipnovaConfig.MaxSideCm),
                 classification_id = "1",
-                description_1 = Truncate($"Pedido {externalId}", 60),
+                description_1 = Text.Cap($"Pedido {externalId}", 60),
             };
 
             var payload = new Dictionary<string, object?>
@@ -247,16 +247,16 @@ public static class ZipnovaEndpoints
                 ["source"] = "tiendafy",
                 ["destination"] = new
                 {
-                    name = Truncate(req.Name.Trim(), 100),
-                    document = Truncate(req.Document.Trim(), 20),
-                    email = Truncate(req.Email.Trim(), 150),
-                    phone = Truncate(req.Phone.Trim(), 40),
-                    street = Truncate(req.Street.Trim(), 100),
-                    street_number = Truncate(req.StreetNumber.Trim(), 20),
-                    street_extras = string.IsNullOrWhiteSpace(req.StreetExtras) ? null : Truncate(req.StreetExtras.Trim(), 120),
-                    city = Truncate(req.City.Trim(), 80),
-                    state = Truncate(req.State.Trim(), 80),
-                    zipcode = Truncate(NumericZip(req.Zipcode.Trim()), 10),
+                    name = Text.Cap(req.Name.Trim(), 100),
+                    document = Text.Cap(req.Document.Trim(), 20),
+                    email = Text.Cap(req.Email.Trim(), 150),
+                    phone = Text.Cap(req.Phone.Trim(), 40),
+                    street = Text.Cap(req.Street.Trim(), 100),
+                    street_number = Text.Cap(req.StreetNumber.Trim(), 20),
+                    street_extras = string.IsNullOrWhiteSpace(req.StreetExtras) ? null : Text.Cap(req.StreetExtras.Trim(), 120),
+                    city = Text.Cap(req.City.Trim(), 80),
+                    state = Text.Cap(req.State.Trim(), 80),
+                    zipcode = Text.Cap(NumericZip(req.Zipcode.Trim()), 10),
                 },
                 ["packages"] = Enumerable.Repeat(package, units).ToArray(),
             };
@@ -373,9 +373,6 @@ public static class ZipnovaEndpoints
             defaultHeightCm = c.DefaultHeightCm,
             active = c.Active,
         };
-
-    private static string Truncate(string v, int max) => v.Length <= max ? v : v[..max];
-
     /// <summary>
     /// Soporte de Zipnova recomienda mandar SOLO la parte numérica del código
     /// postal (un CPA "C1414BAI" geolocaliza mal): se extraen los dígitos y,

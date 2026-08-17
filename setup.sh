@@ -51,7 +51,7 @@ ok "pnpm $(pnpm --version)"
 
 # ---------- 2. Infraestructura Docker ----------
 if [[ "$SKIP_DOCKER" == false ]]; then
-  step "Levantando infraestructura (Postgres, PgBouncer, Redis, RabbitMQ, MinIO)"
+  step "Levantando infraestructura (Postgres, PgBouncer, MinIO)"
   docker compose -f "$ROOT/infra/docker/docker-compose.dev.yml" up -d --wait \
     || fail "docker compose falló. Ver logs: docker compose -f infra/docker/docker-compose.dev.yml logs"
   ok "Servicios arriba y healthy"
@@ -86,15 +86,12 @@ cat <<'EOF'
   Infraestructura (Docker):
     PostgreSQL   localhost:5432  (tiendafy / tiendafy)
     PgBouncer    localhost:6432  (pool transaccional)
-    Redis        localhost:6379
-    RabbitMQ     localhost:5672  | UI: http://localhost:15672 (guest/guest)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
 
-  Para desarrollar:
-    Backend API     (pendiente de scaffold: src/Api)
-    Backend Worker  (pendiente de scaffold: src/Worker)
-    Storefront      cd storefront && pnpm dev   -> http://localhost:3000  (pendiente de scaffold)
-    Admin           cd admin && pnpm dev        -> http://localhost:3001  (pendiente de scaffold)
+  Para desarrollar (Windows: usar dev-up.ps1; Linux/WSL: a mano):
+    Backend API     cd backend/src/Api && dotnet run   -> http://localhost:5080  (Swagger: /scalar)
+    Storefront      cd storefront && pnpm dev          -> http://localhost:3000
+    Admin           cd admin && pnpm dev               -> http://localhost:3001
 
   Tests backend:    dotnet test backend/backend.slnx
   Type-check FE:    pnpm --filter "./shared/**" run type-check

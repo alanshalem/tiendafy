@@ -1,6 +1,7 @@
 import { StorefrontPageShell } from '@/lib/storefront-page';
 import { apiGetTenant } from '@/lib/api';
 import type { LegalDoc } from '@/lib/legal';
+import { CmsBody } from './CmsBody';
 
 interface PageDto {
   title: string;
@@ -41,16 +42,7 @@ export function LegalPage({
         return (
           <main className="mx-auto max-w-3xl px-4 py-10">
             {custom ? (
-              <>
-                <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-                  {custom.title}
-                </h1>
-                {/* El body CMS ya viene sanitizado del backend (HtmlSanitizer al guardar). */}
-                <div
-                  className="prose mt-6 max-w-none opacity-80"
-                  dangerouslySetInnerHTML={{ __html: custom.body }}
-                />
-              </>
+              <CmsBody title={custom.title} html={custom.body} />
             ) : doc ? (
               <>
                 <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>

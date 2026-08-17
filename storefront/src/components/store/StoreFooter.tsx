@@ -1,0 +1,134 @@
+'use client';
+
+import Link from 'next/link';
+import { Icon } from './Icon';
+import { type ThemeConfig } from '@/lib/theme';
+
+export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
+  const footer = theme.footer;
+  return (
+    <footer className="mt-8 border-t border-black/10">
+      <div className="mx-auto max-w-container px-4 py-10">
+        {footer.text && <p className="mx-auto max-w-xl text-center text-sm opacity-70">{footer.text}</p>}
+        {footer.showSocial && (footer.instagram || footer.facebook) && (
+          <div className="mt-4 flex justify-center gap-4 text-sm">
+            {footer.instagram && (
+              <a
+                href={footer.instagram}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"
+              >
+                <InstagramIcon /> Instagram
+              </a>
+            )}
+            {footer.facebook && (
+              <a
+                href={footer.facebook}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"
+              >
+                <FacebookIcon /> Facebook
+              </a>
+            )}
+          </div>
+        )}
+        {[...footer.whatsapps, ...footer.addresses, ...footer.phones, ...footer.emails].some(Boolean) && (
+          <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm opacity-75">
+            {footer.whatsapps.filter(Boolean).map((w, i) => (
+              <a
+                key={`w${i}`}
+                href={`https://wa.me/${w.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
+                <Icon name="chat" className="h-4 w-4" /> {w}
+              </a>
+            ))}
+            {footer.phones.filter(Boolean).map((p, i) => (
+              <a
+                key={`p${i}`}
+                href={`tel:${p.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
+                <Icon name="phone" className="h-4 w-4" /> {p}
+              </a>
+            ))}
+            {footer.emails.filter(Boolean).map((e, i) => (
+              <a
+                key={`e${i}`}
+                href={`mailto:${e}`}
+                className="inline-flex items-center gap-1.5 hover:opacity-100"
+              >
+                <Icon name="mail" className="h-4 w-4" /> {e}
+              </a>
+            ))}
+            {footer.addresses.filter(Boolean).map((a, i) => (
+              <span key={`a${i}`} className="inline-flex items-center gap-1.5">
+                <Icon name="mapPin" className="h-4 w-4" /> {a}
+              </span>
+            ))}
+          </div>
+        )}
+        {footer.showPaymentLogos && footer.paymentLogos.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+            {footer.paymentLogos.map((slug) => (
+              <img
+                key={slug}
+                src={`/payment-logos/${slug}.svg`}
+                alt=""
+                className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"
+              />
+            ))}
+          </div>
+        )}
+        {/* Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res. 424/2020). */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs opacity-60">
+          <Link href="/terminos" className="hover:underline">
+            Términos y condiciones
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/privacidad" className="hover:underline">
+            Privacidad
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/arrepentimiento" className="font-semibold hover:underline">
+            Botón de arrepentimiento
+          </Link>
+        </div>
+        <div className="mt-3 text-center text-xs opacity-50">© {tenantName}</div>
+      </div>
+    </footer>
+  );
+}
+
+// lucide-react quitó los iconos de marca; SVGs propios (heredan currentColor).
+function InstagramIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <path d="M14 9h3l.4-3H14V4.5c0-.8.3-1.5 1.5-1.5H17.5V.2C17.1.1 16 0 14.9 0 12.5 0 11 1.4 11 4v2H8v3h3v9h3V9z" />
+    </svg>
+  );
+}

@@ -12,7 +12,6 @@ const cssVar = (name) => `rgb(var(${name}) / <alpha-value>)`;
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [],
   theme: {
     extend: {
       colors: {

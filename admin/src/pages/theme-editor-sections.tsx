@@ -1,11 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { GripVertical, ChevronUp, ChevronDown, ChevronRight, Eye, EyeOff, X, Plus } from 'lucide-react';
 import { cn, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, type ThemeSection, type SectionType } from '@tiendafy/types';
 import { useFlipList } from '../lib/useFlip';
-import { api } from '../lib/api';
-import { Field, Check, TextInput, TextArea, Select, BackHeader, INPUT_BASE } from './theme-editor-inputs';
+import { Field, Check, TextInput, TextArea, Select, BackHeader } from './theme-editor-inputs';
 import { ImageUploader, VideoUploader, MultiImageUploader } from './theme-editor-uploaders';
+import { InfoBarEditor, ProductPicker, type InfoItem } from './theme-editor-pickers';
+
+/** Cast defensivo: la data del theme puede venir sin el array (drafts viejos). */
+const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
 const sectionMeta: Record<string, string> = {
   'hero-video': 'Hero con video',
@@ -524,10 +527,7 @@ function CarouselEditor({ d, set }: SectionEditorProps) {
         label="Imágenes del carrusel"
         hint="Tamaño recomendado: 1580×600px. Podés cargar varias; se pasan solas."
       >
-        <MultiImageUploader
-          images={(Array.isArray(d.images) ? d.images : []) as string[]}
-          onChange={(images) => set({ images })}
-        />
+        <MultiImageUploader images={arr<string>(d.images)} onChange={(images) => set({ images })} />
       </Field>
       <Check
         label="Extender al alto de la pantalla en celulares"
@@ -554,10 +554,7 @@ function ProductsEditor({ section, d, set, str }: SectionEditorProps) {
         />
       </Field>
       <Field label="Productos a mostrar">
-        <ProductPicker
-          value={(Array.isArray(d.productIds) ? d.productIds : []) as string[]}
-          onChange={(productIds) => set({ productIds })}
-        />
+        <ProductPicker value={arr<string>(d.productIds)} onChange={(productIds) => set({ productIds })} />
       </Field>
     </>
   );
@@ -617,7 +614,7 @@ function PromoBannersEditor({ d, set }: SectionEditorProps) {
         onChange={(v) => set({ fullWidth: v })}
       />
       <BannersEditor
-        banners={(Array.isArray(d.banners) ? d.banners : []) as Banner[]}
+        banners={arr<Banner>(d.banners)}
         onChange={(banners) => set({ banners })}
         withDescription
         imageHint="Tamaño recomendado: 620×235px"
@@ -636,7 +633,7 @@ function CategoryBannersEditor({ d, set }: SectionEditorProps) {
         onChange={(v) => set({ fullWidth: v })}
       />
       <BannersEditor
-        banners={(Array.isArray(d.banners) ? d.banners : []) as Banner[]}
+        banners={arr<Banner>(d.banners)}
         onChange={(banners) => set({ banners })}
         imageHint="Tamaño recomendado: 620×620px"
         addLabel="Agregar categoría"
@@ -677,12 +674,7 @@ function InstagramEditor({ set, str }: SectionEditorProps) {
 }
 
 function InfoBarEditorPanel({ d, set }: SectionEditorProps) {
-  return (
-    <InfoBarEditor
-      items={(Array.isArray(d.items) ? d.items : []) as InfoItem[]}
-      onChange={(items) => set({ items })}
-    />
-  );
+  return <InfoBarEditor items={arr<InfoItem>(d.items)} onChange={(items) => set({ items })} />;
 }
 
 interface TestimonialItem {
@@ -692,7 +684,7 @@ interface TestimonialItem {
   photo?: string;
 }
 function TestimonialsEditor({ d, set, str }: SectionEditorProps) {
-  const items = (Array.isArray(d.items) ? d.items : []) as TestimonialItem[];
+  const items = arr<TestimonialItem>(d.items);
   const update = (i: number, patch: TestimonialItem) =>
     set({ items: items.map((t, idx) => (idx === i ? { ...t, ...patch } : t)) });
   return (
@@ -754,7 +746,7 @@ interface FaqItemData {
   answer?: string;
 }
 function FaqEditor({ d, set, str }: SectionEditorProps) {
-  const items = (Array.isArray(d.items) ? d.items : []) as FaqItemData[];
+  const items = arr<FaqItemData>(d.items);
   const update = (i: number, patch: FaqItemData) =>
     set({ items: items.map((f, idx) => (idx === i ? { ...f, ...patch } : f)) });
   return (
@@ -816,10 +808,7 @@ function BrandsEditor({ d, set, str }: SectionEditorProps) {
         label="Logos de marcas"
         hint="PNG con fondo transparente, apaisados. Con 5 o más se deslizan solos en loop; con menos quedan fijos y centrados."
       >
-        <MultiImageUploader
-          images={(Array.isArray(d.images) ? d.images : []) as string[]}
-          onChange={(images) => set({ images })}
-        />
+        <MultiImageUploader images={arr<string>(d.images)} onChange={(images) => set({ images })} />
       </Field>
     </>
   );
@@ -927,210 +916,6 @@ function BannersEditor({
       >
         <Plus className="h-4 w-4" /> {addLabel}
       </button>
-    </div>
-  );
-}
-
-interface PickProduct {
-  id: string;
-  name: string;
-  image: string | null;
-}
-/**
- * Selector de productos para Destacados/Nuevos/Ofertas. Los resultados sólo
- * aparecen al buscar (no se listan todos). Los elegidos se reordenan por
- * drag-and-drop (el orden es el que se muestra en la tienda).
- */
-function ProductPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
-  const [all, setAll] = useState<PickProduct[] | null>(null);
-  const [q, setQ] = useState('');
-  const [dragId, setDragId] = useState<string | null>(null);
-  useEffect(() => {
-    api
-      .get<{ items: { id: string; name: string; images: { url: string }[] }[] }>('/api/v1/products?limit=100')
-      .then((r) => setAll(r.items.map((p) => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null }))))
-      .catch(() => setAll([]));
-  }, []);
-  const byId = (id: string) => all?.find((p) => p.id === id);
-  const add = (id: string) => {
-    if (!value.includes(id)) onChange([...value, id]);
-  };
-  const removeId = (id: string) => onChange(value.filter((x) => x !== id));
-  const reorder = (fromId: string, toId: string) => {
-    if (fromId === toId) return;
-    const from = value.indexOf(fromId);
-    const to = value.indexOf(toId);
-    if (from < 0 || to < 0) return;
-    const next = [...value];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved!);
-    onChange(next);
-  };
-
-  const query = q.trim().toLowerCase();
-  const results = query
-    ? (all ?? []).filter((p) => !value.includes(p.id) && p.name.toLowerCase().includes(query)).slice(0, 8)
-    : [];
-
-  return (
-    <div>
-      {/* Elegidos: reordenables por drag */}
-      {value.length > 0 && (
-        <div className="mb-2 space-y-1.5">
-          {value.map((id) => {
-            const p = byId(id);
-            return (
-              <div
-                key={id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', id);
-                  setDragId(id);
-                }}
-                onDragEnd={() => setDragId(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  reorder(e.dataTransfer.getData('text/plain'), id);
-                  setDragId(null);
-                }}
-                className={cn(
-                  'flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-1.5 text-sm',
-                  dragId === id && 'opacity-50',
-                )}
-              >
-                <span className="cursor-grab text-fg-subtle active:cursor-grabbing" title="Arrastrar">
-                  <GripVertical className="h-4 w-4" />
-                </span>
-                {p?.image ? (
-                  <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
-                ) : (
-                  <div className="h-8 w-8 rounded bg-black/5" />
-                )}
-                <span className="flex-1 truncate">{p?.name ?? 'Producto'}</span>
-                <button
-                  onClick={() => removeId(id)}
-                  aria-label="Quitar"
-                  className="text-fg-subtle hover:text-danger"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Buscador: resultados sólo al escribir */}
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Buscar productos para agregar…"
-        className={`h-9 w-full px-3 text-sm ${INPUT_BASE}`}
-      />
-      {query && (
-        <div className="mt-1 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-          {all === null && <p className="p-3 text-center text-xs text-fg-muted">Cargando…</p>}
-          {all !== null && results.length === 0 && (
-            <p className="p-3 text-center text-xs text-fg-muted">Sin resultados.</p>
-          )}
-          {results.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                add(p.id);
-                setQ('');
-              }}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-bg-muted"
-            >
-              {p.image ? (
-                <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
-              ) : (
-                <div className="h-8 w-8 rounded bg-black/5" />
-              )}
-              <span className="flex-1 truncate">{p.name}</span>
-              <Plus className="h-4 w-4 text-primary" />
-            </button>
-          ))}
-        </div>
-      )}
-      <p className="mt-1.5 text-xs text-fg-subtle">
-        {value.length > 0 ? 'Arrastrá para reordenar. ' : ''}Si no elegís ninguno, se muestran
-        automáticamente.
-      </p>
-    </div>
-  );
-}
-
-const INFO_ICONS = [
-  { value: 'shipping', label: 'Envíos' },
-  { value: 'card', label: 'Tarjetas de crédito' },
-  { value: 'security', label: 'Seguridad' },
-  { value: 'gift', label: 'Regalo / Promo' },
-  { value: 'support', label: 'Atención' },
-  { value: 'returns', label: 'Cambios' },
-];
-interface InfoItem {
-  icon?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-}
-function InfoBarEditor({ items, onChange }: { items: InfoItem[]; onChange: (v: InfoItem[]) => void }) {
-  const list = items.length > 0 ? items : [{ icon: 'shipping' }, { icon: 'card' }, { icon: 'security' }];
-  const update = (i: number, patch: InfoItem) =>
-    onChange(list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  return (
-    <div className="space-y-4">
-      {list.map((it, i) => (
-        <div key={i} className="rounded-md border border-border p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-              Banner {i + 1}
-            </span>
-            {list.length > 1 && (
-              <button
-                onClick={() => onChange(list.filter((_, idx) => idx !== i))}
-                className="text-xs text-danger hover:underline"
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Field label="Ícono">
-              <Select
-                value={it.icon ?? 'shipping'}
-                onChange={(v) => update(i, { icon: v })}
-                options={INFO_ICONS}
-              />
-            </Field>
-            <TextInput
-              value={it.title ?? ''}
-              onChange={(v) => update(i, { title: v })}
-              placeholder="Título"
-            />
-            <TextInput
-              value={it.description ?? ''}
-              onChange={(v) => update(i, { description: v })}
-              placeholder="Descripción"
-            />
-            <TextInput
-              value={it.link ?? ''}
-              onChange={(v) => update(i, { link: v })}
-              placeholder="Link (opcional)"
-            />
-          </div>
-        </div>
-      ))}
-      {list.length < 4 && (
-        <button
-          onClick={() => onChange([...list, { icon: 'shipping' }])}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-        >
-          <Plus className="h-4 w-4" /> Agregar banner
-        </button>
-      )}
     </div>
   );
 }

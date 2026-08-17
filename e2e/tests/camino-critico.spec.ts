@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const ADMIN = process.env.E2E_ADMIN_URL ?? 'http://localhost:3001';
-const API = process.env.E2E_API_URL ?? 'http://localhost:5080';
-const STORE_BASE = process.env.E2E_STORE_DOMAIN ?? 'localhost:3000';
+import { ADMIN, API, STORE_BASE, fillLogin } from './_helpers';
 
 /**
  * EL camino que factura, de punta a punta y auto-contenido:
@@ -86,10 +84,7 @@ test('storefront: links legales y botón de arrepentimiento presentes', async ({
 });
 
 test('admin: login del seed de dev y command palette', async ({ page }) => {
-  await page.goto(ADMIN);
-  await page.getByPlaceholder('Email').fill('admin@tiendafy.local');
-  await page.getByPlaceholder('Contraseña').fill('password123');
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await fillLogin(page);
   await expect(page.getByText('Hola')).toBeVisible({ timeout: 20_000 });
 
   // Ctrl+K abre la paleta y navega (esperar la opción antes de Enter: sin carrera).

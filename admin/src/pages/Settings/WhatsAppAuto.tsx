@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BadgeCheck, ChevronDown, Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
-import { Button, cn, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
+import { Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
+import { Button, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { NotificationUsage } from '../../components/NotificationUsage';
@@ -10,6 +10,7 @@ import { useStore } from '../../context/StoreContext';
 import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
 import { TemplateGrid } from './TemplateGrid';
+import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 
 const WA_GREEN = '#25D366';
 
@@ -185,18 +186,12 @@ function ConnectionCard({ conn, loading }: { conn: ConnectionDto | null; loading
             Cloud API oficial de Meta. Los mensajes salen desde tu propio número.
           </p>
         </div>
-        {connected && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
-            <BadgeCheck className="h-4 w-4" /> Conectada
-          </span>
-        )}
+        {connected && <ConnectedBadge />}
       </div>
 
       <div className="p-5">
         {loading ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando estado de la conexión…
-          </div>
+          <ConnectionLoading />
         ) : showForm ? (
           <ConnectionForm
             initialPhoneNumberId={editingCreds ? (conn?.phoneNumberId ?? '') : ''}

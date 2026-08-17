@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { StorefrontPageShell } from '@/lib/storefront-page';
 import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
+import { CmsBody } from '@/components/store/CmsBody';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,16 +45,7 @@ export default async function InstitutionalPage({
         return (
           <main className="mx-auto max-w-container px-4 py-10">
             {page ? (
-              <>
-                <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-                  {page.title}
-                </h1>
-                {/* El body ya viene sanitizado del backend (HtmlSanitizer al guardar). */}
-                <div
-                  className="prose mt-6 max-w-none opacity-80"
-                  dangerouslySetInnerHTML={{ __html: page.body }}
-                />
-              </>
+              <CmsBody title={page.title} html={page.body} />
             ) : (
               <>
                 <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>

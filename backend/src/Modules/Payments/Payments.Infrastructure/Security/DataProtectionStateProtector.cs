@@ -15,19 +15,14 @@ public sealed class DataProtectionStateProtector(IDataProtectionProvider provide
     private readonly IDataProtector _protector = provider.CreateProtector("Tiendafy.Payments.MercadoPagoOAuthState.v1");
 
     public string Protect(TenantId tenantId) =>
-        _protector.Protect($"{tenantId.Value:N}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+        _protector.Protect(TimestampedId.Format(tenantId.Value));
 
     public TenantId? TryUnprotect(string state)
     {
         try
         {
-            var parts = _protector.Unprotect(state).Split('|');
-            if (parts.Length != 2) return null;
-
-            var issuedAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(parts[1]));
-            if (DateTimeOffset.UtcNow - issuedAt > MaxAge) return null;
-
-            return TenantId.From(Guid.ParseExact(parts[0], "N"));
+            var id = TimestampedId.TryParse(_protector.Unprotect(state), MaxAge);
+            return id is null ? null : TenantId.From(id.Value);
         }
         catch
         {

@@ -1,0 +1,411 @@
+'use client';
+
+import { useContext, useEffect, useState } from 'react';
+import { EDITOR_MSG } from '@tiendafy/types';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { Pencil } from 'lucide-react';
+import { cn } from '@tiendafy/ui';
+import { Icon } from './Icon';
+import { useCart } from './cart';
+import { useFavorites } from './favorites';
+import { AccountButton } from './AccountButton';
+import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
+import { PagesNav } from './PagesNav';
+import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
+import { type ThemeConfig } from '@/lib/theme';
+import { MarqueeTrack } from './MarqueeTrack';
+
+const logoSizeClass = { sm: 'text-base', md: 'text-lg', lg: 'text-2xl' };
+
+/** Badge numérico (carrito / favoritos) sobre el ícono del header. */
+function CountBadge({ count }: { count: number }) {
+  return (
+    <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">
+      {count}
+    </span>
+  );
+}
+
+/**
+ * Barra de anuncio: uno o varios textos (cada uno con link opcional), fija o
+ * desplazándose (marquee). Sólo se muestra si hay al menos un texto con contenido.
+ */
+function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; preview: boolean }) {
+  const [annHover, setAnnHover] = useState(false);
+  const annItems = (ann.items ?? []).filter((i) => i.text.trim());
+  const annMarquee = ann.animation === 'marquee';
+  if (!(ann.show && annItems.length > 0)) return null;
+  return (
+    <div
+      data-tf-focus="announcement"
+      className="relative overflow-hidden bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+      onMouseEnter={preview ? () => setAnnHover(true) : undefined}
+      onMouseLeave={preview ? () => setAnnHover(false) : undefined}
+    >
+      {preview && annHover && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.parent?.postMessage(
+                { type: EDITOR_MSG.editSection, target: 'announcement' },
+                ADMIN_ORIGIN,
+              );
+            }}
+            className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
+          </button>
+        </>
+      )}
+      {annMarquee ? (
+        // Marquee: la pista se duplica para un loop continuo sin saltos.
+        <MarqueeTrack className="whitespace-nowrap">
+          {annItems.map((it, i) => (
+            <span key={i} className="flex items-center">
+              {it.link ? (
+                <a href={it.link} className="px-6 hover:underline">
+                  {it.text}
+                </a>
+              ) : (
+                <span className="px-6">{it.text}</span>
+              )}
+              <span className="opacity-50">•</span>
+            </span>
+          ))}
+        </MarqueeTrack>
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          {annItems.map((it, i) => (
+            <span key={i} className="flex items-center gap-3">
+              {i > 0 && <span className="opacity-50">•</span>}
+              {it.link ? (
+                <a href={it.link} className="hover:underline">
+                  {it.text}
+                </a>
+              ) : (
+                <span>{it.text}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Mobile: panel desplegable con buscador + links (mismos ítems que el desktop). */
+function MobilePanel({
+  header,
+  q,
+  setQ,
+  submitSearch,
+  navLinks,
+  onClose,
+}: {
+  header: ThemeConfig['header'];
+  q: string;
+  setQ: (v: string) => void;
+  submitSearch: (e: React.FormEvent) => void;
+  navLinks: { href: string; label: string }[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${header.bg})` }}>
+      {header.showSearch && (
+        <form
+          onSubmit={submitSearch}
+          className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3"
+        >
+          <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
+            <Icon name="search" className="h-4 w-4" />
+          </button>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar"
+            aria-label="Buscar"
+            className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60"
+            style={{ color: 'currentColor' }}
+          />
+        </form>
+      )}
+      {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
+      <nav className="flex flex-col gap-0.5 text-sm">
+        <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[0].label}
+        </Link>
+        <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[1].label}
+        </Link>
+        <CategoryMenuMobile onNavigate={onClose} />
+        <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">
+          {navLinks[2].label}
+        </Link>
+        <div className="flex flex-col [&>a]:py-1.5 [&>a]:opacity-90 [&>a:hover]:opacity-100">
+          <PagesNav />
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
+  const header = theme.header;
+  const { count, setOpen } = useCart();
+  const fav = useFavorites();
+  const href = usePreviewHref();
+  const preview = useContext(PreviewContext);
+  const pathname = usePathname();
+  const router = useRouter();
+  const [scrolled, setScrolled] = useState(false);
+  const [q, setQ] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [editHover, setEditHover] = useState(false);
+
+  // Cerrar el menú mobile al navegar.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const isHome = pathname === '/' || pathname === '/preview';
+  const transparent = header.transparentOnHome && isHome && !scrolled;
+
+  useEffect(() => {
+    if (!header.transparentOnHome) return;
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [header.transparentOnHome]);
+
+  const textColor = header.textColor ? `rgb(${header.textColor})` : '#fff';
+  // Nivel de transparencia elegible: 'full' = totalmente transparente; 'light'/'medium' dejan un tinte del color del header.
+  const transparentAlpha =
+    header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
+  const bg = transparent ? `rgb(${header.bg} / ${transparentAlpha})` : `rgb(${header.bg})`;
+  const borderClass =
+    header.border === 'line' ? 'border-b border-white/15' : header.border === 'shadow' ? 'shadow-lg' : '';
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push(href(`/productos${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`));
+  };
+
+  const logo = (
+    <Link href={href('/')} className="flex min-w-0 items-center gap-2">
+      {theme.logo ? (
+        <img
+          src={theme.logo}
+          alt={tenantName}
+          className={header.logoSize === 'lg' ? 'h-10' : header.logoSize === 'sm' ? 'h-6' : 'h-8'}
+        />
+      ) : (
+        <span
+          className={`truncate font-bold ${logoSizeClass[header.logoSize]}`}
+          style={{ fontFamily: 'var(--font-heading)' }}
+        >
+          {tenantName}
+        </span>
+      )}
+    </Link>
+  );
+
+  const navLinks = [
+    { href: href('/'), label: 'Inicio' },
+    { href: href('/productos'), label: 'Productos' },
+    { href: href('/contacto'), label: 'Contacto' },
+  ];
+  const nav = (
+    <nav className="flex items-center gap-6 text-sm">
+      <Link href={navLinks[0].href} className="opacity-90 hover:opacity-100">
+        {navLinks[0].label}
+      </Link>
+      <Link href={navLinks[1].href} className="opacity-90 hover:opacity-100">
+        {navLinks[1].label}
+      </Link>
+      <CategoryMenu />
+      <Link href={navLinks[2].href} className="opacity-90 hover:opacity-100">
+        {navLinks[2].label}
+      </Link>
+      <PagesNav />
+    </nav>
+  );
+
+  const search = header.showSearch ? (
+    <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3">
+      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
+        <Icon name="search" className="h-4 w-4" />
+      </button>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar"
+        aria-label="Buscar"
+        className="h-8 w-32 bg-transparent text-sm outline-none placeholder:opacity-60 lg:w-44"
+        style={{ color: 'currentColor' }}
+      />
+    </form>
+  ) : null;
+
+  const cartBtn = header.showCart ? (
+    <button
+      onClick={() => setOpen(true)}
+      className="relative inline-flex items-center gap-1.5 text-sm"
+      aria-label="Abrir carrito"
+    >
+      <Icon name="cart" className="h-5 w-5" />
+      {header.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
+      {count > 0 && <CountBadge count={count} />}
+    </button>
+  ) : null;
+
+  // Login de comprador: siempre disponible (es funcionalidad core, no decorativa).
+  const accountBtn = <AccountButton />;
+
+  const favBtn = (
+    <Link
+      href={href('/favoritos')}
+      className="relative inline-flex items-center opacity-90 hover:opacity-100"
+      aria-label="Favoritos"
+      title="Favoritos"
+    >
+      <Icon name="heart" className="h-5 w-5" />
+      {fav.count > 0 && <CountBadge count={fav.count} />}
+    </Link>
+  );
+
+  const icons = (
+    <div className="flex items-center gap-3">
+      {search}
+      {accountBtn}
+      {favBtn}
+      {cartBtn}
+    </div>
+  );
+
+  let inner: React.ReactNode;
+  switch (header.layout) {
+    case 'logo-center':
+      inner = (
+        <div className="py-2.5">
+          <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-center">{search}</div>
+            <div className="flex shrink-0 justify-center">{logo}</div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+              {accountBtn}
+              {favBtn}
+              {cartBtn}
+            </div>
+          </div>
+          <div className="mt-1.5 flex justify-center">{nav}</div>
+        </div>
+      );
+      break;
+    case 'menu-left':
+      inner = (
+        <div className="flex h-16 items-center gap-6">
+          {logo}
+          {nav}
+          <div className="ml-auto">{icons}</div>
+        </div>
+      );
+      break;
+    case 'menu-right':
+      inner = (
+        <div className="flex h-16 items-center justify-between gap-4">
+          {logo}
+          <div className="flex items-center gap-6">
+            {nav}
+            {icons}
+          </div>
+        </div>
+      );
+      break;
+    default: // classic
+      inner = (
+        <div className="flex h-16 items-center justify-between gap-4">
+          {logo}
+          <div className="hidden flex-1 justify-center md:flex">{nav}</div>
+          {icons}
+        </div>
+      );
+  }
+
+  return (
+    <>
+      <AnnouncementBar ann={theme.announcement} preview={preview} />
+      <header
+        data-tf-focus="header"
+        className={cn(
+          header.sticky && 'sticky top-0 z-40',
+          !header.sticky && preview && 'relative',
+          borderClass,
+          'transition-colors',
+        )}
+        style={{ background: bg, color: textColor }}
+        onMouseEnter={preview ? () => setEditHover(true) : undefined}
+        onMouseLeave={preview ? () => setEditHover(false) : undefined}
+      >
+        {preview && editHover && (
+          <>
+            <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-primary" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN);
+              }}
+              className="absolute right-3 top-2 z-[56] inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Editar encabezado
+            </button>
+          </>
+        )}
+        <div className="mx-auto max-w-container px-4">
+          {/* Desktop: la disposición elegida (clásico / centrado / menú izq/der) */}
+          <div className="hidden md:block">{inner}</div>
+
+          {/* Mobile: barra compacta con hamburguesa */}
+          <div className="flex h-14 items-center justify-between gap-3 md:hidden">
+            {header.showTabsMobile ? (
+              <button
+                type="button"
+                onClick={() => setMobileOpen((o) => !o)}
+                aria-label="Menú"
+                className="shrink-0 opacity-90 hover:opacity-100"
+              >
+                {mobileOpen ? (
+                  <Icon name="close" className="h-6 w-6" />
+                ) : (
+                  <Icon name="menu" className="h-6 w-6" />
+                )}
+              </button>
+            ) : (
+              <span className="w-6 shrink-0" />
+            )}
+            {logo}
+            <div className="flex shrink-0 items-center gap-3">
+              {accountBtn}
+              {favBtn}
+              {cartBtn}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: panel desplegable con buscador + links */}
+        {header.showTabsMobile && mobileOpen && (
+          <MobilePanel
+            header={header}
+            q={q}
+            setQ={setQ}
+            submitSearch={submitSearch}
+            navLinks={navLinks}
+            onClose={() => setMobileOpen(false)}
+          />
+        )}
+      </header>
+    </>
+  );
+}
