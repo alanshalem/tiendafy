@@ -11,14 +11,14 @@
  * Montos en centavos.
  */
 
-export interface FormPrice {
+interface FormPrice {
   /** Precio de lista (campo "Precio"). */
   regular: number;
   /** Precio promocional (campo "Promocional"), null si no hay. */
   promo: number | null;
 }
 
-export interface DomainPrice {
+interface DomainPrice {
   /** Monto cobrado / mostrado. */
   priceAmount: number;
   /** Monto tachado, null si no hay oferta. */

@@ -19,7 +19,7 @@ export interface Tenant {
  * Tokens de tema del merchant — override de las CSS vars de
  * @tiendafy/design-system (tokens.css). El storefront los inyecta en :root.
  */
-export interface ThemeTokens {
+interface ThemeTokens {
   /** "79 70 229" — canal RGB crudo, mismo formato que tokens.css. */
   colorPrimary?: string;
   colorPrimaryHover?: string;

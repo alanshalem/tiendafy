@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
+import { formatDateTime } from '@tiendafy/types';
 
 interface ContactMessage {
   id: string;
@@ -134,14 +135,7 @@ export function MessagesPage() {
                     </a>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-xs text-fg-subtle">
-                      {new Date(m.createdAtUtc).toLocaleString('es-AR', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    <span className="text-xs text-fg-subtle">{formatDateTime(m.createdAtUtc)}</span>
                     {!m.read && (
                       <button
                         onClick={() => markRead(m.id)}

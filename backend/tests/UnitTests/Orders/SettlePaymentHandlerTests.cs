@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Orders.Core.Domain;
 using Orders.Core.Features;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Orders;
 
@@ -13,7 +14,6 @@ namespace UnitTests.Orders;
 /// </summary>
 public class SettlePaymentHandlerTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
 
     private sealed class FakeOrderRepo(Order? order) : IOrderRepository
     {

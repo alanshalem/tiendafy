@@ -41,7 +41,7 @@ export interface ThemeHeader {
 }
 
 /** Un anuncio de la barra superior: texto + link opcional. */
-export interface AnnouncementItem {
+interface AnnouncementItem {
   text: string;
   link: string;
 }
@@ -122,7 +122,7 @@ export interface ContactConfig {
   whatsapp: string;
 }
 /** Botón flotante de WhatsApp (abajo a la derecha del storefront). */
-export interface WhatsAppButtonConfig {
+interface WhatsAppButtonConfig {
   enabled: boolean;
   phone: string;
   message: string;

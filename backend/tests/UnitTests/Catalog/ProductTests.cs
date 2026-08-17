@@ -1,13 +1,12 @@
 using Catalog.Contracts.Events;
 using Catalog.Core.Domain;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Catalog;
 
 public class ProductTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
-    private static Money Ars(long cents) => TestData.Ars(cents);
 
     private static Product CreateBasic() => Product.Create(Tenant, "Remera Oversize").Value;
 

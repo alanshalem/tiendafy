@@ -8,11 +8,11 @@ esto** — todo cae a `localhost` por defecto. Esto es solo para producción.
 3 apps + infra:
 
 - **backend** (`backend/src/Api`, .NET 10) → API HTTP. Detrás de un reverse
-  proxy/ingress que termina TLS (la app corre HTTP en `:8080`).
+  proxy/ingress que termina TLS (el compose de prod la corre en `:5080`; `:8080` es el default del Dockerfile).
 - **storefront** (Next.js) → tiendas de los merchants + landing de plataforma.
   Resuelve por host: `tudominio.com` = landing, `*.tudominio.com` = tienda.
 - **admin** (Vite SPA estática) → panel del merchant.
-- **infra**: PostgreSQL, Redis, MinIO/S3 (media), RabbitMQ.
+- **infra**: PostgreSQL (+ backup diario) y Caddy; media en S3/MinIO externo.
 
 ## Variables de entorno
 

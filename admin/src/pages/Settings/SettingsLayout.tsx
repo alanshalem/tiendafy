@@ -17,6 +17,7 @@ import { ThemeModeToggle } from '../../components/ThemeModeToggle';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { isNavVisible } from '../../config/features';
 import { canAny, usePermissions } from '../../context/PermissionsContext';
+import { LogoMark } from '../../components/LogoMark';
 
 interface NavItem {
   to: string;
@@ -99,25 +100,6 @@ const groups: NavGroup[] = [
 // Fuera del menú hasta que tengan backend real (hoy guardan solo en localStorage
 // o son mockups): Centros de distribución, Códigos externos, Idiomas y monedas,
 // Redireccionamientos 301, Campos personalizados. Las rutas siguen accesibles.
-
-function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
-      <text
-        x="32"
-        y="45"
-        textAnchor="middle"
-        fontFamily="-apple-system, system-ui, sans-serif"
-        fontWeight="700"
-        fontSize="38"
-        fill="#fff"
-      >
-        t
-      </text>
-    </svg>
-  );
-}
 
 export function SettingsLayout() {
   const navigate = useNavigate();

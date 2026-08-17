@@ -65,8 +65,8 @@ Sin credenciales, el login con email/contraseña funciona igual.
 ## Cómo funciona (resumen técnico)
 
 - **Sesión**: token opaco persistido en `customer_sessions` (revocable),
-  enviado como `Authorization: Bearer <token>`. El storefront lo guarda en
-  `localStorage`.
+  enviado en una cookie HttpOnly por tenant (`shop_{tenantId}`, con
+  `credentials: 'include'`); no se guarda nada en `localStorage`.
 - **Favoritos**: invitado → `localStorage`; logueado → tabla `customer_favorites`
   (sync). Al iniciar sesión se hace **merge** de los favoritos locales con los
   del servidor.

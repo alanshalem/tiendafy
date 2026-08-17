@@ -7,7 +7,6 @@ using Fiscal.Infrastructure.Persistence;
 using Fiscal.Infrastructure.Security;
 using Fiscal.Infrastructure.Wsaa;
 using Fiscal.Infrastructure.Wsfe;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Persistence;

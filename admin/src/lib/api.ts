@@ -1,6 +1,6 @@
 import type { ApiError } from '@tiendafy/types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
 
 export class ApiRequestError extends Error {
   constructor(

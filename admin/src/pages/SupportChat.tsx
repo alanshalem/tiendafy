@@ -4,6 +4,7 @@ import { cn, useToast } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
+import { formatDateTime } from '@tiendafy/types';
 
 interface Conversation {
   id: string;
@@ -180,13 +181,7 @@ export function SupportChatPage() {
                     )}
                   </div>
                   <p className="text-xs text-fg-muted">
-                    Pedido #{c.orderId.slice(0, 8)} ·{' '}
-                    {new Date(c.lastMessageAtUtc).toLocaleDateString('es-AR', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    Pedido #{c.orderId.slice(0, 8)} · {formatDateTime(c.lastMessageAtUtc)}
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
@@ -264,13 +259,7 @@ export function SupportChatPage() {
                           </a>
                         ))}
                       <p className="mt-1 text-[10px] opacity-60">
-                        {m.authorName} ·{' '}
-                        {new Date(m.createdAtUtc).toLocaleString('es-AR', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {m.authorName} · {formatDateTime(m.createdAtUtc)}
                       </p>
                     </div>
                   </div>

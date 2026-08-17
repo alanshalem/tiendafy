@@ -15,14 +15,14 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 | **Facturación** | Electrónica ARCA/AFIP: certificado por tienda (CSR desde el panel), CAE online vía WSAA+WSFEv1, PDF con QR, notas de crédito en reembolsos, homologación y producción |
 | **Comunicación** | Emails transaccionales brandeados (Resend) + WhatsApp Cloud API por plantillas, ambos editables por tienda, con contadores de uso y costo estimado |
 | **Operación** | Inventario con reservas anti-oversell, import/export CSV masivo (productos + imágenes), CRM de clientes, chat posventa con adjuntos privados, estadísticas |
-| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 26 manuales |
+| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 29 manuales |
 
 ## Stack
 
-- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 16 módulos, cada uno con su DbContext y filtro global de tenant.
-- **Storefront**: Next.js 15 (SSR multi-tenant por Host), React 19, Tailwind
+- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 17 módulos, cada uno con su DbContext y filtro global de tenant.
+- **Storefront**: Next.js 16 (SSR multi-tenant por Host), React 19, Tailwind
 - **Admin**: React 19 + Vite (SPA), TypeScript, React Query
-- **Infra dev**: Docker (Postgres, PgBouncer, Redis, RabbitMQ, MinIO)
+- **Infra dev**: Docker (Postgres, PgBouncer, MinIO)
 - **Prod**: Docker Compose + Caddy (TLS automático, on-demand para dominios propios) — ver [docs/DEPLOY.md](./docs/DEPLOY.md)
 
 ## Quick start (desarrollo)
@@ -46,7 +46,7 @@ Requisitos: Docker, .NET 10 SDK, Node 22+ (pnpm llega vía corepack).
 | Admin (panel del merchant) | http://localhost:3001 |
 | Storefront (tiendas) | http://`<subdominio>`.localhost:3000 |
 | Postgres / PgBouncer | localhost:5432 / 6432 (tiendafy/tiendafy) |
-| RabbitMQ UI / MinIO Console | localhost:15672 / localhost:9001 |
+| MinIO Console | localhost:9001 |
 
 **Primeros pasos**: abrí el admin (http://localhost:3001), registrate, creá una
 tienda y entrá a su storefront en `http://<subdominio>.localhost:3000`.
@@ -76,7 +76,7 @@ dotnet ef migrations add MiCambio --project src/Modules/Themes/Themes.Infrastruc
 
 Todo corre en GitHub Actions en cada push/PR:
 
-- **Backend CI**: build con `-warnaserror` (analizadores .NET latest-recommended), `dotnet format --verify-no-changes`, 305 tests unitarios + tests de integración de aislamiento multi-tenant contra Postgres real, y un **ratchet de cobertura de dominio ≥ 60%** (actual: ~71%, solo puede subir).
+- **Backend CI**: build con `-warnaserror` (analizadores .NET latest-recommended), `dotnet format --verify-no-changes`, 370+ tests unitarios + tests de integración de aislamiento multi-tenant contra Postgres real, y un **ratchet de cobertura de dominio ≥ 60%** (actual: ~71%, solo puede subir).
 - **Frontend CI**: Prettier check, typecheck de todo el workspace, ESLint, vitest con thresholds de cobertura como ratchet.
 - **CodeQL** (JS/TS + C#): sin GHAS (repo privado) el SARIF se evalúa en el propio workflow — hallazgos `error` rompen el build, `warning` se anotan.
 - **gitleaks**: escaneo de secretos en cada push.
@@ -108,7 +108,7 @@ Hooks locales (husky): Prettier + `dotnet format` sobre lo stageado en cada comm
 ## Estructura
 
 ```
-backend/     API .NET (src/Api) + 16 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,...})
+backend/     API .NET (src/Api) + 17 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,...})
 storefront/  Next.js multi-tenant (la tienda que ve el comprador)
 admin/       SPA del panel del merchant (incluye el centro de ayuda en /ayuda)
 shared/      Paquetes pnpm compartidos (types, ui, design-system)

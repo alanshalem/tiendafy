@@ -11,7 +11,7 @@ export interface VariantDto {
   compareAtPrice: MoneyDto | null;
 }
 
-export interface ProductImageDto {
+interface ProductImageDto {
   id: string;
   url: string;
   altText: string | null;
@@ -29,7 +29,7 @@ export interface ProductDto {
   stock: number | null;
 }
 
-export interface OptionFacet {
+interface OptionFacet {
   name: string;
   values: string[];
 }
@@ -62,7 +62,7 @@ export async function fetchProductById(tenantId: string, id: string): Promise<Pr
   });
 }
 
-export interface ProductSearchResult {
+interface ProductSearchResult {
   items: ProductDto[];
   total: number;
   page: number;
@@ -82,7 +82,7 @@ export interface CategoryDto {
   depth: number;
 }
 
-export interface SearchParams {
+interface SearchParams {
   q?: string;
   category?: string;
   sort?: string;

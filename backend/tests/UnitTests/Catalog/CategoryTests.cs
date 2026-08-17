@@ -1,11 +1,11 @@
 using Catalog.Core.Domain;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Catalog;
 
 public class CategoryTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
 
     [Fact]
     public void Create_Root_HasSlugAsPath()

@@ -1,6 +1,5 @@
 using Orders.Core.Domain;
 using SharedKernel.Common;
-using SharedKernel.Domain;
 
 namespace UnitTests.Orders;
 

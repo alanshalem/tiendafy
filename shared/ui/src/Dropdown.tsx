@@ -78,7 +78,7 @@ export function Dropdown({ children, className }: DropdownProps) {
   );
 }
 
-export interface DropdownTriggerProps {
+interface DropdownTriggerProps {
   children: ReactNode;
   className?: string;
   /** Sin caja ni chevron — para triggers de solo ícono (ej. ⋮). El estilo lo da className. */
@@ -118,7 +118,7 @@ function Trigger({ children, className, bare = false }: DropdownTriggerProps) {
   );
 }
 
-export interface DropdownMenuProps {
+interface DropdownMenuProps {
   children: ReactNode;
   /** Alineación del menú respecto del trigger. */
   align?: 'start' | 'end';

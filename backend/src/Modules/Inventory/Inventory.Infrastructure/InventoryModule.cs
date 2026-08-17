@@ -1,7 +1,6 @@
 using Inventory.Contracts;
 using Inventory.Core.Domain;
 using Inventory.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

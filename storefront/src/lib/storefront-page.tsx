@@ -11,7 +11,7 @@ import { StorefrontView } from '@/components/store/StorefrontView';
  *
  * La home (`/`) NO usa esto: tiene branches propios (eliminada / suspendida).
  */
-export type StorefrontPage =
+type StorefrontPage =
   | { ok: false; fallback: ReactNode }
   | { ok: true; data: StorefrontData; theme: ThemeConfig; preview: boolean };
 

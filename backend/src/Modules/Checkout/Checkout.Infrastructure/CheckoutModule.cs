@@ -2,7 +2,6 @@ using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
 using Checkout.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Persistence;

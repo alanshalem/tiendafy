@@ -50,7 +50,7 @@ Claves de diseño:
 
 ## Reembolsos
 
-`POST /api/v1/orders/{id}/refund` (admin, `RequireTenantMembership`):
+`POST /api/v1/orders/{id}/refund` (admin, `RequirePermission(Permission.OrdersRefund)`):
 
 ```json
 { "amount": 1500.50, "reason": "producto dañado" }   // parcial

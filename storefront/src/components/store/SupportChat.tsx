@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Paperclip, Send, X } from 'lucide-react';
 
 import { API_URL, clientJson, tenantHeaders } from '@/lib/api-client';
+import { formatDateTime } from '@tiendafy/types';
 
 interface Attachment {
   name: string;
@@ -201,12 +202,7 @@ export function SupportChat({
                     </a>
                   ))}
                 <p className={`mt-1 text-[10px] ${m.isFromStaff ? 'opacity-50' : 'opacity-60'}`}>
-                  {new Date(m.createdAtUtc).toLocaleString('es-AR', {
-                    day: '2-digit',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatDateTime(m.createdAtUtc)}
                 </p>
               </div>
             </div>

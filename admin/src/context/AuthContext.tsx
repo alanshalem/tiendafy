@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, ApiRequestError } from '../lib/api';
 
-export interface AdminUser {
+interface AdminUser {
   id: string;
   email: string;
   name: string;

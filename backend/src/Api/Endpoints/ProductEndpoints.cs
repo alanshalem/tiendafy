@@ -18,7 +18,6 @@ public static class ProductEndpoints
     {
         var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
 
-        // TODO: proteger con permisos products:write cuando Identity tenga memberships.
         products.MapPost("/", async (
             CreateProductRequest request,
             ITenantContext tenant,

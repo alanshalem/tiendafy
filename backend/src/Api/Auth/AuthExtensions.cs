@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Identity.Infrastructure;
-using Microsoft.Extensions.Configuration;
 using SharedKernel.Abstractions;
 
 namespace Api.Auth;
@@ -135,23 +134,6 @@ public static class AuthExtensions
         return null;
     }
 
-    /// <summary>Como RequireTenantMembership pero exige rol owner (gestión de staff, etc.).</summary>
-    public static RouteGroupBuilder RequireTenantOwner(this RouteGroupBuilder builder)
-    {
-        builder.RequireAuthorization().AddEndpointFilter(async (ctx, next) =>
-        {
-            var http = ctx.HttpContext;
-            var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
-            if (!tenant.HasTenant) return MissingTenant();
-            var userId = http.User.GetUserId();
-            if (userId is null) return Results.Unauthorized();
-            var memberships = http.RequestServices.GetRequiredService<IMembershipService>();
-            if (!await memberships.IsOwnerAsync(userId.Value, tenant.TenantId.Value, http.RequestAborted))
-                return Results.Problem(title: "Auth.Forbidden", detail: "Solo el dueño de la tienda puede hacer esto.", statusCode: StatusCodes.Status403Forbidden);
-            return await next(ctx);
-        });
-        return builder;
-    }
 
     /// <summary>
     /// Exige solo el header X-Tenant-Id (sin auth). Para lecturas públicas del

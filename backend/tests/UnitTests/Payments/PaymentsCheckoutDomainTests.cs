@@ -1,6 +1,7 @@
 using Checkout.Core.Domain;
 using Payments.Core.Domain;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Payments;
 
@@ -8,7 +9,6 @@ namespace UnitTests.Payments;
 /// y los medios de envío (cómo entrega). Y Money, que es donde vive la plata.</summary>
 public class PaymentsCheckoutDomainTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
 
     // ---- MercadoPagoConnection ----
 

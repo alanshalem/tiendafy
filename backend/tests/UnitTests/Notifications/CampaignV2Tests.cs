@@ -1,4 +1,3 @@
-using Api.Endpoints;
 using Api.Notifications;
 using Microsoft.AspNetCore.DataProtection;
 using Notifications.Infrastructure;

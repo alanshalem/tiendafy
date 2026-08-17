@@ -2,7 +2,6 @@ using Api.Workers;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Orders.Core.Domain;
 using Orders.Infrastructure.Persistence;
 using Tenancy.Infrastructure.Persistence;

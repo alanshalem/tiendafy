@@ -17,7 +17,6 @@ using MercadoLibre.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
 using Notifications.Infrastructure;
 using Orders.Infrastructure;
 using Payments.Infrastructure;

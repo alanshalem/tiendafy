@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Api.Auth;
 using Api.Notifications;
@@ -6,7 +5,6 @@ using Api.Shop;
 using Customers.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using SharedKernel.Abstractions;
 
 namespace Api.Endpoints;

@@ -1,11 +1,11 @@
 using Inventory.Core.Domain;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Inventory;
 
 public class ReservationTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
 
     private static Reservation Create(TimeSpan? ttl = null) =>
         new(Tenant, Guid.NewGuid(), 2, ttl);

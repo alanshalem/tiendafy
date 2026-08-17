@@ -3,7 +3,6 @@ using Catalog.Core.Features.CreateCategory;
 using Catalog.Core.Features.CreateProduct;
 using Catalog.Core.Features.UpdateProduct;
 using Catalog.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernel.Persistence;

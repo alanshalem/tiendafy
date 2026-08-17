@@ -7,7 +7,7 @@
  * verticales (gimnasio/motos/autos) quedan agrupadas.
  */
 
-export interface ThemeSectionPreset {
+interface ThemeSectionPreset {
   type: 'hero' | 'featured-products' | 'info-bar' | 'newsletter';
   visible: boolean;
   title?: string;

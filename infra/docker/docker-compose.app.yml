@@ -1,5 +1,5 @@
 # Overlay full-docker: agrega las 3 apps (API + storefront + admin) EN CONTENEDORES.
-# La infra (Postgres/Redis/RabbitMQ/MinIO) viene del compose.dev — este archivo
+# La infra (Postgres/PgBouncer/MinIO) viene del compose.dev — este archivo
 # NO la redefine (DRY). Se levanta mergeando ambos:
 #
 #   docker compose -f docker-compose.dev.yml -f docker-compose.app.yml up -d --build

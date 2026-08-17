@@ -3,6 +3,7 @@ using Payments.Core.Abstractions;
 using Payments.Core.Domain;
 using Payments.Core.Features.Connect;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Payments;
 
@@ -13,7 +14,6 @@ namespace UnitTests.Payments;
 /// </summary>
 public class OAuthCallbackHandlerTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
 
     private sealed class FakeOAuthClient : IMercadoPagoOAuthClient
     {

@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 
-export interface ShopUser {
+interface ShopUser {
   id: string;
   name: string;
   email: string;
@@ -73,52 +73,35 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
       .finally(() => setReady(true));
   }, [storeKey, userKey, headers, persistUser]);
 
-  const login = useCallback(
-    async (email: string, password: string, captcha?: string): Promise<AuthResult> => {
-      const res = await fetch(`${API}/api/v1/shop/auth/login`, {
+  // POST a /shop/auth/* con manejo de error uniforme; persist guarda data.customer.
+  const authPost = useCallback(
+    async (path: string, body: unknown, persist = false): Promise<AuthResult> => {
+      const res = await fetch(`${API}/api/v1/shop/auth/${path}`, {
         method: 'POST',
         headers,
         credentials: 'include',
-        body: JSON.stringify({ email, password, captcha }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) return { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
-      const data = await res.json();
-      persistUser(data.customer);
+      if (persist) persistUser((await res.json()).customer);
       return { ok: true };
     },
     [headers, persistUser],
+  );
+
+  const login = useCallback(
+    (email: string, password: string, captcha?: string) =>
+      authPost('login', { email, password, captcha }, true),
+    [authPost],
   );
 
   const register = useCallback(
-    async (name: string, email: string, password: string, captcha?: string): Promise<AuthResult> => {
-      const res = await fetch(`${API}/api/v1/shop/auth/register`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({ name, email, password, captcha }),
-      });
-      if (!res.ok) return { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
-      const data = await res.json();
-      persistUser(data.customer);
-      return { ok: true };
-    },
-    [headers, persistUser],
+    (name: string, email: string, password: string, captcha?: string) =>
+      authPost('register', { name, email, password, captcha }, true),
+    [authPost],
   );
 
-  const forgot = useCallback(
-    async (email: string): Promise<AuthResult> => {
-      const res = await fetch(`${API}/api/v1/shop/auth/forgot`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({ email }),
-      });
-      return res.ok
-        ? { ok: true }
-        : { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
-    },
-    [headers],
-  );
+  const forgot = useCallback((email: string) => authPost('forgot', { email }), [authPost]);
 
   const logout = useCallback(() => {
     fetch(`${API}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(

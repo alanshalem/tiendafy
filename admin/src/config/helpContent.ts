@@ -17,7 +17,7 @@ export type HelpBlock =
   | { type: 'checklist'; items: string[] }
   | { type: 'demo'; demo: HelpDemoId; caption?: string };
 
-export interface HelpSection {
+interface HelpSection {
   heading: string;
   paragraphs?: string[];
   steps?: string[];

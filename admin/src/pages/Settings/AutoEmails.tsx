@@ -5,7 +5,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { NotificationUsage } from '../../components/NotificationUsage';
 import { RichTextEditor } from '../../components/RichTextEditor';
-import { EmailPreview } from '../../components/EmailPreview';
+import { EmailPreviewPanel } from '../../components/EmailPreview';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { TemplateGrid } from './TemplateGrid';
@@ -186,28 +186,11 @@ function EditModal({
         </div>
 
         {/* Vista previa: idéntica al email real, fija, sin doble scroll */}
-        <div className="flex min-h-0 flex-col">
-          <div className="mb-1.5 text-sm font-medium text-fg">Vista previa</div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
-            <div className="shrink-0 border-b border-border bg-bg-muted/50 px-4 py-2 text-xs text-fg-muted">
-              Asunto:{' '}
-              <span className="font-medium text-fg">{preview?.subject || subject || '(sin asunto)'}</span>
-            </div>
-            <div className="min-h-0 flex-1">
-              {preview ? (
-                <EmailPreview html={preview.html} />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-bg-muted/30 text-sm text-fg-muted">
-                  Generando vista previa…
-                </div>
-              )}
-            </div>
-          </div>
-          <p className="mt-1.5 shrink-0 text-xs text-fg-muted">
-            Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con
-            datos de ejemplo.
-          </p>
-        </div>
+        <EmailPreviewPanel
+          subject={subject}
+          preview={preview}
+          caption="Así lo recibe tu cliente: con el logo y el color de tu tienda, y las variables reemplazadas con datos de ejemplo."
+        />
       </div>
     </Modal>
   );

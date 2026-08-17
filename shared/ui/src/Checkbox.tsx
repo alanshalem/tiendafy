@@ -1,5 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from './cn';
+import { LabeledControl } from './labeled';
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   /** Label clickeable a la derecha. Sin label, pasar aria-label. */
@@ -30,17 +31,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
 
     if (!label) return input;
 
-    return (
-      <div className="flex items-start gap-2">
-        <div className="flex h-5 items-center">{input}</div>
-        <div className="text-sm">
-          <label htmlFor={id} className="font-medium text-fg">
-            {label}
-          </label>
-          {description && <p className="text-fg-muted">{description}</p>}
-        </div>
-      </div>
-    );
+    return <LabeledControl input={input} id={id} label={label} description={description} />;
   },
 );
 

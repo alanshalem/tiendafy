@@ -1,12 +1,11 @@
 using Catalog.Core.Domain;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Catalog;
 
 public class ChangeVariantPriceTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
-    private static Money Ars(long cents) => TestData.Ars(cents);
 
     [Fact]
     public void ChangeVariantPrice_UpdatesPriceAndCompareAt()

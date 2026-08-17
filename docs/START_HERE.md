@@ -1,13 +1,13 @@
 # Tiendafy — START HERE
 
 Mapa de la documentación. El proyecto está **construido y funcionando** (no es
-un plano): 16 módulos backend, storefront y admin completos, CI verde, deploy
+un plano): 17 módulos backend, storefront y admin completos, CI verde, deploy
 reproducible. Este archivo te dice qué leer según lo que necesites.
 
 ## En 2 minutos
 
 - **Qué es**: SaaS e-commerce multi-tenant para merchants de Argentina/LATAM
-- **Stack**: .NET 10 (backend modular) + Next.js 15 (storefront SSR) + React+Vite (admin SPA)
+- **Stack**: .NET 10 (backend modular) + Next.js 16 (storefront SSR) + React+Vite (admin SPA)
 - **Multi-tenant**: DB compartida + `tenant_id` en cada fila + query filters globales de EF por módulo + tests de aislamiento
 - **Estado**: funcional de punta a punta — venta real con Mercado Pago, factura ARCA, envío con Correo Argentino, emails/WhatsApp automáticos
 
@@ -34,7 +34,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 > La explicación de facturación "en criollo" vive ahora en el centro de ayuda
 > del admin (`/ayuda/fiscal`).
 
-## Los módulos del backend (los 16 reales)
+## Los módulos del backend (los 17 reales)
 
 `Tenancy` (tiendas, dominios, resolve por host) · `Identity` (staff, RBAC, verificación email) ·
 `Catalog` (productos, variantes, categorías, CSV) · `Inventory` (stock, reservas anti-oversell) ·
@@ -43,7 +43,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 `Themes` (editor draft/published) · `Customers` (compradores, favoritos, mensajes) ·
 `Notifications` (email/WhatsApp por plantilla + contadores) · `Analytics` (visitas) ·
 `Media` (imágenes/videos a MinIO/S3) · `Content` (páginas CMS) · `Discounts` (cupones) ·
-`Support` (chat posventa)
+`Support` (chat posventa) · `MercadoLibre` (canal ML: ventas, preguntas, mensajes, stock unificado, publicar)
 
 Cada módulo: `{Module}.Contracts` (interfaz pública) / `.Core` (dominio+features) /
 `.Infrastructure` (persistencia, DbContext propio con filtro de tenant). Los módulos

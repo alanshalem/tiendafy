@@ -3,30 +3,12 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { Captcha } from '../components/Captcha';
+import { LogoMark } from '../components/LogoMark';
 
 const AUTH_INPUT =
   'h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary';
 const AUTH_SUBMIT =
   'mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover';
-
-function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <rect x="4" y="4" width="56" height="56" rx="15" fill="rgb(var(--color-primary))" />
-      <text
-        x="32"
-        y="45"
-        textAnchor="middle"
-        fontFamily="-apple-system, system-ui, sans-serif"
-        fontWeight="700"
-        fontSize="38"
-        fill="#fff"
-      >
-        t
-      </text>
-    </svg>
-  );
-}
 
 function Shell({ children }: { children: ReactNode }) {
   return (

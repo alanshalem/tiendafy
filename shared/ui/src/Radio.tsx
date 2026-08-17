@@ -1,5 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from './cn';
+import { LabeledControl } from './labeled';
 
 export interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: ReactNode;
@@ -28,23 +29,13 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
 
     if (!label) return input;
 
-    return (
-      <div className="flex items-start gap-2">
-        <div className="flex h-5 items-center">{input}</div>
-        <div className="text-sm">
-          <label htmlFor={id} className="font-medium text-fg">
-            {label}
-          </label>
-          {description && <p className="text-fg-muted">{description}</p>}
-        </div>
-      </div>
-    );
+    return <LabeledControl input={input} id={id} label={label} description={description} />;
   },
 );
 
 Radio.displayName = 'Radio';
 
-export interface RadioGroupProps {
+interface RadioGroupProps {
   /** Nombre compartido del grupo (HTML name). */
   name: string;
   legend: ReactNode;

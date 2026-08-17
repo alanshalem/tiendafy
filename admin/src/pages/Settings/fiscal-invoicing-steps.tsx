@@ -15,18 +15,19 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button, Input, Select, Switch, Textarea, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { formatDate } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { Helper } from './Helper';
 
 // ---- Tipos wire --------------------------------------------------------------
 
-export type FiscalCondition = 'RESPONSABLEINSCRIPTO' | 'MONOTRIBUTO';
-export type FiscalEnvironment = 'HOMOLOGACION' | 'PRODUCCION';
-export type InvoiceTrigger = 'ONPAYMENT' | 'ONFULFILLMENT';
-export type CertStatus = 'PENDINGCSR' | 'ACTIVE' | 'EXPIRED';
+type FiscalCondition = 'RESPONSABLEINSCRIPTO' | 'MONOTRIBUTO';
+type FiscalEnvironment = 'HOMOLOGACION' | 'PRODUCCION';
+type InvoiceTrigger = 'ONPAYMENT' | 'ONFULFILLMENT';
+type CertStatus = 'PENDINGCSR' | 'ACTIVE' | 'EXPIRED';
 
-export interface CertificateDto {
+interface CertificateDto {
   id: string;
   status: CertStatus;
   environment: FiscalEnvironment;
@@ -456,11 +457,7 @@ export function CertificateStep({
                 <div className="flex gap-2">
                   <dt className="text-fg-muted">Vence:</dt>
                   <dd className="font-medium text-fg">
-                    {new Date(cert.notAfterUtc).toLocaleDateString('es-AR', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
+                    {formatDate(cert.notAfterUtc, { day: '2-digit', month: 'long', year: 'numeric' })}
                   </dd>
                 </div>
               )}

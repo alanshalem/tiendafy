@@ -18,7 +18,7 @@ flowchart TB
     end
 
     subgraph Apps["Aplicaciones"]
-        Storefront["Storefront — Next.js 15 SSR<br/>multi-tenant por Host<br/>tienda + checkout + cuenta comprador<br/>SEO: sitemap/robots por host, JSON-LD"]
+        Storefront["Storefront — Next.js 16 SSR<br/>multi-tenant por Host<br/>tienda + checkout + cuenta comprador<br/>SEO: sitemap/robots por host, JSON-LD"]
         Admin["Admin — React SPA (Vite)<br/>panel del merchant<br/>editor de diseño con preview live<br/>(iframe + postMessage + token firmado)"]
         API["API — .NET 10 monolito modular<br/>minimal APIs · EF Core · RBAC<br/>rate limiting · RFC 7807<br/>docs: /scalar (dev)"]
     end
@@ -39,6 +39,8 @@ flowchart TB
         Media["Media<br/>subida de imágenes/videos"]
         Content["Content<br/>páginas CMS"]
         Discounts["Discounts<br/>cupones"]
+        Support["Support<br/>chat posventa con adjuntos"]
+        Meli["MercadoLibre<br/>ventas, preguntas, mensajes,<br/>stock unificado, publicar"]
     end
 
     subgraph Workers["⚙️ Background (hosted services, apagables por réplica: Workers:Enabled)"]
@@ -46,6 +48,8 @@ flowchart TB
         FiscalW["FiscalEmissionWorker<br/>outbox de facturas → CAE<br/>backoff + dead-letter"]
         CartW["AbandonedCartWorker<br/>recupero de carritos"]
         ImportW["Import workers<br/>CSV productos + imágenes"]
+        CampaignW["CampaignWorker<br/>envío de campañas de email"]
+        MeliW["Meli workers<br/>inbox de notificaciones +<br/>sync de stock"]
     end
 
     subgraph Datos["💾 Datos"]
@@ -56,7 +60,7 @@ flowchart TB
 
     subgraph Externos["☁️ Servicios externos"]
         MP["💳 Mercado Pago<br/>OAuth del seller (marketplace fee)<br/>Checkout Pro (redirect) y<br/>Bricks (on-site) + webhooks + refunds"]
-        Resend["📧 Resend<br/>emails transaccionales<br/>(8 plantillas por tienda)"]
+        Resend["📧 Resend<br/>emails transaccionales<br/>(10 plantillas por tienda)"]
         Meta["💬 WhatsApp Cloud API (Meta)<br/>mensajes por plantilla por tienda"]
         ARCA["🧾 ARCA/AFIP<br/>WSAA (ticket de acceso) +<br/>WSFEv1 (CAE) · homologación/prod"]
         Correo["📦 Correo Argentino (MiCorreo)<br/>cotización en vivo por CP,<br/>sucursales, alta de envíos"]
@@ -123,7 +127,7 @@ sequenceDiagram
 | Categoría | Proveedor | Cómo | Secretos |
 |---|---|---|---|
 | **Pagos** | Mercado Pago (único) | OAuth por merchant (cobra en SU cuenta; la plataforma toma marketplace fee %). Checkout Pro (redirect) o Bricks (on-site). Webhooks con inbox durable. Refunds totales y parciales. | Tokens del seller cifrados (DataProtection) |
-| **Email** | Resend (único) | 8 plantillas transaccionales editables por tienda (bienvenida, activación, compra, pago, envío, cancelación, carrito abandonado, reset). Layout brandeado con logo/color de la tienda. | API key (user-secrets / env) |
+| **Email** | Resend (único) | 10 plantillas transaccionales editables por tienda (bienvenida, activación, compra, pago, envío, lista para retirar, factura, cancelación, carrito abandonado, reset). Layout brandeado con logo/color de la tienda. | API key (user-secrets / env) |
 | **WhatsApp** | Cloud API de Meta (único) | Conexión por tienda (phone number id + token), mensajes por plantilla espejo de los emails. | Token por tienda, cifrado |
 | **Facturación** | ARCA/AFIP | WSAA (ticket cacheado y cifrado) + WSFEv1 (CAE online). Certificado X.509 por tienda: CSR generado en el panel → firmado en ARCA → activado. Homologación y producción. | Clave privada y cert cifrados; NUNCA salen por API |
 | **Envíos** | Correo Argentino (API MiCorreo) | Cotización en vivo por CP en el checkout (domicilio y sucursal, precio firmado server-side con TTL 30 min), listado de sucursales cacheado, alta de envíos desde la venta (`/shipping/import`). Ambientes TEST/PROD. | userToken/passwordToken por tienda, cifrados (DataProtection) |
@@ -132,7 +136,6 @@ sequenceDiagram
 | **Media** | MinIO (dev) / S3-R2 (prod) | Bucket público para fotos/videos de producto; adjuntos de chat privados con URLs firmadas. | Access keys |
 | **Errores** | Sentry | Backend + storefront + admin, activo solo con DSN. | DSN por app |
 
-> Infra presente pero **sin uso todavía**: Redis y RabbitMQ (levantados en dev-compose para cuando haga falta cache distribuido / colas persistentes).
 
 ## Multi-tenancy en una imagen
 

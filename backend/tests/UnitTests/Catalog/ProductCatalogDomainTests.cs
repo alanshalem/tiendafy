@@ -2,6 +2,7 @@ using Catalog.Contracts.Events;
 using Catalog.Core.Domain;
 using SharedKernel.Common;
 using SharedKernel.Exceptions;
+using static UnitTests.TestData;
 
 namespace UnitTests.Catalog;
 
@@ -12,7 +13,6 @@ namespace UnitTests.Catalog;
 /// </summary>
 public class ProductCatalogDomainTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
     private static readonly Money Precio = new(100_000, "ARS");
 
     private static Product Producto()

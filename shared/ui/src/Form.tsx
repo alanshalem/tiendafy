@@ -3,14 +3,14 @@
 import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from 'react';
 import { cn } from './cn';
 
-export interface FormErrorProps {
+interface FormErrorProps {
   /** Sin children no renderiza nada (uso directo con errors opcionales). */
   children?: ReactNode;
   id?: string;
   className?: string;
 }
 
-export function FormError({ children, id, className }: FormErrorProps) {
+function FormError({ children, id, className }: FormErrorProps) {
   if (!children) return null;
   return (
     <p id={id} role="alert" className={cn('text-sm text-danger', className)}>

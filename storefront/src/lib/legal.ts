@@ -6,7 +6,7 @@
  * Texto plano estructurado (title + sections); el render lo formatea.
  */
 
-export interface LegalSection {
+interface LegalSection {
   heading: string;
   body: string;
 }

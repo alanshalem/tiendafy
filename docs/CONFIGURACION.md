@@ -20,7 +20,7 @@ Hay dos niveles, no mezclarlos:
 | **Cloudflare Turnstile** | Site key + Secret key | [dash.cloudflare.com](https://dash.cloudflare.com) → Turnstile | Plataforma | Recomendado (anti-bots en formularios públicos) |
 | **Google OAuth** | Client ID + Client Secret | [console.cloud.google.com](https://console.cloud.google.com) → Credentials → OAuth client (web); redirect: `https://api.TUDOMINIO/api/v1/shop/auth/google/callback` | Plataforma | Opcional (login de compradores con Google) |
 | **Sentry** | 3 DSNs (backend, storefront, admin) | [sentry.io](https://sentry.io) → un proyecto por app | Plataforma | Opcional (errores en prod) |
-| **MinIO / S3** | Access key + Secret key | tu propio MinIO (compose lo incluye) o un S3 compatible | Plataforma | Sí (imágenes/videos) |
+| **MinIO / S3** | Access key + Secret key | tu propio MinIO (el compose de dev lo incluye; en prod es un servicio externo) o un S3 compatible | Plataforma | Sí (imágenes/videos) |
 | **Mercado Libre** | App: Client ID + Client Secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar) → crear aplicación. Redirect URI: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Opcional (canal ML) |
 | **Mercado Pago del merchant** | — (un click) | El merchant conecta su cuenta desde Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
 | **Mercado Libre del merchant** | — (un click) | El merchant conecta su cuenta de vendedor desde Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
@@ -40,7 +40,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 |---|---|---|---|
 | `ConnectionStrings:Default` | Postgres | la levanta el compose de dev | armada por el compose con `POSTGRES_PASSWORD` |
 | `MercadoPago:ClientId` / `MercadoPago:ClientSecret` | App marketplace de MP | user-secrets | `.env.prod` |
-| `MercadoPago:RedirectUri` | Callback OAuth público | URL del túnel (cloudflared/ngrok) | `https://api.TUDOMINIO/api/v1/payments/mercadopago/oauth/callback` |
+| `MercadoPago:RedirectUri` | Callback OAuth público | URL del túnel (cloudflared/ngrok) | `https://api.TUDOMINIO/api/v1/payments/mercadopago/callback` |
 | `MercadoPago:WebhookSecret` | Firma de webhooks de pagos | user-secrets | `.env.prod` |
 | `MercadoLibre:ClientId` / `MercadoLibre:ClientSecret` | App de plataforma en ML (canal Mercado Libre) | user-secrets (vacío = integración apagada) | `.env.prod` |
 | `MercadoLibre:RedirectUri` | Callback OAuth registrado en la app de ML | URL del túnel + `/api/v1/meli/oauth/callback` | `https://api.TUDOMINIO/api/v1/meli/oauth/callback` |
@@ -54,7 +54,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `Media:Endpoint` / `Media:AccessKey` / `Media:SecretKey` / `Media:PublicBaseUrl` | MinIO/S3 | defaults del compose de dev | `.env.prod` |
 | `Media:EnsureBucketOnStartup` | Crear bucket al arrancar | `true` | `true` (primera vez) |
 | `PublicApiBaseUrl` | URL pública de la API — **la usan los links de baja y tracking de los emails** | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `Tenancy:PlatformBaseDomain` | Dominio base (subdominios de tiendas) | `localhost:3000` | `TUDOMINIO` |
+| `Tenancy:PlatformBaseDomain` | Dominio base (subdominios de tiendas) | `localhost` | `TUDOMINIO` |
 | `Cors:AllowedOrigins` | Orígenes permitidos | localhost | tus dominios de admin/storefront |
 | `DataProtection:KeyPath` | Claves de cifrado (¡todos los secretos de tiendas dependen de esto!) | default local | volumen `dpkeys` del compose — **backupear siempre** |
 | `Database:MigrateOnStartup` | Migrar al arrancar | `true` | `false` (se migra con `dotnet Api.dll migrate`) |
@@ -72,7 +72,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `NEXT_PUBLIC_API_URL` (browser) | `http://localhost:5080` | `https://api.TUDOMINIO` |
 | `NEXT_PUBLIC_ADMIN_URL` | `http://localhost:3001` | `https://admin.TUDOMINIO` |
 | `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:3001` | **REQUERIDA**: `https://admin.TUDOMINIO` (seguridad del editor de temas) |
-| `NEXT_PUBLIC_PLATFORM_DOMAIN` | `localhost:3000` | `TUDOMINIO` |
+| `PLATFORM_BASE_DOMAIN` (server-side) | `localhost` | `TUDOMINIO` |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront |
 
 **Admin** (`admin/.env.local` en dev; build arg en prod):
@@ -84,7 +84,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 
 ## 4. Producción: `.env.prod`
 
-La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla a `.env.prod` (nunca commitearlo) y completarla. El `docker-compose.prod.yml` mapea todo a las claves de arriba. Claves del archivo: `PLATFORM_DOMAIN`, `ACME_EMAIL` (TLS de Caddy), `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `SENTRY_DSN_*`, `WORKERS_ENABLED`.
+La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla a `.env.prod` (nunca commitearlo) y completarla. El `docker-compose.prod.yml` mapea el subconjunto que está en `.env.prod.example`; el resto de las claves (Mercado Libre, `Email:WebhookSecret`, `PublicApiBaseUrl`, Captcha, Google, `Media:*`, CORS) va como variables de entorno manuales del servicio `api`. Claves del archivo: `PLATFORM_DOMAIN`, `ACME_EMAIL` (TLS de Caddy), `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `SENTRY_DSN_*`, `WORKERS_ENABLED`.
 
 > **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, WhatsApp, MiCorreo, Zipnova, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
 
@@ -94,7 +94,7 @@ La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla 
 2. `.env.prod` completo → `docker compose -f infra/docker/docker-compose.prod.yml up -d`.
 3. Migrar: `docker compose … run --rm api dotnet Api.dll migrate`.
 4. Resend: dominio verificado + `EMAIL_FROM` + webhook de bounces (§1).
-5. Mercado Pago: app en modo productivo, redirect URI real, webhook de pagos apuntando a `https://api.TUDOMINIO/api/v1/payments/webhook`.
+5. Mercado Pago: app en modo productivo, redirect URI real, webhook de pagos apuntando a `https://api.TUDOMINIO/api/v1/payments/webhooks/mercadopago`.
 6. Turnstile con el dominio real.
 7. Sentry DSNs.
 8. Probar compra punta a punta con una tienda de prueba (tarjetas de test de MP).

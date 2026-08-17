@@ -93,7 +93,7 @@ export function LanguagesCurrenciesPage() {
         title="Idiomas y monedas"
         description="Definí el idioma y la moneda con que opera tu tienda."
       />
-      <div className="space-y-4 rounded-lg border border-border bg-surface p-5 shadow-card">
+      <div className={`space-y-4 ${SETTINGS_CARD}`}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Idioma de la tienda</label>
           <Select

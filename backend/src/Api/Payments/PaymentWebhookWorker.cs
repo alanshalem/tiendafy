@@ -1,6 +1,5 @@
 using Api.Notifications;
 using Api.Workers;
-using Microsoft.EntityFrameworkCore;
 using Orders.Core.Features;
 using Payments.Contracts;
 using Payments.Core.Domain;

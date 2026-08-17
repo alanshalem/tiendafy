@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
-import { formatMoney } from '@tiendafy/types';
+import { formatDate, formatMoney } from '@tiendafy/types';
 import { CheckoutResult } from './CheckoutResult';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
@@ -11,7 +11,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { cartStorageKey, type CartLine } from './cart';
 import { readJson } from '@/lib/storage';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
-import { INPUT_LIGHT_10 } from './styles';
+import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
 
 interface ShippingOption {
   id: string;
@@ -421,8 +421,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       </main>
     );
 
-  const inputCls =
-    'h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/30';
+  const inputCls = `${INPUT_LIGHT_11} focus:outline-none focus:ring-2 focus:ring-black/30`;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -554,10 +553,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                         {zipnovaOptions.map((o, i) => {
                           const id = `zipnova-${i}`;
                           const eta = o.estimatedDelivery
-                            ? new Date(o.estimatedDelivery).toLocaleDateString('es-AR', {
-                                day: 'numeric',
-                                month: 'long',
-                              })
+                            ? formatDate(o.estimatedDelivery, { day: 'numeric', month: 'long' })
                             : null;
                           return (
                             <label

@@ -32,7 +32,7 @@ Content/Analytics):
 - **Comprador** (storefront): sesión de shopper (`ShopAuth`, cookie HttpOnly).
   Solo ve/abre conversaciones cuyo `CustomerId` es el suyo; al abrir una
   conversación nueva se valida que la orden pertenezca a su email y esté pagada.
-- **Staff** (admin): `RequireTenantMembership` a nivel grupo — auth de
+- **Staff** (admin): `RequirePermission(Permission.SupportChat)` a nivel grupo — auth de
   plataforma + membership de la tienda del header `X-Tenant-Id`. Solo ve
   conversaciones de su tenant.
 
@@ -62,7 +62,7 @@ Comprador (`/api/v1/shop/support`, requiere sesión shopper + `X-Tenant-Id`):
 | POST | `/conversations/{id}/messages` | Enviar texto |
 | POST | `/conversations/{id}/attachments` | Enviar adjunto (multipart `file` + `body` opcional) |
 
-Staff (`/api/v1/support`, `RequireTenantMembership`):
+Staff (`/api/v1/support`, `RequirePermission(Permission.SupportChat)`):
 
 | Método | Ruta | Qué hace |
 |---|---|---|

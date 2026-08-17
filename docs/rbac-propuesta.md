@@ -6,7 +6,7 @@ Enforcement: `RequirePermission` / `RequirePermissionForWrites` en
 `Api/Auth/AuthExtensions.cs`; el front consume `GET /api/v1/me/permissions`.
 Los "staff" legacy equivalen a admin.
 
-## Punto de partida (hoy)
+## Punto de partida (estado previo, histórico)
 
 - `TenantMembership(UserId, TenantId, Role)` con `Role` como string; en la
   práctica solo existe `owner` (`RoleOwner`). `RequireTenantMembership` chequea
@@ -75,7 +75,7 @@ auto-elevarse.
 5. **Certificados ARCA (futuro)** — material criptográfico fiscal. Solo
    owner + finanzas, cifrado como los tokens MP.
 
-## Implementación sugerida (cuando se apruebe)
+## Implementación (tal como se hizo; se conserva como registro)
 
 1. `Role` pasa de string libre a enum persistido como string:
    `owner|admin|vendedor|catalogo|finanzas|soporte` (compatible: los `owner`

@@ -1,7 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SharedKernel.Abstractions;
 using SharedKernel.Persistence;
 using Tenancy.Contracts;
 using Tenancy.Core.Application;

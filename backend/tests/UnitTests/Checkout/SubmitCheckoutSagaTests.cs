@@ -2,13 +2,12 @@ using Checkout.Core.Domain;
 using Checkout.Core.Features.SubmitCheckout;
 using Inventory.Contracts;
 using SharedKernel.Common;
+using static UnitTests.TestData;
 
 namespace UnitTests.Checkout;
 
 public class SubmitCheckoutSagaTests
 {
-    private static readonly TenantId Tenant = TenantId.New();
-    private static Money Ars(long cents) => TestData.Ars(cents);
 
     private sealed class FakeCheckoutRepository(CheckoutSession session) : ICheckoutRepository
     {

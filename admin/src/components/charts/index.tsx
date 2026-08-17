@@ -5,6 +5,7 @@
  */
 import { useId, type ReactNode } from 'react';
 import { cn } from '@tiendafy/ui';
+import { SETTINGS_CARD } from '../../lib/styles';
 
 const PRIMARY = 'rgb(var(--color-primary))';
 
@@ -50,7 +51,7 @@ export function ChartCard({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-lg border border-border bg-surface p-5 shadow-card', className)}>
+    <div className={cn(SETTINGS_CARD, className)}>
       <div className="mb-4 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
           {title}
@@ -63,7 +64,7 @@ export function ChartCard({
   );
 }
 
-export function InfoDot() {
+function InfoDot() {
   return (
     <span
       className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle"
