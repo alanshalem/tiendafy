@@ -125,8 +125,12 @@ public sealed class Product : AggregateRoot
         return Result.Success();
     }
 
-    public Result<Variant> AddVariant(string? sku, IReadOnlyList<string>? optionValues, Money price, Money? compareAtPrice = null)
+    public Result<Variant> AddVariant(string? sku, IReadOnlyList<string>? optionValues, Money price, Money? compareAtPrice = null, Money? cost = null)
     {
+        if (cost is { IsNegative: true })
+            return Result.Failure<Variant>(Error.Validation(
+                "Variant.NegativeCost", "Cost cannot be negative."));
+
         var trimmedSku = sku?.Trim() ?? string.Empty;
         if (trimmedSku.Length is < 1 or > 64)
             return Result.Failure<Variant>(Error.Validation(
@@ -158,9 +162,21 @@ public sealed class Product : AggregateRoot
             return Result.Failure<Variant>(Error.Conflict(
                 "Variant.DuplicateCombination", "A variant with this option combination already exists."));
 
-        var variant = new Variant(trimmedSku, values, price, compareAtPrice);
+        var variant = new Variant(trimmedSku, values, price, compareAtPrice, cost);
         _variants.Add(variant);
         return variant;
+    }
+
+    /// <summary>Setea el costo unitario de una variante (null = borrar el dato).</summary>
+    public Result SetVariantCost(Guid variantId, Money? cost)
+    {
+        var variant = _variants.FirstOrDefault(v => v.Id == variantId);
+        if (variant is null)
+            return Result.Failure(Error.NotFound("Variant.NotFound", "Variant not found."));
+        if (cost is { IsNegative: true })
+            return Result.Failure(Error.Validation("Variant.NegativeCost", "Cost cannot be negative."));
+        variant.SetCost(cost);
+        return Result.Success();
     }
 
     public Result Publish()

@@ -50,6 +50,7 @@ const sections: NavSection[] = [
           { to: '/estadisticas', label: 'Visión general', perm: 'stats.read' },
           { to: '/estadisticas/productos', label: 'Productos', perm: 'stats.read' },
           { to: '/estadisticas/ventas', label: 'Ventas y clientes', perm: 'stats.read' },
+          { to: '/estadisticas/rentabilidad', label: 'Rentabilidad', perm: 'stats.read' },
           { to: '/estadisticas/visitas', label: 'Visitas', perm: 'stats.read' },
           { to: '/estadisticas/tiempo-real', label: 'Tiempo real', perm: 'stats.read' },
           { to: '/estadisticas/cupones', label: 'Reporte de cupones', perm: 'stats.read' },
@@ -76,6 +77,7 @@ const sections: NavSection[] = [
         children: [
           { to: '/productos', label: 'Lista de productos', perm: ['inventory.read', 'catalog.write'] },
           { to: '/productos/inventario', label: 'Inventario', perm: 'inventory.read' },
+          { to: '/productos/costos', label: 'Costos', perm: 'catalog.write' },
           { to: '/productos/categorias', label: 'Categorías', perm: 'catalog.write' },
         ],
       },

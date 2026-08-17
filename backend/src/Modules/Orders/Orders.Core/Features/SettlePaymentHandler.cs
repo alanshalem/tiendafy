@@ -22,7 +22,7 @@ public sealed class SettlePaymentHandler(
     /// <param name="mpStatus">approved | pending | in_process | rejected | cancelled | refunded | charged_back ...</param>
     /// <param name="amountRefunded">transaction_amount_refunded del pago en MP: si supera lo
     /// registrado localmente, sincroniza reembolsos parciales hechos fuera del sistema.</param>
-    public async Task<Result<SettleResult>> HandleAsync(Guid orderId, string mpStatus, string? paymentId, decimal? amountRefunded = null, CancellationToken ct = default)
+    public async Task<Result<SettleResult>> HandleAsync(Guid orderId, string mpStatus, string? paymentId, decimal? amountRefunded = null, decimal? mpFee = null, CancellationToken ct = default)
     {
         var order = await repository.GetByIdAnyTenantAsync(orderId, ct);
         if (order is null)
@@ -58,6 +58,9 @@ public sealed class SettlePaymentHandler(
             }
 
             order.MarkPaid(paymentId ?? string.Empty);
+            // Comisión real de MP (transaction − neto acreditado): rentabilidad.
+            if (mpFee is > 0m)
+                order.RecordMpFee(Money.FromDecimal(mpFee.Value, order.Currency));
             await repository.SaveChangesAsync(ct);
 
             foreach (var reservationId in order.ReservationIds)

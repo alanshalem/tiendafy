@@ -18,15 +18,23 @@ public sealed class Variant
     public Money Price { get; private set; }
     public Money? CompareAtPrice { get; private set; }
 
+    /// <summary>
+    /// Costo unitario del merchant (misma moneda que el precio). Dato INTERNO:
+    /// jamás sale por los DTOs públicos del catálogo — solo endpoints admin con
+    /// permiso. Null = sin cargar (la rentabilidad lo excluye con aviso).
+    /// </summary>
+    public Money? Cost { get; private set; }
+
     private Variant() { } // EF Core
 
-    internal Variant(string sku, IEnumerable<string> optionValues, Money price, Money? compareAtPrice)
+    internal Variant(string sku, IEnumerable<string> optionValues, Money price, Money? compareAtPrice, Money? cost = null)
     {
         Id = Guid.NewGuid();
         Sku = sku;
         _optionValues.AddRange(optionValues);
         Price = price;
         CompareAtPrice = compareAtPrice;
+        Cost = cost;
     }
 
     internal void ChangePrice(Money price, Money? compareAtPrice)
@@ -34,6 +42,8 @@ public sealed class Variant
         Price = price;
         CompareAtPrice = compareAtPrice;
     }
+
+    internal void SetCost(Money? cost) => Cost = cost;
 
     public bool Matches(IReadOnlyList<string> optionValues) =>
         _optionValues.SequenceEqual(optionValues, StringComparer.OrdinalIgnoreCase);

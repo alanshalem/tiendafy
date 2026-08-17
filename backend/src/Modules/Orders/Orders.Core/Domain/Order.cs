@@ -56,7 +56,7 @@ public sealed class Order : AggregateRoot
         Guid checkoutSessionId,
         string buyerEmail,
         string currency,
-        IReadOnlyList<(Guid VariantId, string ProductName, string VariantDescription, string Sku, Money UnitPrice, int Quantity, Guid? ReservationId)> lines,
+        IReadOnlyList<(Guid VariantId, string ProductName, string VariantDescription, string Sku, Money UnitPrice, int Quantity, Guid? ReservationId, Money? UnitCost)> lines,
         Money? discount = null,
         string? couponCode = null)
     {
@@ -81,10 +81,29 @@ public sealed class Order : AggregateRoot
         };
 
         foreach (var l in lines)
-            order._items.Add(new OrderItem(l.VariantId, l.ProductName, l.VariantDescription, l.Sku, l.UnitPrice, l.Quantity, l.ReservationId));
+            order._items.Add(new OrderItem(l.VariantId, l.ProductName, l.VariantDescription, l.Sku, l.UnitPrice, l.Quantity, l.ReservationId, l.UnitCost));
 
         return order;
     }
+
+    /// <summary>
+    /// Comisión REAL cobrada por Mercado Pago en este pago (transaction_amount −
+    /// net_received_amount, leída de la API al conciliar). Null = pago sin
+    /// conciliar o canal sin dato. Alimenta el dashboard de rentabilidad.
+    /// </summary>
+    public Money? MpFeeAmount { get; private set; }
+
+    public void RecordMpFee(Money fee) => MpFeeAmount = fee;
+
+    /// <summary>
+    /// Costo total de los productos de la orden (snapshot al momento de la venta).
+    /// Null si NINGÚN ítem tenía costo cargado; los ítems sin costo suman 0.
+    /// </summary>
+    public Money? ProductCost =>
+        _items.Any(i => i.UnitCost is not null)
+            ? _items.Where(i => i.UnitCost is not null)
+                .Aggregate(Money.Zero(Currency), (acc, i) => acc + (i.UnitCost!.Value * i.Quantity))
+            : null;
 
     public Money Subtotal => _items.Aggregate(Money.Zero(Currency), (acc, i) => acc + i.LineTotal);
 
@@ -219,9 +238,12 @@ public sealed class OrderItem
     public int Quantity { get; private set; }
     public Guid? ReservationId { get; private set; }
 
+    /// <summary>Costo unitario snapshot al crear la orden (null = sin costo cargado entonces).</summary>
+    public Money? UnitCost { get; private set; }
+
     private OrderItem() { } // EF Core
 
-    internal OrderItem(Guid variantId, string productName, string variantDescription, string sku, Money unitPrice, int quantity, Guid? reservationId)
+    internal OrderItem(Guid variantId, string productName, string variantDescription, string sku, Money unitPrice, int quantity, Guid? reservationId, Money? unitCost = null)
     {
         Id = Guid.NewGuid();
         VariantId = variantId;
@@ -231,6 +253,7 @@ public sealed class OrderItem
         UnitPrice = unitPrice;
         Quantity = quantity;
         ReservationId = reservationId;
+        UnitCost = unitCost;
     }
 
     public Money LineTotal => UnitPrice * Quantity;

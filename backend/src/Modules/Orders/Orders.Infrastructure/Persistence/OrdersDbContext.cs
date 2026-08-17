@@ -57,6 +57,10 @@ public sealed class OrdersDbContext : DbContext
             .HasColumnName("shipping_cost")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+        order.Property(o => o.MpFeeAmount)
+            .HasConversion(ModuleDb.NullableMoneyConverter)
+            .HasColumnName("mp_fee_amount")
+            .HasMaxLength(24);
         order.Property(o => o.ShippingMethodName).HasMaxLength(120);
         order.Property(o => o.ShippingAddress).HasMaxLength(300);
         order.Property(o => o.BuyerName).HasMaxLength(170);
@@ -71,6 +75,7 @@ public sealed class OrdersDbContext : DbContext
         order.Ignore(o => o.ReservationIds);
         order.Ignore(o => o.IsPending);
         order.Ignore(o => o.RemainingRefundable);
+        order.Ignore(o => o.ProductCost);
 
         order.OwnsMany(o => o.Items, items =>
         {
@@ -85,6 +90,10 @@ public sealed class OrdersDbContext : DbContext
             items.Property(i => i.UnitPrice)
                 .HasConversion(ModuleDb.MoneyConverter)
                 .HasColumnName("unit_price")
+                .HasMaxLength(24);
+            items.Property(i => i.UnitCost)
+                .HasConversion(ModuleDb.NullableMoneyConverter)
+                .HasColumnName("unit_cost")
                 .HasMaxLength(24);
         });
 

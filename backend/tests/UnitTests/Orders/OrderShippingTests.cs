@@ -12,7 +12,7 @@ public class OrderShippingTests
             Guid.NewGuid(),
             "buyer@test.com",
             "ARS",
-            [(Guid.NewGuid(), "Producto", "", "SKU-1", new Money(unitPriceMinor, "ARS"), 2, null)],
+            [(Guid.NewGuid(), "Producto", "", "SKU-1", new Money(unitPriceMinor, "ARS"), 2, null, null)],
             discountMinor > 0 ? new Money(discountMinor, "ARS") : null).Value;
     }
 

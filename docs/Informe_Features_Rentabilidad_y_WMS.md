@@ -2,6 +2,13 @@
 
 *Preparado para evaluar la próxima etapa del producto, con foco en el cliente importador/distribuidor. Fuentes al pie.*
 
+> **Estado (2026-08-17): Bloque A implementado en v1** — costo por variante
+> (Productos → Costos + columna «Costo» del CSV), snapshot de costo en cada
+> venta, comisión real de MP capturada del pago al conciliar, y dashboard
+> Estadísticas → Rentabilidad (ganancia, margen, por producto, cobertura).
+> Fuera de v1: ROAS con Meta Ads (A6), costo real del carrier, ganancia por
+> campaña (A5) y los bloques B/C/D — módulos nuevos, ver guía de módulos.
+
 ---
 
 ## Resumen ejecutivo

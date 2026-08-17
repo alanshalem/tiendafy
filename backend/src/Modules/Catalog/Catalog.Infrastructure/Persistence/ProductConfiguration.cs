@@ -107,5 +107,12 @@ public sealed class VariantConfiguration : IEntityTypeConfiguration<Variant>
             .HasConversion(ModuleDb.NullableMoneyConverter)
             .HasColumnName("compare_at")
             .HasMaxLength(24);
+
+        // Costo del merchant (interno, nunca en DTOs públicos). Mismo formato
+        // serializado que compare_at: se muestra y se suma en stats, no se filtra.
+        builder.Property(v => v.Cost)
+            .HasConversion(ModuleDb.NullableMoneyConverter)
+            .HasColumnName("cost")
+            .HasMaxLength(24);
     }
 }

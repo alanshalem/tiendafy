@@ -57,7 +57,7 @@ public sealed class PaymentWebhookWorker(
 
         var settle = sp.GetRequiredService<SettlePaymentHandler>();
         var result = await settle.HandleAsync(orderId, payment.Value.Status, payment.Value.PaymentId,
-            payment.Value.TransactionAmountRefunded, ct);
+            payment.Value.TransactionAmountRefunded, payment.Value.FeeAmount, ct);
         if (result.IsFailure || result.Value.Order is null) return;
 
         // Side-effects (emails + WhatsApp) según lo que cambió.

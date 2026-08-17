@@ -20,6 +20,10 @@ public sealed record ChangeVariantPriceCommand(
 
 public sealed record AddImageCommand(TenantId TenantId, Guid ProductId, string Url, string? AltText);
 
+/// <summary>Costos por variante (null = borrar). Solo admin: nunca sale por DTOs públicos.</summary>
+public sealed record SetVariantCostsCommand(
+    TenantId TenantId, Guid ProductId, IReadOnlyList<(Guid VariantId, long? CostAmount)> Costs, string Currency);
+
 public sealed record RemoveImageCommand(TenantId TenantId, Guid ProductId, Guid ImageId);
 
 public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfWork unitOfWork)
@@ -90,7 +94,7 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         foreach (var opt in src.Options)
             copy.AddOption(opt.Name, opt.Values);
         foreach (var v in src.Variants)
-            copy.AddVariant(v.Sku, v.OptionValues, v.Price, v.CompareAtPrice);
+            copy.AddVariant(v.Sku, v.OptionValues, v.Price, v.CompareAtPrice, v.Cost);
         foreach (var img in src.Images.OrderBy(i => i.Position))
             copy.AddImage(img.Url, img.AltText);
         copy.SetCategories(src.CategoryIds);
@@ -101,6 +105,23 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         await repository.AddAsync(copy, ct);
         await unitOfWork.SaveChangesAsync(ct);
         return copy.ToDto();
+    }
+
+    public async Task<Result> SetVariantCostsAsync(SetVariantCostsCommand command, CancellationToken ct = default)
+    {
+        var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);
+        if (loaded.IsFailure) return Result.Failure(loaded.Error);
+        var product = loaded.Value;
+
+        foreach (var (variantId, costAmount) in command.Costs)
+        {
+            var result = product.SetVariantCost(
+                variantId, costAmount is { } amount ? new Money(amount, command.Currency) : null);
+            if (result.IsFailure) return result;
+        }
+
+        await unitOfWork.SaveChangesAsync(ct);
+        return Result.Success();
     }
 
     public async Task<Result<ProductDto>> SetStatusAsync(SetProductStatusCommand command, CancellationToken ct = default)

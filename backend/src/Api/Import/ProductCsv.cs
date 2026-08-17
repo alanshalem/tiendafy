@@ -17,6 +17,7 @@ public sealed class ImportVariant
     public List<string> OptionValues { get; } = [];
     public long PriceMinor { get; set; }
     public long? CompareAtMinor { get; set; }
+    public long? CostMinor { get; set; }
     public int? Stock { get; set; }
     public int Line { get; set; }
 }
@@ -58,6 +59,7 @@ public static class ProductCsv
         "Valor de propiedad 2",
         "Precio",
         "Precio promocional",
+        "Costo",
         "Peso (kg)",
         "Alto (cm)",
         "Ancho (cm)",
@@ -202,6 +204,7 @@ public static class ProductCsv
                     Sku = Cell(cells, index, "sku").Trim(),
                     PriceMinor = ParseMinor(Cell(cells, index, "precio")) ?? 0,
                     CompareAtMinor = ParseMinor(Cell(cells, index, "precio promocional")),
+                    CostMinor = ParseMinor(Cell(cells, index, "costo")),
                     Stock = ParseInt(Cell(cells, index, "stock")),
                     Line = line,
                 };
@@ -257,6 +260,8 @@ public static class ProductCsv
                     // "Precio" = lista (el tachado si hay oferta); "Promocional" = lo cobrado.
                     v != null ? Minor((v.CompareAtPrice ?? v.Price).AmountInMinorUnits) : "",
                     v?.CompareAtPrice != null ? Minor(v.Price.AmountInMinorUnits) : "",
+                    // Costo del merchant: el export exige membership (dato interno).
+                    v?.Cost != null ? Minor(v.Cost.Value.AmountInMinorUnits) : "",
                     "", "", "", "", // Peso / Alto / Ancho / Prof
                     "", // Stock: vive en Inventory, no se exporta acá
                     v?.Sku ?? "",

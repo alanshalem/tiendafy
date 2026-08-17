@@ -162,7 +162,10 @@ public sealed class MercadoPagoCheckoutClient(
             StatusDetail: root.TryGetProperty("status_detail", out var sd) ? sd.GetString() ?? string.Empty : string.Empty,
             ExternalReference: root.TryGetProperty("external_reference", out var er) ? er.GetString() : null,
             TransactionAmount: JsonRead.GetDecimal(root, "transaction_amount"),
-            TransactionAmountRefunded: JsonRead.GetDecimal(root, "transaction_amount_refunded"));
+            TransactionAmountRefunded: JsonRead.GetDecimal(root, "transaction_amount_refunded"),
+            NetReceivedAmount: root.TryGetProperty("transaction_details", out var td) && td.ValueKind == JsonValueKind.Object
+                ? JsonRead.GetDecimal(td, "net_received_amount") is var net and > 0m ? net : null
+                : null);
     }
 
     public async Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default)

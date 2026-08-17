@@ -15,7 +15,7 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 | **Facturación** | Electrónica ARCA/AFIP: certificado por tienda (CSR desde el panel), CAE online vía WSAA+WSFEv1, PDF con QR, notas de crédito en reembolsos, homologación y producción |
 | **Comunicación** | Emails transaccionales brandeados (Resend) + WhatsApp Cloud API por plantillas, ambos editables por tienda, con contadores de uso y costo estimado |
 | **Operación** | Inventario con reservas anti-oversell, import/export CSV masivo (productos + imágenes), CRM de clientes, chat posventa con adjuntos privados, estadísticas |
-| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 29 manuales |
+| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 30 manuales |
 
 ## Stack
 

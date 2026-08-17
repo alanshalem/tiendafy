@@ -12,7 +12,7 @@ public class OrderRefundTests
             Guid.NewGuid(),
             "buyer@test.com",
             "ARS",
-            [(Guid.NewGuid(), "Producto", "Rojo / M", "SKU-1", new Money(unitPriceMinor, "ARS"), quantity, null)]).Value;
+            [(Guid.NewGuid(), "Producto", "Rojo / M", "SKU-1", new Money(unitPriceMinor, "ARS"), quantity, null, null)]).Value;
         order.MarkPaid("mp-payment-1");
         return order;
     }
@@ -69,7 +69,7 @@ public class OrderRefundTests
     {
         var order = Order.Create(
             TenantId.From(Guid.NewGuid()), Guid.NewGuid(), "buyer@test.com", "ARS",
-            [(Guid.NewGuid(), "P", "", "S", new Money(1_000, "ARS"), 1, null)]).Value;
+            [(Guid.NewGuid(), "P", "", "S", new Money(1_000, "ARS"), 1, null, null)]).Value;
 
         Assert.True(order.ApplyRefund(new Money(500, "ARS")).IsFailure);
     }

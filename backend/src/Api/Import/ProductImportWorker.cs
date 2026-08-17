@@ -145,9 +145,9 @@ public sealed class ProductImportWorker(
         {
             var iv = model.Variants[i];
             var sku = string.IsNullOrWhiteSpace(iv.Sku) ? GenerateSku(product.Slug.Value, i) : iv.Sku;
-            var (price, compareAt) = BuildPrice(iv);
+            var (price, compareAt, cost) = BuildPrice(iv);
 
-            var vr = product.AddVariant(sku, iv.OptionValues, price, compareAt);
+            var vr = product.AddVariant(sku, iv.OptionValues, price, compareAt, cost);
             if (vr.IsFailure)
                 job.AddError(iv.Line, model.Handle, $"Variante '{sku}': {vr.Error.Message}");
             else
@@ -196,8 +196,10 @@ public sealed class ProductImportWorker(
             var match = MatchBySku(product, iv.Sku, blankFallback: false);
             if (match is null) continue;
 
-            var (price, compareAt) = BuildPrice(iv);
+            var (price, compareAt, cost) = BuildPrice(iv);
             product.ChangeVariantPrice(match.Id, price, compareAt);
+            // Celda "Costo" vacía = no tocar el costo existente (CSVs viejos sin la columna).
+            if (cost is not null) product.SetVariantCost(match.Id, cost);
         }
 
         await db.SaveChangesAsync(ct);
@@ -248,12 +250,13 @@ public sealed class ProductImportWorker(
     }
 
     /// <summary>Precio + promocional del CSV → Money (moneda por defecto del import).</summary>
-    private static (Money Price, Money? CompareAt) BuildPrice(ImportVariant iv)
+    private static (Money Price, Money? CompareAt, Money? Cost) BuildPrice(ImportVariant iv)
     {
         var (priceMinor, compareMinor) = NormalizePrice(iv.PriceMinor, iv.CompareAtMinor);
         var price = new Money(priceMinor, ProductCsv.Currency);
         Money? compareAt = compareMinor.HasValue ? new Money(compareMinor.Value, ProductCsv.Currency) : null;
-        return (price, compareAt);
+        Money? cost = iv.CostMinor is { } costMinor and >= 0 ? new Money(costMinor, ProductCsv.Currency) : null;
+        return (price, compareAt, cost);
     }
 
     /// <summary>

@@ -5,7 +5,7 @@ namespace Orders.Core.Features;
 
 public sealed record CreateOrderLine(
     Guid VariantId, string ProductName, string VariantDescription, string Sku,
-    Money UnitPrice, int Quantity, Guid? ReservationId);
+    Money UnitPrice, int Quantity, Guid? ReservationId, Money? UnitCost = null);
 
 public sealed record CreateOrderCommand(
     TenantId TenantId, Guid CheckoutSessionId, string BuyerEmail, string Currency,
@@ -19,7 +19,7 @@ public sealed class CreateOrderHandler(IOrderRepository repository)
     {
         var result = Order.Create(
             command.TenantId, command.CheckoutSessionId, command.BuyerEmail, command.Currency,
-            command.Lines.Select(l => (l.VariantId, l.ProductName, l.VariantDescription, l.Sku, l.UnitPrice, l.Quantity, l.ReservationId)).ToList(),
+            command.Lines.Select(l => (l.VariantId, l.ProductName, l.VariantDescription, l.Sku, l.UnitPrice, l.Quantity, l.ReservationId, l.UnitCost)).ToList(),
             command.Discount, command.CouponCode);
 
         if (result.IsFailure) return result;

@@ -1,6 +1,10 @@
 namespace Catalog.Contracts;
 
-/// <summary>Snapshot de variante para armar un checkout: precio del momento.</summary>
+/// <summary>
+/// Snapshot de variante para armar un checkout: precio del momento. Cost es el
+/// costo del merchant y NUNCA llega al browser: este DTO solo circula entre
+/// módulos del backend (checkout → orden) para el snapshot de rentabilidad.
+/// </summary>
 public sealed record CheckoutVariantDto(
     Guid VariantId,
     Guid ProductId,
@@ -8,7 +12,8 @@ public sealed record CheckoutVariantDto(
     string VariantDescription,
     string Sku,
     MoneyDto Price,
-    bool ProductIsActive);
+    bool ProductIsActive,
+    MoneyDto? Cost = null);
 
 /// <summary>
 /// Consulta que Checkout hace sobre el catálogo. Implementada en

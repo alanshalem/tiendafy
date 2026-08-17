@@ -17,4 +17,5 @@ public sealed record CreateProductVariant(
     IReadOnlyList<string> OptionValues,
     long PriceAmount,
     string Currency,
-    long? CompareAtAmount);
+    long? CompareAtAmount,
+    long? CostAmount = null);

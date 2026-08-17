@@ -25,7 +25,8 @@ public sealed class CatalogCheckoutQuery(CatalogDbContext context) : ICatalogChe
                     v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "Única",
                     v.Sku,
                     new MoneyDto(v.Price.AmountInMinorUnits, v.Price.Currency),
-                    p.Status == Core.Domain.ProductStatus.Active)))
+                    p.Status == Core.Domain.ProductStatus.Active,
+                    v.Cost is { } c ? new MoneyDto(c.AmountInMinorUnits, c.Currency) : null)))
             .ToList();
     }
 }

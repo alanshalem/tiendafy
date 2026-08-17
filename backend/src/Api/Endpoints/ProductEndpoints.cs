@@ -375,6 +375,41 @@ public static class ProductEndpoints
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
         }).RequireTenantMembership();
 
+        // ---- Costos por variante (rentabilidad) ----
+        // Dato interno del merchant: NUNCA viaja en los DTOs públicos del catálogo.
+        // Lectura y escritura exigen permiso de catálogo explícito (no ForWrites:
+        // los GET del grupo son públicos para el storefront y este no puede serlo).
+        products.MapGet("/{id:guid}/costs", async (
+            Guid id, HttpContext http, ITenantContext tenant, IProductRepository repository, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
+            if (product is null) return Results.NotFound();
+            return Results.Ok(new
+            {
+                items = product.Variants.Select(v => new
+                {
+                    variantId = v.Id,
+                    sku = v.Sku,
+                    description = v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "Única",
+                    priceAmount = v.Price.AmountInMinorUnits,
+                    costAmount = v.Cost?.AmountInMinorUnits,
+                    currency = v.Price.Currency,
+                }),
+            });
+        });
+
+        products.MapPut("/{id:guid}/costs", async (
+            Guid id, SetVariantCostsRequest request, HttpContext http, ITenantContext tenant,
+            UpdateProductHandler handler, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var costs = (request.Costs ?? []).Select(c => (c.VariantId, c.CostAmount)).ToList();
+            var result = await handler.SetVariantCostsAsync(
+                new SetVariantCostsCommand(tenant.TenantId, id, costs, request.Currency ?? Money.DefaultCurrency), ct);
+            return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+        });
+
         // Asignar/cambiar las categorías de un producto (para el admin).
         products.MapPut("/{id:guid}/categories", async (
             Guid id,
@@ -476,6 +511,10 @@ public sealed record ChangePriceRequest(long PriceAmount, string? Currency, long
 public sealed record AddImageRequest(string Url, string? AltText);
 
 public sealed record SetCategoriesRequest(List<Guid>? CategoryIds);
+
+public sealed record VariantCostEntry(Guid VariantId, long? CostAmount);
+
+public sealed record SetVariantCostsRequest(List<VariantCostEntry>? Costs, string? Currency);
 
 public sealed record VariantInput(
     string Sku,

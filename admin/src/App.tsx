@@ -22,6 +22,7 @@ import { HomePage } from './pages/Home';
 import { ProductsPage } from './pages/Products';
 import { CategoriesPage } from './pages/Products/Categories';
 import { InventoryPage } from './pages/Products/Inventory';
+import { CostsPage } from './pages/Products/Costs';
 import { ExportImportPage } from './pages/Products/ExportImport';
 import { NewProductPage } from './pages/Products/NewProduct';
 import { EditProductPage } from './pages/Products/EditProduct';
@@ -44,6 +45,7 @@ import { TenantsPage } from './pages/Tenants';
 import { StatsOverviewPage } from './pages/Stats/Overview';
 import { StatsProductsPage } from './pages/Stats/Products';
 import { StatsSalesPage } from './pages/Stats/SalesCustomers';
+import { StatsProfitabilityPage } from './pages/Stats/Profitability';
 import { StatsVisitsPage } from './pages/Stats/Visits';
 import { StatsRealTimePage } from './pages/Stats/RealTime';
 import { StatsCouponsPage } from './pages/Stats/Coupons';
@@ -67,6 +69,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/estadisticas', perm: 'stats.read', el: <StatsOverviewPage /> },
   { path: '/estadisticas/productos', perm: 'stats.read', el: <StatsProductsPage /> },
   { path: '/estadisticas/ventas', perm: 'stats.read', el: <StatsSalesPage /> },
+  { path: '/estadisticas/rentabilidad', perm: 'stats.read', el: <StatsProfitabilityPage /> },
   { path: '/estadisticas/visitas', perm: 'stats.read', el: <StatsVisitsPage /> },
   { path: '/estadisticas/tiempo-real', perm: 'stats.read', el: <StatsRealTimePage /> },
   { path: '/estadisticas/cupones', perm: 'stats.read', el: <StatsCouponsPage /> },
@@ -78,6 +81,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/exportar-importar', perm: 'catalog.write', el: <ExportImportPage /> },
   { path: '/productos/categorias', perm: 'catalog.write', el: <CategoriesPage /> },
   { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
+  { path: '/productos/costos', perm: 'catalog.write', el: <CostsPage /> },
 
   // Tienda online (chunks lazy)
   {

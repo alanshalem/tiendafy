@@ -64,6 +64,7 @@ export const HELP_LINKS = {
   primerosPasos: { label: 'Guía para abrir tu tienda' },
   payments: { label: 'Más sobre medios de pago' },
   ventas: { label: 'Más sobre ventas y reembolsos' },
+  rentabilidad: { label: 'Más sobre rentabilidad real' },
   checkout: { label: 'Más sobre checkout' },
   cupones: { label: 'Más sobre cupones de descuento' },
   shipping: { label: 'Más sobre medios de envío' },

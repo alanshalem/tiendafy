@@ -366,4 +366,39 @@ export const VENTAS = {
       },
     ],
   },
+
+  rentabilidad: {
+    title: 'Rentabilidad real',
+    intro:
+      'Vender no es ganar. Esta sección te muestra cuánta plata te queda de verdad de cada venta: lo facturado menos el costo de tus productos y la comisión de Mercado Pago.',
+    category: 'Ventas y pagos',
+    sections: [
+      {
+        heading: 'Cargá el costo de tus productos',
+        paragraphs: [
+          'Todo empieza por decirle al sistema cuánto te cuesta cada producto. Sin costo cargado, la tienda sabe cuánto facturás pero no cuánto ganás.',
+        ],
+        steps: [
+          'Andá a Productos → Costos: vas a ver cada variante con su precio y un campo para el costo (en pesos).',
+          'Cargá el costo y tocá Guardar. El margen se calcula al instante para que veas si estás vendiendo demasiado barato.',
+          'Para catálogos grandes usá el CSV: la plantilla de Exportar/Importar ahora tiene la columna «Costo». Exportá, completá esa columna en Excel y volvé a importar.',
+        ],
+      },
+      {
+        heading: 'Qué muestra Estadísticas → Rentabilidad',
+        paragraphs: [
+          'La ganancia real del período: ventas de productos (netas de cupones) menos el costo de lo vendido y menos la comisión exacta que cobró Mercado Pago en cada pago (el sistema la lee de MP al confirmarse el pago, no la estima).',
+          'La tabla por producto expone lo importante: cuáles dejan plata y cuáles venden mucho pero dejan poco. Un margen menor al 15% se marca en rojo.',
+          'El costo de cada venta queda congelado al momento de venderse: si mañana te sube el costo, las ganancias de ventas pasadas no cambian.',
+        ],
+      },
+      {
+        heading: 'Por qué puede decir «X de Y ventas tienen costo»',
+        paragraphs: [
+          'La ganancia solo se calcula sobre las ventas cuyos productos tenían costo cargado al momento de venderse — el resto se excluye para no inventar números. A medida que cargues costos, las ventas nuevas van a entrar completas.',
+          'El envío cobrado al cliente no se cuenta como ganancia: se asume que cubre lo que le pagás al correo.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

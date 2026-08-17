@@ -43,7 +43,7 @@ public class SettlePaymentHandlerTests
     {
         return Order.Create(
             Tenant, Guid.NewGuid(), "cliente@test.com", "ARS",
-            [(Guid.NewGuid(), "Producto", "Única", "SKU-1", new Money(100_000, "ARS"), 1, reserva)]).Value;
+            [(Guid.NewGuid(), "Producto", "Única", "SKU-1", new Money(100_000, "ARS"), 1, reserva, null)]).Value;
     }
 
     private static SettlePaymentHandler Handler(Order? order, out FakeOrderRepo repo, out FakeInventory inv)

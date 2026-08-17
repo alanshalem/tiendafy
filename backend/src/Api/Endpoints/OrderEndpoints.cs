@@ -30,6 +30,7 @@ public static class OrderEndpoints
             ICheckoutRepository checkouts,
             DiscountsDbContext discountsDb,
             CreateOrderHandler createOrder,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
             IOrderRepository orders,
             IMercadoPagoPaymentService mp,
             IConfiguration cfg,
@@ -44,7 +45,7 @@ public static class OrderEndpoints
                 return Error.Validation("Checkout.BadReturnUrl",
                     "La URL de retorno no es válida.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, catalogQuery, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -80,6 +81,7 @@ public static class OrderEndpoints
             ICheckoutRepository checkouts,
             DiscountsDbContext discountsDb,
             CreateOrderHandler createOrder,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
             OrderNotifier notifier,
@@ -89,7 +91,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, catalogQuery, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -371,7 +373,8 @@ public static class OrderEndpoints
     /// <summary>Crea la Order desde un checkout enviado, aplicando el cupón validado server-side.</summary>
     private static async Task<Result<Order>> BuildOrderAsync(
         TenantId tenantId, Guid sessionId, string? couponCode,
-        ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder, CancellationToken ct)
+        ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder,
+        Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct)
     {
         var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
         if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
@@ -394,8 +397,17 @@ public static class OrderEndpoints
             }
         }
 
+        // Snapshot de COSTO al momento de la venta (rentabilidad): se lee del
+        // catálogo acá y no en el checkout — el costo que importa es el vigente
+        // cuando la orden nace. Best effort: sin costo cargado, la orden va igual.
+        var variantCosts = (await catalogQuery.GetVariantsAsync(
+                tenantId.Value, session.Items.Select(i => i.VariantId).Distinct().ToList(), ct))
+            .Where(v => v.Cost is not null)
+            .ToDictionary(v => v.VariantId, v => new Money(v.Cost!.Amount, v.Cost.Currency));
+
         var lines = session.Items.Select(i => new CreateOrderLine(
-            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId)).ToList();
+            i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId,
+            variantCosts.TryGetValue(i.VariantId, out var cost) ? cost : null)).ToList();
 
         var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
             .Where(s => !string.IsNullOrWhiteSpace(s)));

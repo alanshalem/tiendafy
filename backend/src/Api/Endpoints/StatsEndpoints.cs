@@ -110,6 +110,79 @@ public static class StatsEndpoints
             return Results.Ok(new { items = top });
         });
 
+        // Rentabilidad REAL (informe Escalafy): ganancia = ventas de productos
+        // (netas de cupón) − costo snapshot de los ítems − comisión real de MP.
+        // El envío cobrado se muestra aparte (pass-through al carrier, no margen).
+        // Órdenes sin costo cargado quedan fuera del margen: `coverage` lo expone.
+        stats.MapGet("/profitability", async (
+            ITenantContext tenant, OrdersDbContext ordersDb, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+        {
+            var tid = tenant.TenantId;
+            var (since, until) = Range(from, to, days ?? 30);
+
+            var paid = await ordersDb.Orders
+                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until)
+                .ToListAsync(ct);
+
+            var currency = paid.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
+            long ItemsNet(Order o) => o.Total.AmountInMinorUnits - o.ShippingCost.AmountInMinorUnits;
+
+            var withCost = paid.Where(o => o.ProductCost is not null).ToList();
+            var revenue = paid.Sum(ItemsNet);
+            var revenueWithCost = withCost.Sum(ItemsNet);
+            var productCost = withCost.Sum(o => o.ProductCost!.Value.AmountInMinorUnits);
+            var mpFees = paid.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
+            var mpFeesWithCost = withCost.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
+            var discounts = paid.Sum(o => o.DiscountAmount.AmountInMinorUnits);
+            var shippingCharged = paid.Sum(o => o.ShippingCost.AmountInMinorUnits);
+            var profit = revenueWithCost - productCost - mpFeesWithCost;
+
+            var series = withCost
+                .GroupBy(o => (o.PaidAtUtc ?? o.CreatedAtUtc).Date)
+                .Select(g => new
+                {
+                    date = g.Key,
+                    profit = g.Sum(o => ItemsNet(o) - o.ProductCost!.Value.AmountInMinorUnits - (o.MpFeeAmount?.AmountInMinorUnits ?? 0)),
+                    revenue = g.Sum(ItemsNet),
+                })
+                .OrderBy(x => x.date).ToList();
+
+            // Por producto: solo ítems CON costo (margen honesto, no inventado).
+            var byProduct = paid.SelectMany(o => o.Items)
+                .Where(i => i.UnitCost is not null)
+                .GroupBy(i => i.ProductName)
+                .Select(g =>
+                {
+                    var rev = g.Sum(i => i.LineTotal.AmountInMinorUnits);
+                    var cost = g.Sum(i => i.UnitCost!.Value.AmountInMinorUnits * i.Quantity);
+                    return new
+                    {
+                        product = g.Key,
+                        units = g.Sum(i => i.Quantity),
+                        revenue = rev,
+                        cost,
+                        profit = rev - cost,
+                        marginPct = rev > 0 ? Math.Round((rev - cost) * 100m / rev, 1) : 0m,
+                    };
+                })
+                .OrderByDescending(x => x.profit).ToList();
+
+            return Results.Ok(new
+            {
+                currency,
+                revenue,
+                productCost,
+                mpFees,
+                discounts,
+                shippingCharged,
+                profit,
+                marginPct = revenueWithCost > 0 ? Math.Round(profit * 100m / revenueWithCost, 1) : 0m,
+                coverage = new { ordersWithCost = withCost.Count, ordersTotal = paid.Count },
+                series,
+                byProduct,
+            });
+        });
+
         // Reporte de cupones (uso real desde Orders + estado desde Discounts).
         stats.MapGet("/coupons", async (
             ITenantContext tenant, OrdersDbContext ordersDb, DiscountsDbContext discounts, CancellationToken ct) =>

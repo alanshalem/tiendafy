@@ -23,8 +23,8 @@ Rutas importantes dentro del admin (SPA, todas cuelgan de la URL del admin):
 | ----------------------------------- | ---------------------------------------------------------------------------- |
 | `/`                               | Dashboard con métricas de la tienda.                                        |
 | `/ventas`                         | Pedidos, facturación ARCA y reembolsos (`/ventas/carritos`: abandonados). |
-| `/productos`                      | Catálogo (`/categorias`, `/inventario`, `/exportar-importar`).        |
-| `/estadisticas`                   | Ventas, productos, visitas, tiempo real, cupones.                            |
+| `/productos`                      | Catálogo (`/categorias`, `/inventario`, `/costos`, `/exportar-importar`). |
+| `/estadisticas`                   | Ventas, productos, visitas, tiempo real, cupones, rentabilidad.              |
 | `/canales/tienda-online/disenios` | Editor de tema (preview en vivo de la tienda vía iframe).                   |
 | `/marketing`                      | Campañas de email y segmentos;`/descuentos`: cupones.                     |
 | `/mercadolibre`                   | Ventas, preguntas, mensajes y publicaciones de ML.                           |

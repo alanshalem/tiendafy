@@ -17,7 +17,7 @@ namespace Orders.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -77,6 +77,11 @@ namespace Orders.Infrastructure.Migrations
                     b.Property<DateTime?>("FulfilledAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fulfilled_at_utc");
+
+                    b.Property<string>("MpFeeAmount")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("mp_fee_amount");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
@@ -188,6 +193,11 @@ namespace Orders.Infrastructure.Migrations
                                 .HasMaxLength(64)
                                 .HasColumnType("character varying(64)")
                                 .HasColumnName("sku");
+
+                            b1.Property<string>("UnitCost")
+                                .HasMaxLength(24)
+                                .HasColumnType("character varying(24)")
+                                .HasColumnName("unit_cost");
 
                             b1.Property<string>("UnitPrice")
                                 .IsRequired()

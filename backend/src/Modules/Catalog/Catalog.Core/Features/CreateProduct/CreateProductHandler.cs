@@ -30,8 +30,11 @@ public sealed class CreateProductHandler(IProductRepository repository, IUnitOfW
             Money? compareAt = variant.CompareAtAmount.HasValue
                 ? new Money(variant.CompareAtAmount.Value, variant.Currency)
                 : null;
+            Money? cost = variant.CostAmount.HasValue
+                ? new Money(variant.CostAmount.Value, variant.Currency)
+                : null;
 
-            var variantResult = product.AddVariant(variant.Sku, variant.OptionValues, price, compareAt);
+            var variantResult = product.AddVariant(variant.Sku, variant.OptionValues, price, compareAt, cost);
             if (variantResult.IsFailure)
                 return Result.Failure<ProductDto>(variantResult.Error);
         }

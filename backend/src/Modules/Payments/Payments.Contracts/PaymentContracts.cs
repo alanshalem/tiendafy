@@ -39,7 +39,17 @@ public sealed record PaymentStatusDto(
     string StatusDetail,
     string? ExternalReference,
     decimal TransactionAmount,
-    decimal TransactionAmountRefunded = 0m);
+    decimal TransactionAmountRefunded = 0m,
+    // Lo que MP le acredita al seller (transaction_details.net_received_amount).
+    // TransactionAmount − esto = comisión REAL del pago → rentabilidad.
+    decimal? NetReceivedAmount = null)
+{
+    /// <summary>Comisión total de MP en el pago; null si MP no informó el neto.</summary>
+    public decimal? FeeAmount =>
+        NetReceivedAmount is { } net && net > 0 && net <= TransactionAmount
+            ? TransactionAmount - net
+            : null;
+}
 
 public sealed record RefundResult(string RefundId, decimal Amount);
 

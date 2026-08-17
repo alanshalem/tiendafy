@@ -197,4 +197,21 @@ public class ProductTests
         Assert.Equal("Nombre Completamente Nuevo", product.Name);
         Assert.Equal(originalSlug, product.Slug.Value);
     }
+
+    [Fact]
+    public void SetVariantCost_sets_clears_and_rejects_negative()
+    {
+        var product = CreateWithOptions();
+        var variant = product.AddVariant("REM-S-NEG", ["S", "Negro"], Ars(2_990_000), cost: Ars(1_200_000)).Value;
+        Assert.Equal(1_200_000, variant.Cost!.Value.AmountInMinorUnits);
+
+        Assert.True(product.SetVariantCost(variant.Id, Ars(1_500_000)).IsSuccess);
+        Assert.Equal(1_500_000, variant.Cost!.Value.AmountInMinorUnits);
+
+        Assert.True(product.SetVariantCost(variant.Id, null).IsSuccess);
+        Assert.Null(variant.Cost);
+
+        Assert.True(product.SetVariantCost(variant.Id, new Money(-1, "ARS")).IsFailure);
+        Assert.True(product.SetVariantCost(Guid.NewGuid(), Ars(100)).IsFailure);
+    }
 }
