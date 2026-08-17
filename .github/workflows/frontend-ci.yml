@@ -7,6 +7,10 @@ on:
       - 'storefront/**'
       - 'admin/**'
       - 'shared/**'
+      - 'e2e/**'
+      - 'package.json'
+      - '.prettierrc'
+      - '.prettierignore'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
@@ -15,9 +19,16 @@ on:
       - 'storefront/**'
       - 'admin/**'
       - 'shared/**'
+      - 'e2e/**'
+      - 'package.json'
+      - '.prettierrc'
+      - '.prettierignore'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
+
+permissions:
+  contents: read
 
 jobs:
   check:

@@ -4,6 +4,7 @@ import { Check, Plus, Upload, X } from 'lucide-react';
 import { Button, Card, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { pollWhileRunning } from './queries';
 import { Stat } from './ImportTab';
 
 interface ImageJobStatus {
@@ -30,10 +31,7 @@ export function ImagesTab() {
     queryKey: ['image-job', jobId],
     queryFn: () => api.get<ImageJobStatus>(`/api/v1/products/images/import/${jobId}`),
     enabled: !!jobId,
-    refetchInterval: (query) => {
-      const s = query.state.data?.status;
-      return s === 'completed' || s === 'failed' ? false : 800;
-    },
+    refetchInterval: pollWhileRunning,
   });
 
   useEffect(() => {

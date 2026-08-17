@@ -6,7 +6,8 @@ import { Button, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
+import { fetchAllProducts } from '../../lib/products';
+import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -52,13 +53,7 @@ export function ProductsPage() {
   });
   const products = useMemo(() => data ?? [], [data]);
 
-  const variantIds = products.flatMap((p) => p.variants.map((v) => v.id));
-  const { data: stock } = useQuery({
-    queryKey: ['inventory', store?.id, variantIds.length],
-    queryFn: () => fetchStockChunked(variantIds),
-    enabled: !!store && variantIds.length > 0,
-  });
-  const stockMap = new Map((stock ?? []).map((s) => [s.variantId, s]));
+  const stockMap = useVariantStock(products);
 
   const { data: cats } = useQuery({
     queryKey: ['categories', store?.id],

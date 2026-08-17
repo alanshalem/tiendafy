@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { fillLogin } from './_helpers';
+import { ADMIN, fillLogin } from './_helpers';
 
 /**
  * Una spec por pantalla crítica del admin (la UI se cubre acá, no con unit

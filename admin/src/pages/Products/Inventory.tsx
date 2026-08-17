@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { fetchAllProducts, fetchStockChunked } from '../../lib/products';
+import { fetchAllProducts } from '../../lib/products';
+import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -37,15 +38,7 @@ export function InventoryPage() {
   });
 
   const allItems = products ?? [];
-  const variantIds = allItems.flatMap((p) => p.variants.map((v) => v.id));
-
-  const { data: stock } = useQuery({
-    queryKey: ['inventory', store?.id, variantIds.length],
-    queryFn: () => fetchStockChunked(variantIds),
-    enabled: !!store && variantIds.length > 0,
-  });
-
-  const stockByVariant = new Map((stock ?? []).map((s) => [s.variantId, s]));
+  const stockByVariant = useVariantStock(allItems);
 
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));

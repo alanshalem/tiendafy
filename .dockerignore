@@ -1,3 +1,5 @@
+# Fallback para `docker build .` ad-hoc. Los builds reales usan los
+# Dockerfile.dockerignore por app, que REEMPLAZAN a este archivo.
 **/node_modules
 **/.next
 **/dist

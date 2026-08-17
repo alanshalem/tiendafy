@@ -1,6 +1,6 @@
 # Refactor integral — DRY / KISS / YAGNI / Clean Code / Clean Architecture
 
-Cinco pasadas (agosto 2026) sobre todo el monorepo, con una regla fija: **cero cambios
+Seis pasadas (agosto 2026) sobre todo el monorepo, con una regla fija: **cero cambios
 de comportamiento** (salvo dos fixes de UX autorizados explícitamente). Cada pasada
 cerró con backend build + tests verdes, tsc/eslint/vitest en admin y storefront,
 `next build` de producción y verificación de que EF no genera migraciones nuevas.
@@ -187,6 +187,39 @@ docs contra el filesystem y el código real).
   describían un stack que nunca se construyó así (MediatR, FluentValidation,
   NUnit+Moq, RabbitMQ, RLS) y enlazaban docs inexistentes — activamente
   dañinos para un dev nuevo.
+
+## Pasada 6 — infra, CI, e2e y pendientes de riesgo bajo
+
+El único territorio no revisado en 5 pasadas: workflows de CI, e2e, compose,
+scripts de setup y tooling raíz.
+
+- **Bug real reparado**: `admin-pantallas.spec.ts` usaba `ADMIN` sin importarlo
+  desde que el dedupe de la pasada 3 movió las consts a `_helpers.ts` — los 5
+  tests de ese describe tiraban `ReferenceError` en runtime. Causa raíz: e2e no
+  tenía type-check (sin tsconfig, `pnpm -r type-check` lo salteaba en silencio).
+  Fix + causa raíz: import reparado, `e2e/tsconfig.json` nuevo y script
+  `type-check` — ahora el CI lo compila como al resto.
+- CI: `permissions: contents: read` explícito en backend-ci y frontend-ci
+  (least privilege; los otros workflows ya lo declaraban); los paths de
+  frontend-ci ahora incluyen `e2e/**`, `package.json` raíz y los archivos de
+  Prettier — cambios ahí no disparaban el CI que los valida.
+- Pendientes de riesgo bajo de pasadas anteriores, cerrados: hook
+  `useVariantStock` (query de stock idéntica en Productos e Inventario),
+  `pollWhileRunning` (refetchInterval copiado en las 2 tabs de importación),
+  alias de campo `Json` de MeliClient inlineado a `ApiJson.Web`.
+- Exactitud menor: `edge.conf` anotado como sample no montado y su upstream
+  corregido a `:5080`; `.dockerignore` raíz anotado como fallback (los
+  `Dockerfile.dockerignore` por app lo reemplazan); referencia muerta a
+  `IMPLEMENTATION_CHECKLIST.md` en setup.ps1/sh → `START_HERE.md`; carpeta
+  personal fuera del repo quitada de `tiendafy.code-workspace`; comentario
+  stale de `tokens.css` ("el admin usa los defaults" — los overridea todos).
+- **Reportado, sin tocar (decisiones)**: PgBouncer en dev compose sin ningún
+  consumidor (el ADR 0003 lo reserva para RLS futuro); Postgres 15 en dev vs
+  16 en prod/CI; las imágenes de GHCR no hornean los DSN de Sentry que el
+  compose de prod sí pasa; claves de prod aún sin mapear (`PublicApiBaseUrl`,
+  `Email:WebhookSecret`, `MercadoPago:PublicApiBaseUrl`/`WebhookSecret`);
+  `actions: read` posiblemente sobrante en codeql.yml (no verificable hasta
+  recuperar acceso a Actions).
 
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 

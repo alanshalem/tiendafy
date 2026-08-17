@@ -6,7 +6,7 @@
  *
  * Theming por tenant: el storefront inyecta overrides de estas variables
  * en :root desde el tema del merchant (Themes module → JSON de tokens).
- * El admin usa siempre los defaults de plataforma.
+ * El admin overridea todos los tokens en admin/src/index.css (estética propia).
  */
 :root {
   /* ---------- Colores: marca (rebrand "obsidiana y papel" 2026-06) ---------- */

@@ -1,0 +1,26 @@
+import { useQuery } from '@tanstack/react-query';
+import { useStore } from '../../context/StoreContext';
+import { fetchStockChunked, type StockItem } from '../../lib/products';
+
+/**
+ * Helpers de react-query compartidos por las páginas de Productos
+ * (antes copiados entre lista/inventario y las tabs de importación).
+ */
+
+/** Stock por variante de todos los productos dados, como Map variantId → item. */
+export function useVariantStock(products: { variants: { id: string }[] }[]): Map<string, StockItem> {
+  const { store } = useStore();
+  const variantIds = products.flatMap((p) => p.variants.map((v) => v.id));
+  const { data: stock } = useQuery({
+    queryKey: ['inventory', store?.id, variantIds.length],
+    queryFn: () => fetchStockChunked(variantIds),
+    enabled: !!store && variantIds.length > 0,
+  });
+  return new Map((stock ?? []).map((s) => [s.variantId, s]));
+}
+
+/** refetchInterval de jobs de importación: 800ms hasta completed/failed. */
+export const pollWhileRunning = (query: { state: { data?: { status: string } } }) => {
+  const s = query.state.data?.status;
+  return s === 'completed' || s === 'failed' ? false : 800;
+};

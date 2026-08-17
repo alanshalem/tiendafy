@@ -26,7 +26,6 @@ public sealed record MeliTokens(
 public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, ILogger<MeliClient> logger)
 {
     private readonly MeliOptions _o = options.Value;
-    private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
     public string BuildAuthorizationUrl(string state)
     {
@@ -81,7 +80,7 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (payload is not null)
-            request.Content = new StringContent(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload, ApiJson.Web), Encoding.UTF8, "application/json");
 
         using var response = await http.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
