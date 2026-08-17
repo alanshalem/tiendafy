@@ -5,6 +5,7 @@ import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
+import { SETTINGS_CARD, TABLE_CARD } from '../lib/styles';
 
 interface Abandoned {
   count: number;
@@ -37,11 +38,11 @@ export function AbandonedCartsPage() {
       </p>
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+        <div className={SETTINGS_CARD}>
           <div className="text-sm font-semibold text-fg">Carritos abandonados</div>
           <div className="mt-2 text-3xl font-bold text-fg">{(data?.count ?? 0).toLocaleString('es-AR')}</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+        <div className={SETTINGS_CARD}>
           <div className="text-sm font-semibold text-fg">Valor recuperable</div>
           <div className="mt-2 text-3xl font-bold text-fg">{formatMoney(data?.recoverableValue ?? 0)}</div>
           <div className="mt-1 text-xs text-fg-subtle">De carritos con email.</div>
@@ -58,7 +59,7 @@ export function AbandonedCartsPage() {
           <p>Nada abandonado por ahora. ¡Bien ahí!</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+        <div className={TABLE_CARD}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-fg-muted">

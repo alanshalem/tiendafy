@@ -3,7 +3,6 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ProductListConfig, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
-import { defaultList } from './section-primitives';
 import { SectionRenderer, SECTION_LABELS } from './sections';
 import { PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';

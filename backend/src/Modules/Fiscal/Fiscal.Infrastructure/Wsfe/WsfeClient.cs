@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Xml.Linq;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;

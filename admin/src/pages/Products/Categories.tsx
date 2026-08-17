@@ -17,6 +17,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
+import { TABLE_CARD } from '../../lib/styles';
 
 interface CategoryDto {
   id: string;
@@ -227,7 +228,7 @@ export function CategoriesPage() {
       ) : isLoading ? (
         <p className="py-12 text-center text-sm text-fg-muted">Cargando...</p>
       ) : (
-        <div ref={listRef} className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+        <div ref={listRef} className={TABLE_CARD}>
           {tree.map((node) => (
             <CategoryRow
               key={node.id}

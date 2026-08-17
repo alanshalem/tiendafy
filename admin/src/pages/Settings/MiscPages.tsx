@@ -4,6 +4,7 @@ import { Button, Input, Select, Textarea, useToast } from '@tiendafy/ui';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
+import { SETTINGS_CARD, TABLE_CARD } from '../../lib/styles';
 
 /* ---------- Centros de distribución ---------- */
 export function DistributionCentersPage() {
@@ -18,7 +19,7 @@ export function DistributionCentersPage() {
           </button>
         }
       />
-      <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+      <div className={TABLE_CARD}>
         <div className="flex items-center justify-between border-b border-border px-5 py-4 last:border-b-0">
           <div>
             <div className="font-medium text-fg">Centro principal</div>
@@ -46,7 +47,7 @@ export function ExternalCodesPage() {
         description="Insertá scripts de terceros (Google Analytics, Meta Pixel, chats). Se cargan en todas las páginas de tu tienda."
       />
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+        <div className={SETTINGS_CARD}>
           <h3 className="text-sm font-semibold text-fg">Código en &lt;head&gt;</h3>
           <p className="mt-0.5 text-xs text-fg-muted">Ideal para etiquetas de seguimiento y verificación.</p>
           <Textarea
@@ -57,7 +58,7 @@ export function ExternalCodesPage() {
             placeholder="<!-- Google Analytics, Meta Pixel... -->"
           />
         </div>
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+        <div className={SETTINGS_CARD}>
           <h3 className="text-sm font-semibold text-fg">Código antes de &lt;/body&gt;</h3>
           <p className="mt-0.5 text-xs text-fg-muted">Ideal para widgets y chats.</p>
           <Textarea
@@ -156,7 +157,7 @@ export function RedirectsPage() {
         title="Redireccionamientos 301"
         description="Redirigí URLs viejas a nuevas para no perder posicionamiento ni dejar links rotos."
       />
-      <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+      <div className={SETTINGS_CARD}>
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[12rem]">
             <label className="mb-1.5 block text-sm font-medium text-fg">Desde (URL vieja)</label>
@@ -236,7 +237,7 @@ export function CustomFieldsPage() {
         title="Campos personalizados"
         description="Agregá atributos propios a tus productos, clientes o pedidos (ej: material, talle de cintura, dedicatoria)."
       />
-      <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+      <div className={SETTINGS_CARD}>
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[12rem]">
             <label className="mb-1.5 block text-sm font-medium text-fg">Nombre del campo</label>

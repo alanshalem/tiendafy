@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { ProductListConfig, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
 

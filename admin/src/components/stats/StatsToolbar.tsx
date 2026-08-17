@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Calendar, ChevronDown, Clock } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
+import { SETTINGS_CARD } from '../../lib/styles';
 
 /* ============================================================
    Rango de fechas REAL de las páginas de estadísticas.
@@ -183,7 +184,7 @@ export function KpiCard({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+    <div className={SETTINGS_CARD}>
       <div className="flex items-center gap-1.5 text-sm font-semibold text-fg">
         {title}
         <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle">

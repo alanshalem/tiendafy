@@ -3,16 +3,17 @@ import { useSearchParams } from 'react-router-dom';
 import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
-import { api } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 import { FiscalPanel } from './orders-fiscal';
 import { RefundDialog } from './orders-refund';
+import { TABLE_CARD } from '../lib/styles';
 
 interface OrderItem {
   variantId: string;
@@ -101,7 +102,7 @@ export function OrdersPage() {
         await api.post(`/api/v1/orders/${o.id}/fulfill`, { tracking: tracking.trim() || null });
         await load();
       } catch (e) {
-        toast(e instanceof Error ? e.message : 'No se pudo marcar como enviada.', { variant: 'error' });
+        toast(errMsg(e, 'No se pudo marcar como enviada.'), { variant: 'error' });
       } finally {
         setBusy(null);
       }
@@ -130,7 +131,7 @@ export function OrdersPage() {
         await load();
         return true;
       } catch (e) {
-        toast(e instanceof Error ? e.message : 'No se pudo reembolsar.', { variant: 'error' });
+        toast(errMsg(e, 'No se pudo reembolsar.'), { variant: 'error' });
         return false;
       } finally {
         setBusy(null);
@@ -179,7 +180,7 @@ export function OrdersPage() {
           <p className="text-xs">Cuando un cliente pague con Mercado Pago, la orden aparece acá.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+        <div className={TABLE_CARD}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-fg-muted">
@@ -199,14 +200,7 @@ export function OrdersPage() {
                       onClick={() => setExpanded(open ? null : o.id)}
                       className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-muted"
                     >
-                      <td className="px-4 py-3 text-fg-muted">
-                        {new Date(o.createdAtUtc).toLocaleDateString('es-AR', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
+                      <td className="px-4 py-3 text-fg-muted">{formatDateTime(o.createdAtUtc)}</td>
                       <td className="px-4 py-3 text-fg">{o.buyerEmail}</td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">
                         {money(o.total)}

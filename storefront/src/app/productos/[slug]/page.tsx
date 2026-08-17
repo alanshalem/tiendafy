@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
 import { ProductDetail } from '@/components/store/ProductDetail';
@@ -11,6 +10,7 @@ import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
 import type { MoneyDto } from '@tiendafy/types';
+import { REVALIDATE } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     name: string;
     description: string | null;
     images: { url: string }[];
-  }>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, { next: { revalidate: 30 } }).catch(() => null);
+  }>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, { next: { revalidate: REVALIDATE.catalog } }).catch(
+    () => null,
+  );
   if (!product) return { title: data.tenant.name };
   const base = await siteBase();
   return {
@@ -70,7 +72,7 @@ export default async function ProductDetailPage({
 
   // Data cache 30s keyed por tenant (_mt): TTFB decente sin SSR+DB en cada hit.
   const product = await apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, {
-    next: { revalidate: 30 },
+    next: { revalidate: REVALIDATE.catalog },
   });
 
   // "También te puede gustar": productos de la MISMA categoría del que se está
@@ -243,7 +245,7 @@ async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Prom
   if (!catId) return [];
   try {
     const res = await apiGetTenant<{ items?: CategoryDto[] }>('/api/v1/categories', tenantId, {
-      next: { revalidate: 60 },
+      next: { revalidate: REVALIDATE.categories },
     });
     const byId = new Map((res?.items ?? []).map((c) => [c.id, c]));
     const trail: CategoryDto[] = [];

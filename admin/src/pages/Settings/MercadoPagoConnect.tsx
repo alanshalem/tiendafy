@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
+import { BadgeCheck, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
-import { BadgeCheck } from 'lucide-react';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 
 type CheckoutMode = 'PRO' | 'API';

@@ -57,8 +57,9 @@ export const isNavVisible = (to: string): boolean => NAV_VISIBILITY[to] ?? true;
 // ---- Enlaces de ayuda ("Más sobre…") -----------------------------------------
 export const SHOW_HELP_LINKS = true;
 
-// El contenido real de cada manual vive en config/helpContent.ts y se muestra
-// en /ayuda/:topic dentro del admin (no depende de un sitio externo).
+// El contenido real de cada manual vive en config/help-content-*.ts (agregado
+// por config/helpContent.ts) y se muestra en /ayuda/:topic dentro del admin
+// (no depende de un sitio externo).
 export const HELP_LINKS = {
   primerosPasos: { label: 'Guía para abrir tu tienda' },
   payments: { label: 'Más sobre medios de pago' },

@@ -8,6 +8,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
+import { TABLE_CARD } from '../../lib/styles';
 
 interface Member {
   userId: string;
@@ -172,7 +173,7 @@ export function UsersNotificationsPage() {
             </div>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+          <div className={TABLE_CARD}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">

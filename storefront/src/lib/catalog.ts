@@ -1,6 +1,7 @@
 import { apiGetTenant } from './api';
 import { type MoneyDto } from '@tiendafy/types';
 import type { StoreProduct } from '@/components/store/sections';
+import { REVALIDATE } from './cache';
 
 export interface VariantDto {
   id: string;
@@ -48,7 +49,7 @@ export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[
   // Data cache 30s (keyed por tenant vía _mt): baja TTFB y crawl budget sin
   // riesgo cross-tenant. Un producto nuevo aparece en ≤30s.
   const page = await apiGetTenant<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', tenantId, {
-    next: { revalidate: 30 },
+    next: { revalidate: REVALIDATE.catalog },
   });
   return page?.items ?? [];
 }
@@ -106,7 +107,7 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   qs.set('pageSize', String(params.pageSize ?? 24));
 
   const res = await apiGetTenant<ProductSearchResult>(`/api/v1/products/search?${qs.toString()}`, tenantId, {
-    next: { revalidate: 30 },
+    next: { revalidate: REVALIDATE.catalog },
   });
   return (
     res ?? {
@@ -122,7 +123,7 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
 
 export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> {
   const res = await apiGetTenant<{ items: CategoryDto[] }>('/api/v1/categories', tenantId, {
-    next: { revalidate: 60 },
+    next: { revalidate: REVALIDATE.categories },
   });
   return res?.items ?? [];
 }

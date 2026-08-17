@@ -3,6 +3,7 @@ import { StorefrontPageShell } from '@/lib/storefront-page';
 import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
 import { CmsBody } from '@/components/store/CmsBody';
+import { REVALIDATE } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!tenant) return {};
   // apiGetTenant: el tenant también en la URL, o la Data Cache mezcla tiendas.
   const page = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, tenant.id, {
-    next: { revalidate: 30 },
+    next: { revalidate: REVALIDATE.cms },
   });
   if (!page) return {};
   return { title: page.title, description: page.title };
@@ -40,7 +41,7 @@ export default async function InstitutionalPage({
     <StorefrontPageShell searchParams={searchParams}>
       {async ({ data }) => {
         const page = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, data.tenant.id, {
-          next: { revalidate: 30 },
+          next: { revalidate: REVALIDATE.cms },
         });
         return (
           <main className="mx-auto max-w-container px-4 py-10">

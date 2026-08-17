@@ -1,10 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { colClass, type ProductListConfig } from '@/lib/theme';
-import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { baseTheme } from '@tiendafy/types';

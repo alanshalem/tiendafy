@@ -11,6 +11,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { cartStorageKey, type CartLine } from './cart';
 import { readJson } from '@/lib/storage';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
+import { INPUT_LIGHT_10 } from './styles';
 
 interface ShippingOption {
   id: string;
@@ -907,7 +908,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                   placeholder="Cupón de descuento"
-                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+                  className={INPUT_LIGHT_10}
                 />
                 <button
                   onClick={applyCoupon}

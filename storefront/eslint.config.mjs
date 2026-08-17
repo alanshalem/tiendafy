@@ -11,6 +11,9 @@ export default [
       // decisiones conscientes, no descuidos.
       '@next/next/no-img-element': 'off',
       '@next/next/no-html-link-for-pages': 'off',
+      // Imports/variables muertos: tsc del storefront no los reporta (noUnusedLocals
+      // off) y sin esta regla se acumulan tras cada refactor. Mismo criterio que admin.
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'react-hooks/exhaustive-deps': 'warn',
       // Regla nueva del React Compiler: advisoria acá — setState en effects
       // de hidratación/carga es patrón consciente (igual criterio que admin).

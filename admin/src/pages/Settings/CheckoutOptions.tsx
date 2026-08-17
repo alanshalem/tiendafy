@@ -2,6 +2,7 @@ import { Checkbox, Radio, RadioGroup, Switch, Textarea, useToast } from '@tienda
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
+import { SETTINGS_CARD } from '../../lib/styles';
 
 interface CheckoutData {
   singleColumn: boolean;
@@ -176,7 +177,7 @@ function Section({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+    <div className={SETTINGS_CARD}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-fg">{title}</h3>

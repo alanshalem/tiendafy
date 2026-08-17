@@ -2,6 +2,7 @@ import { StorefrontPageShell } from '@/lib/storefront-page';
 import { apiGetTenant } from '@/lib/api';
 import type { LegalDoc } from '@/lib/legal';
 import { CmsBody } from './CmsBody';
+import { REVALIDATE } from '@/lib/cache';
 
 interface PageDto {
   title: string;
@@ -32,7 +33,7 @@ export function LegalPage({
           // por URL e ignora headers — sin el tenant en la URL, dos tiendas
           // compartían la entrada de caché de /terminos y /privacidad.
           custom = await apiGetTenant<PageDto>(`/api/v1/pages/by-slug/${slug}`, data.tenant.id, {
-            next: { revalidate: 60 },
+            next: { revalidate: REVALIDATE.legal },
           }).catch(() => null);
           if (custom) break;
         }

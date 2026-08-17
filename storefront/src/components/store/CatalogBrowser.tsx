@@ -9,6 +9,7 @@ import type { CategoryDto, ProductFacets } from '@/lib/catalog';
 import { ProductCard, type StoreProduct } from './sections';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
+import { INPUT_LIGHT_10 } from './styles';
 
 const SORTS: { value: string; label: string }[] = [
   { value: 'newest', label: 'Más nuevos' },
@@ -127,7 +128,7 @@ export function CatalogBrowser({
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar productos"
                   aria-label="Buscar"
-                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+                  className={INPUT_LIGHT_10}
                 />
                 <button
                   type="submit"

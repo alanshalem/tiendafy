@@ -8,6 +8,7 @@ import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
 import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 export function ResetPassword() {
   const params = useSearchParams();
@@ -74,14 +75,10 @@ export function ResetPassword() {
         placeholder="Nueva contraseña"
         required
         minLength={8}
-        className="mt-4 h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary"
+        className={`mt-4 ${INPUT_THEMED_11}`}
       />
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
-      <button
-        type="submit"
-        disabled={busy || password.length < 8}
-        className="mt-4 flex h-11 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-fg disabled:opacity-60"
-      >
+      <button type="submit" disabled={busy || password.length < 8} className={`mt-4 ${BTN_PRIMARY_BLOCK}`}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
       </button>
     </form>

@@ -5,6 +5,7 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useCart } from './cart';
 import { Captcha } from './Captcha';
 import { submitContact } from '@/lib/contact';
+import { INPUT_LIGHT_11 } from './styles';
 
 /**
  * Formulario del Botón de Arrepentimiento (Res. 424/2020). Entra por el mismo
@@ -70,7 +71,7 @@ export function RepentanceForm() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Tu nombre"
         aria-label="Tu nombre"
-        className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+        className={INPUT_LIGHT_11}
       />
       <input
         required
@@ -79,14 +80,14 @@ export function RepentanceForm() {
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Tu email (el de la compra)"
         aria-label="Tu email"
-        className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+        className={INPUT_LIGHT_11}
       />
       <input
         value={order}
         onChange={(e) => setOrder(e.target.value)}
         placeholder="Número de pedido (si lo tenés)"
         aria-label="Número de pedido"
-        className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+        className={INPUT_LIGHT_11}
       />
       <textarea
         value={reason}

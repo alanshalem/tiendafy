@@ -12,7 +12,7 @@ import {
   type BadgeVariant,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { fecha, money } from './mercadolibre-shared';
+import { fecha, moneyMajor } from './mercadolibre-shared';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -76,7 +76,7 @@ export function VentasTab() {
       {stats && (
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
           <StatCard label="Ventas ML (30 días)" value={String(stats.orders)} />
-          <StatCard label="Facturado en ML" value={money(stats.revenue, stats.currency)} />
+          <StatCard label="Facturado en ML" value={moneyMajor(stats.revenue, stats.currency)} />
           <StatCard label="Unidades vendidas" value={String(stats.unitsSold)} />
         </div>
       )}
@@ -111,7 +111,9 @@ export function VentasTab() {
                     <td className="max-w-[280px] px-4 py-3 text-fg-muted">
                       {o.items.map((i) => `${i.quantity}× ${i.title}`).join(' · ') || '—'}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-fg">{money(o.totalAmount, o.currencyId)}</td>
+                    <td className="px-4 py-3 font-semibold text-fg">
+                      {moneyMajor(o.totalAmount, o.currencyId)}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={st.variant}>{st.label}</Badge>

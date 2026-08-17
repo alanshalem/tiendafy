@@ -6,6 +6,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
+import { SETTINGS_CARD } from '../../lib/styles';
 
 interface MeliConnection {
   available: boolean;
@@ -113,7 +114,7 @@ export function MeliSettingsPage() {
         title="Mercado Libre"
         description="Conectá tu cuenta de vendedor: tus ventas, preguntas y mensajes de Mercado Libre en el panel, con stock unificado."
       />
-      <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+      <div className={SETTINGS_CARD}>
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-bg text-warning">
             <Store className="h-5 w-5" />

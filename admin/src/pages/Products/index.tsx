@@ -14,6 +14,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 import { type Category } from './types';
 import { ProductRows } from './ProductRows';
+import { TABLE_CARD } from '../../lib/styles';
 
 export interface VariantDto {
   id: string;
@@ -335,7 +336,7 @@ export function ProductsPage() {
           )}
 
           {/* Tabla agrupada */}
-          <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+          <div className={TABLE_CARD}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">

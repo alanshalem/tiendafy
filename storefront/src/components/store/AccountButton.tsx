@@ -10,6 +10,7 @@ import { Captcha } from './Captcha';
 import { useFocusTrap } from './useFocusTrap';
 
 import { clientJson } from '@/lib/api-client';
+import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 /** Entrada de cuenta en el header: menú si está logueado, modal de login si no. */
 export function AccountButton() {
@@ -206,7 +207,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre"
                   required
-                  className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary"
+                  className={INPUT_THEMED_11}
                 />
               )}
               <input
@@ -215,7 +216,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
                 required
-                className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary"
+                className={INPUT_THEMED_11}
               />
               {mode !== 'forgot' && (
                 <input
@@ -225,7 +226,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                   placeholder="Contraseña"
                   required
                   minLength={8}
-                  className="h-11 w-full rounded-md border border-[rgb(var(--color-fg)/0.2)] bg-transparent px-3 text-sm outline-none focus:border-primary"
+                  className={INPUT_THEMED_11}
                 />
               )}
 
@@ -236,7 +237,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
               <button
                 type="submit"
                 disabled={busy || (mode !== 'forgot' && captcha === null)}
-                className="flex h-11 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-fg disabled:opacity-60"
+                className={BTN_PRIMARY_BLOCK}
               >
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

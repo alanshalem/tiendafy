@@ -6,6 +6,7 @@ import { useCart } from './cart';
 import { Captcha } from './Captcha';
 
 import { submitContact } from '@/lib/contact';
+import { INPUT_LIGHT_11 } from './styles';
 
 export function ContactForm() {
   const { tenantId } = useCart();
@@ -43,7 +44,7 @@ export function ContactForm() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Tu nombre"
         aria-label="Tu nombre"
-        className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+        className={INPUT_LIGHT_11}
       />
       <input
         required
@@ -52,7 +53,7 @@ export function ContactForm() {
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Tu email"
         aria-label="Tu email"
-        className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+        className={INPUT_LIGHT_11}
       />
       <textarea
         required

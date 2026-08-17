@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using Api.Auth;
 using Api.Import;
 using Catalog.Core;
@@ -8,7 +7,6 @@ using Catalog.Core.Features.UpdateProduct;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Primitives;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 

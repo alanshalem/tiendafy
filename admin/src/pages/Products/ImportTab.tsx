@@ -4,7 +4,7 @@ import { Check, Download, Plus, Upload, X } from 'lucide-react';
 import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { BOM, buildCsv, CSV_HEADER, downloadCsv, TEMPLATE_EXAMPLES } from './export-import-shared';
+import { BOM, buildCsv, CSV_HEADER, downloadCsv, TEMPLATE_EXAMPLES } from './import-templates';
 
 interface ImportJobStatus {
   jobId: string;

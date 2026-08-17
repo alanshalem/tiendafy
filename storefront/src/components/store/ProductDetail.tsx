@@ -9,6 +9,7 @@ import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import type { MoneyDto } from '@tiendafy/types';
+import { INPUT_LIGHT_10 } from './styles';
 
 interface Variant {
   id: string;
@@ -269,7 +270,7 @@ export function ProductDetail({
                   value={variantId}
                   onChange={(e) => setVariantId(e.target.value)}
                   aria-label="Variante"
-                  className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+                  className={INPUT_LIGHT_10}
                 >
                   {variants.map((v) => (
                     <option key={v.id} value={v.id}>

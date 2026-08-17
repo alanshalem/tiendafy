@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 
-import { API_URL as CART_API, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';

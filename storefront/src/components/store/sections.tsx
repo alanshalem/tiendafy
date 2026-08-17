@@ -1,17 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from './Icon';
-import { colClass, type ProductListConfig, type SectionType, type ThemeSection } from '@/lib/theme';
-import { usePreviewHref, PreviewContext } from './preview';
-import { EditableRegion } from './EditableRegion';
+import { type ReactNode } from 'react';
+import { Icon } from './Icon';
+import { type ProductListConfig, type SectionType, type ThemeSection } from '@/lib/theme';
+import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
 // ProductCard vive en su propio archivo; re-exportamos para consumidores externos
 // (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
-import { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
-import { baseTheme } from '@tiendafy/types';
+import { type StoreProduct } from './ProductCard';
 import { MarqueeTrack } from './MarqueeTrack';
+import { INPUT_LIGHT_10 } from './styles';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 import {
   defaultList,
@@ -359,12 +358,7 @@ function NewsletterSection({ section }: SectionRenderProps) {
         </h3>
         {data.text && <p className="mx-auto mt-2 max-w-md opacity-70">{data.text}</p>}
         <form className="mx-auto mt-4 flex max-w-sm gap-2" onSubmit={(e) => e.preventDefault()}>
-          <input
-            type="email"
-            placeholder="tu@email.com"
-            aria-label="Email"
-            className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
-          />
+          <input type="email" placeholder="tu@email.com" aria-label="Email" className={INPUT_LIGHT_10} />
           <button
             type="submit"
             className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg"

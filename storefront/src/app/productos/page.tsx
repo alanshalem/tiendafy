@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { CatalogBrowser } from '@/components/store/CatalogBrowser';

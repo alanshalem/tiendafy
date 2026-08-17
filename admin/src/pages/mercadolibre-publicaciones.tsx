@@ -13,7 +13,7 @@ import {
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { fetchAllProducts } from '../lib/products';
-import { money } from './mercadolibre-shared';
+import { moneyMajor } from './mercadolibre-shared';
 import type { MoneyDto } from '@tiendafy/types';
 
 // ---- Tipos wire --------------------------------------------------------------
@@ -139,7 +139,7 @@ export function PublicacionesTab() {
                     <Badge variant={st.variant}>{st.label}</Badge>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-fg-muted">
-                    <span>{money(item.price, 'ARS')}</span>
+                    <span>{moneyMajor(item.price, 'ARS')}</span>
                     <span>Stock en ML: {item.availableQuantity}</span>
                     {item.link ? (
                       <span className="inline-flex items-center gap-1 text-success">

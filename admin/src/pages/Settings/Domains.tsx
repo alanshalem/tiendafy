@@ -13,6 +13,7 @@ import { Badge } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
+import { SETTINGS_CARD, TABLE_CARD } from '../../lib/styles';
 
 export function DomainsPage() {
   const { store } = useStore();
@@ -44,7 +45,7 @@ export function DomainsPage() {
       />
 
       <h2 className="mb-3 text-base font-semibold text-fg">Administrá tus dominios</h2>
-      <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+      <div className={TABLE_CARD}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
@@ -119,7 +120,7 @@ export function DomainsPage() {
             },
           ] as { icon: LucideIcon; title: string; body: string }[]
         ).map((card) => (
-          <div key={card.title} className="rounded-lg border border-border bg-surface p-5 shadow-card">
+          <div key={card.title} className={SETTINGS_CARD}>
             <card.icon className="h-5 w-5 text-fg-muted" />
             <h3 className="mt-2 font-semibold text-fg">{card.title}</h3>
             <p className="mt-1 text-sm text-fg-muted">{card.body}</p>

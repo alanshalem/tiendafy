@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, FileText, Download } from 'lucide-react';
 import { useToast } from '@tiendafy/ui';
-import { api } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 
 interface FiscalDoc {
@@ -88,7 +88,7 @@ export function FiscalPanel({
       );
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo facturar.', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo facturar.'), { variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -101,7 +101,7 @@ export function FiscalPanel({
       );
       downloadBlob(blob, `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo descargar el comprobante.', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo descargar el comprobante.'), { variant: 'error' });
     }
   };
 
@@ -113,7 +113,7 @@ export function FiscalPanel({
       toast('Reintento encolado', { variant: 'success' });
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo reintentar.', { variant: 'error' });
+      toast(errMsg(e, 'No se pudo reintentar.'), { variant: 'error' });
     } finally {
       setBusy(false);
     }
