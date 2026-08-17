@@ -22,10 +22,10 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 | Ver las 130+ rutas de la API | http://localhost:5080/scalar/v1 (con la API corriendo) |
 | Deployar a producción | [DEPLOY.md](./DEPLOY.md) — imágenes, compose.prod, Caddy, backups, variables |
 | Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
-| Entender roles y permisos | [rbac-propuesta.md](./rbac-propuesta.md) — matriz implementada (fuente de verdad: `Permissions.cs`) |
+| Entender roles y permisos | [rbac.md](./rbac.md) — roles, matriz y enforcement (fuente de verdad: `Permissions.cs`) |
 | Entender el chat posventa | [support-chat.md](./support-chat.md) |
 | Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) |
-| Agregar un feature o módulo | [guides/adding-a-feature.md](./guides/adding-a-feature.md) / [guides/adding-a-module.md](./guides/adding-a-module.md) |
+| Agregar un módulo | [guides/adding-a-module.md](./guides/adding-a-module.md) — receta basada en módulos reales |
 | Por qué cada decisión de arquitectura | [adr/](./adr/) — monolito .NET, Next+Vite, multi-tenancy |
 
 > Los documentos de planificación de junio 2026 (blueprint, checklist de

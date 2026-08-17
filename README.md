@@ -101,7 +101,7 @@ Hooks locales (husky): Prettier + `dotnet format` sobre lo stageado en cada comm
 - [docs/ARQUITECTURA-VISUAL.md](./docs/ARQUITECTURA-VISUAL.md) — **diagramas Mermaid de TODO el sistema**: piezas, integraciones (Mercado Pago, Resend, WhatsApp, ARCA, Correo Argentino…) y el flujo de una venta
 - [docs/DEPLOY.md](./docs/DEPLOY.md) — build de imágenes y producción
 - [docs/payments-mercadopago.md](./docs/payments-mercadopago.md) — integración de pagos en detalle
-- [docs/rbac-propuesta.md](./docs/rbac-propuesta.md) — matriz de roles y permisos
+- [docs/rbac.md](./docs/rbac.md) — matriz de roles y permisos
 - [docs/adr/](./docs/adr) — decisiones arquitectónicas
 - [docs/guides/](./docs/guides) — agregar un feature / un módulo
 

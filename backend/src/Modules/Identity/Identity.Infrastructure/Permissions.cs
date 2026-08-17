@@ -32,7 +32,7 @@ public enum Permission
 }
 
 /// <summary>
-/// Matriz rol → permisos (docs/rbac-propuesta.md). Deny by default: lo que no
+/// Matriz rol → permisos (docs/rbac.md). Deny by default: lo que no
 /// está acá, no se puede. La matriz es política de producto, vive en código.
 /// </summary>
 public static class RolePermissions
