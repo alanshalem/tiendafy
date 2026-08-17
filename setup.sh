@@ -51,7 +51,7 @@ ok "pnpm $(pnpm --version)"
 
 # ---------- 2. Infraestructura Docker ----------
 if [[ "$SKIP_DOCKER" == false ]]; then
-  step "Levantando infraestructura (Postgres, PgBouncer, MinIO)"
+  step "Levantando infraestructura (Postgres, MinIO)"
   docker compose -f "$ROOT/infra/docker/docker-compose.dev.yml" up -d --wait \
     || fail "docker compose falló. Ver logs: docker compose -f infra/docker/docker-compose.dev.yml logs"
   ok "Servicios arriba y healthy"
@@ -85,7 +85,6 @@ cat <<'EOF'
 
   Infraestructura (Docker):
     PostgreSQL   localhost:5432  (tiendafy / tiendafy)
-    PgBouncer    localhost:6432  (pool transaccional)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
 
   Para desarrollar (Windows: usar dev-up.ps1; Linux/WSL: a mano):

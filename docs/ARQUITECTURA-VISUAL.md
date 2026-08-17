@@ -53,7 +53,7 @@ flowchart TB
     end
 
     subgraph Datos["💾 Datos"]
-        PG[("PostgreSQL<br/>(PgBouncer en dev)<br/>filas con tenant_id +<br/>query filters por módulo")]
+        PG[("PostgreSQL<br/>filas con tenant_id +<br/>query filters por módulo")]
         MinIO[("MinIO / S3<br/>media pública +<br/>adjuntos privados firmados")]
         DP["🔐 DataProtection keyring<br/>cifra: tokens MP, certificados<br/>y claves ARCA, tokens WhatsApp"]
     end

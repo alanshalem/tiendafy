@@ -2,7 +2,8 @@ name: tiendafy
 
 services:
   postgres:
-    image: postgres:15-alpine
+    # Misma major que prod y CI (paridad dev/prod).
+    image: postgres:16-alpine
     container_name: tiendafy-postgres
     environment:
       POSTGRES_USER: tiendafy
@@ -19,28 +20,10 @@ services:
       timeout: 5s
       retries: 10
 
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
-    container_name: tiendafy-pgbouncer
-    environment:
-      DB_HOST: postgres
-      DB_USER: tiendafy
-      DB_PASSWORD: tiendafy
-      DB_NAME: tiendafy
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 200
-      DEFAULT_POOL_SIZE: 25
-      AUTH_TYPE: scram-sha-256
-    ports:
-      - '127.0.0.1:6432:5432'
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # Redis y RabbitMQ se removieron: el sistema usa polling a Postgres (webhook
-  # inbox, workers), no colas ni cache externos. Estaban levantados pero ningún
-  # código los consumía. Si en el futuro se migra a message queue, volver a
-  # sumarlos acá y a los docs.
+  # Redis, RabbitMQ y PgBouncer se removieron: el sistema usa polling a
+  # Postgres (webhook inbox, workers) y la API conecta directo al 5432 —
+  # ningún código los consumía. PgBouncer queda reservado en el ADR 0003
+  # para RLS/multi-réplica; si hace falta, volver a sumarlo acá y a los docs.
 
   minio:
     image: minio/minio:latest

@@ -78,6 +78,14 @@ services:
       Email__ResendApiKey: ${RESEND_API_KEY}
       MercadoPago__ClientId: ${MP_CLIENT_ID}
       MercadoPago__ClientSecret: ${MP_CLIENT_SECRET}
+      # Firma de webhooks de MP (panel de la app) — sin esto no se validan.
+      MercadoPago__WebhookSecret: ${MP_WEBHOOK_SECRET:-}
+      # URL pública de la API: notification_url de MP y links de tracking/baja
+      # de los emails de campañas (sin la clave raíz caerían a localhost:5080).
+      MercadoPago__PublicApiBaseUrl: https://api.${PLATFORM_DOMAIN}
+      PublicApiBaseUrl: https://api.${PLATFORM_DOMAIN}
+      # Firma de webhooks de Resend (bounces/quejas de campañas).
+      Email__WebhookSecret: ${EMAIL_WEBHOOK_SECRET:-}
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).

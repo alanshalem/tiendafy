@@ -22,7 +22,7 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 - **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 17 módulos, cada uno con su DbContext y filtro global de tenant.
 - **Storefront**: Next.js 16 (SSR multi-tenant por Host), React 19, Tailwind
 - **Admin**: React 19 + Vite (SPA), TypeScript, React Query
-- **Infra dev**: Docker (Postgres, PgBouncer, MinIO)
+- **Infra dev**: Docker (Postgres, MinIO)
 - **Prod**: Docker Compose + Caddy (TLS automático, on-demand para dominios propios) — ver [docs/DEPLOY.md](./docs/DEPLOY.md)
 
 ## Quick start (desarrollo)
@@ -45,7 +45,7 @@ Requisitos: Docker, .NET 10 SDK, Node 22+ (pnpm llega vía corepack).
 | API | http://localhost:5080 (`/health`, `/version`) |
 | Admin (panel del merchant) | http://localhost:3001 |
 | Storefront (tiendas) | http://`<subdominio>`.localhost:3000 |
-| Postgres / PgBouncer | localhost:5432 / 6432 (tiendafy/tiendafy) |
+| Postgres | localhost:5432 (tiendafy/tiendafy) |
 | MinIO Console | localhost:9001 |
 
 **Primeros pasos**: abrí el admin (http://localhost:3001), registrate, creá una
