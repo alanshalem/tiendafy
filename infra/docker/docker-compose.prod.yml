@@ -86,6 +86,11 @@ services:
       PublicApiBaseUrl: https://api.${PLATFORM_DOMAIN}
       # Firma de webhooks de Resend (bounces/quejas de campañas).
       Email__WebhookSecret: ${EMAIL_WEBHOOK_SECRET:-}
+      # Meta Ads (ROAS real). Vacío = integración apagada.
+      MetaAds__AppId: ${META_APP_ID:-}
+      MetaAds__AppSecret: ${META_APP_SECRET:-}
+      MetaAds__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/meta-ads/oauth/callback
+      MetaAds__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/estadisticas/rentabilidad
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).
