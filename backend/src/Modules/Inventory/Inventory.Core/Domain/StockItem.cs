@@ -16,6 +16,12 @@ public sealed class StockItem : Entity
     public int Available { get; private set; }
     public int Reserved { get; private set; }
 
+    /// <summary>Ubicación física en el depósito ("Estantería B3"). Solo informativa.</summary>
+    public string? Location { get; private set; }
+
+    public void SetLocation(string? location) =>
+        Location = string.IsNullOrWhiteSpace(location) ? null : location.Trim();
+
     private StockItem() { } // EF Core
 
     public StockItem(TenantId tenantId, Guid variantId, int initialAvailable)

@@ -24,6 +24,7 @@ import { CategoriesPage } from './pages/Products/Categories';
 import { InventoryPage } from './pages/Products/Inventory';
 import { CostsPage } from './pages/Products/Costs';
 import { ComprasPage } from './pages/Compras';
+import { ScannerPage } from './pages/Products/Scanner';
 import { ExportImportPage } from './pages/Products/ExportImport';
 import { NewProductPage } from './pages/Products/NewProduct';
 import { EditProductPage } from './pages/Products/EditProduct';
@@ -84,6 +85,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
   { path: '/productos/costos', perm: 'catalog.write', el: <CostsPage /> },
   { path: '/compras', perm: 'purchasing', el: <ComprasPage /> },
+  { path: '/productos/escaner', perm: 'inventory.read', el: <ScannerPage /> },
 
   // Tienda online (chunks lazy)
   {

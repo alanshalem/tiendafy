@@ -151,7 +151,10 @@ public sealed class ProductImportWorker(
             if (vr.IsFailure)
                 job.AddError(iv.Line, model.Handle, $"Variante '{sku}': {vr.Error.Message}");
             else
+            {
+                if (iv.Barcode is not null) product.SetVariantBarcode(vr.Value.Id, iv.Barcode);
                 addedVariants++;
+            }
         }
 
         if (model.Visible && addedVariants > 0)
@@ -200,6 +203,7 @@ public sealed class ProductImportWorker(
             product.ChangeVariantPrice(match.Id, price, compareAt);
             // Celda "Costo" vacía = no tocar el costo existente (CSVs viejos sin la columna).
             if (cost is not null) product.SetVariantCost(match.Id, cost);
+            if (iv.Barcode is not null) product.SetVariantBarcode(match.Id, iv.Barcode);
         }
 
         await db.SaveChangesAsync(ct);

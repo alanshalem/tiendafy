@@ -6,9 +6,14 @@ using SharedKernel.Common;
 
 namespace Api.Meli;
 
-/// <summary>Item de una venta ML tal como se guarda en meli_orders.items_json.</summary>
+/// <summary>
+/// Item de una venta ML tal como se guarda en meli_orders.items_json.
+/// SaleFee = comisión de ML POR UNIDAD (order_items[].sale_fee) — null en
+/// snapshots viejos (pre-campo); un resync la trae.
+/// </summary>
 public sealed record MeliOrderItemSnapshot(
-    string ItemId, long? VariationId, string Title, int Quantity, decimal UnitPrice, string? Sku);
+    string ItemId, long? VariationId, string Title, int Quantity, decimal UnitPrice, string? Sku,
+    decimal? SaleFee = null);
 
 /// <summary>
 /// Sincroniza ventas de Mercado Libre al cache local y aplica el descuento de
@@ -136,7 +141,9 @@ public sealed class MeliSyncService(
                 Title: JsonRead.GetString(item, "title") ?? "",
                 Quantity: oi.TryGetProperty("quantity", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : 1,
                 UnitPrice: JsonRead.GetDecimal(oi, "unit_price"),
-                Sku: JsonRead.GetString(item, "seller_sku") ?? JsonRead.GetString(item, "seller_custom_field")));
+                Sku: JsonRead.GetString(item, "seller_sku") ?? JsonRead.GetString(item, "seller_custom_field"),
+                SaleFee: oi.TryGetProperty("sale_fee", out var fee) && fee.ValueKind == JsonValueKind.Number
+                    ? fee.GetDecimal() : null));
         }
         return list;
     }

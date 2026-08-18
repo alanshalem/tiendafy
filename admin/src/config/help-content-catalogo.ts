@@ -40,6 +40,42 @@ export const CATALOGO = {
     ],
   },
 
+  escaner: {
+    title: 'Escáner de depósito',
+    intro:
+      'La cámara del celular como lectora de códigos: buscá productos al instante, prepará pedidos sin errores de despacho y hacé conteos sin planillas.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'Códigos de barras y etiquetas',
+        paragraphs: [
+          'Cada variante puede tener su código de barras: el EAN que ya trae el paquete del proveedor (columna «Código de barras» del CSV, o asignándolo desde el propio escáner) o una etiqueta QR generada por el sistema.',
+          'Desde Inventario podés imprimir una plancha A4 de etiquetas QR con nombre, SKU y precio para los productos que no traen código.',
+        ],
+      },
+      {
+        heading: 'Buscar y ajustar',
+        paragraphs: [
+          'Escaneá (o tipeá) un código y ves el producto con su stock y su ubicación en el depósito. Ajustás el stock o la ubicación ahí mismo. Si el código no existe, el escáner te ofrece asignárselo a un SKU — así se etiqueta el catálogo la primera vez, paquete en mano.',
+        ],
+      },
+      {
+        heading: 'Preparar pedido (anti errores de despacho)',
+        steps: [
+          'Elegí un pedido pagado sin despachar.',
+          'Escaneá cada producto al meterlo en la caja: la lista marca en verde lo juntado.',
+          'Si escaneás algo que NO va en ese pedido, la alerta salta antes de despachar — se acabó mandar el disco de 15 kg en vez del de 25.',
+        ],
+      },
+      {
+        heading: 'Conteo',
+        paragraphs: [
+          'Recorré una estantería escaneando unidad por unidad (o cargando cantidades). Al final ves las diferencias contra el sistema y un click aplica los ajustes, con su movimiento auditado.',
+        ],
+      },
+    ],
+  },
+
   compras: {
     title: 'Compras e importaciones',
     intro:

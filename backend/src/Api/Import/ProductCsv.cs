@@ -18,6 +18,7 @@ public sealed class ImportVariant
     public long PriceMinor { get; set; }
     public long? CompareAtMinor { get; set; }
     public long? CostMinor { get; set; }
+    public string? Barcode { get; set; }
     public int? Stock { get; set; }
     public int Line { get; set; }
 }
@@ -205,6 +206,7 @@ public static class ProductCsv
                     PriceMinor = ParseMinor(Cell(cells, index, "precio")) ?? 0,
                     CompareAtMinor = ParseMinor(Cell(cells, index, "precio promocional")),
                     CostMinor = ParseMinor(Cell(cells, index, "costo")),
+                    Barcode = Cell(cells, index, "codigo de barras").Trim() is { Length: > 0 } bc ? bc : null,
                     Stock = ParseInt(Cell(cells, index, "stock")),
                     Line = line,
                 };
@@ -265,7 +267,7 @@ public static class ProductCsv
                     "", "", "", "", // Peso / Alto / Ancho / Prof
                     "", // Stock: vive en Inventory, no se exporta acá
                     v?.Sku ?? "",
-                    "", // Código de barras
+                    v?.Barcode ?? "",
                     visible,
                     "NO", // Envío sin cargo
                     firstRow ? description : "",

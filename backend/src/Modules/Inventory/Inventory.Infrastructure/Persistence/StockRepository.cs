@@ -12,6 +12,19 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
             .Where(s => s.TenantId == tenantId && variantIds.Contains(s.VariantId))
             .ToListAsync(ct);
 
+    public async Task SetLocationAsync(TenantId tenantId, Guid variantId, string? location, CancellationToken ct = default)
+    {
+        var item = await context.StockItems
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.VariantId == variantId, ct);
+        if (item is null)
+        {
+            item = new StockItem(tenantId, variantId, 0);
+            context.StockItems.Add(item);
+        }
+        item.SetLocation(location);
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task<StockItem> SetAvailableAsync(
         TenantId tenantId, Guid variantId, int available, string? reason, CancellationToken ct = default)
     {

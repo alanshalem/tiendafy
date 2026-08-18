@@ -25,6 +25,9 @@ public sealed class Variant
     /// </summary>
     public Money? Cost { get; private set; }
 
+    /// <summary>Código de barras (EAN/UPC del proveedor o propio). El escáner busca por esto o por SKU.</summary>
+    public string? Barcode { get; private set; }
+
     private Variant() { } // EF Core
 
     internal Variant(string sku, IEnumerable<string> optionValues, Money price, Money? compareAtPrice, Money? cost = null)
@@ -44,6 +47,8 @@ public sealed class Variant
     }
 
     internal void SetCost(Money? cost) => Cost = cost;
+
+    internal void SetBarcode(string? barcode) => Barcode = barcode;
 
     public bool Matches(IReadOnlyList<string> optionValues) =>
         _optionValues.SequenceEqual(optionValues, StringComparer.OrdinalIgnoreCase);

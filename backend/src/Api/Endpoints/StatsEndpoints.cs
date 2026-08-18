@@ -191,8 +191,8 @@ public static class StatsEndpoints
                         .Where(v => v.Cost is not null)
                         .ToDictionary(v => v.Id, v => v.Cost!.Value.AmountInMinorUnits);
 
-                long meliRevenue = 0, meliCost = 0;
-                int unitsLinked = 0, unitsTotal = 0;
+                long meliRevenue = 0, meliCost = 0, meliFees = 0;
+                int unitsLinked = 0, unitsTotal = 0, unitsWithFee = 0;
                 foreach (var o in meliOrders)
                 {
                     meliRevenue += (long)Math.Round(o.TotalAmount * 100m);
@@ -200,6 +200,11 @@ public static class StatsEndpoints
                     foreach (var it in items)
                     {
                         unitsTotal += it.Quantity;
+                        if (it.SaleFee is { } fee)
+                        {
+                            meliFees += (long)Math.Round(fee * it.Quantity * 100m);
+                            unitsWithFee += it.Quantity;
+                        }
                         if (linkByKey.TryGetValue((it.ItemId, it.VariationId), out var vid)
                             && costByVariant.TryGetValue(vid, out var unitCost))
                         {
@@ -213,9 +218,14 @@ public static class StatsEndpoints
                     orders = meliOrders.Count,
                     revenue = meliRevenue,
                     productCost = meliCost,
+                    // Comisión real de ML (sale_fee por ítem). Cero en snapshots
+                    // viejos sin el campo: unitsWithFee lo delata.
+                    mlFees = meliFees,
                     grossProfit = meliRevenue - meliCost,
+                    netProfit = meliRevenue - meliCost - meliFees,
                     unitsLinked,
                     unitsTotal,
+                    unitsWithFee,
                 };
             }
 

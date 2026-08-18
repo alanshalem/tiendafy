@@ -31,6 +31,7 @@ public sealed class InventoryDbContext : DbContext
         stock.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
         stock.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
         stock.HasIndex(s => new { s.TenantId, s.VariantId }).IsUnique();
+        stock.Property(s => s.Location).HasMaxLength(60);
         // El motor garantiza lo que el código promete: nunca negativos.
         stock.ToTable(t => t.HasCheckConstraint("ck_stock_non_negative", "available >= 0 AND reserved >= 0"));
 

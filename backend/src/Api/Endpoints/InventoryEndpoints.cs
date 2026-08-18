@@ -27,8 +27,20 @@ public static class InventoryEndpoints
             var items = await repository.GetByVariantsAsync(tenant.TenantId, ids, ct);
             return Results.Ok(new
             {
-                items = items.Select(s => new { s.VariantId, s.Available, s.Reserved }),
+                items = items.Select(s => new { s.VariantId, s.Available, s.Reserved, s.Location }),
             });
+        });
+
+        // Ubicación física (bin) de la variante en el depósito.
+        inventory.MapPut("/{variantId:guid}/location", async (
+            Guid variantId, SetLocationRequest request, ITenantContext tenant,
+            IStockRepository repository, CancellationToken ct) =>
+        {
+            if (request.Location is { Length: > 60 })
+                return SharedKernel.Common.Error.Validation(
+                    "Inventory.InvalidLocation", "La ubicación admite hasta 60 caracteres.").ToProblem();
+            await repository.SetLocationAsync(tenant.TenantId, variantId, request.Location, ct);
+            return Results.NoContent();
         });
 
         // Ajuste manual del merchant (alta inicial o corrección).
@@ -103,5 +115,7 @@ public static class InventoryEndpoints
 }
 
 public sealed record SetStockRequest(int Available, string? Reason);
+
+public sealed record SetLocationRequest(string? Location);
 
 public sealed record ReserveRequest(Guid VariantId, int Quantity);

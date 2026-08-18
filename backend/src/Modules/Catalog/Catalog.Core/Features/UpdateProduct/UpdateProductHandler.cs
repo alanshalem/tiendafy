@@ -107,6 +107,16 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         return copy.ToDto();
     }
 
+    public async Task<Result> SetVariantBarcodeAsync(TenantId tenantId, Guid productId, Guid variantId, string? barcode, CancellationToken ct = default)
+    {
+        var loaded = await LoadAsync(tenantId, productId, ct);
+        if (loaded.IsFailure) return Result.Failure(loaded.Error);
+        var result = loaded.Value.SetVariantBarcode(variantId, barcode);
+        if (result.IsFailure) return result;
+        await unitOfWork.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<Result> SetVariantCostsAsync(SetVariantCostsCommand command, CancellationToken ct = default)
     {
         var loaded = await LoadAsync(command.TenantId, command.ProductId, ct);

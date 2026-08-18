@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, Select } from '@tiendafy/ui';
 import {
   KpiCard,
   StatsPageHeader,
@@ -33,6 +34,30 @@ interface Profitability {
     profit: number;
     marginPct: number;
   }[];
+  meli: {
+    orders: number;
+    revenue: number;
+    productCost: number;
+    mlFees: number;
+    grossProfit: number;
+    netProfit: number;
+    unitsLinked: number;
+    unitsTotal: number;
+    unitsWithFee: number;
+  } | null;
+}
+
+interface MetaStatus {
+  configured: boolean;
+  connected: boolean;
+  expired: boolean;
+  adAccountId: string | null;
+  adAccountName: string | null;
+}
+
+interface MetaSpend {
+  spendTotal: number;
+  campaigns: { id: string; name: string; spend: number }[];
 }
 
 /**
@@ -139,10 +164,185 @@ export function StatsProfitabilityPage() {
                 se asume que cubre el costo del correo. Los descuentos por cupón (
                 {formatMoney(data.discounts, data.currency)}) ya están restados de las ventas.
               </p>
+
+              {data.meli && (
+                <ChartCard title="Canal Mercado Libre" info>
+                  <div className="grid gap-4 text-sm sm:grid-cols-4">
+                    <div>
+                      <div className="text-xs text-fg-muted">Facturado ({data.meli.orders} ventas)</div>
+                      <div className="mt-0.5 font-semibold text-fg">
+                        {formatMoney(data.meli.revenue, data.currency)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-fg-muted">Costo de productos</div>
+                      <div className="mt-0.5 font-semibold text-fg">
+                        {formatMoney(data.meli.productCost, data.currency)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-fg-muted">Comisiones ML</div>
+                      <div className="mt-0.5 font-semibold text-fg">
+                        {data.meli.unitsWithFee > 0
+                          ? formatMoney(data.meli.mlFees, data.currency)
+                          : 'sin dato'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-fg-muted">
+                        {data.meli.unitsWithFee > 0 ? 'Ganancia (neta de ML)' : 'Margen bruto'}
+                      </div>
+                      <div className="mt-0.5 font-semibold text-fg">
+                        {formatMoney(
+                          data.meli.unitsWithFee > 0 ? data.meli.netProfit : data.meli.grossProfit,
+                          data.currency,
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-fg-muted">
+                    Costo con el valor actual de las variantes vinculadas ({data.meli.unitsLinked} de{' '}
+                    {data.meli.unitsTotal} unidades con vínculo).
+                    {data.meli.unitsWithFee === 0 &&
+                      ' La comisión de ML aparece al resincronizar ventas (Mercado Libre → Actualizar).'}
+                  </p>
+                </ChartCard>
+              )}
+
+              <MetaAdsSection profit={data.profit} currency={data.currency} range={range} />
             </>
           )}
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Pauta de Meta Ads → ROAS REAL: ganancia (no facturación) / gasto. "Meta te
+ * dice ROAS 4x cuando la realidad suele ser 1.8x". Sin credenciales de
+ * plataforma la sección lo informa y no molesta.
+ */
+function MetaAdsSection({
+  profit,
+  currency,
+  range,
+}: {
+  profit: number;
+  currency: string;
+  range: ReturnType<typeof defaultStatsRange>;
+}) {
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+
+  const { data: status } = useQuery({
+    queryKey: ['meta-status', store?.id],
+    queryFn: () => api.get<MetaStatus>('/api/v1/meta-ads/status'),
+    enabled: !!store,
+  });
+
+  const { data: accounts } = useQuery({
+    queryKey: ['meta-accounts', store?.id],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/meta-ads/ad-accounts'),
+    enabled: !!store && !!status?.connected && !status.expired && !status.adAccountId,
+  });
+
+  const { data: spend } = useQuery({
+    queryKey: ['meta-spend', store?.id, range.from, range.to],
+    queryFn: () => api.get<MetaSpend>(`/api/v1/meta-ads/spend?${rangeQuery(range)}`),
+    enabled: !!store && !!status?.connected && !status.expired && !!status.adAccountId,
+  });
+
+  const connect = useMutation({
+    mutationFn: () => api.post<{ authUrl: string }>('/api/v1/meta-ads/connect', {}),
+    onSuccess: (r) => {
+      window.location.href = r.authUrl;
+    },
+  });
+
+  const selectAccount = useMutation({
+    mutationFn: (acc: { id: string; name: string }) =>
+      api.post('/api/v1/meta-ads/ad-account', { adAccountId: acc.id, name: acc.name }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['meta-status', store?.id] }),
+  });
+
+  if (!status) return null;
+
+  if (!status.configured)
+    return (
+      <p className="text-xs text-fg-muted">
+        Pauta de Meta: la integración no está configurada en la plataforma (claves MetaAds:AppId / AppSecret).
+        Cuando actives publicidad, conectala acá para ver el ROAS real.
+      </p>
+    );
+
+  if (!status.connected || status.expired)
+    return (
+      <ChartCard title="Pauta de Meta Ads" info>
+        <p className="text-sm text-fg-muted">
+          {status.expired
+            ? 'La conexión con Meta venció (los permisos duran ~60 días). Reconectá para seguir viendo el ROAS real.'
+            : 'Conectá tu cuenta de Meta para cruzar el gasto de pauta con la ganancia real y ver el ROAS que importa.'}
+        </p>
+        <Button className="mt-3" onClick={() => connect.mutate()} loading={connect.isPending}>
+          {status.expired ? 'Reconectar Meta' : 'Conectar Meta Ads'}
+        </Button>
+      </ChartCard>
+    );
+
+  if (!status.adAccountId)
+    return (
+      <ChartCard title="Pauta de Meta Ads" info>
+        <p className="text-sm text-fg-muted">Elegí la cuenta publicitaria de la tienda:</p>
+        <div className="mt-2 max-w-sm">
+          <Select
+            value=""
+            placeholder="Cuenta publicitaria…"
+            options={(accounts?.items ?? []).map((a) => ({ value: a.id, label: a.name || a.id }))}
+            onChange={(e) => {
+              const acc = accounts?.items.find((a) => a.id === e.target.value);
+              if (acc) selectAccount.mutate(acc);
+            }}
+          />
+        </div>
+      </ChartCard>
+    );
+
+  const roas = spend && spend.spendTotal > 0 ? profit / spend.spendTotal : null;
+  return (
+    <ChartCard title={`Pauta de Meta Ads · ${status.adAccountName ?? status.adAccountId}`} info>
+      <div className="grid gap-4 text-sm sm:grid-cols-3">
+        <div>
+          <div className="text-xs text-fg-muted">Gasto del período</div>
+          <div className="mt-0.5 font-semibold text-fg">
+            {spend ? formatMoney(spend.spendTotal, currency) : '…'}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-fg-muted">Ganancia real del período</div>
+          <div className="mt-0.5 font-semibold text-fg">{formatMoney(profit, currency)}</div>
+        </div>
+        <div>
+          <div className="text-xs text-fg-muted">ROAS real (ganancia / gasto)</div>
+          <div className={`mt-0.5 font-semibold ${roas != null && roas < 1 ? 'text-danger' : 'text-fg'}`}>
+            {roas != null ? `${roas.toFixed(2)}x` : spend ? 'sin gasto' : '…'}
+          </div>
+        </div>
+      </div>
+      {spend && spend.campaigns.length > 0 && (
+        <table className="mt-3 w-full text-sm">
+          <tbody>
+            {spend.campaigns.map((c) => (
+              <tr key={c.id} className="border-b border-border last:border-b-0">
+                <td className="py-1.5 text-fg">{c.name}</td>
+                <td className="py-1.5 text-right tabular-nums text-fg-muted">
+                  {formatMoney(c.spend, currency)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </ChartCard>
   );
 }

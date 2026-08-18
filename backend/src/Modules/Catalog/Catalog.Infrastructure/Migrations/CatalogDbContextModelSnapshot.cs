@@ -143,6 +143,11 @@ namespace Catalog.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("barcode");
+
                     b.Property<string>("CompareAtPrice")
                         .HasMaxLength(24)
                         .HasColumnType("character varying(24)")
@@ -185,6 +190,9 @@ namespace Catalog.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_product_variants");
+
+                    b.HasIndex("Barcode")
+                        .HasDatabaseName("ix_product_variants_barcode");
 
                     b.HasIndex("Sku")
                         .HasDatabaseName("ix_product_variants_sku");

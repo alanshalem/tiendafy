@@ -114,5 +114,8 @@ public sealed class VariantConfiguration : IEntityTypeConfiguration<Variant>
             .HasConversion(ModuleDb.NullableMoneyConverter)
             .HasColumnName("cost")
             .HasMaxLength(24);
+
+        builder.Property(v => v.Barcode).HasMaxLength(64);
+        builder.HasIndex(v => v.Barcode);
     }
 }

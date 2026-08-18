@@ -167,6 +167,19 @@ public sealed class Product : AggregateRoot
         return variant;
     }
 
+    /// <summary>Asigna el código de barras de una variante (null = borrar; único por producto no se exige).</summary>
+    public Result SetVariantBarcode(Guid variantId, string? barcode)
+    {
+        var variant = _variants.FirstOrDefault(v => v.Id == variantId);
+        if (variant is null)
+            return Result.Failure(Error.NotFound("Variant.NotFound", "Variant not found."));
+        var trimmed = barcode?.Trim();
+        if (trimmed is { Length: > 64 })
+            return Result.Failure(Error.Validation("Variant.InvalidBarcode", "El código de barras admite hasta 64 caracteres."));
+        variant.SetBarcode(string.IsNullOrEmpty(trimmed) ? null : trimmed);
+        return Result.Success();
+    }
+
     /// <summary>Setea el costo unitario de una variante (null = borrar el dato).</summary>
     public Result SetVariantCost(Guid variantId, Money? cost)
     {

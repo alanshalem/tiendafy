@@ -114,6 +114,9 @@ public static class ServiceRegistration
 
         // Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,
         // stock unificado y publicación. Tokens cifrados; refresh serializado.
+        services.Configure<Api.MetaAds.MetaAdsOptions>(configuration.GetSection(Api.MetaAds.MetaAdsOptions.SectionName));
+        services.AddHttpClient<Api.MetaAds.MetaAdsClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddScoped<Api.MetaAds.MetaAdsTokenService>();
         services.Configure<Api.Meli.MeliOptions>(configuration.GetSection(Api.Meli.MeliOptions.SectionName));
         services.AddHttpClient<Api.Meli.MeliClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<Api.Meli.MeliTokenService>();

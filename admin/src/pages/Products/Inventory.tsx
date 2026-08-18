@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { downloadBlob } from '../../lib/download';
 import { fetchAllProducts } from '../../lib/products';
 import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
@@ -78,11 +79,27 @@ export function InventoryPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Inventario</h1>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          Stock por variante. Lo reservado son checkouts en curso — vuelve solo si expiran.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Inventario</h1>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            Stock por variante. Lo reservado son checkouts en curso — vuelve solo si expiran.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            const ids = items.flatMap((p) => p.variants.map((v) => v.id)).join(',');
+            if (!ids) return;
+            try {
+              downloadBlob(await api.download(`/api/v1/products/labels?variantIds=${ids}`), 'etiquetas.pdf');
+            } catch (e) {
+              toast(errMsg(e, 'No se pudieron generar las etiquetas'), { variant: 'error' });
+            }
+          }}
+        >
+          Etiquetas QR de esta página
+        </Button>
       </div>
 
       <Card flush>

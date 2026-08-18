@@ -375,6 +375,78 @@ public static class ProductEndpoints
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
         }).RequireTenantMembership();
 
+        // ---- Escáner: buscar variante por código de barras o SKU ----
+        // Lo usa el depósito (buscar/ajustar/picking); permiso de inventario
+        // explícito porque los GET del grupo son públicos.
+        products.MapGet("/by-code/{code}", async (
+            string code, HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
+            Inventory.Core.Domain.IStockRepository stock, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.InventoryRead) is { } denied) return denied;
+            var needle = code.Trim();
+            if (needle.Length == 0) return Results.NotFound();
+
+            var product = await catalogDb.Products.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.TenantId == tenant.TenantId
+                    && p.Variants.Any(v => v.Barcode == needle || v.Sku == needle), ct);
+            var variant = product?.Variants.FirstOrDefault(v => v.Barcode == needle || v.Sku == needle);
+            if (product is null || variant is null) return Results.NotFound();
+
+            var stockItem = (await stock.GetByVariantsAsync(tenant.TenantId, [variant.Id], ct)).FirstOrDefault();
+            return Results.Ok(new
+            {
+                productId = product.Id,
+                productName = product.Name,
+                imageUrl = product.Images.OrderBy(i => i.Position).FirstOrDefault()?.Url,
+                variantId = variant.Id,
+                sku = variant.Sku,
+                barcode = variant.Barcode,
+                description = variant.OptionValues.Count > 0 ? string.Join(" / ", variant.OptionValues) : "Única",
+                priceAmount = variant.Price.AmountInMinorUnits,
+                available = stockItem?.Available ?? 0,
+                reserved = stockItem?.Reserved ?? 0,
+                location = stockItem?.Location,
+            });
+        });
+
+        // ---- Etiquetas QR imprimibles (plancha A4) ----
+        products.MapGet("/labels", async (
+            string variantIds, ITenantContext tenant, IProductRepository repository, CancellationToken ct) =>
+        {
+            var ids = variantIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => Guid.TryParse(s.Trim(), out var g) ? g : Guid.Empty)
+                .Where(g => g != Guid.Empty).Take(240).ToHashSet();
+            if (ids.Count == 0) return Results.BadRequest();
+
+            var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
+            var labels = all
+                .SelectMany(p => p.Variants
+                    .Where(v => ids.Contains(v.Id))
+                    .Select(v => new VariantLabel(
+                        p.Name,
+                        v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "",
+                        v.Sku,
+                        v.Barcode ?? v.Sku,
+                        v.Price.AmountInMinorUnits)))
+                .ToList();
+            if (labels.Count == 0) return Results.NotFound();
+
+            var pdf = VariantLabelsPdf.Render(labels);
+            return Results.File(pdf, "application/pdf", "etiquetas.pdf");
+        }).RequireTenantMembership();
+
+        // Asignar el código escaneado a una variante (flujo del Escáner:
+        // "EAN desconocido → buscá por SKU → asignar").
+        products.MapPut("/{id:guid}/variants/{variantId:guid}/barcode", async (
+            Guid id, Guid variantId, SetBarcodeRequest request, HttpContext http, ITenantContext tenant,
+            UpdateProductHandler handler, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var result = await handler.SetVariantBarcodeAsync(tenant.TenantId, id, variantId, request.Barcode, ct);
+            return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+        });
+
         // ---- Costos por variante (rentabilidad) ----
         // Dato interno del merchant: NUNCA viaja en los DTOs públicos del catálogo.
         // Lectura y escritura exigen permiso de catálogo explícito (no ForWrites:
@@ -511,6 +583,8 @@ public sealed record ChangePriceRequest(long PriceAmount, string? Currency, long
 public sealed record AddImageRequest(string Url, string? AltText);
 
 public sealed record SetCategoriesRequest(List<Guid>? CategoryIds);
+
+public sealed record SetBarcodeRequest(string? Barcode);
 
 public sealed record VariantCostEntry(Guid VariantId, long? CostAmount);
 

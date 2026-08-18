@@ -15,6 +15,7 @@ public sealed class AnalyticsDbContext : DbContext
     }
 
     public DbSet<PageView> PageViews => Set<PageView>();
+    public DbSet<MetaAdsConnection> MetaAdsConnections => Set<MetaAdsConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,5 +29,15 @@ public sealed class AnalyticsDbContext : DbContext
         pv.Property(p => p.VisitorId).HasMaxLength(64);
         pv.Property(p => p.SessionId).HasMaxLength(64);
         pv.HasIndex(p => new { p.TenantId, p.OccurredAtUtc });
+
+        var meta = modelBuilder.Entity<MetaAdsConnection>();
+        meta.ToTable("meta_ads_connections");
+        meta.HasKey(m => m.Id);
+        meta.Property(m => m.Id).ValueGeneratedNever();
+        meta.HasQueryFilter(m => !_filterByTenant || m.TenantId == _tenantGuid);
+        meta.Property(m => m.AccessTokenEncrypted).HasMaxLength(2048);
+        meta.Property(m => m.AdAccountId).HasMaxLength(40);
+        meta.Property(m => m.AdAccountName).HasMaxLength(200);
+        meta.HasIndex(m => m.TenantId).IsUnique(); // una conexión por tienda
     }
 }

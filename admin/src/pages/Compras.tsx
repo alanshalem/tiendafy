@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Package, Plus, Ship, Trash2 } from 'lucide-react';
 import {
@@ -19,6 +19,7 @@ import { formatDate, formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { TABLE_CARD } from '../lib/styles';
+import { CameraBox, useScanner } from './Products/Scanner';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -806,6 +807,30 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
   const [qtys, setQtys] = useState<Record<string, string>>({});
   const [rate, setRate] = useState(String(po.exchangeRate));
 
+  const onScan = useCallback(
+    async (code: string) => {
+      try {
+        const found = await api.get<{ variantId: string }>(
+          `/api/v1/products/by-code/${encodeURIComponent(code)}`,
+        );
+        const item = po.items.find((i) => i.variantId === found.variantId);
+        if (!item) {
+          toast('Ese producto no está en esta compra', { variant: 'error' });
+          return;
+        }
+        setQtys((q) => {
+          const current = Number(q[item.variantId] ?? 0);
+          if (current >= item.quantity) return q;
+          return { ...q, [item.variantId]: String(current + 1) };
+        });
+      } catch {
+        toast('Código desconocido', { variant: 'error' });
+      }
+    },
+    [po.items, toast],
+  );
+  const scanner = useScanner(onScan);
+
   const receive = useMutation({
     mutationFn: () =>
       api.post(`/api/v1/purchasing/purchase-orders/${po.id}/receive`, {
@@ -846,6 +871,13 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
               value={rate}
               onChange={(e) => setRate(e.target.value)}
             />
+            <div className="mt-3">
+              <CameraBox scanner={scanner} />
+              <p className="mt-1 text-xs text-fg-muted">
+                Escaneá lo que baja del contenedor: el contador de cada ítem sube solo (arranca en lo pedido —
+                corregí a mano lo que falte).
+              </p>
+            </div>
             <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
               {po.items.map((i) => (
                 <div key={i.variantId} className="flex items-center justify-between gap-3 text-sm">
