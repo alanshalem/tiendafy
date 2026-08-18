@@ -142,10 +142,10 @@ export const CLIENTES = {
       {
         heading: 'Campañas vs. e-mails automáticos',
         paragraphs: [
-          'Los e-mails automáticos son transaccionales: confirman compras, envíos, cuentas — se disparan solos. Las campañas son marketing: VOS decidís cuándo escribirle a tu base (“llegó la colección nueva”, “20% este finde”). Viven en Marketing, en el menú principal.',
+          'Los e-mails automáticos son transaccionales: confirman compras, envíos, cuentas — se disparan solos. Las campañas son marketing: VOS decidís cuándo escribirle a tu base (“llegó la colección nueva”, “20% este finde”). Viven en Email marketing, en el menú principal.',
         ],
         blocks: [
-          { type: 'path', segments: ['Marketing'] },
+          { type: 'path', segments: ['Email marketing'] },
           {
             type: 'demo',
             demo: 'campaignStatuses',

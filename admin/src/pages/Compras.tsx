@@ -161,7 +161,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Compras</h1>
+          <h1 className="text-xl font-semibold">Compras e importaciones</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
             Órdenes de compra a proveedores, ciclo de importación y landed cost: el costo real de cada unidad
             puesta en el depósito alimenta Rentabilidad.

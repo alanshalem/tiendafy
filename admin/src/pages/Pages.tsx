@@ -120,7 +120,7 @@ export function PagesPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <PageHeader
-        title="Páginas"
+        title="Páginas de contenido"
         subtitle="Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más."
         actions={
           <Button onClick={() => setCreateOpen(true)}>

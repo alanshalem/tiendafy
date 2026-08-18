@@ -109,7 +109,7 @@ export function MarketingPage() {
     <div className="mx-auto max-w-5xl px-6 py-6 pb-20">
       <PageHeader
         className="mb-5"
-        title="Marketing"
+        title="Email marketing"
         subtitle="Campañas de email para tus clientes: novedades, promos, lanzamientos."
         actions={
           <Button onClick={() => setEditing('new')}>

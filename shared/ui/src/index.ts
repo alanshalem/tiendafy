@@ -21,5 +21,6 @@ export { buildPageWindow } from './pageWindow';
 export { Spinner, type SpinnerProps } from './Spinner';
 export { EmptyList, type EmptyListProps } from './EmptyList';
 export { Tabs, type TabsProps, type TabItem } from './Tabs';
+export { Tooltip, type TooltipProps } from './Tooltip';
 export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { StatCard, type StatCardProps } from './StatCard';

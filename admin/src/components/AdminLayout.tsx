@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ExternalLink, LifeBuoy, LogOut, Settings } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, Tooltip } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { canAny, usePermissions } from '../context/PermissionsContext';
@@ -13,6 +13,8 @@ import { LogoMark } from './LogoMark';
 interface NavChild {
   to: string;
   label: string;
+  /** Una línea que explica la página (tooltip al pasar el mouse). */
+  desc?: string;
   soon?: boolean;
   /** Permiso RBAC requerido (string o lista: alcanza con uno). Sin `perm` = siempre visible. */
   perm?: string | string[];
@@ -21,6 +23,8 @@ interface NavChild {
 interface NavItem {
   to: string;
   label: string;
+  /** Una línea que explica la página (tooltip al pasar el mouse). */
+  desc?: string;
   soon?: boolean;
   /** Permiso RBAC requerido (string o lista: alcanza con uno). Sin `perm` = siempre visible. */
   perm?: string | string[];
@@ -41,19 +45,55 @@ const sections: NavSection[] = [
   {
     heading: null,
     items: [
-      { to: '/', label: 'Inicio' },
+      { to: '/', label: 'Inicio', desc: 'El resumen del día: ventas, visitas y accesos rápidos.' },
       {
         to: '/estadisticas',
         label: 'Estadísticas',
+        desc: 'Los números del negocio: ventas, productos, visitas y rentabilidad.',
         perm: 'stats.read',
         children: [
-          { to: '/estadisticas', label: 'Visión general', perm: 'stats.read' },
-          { to: '/estadisticas/productos', label: 'Productos', perm: 'stats.read' },
-          { to: '/estadisticas/ventas', label: 'Ventas y clientes', perm: 'stats.read' },
-          { to: '/estadisticas/rentabilidad', label: 'Rentabilidad', perm: 'stats.read' },
-          { to: '/estadisticas/visitas', label: 'Visitas', perm: 'stats.read' },
-          { to: '/estadisticas/tiempo-real', label: 'Tiempo real', perm: 'stats.read' },
-          { to: '/estadisticas/cupones', label: 'Reporte de cupones', perm: 'stats.read' },
+          {
+            to: '/estadisticas',
+            label: 'Visión general',
+            desc: 'Facturación, pedidos, ticket promedio y evolución del período.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/productos',
+            label: 'Productos',
+            desc: 'Los más vendidos y los que no rotan.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/ventas',
+            label: 'Ventas y clientes',
+            desc: 'Ventas por día y compradores nuevos vs. recurrentes.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/rentabilidad',
+            label: 'Rentabilidad',
+            desc: 'Cuánto GANÁS de verdad: costos, comisiones y margen por producto.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/visitas',
+            label: 'Visitas',
+            desc: 'El tráfico de la tienda: cuánta gente entra y qué mira.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/tiempo-real',
+            label: 'Tiempo real',
+            desc: 'Quién está navegando tu tienda ahora mismo.',
+            perm: 'stats.read',
+          },
+          {
+            to: '/estadisticas/cupones',
+            label: 'Reporte de cupones',
+            desc: 'Cuánto se usó cada cupón y cuánta venta trajo.',
+            perm: 'stats.read',
+          },
         ],
       },
     ],
@@ -64,45 +104,143 @@ const sections: NavSection[] = [
       {
         to: '/ventas',
         label: 'Ventas',
+        desc: 'Los pedidos de tu tienda: cobro, envío, factura y reembolsos.',
         perm: 'orders.read',
         children: [
-          { to: '/ventas', label: 'Lista de ventas', perm: 'orders.read' },
-          { to: '/ventas/carritos', label: 'Carritos abandonados', perm: 'orders.read' },
+          {
+            to: '/ventas',
+            label: 'Lista de ventas',
+            desc: 'Todos los pedidos con su estado de pago y de envío.',
+            perm: 'orders.read',
+          },
+          {
+            to: '/ventas/carritos',
+            label: 'Carritos abandonados',
+            desc: 'Compras que quedaron a medio camino, con recupero automático por email.',
+            perm: 'orders.read',
+          },
         ],
       },
       {
         to: '/productos',
         label: 'Productos',
+        desc: 'Tu catálogo: productos, stock, costos y códigos de barras.',
         perm: ['inventory.read', 'catalog.write'],
         children: [
-          { to: '/productos', label: 'Lista de productos', perm: ['inventory.read', 'catalog.write'] },
-          { to: '/productos/inventario', label: 'Inventario', perm: 'inventory.read' },
-          { to: '/productos/costos', label: 'Costos', perm: 'catalog.write' },
-          { to: '/productos/escaner', label: 'Escáner', perm: 'inventory.read' },
-          { to: '/productos/kits', label: 'Kits y combos', perm: 'catalog.write' },
-          { to: '/productos/categorias', label: 'Categorías', perm: 'catalog.write' },
+          {
+            to: '/productos',
+            label: 'Lista de productos',
+            desc: 'Alta, edición e importación masiva por planilla.',
+            perm: ['inventory.read', 'catalog.write'],
+          },
+          {
+            to: '/productos/inventario',
+            label: 'Inventario',
+            desc: 'Stock disponible y reservado por variante, con ajuste rápido.',
+            perm: 'inventory.read',
+          },
+          {
+            to: '/productos/costos',
+            label: 'Costos',
+            desc: 'Cuánto te cuesta cada variante — la base de Rentabilidad.',
+            perm: 'catalog.write',
+          },
+          {
+            to: '/productos/escaner',
+            label: 'Escáner',
+            desc: 'El depósito en el celu: buscá, ajustá stock y prepará pedidos escaneando.',
+            perm: 'inventory.read',
+          },
+          {
+            to: '/productos/kits',
+            label: 'Kits y combos',
+            desc: 'Productos compuestos: al venderse descuentan el stock de sus piezas.',
+            perm: 'catalog.write',
+          },
+          {
+            to: '/productos/categorias',
+            label: 'Categorías',
+            desc: 'Cómo se organiza el catálogo en tu tienda.',
+            perm: 'catalog.write',
+          },
         ],
       },
-      { to: '/compras', label: 'Compras', perm: 'purchasing' },
-      { to: '/clientes', label: 'Clientes', perm: 'customers.read' },
-      { to: '/mensajes', label: 'Mensajes', perm: 'messages.read' },
-      { to: '/posventa', label: 'Chat posventa', perm: 'support.chat' },
-      { to: '/descuentos', label: 'Descuentos', perm: 'discounts.read' },
-      { to: '/marketing', label: 'Marketing', perm: 'settings.write' },
+      {
+        to: '/compras',
+        label: 'Compras e importaciones',
+        desc: 'Órdenes a proveedores, ciclo de importación y costo real por unidad puesta en depósito.',
+        perm: 'purchasing',
+      },
+      {
+        to: '/clientes',
+        label: 'Clientes',
+        desc: 'Quiénes te compran: historial, cuentas y datos de contacto.',
+        perm: 'customers.read',
+      },
+      {
+        to: '/mensajes',
+        label: 'Mensajes de contacto',
+        desc: 'Consultas del formulario de contacto y solicitudes del Botón de Arrepentimiento.',
+        perm: 'messages.read',
+      },
+      {
+        to: '/posventa',
+        label: 'Chat posventa',
+        desc: 'El chat privado con cada comprador sobre SU pedido.',
+        perm: 'support.chat',
+      },
+      {
+        to: '/descuentos',
+        label: 'Cupones',
+        desc: 'Códigos de descuento: monto fijo, porcentaje o envío gratis, con vigencia y límites.',
+        perm: 'discounts.read',
+      },
+      {
+        to: '/marketing',
+        label: 'Email marketing',
+        desc: 'Campañas de email a tus clientes, con audiencias segmentadas y resultados.',
+        perm: 'settings.write',
+      },
     ],
   },
   {
     heading: 'Canales de venta',
     items: [
-      { to: '/canales/tienda-online', label: 'Tienda online', perm: 'content.write' },
-      { to: '/mercadolibre', label: 'Mercado Libre', perm: 'orders.read' },
-      { to: '/redes', label: 'Redes sociales', perm: 'social' },
-      { to: '/paginas', label: 'Páginas', perm: 'content.write' },
+      {
+        to: '/canales/tienda-online',
+        label: 'Tienda online',
+        desc: 'El diseño de tu tienda: editor visual con logo, colores y secciones.',
+        perm: 'content.write',
+      },
+      {
+        to: '/mercadolibre',
+        label: 'Mercado Libre',
+        desc: 'Tus ventas, preguntas y stock de ML, unificados con la tienda.',
+        perm: 'orders.read',
+      },
+      {
+        to: '/redes',
+        label: 'Redes sociales',
+        desc: 'Un post para Facebook, Instagram, X y Telegram a la vez, ahora o programado.',
+        perm: 'social',
+      },
+      {
+        to: '/paginas',
+        label: 'Páginas de contenido',
+        desc: 'Las páginas de texto de tu tienda: sobre nosotros, envíos, preguntas frecuentes.',
+        perm: 'content.write',
+      },
     ],
   },
   {
     heading: 'Plataforma',
-    items: [{ to: '/tenants', label: 'Mis tiendas' }],
+    items: [
+      {
+        to: '/tenants',
+        label: 'Mis tiendas',
+        desc: 'Todas las tiendas del grupo: entrar a una o crear la próxima.',
+      },
+    ],
   },
 ];
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
@@ -130,54 +268,64 @@ function SidebarItem({ item }: { item: NavItem }) {
 
   if (!item.children) {
     return (
-      <NavLink to={item.to} end className={({ isActive }) => linkClass(isActive)}>
-        {item.label}
-        {item.soon && <SoonBadge />}
-      </NavLink>
+      <Tooltip label={item.desc}>
+        <NavLink to={item.to} end className={({ isActive }) => linkClass(isActive)}>
+          {item.label}
+          {item.soon && <SoonBadge />}
+        </NavLink>
+      </Tooltip>
     );
   }
 
   return (
     <div>
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={linkClass(false)}>
-        {item.label}
-        {item.soon && <SoonBadge />}
-        <svg
-          className={cn(
-            'ml-auto h-3.5 w-3.5 shrink-0 transition-transform',
-            open && 'rotate-90',
-            item.soon && 'ml-1',
-          )}
-          viewBox="0 0 20 20"
-          fill="none"
-          aria-hidden="true"
+      <Tooltip label={item.desc}>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className={linkClass(false)}
         >
-          <path
-            d="m8 6 4 4-4 4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          {item.label}
+          {item.soon && <SoonBadge />}
+          <svg
+            className={cn(
+              'ml-auto h-3.5 w-3.5 shrink-0 transition-transform',
+              open && 'rotate-90',
+              item.soon && 'ml-1',
+            )}
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 6 4 4-4 4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </Tooltip>
       {open && (
         <div className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
           {item.children.map((child) => (
-            <NavLink
-              key={child.to}
-              to={child.to}
-              end
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2 rounded-md px-3 py-1.5 text-[0.82rem] transition-colors',
-                  isActive ? 'font-semibold text-primary' : 'text-accent-fg/50 hover:text-accent-fg',
-                )
-              }
-            >
-              {child.label}
-              {child.soon && <SoonBadge />}
-            </NavLink>
+            <Tooltip key={child.to} label={child.desc}>
+              <NavLink
+                to={child.to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-[0.82rem] transition-colors',
+                    isActive ? 'font-semibold text-primary' : 'text-accent-fg/50 hover:text-accent-fg',
+                  )
+                }
+              >
+                {child.label}
+                {child.soon && <SoonBadge />}
+              </NavLink>
+            </Tooltip>
           ))}
         </div>
       )}
