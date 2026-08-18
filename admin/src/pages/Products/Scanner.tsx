@@ -62,7 +62,7 @@ export function useScanner(onCode: (code: string) => void) {
       });
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const detector = new (window as any).BarcodeDetector({
         formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'upc_a'],
       });

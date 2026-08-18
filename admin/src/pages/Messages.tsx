@@ -36,6 +36,7 @@ export function MessagesPage() {
   const { store } = useStore();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todos');
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: ['contact-messages', store?.id],
     queryFn: () => api.get<MessagesResponse>('/api/v1/contact/messages'),
@@ -49,7 +50,6 @@ export function MessagesPage() {
 
   if (!store) return <NoStoreSelected />;
 
-  const [search, setSearch] = useState('');
   const all = data?.items ?? [];
   const repentanceCount = all.filter((m) => m.kind === 'repentance').length;
   const base = filter === 'repentance' ? all.filter((m) => m.kind === 'repentance') : all;

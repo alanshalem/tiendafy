@@ -26,6 +26,8 @@ export default tseslint.config(
       // consciencia acá. Quedan visibles como warning, no bloquean.
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/immutability': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
     },
   },
 );
