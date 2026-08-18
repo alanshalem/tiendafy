@@ -40,6 +40,7 @@ export function CostsPage() {
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', store?.id],
@@ -47,7 +48,11 @@ export function CostsPage() {
     enabled: !!store,
   });
 
-  const allItems = products ?? [];
+  const q = search.trim().toLowerCase();
+  const allItems = (products ?? []).filter(
+    (p) =>
+      q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
+  );
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
   const pageClamped = Math.min(page, totalPages);
@@ -114,6 +119,15 @@ export function CostsPage() {
           tu ganancia real por venta. Para cargar en masa usá la columna «Costo» del CSV.
         </p>
       </div>
+
+      <Input
+        placeholder="Buscar por producto o SKU…"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+      />
 
       <Card flush>
         <div className="overflow-x-auto">

@@ -153,6 +153,8 @@ export function ComprasPage() {
 function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) => void }) {
   const { store } = useStore();
   const [tab, setTab] = useState('ordenes');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const { data } = useQuery({
     queryKey: ['purchase-orders', store?.id],
@@ -185,50 +187,77 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
       />
 
       {tab === 'ordenes' ? (
-        <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-                <th className="px-4 py-2.5 font-medium">Proveedor</th>
-                <th className="px-4 py-2.5 font-medium">Referencia</th>
-                <th className="px-4 py-2.5 font-medium">Estado</th>
-                <th className="px-4 py-2.5 text-right font-medium">FOB</th>
-                <th className="px-4 py-2.5 text-right font-medium">Unidades</th>
-                <th className="px-4 py-2.5 font-medium">Creada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.items ?? []).map((po) => (
-                <tr
-                  key={po.id}
-                  className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
-                  onClick={() => onOpen(po.id)}
-                >
-                  <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
-                  <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
-                  <td className="px-4 py-2.5">
-                    <Badge variant={STATUS_VARIANT[po.status] ?? 'neutral'}>
-                      {STATUS_LABEL[po.status] ?? po.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                    {po.currency} {po.totalFob.toLocaleString('es-AR')}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
-                  <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+        <>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Buscar por proveedor o referencia…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Select
+              className="w-44"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { value: '', label: 'Todos los estados' },
+                ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+              ]}
+            />
+          </div>
+          <div className={TABLE_CARD}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                  <th className="px-4 py-2.5 font-medium">Proveedor</th>
+                  <th className="px-4 py-2.5 font-medium">Referencia</th>
+                  <th className="px-4 py-2.5 font-medium">Estado</th>
+                  <th className="px-4 py-2.5 text-right font-medium">FOB</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Unidades</th>
+                  <th className="px-4 py-2.5 font-medium">Creada</th>
                 </tr>
-              ))}
-              {(data?.items ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
-                    <Ship className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                    Todavía no hay compras. Creá la primera con «Nueva compra».
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(data?.items ?? [])
+                  .filter((po) => {
+                    const q = search.trim().toLowerCase();
+                    const matchesText =
+                      q === '' ||
+                      po.supplierName.toLowerCase().includes(q) ||
+                      (po.reference ?? '').toLowerCase().includes(q);
+                    return matchesText && (statusFilter === '' || po.status === statusFilter);
+                  })
+                  .map((po) => (
+                    <tr
+                      key={po.id}
+                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
+                      onClick={() => onOpen(po.id)}
+                    >
+                      <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
+                      <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant={STATUS_VARIANT[po.status] ?? 'neutral'}>
+                          {STATUS_LABEL[po.status] ?? po.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-fg">
+                        {po.currency} {po.totalFob.toLocaleString('es-AR')}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
+                      <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+                    </tr>
+                  ))}
+                {(data?.items ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
+                      <Ship className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                      Todavía no hay compras. Creá la primera con «Nueva compra».
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <Reposicion />
       )}
@@ -741,33 +770,37 @@ function ExpensesEditor({
       <div className="mt-3 space-y-2">
         {form.expenses.map((e, idx) => (
           <div key={idx} className="flex items-center gap-2">
-            <Input
-              placeholder="Concepto (ej. Flete marítimo)"
-              className="h-9 flex-1"
-              value={e.label}
-              disabled={!editable}
-              onChange={(ev) => {
-                const expenses = [...form.expenses];
-                expenses[idx] = { ...e, label: ev.target.value };
-                update(expenses);
-              }}
-            />
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder="Monto"
-              className="h-9 w-32 text-right"
-              value={e.amount}
-              disabled={!editable}
-              onChange={(ev) => {
-                const expenses = [...form.expenses];
-                expenses[idx] = { ...e, amount: ev.target.value };
-                update(expenses);
-              }}
-            />
+            <div className="min-w-0 flex-1">
+              <Input
+                placeholder="Concepto (ej. Flete marítimo)"
+                className="h-9"
+                value={e.label}
+                disabled={!editable}
+                onChange={(ev) => {
+                  const expenses = [...form.expenses];
+                  expenses[idx] = { ...e, label: ev.target.value };
+                  update(expenses);
+                }}
+              />
+            </div>
+            <div className="w-32 shrink-0">
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="Monto"
+                className="h-9 text-right"
+                value={e.amount}
+                disabled={!editable}
+                onChange={(ev) => {
+                  const expenses = [...form.expenses];
+                  expenses[idx] = { ...e, amount: ev.target.value };
+                  update(expenses);
+                }}
+              />
+            </div>
             <Select
-              className="h-9 w-32"
+              className="h-9 w-32 shrink-0"
               value={e.isLocal ? 'ars' : 'po'}
               disabled={!editable}
               onChange={(ev) => {
@@ -886,14 +919,16 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
                     {i.variantDescription && <span className="text-fg-muted"> · {i.variantDescription}</span>}
                   </span>
                   <span className="text-xs text-fg-subtle">pedidas {i.quantity}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={i.quantity}
-                    className="h-8 w-20 text-right"
-                    value={qtys[i.variantId] ?? String(i.quantity)}
-                    onChange={(e) => setQtys((q) => ({ ...q, [i.variantId]: e.target.value }))}
-                  />
+                  <div className="w-20 shrink-0">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={i.quantity}
+                      className="h-8 text-right"
+                      value={qtys[i.variantId] ?? String(i.quantity)}
+                      onChange={(e) => setQtys((q) => ({ ...q, [i.variantId]: e.target.value }))}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

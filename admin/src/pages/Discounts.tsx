@@ -72,7 +72,10 @@ export function DiscountsPage() {
     queryFn: () => api.get<{ items: Coupon[] }>('/api/v1/coupons'),
     enabled: !!store,
   });
-  const coupons = data?.items ?? [];
+  const [search, setSearch] = useState('');
+  const coupons = (data?.items ?? []).filter(
+    (c) => search.trim() === '' || c.code.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['coupons', store?.id] });
 
@@ -190,6 +193,12 @@ export function DiscountsPage() {
         />
       ) : (
         <Card flush>
+          <Input
+            placeholder="Buscar cupón por código…"
+            className="mb-3"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <Table columns={columns} rows={coupons} rowKey={(c) => c.id} emptyState="No hay cupones." />
         </Card>
       )}

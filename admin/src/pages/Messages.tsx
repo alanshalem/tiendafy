@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
-import { Badge, cn } from '@tiendafy/ui';
+import { Badge, cn, Input } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -49,9 +49,20 @@ export function MessagesPage() {
 
   if (!store) return <NoStoreSelected />;
 
+  const [search, setSearch] = useState('');
   const all = data?.items ?? [];
   const repentanceCount = all.filter((m) => m.kind === 'repentance').length;
-  const items = filter === 'repentance' ? all.filter((m) => m.kind === 'repentance') : all;
+  const base = filter === 'repentance' ? all.filter((m) => m.kind === 'repentance') : all;
+  const q = search.trim().toLowerCase();
+  const items =
+    q === ''
+      ? base
+      : base.filter(
+          (m) =>
+            m.email.toLowerCase().includes(q) ||
+            m.name.toLowerCase().includes(q) ||
+            m.body.toLowerCase().includes(q),
+        );
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -87,6 +98,13 @@ export function MessagesPage() {
           </button>
         ))}
       </div>
+
+      <Input
+        placeholder="Buscar por nombre, email o texto del mensaje…"
+        className="mb-3"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {isLoading ? (
         <p className="py-16 text-center text-sm text-fg-muted">Cargando…</p>

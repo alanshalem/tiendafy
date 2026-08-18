@@ -41,6 +41,7 @@ export function KitsPage() {
   const [editingKit, setEditingKit] = useState<{ variantId: string; label: string } | null>(null);
   const [components, setComponents] = useState<DraftComponent[]>([]);
   const [kitSearch, setKitSearch] = useState('');
+  const [listSearch, setListSearch] = useState('');
   const [compSearch, setCompSearch] = useState('');
 
   const { data: kits } = useQuery({
@@ -148,6 +149,11 @@ export function KitsPage() {
             </div>
           </Card>
 
+          <Input
+            placeholder="Buscar kit por nombre, SKU o componente…"
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+          />
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
               <thead>
@@ -158,26 +164,36 @@ export function KitsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(kits?.items ?? []).map((k) => (
-                  <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-medium text-fg">
-                      {k.kitLabel}
-                      <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-fg-muted">
-                      {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
-                      >
-                        Editar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {(kits?.items ?? [])
+                  .filter((k) => {
+                    const q = listSearch.trim().toLowerCase();
+                    return (
+                      q === '' ||
+                      k.kitLabel.toLowerCase().includes(q) ||
+                      k.kitSku.toLowerCase().includes(q) ||
+                      k.components.some((c) => c.label.toLowerCase().includes(q))
+                    );
+                  })
+                  .map((k) => (
+                    <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
+                      <td className="px-4 py-2.5 font-medium text-fg">
+                        {k.kitLabel}
+                        <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-fg-muted">
+                        {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
+                        >
+                          Editar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
                 {(kits?.items ?? []).length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-10 text-center text-sm text-fg-muted">
@@ -237,17 +253,19 @@ export function KitsPage() {
           <ul className="mt-3 space-y-2">
             {components.map((c, idx) => (
               <li key={c.componentVariantId} className="flex items-center gap-2 text-sm">
-                <Input
-                  type="number"
-                  min={1}
-                  className="h-8 w-16 text-right"
-                  value={c.quantity}
-                  onChange={(e) =>
-                    setComponents((list) =>
-                      list.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)),
-                    )
-                  }
-                />
+                <div className="w-16 shrink-0">
+                  <Input
+                    type="number"
+                    min={1}
+                    className="h-8 text-right"
+                    value={c.quantity}
+                    onChange={(e) =>
+                      setComponents((list) =>
+                        list.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
                 <span className="min-w-0 flex-1 truncate text-fg">
                   {c.label} <span className="font-mono text-xs text-fg-subtle">{c.sku}</span>
                 </span>

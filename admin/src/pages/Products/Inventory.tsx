@@ -31,6 +31,7 @@ export function InventoryPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', store?.id],
@@ -38,7 +39,11 @@ export function InventoryPage() {
     enabled: !!store,
   });
 
-  const allItems = products ?? [];
+  const q = search.trim().toLowerCase();
+  const allItems = (products ?? []).filter(
+    (p) =>
+      q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
+  );
   const stockByVariant = useVariantStock(allItems);
 
   const PAGE_SIZE = 20;
@@ -101,6 +106,15 @@ export function InventoryPage() {
           Etiquetas QR de esta página
         </Button>
       </div>
+
+      <Input
+        placeholder="Buscar por producto o SKU…"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+      />
 
       <Card flush>
         <table className="w-full text-sm">
