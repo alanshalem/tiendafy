@@ -49,6 +49,7 @@ public static class PipelineExtensions
         apiV1.MapThemeEndpoints();
         apiV1.MapMediaEndpoints();
         apiV1.MapSupportEndpoints();
+        apiV1.MapPurchasingEndpoints();
         apiV1.MapFiscalEndpoints();
         apiV1.MapWhatsAppEndpoints();
         apiV1.MapInventoryEndpoints();

@@ -39,4 +39,40 @@ export const CATALOGO = {
       },
     ],
   },
+
+  compras: {
+    title: 'Compras e importaciones',
+    intro:
+      'Órdenes de compra a tus proveedores con el ciclo completo del importador: desde la proforma hasta el contenedor en el depósito, con el costo real de cada unidad calculado solo.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'El ciclo de una compra',
+        paragraphs: [
+          'Una orden de compra arranca como borrador: proveedor, moneda (típicamente USD), tipo de cambio estimado, lead time y los productos con su costo unitario FOB. Mientras es borrador podés editar todo.',
+          'Al confirmarla, la vas moviendo por los estados reales de una importación: en producción → en tránsito → en aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles.',
+        ],
+      },
+      {
+        heading: 'Landed cost: lo que de verdad cuesta cada unidad',
+        paragraphs: [
+          'Cargá los gastos del embarque (flete, seguro, aranceles, despachante, IVA de aduana) en la moneda de la orden o directo en pesos. El sistema los prorratea entre los productos según su valor: la diferencia entre creer que un disco cuesta USD 4 y saber que puesto en tu depósito cuesta USD 6,80.',
+        ],
+      },
+      {
+        heading: 'Recibir la mercadería',
+        steps: [
+          'Tocá «Recibir» cuando llega el contenedor y confirmá cuántas unidades entraron de cada ítem (podés recibir menos de lo pedido).',
+          'Poné el tipo de cambio definitivo del despacho.',
+          'Al confirmar: el stock sube solo y el costo de cada variante queda fijado al landed cost — Estadísticas → Rentabilidad pasa a calcular la ganancia con el costo real importado.',
+        ],
+      },
+      {
+        heading: 'Reposición con lead time',
+        paragraphs: [
+          'Para un importador, la alerta de «stock bajo» llega tarde: si el reabastecimiento tarda 90 días, hay que pedir meses antes. La pestaña «Reposición sugerida» cruza lo vendido por día (últimos 60 días) con tu stock y tu lead time, y te dice qué se agota antes de que llegue el próximo embarque y cuánto pedir.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

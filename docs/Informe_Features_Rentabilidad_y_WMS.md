@@ -6,8 +6,12 @@
 > (Productos → Costos + columna «Costo» del CSV), snapshot de costo en cada
 > venta, comisión real de MP capturada del pago al conciliar, y dashboard
 > Estadísticas → Rentabilidad (ganancia, margen, por producto, cobertura).
-> Fuera de v1: ROAS con Meta Ads (A6), costo real del carrier, ganancia por
-> campaña (A5) y los bloques B/C/D — módulos nuevos, ver guía de módulos.
+> **Bloque C implementado** (módulo Purchasing): OC a proveedores con el
+> ciclo del importador, landed cost prorrateado que fija el costo por
+> variante al recibir (con stock automático) y reposición con lead time.
+> **A5 y canal ML también**: ganancia por campaña de email y margen bruto
+> del canal ML en el dashboard. Fuera de v1: ROAS con Meta Ads (A6, requiere
+> app de Meta), costo real del carrier, bloques B (WMS/escaneo) y D (kits/B2B).
 
 ---
 

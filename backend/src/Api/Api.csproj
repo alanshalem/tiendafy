@@ -16,6 +16,7 @@
     <ProjectReference Include="..\Modules\Analytics\Analytics.Infrastructure\Analytics.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Notifications.Infrastructure\Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Support\Support.Infrastructure\Support.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Purchasing\Purchasing.Infrastructure\Purchasing.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Fiscal\Fiscal.Infrastructure\Fiscal.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\MercadoLibre\MercadoLibre.Infrastructure\MercadoLibre.Infrastructure.csproj" />
   </ItemGroup>

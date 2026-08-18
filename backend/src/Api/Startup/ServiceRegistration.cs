@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Identity;
 using Notifications.Infrastructure;
 using Orders.Infrastructure;
 using Payments.Infrastructure;
+using Purchasing.Infrastructure;
 using Serilog;
 using SharedKernel.Abstractions;
 using Support.Infrastructure;
@@ -51,7 +52,7 @@ public static class ServiceRegistration
         return builder;
     }
 
-    /// <summary>Los 17 módulos del monolito.</summary>
+    /// <summary>Los 18 módulos del monolito.</summary>
     public static IServiceCollection AddAllModules(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddTenancyModule(configuration);
@@ -63,6 +64,7 @@ public static class ServiceRegistration
         services.AddThemesModule(configuration);
         services.AddMediaModule(configuration);
         services.AddSupportModule(configuration);
+        services.AddPurchasingModule(configuration);
         services.AddFiscalModule(configuration);
         services.AddInventoryModule(configuration);
         services.AddCheckoutModule(configuration);

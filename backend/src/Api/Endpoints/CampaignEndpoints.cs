@@ -150,10 +150,18 @@ public static class CampaignEndpoints
                     .Where(o => o.TenantId == tenant.TenantId && o.PaidAtUtc >= sentAt
                         && o.CouponCode == campaign.CouponCode)
                     .ToListAsync(ct);
+                // Ganancia atribuida (no solo ingresos): ventas de productos netas
+                // de cupón − costo snapshot − fee MP, solo órdenes CON costo.
+                var withCost = attributed.Where(o => o.ProductCost is not null).ToList();
                 attribution = new
                 {
                     orders = attributed.Count,
                     revenueMinor = attributed.Sum(o => o.Total.AmountInMinorUnits),
+                    profitMinor = withCost.Count > 0
+                        ? withCost.Sum(o => o.Total.AmountInMinorUnits - o.ShippingCost.AmountInMinorUnits
+                            - o.ProductCost!.Value.AmountInMinorUnits - (o.MpFeeAmount?.AmountInMinorUnits ?? 0))
+                        : (long?)null,
+                    ordersWithCost = withCost.Count,
                     currency = attributed.Count > 0 ? attributed[0].Currency : Money.DefaultCurrency,
                     couponCode = campaign.CouponCode,
                 };

@@ -41,6 +41,7 @@ flowchart TB
         Discounts["Discounts<br/>cupones"]
         Support["Support<br/>chat posventa con adjuntos"]
         Meli["MercadoLibre<br/>ventas, preguntas, mensajes,<br/>stock unificado, publicar"]
+        Purchasing["Purchasing<br/>compras, importaciones,<br/>landed cost, reposición"]
     end
 
     subgraph Workers["⚙️ Background (hosted services, apagables por réplica: Workers:Enabled)"]

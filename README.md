@@ -15,11 +15,11 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 | **Facturación** | Electrónica ARCA/AFIP: certificado por tienda (CSR desde el panel), CAE online vía WSAA+WSFEv1, PDF con QR, notas de crédito en reembolsos, homologación y producción |
 | **Comunicación** | Emails transaccionales brandeados (Resend) + WhatsApp Cloud API por plantillas, ambos editables por tienda, con contadores de uso y costo estimado |
 | **Operación** | Inventario con reservas anti-oversell, import/export CSV masivo (productos + imágenes), CRM de clientes, chat posventa con adjuntos privados, estadísticas |
-| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 30 manuales |
+| **Plataforma** | RBAC por tienda (6 roles, deny-by-default), aislamiento multi-tenant estricto, legal AR (Botón de Arrepentimiento Res. 424/2020, términos/privacidad con override CMS), centro de ayuda integrado con 31 manuales |
 
 ## Stack
 
-- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 17 módulos, cada uno con su DbContext y filtro global de tenant.
+- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 18 módulos, cada uno con su DbContext y filtro global de tenant.
 - **Storefront**: Next.js 16 (SSR multi-tenant por Host), React 19, Tailwind
 - **Admin**: React 19 + Vite (SPA), TypeScript, React Query
 - **Infra dev**: Docker (Postgres, MinIO)
@@ -108,7 +108,7 @@ Hooks locales (husky): Prettier + `dotnet format` sobre lo stageado en cada comm
 ## Estructura
 
 ```
-backend/     API .NET (src/Api) + 17 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,...})
+backend/     API .NET (src/Api) + 18 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,...})
 storefront/  Next.js multi-tenant (la tienda que ve el comprador)
 admin/       SPA del panel del merchant (incluye el centro de ayuda en /ayuda)
 shared/      Paquetes pnpm compartidos (types, ui, design-system)

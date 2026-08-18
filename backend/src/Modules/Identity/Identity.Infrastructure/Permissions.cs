@@ -28,6 +28,7 @@ public enum Permission
     MembersManage,       // sensible: vía de escalación
     FiscalConfig,        // sensible: cert/CUIT/punto de venta de ARCA
     FiscalEmit,          // emitir / anular comprobantes (mueve obligaciones fiscales)
+    Purchasing,          // compras a proveedores e importaciones (landed cost)
     TenantAdmin,         // dominios / plan / borrar tienda — solo owner
 }
 
@@ -73,6 +74,7 @@ public static class RolePermissions
             Permission.CustomersRead, Permission.DiscountsRead, Permission.StatsRead,
             Permission.PaymentsConfigRead, Permission.InventoryRead,
             Permission.FiscalConfig, Permission.FiscalEmit, // finanzas maneja la facturación
+            Permission.Purchasing, // compras/importaciones: costos y pagos a proveedores
         ],
         [Soporte] =
         [
@@ -120,6 +122,7 @@ public static class RolePermissions
         Permission.MembersManage => "members.manage",
         Permission.FiscalConfig => "fiscal.config",
         Permission.FiscalEmit => "fiscal.emit",
+        Permission.Purchasing => "purchasing",
         Permission.TenantAdmin => "tenant.admin",
         _ => p.ToString().ToLowerInvariant(),
     };

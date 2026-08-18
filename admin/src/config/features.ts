@@ -73,6 +73,7 @@ export const HELP_LINKS = {
   mercadolibre: { label: 'Más sobre la integración con Mercado Libre' },
   distributionCenters: { label: 'Más sobre centros de distribución' },
   productos: { label: 'Más sobre productos e inventario' },
+  compras: { label: 'Más sobre compras e importaciones' },
   clientes: { label: 'Más sobre clientes' },
   posventa: { label: 'Más sobre el chat posventa' },
   autoEmails: { label: 'Más sobre e-mails automáticos' },

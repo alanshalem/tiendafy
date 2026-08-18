@@ -81,6 +81,7 @@ const sections: NavSection[] = [
           { to: '/productos/categorias', label: 'Categorías', perm: 'catalog.write' },
         ],
       },
+      { to: '/compras', label: 'Compras', perm: 'purchasing' },
       { to: '/clientes', label: 'Clientes', perm: 'customers.read' },
       { to: '/mensajes', label: 'Mensajes', perm: 'messages.read' },
       { to: '/posventa', label: 'Chat posventa', perm: 'support.chat' },

@@ -9,7 +9,7 @@ funciona; el razonamiento de diseño previo quedó en el historial de git
 ## El modelo en una frase
 
 Cada miembro de una tienda tiene UN rol; cada rol mapea a un conjunto fijo de
-permisos (`Permission` enum, 22 permisos); cada endpoint del admin exige el
+permisos (`Permission` enum, 23 permisos); cada endpoint del admin exige el
 permiso que corresponde. **Deny by default**: lo que la matriz no otorga, no se
 puede. La matriz es política de producto y vive en código, no en la DB.
 
@@ -22,7 +22,7 @@ puede. La matriz es política de producto y vive en código, no en la DB.
 | `staff` (legacy) | 2 | Equivale a `admin` — los staff pre-RBAC operaban todo el panel. |
 | `vendedor` | 1 | Pedidos (ver + despachar), clientes, chat, mensajes, cupones (ver), stats, stock (ver). |
 | `catalogo` | 1 | Catálogo (escribir) + inventario (ver y escribir). |
-| `finanzas` | 1 | Pedidos (ver + **reembolsar**), config de pagos (ver), facturación ARCA (config + emitir), clientes/cupones/stats/stock (ver). |
+| `finanzas` | 1 | Pedidos (ver + **reembolsar**), config de pagos (ver), facturación ARCA (config + emitir), compras/importaciones, clientes/cupones/stats/stock (ver). |
 | `soporte` | 1 | Pedidos (ver), clientes (ver), chat posventa, mensajes de contacto. |
 
 `Rank` gobierna la gestión de miembros: nadie asigna un rol por encima del
