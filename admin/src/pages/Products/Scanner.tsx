@@ -310,13 +310,9 @@ function BuscarTab() {
               >
                 Guardar stock
               </Button>
-              <div>
+              <div className="w-32">
                 <label className="mb-1 block text-xs text-fg-muted">Ubicación (ej. B3)</label>
-                <Input
-                  className="h-9 w-32"
-                  value={locationDraft}
-                  onChange={(e) => setLocationDraft(e.target.value)}
-                />
+                <Input value={locationDraft} onChange={(e) => setLocationDraft(e.target.value)} />
               </div>
               <Button
                 variant="secondary"

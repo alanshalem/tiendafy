@@ -159,7 +159,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
 
   return (
     <>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Compras</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
@@ -167,7 +167,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
             puesta en el depósito alimenta Rentabilidad.
           </p>
         </div>
-        <Button onClick={onNew}>
+        <Button className="shrink-0" onClick={onNew}>
           <Plus className="h-4 w-4" /> Nueva compra
         </Button>
       </div>
@@ -184,20 +184,25 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
       {tab === 'ordenes' ? (
         <>
           <div className="flex gap-2">
-            <Input
-              placeholder="Buscar por proveedor o referencia…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Select
-              className="w-44"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={[
-                { value: '', label: 'Todos los estados' },
-                ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })),
-              ]}
-            />
+            <div className="min-w-0 flex-1">
+              <Input
+                placeholder="Buscar por proveedor o referencia…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            {/* Ancho SIEMPRE por wrapper: el w-full base de Select/Input le gana
+                a un w-* pasado por className (cn no resuelve conflictos). */}
+            <div className="w-44 shrink-0">
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'Todos los estados' },
+                  ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })),
+                ]}
+              />
+            </div>
           </div>
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
@@ -721,7 +726,6 @@ function ExpensesEditor({
             <div className="min-w-0 flex-1">
               <Input
                 placeholder="Concepto (ej. Flete marítimo)"
-                className="h-9"
                 value={e.label}
                 disabled={!editable}
                 onChange={(ev) => {
@@ -737,7 +741,7 @@ function ExpensesEditor({
                 min={0}
                 step="0.01"
                 placeholder="Monto"
-                className="h-9 text-right"
+                className="text-right"
                 value={e.amount}
                 disabled={!editable}
                 onChange={(ev) => {
@@ -747,20 +751,21 @@ function ExpensesEditor({
                 }}
               />
             </div>
-            <Select
-              className="h-9 w-32 shrink-0"
-              value={e.isLocal ? 'ars' : 'po'}
-              disabled={!editable}
-              onChange={(ev) => {
-                const expenses = [...form.expenses];
-                expenses[idx] = { ...e, isLocal: ev.target.value === 'ars' };
-                update(expenses);
-              }}
-              options={[
-                { value: 'po', label: currency },
-                { value: 'ars', label: 'ARS' },
-              ]}
-            />
+            <div className="w-28 shrink-0">
+              <Select
+                value={e.isLocal ? 'ars' : 'po'}
+                disabled={!editable}
+                onChange={(ev) => {
+                  const expenses = [...form.expenses];
+                  expenses[idx] = { ...e, isLocal: ev.target.value === 'ars' };
+                  update(expenses);
+                }}
+                options={[
+                  { value: 'po', label: currency },
+                  { value: 'ars', label: 'ARS' },
+                ]}
+              />
+            </div>
             {editable && (
               <button
                 type="button"
