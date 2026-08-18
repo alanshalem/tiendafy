@@ -42,6 +42,9 @@
   <Folder Name="/src/Modules/MercadoLibre/">
     <Project Path="src/Modules/MercadoLibre/MercadoLibre.Infrastructure/MercadoLibre.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Social/">
+    <Project Path="src/Modules/Social/Social.Infrastructure/Social.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Payments/">
     <Project Path="src/Modules/Payments/Payments.Contracts/Payments.Contracts.csproj" />
     <Project Path="src/Modules/Payments/Payments.Core/Payments.Core.csproj" />

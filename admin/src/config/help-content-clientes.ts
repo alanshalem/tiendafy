@@ -363,4 +363,84 @@ export const CLIENTES = {
       },
     ],
   },
+  redes: {
+    title: 'Redes sociales',
+    intro:
+      'Escribí un post una sola vez y publicalo en Facebook, Instagram, X y Telegram a la vez — ahora o programado en el calendario.',
+    category: 'Clientes y comunicación',
+    sections: [
+      {
+        heading: 'Qué hace el módulo',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Función', 'Qué resuelve'],
+            rows: [
+              [
+                'Cuentas conectadas',
+                'Vinculás tus páginas de Facebook, Instagram Business, X y canales de Telegram una sola vez',
+              ],
+              [
+                'Post multi-red',
+                'Un texto base sale a todas las cuentas elegidas; podés escribir una versión distinta por red',
+              ],
+              ['Programación', 'Elegís día y hora y el sistema publica solo (o tocás “Publicar ahora”)'],
+              [
+                'Calendario',
+                'Todo el mes de un vistazo: borradores, programados, publicados y fallidos por día',
+              ],
+              ['Imágenes del catálogo', 'Adjuntás la foto de un producto sin salir del composer'],
+              [
+                'Resultado por red',
+                'Cada post muestra el link a lo publicado en cada red, o el error si una falló',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Conectar tus cuentas',
+        paragraphs: [
+          'Facebook e Instagram se conectan juntos: autorizás con tu usuario de Meta y aparecen todas tus páginas con sus cuentas de Instagram Business vinculadas. X se conecta con su propio botón. Telegram no usa autorización: creás un bot con @BotFather, lo hacés administrador de tu canal y pegás el token en el formulario.',
+          'Igual que con Mercado Libre, los botones de Facebook/Instagram y X necesitan que la plataforma tenga su app configurada en el servidor (una sola vez). Telegram funciona siempre.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Redes sociales', 'Cuentas'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Guardamos tokens cifrados, nunca tu contraseña. Si una red revoca el acceso, la cuenta queda marcada “Reconectar” y los posts hacia ella avisan en vez de fallar en silencio.',
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Instagram tiene que ser una cuenta Business (o Creator) vinculada a una página de Facebook — las cuentas personales no permiten publicar por API.',
+          },
+        ],
+      },
+      {
+        heading: 'Crear y programar un post',
+        steps: [
+          'Tocá “Nuevo post” (o un día del calendario, que ya viene con la fecha cargada).',
+          'Escribí el texto base y elegí en qué cuentas sale.',
+          'Sumá imágenes: pegás una URL o elegís la foto de un producto del catálogo.',
+          'Si querés, abrí “Versión por red” y ajustá el texto para una red puntual (ej. más corto para X).',
+          'Elegí fecha y hora y tocá “Programar” — o “Publicar ahora” y sale en el próximo minuto.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'El contador de caracteres usa el límite más chico de las redes elegidas (X: 280, Instagram: 2.200, Facebook: 5.000, Telegram: 4.096). Instagram además exige al menos una imagen — el composer te avisa antes de publicar.',
+          },
+        ],
+      },
+      {
+        heading: 'Si una red falla',
+        paragraphs: [
+          'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en su detalle ves exactamente qué red falló y por qué (token vencido, límite de la red, imagen inválida). Reconectás la cuenta o corregís el post, y lo volvés a programar.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

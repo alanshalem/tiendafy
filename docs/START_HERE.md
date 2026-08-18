@@ -1,7 +1,7 @@
 # Tiendafy — START HERE
 
 Mapa de la documentación. El proyecto está **construido y funcionando** (no es
-un plano): 18 módulos backend, storefront y admin completos, CI verde, deploy
+un plano): 19 módulos backend, storefront y admin completos, CI verde, deploy
 reproducible. Este archivo te dice qué leer según lo que necesites.
 
 ## En 2 minutos

@@ -91,6 +91,16 @@ services:
       MetaAds__AppSecret: ${META_APP_SECRET:-}
       MetaAds__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/meta-ads/oauth/callback
       MetaAds__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/estadisticas/rentabilidad
+      # Redes sociales (posts multi-red). Vacío = conector apagado; Telegram
+      # no necesita credenciales de plataforma. La app de Meta puede ser la
+      # misma de Meta Ads sumando los scopes de páginas/Instagram.
+      Social__Meta__AppId: ${SOCIAL_META_APP_ID:-}
+      Social__Meta__AppSecret: ${SOCIAL_META_APP_SECRET:-}
+      Social__Meta__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/social/oauth/callback/meta
+      Social__X__ClientId: ${SOCIAL_X_CLIENT_ID:-}
+      Social__X__ClientSecret: ${SOCIAL_X_CLIENT_SECRET:-}
+      Social__X__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/social/oauth/callback/x
+      Social__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/redes
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).

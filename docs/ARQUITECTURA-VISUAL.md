@@ -42,6 +42,7 @@ flowchart TB
         Support["Support<br/>chat posventa con adjuntos"]
         Meli["MercadoLibre<br/>ventas, preguntas, mensajes,<br/>stock unificado, publicar"]
         Purchasing["Purchasing<br/>compras, importaciones,<br/>landed cost, reposición"]
+        Social["Social<br/>cuentas sociales, posts<br/>multi-red programados"]
     end
 
     subgraph Workers["⚙️ Background (hosted services, apagables por réplica: Workers:Enabled)"]
@@ -51,12 +52,13 @@ flowchart TB
         ImportW["Import workers<br/>CSV productos + imágenes"]
         CampaignW["CampaignWorker<br/>envío de campañas de email"]
         MeliW["Meli workers<br/>inbox de notificaciones +<br/>sync de stock"]
+        SocialW["SocialPublishWorker<br/>claim atómico por post →<br/>publica red por red"]
     end
 
     subgraph Datos["💾 Datos"]
         PG[("PostgreSQL<br/>filas con tenant_id +<br/>query filters por módulo")]
         MinIO[("MinIO / S3<br/>media pública +<br/>adjuntos privados firmados")]
-        DP["🔐 DataProtection keyring<br/>cifra: tokens MP, certificados<br/>y claves ARCA, tokens WhatsApp"]
+        DP["🔐 DataProtection keyring<br/>cifra: tokens MP, certificados<br/>y claves ARCA, tokens WhatsApp<br/>y tokens de redes sociales"]
     end
 
     subgraph Externos["☁️ Servicios externos"]

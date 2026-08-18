@@ -29,6 +29,7 @@ public enum Permission
     FiscalConfig,        // sensible: cert/CUIT/punto de venta de ARCA
     FiscalEmit,          // emitir / anular comprobantes (mueve obligaciones fiscales)
     Purchasing,          // compras a proveedores e importaciones (landed cost)
+    Social,              // redes sociales: cuentas, posts y calendario
     TenantAdmin,         // dominios / plan / borrar tienda — solo owner
 }
 
@@ -123,6 +124,7 @@ public static class RolePermissions
         Permission.FiscalConfig => "fiscal.config",
         Permission.FiscalEmit => "fiscal.emit",
         Permission.Purchasing => "purchasing",
+        Permission.Social => "social",
         Permission.TenantAdmin => "tenant.admin",
         _ => p.ToString().ToLowerInvariant(),
     };

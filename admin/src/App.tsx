@@ -32,6 +32,7 @@ import { EditProductPage } from './pages/Products/EditProduct';
 import { DiscountsPage } from './pages/Discounts';
 import { MarketingPage } from './pages/Marketing';
 import { MercadoLibrePage } from './pages/MercadoLibre';
+import { RedesPage } from './pages/Redes';
 import { MeliSettingsPage } from './pages/Settings/MercadoLibre';
 import { CustomersPage } from './pages/Customers';
 import { MessagesPage } from './pages/Messages';
@@ -115,6 +116,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/descuentos', perm: 'discounts.read', el: <DiscountsPage /> },
   { path: '/marketing', perm: 'settings.write', el: <MarketingPage /> },
   { path: '/mercadolibre', perm: 'orders.read', el: <MercadoLibrePage /> },
+  { path: '/redes', perm: 'social', el: <RedesPage /> },
   { path: '/clientes', perm: 'customers.read', el: <CustomersPage /> },
   { path: '/mensajes', perm: 'messages.read', el: <MessagesPage /> },
   { path: '/posventa', perm: 'support.chat', el: <SupportChatPage /> },

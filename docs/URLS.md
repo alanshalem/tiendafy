@@ -28,6 +28,7 @@ Rutas importantes dentro del admin (SPA, todas cuelgan de la URL del admin):
 | `/canales/tienda-online/disenios` | Editor de tema (preview en vivo de la tienda vía iframe).                   |
 | `/marketing`                      | Campañas de email y segmentos;`/descuentos`: cupones.                     |
 | `/mercadolibre`                   | Ventas, preguntas, mensajes y publicaciones de ML.                           |
+| `/redes`                          | Redes sociales: calendario, posts multi-red y cuentas conectadas.            |
 | `/compras`                        | Órdenes de compra, ciclo de importación, landed cost y reposición.           |
 | `/configuracion/medios-de-pago`   | Conexión Mercado Pago (acá vuelve el OAuth).                               |
 | `/configuracion/mercadolibre`     | Conexión Mercado Libre (acá vuelve el OAuth).                              |

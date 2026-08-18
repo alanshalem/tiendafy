@@ -23,6 +23,7 @@ using Payments.Infrastructure;
 using Purchasing.Infrastructure;
 using Serilog;
 using SharedKernel.Abstractions;
+using Social.Infrastructure;
 using Support.Infrastructure;
 using Tenancy.Infrastructure;
 using Tenancy.Infrastructure.Persistence;
@@ -52,7 +53,7 @@ public static class ServiceRegistration
         return builder;
     }
 
-    /// <summary>Los 18 módulos del monolito.</summary>
+    /// <summary>Los 19 módulos del monolito.</summary>
     public static IServiceCollection AddAllModules(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddTenancyModule(configuration);
@@ -73,6 +74,7 @@ public static class ServiceRegistration
         services.AddAnalyticsModule(configuration);
         services.AddNotificationsModule(configuration);
         services.AddMercadoLibreModule(configuration);
+        services.AddSocialModule(configuration);
         return services;
     }
 
@@ -124,6 +126,22 @@ public static class ServiceRegistration
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliStockSyncWorker>();
+
+        // Redes sociales: OAuth por tienda (Meta, X) + Telegram por bot; posts
+        // multi-red programados. Tokens cifrados; el worker publica cada minuto.
+        services.Configure<Api.Social.SocialOptions>(configuration.GetSection(Api.Social.SocialOptions.SectionName));
+        services.AddScoped<Api.Social.SocialTokenService>();
+        services.AddHttpClient<Api.Social.MetaSocialConnector>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddScoped<Api.Social.ISocialConnector>(sp => sp.GetRequiredService<Api.Social.MetaSocialConnector>());
+        services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<Api.Social.MetaInstagramChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<Api.Social.XSocialChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHttpClient<Api.Social.TelegramChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaFacebookChannel>());
+        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaInstagramChannel>());
+        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
+        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.TelegramChannel>());
+        if (runPollingWorkers) services.AddHostedService<Api.Social.SocialPublishWorker>();
 
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
