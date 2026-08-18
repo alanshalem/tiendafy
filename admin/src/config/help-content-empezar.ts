@@ -81,4 +81,158 @@ export const EMPEZAR = {
       },
     ],
   },
+  glosario: {
+    title: 'Glosario',
+    intro:
+      'Las palabras del sistema explicadas en criollo. Si algo del panel no se entiende, empezá por acá.',
+    category: 'Empezar',
+    sections: [
+      {
+        heading: 'Ventas y plata',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Ticket promedio',
+                def: 'Facturación ÷ cantidad de ventas: cuánto gasta en promedio cada comprador.',
+              },
+              {
+                term: 'Margen',
+                def: '(Precio − costo) ÷ precio. Si vendés a $10.000 algo que te costó $7.000, el margen es 30%.',
+              },
+              {
+                term: 'Ganancia real',
+                def: 'Ventas − costo de lo vendido − comisiones. Lo que de verdad te queda, no lo que facturás.',
+              },
+              {
+                term: 'ROAS',
+                def: 'Retorno de la pauta: cuánto te vuelve por cada peso invertido en publicidad. El "ROAS real" del panel usa la GANANCIA (no la facturación), por eso da más bajo que el número de Meta.',
+              },
+              {
+                term: 'Comisión / fee',
+                def: 'Lo que se queda la pasarela (Mercado Pago) o el marketplace (ML) por cada venta.',
+              },
+              {
+                term: 'Contracargo',
+                def: 'El comprador desconoció el pago ante su tarjeta y el dinero se devuelve. Se disputa con evidencia de entrega.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Stock y depósito',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Variante',
+                def: 'Cada versión vendible de un producto: la remera talle M negra es una variante; la L blanca, otra.',
+              },
+              {
+                term: 'SKU',
+                def: 'El código interno de cada variante (ej. REM-M-NEG). Lo inventás vos; sirve para buscar y escanear.',
+              },
+              {
+                term: 'EAN / código de barras',
+                def: 'El código impreso del fabricante. Se escanea con la cámara del celu en el Escáner.',
+              },
+              {
+                term: 'Reservado',
+                def: 'Stock apartado por un checkout en curso. Si el pago no llega en 30 minutos, vuelve solo a disponible.',
+              },
+              {
+                term: 'Kit / combo',
+                def: 'Un producto compuesto por otros ("Kit barra + discos"): al venderse, descuenta el stock de cada pieza.',
+              },
+              {
+                term: 'Picking',
+                def: 'Juntar los productos de un pedido en el depósito. El picking verificado exige escanear cada uno para no despachar mal.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Importaciones',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'FOB',
+                def: 'Lo que cobra el proveedor por la mercadería puesta en el barco, sin flete, seguro ni impuestos.',
+              },
+              {
+                term: 'Landed cost',
+                def: 'El costo REAL por unidad puesta en tu depósito: FOB × tipo de cambio + flete, seguro, aranceles y despachante prorrateados.',
+              },
+              {
+                term: 'Lead time',
+                def: 'Cuántos días tarda un pedido al proveedor en llegar. Con 90 días de lead time, lo que pidas hoy llega en tres meses: la reposición avisa ANTES.',
+              },
+              {
+                term: 'Orden de compra (OC)',
+                def: 'El pedido al proveedor con ítems, cantidades y costos. Sigue el ciclo: borrador → confirmada → producción → tránsito → aduana → recibida.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Facturación y legal',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'CAE',
+                def: 'El código que ARCA le asigna a cada factura electrónica y la hace fiscalmente válida.',
+              },
+              {
+                term: 'Homologación',
+                def: 'El ambiente de práctica de ARCA o Mercado Pago: idéntico al real, pero las operaciones no valen. Todo se prueba ahí primero.',
+              },
+              {
+                term: 'Nota de crédito',
+                def: 'El comprobante que anula (total o parcialmente) una factura, por ejemplo ante un reembolso. El sistema la emite solo.',
+              },
+              {
+                term: 'Botón de Arrepentimiento',
+                def: 'El formulario legal obligatorio (Res. 424/2020) para que el comprador se arrepienta de una compra online. Las solicitudes caen en Mensajes de contacto.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Técnicas (por si aparecen)',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Webhook',
+                def: 'Un aviso automático entre sistemas: Mercado Pago le avisa a la plataforma que un pago se aprobó, sin que nadie consulte.',
+              },
+              {
+                term: 'OAuth',
+                def: 'La pantalla oficial de "autorizar" de MP/ML/Meta: conectás tu cuenta sin compartir tu contraseña con nadie.',
+              },
+              {
+                term: 'CSV',
+                def: 'Archivo de planilla (tipo Excel) para importar o exportar el catálogo completo de una vez.',
+              },
+              {
+                term: 'SEO',
+                def: 'Que tu tienda aparezca bien en Google. El sistema lo trabaja solo: títulos, descripciones y datos de producto.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

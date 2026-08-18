@@ -27,13 +27,32 @@ export function StatsCouponsPage() {
       <StatsPageHeader title="Reporte de cupones" />
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <KpiCard title="Cupones" value={(data?.totalCoupons ?? 0).toLocaleString('es-AR')} />
-        <KpiCard title="Activos" value={(data?.activeCoupons ?? 0).toLocaleString('es-AR')} />
-        <KpiCard title="Usos" value={(data?.totalUses ?? 0).toLocaleString('es-AR')} />
-        <KpiCard title="Descuento otorgado" value={formatMoney(data?.totalDiscount ?? 0)} />
+        <KpiCard
+          title="Cupones"
+          hint="Todos los cupones creados, estén activos o no."
+          value={(data?.totalCoupons ?? 0).toLocaleString('es-AR')}
+        />
+        <KpiCard
+          title="Activos"
+          hint="Vigentes hoy: dentro de fecha y con usos disponibles."
+          value={(data?.activeCoupons ?? 0).toLocaleString('es-AR')}
+        />
+        <KpiCard
+          title="Usos"
+          hint="Veces que un cupón se aplicó en una venta concretada."
+          value={(data?.totalUses ?? 0).toLocaleString('es-AR')}
+        />
+        <KpiCard
+          title="Descuento otorgado"
+          hint="La plata que resignaste en descuentos — comparala con la venta que trajo cada cupón (tabla de abajo)."
+          value={formatMoney(data?.totalDiscount ?? 0)}
+        />
       </div>
 
-      <ChartCard title="Uso por cupón" info>
+      <ChartCard
+        title="Uso por cupón"
+        info="Usos reales de cada cupón en ventas concretadas, con la plata que movió."
+      >
         {isLoading ? (
           <p className="py-4 text-sm text-fg-muted">Cargando…</p>
         ) : !data || data.items.length === 0 ? (

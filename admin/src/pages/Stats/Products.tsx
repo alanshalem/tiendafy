@@ -33,7 +33,7 @@ export function StatsProductsPage() {
       <StatsPageHeader title="Productos" />
       <p className="-mt-3 text-sm text-fg-muted">Más vendidos por unidades — {rangeLabel(range)}.</p>
 
-      <ChartCard title="Top productos" info>
+      <ChartCard title="Top productos" info="Ranking por unidades vendidas en ventas pagadas del período.">
         {isLoading ? (
           <p className="py-4 text-sm text-fg-muted">Cargando…</p>
         ) : items.length === 0 ? (

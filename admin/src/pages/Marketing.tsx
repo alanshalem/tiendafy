@@ -6,6 +6,7 @@ import { formatDate, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { NotificationUsage } from '../components/NotificationUsage';
+import { StatusLegend } from '../components/StatusLegend';
 import { HelpLink } from '../components/HelpLink';
 import { AUDIENCE_LABEL, CampaignModal, type Campaign } from './CampaignModal';
 
@@ -133,76 +134,87 @@ export function MarketingPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map((c) => {
-            const st = CAMPAIGN_STATUS[c.status] ?? DEFAULT_STATUS;
-            const editable = c.status === 'draft' || c.status === 'scheduled';
-            return (
-              <div key={c.id} className="rounded-lg border border-border bg-surface p-4 shadow-card">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
-                    <Mail className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate font-semibold text-fg">{c.subject}</span>
-                      <Badge variant={st.variant}>{st.label}</Badge>
-                      {c.couponCode && <Badge variant="primary">{c.couponCode}</Badge>}
-                    </div>
-                    <p className="mt-0.5 text-sm text-fg-muted">
-                      {AUDIENCE_LABEL[c.audience]}
-                      {c.status === 'draft' && ` · creada el ${formatDate(c.createdAtUtc)}`}
-                      {c.status === 'scheduled' &&
-                        c.scheduledAtUtc &&
-                        ` · sale el ${new Date(c.scheduledAtUtc).toLocaleString('es-AR')}`}
-                      {(c.status === 'sending' || c.status === 'sent') &&
-                        ` · ${c.sentCount}/${c.recipientCount} enviados${c.failedCount > 0 ? ` · ${c.failedCount} fallidos` : ''}`}
-                    </p>
-                    {c.status === 'sending' && c.recipientCount > 0 && (
-                      <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all"
-                          style={{
-                            width: `${Math.round(((c.sentCount + c.failedCount) / c.recipientCount) * 100)}%`,
-                          }}
-                        />
+        <>
+          <StatusLegend
+            items={[
+              { dot: 'bg-gray-400', text: 'Borrador: todavía no sale' },
+              { dot: 'bg-info', text: 'Programada: sale sola en su fecha' },
+              { dot: 'bg-warning', text: 'Enviando' },
+              { dot: 'bg-success', text: 'Enviada' },
+              { dot: 'bg-danger', text: 'Cancelada' },
+            ]}
+          />
+          <div className="space-y-3">
+            {items.map((c) => {
+              const st = CAMPAIGN_STATUS[c.status] ?? DEFAULT_STATUS;
+              const editable = c.status === 'draft' || c.status === 'scheduled';
+              return (
+                <div key={c.id} className="rounded-lg border border-border bg-surface p-4 shadow-card">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-muted">
+                      <Mail className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-semibold text-fg">{c.subject}</span>
+                        <Badge variant={st.variant}>{st.label}</Badge>
+                        {c.couponCode && <Badge variant="primary">{c.couponCode}</Badge>}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {(c.status === 'sent' || c.status === 'sending') && (
-                      <button onClick={() => setDetailId(c.id)} title="Métricas" className={iconBtn}>
-                        <BarChart3 className="h-4 w-4" />
+                      <p className="mt-0.5 text-sm text-fg-muted">
+                        {AUDIENCE_LABEL[c.audience]}
+                        {c.status === 'draft' && ` · creada el ${formatDate(c.createdAtUtc)}`}
+                        {c.status === 'scheduled' &&
+                          c.scheduledAtUtc &&
+                          ` · sale el ${new Date(c.scheduledAtUtc).toLocaleString('es-AR')}`}
+                        {(c.status === 'sending' || c.status === 'sent') &&
+                          ` · ${c.sentCount}/${c.recipientCount} enviados${c.failedCount > 0 ? ` · ${c.failedCount} fallidos` : ''}`}
+                      </p>
+                      {c.status === 'sending' && c.recipientCount > 0 && (
+                        <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{
+                              width: `${Math.round(((c.sentCount + c.failedCount) / c.recipientCount) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {(c.status === 'sent' || c.status === 'sending') && (
+                        <button onClick={() => setDetailId(c.id)} title="Métricas" className={iconBtn}>
+                          <BarChart3 className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button onClick={() => duplicate(c)} title="Duplicar" className={iconBtn}>
+                        <Copy className="h-4 w-4" />
                       </button>
-                    )}
-                    <button onClick={() => duplicate(c)} title="Duplicar" className={iconBtn}>
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    {editable && (
-                      <button onClick={() => setEditing(c)} title="Editar" className={iconBtn}>
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    {(c.status === 'sending' || c.status === 'scheduled') && (
-                      <button onClick={() => cancel(c)} title="Cancelar" className={iconBtn}>
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    )}
-                    {c.status !== 'sending' && (
-                      <button
-                        onClick={() => remove(c)}
-                        title="Borrar"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-danger hover:bg-danger-bg"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                      {editable && (
+                        <button onClick={() => setEditing(c)} title="Editar" className={iconBtn}>
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                      {(c.status === 'sending' || c.status === 'scheduled') && (
+                        <button onClick={() => cancel(c)} title="Cancelar" className={iconBtn}>
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      )}
+                      {c.status !== 'sending' && (
+                        <button
+                          onClick={() => remove(c)}
+                          title="Borrar"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-danger hover:bg-danger-bg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <HelpLink id="emailMarketing" />

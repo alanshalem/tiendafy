@@ -6,6 +6,7 @@ import { api, errMsg } from '../../lib/api';
 import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { Pagination, usePagedList } from '../../components/Pagination';
+import { InfoDot } from '../../components/charts';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -131,7 +132,12 @@ export function CostsPage() {
                 <th className="px-4 py-2.5 font-medium">Producto</th>
                 <th className="px-4 py-2.5 font-medium">Variante</th>
                 <th className="px-4 py-2.5 text-right font-medium">Precio</th>
-                <th className="px-4 py-2.5 text-right font-medium">Margen</th>
+                <th className="px-4 py-2.5 text-right font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    Margen{' '}
+                    <InfoDot info="(precio − costo) ÷ precio. En rojo si es menor al 15%: estás vendiendo casi al costo." />
+                  </span>
+                </th>
                 <th className="px-4 py-2.5 text-center font-medium">Costo ($)</th>
                 <th className="px-4 py-2.5" />
               </tr>

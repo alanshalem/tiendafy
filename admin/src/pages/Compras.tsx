@@ -19,6 +19,8 @@ import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { TABLE_CARD } from '../lib/styles';
+import { StatusLegend } from '../components/StatusLegend';
+import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
 
 // ---------------------------------------------------------------- Tipos wire
@@ -204,6 +206,17 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
               />
             </div>
           </div>
+          <StatusLegend
+            flow
+            items={[
+              { dot: 'bg-gray-400', text: 'Borrador' },
+              { dot: 'bg-info', text: 'Confirmada' },
+              { dot: 'bg-info', text: 'En producción' },
+              { dot: 'bg-warning', text: 'En tránsito' },
+              { dot: 'bg-warning', text: 'En aduana' },
+              { dot: 'bg-success', text: 'Recibida (sube stock y fija costos)' },
+            ]}
+          />
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
               <thead>
@@ -211,7 +224,12 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
                   <th className="px-4 py-2.5 font-medium">Proveedor</th>
                   <th className="px-4 py-2.5 font-medium">Referencia</th>
                   <th className="px-4 py-2.5 font-medium">Estado</th>
-                  <th className="px-4 py-2.5 text-right font-medium">FOB</th>
+                  <th className="px-4 py-2.5 text-right font-medium">
+                    <span className="inline-flex items-center gap-1">
+                      FOB{' '}
+                      <InfoDot info="Lo que cobra el proveedor por la mercadería, sin flete, seguro ni impuestos." />
+                    </span>
+                  </th>
                   <th className="px-4 py-2.5 text-right font-medium">Unidades</th>
                   <th className="px-4 py-2.5 font-medium">Creada</th>
                 </tr>
@@ -621,7 +639,12 @@ function ItemsEditor({
             <th className="py-2 font-medium">SKU</th>
             <th className="py-2 text-right font-medium">Cantidad</th>
             <th className="py-2 text-right font-medium">Costo unit. ({currency})</th>
-            <th className="py-2 text-right font-medium">Landed (ARS)</th>
+            <th className="py-2 text-right font-medium">
+              <span className="inline-flex items-center gap-1">
+                Landed (ARS){' '}
+                <InfoDot info="El costo REAL por unidad puesta en tu depósito: FOB × tipo de cambio + los gastos del embarque prorrateados por valor." />
+              </span>
+            </th>
             {editable && <th className="py-2" />}
           </tr>
         </thead>

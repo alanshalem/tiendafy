@@ -48,15 +48,34 @@ export function StatsSalesPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-4">
-            <KpiCard title="Facturación" value={formatMoney(data.revenue, data.currency)}>
+            <KpiCard
+              title="Facturación"
+              hint="Solo ventas pagadas del período."
+              value={formatMoney(data.revenue, data.currency)}
+            >
               <Sparkline data={data.series.map((s) => s.revenue)} />
             </KpiCard>
-            <KpiCard title="Ventas pagadas" value={data.orders.toLocaleString('es-AR')} />
-            <KpiCard title="Ticket promedio" value={formatMoney(data.averageOrder, data.currency)} />
-            <KpiCard title="Clientes nuevos" value={data.newCustomers.toLocaleString('es-AR')} />
+            <KpiCard
+              title="Ventas pagadas"
+              hint="Pedidos efectivamente cobrados: los cancelados no cuentan."
+              value={data.orders.toLocaleString('es-AR')}
+            />
+            <KpiCard
+              title="Ticket promedio"
+              hint="Facturación ÷ cantidad de ventas pagadas."
+              value={formatMoney(data.averageOrder, data.currency)}
+            />
+            <KpiCard
+              title="Clientes nuevos"
+              hint="Compradores que hicieron su primera compra en el período."
+              value={data.newCustomers.toLocaleString('es-AR')}
+            />
           </div>
 
-          <ChartCard title="Pedidos por estado" info>
+          <ChartCard
+            title="Pedidos por estado"
+            info="Cómo se reparten los pedidos del período entre sus estados."
+          >
             {data.byStatus.length === 0 ? (
               <p className="py-4 text-sm text-fg-muted">Sin pedidos en el período.</p>
             ) : (

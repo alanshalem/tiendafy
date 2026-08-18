@@ -1,3 +1,4 @@
+import { InfoDot } from '../charts';
 import { type ReactNode } from 'react';
 import { Calendar, ChevronDown, Clock } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
@@ -177,19 +178,20 @@ function Select({
 export function KpiCard({
   title,
   value,
+  hint,
   children,
 }: {
   title: string;
   value: string;
+  /** Explicación del número: qué mide y cómo se calcula (tooltip del ⓘ). */
+  hint?: string;
   children?: React.ReactNode;
 }) {
   return (
     <div className={SETTINGS_CARD}>
       <div className="flex items-center gap-1.5 text-sm font-semibold text-fg">
         {title}
-        <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle">
-          i
-        </span>
+        {hint && <InfoDot info={hint} />}
       </div>
       <div className="mt-2 text-3xl font-bold tracking-tight text-fg">{value}</div>
       {children && <div className="mt-3">{children}</div>}

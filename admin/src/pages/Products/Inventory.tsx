@@ -7,6 +7,7 @@ import { downloadBlob } from '../../lib/download';
 import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { useVariantStock } from './queries';
 import { Pagination, usePagedList } from '../../components/Pagination';
+import { InfoDot } from '../../components/charts';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -116,8 +117,18 @@ export function InventoryPage() {
               <th className="px-4 py-2.5 font-medium">Producto</th>
               <th className="px-4 py-2.5 font-medium">Variante</th>
               <th className="px-4 py-2.5 font-medium">SKU</th>
-              <th className="px-4 py-2.5 text-center font-medium">Reservado</th>
-              <th className="px-4 py-2.5 text-center font-medium">Disponible</th>
+              <th className="px-4 py-2.5 text-center font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Reservado{' '}
+                  <InfoDot info="Checkouts en curso: stock apartado mientras alguien compra. Si el pago no llega en 30 minutos, vuelve solo a disponible." />
+                </span>
+              </th>
+              <th className="px-4 py-2.5 text-center font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Disponible{' '}
+                  <InfoDot info="Lo que se puede vender AHORA: el stock físico menos lo reservado." />
+                </span>
+              </th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>

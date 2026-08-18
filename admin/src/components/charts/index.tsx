@@ -4,7 +4,7 @@
  * dashboards de estadísticas.
  */
 import { useId, type ReactNode } from 'react';
-import { cn } from '@tiendafy/ui';
+import { cn, Tooltip } from '@tiendafy/ui';
 import { SETTINGS_CARD } from '../../lib/styles';
 
 const PRIMARY = 'rgb(var(--color-primary))';
@@ -45,7 +45,8 @@ export function ChartCard({
   className,
 }: {
   title: string;
-  info?: boolean;
+  /** Explicación pedagógica del card: qué muestra y cómo se calcula (tooltip del ⓘ). */
+  info?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -55,7 +56,7 @@ export function ChartCard({
       <div className="mb-4 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
           {title}
-          {info && <InfoDot />}
+          {info && <InfoDot info={info} />}
         </h3>
         {action}
       </div>
@@ -64,13 +65,16 @@ export function ChartCard({
   );
 }
 
-function InfoDot() {
+/** ⓘ con la explicación en tooltip (antes era decorativo: un icono que no hacía nada). */
+export function InfoDot({ info }: { info: string }) {
   return (
-    <span
-      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle"
-      aria-hidden="true"
-    >
-      i
-    </span>
+    <Tooltip label={info} side="top" delayMs={150} className="inline-flex">
+      <span
+        tabIndex={0}
+        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle"
+      >
+        i
+      </span>
+    </Tooltip>
   );
 }

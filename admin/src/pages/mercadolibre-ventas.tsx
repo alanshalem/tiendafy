@@ -12,6 +12,7 @@ import {
   type BadgeVariant,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { StatusLegend } from '../components/StatusLegend';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 
 // ---- Tipos wire --------------------------------------------------------------
@@ -60,11 +61,11 @@ const ORDER_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
 };
 
 /** Leyenda de la tabla: qué significa cada color, en una línea arriba. */
-const LEGEND: { variant: BadgeVariant; text: string }[] = [
-  { variant: 'success', text: 'Pagada: la plata ya está' },
-  { variant: 'warning', text: 'Amarillo: esperando el pago' },
-  { variant: 'danger', text: 'Cancelada' },
-  { variant: 'neutral', text: '✓ Stock aplicado: ya descontó stock local' },
+const LEGEND = [
+  { dot: 'bg-success', text: 'Pagada: la plata ya está' },
+  { dot: 'bg-warning', text: 'Amarillo: esperando el pago' },
+  { dot: 'bg-danger', text: 'Cancelada' },
+  { dot: 'bg-gray-400', text: '✓ Stock aplicado: ya descontó stock local' },
 ];
 
 // ---- Ventas ------------------------------------------------------------------
@@ -86,9 +87,21 @@ export function VentasTab() {
     <div>
       {stats && (
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <StatCard label="Ventas ML (30 días)" value={String(stats.orders)} />
-          <StatCard label="Facturado en ML" value={moneyMajor(stats.revenue, stats.currency)} />
-          <StatCard label="Unidades vendidas" value={String(stats.unitsSold)} />
+          <StatCard
+            label="Ventas ML (30 días)"
+            hint="Ventas pagadas de los últimos 30 días en tu cuenta de ML."
+            value={String(stats.orders)}
+          />
+          <StatCard
+            label="Facturado en ML"
+            hint="Solo ventas pagadas: las canceladas no suman."
+            value={moneyMajor(stats.revenue, stats.currency)}
+          />
+          <StatCard
+            label="Unidades vendidas"
+            hint="Suma de unidades de todas las ventas pagadas."
+            value={String(stats.unitsSold)}
+          />
         </div>
       )}
 
@@ -101,14 +114,7 @@ export function VentasTab() {
         </EmptyList>
       ) : (
         <>
-          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
-            {LEGEND.map((l) => (
-              <span key={l.text} className="inline-flex items-center gap-1.5 text-xs text-fg-subtle">
-                <Badge variant={l.variant} className="h-2.5 w-2.5 px-0 py-0" />
-                {l.text}
-              </span>
-            ))}
-          </div>
+          <StatusLegend items={LEGEND} />
           <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
             <table className="w-full min-w-[760px] text-sm">
               <thead>

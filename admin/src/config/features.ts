@@ -62,6 +62,7 @@ export const SHOW_HELP_LINKS = true;
 // (no depende de un sitio externo).
 export const HELP_LINKS = {
   primerosPasos: { label: 'Guía para abrir tu tienda' },
+  glosario: { label: 'Glosario: las palabras del sistema' },
   payments: { label: 'Más sobre medios de pago' },
   ventas: { label: 'Más sobre ventas y reembolsos' },
   rentabilidad: { label: 'Más sobre rentabilidad real' },

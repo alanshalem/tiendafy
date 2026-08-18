@@ -59,28 +59,52 @@ export function StatsOverviewPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-4">
-            <KpiCard title="Productos" value={fmt(data.products.total)}>
+            <KpiCard
+              title="Productos"
+              hint="Total del catálogo: publicados + borradores."
+              value={fmt(data.products.total)}
+            >
               <div className="text-xs text-fg-subtle">
                 Publicados {fmt(data.products.published)} · Borradores {fmt(data.products.draft)}
               </div>
             </KpiCard>
-            <KpiCard title="Categorías" value={fmt(data.categories)} />
-            <KpiCard title="Cupones activos" value={fmt(data.coupons.active)}>
+            <KpiCard
+              title="Categorías"
+              hint="Cómo está organizado el catálogo en tu tienda."
+              value={fmt(data.categories)}
+            />
+            <KpiCard
+              title="Cupones activos"
+              hint="Cupones vigentes hoy, sobre el total creado."
+              value={fmt(data.coupons.active)}
+            >
               <div className="text-xs text-fg-subtle">
                 {fmt(data.coupons.active)} de {fmt(data.coupons.total)}
               </div>
             </KpiCard>
-            <KpiCard title="Clientes" value={fmt(data.customers)} />
+            <KpiCard
+              title="Clientes"
+              hint="Compradores con cuenta creada en tu tienda."
+              value={fmt(data.customers)}
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <KpiCard title="Páginas" value={fmt(data.pages.total)}>
+            <KpiCard
+              title="Páginas"
+              hint="Páginas de contenido de la tienda: publicadas sobre el total."
+              value={fmt(data.pages.total)}
+            >
               <div className="text-xs text-fg-subtle">
                 {fmt(data.pages.published)} publicadas de {fmt(data.pages.total)}
               </div>
             </KpiCard>
 
-            <ChartCard title="Estadísticas de ventas" info className="lg:col-span-2">
+            <ChartCard
+              title="Estadísticas de ventas"
+              info="Solo ventas PAGADAS: la plata que efectivamente entró."
+              className="lg:col-span-2"
+            >
               <div className="flex h-full min-h-[5rem] items-center gap-8">
                 <div>
                   <div className="text-sm text-fg-muted">Facturación (pagado)</div>
@@ -97,7 +121,10 @@ export function StatsOverviewPage() {
           </div>
 
           {meli?.connected && (
-            <ChartCard title="Mercado Libre (últimos 30 días)" info>
+            <ChartCard
+              title="Mercado Libre (últimos 30 días)"
+              info="Ventas pagadas de tu cuenta de ML conectada; una venta cancelada no suma."
+            >
               <div className="flex h-full min-h-[5rem] flex-wrap items-center gap-8">
                 <div>
                   <div className="text-sm text-fg-muted">Facturado en ML</div>

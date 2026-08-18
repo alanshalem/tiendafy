@@ -43,15 +43,26 @@ export function StatsVisitsPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <KpiCard title="Visitas" value={data.totalViews.toLocaleString('es-AR')}>
+            <KpiCard
+              title="Visitas"
+              hint="Páginas vistas totales del período."
+              value={data.totalViews.toLocaleString('es-AR')}
+            >
               <Sparkline data={data.series.map((s) => s.views)} />
             </KpiCard>
-            <KpiCard title="Visitantes únicos" value={data.uniqueVisitors.toLocaleString('es-AR')}>
+            <KpiCard
+              title="Visitantes únicos"
+              hint="Personas distintas (por dispositivo) que entraron a la tienda."
+              value={data.uniqueVisitors.toLocaleString('es-AR')}
+            >
               <Sparkline data={data.series.map((s) => s.visitors)} />
             </KpiCard>
           </div>
 
-          <ChartCard title="Páginas más vistas" info>
+          <ChartCard
+            title="Páginas más vistas"
+            info="Las páginas de tu tienda con más visitas en el período."
+          >
             {data.topPaths.length === 0 ? (
               <p className="py-4 text-sm text-fg-muted">Todavía no hay visitas registradas.</p>
             ) : (

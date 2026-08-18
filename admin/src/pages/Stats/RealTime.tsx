@@ -26,12 +26,20 @@ export function StatsRealTimePage() {
       <p className="-mt-3 text-sm text-fg-muted">Actividad de los últimos 5 minutos · se actualiza solo.</p>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <KpiCard title="Visitantes activos" value={(data?.activeVisitors ?? 0).toLocaleString('es-AR')} />
-        <KpiCard title="Vistas (5 min)" value={(data?.views ?? 0).toLocaleString('es-AR')} />
+        <KpiCard
+          title="Visitantes activos"
+          hint="Personas navegando tu tienda en los últimos 5 minutos."
+          value={(data?.activeVisitors ?? 0).toLocaleString('es-AR')}
+        />
+        <KpiCard
+          title="Vistas (5 min)"
+          hint="Páginas vistas en los últimos 5 minutos."
+          value={(data?.views ?? 0).toLocaleString('es-AR')}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Páginas activas" info>
+        <ChartCard title="Páginas activas" info="Qué están mirando los visitantes conectados ahora.">
           {!data || data.activePaths.length === 0 ? (
             <p className="py-4 text-sm text-fg-muted">Nadie navegando ahora mismo.</p>
           ) : (
@@ -48,7 +56,7 @@ export function StatsRealTimePage() {
           )}
         </ChartCard>
 
-        <ChartCard title="Últimas vistas" info>
+        <ChartCard title="Últimas vistas" info="Las últimas páginas vistas, en vivo (se actualiza solo).">
           {!data || data.recent.length === 0 ? (
             <p className="py-4 text-sm text-fg-muted">Sin actividad.</p>
           ) : (

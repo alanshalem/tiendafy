@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Select } from '@tiendafy/ui';
@@ -96,27 +97,52 @@ export function StatsProfitabilityPage() {
           {partial && (
             <div className="rounded-md border border-warning/25 bg-warning-bg px-4 py-2.5 text-sm text-fg">
               {coverage.ordersWithCost} de {coverage.ordersTotal} ventas del período tienen costo cargado — la
-              ganancia se calcula solo sobre esas. Cargá costos en Productos → Costos (o por CSV) para ver el
-              número completo.
+              ganancia se calcula solo sobre esas.{' '}
+              <Link to="/productos/costos" className="font-medium text-primary hover:underline">
+                Cargar costos
+              </Link>{' '}
+              (o por CSV) para ver el número completo.
             </div>
           )}
           {coverage && coverage.ordersWithCost === 0 ? (
             <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-fg-muted">
-              Todavía no hay ventas con costo cargado. Cargá el costo de tus productos en Productos → Costos
+              Todavía no hay ventas con costo cargado.{' '}
+              <Link to="/productos/costos" className="font-medium text-primary hover:underline">
+                Cargá el costo de tus productos
+              </Link>{' '}
               (o con la columna «Costo» del CSV) y las próximas ventas van a mostrar su ganancia real acá.
             </div>
           ) : (
             <>
               <div className="grid gap-4 lg:grid-cols-4">
-                <KpiCard title="Ganancia real" value={formatMoney(data.profit, data.currency)}>
+                <KpiCard
+                  title="Ganancia real"
+                  hint="Ventas netas de cupón − costo de lo vendido − comisión real de MP. El envío cobrado va aparte."
+                  value={formatMoney(data.profit, data.currency)}
+                >
                   <Sparkline data={data.series.map((s) => s.profit)} />
                 </KpiCard>
-                <KpiCard title="Margen" value={`${data.marginPct.toLocaleString('es-AR')}%`} />
-                <KpiCard title="Costo de productos" value={formatMoney(data.productCost, data.currency)} />
-                <KpiCard title="Comisiones MP" value={formatMoney(data.mpFees, data.currency)} />
+                <KpiCard
+                  title="Margen"
+                  hint="Ganancia ÷ ventas, contando solo las órdenes con costo cargado."
+                  value={`${data.marginPct.toLocaleString('es-AR')}%`}
+                />
+                <KpiCard
+                  title="Costo de productos"
+                  hint="El costo del momento de la venta (snapshot), no el de hoy."
+                  value={formatMoney(data.productCost, data.currency)}
+                />
+                <KpiCard
+                  title="Comisiones MP"
+                  hint="La comisión REAL que cobró Mercado Pago en cada venta, no un promedio."
+                  value={formatMoney(data.mpFees, data.currency)}
+                />
               </div>
 
-              <ChartCard title="Ganancia por producto" info>
+              <ChartCard
+                title="Ganancia por producto"
+                info="Solo ítems CON costo cargado. Ganancia = facturado − costo; margen en rojo si es menor al 15%."
+              >
                 {data.byProduct.length === 0 ? (
                   <p className="py-4 text-sm text-fg-muted">Sin ventas con costo en el período.</p>
                 ) : (
@@ -166,7 +192,10 @@ export function StatsProfitabilityPage() {
               </p>
 
               {data.meli && (
-                <ChartCard title="Canal Mercado Libre" info>
+                <ChartCard
+                  title="Canal Mercado Libre"
+                  info="Margen del canal ML: costo ACTUAL de las variantes vinculadas + la comisión real de ML (sale_fee) por ítem."
+                >
                   <div className="grid gap-4 text-sm sm:grid-cols-4">
                     <div>
                       <div className="text-xs text-fg-muted">Facturado ({data.meli.orders} ventas)</div>
@@ -278,7 +307,10 @@ function MetaAdsSection({
 
   if (!status.connected || status.expired)
     return (
-      <ChartCard title="Pauta de Meta Ads" info>
+      <ChartCard
+        title="Pauta de Meta Ads"
+        info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+      >
         <p className="text-sm text-fg-muted">
           {status.expired
             ? 'La conexión con Meta venció (los permisos duran ~60 días). Reconectá para seguir viendo el ROAS real.'
@@ -292,7 +324,10 @@ function MetaAdsSection({
 
   if (!status.adAccountId)
     return (
-      <ChartCard title="Pauta de Meta Ads" info>
+      <ChartCard
+        title="Pauta de Meta Ads"
+        info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+      >
         <p className="text-sm text-fg-muted">Elegí la cuenta publicitaria de la tienda:</p>
         <div className="mt-2 max-w-sm">
           <Select
@@ -310,7 +345,10 @@ function MetaAdsSection({
 
   const roas = spend && spend.spendTotal > 0 ? profit / spend.spendTotal : null;
   return (
-    <ChartCard title={`Pauta de Meta Ads · ${status.adAccountName ?? status.adAccountId}`} info>
+    <ChartCard
+      title={`Pauta de Meta Ads · ${status.adAccountName ?? status.adAccountId}`}
+      info="ROAS real = ganancia ÷ gasto de pauta — no facturación ÷ gasto, que es el número que infla Meta."
+    >
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
           <div className="text-xs text-fg-muted">Gasto del período</div>
