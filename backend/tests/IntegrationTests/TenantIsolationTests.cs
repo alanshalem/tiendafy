@@ -27,7 +27,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     }
 }
 
-public sealed class TenantIsolationTests : IClassFixture<ApiFactory>
+/// <summary>
+/// UNA sola API para todos los tests de integración: dos hosts en paralelo
+/// migran y seedean la misma DB a la vez → deadlock de Postgres en el boot.
+/// </summary>
+[CollectionDefinition("api")]
+public sealed class ApiCollection : ICollectionFixture<ApiFactory>;
+
+[Collection("api")]
+public sealed class TenantIsolationTests
 {
     private readonly ApiFactory _factory;
 

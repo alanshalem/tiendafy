@@ -55,15 +55,13 @@ export function CostsPage() {
   const { page: pageClamped, setPage: setPageList, totalPages, pageItems: items } = usePagedList(allItems);
   const pageIds = items.map((p) => p.id).join(',');
 
-  // Costos de los productos visibles (endpoint admin con permiso — el DTO
-  // público del catálogo no trae costo a propósito).
+  // Costos de los productos visibles en UN request (endpoint admin bulk con
+  // permiso — el DTO público del catálogo no trae costo a propósito).
   const { data: costRows } = useQuery({
     queryKey: ['variant-costs', store?.id, pageIds],
     queryFn: async () => {
-      const results = await Promise.all(
-        items.map((p) => api.get<{ items: VariantCost[] }>(`/api/v1/products/${p.id}/costs`)),
-      );
-      return new Map(results.flatMap((r) => r.items).map((c) => [c.variantId, c]));
+      const r = await api.get<{ items: VariantCost[] }>(`/api/v1/products/costs?ids=${pageIds}`);
+      return new Map(r.items.map((c) => [c.variantId, c]));
     },
     enabled: !!store && items.length > 0,
   });

@@ -1,9 +1,10 @@
 # Refactor integral — DRY / KISS / YAGNI / Clean Code / Clean Architecture
 
-Seis pasadas (agosto 2026) sobre todo el monorepo, con una regla fija: **cero cambios
-de comportamiento** (salvo dos fixes de UX autorizados explícitamente). Cada pasada
-cerró con backend build + tests verdes, tsc/eslint/vitest en admin y storefront,
-`next build` de producción y verificación de que EF no genera migraciones nuevas.
+Siete pasadas (agosto 2026) sobre todo el monorepo, con una regla fija: **cero cambios
+de comportamiento** (salvo fixes autorizados o bugs reales encontrados por la revisión).
+Cada pasada cerró con backend build + tests verdes, tsc/eslint/vitest en admin y
+storefront, `next build` de producción y verificación de que EF no genera migraciones
+nuevas.
 
 ## Pasada 1 — dedupes de base
 
@@ -220,6 +221,44 @@ scripts de setup y tooling raíz.
   `Email:WebhookSecret`, `MercadoPago:PublicApiBaseUrl`/`WebhookSecret`);
   `actions: read` posiblemente sobrante en codeql.yml (no verificable hasta
   recuperar acceso a Actions).
+  *Post-pasada: PgBouncer removido, Postgres dev 15→16, claves de prod
+  mapeadas (commit `a75077d`) y los DSN de Sentry horneados en docker-release
+  vía secrets del repo — todo cerrado.*
+
+## Pasada 7 — sweep del código nuevo post-refactor (rentabilidad, compras, WMS, Meta Ads, social)
+
+Commits: `3cb819f` (+ `833b71c` fix CA1826 previo, cierre de deuda en el commit
+siguiente). Alcance: SOLO lo agregado después de la pasada 6 — el resto del repo
+ya estaba seco. Dos revisores independientes (backend y admin) con verificación
+de callers antes de cada hallazgo.
+
+- **Bugs reales encontrados y reparados**:
+  - `OAuth2.BuildAuthorizationUrl` hardcodeaba `/authorization` (path de ML):
+    las URLs de autorización de Meta Ads, Facebook/Instagram y X nacían 404.
+    El helper ahora recibe la URL completa; solo `MeliClient` agrega su path.
+  - `useVariantStock` cacheaba por *cantidad* de variantes: dos búsquedas con
+    el mismo total compartían caché y la columna de stock quedaba en blanco.
+  - `fetchAllProducts` sin `.catch` en los selectores de catálogo (composer
+    social y modales de ML): un fetch fallido dejaba spinner infinito.
+  - `/redes` trataba "cargando" como "vacío"; callback OAuth de Meta Ads sin
+    `try/catch` (500 crudo al browser); `Social:AdminReturnUrl` en 5173 (el
+    admin corre en 3001).
+- **DRY**: `MetaGraphTokens` (canje Graph duplicado), `ISocialConnector` con
+  PKCE (X ya no es caso especial), `VariantPicker` + `variantLabel`/
+  `matchesProduct` (typeahead copiado 3× entre Compras y Kits), `usePagedList`
+  + `useDebouncedValue` (filtro/paginado copiado entre Costos e Inventario),
+  `MeliSyncService.ParseSnapshot` (deserialización del cache ML en 3 sitios),
+  `MutatePostAsync`, `IDataProtector.TryUnprotect`, mapas de estado unificados
+  (`PO_STATUS`/`POST_STATUS`/`CONNECTOR_META`), form de Compras tipado.
+- **Deuda técnica cerrada** (commit siguiente): `AdjustAvailableAsync` atómico
+  en Inventory (delta con `GREATEST(0, …)` en un solo UPDATE — reemplaza el
+  read-modify-write de recepción de OC / venta ML / kits que podía pisar
+  reservas del checkout; con test de integración contra Postgres real),
+  endpoint bulk `GET /products/costs?ids=` (la página de Costos pasó de
+  20 GETs a 1), y DSN de Sentry en docker-release (gated por secrets).
+- **NO aplicado a propósito**: base común de los 3 token services (lo
+  compartido ya está extraído en `OAuthStateProtector`/`OAuth2`; tocar los
+  purposes de DataProtection es máximo riesgo por ~8 líneas).
 
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 

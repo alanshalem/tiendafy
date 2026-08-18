@@ -114,14 +114,11 @@ public sealed class MeliSyncService(
             if (link is null || !link.SyncStock) continue;
 
             var tenant = TenantId.From(tenantId);
-            var current = await stock.GetByVariantsAsync(tenant, [link.VariantId], ct);
-            var available = current.Count > 0 ? current[0].Available : 0;
-            var next = Math.Max(0, available - item.Quantity);
-            await stock.SetAvailableAsync(tenant, link.VariantId, next,
+            var after = await stock.AdjustAvailableAsync(tenant, link.VariantId, -item.Quantity,
                 $"Venta Mercado Libre #{meliOrderId}", ct);
             logger.LogInformation(
-                "Stock ML aplicado: tenant {TenantId}, variante {VariantId}, {Before} → {After}.",
-                tenantId, link.VariantId, available, next);
+                "Stock ML aplicado: tenant {TenantId}, variante {VariantId}, -{Qty} → queda {After}.",
+                tenantId, link.VariantId, item.Quantity, after);
         }
     }
 

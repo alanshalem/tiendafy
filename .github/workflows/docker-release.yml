@@ -60,8 +60,13 @@ jobs:
           # PLATFORM_DOMAIN (Settings → Variables) para que las imágenes de admin
           # y storefront salgan apuntando a prod. Sin ella, buildear en el server
           # con `docker compose ... build` (toma los args del .env.prod).
+          # Sentry: cargar los secrets SENTRY_DSN_STOREFRONT / SENTRY_DSN_ADMIN
+          # cuando exista la cuenta — vacío = Sentry apagado, mismo gating que
+          # el backend (Sentry:Dsn por env en runtime).
           build-args: |
             GIT_SHA=${{ github.sha }}
             NEXT_PUBLIC_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
             NEXT_PUBLIC_ADMIN_ORIGIN=https://admin.${{ vars.PLATFORM_DOMAIN }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN_STOREFRONT }}
             VITE_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
+            VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_ADMIN }}

@@ -118,14 +118,11 @@ public static class PurchasingEndpoints
             // frena el resto — queda logueada en el resultado).
             var reason = $"Recepción de compra {(po.Reference is { Length: > 0 } r ? r : po.SupplierName)}";
             var stockErrors = new List<string>();
-            var currentByVariant = (await stock.GetByVariantsAsync(tenant.TenantId, landed.Keys.ToList(), ct))
-                .ToDictionary(s => s.VariantId, s => s.Available);
             foreach (var (variantId, info) in landed)
             {
-                var available = currentByVariant.GetValueOrDefault(variantId);
                 try
                 {
-                    await stock.SetAvailableAsync(tenant.TenantId, variantId, available + info.Received, reason, ct);
+                    await stock.AdjustAvailableAsync(tenant.TenantId, variantId, info.Received, reason, ct);
                 }
                 catch (Exception)
                 {

@@ -541,6 +541,39 @@ public static class ProductEndpoints
             });
         });
 
+        // Bulk para la pantalla de Costos: los costos de una página entera de
+        // productos en UN request (antes: un GET por producto visible).
+        products.MapGet("/costs", async (
+            string? ids, HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var parsed = (ids ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+                .Where(g => g != Guid.Empty)
+                .Distinct()
+                .Take(100)
+                .ToList();
+            if (parsed.Count == 0) return Results.Ok(new { items = Array.Empty<object>() });
+
+            var withCosts = await catalogDb.Products.AsNoTracking()
+                .Where(p => p.TenantId == tenant.TenantId && parsed.Contains(p.Id))
+                .ToListAsync(ct);
+            return Results.Ok(new
+            {
+                items = withCosts.SelectMany(p => p.Variants.Select(v => new
+                {
+                    variantId = v.Id,
+                    sku = v.Sku,
+                    description = v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "Única",
+                    priceAmount = v.Price.AmountInMinorUnits,
+                    costAmount = v.Cost?.AmountInMinorUnits,
+                    currency = v.Price.Currency,
+                })),
+            });
+        });
+
         products.MapPut("/{id:guid}/costs", async (
             Guid id, SetVariantCostsRequest request, HttpContext http, ITenantContext tenant,
             UpdateProductHandler handler, CancellationToken ct) =>

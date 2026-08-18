@@ -35,16 +35,12 @@ public sealed class KitStockService(
                 g => g.Sum(c => c.Quantity * qtyByKit.GetValueOrDefault(c.KitVariantId)));
 
         var tenant = TenantId.From(order.TenantId.Value);
-        var toApply = totals.Where(t => t.Value > 0).ToList();
-        var currentByVariant = (await stock.GetByVariantsAsync(tenant, toApply.Select(t => t.Key).ToList(), ct))
-            .ToDictionary(s => s.VariantId, s => s.Available);
-        foreach (var (componentVariantId, total) in toApply)
+        foreach (var (componentVariantId, total) in totals.Where(t => t.Value > 0))
         {
             try
             {
-                var current = currentByVariant.GetValueOrDefault(componentVariantId);
-                await stock.SetAvailableAsync(
-                    tenant, componentVariantId, Math.Max(0, current - total),
+                await stock.AdjustAvailableAsync(
+                    tenant, componentVariantId, -total,
                     $"Componentes de kit (venta {order.Id.ToString()[..8]})", ct);
             }
             catch (Exception ex)

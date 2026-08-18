@@ -14,6 +14,14 @@ public interface IStockRepository
     /// <summary>Setea el disponible (alta o ajuste manual). Crea el item si no existe.</summary>
     Task<StockItem> SetAvailableAsync(TenantId tenantId, Guid variantId, int available, string? reason, CancellationToken ct = default);
 
+    /// <summary>
+    /// available += delta en UN update atómico, clampeado a 0 (ventas de otros
+    /// canales, recepción de compras, componentes de kit): sin el read-modify-write
+    /// que pierde actualizaciones contra las reservas del checkout. Crea el item
+    /// si no existe. Devuelve el disponible resultante.
+    /// </summary>
+    Task<int> AdjustAvailableAsync(TenantId tenantId, Guid variantId, int delta, string? reason, CancellationToken ct = default);
+
     /// <summary>Ubicación física de la variante (crea la fila de stock con 0 si no existe).</summary>
     Task SetLocationAsync(TenantId tenantId, Guid variantId, string? location, CancellationToken ct = default);
 

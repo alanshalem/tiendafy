@@ -34,7 +34,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 > La explicación de facturación "en criollo" vive ahora en el centro de ayuda
 > del admin (`/ayuda/fiscal`).
 
-## Los módulos del backend (los 18 reales)
+## Los módulos del backend (los 19 reales)
 
 `Tenancy` (tiendas, dominios, resolve por host) · `Identity` (staff, RBAC, verificación email) ·
 `Catalog` (productos, variantes, categorías, CSV) · `Inventory` (stock, reservas anti-oversell) ·
@@ -44,7 +44,8 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 `Notifications` (email/WhatsApp por plantilla + contadores) · `Analytics` (visitas) ·
 `Media` (imágenes/videos a MinIO/S3) · `Content` (páginas CMS) · `Discounts` (cupones) ·
 `Support` (chat posventa) · `MercadoLibre` (canal ML: ventas, preguntas, mensajes, stock unificado, publicar) ·
-`Purchasing` (compras a proveedores, ciclo de importación, landed cost, reposición)
+`Purchasing` (compras a proveedores, ciclo de importación, landed cost, reposición) ·
+`Social` (redes sociales: cuentas conectadas, posts multi-red programados, calendario)
 
 Cada módulo: `{Module}.Contracts` (interfaz pública) / `.Core` (dominio+features) /
 `.Infrastructure` (persistencia, DbContext propio con filtro de tenant). Los módulos

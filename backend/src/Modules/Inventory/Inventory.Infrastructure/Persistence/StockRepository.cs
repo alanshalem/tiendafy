@@ -57,6 +57,36 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return (await GetByVariantsAsync(tenantId, [variantId], ct))[0];
     }
 
+    public async Task<int> AdjustAvailableAsync(
+        TenantId tenantId, Guid variantId, int delta, string? reason, CancellationToken ct = default)
+    {
+        await using var tx = await context.Database.BeginTransactionAsync(ct);
+
+        // Delta en el propio UPDATE (Math.Max → GREATEST): atómico contra las
+        // reservas del checkout, que mutan available con el mismo patrón.
+        var updated = await context.StockItems
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId)
+            .ExecuteUpdateAsync(s => s.SetProperty(
+                x => x.Available, x => Math.Max(0, x.Available + delta)), ct);
+
+        if (updated == 0)
+        {
+            context.StockItems.Add(new StockItem(tenantId, variantId, Math.Max(0, delta)));
+            context.Movements.Add(new StockMovement(
+                tenantId, variantId, MovementType.Initial, Math.Max(0, delta), reason: reason));
+        }
+        else
+        {
+            context.Movements.Add(new StockMovement(
+                tenantId, variantId, MovementType.Adjustment, delta, reason: reason));
+        }
+
+        await context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return (await GetByVariantsAsync(tenantId, [variantId], ct))[0].Available;
+    }
+
     public async Task<Result<Reservation>> TryReserveAsync(
         TenantId tenantId, Guid variantId, int quantity, CancellationToken ct = default)
     {
