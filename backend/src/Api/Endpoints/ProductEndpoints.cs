@@ -462,7 +462,8 @@ public static class ProductEndpoints
             var variant = product?.Variants.FirstOrDefault(v => v.Barcode == needle || v.Sku == needle);
             if (product is null || variant is null) return Results.NotFound();
 
-            var stockItem = (await stock.GetByVariantsAsync(tenant.TenantId, [variant.Id], ct)).FirstOrDefault();
+            var stockRows = await stock.GetByVariantsAsync(tenant.TenantId, [variant.Id], ct);
+            var stockItem = stockRows.Count > 0 ? stockRows[0] : null;
             return Results.Ok(new
             {
                 productId = product.Id,

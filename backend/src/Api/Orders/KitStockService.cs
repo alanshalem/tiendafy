@@ -39,8 +39,8 @@ public sealed class KitStockService(
         {
             try
             {
-                var current = (await stock.GetByVariantsAsync(tenant, [componentVariantId], ct))
-                    .FirstOrDefault()?.Available ?? 0;
+                var rows = await stock.GetByVariantsAsync(tenant, [componentVariantId], ct);
+                var current = rows.Count > 0 ? rows[0].Available : 0;
                 await stock.SetAvailableAsync(
                     tenant, componentVariantId, Math.Max(0, current - total),
                     $"Componentes de kit (venta {order.Id.ToString()[..8]})", ct);
