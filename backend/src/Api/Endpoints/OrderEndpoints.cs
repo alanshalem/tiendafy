@@ -86,6 +86,7 @@ public static class OrderEndpoints
             IMercadoPagoPaymentService mp,
             OrderNotifier notifier,
             WhatsAppNotifier whatsapp,
+            Api.Orders.KitStockService kitStock,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
@@ -106,6 +107,7 @@ public static class OrderEndpoints
             var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
             if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
             {
+                await kitStock.ApplyAsync(settleResult.Value.Order, ct);
                 await notifier.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
                 await whatsapp.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
             }

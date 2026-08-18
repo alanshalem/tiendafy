@@ -375,6 +375,75 @@ public static class ProductEndpoints
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
         }).RequireTenantMembership();
 
+        // ---- Kits (BOM liviano): componentes que se descuentan al vender ----
+        products.MapGet("/kits", async (
+            HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var components = await catalogDb.KitComponents.AsNoTracking().ToListAsync(ct);
+            var allIds = components.SelectMany(c => new[] { c.KitVariantId, c.ComponentVariantId }).Distinct().ToList();
+            var names = allIds.Count == 0
+                ? []
+                : (await catalogQuery.GetVariantsAsync(tenant.TenantId.Value, allIds, ct)).ToDictionary(v => v.VariantId);
+
+            string Label(Guid id) => names.TryGetValue(id, out var v)
+                ? $"{v.ProductName}{(v.VariantDescription is "Única" or "" ? "" : $" · {v.VariantDescription}")}"
+                : "(variante borrada)";
+
+            return Results.Ok(new
+            {
+                items = components.GroupBy(c => c.KitVariantId).Select(g => new
+                {
+                    kitVariantId = g.Key,
+                    kitLabel = Label(g.Key),
+                    kitSku = names.TryGetValue(g.Key, out var kv) ? kv.Sku : "",
+                    components = g.Select(c => new
+                    {
+                        componentVariantId = c.ComponentVariantId,
+                        label = Label(c.ComponentVariantId),
+                        sku = names.TryGetValue(c.ComponentVariantId, out var cv) ? cv.Sku : "",
+                        quantity = c.Quantity,
+                    }),
+                }),
+            });
+        });
+
+        products.MapPut("/variants/{variantId:guid}/kit", async (
+            Guid variantId, SetKitRequest request, HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var entries = request.Components ?? [];
+            if (entries.Any(e => e.Quantity is < 1 or > 999))
+                return Error.Validation("Kit.InvalidQuantity", "Cantidades entre 1 y 999.").ToProblem();
+            if (entries.Any(e => e.ComponentVariantId == variantId))
+                return Error.Validation("Kit.SelfReference", "Un kit no puede contenerse a sí mismo.").ToProblem();
+            if (entries.Select(e => e.ComponentVariantId).Distinct().Count() != entries.Count)
+                return Error.Validation("Kit.Duplicate", "Cada componente va una sola vez.").ToProblem();
+
+            var ids = entries.Select(e => e.ComponentVariantId).Append(variantId).Distinct().ToList();
+            var known = (await catalogQuery.GetVariantsAsync(tenant.TenantId.Value, ids, ct))
+                .Select(v => v.VariantId).ToHashSet();
+            if (ids.Any(id => !known.Contains(id)))
+                return Error.NotFound("Kit.VariantNotFound", "Alguna variante no existe.").ToProblem();
+
+            // Sin kits anidados: un componente no puede tener BOM propio.
+            var componentIds = entries.Select(e => e.ComponentVariantId).ToList();
+            if (componentIds.Count > 0 && await catalogDb.KitComponents.AnyAsync(k => componentIds.Contains(k.KitVariantId), ct))
+                return Error.Validation("Kit.Nested", "Un componente no puede ser a su vez un kit.").ToProblem();
+
+            var existing = await catalogDb.KitComponents.Where(k => k.KitVariantId == variantId).ToListAsync(ct);
+            catalogDb.KitComponents.RemoveRange(existing);
+            foreach (var e in entries)
+                catalogDb.KitComponents.Add(new Catalog.Infrastructure.KitComponent(
+                    tenant.TenantId.Value, variantId, e.ComponentVariantId, e.Quantity));
+            await catalogDb.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+
         // ---- Escáner: buscar variante por código de barras o SKU ----
         // Lo usa el depósito (buscar/ajustar/picking); permiso de inventario
         // explícito porque los GET del grupo son públicos.
@@ -585,6 +654,10 @@ public sealed record AddImageRequest(string Url, string? AltText);
 public sealed record SetCategoriesRequest(List<Guid>? CategoryIds);
 
 public sealed record SetBarcodeRequest(string? Barcode);
+
+public sealed record KitComponentEntry(Guid ComponentVariantId, int Quantity);
+
+public sealed record SetKitRequest(List<KitComponentEntry>? Components);
 
 public sealed record VariantCostEntry(Guid VariantId, long? CostAmount);
 

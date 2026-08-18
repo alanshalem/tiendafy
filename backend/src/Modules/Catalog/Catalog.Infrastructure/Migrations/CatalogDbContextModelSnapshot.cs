@@ -203,6 +203,38 @@ namespace Catalog.Infrastructure.Migrations
                     b.ToTable("product_variants", (string)null);
                 });
 
+            modelBuilder.Entity("Catalog.Infrastructure.KitComponent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ComponentVariantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("component_variant_id");
+
+                    b.Property<Guid>("KitVariantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("kit_variant_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_kit_components");
+
+                    b.HasIndex("TenantId", "KitVariantId", "ComponentVariantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_kit_components_tenant_id_kit_variant_id_component_variant_id");
+
+                    b.ToTable("kit_components", (string)null);
+                });
+
             modelBuilder.Entity("Catalog.Core.Domain.Product", b =>
                 {
                     b.OwnsMany("Catalog.Core.Domain.ProductImage", "Images", b1 =>

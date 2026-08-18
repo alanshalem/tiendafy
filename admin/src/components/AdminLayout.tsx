@@ -79,6 +79,7 @@ const sections: NavSection[] = [
           { to: '/productos/inventario', label: 'Inventario', perm: 'inventory.read' },
           { to: '/productos/costos', label: 'Costos', perm: 'catalog.write' },
           { to: '/productos/escaner', label: 'Escáner', perm: 'inventory.read' },
+          { to: '/productos/kits', label: 'Kits y combos', perm: 'catalog.write' },
           { to: '/productos/categorias', label: 'Categorías', perm: 'catalog.write' },
         ],
       },

@@ -1,0 +1,280 @@
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Boxes, Plus, Trash2 } from 'lucide-react';
+import { Button, Card, Input, useToast } from '@tiendafy/ui';
+import { useStore } from '../../context/StoreContext';
+import { api, errMsg } from '../../lib/api';
+import { fetchAllProducts } from '../../lib/products';
+import { HelpLink } from '../../components/HelpLink';
+import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { TABLE_CARD } from '../../lib/styles';
+
+interface KitDto {
+  kitVariantId: string;
+  kitLabel: string;
+  kitSku: string;
+  components: { componentVariantId: string; label: string; sku: string; quantity: number }[];
+}
+
+interface CatalogProduct {
+  id: string;
+  name: string;
+  variants: { id: string; sku: string; optionValues: string[] }[];
+}
+
+interface DraftComponent {
+  componentVariantId: string;
+  label: string;
+  sku: string;
+  quantity: string;
+}
+
+/**
+ * Kits/combos (BOM liviano): al venderse la variante-kit, el stock de sus
+ * componentes se descuenta solo. El stock del kit sigue siendo propio.
+ */
+export function KitsPage() {
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [editingKit, setEditingKit] = useState<{ variantId: string; label: string } | null>(null);
+  const [components, setComponents] = useState<DraftComponent[]>([]);
+  const [kitSearch, setKitSearch] = useState('');
+  const [compSearch, setCompSearch] = useState('');
+
+  const { data: kits } = useQuery({
+    queryKey: ['kits', store?.id],
+    queryFn: () => api.get<{ items: KitDto[] }>('/api/v1/products/kits'),
+    enabled: !!store,
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ['products', store?.id],
+    queryFn: () => fetchAllProducts<CatalogProduct>(),
+    enabled: !!store,
+  });
+
+  const allVariants = useMemo(
+    () =>
+      (products ?? []).flatMap((p) =>
+        p.variants.map((v) => ({
+          variantId: v.id,
+          label: `${p.name}${v.optionValues.length ? ` · ${v.optionValues.join(' / ')}` : ''}`,
+          sku: v.sku,
+        })),
+      ),
+    [products],
+  );
+
+  const searchVariants = (q: string, exclude: Set<string>) => {
+    const needle = q.trim().toLowerCase();
+    if (needle.length < 2) return [];
+    return allVariants
+      .filter((v) => !exclude.has(v.variantId))
+      .filter((v) => v.label.toLowerCase().includes(needle) || v.sku.toLowerCase().includes(needle))
+      .slice(0, 8);
+  };
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/products/variants/${editingKit!.variantId}/kit`, {
+        components: components.map((c) => ({
+          componentVariantId: c.componentVariantId,
+          quantity: Number(c.quantity) || 1,
+        })),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kits', store?.id] });
+      toast(components.length === 0 ? 'Kit eliminado' : 'Kit guardado', { variant: 'success' });
+      setEditingKit(null);
+      setComponents([]);
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudo guardar el kit'), { variant: 'error' }),
+  });
+
+  if (!store) return <NoStoreSelected />;
+
+  const openEditor = (kit: { variantId: string; label: string }, existing: KitDto | null) => {
+    setEditingKit(kit);
+    setComponents(
+      (existing?.components ?? []).map((c) => ({
+        componentVariantId: c.componentVariantId,
+        label: c.label,
+        sku: c.sku,
+        quantity: String(c.quantity),
+      })),
+    );
+    setKitSearch('');
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold">Kits y combos</h1>
+        <p className="mt-0.5 text-sm text-fg-muted">
+          Definí qué piezas componen cada kit: al venderse, el stock de los componentes se descuenta solo.
+        </p>
+      </div>
+
+      {!editingKit ? (
+        <>
+          <Card>
+            <h2 className="text-sm font-semibold text-fg">Convertir un producto en kit</h2>
+            <div className="relative mt-2">
+              <Input
+                placeholder="Buscar la variante que se vende como kit…"
+                value={kitSearch}
+                onChange={(e) => setKitSearch(e.target.value)}
+              />
+              {searchVariants(kitSearch, new Set((kits?.items ?? []).map((k) => k.kitVariantId))).length >
+                0 && (
+                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
+                  {searchVariants(kitSearch, new Set((kits?.items ?? []).map((k) => k.kitVariantId))).map(
+                    (v) => (
+                      <button
+                        key={v.variantId}
+                        type="button"
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-bg-subtle"
+                        onClick={() => openEditor({ variantId: v.variantId, label: v.label }, null)}
+                      >
+                        <span className="text-fg">{v.label}</span>
+                        <span className="text-xs text-fg-subtle">{v.sku}</span>
+                      </button>
+                    ),
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <div className={TABLE_CARD}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                  <th className="px-4 py-2.5 font-medium">Kit</th>
+                  <th className="px-4 py-2.5 font-medium">Componentes</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {(kits?.items ?? []).map((k) => (
+                  <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
+                    <td className="px-4 py-2.5 font-medium text-fg">
+                      {k.kitLabel}
+                      <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-fg-muted">
+                      {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
+                      >
+                        Editar
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {(kits?.items ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-10 text-center text-sm text-fg-muted">
+                      <Boxes className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                      Sin kits definidos. Buscá arriba el producto que vendés como combo.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <Card>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-fg">Componentes de: {editingKit.label}</h2>
+            <Button variant="ghost" size="sm" onClick={() => setEditingKit(null)}>
+              Volver
+            </Button>
+          </div>
+
+          <div className="relative mt-3">
+            <Input
+              placeholder="Agregar componente (producto o SKU)…"
+              value={compSearch}
+              onChange={(e) => setCompSearch(e.target.value)}
+            />
+            {searchVariants(
+              compSearch,
+              new Set([editingKit.variantId, ...components.map((c) => c.componentVariantId)]),
+            ).length > 0 && (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
+                {searchVariants(
+                  compSearch,
+                  new Set([editingKit.variantId, ...components.map((c) => c.componentVariantId)]),
+                ).map((v) => (
+                  <button
+                    key={v.variantId}
+                    type="button"
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-bg-subtle"
+                    onClick={() => {
+                      setComponents((c) => [
+                        ...c,
+                        { componentVariantId: v.variantId, label: v.label, sku: v.sku, quantity: '1' },
+                      ]);
+                      setCompSearch('');
+                    }}
+                  >
+                    <span className="text-fg">{v.label}</span>
+                    <span className="text-xs text-fg-subtle">{v.sku}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <ul className="mt-3 space-y-2">
+            {components.map((c, idx) => (
+              <li key={c.componentVariantId} className="flex items-center gap-2 text-sm">
+                <Input
+                  type="number"
+                  min={1}
+                  className="h-8 w-16 text-right"
+                  value={c.quantity}
+                  onChange={(e) =>
+                    setComponents((list) =>
+                      list.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)),
+                    )
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate text-fg">
+                  {c.label} <span className="font-mono text-xs text-fg-subtle">{c.sku}</span>
+                </span>
+                <button
+                  type="button"
+                  className="text-fg-subtle hover:text-danger"
+                  onClick={() => setComponents((list) => list.filter((_, i) => i !== idx))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+            {components.length === 0 && (
+              <li className="text-sm text-fg-muted">
+                Sin componentes — guardar así elimina la definición de kit.
+              </li>
+            )}
+          </ul>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button onClick={() => save.mutate()} loading={save.isPending}>
+              <Plus className="h-4 w-4" /> Guardar kit
+            </Button>
+          </div>
+        </Card>
+      )}
+      <HelpLink id="kits" />
+    </div>
+  );
+}

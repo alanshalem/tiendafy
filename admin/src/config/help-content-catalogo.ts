@@ -40,6 +40,28 @@ export const CATALOGO = {
     ],
   },
 
+  kits: {
+    title: 'Kits y combos',
+    intro:
+      'Vendé combos ("Kit barra + discos") sin que el stock mienta: al venderse el kit, las piezas que lo componen se descuentan solas.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'Cómo funciona',
+        paragraphs: [
+          'El kit es un producto normal del catálogo, con su precio y su propio stock (los combos pre-armados que tenés en el depósito). En Productos → Kits y combos le definís los componentes: qué variantes lo integran y cuántas unidades de cada una.',
+          'Cuando un cliente compra el kit, además del stock del kit se descuenta el de cada componente. Así el kit y las piezas sueltas dejan de venderse por separado sin enterarse el uno del otro.',
+        ],
+      },
+      {
+        heading: 'Límites a tener en cuenta',
+        paragraphs: [
+          'Un componente no puede ser a su vez un kit (sin kits anidados). El descuento de componentes ocurre al confirmarse el pago; si un componente no tiene fila de stock, se crea con lo que corresponda descontar en cero (queda auditado en los movimientos).',
+        ],
+      },
+    ],
+  },
+
   escaner: {
     title: 'Escáner de depósito',
     intro:

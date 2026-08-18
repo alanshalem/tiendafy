@@ -67,6 +67,7 @@ public sealed class PaymentWebhookWorker(
         switch (result.Value.Outcome)
         {
             case SettleOutcome.JustPaid:
+                await sp.GetRequiredService<Api.Orders.KitStockService>().ApplyAsync(order, ct);
                 await sp.GetRequiredService<OrderNotifier>().NotifyAsync(order, "confirmacion-pago", ct);
                 await whatsapp.NotifyAsync(order, "confirmacion-pago", ct);
                 // Factura automática si el trigger configurado es "al pagar".

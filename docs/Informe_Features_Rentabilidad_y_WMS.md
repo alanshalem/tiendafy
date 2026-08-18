@@ -9,9 +9,15 @@
 > **Bloque C implementado** (módulo Purchasing): OC a proveedores con el
 > ciclo del importador, landed cost prorrateado que fija el costo por
 > variante al recibir (con stock automático) y reposición con lead time.
-> **A5 y canal ML también**: ganancia por campaña de email y margen bruto
-> del canal ML en el dashboard. Fuera de v1: ROAS con Meta Ads (A6, requiere
-> app de Meta), costo real del carrier, bloques B (WMS/escaneo) y D (kits/B2B).
+> **Bloque B implementado**: barcode por variante + etiquetas QR, escáner
+> con la cámara (buscar/ajustar/ubicaciones), picking verificado, recepción
+> escaneada y conteo cíclico. **Bloque D1 implementado**: kits/combos con
+> descuento automático de componentes al pagarse la venta. **A5, A6 y fee
+> ML también**: ganancia por campaña, ROAS real con Meta Ads (integración
+> completa; falta solo crear la app en Meta y cargar MetaAds:AppId/AppSecret)
+> y comisión real de ML por ítem. Pendientes: costo real del carrier, D2
+> lotes como entidad (la OC ya es el lote de facto) y D3 portal B2B mayorista
+> (superficie de venta pública nueva — proyecto propio si el canal B2B pesa).
 
 ---
 

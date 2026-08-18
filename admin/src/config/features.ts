@@ -75,6 +75,7 @@ export const HELP_LINKS = {
   productos: { label: 'Más sobre productos e inventario' },
   compras: { label: 'Más sobre compras e importaciones' },
   escaner: { label: 'Más sobre el escáner de depósito' },
+  kits: { label: 'Más sobre kits y combos' },
   clientes: { label: 'Más sobre clientes' },
   posventa: { label: 'Más sobre el chat posventa' },
   autoEmails: { label: 'Más sobre e-mails automáticos' },
