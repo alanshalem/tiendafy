@@ -47,14 +47,25 @@ interface MeliStats {
   unitsSold: number;
 }
 
+// Verde = cobrada · amarillo = esperando el pago · azul = confirmada sin
+// cobrar · rojo = cancelada. "Stock aplicado" NO es un estado del pago: va
+// aparte en gris con tilde (antes compartía el azul con "Pago en proceso").
 const ORDER_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
   paid: { label: 'Pagada', variant: 'success' },
   partially_refunded: { label: 'Reembolso parcial', variant: 'warning' },
   confirmed: { label: 'Confirmada', variant: 'info' },
   payment_required: { label: 'Espera pago', variant: 'warning' },
-  payment_in_process: { label: 'Pago en proceso', variant: 'info' },
+  payment_in_process: { label: 'Pago en proceso', variant: 'warning' },
   cancelled: { label: 'Cancelada', variant: 'danger' },
 };
+
+/** Leyenda de la tabla: qué significa cada color, en una línea arriba. */
+const LEGEND: { variant: BadgeVariant; text: string }[] = [
+  { variant: 'success', text: 'Pagada: la plata ya está' },
+  { variant: 'warning', text: 'Amarillo: esperando el pago' },
+  { variant: 'danger', text: 'Cancelada' },
+  { variant: 'neutral', text: '✓ Stock aplicado: ya descontó stock local' },
+];
 
 // ---- Ventas ------------------------------------------------------------------
 
@@ -89,48 +100,61 @@ export function VentasTab() {
           Configuración → Mercado Libre → Importar últimas ventas).
         </EmptyList>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Comprador</th>
-                <th className="px-4 py-3">Productos</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {orders.map((o) => {
-                const st = ORDER_STATUS[o.status] ?? { label: o.status, variant: 'neutral' as BadgeVariant };
-                return (
-                  <tr key={o.meliOrderId}>
-                    <td className="px-4 py-3 text-fg-muted">{fecha(o.dateCreatedUtc)}</td>
-                    <td className="px-4 py-3 font-medium text-fg">{o.buyerNickname || '—'}</td>
-                    <td className="max-w-[280px] px-4 py-3 text-fg-muted">
-                      {o.items.map((i) => `${i.quantity}× ${i.title}`).join(' · ') || '—'}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-fg">
-                      {moneyMajor(o.totalAmount, o.currencyId)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant={st.variant}>{st.label}</Badge>
-                        {o.stockApplied && <Badge variant="info">Stock aplicado</Badge>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="secondary" onClick={() => setChatOrder(o)}>
-                        <MessageSquare className="h-4 w-4" /> Mensajes
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
+            {LEGEND.map((l) => (
+              <span key={l.text} className="inline-flex items-center gap-1.5 text-xs text-fg-subtle">
+                <Badge variant={l.variant} className="h-2.5 w-2.5 px-0 py-0" />
+                {l.text}
+              </span>
+            ))}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
+                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3">Comprador</th>
+                  <th className="px-4 py-3">Productos</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {orders.map((o) => {
+                  const st = ORDER_STATUS[o.status] ?? {
+                    label: o.status,
+                    variant: 'neutral' as BadgeVariant,
+                  };
+                  return (
+                    <tr key={o.meliOrderId}>
+                      <td className="px-4 py-3 text-fg-muted">{fecha(o.dateCreatedUtc)}</td>
+                      <td className="px-4 py-3 font-medium text-fg">{o.buyerNickname || '—'}</td>
+                      <td className="max-w-[280px] px-4 py-3 text-fg-muted">
+                        {o.items.map((i) => `${i.quantity}× ${i.title}`).join(' · ') || '—'}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-fg">
+                        {moneyMajor(o.totalAmount, o.currencyId)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant={st.variant}>{st.label}</Badge>
+                          {o.stockApplied && <Badge variant="neutral">✓ Stock aplicado</Badge>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="secondary" onClick={() => setChatOrder(o)}>
+                          <MessageSquare className="h-4 w-4" /> Mensajes
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {chatOrder && <MessagesModal order={chatOrder} onClose={() => setChatOrder(null)} />}
