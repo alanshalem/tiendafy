@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { useNavigate } from 'react-router-dom';
+import { storefrontUrl } from '../lib/storefront';
 import { AlertTriangle, ExternalLink, Monitor, Smartphone, X } from 'lucide-react';
 import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, normalizeTheme, baseTheme } from '@tiendafy/types';
@@ -74,7 +75,7 @@ export function ThemeEditorPage() {
   const undoStack = useRef<ThemeConfig[]>([]);
   const redoStack = useRef<ThemeConfig[]>([]);
 
-  const previewBase = store ? `http://${store.subdomain}.localhost:3000` : '';
+  const previewBase = store ? storefrontUrl(store.subdomain) : '';
   const previewOrigin = previewBase; // origin esperado del iframe (targetOrigin + validación de e.origin)
   // El preview sigue al panel abierto: cada sección se ve en su propia página.
   const previewPath = useMemo(() => {

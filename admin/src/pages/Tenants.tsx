@@ -18,6 +18,7 @@ import {
 import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
+import { storefrontUrl, storefrontHost } from '../lib/storefront';
 
 interface TenantsResponse {
   items: Tenant[];
@@ -103,12 +104,12 @@ export function TenantsPage() {
       header: 'Tienda',
       cell: (t) => (
         <a
-          href={`http://${t.subdomain}.localhost:3000`}
+          href={storefrontUrl(t.subdomain)}
           target="_blank"
           rel="noreferrer"
           className="text-primary hover:underline"
         >
-          {t.subdomain}.localhost:3000
+          {storefrontHost(t.subdomain)}
         </a>
       ),
     },
@@ -382,7 +383,7 @@ function TenantFormModal({
                 ? 'Esa URL ya está en uso.'
                 : undefined
           }
-          hint={subdomain ? `${subdomain}.localhost:3000` : 'minúsculas, números y guiones'}
+          hint={subdomain ? storefrontHost(subdomain) : 'minúsculas, números y guiones'}
         >
           <Input
             value={subdomain}

@@ -24,6 +24,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # VITE_* se hornea en el bundle estático en build-time → build-args.
 ARG VITE_API_URL
 ARG VITE_SENTRY_DSN
+ARG VITE_STOREFRONT_ORIGIN
+ENV VITE_STOREFRONT_ORIGIN=$VITE_STOREFRONT_ORIGIN
 ENV VITE_API_URL=${VITE_API_URL} \
     VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
 RUN pnpm --filter ./admin build

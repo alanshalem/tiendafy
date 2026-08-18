@@ -70,3 +70,4 @@ jobs:
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN_STOREFRONT }}
             VITE_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
             VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_ADMIN }}
+            VITE_STOREFRONT_ORIGIN=https://{sub}.${{ vars.PLATFORM_DOMAIN }}

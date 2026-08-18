@@ -8,6 +8,7 @@ import { canAny, usePermissions } from '../context/PermissionsContext';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
 import { isNavVisible } from '../config/features';
+import { storefrontUrl } from '../lib/storefront';
 import { LogoMark } from './LogoMark';
 
 interface NavChild {
@@ -418,7 +419,7 @@ export function AdminLayout() {
           <div className="flex items-center gap-3">
             {store && (
               <a
-                href={`http://${store.subdomain}.localhost:3000`}
+                href={storefrontUrl(store.subdomain)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

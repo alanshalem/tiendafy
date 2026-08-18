@@ -138,6 +138,8 @@ services:
       args:
         VITE_API_URL: https://api.${PLATFORM_DOMAIN}
         VITE_SENTRY_DSN: ${SENTRY_DSN_ADMIN:-}
+        # "Ver mi tienda" y el preview del editor ({sub} = subdominio de la tienda).
+        VITE_STOREFRONT_ORIGIN: https://{sub}.${PLATFORM_DOMAIN}
     restart: unless-stopped
     <<: *logging
 

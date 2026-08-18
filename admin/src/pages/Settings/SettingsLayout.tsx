@@ -12,7 +12,7 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, Tooltip } from '@tiendafy/ui';
 import { ThemeModeToggle } from '../../components/ThemeModeToggle';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { isNavVisible } from '../../config/features';
@@ -22,6 +22,8 @@ import { LogoMark } from '../../components/LogoMark';
 interface NavItem {
   to: string;
   label: string;
+  /** Una línea que explica la página (tooltip al pasar el mouse). */
+  desc?: string;
   icon: LucideIcon;
   /** Permiso RBAC requerido (string o lista: alcanza con uno). */
   perm?: string | string[];
@@ -38,27 +40,36 @@ const groups: NavGroup[] = [
       {
         to: '/configuracion/medios-de-pago',
         label: 'Medios de pago',
+        desc: 'Conectá Mercado Pago y elegí cómo cobra tu tienda.',
         icon: CreditCard,
         perm: 'payments.read',
       },
       {
         to: '/configuracion/medios-de-envio',
         label: 'Medios de envío',
+        desc: 'Envíos a domicilio, retiro y cotización en vivo (Correo Argentino, Zipnova).',
         icon: Package,
         perm: 'settings.write',
       },
       {
         to: '/configuracion/mercadolibre',
         label: 'Mercado Libre',
+        desc: 'Conectá tu cuenta de vendedor para activar el canal ML.',
         icon: Store,
         perm: 'settings.write',
       },
     ],
   },
   {
-    heading: 'Impuestos',
+    heading: 'Facturación',
     items: [
-      { to: '/configuracion/facturacion', label: 'Facturación', icon: FileText, perm: 'fiscal.config' },
+      {
+        to: '/configuracion/facturacion',
+        label: 'Facturación',
+        desc: 'Factura electrónica ARCA: certificado, punto de venta y emisión automática.',
+        icon: FileText,
+        perm: 'fiscal.config',
+      },
     ],
   },
   {
@@ -67,12 +78,14 @@ const groups: NavGroup[] = [
       {
         to: '/configuracion/emails-automaticos',
         label: 'E-mails automáticos',
+        desc: 'Los emails que tu tienda manda sola: confirmaciones, envíos, carritos.',
         icon: Mail,
         perm: 'settings.write',
       },
       {
         to: '/configuracion/whatsapp-automatico',
         label: 'WhatsApp automático',
+        desc: 'Avisos automáticos por WhatsApp con la API oficial de Meta.',
         icon: MessageCircle,
         perm: 'settings.write',
       },
@@ -84,16 +97,29 @@ const groups: NavGroup[] = [
       {
         to: '/configuracion/opciones-del-checkout',
         label: 'Opciones del checkout',
+        desc: 'Qué pide y muestra el proceso de compra: datos, cuotas, condiciones.',
         icon: ShoppingCart,
         perm: 'settings.write',
       },
     ],
   },
   {
-    heading: 'Otros',
+    heading: 'Equipo y dominios',
     items: [
-      { to: '/configuracion/usuarios', label: 'Usuarios y notificaciones', icon: User, perm: 'members.read' },
-      { to: '/configuracion/dominios', label: 'Dominios', icon: Globe, perm: 'settings.write' },
+      {
+        to: '/configuracion/usuarios',
+        label: 'Usuarios y notificaciones',
+        desc: 'Tu equipo con roles y permisos, y qué avisos recibe cada uno.',
+        icon: User,
+        perm: 'members.read',
+      },
+      {
+        to: '/configuracion/dominios',
+        label: 'Dominios',
+        desc: 'El subdominio de tu tienda y la conexión de tu dominio propio.',
+        icon: Globe,
+        perm: 'settings.write',
+      },
     ],
   },
 ];
@@ -134,21 +160,22 @@ export function SettingsLayout() {
               </div>
               <div className="space-y-0.5">
                 {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-primary text-primary-fg'
-                          : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
-                      )
-                    }
-                  >
-                    <item.icon className="h-5 w-5 shrink-0 opacity-80" />
-                    {item.label}
-                  </NavLink>
+                  <Tooltip key={item.to} label={item.desc}>
+                    <NavLink
+                      to={item.to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-primary text-primary-fg'
+                            : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+                        )
+                      }
+                    >
+                      <item.icon className="h-5 w-5 shrink-0 opacity-80" />
+                      {item.label}
+                    </NavLink>
+                  </Tooltip>
                 ))}
               </div>
             </div>
