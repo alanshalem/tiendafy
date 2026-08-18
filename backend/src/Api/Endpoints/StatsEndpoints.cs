@@ -169,65 +169,7 @@ public static class StatsEndpoints
                 })
                 .OrderByDescending(x => x.profit).ToList();
 
-            // Canal Mercado Libre: margen BRUTO (antes de la comisión de ML, que
-            // la API no persiste en el cache local) con el costo ACTUAL de las
-            // variantes vinculadas — no hay snapshot porque la venta no es nuestra.
-            object? meli = null;
-            var meliOrders = await meliDb.Orders.AsNoTracking()
-                .Where(o => o.TenantId == tid.Value && o.Status == "paid" && o.DateCreatedUtc >= since && o.DateCreatedUtc < until)
-                .ToListAsync(ct);
-            if (meliOrders.Count > 0)
-            {
-                var links = await meliDb.ItemLinks.AsNoTracking()
-                    .Where(l => l.TenantId == tid.Value).ToListAsync(ct);
-                var linkByKey = links.ToDictionary(l => (l.MeliItemId, l.MeliVariationId), l => l.VariantId);
-                var variantIds = links.Select(l => l.VariantId).Distinct().ToList();
-                var costByVariant = variantIds.Count == 0
-                    ? []
-                    : (await catalogDb.Products.AsNoTracking()
-                        .Where(p => p.TenantId == tid && p.Variants.Any(v => variantIds.Contains(v.Id)))
-                        .ToListAsync(ct))
-                        .SelectMany(p => p.Variants)
-                        .Where(v => v.Cost is not null)
-                        .ToDictionary(v => v.Id, v => v.Cost!.Value.AmountInMinorUnits);
-
-                long meliRevenue = 0, meliCost = 0, meliFees = 0;
-                int unitsLinked = 0, unitsTotal = 0, unitsWithFee = 0;
-                foreach (var o in meliOrders)
-                {
-                    meliRevenue += (long)Math.Round(o.TotalAmount * 100m);
-                    var items = System.Text.Json.JsonSerializer.Deserialize<List<Api.Meli.MeliOrderItemSnapshot>>(o.ItemsJson, ApiJson.Web) ?? [];
-                    foreach (var it in items)
-                    {
-                        unitsTotal += it.Quantity;
-                        if (it.SaleFee is { } fee)
-                        {
-                            meliFees += (long)Math.Round(fee * it.Quantity * 100m);
-                            unitsWithFee += it.Quantity;
-                        }
-                        if (linkByKey.TryGetValue((it.ItemId, it.VariationId), out var vid)
-                            && costByVariant.TryGetValue(vid, out var unitCost))
-                        {
-                            meliCost += unitCost * it.Quantity;
-                            unitsLinked += it.Quantity;
-                        }
-                    }
-                }
-                meli = new
-                {
-                    orders = meliOrders.Count,
-                    revenue = meliRevenue,
-                    productCost = meliCost,
-                    // Comisión real de ML (sale_fee por ítem). Cero en snapshots
-                    // viejos sin el campo: unitsWithFee lo delata.
-                    mlFees = meliFees,
-                    grossProfit = meliRevenue - meliCost,
-                    netProfit = meliRevenue - meliCost - meliFees,
-                    unitsLinked,
-                    unitsTotal,
-                    unitsWithFee,
-                };
-            }
+            var meli = await MeliChannelProfitAsync(meliDb, catalogDb, tid, since, until, ct);
 
             return Results.Ok(new
             {
@@ -368,6 +310,71 @@ public static class StatsEndpoints
     /// manda el rango explícito (días completos UTC, tope 366); si no, los
     /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
     /// </summary>
+    /// <summary>
+    /// Canal Mercado Libre del dashboard de rentabilidad: margen BRUTO (antes
+    /// de la comisión de ML, que la API no persiste en el cache local) con el
+    /// costo ACTUAL de las variantes vinculadas — no hay snapshot porque la
+    /// venta no es nuestra. null = sin ventas ML en el rango.
+    /// </summary>
+    private static async Task<object?> MeliChannelProfitAsync(
+        MercadoLibre.Infrastructure.MeliDbContext meliDb, CatalogDbContext catalogDb,
+        TenantId tid, DateTime since, DateTime until, CancellationToken ct)
+    {
+        var meliOrders = await meliDb.Orders.AsNoTracking()
+            .Where(o => o.TenantId == tid.Value && o.Status == "paid" && o.DateCreatedUtc >= since && o.DateCreatedUtc < until)
+            .ToListAsync(ct);
+        if (meliOrders.Count == 0) return null;
+
+        var links = await meliDb.ItemLinks.AsNoTracking()
+            .Where(l => l.TenantId == tid.Value).ToListAsync(ct);
+        var linkByKey = links.ToDictionary(l => (l.MeliItemId, l.MeliVariationId), l => l.VariantId);
+        var variantIds = links.Select(l => l.VariantId).Distinct().ToList();
+        var costByVariant = variantIds.Count == 0
+            ? []
+            : (await catalogDb.Products.AsNoTracking()
+                .Where(p => p.TenantId == tid && p.Variants.Any(v => variantIds.Contains(v.Id)))
+                .ToListAsync(ct))
+                .SelectMany(p => p.Variants)
+                .Where(v => v.Cost is not null)
+                .ToDictionary(v => v.Id, v => v.Cost!.Value.AmountInMinorUnits);
+
+        long meliRevenue = 0, meliCost = 0, meliFees = 0;
+        int unitsLinked = 0, unitsTotal = 0, unitsWithFee = 0;
+        foreach (var o in meliOrders)
+        {
+            meliRevenue += (long)Math.Round(o.TotalAmount * 100m);
+            foreach (var it in Api.Meli.MeliSyncService.ParseSnapshot(o.ItemsJson))
+            {
+                unitsTotal += it.Quantity;
+                if (it.SaleFee is { } fee)
+                {
+                    meliFees += (long)Math.Round(fee * it.Quantity * 100m);
+                    unitsWithFee += it.Quantity;
+                }
+                if (linkByKey.TryGetValue((it.ItemId, it.VariationId), out var vid)
+                    && costByVariant.TryGetValue(vid, out var unitCost))
+                {
+                    meliCost += unitCost * it.Quantity;
+                    unitsLinked += it.Quantity;
+                }
+            }
+        }
+        return new
+        {
+            orders = meliOrders.Count,
+            revenue = meliRevenue,
+            productCost = meliCost,
+            // Comisión real de ML (sale_fee por ítem). Cero en snapshots
+            // viejos sin el campo: unitsWithFee lo delata.
+            mlFees = meliFees,
+            grossProfit = meliRevenue - meliCost,
+            netProfit = meliRevenue - meliCost - meliFees,
+            unitsLinked,
+            unitsTotal,
+            unitsWithFee,
+        };
+    }
+
     private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
     {
         if (from is { } f)

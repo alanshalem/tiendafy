@@ -4,9 +4,10 @@ import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
-import { fetchAllProducts } from '../../lib/products';
+import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { useVariantStock } from './queries';
-import { Pagination } from '../../components/Pagination';
+import { Pagination, usePagedList } from '../../components/Pagination';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -29,8 +30,6 @@ export function InventoryPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
   const { data: products, isLoading } = useQuery({
@@ -39,16 +38,11 @@ export function InventoryPage() {
     enabled: !!store,
   });
 
-  const q = search.trim().toLowerCase();
-  const allItems = (products ?? []).filter(
-    (p) =>
-      q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
-  );
+  // Debounce: la búsqueda refetchea el stock del resultado — no por tecla.
+  const q = useDebouncedValue(search).trim().toLowerCase();
+  const allItems = (products ?? []).filter((p) => matchesProduct(p, q));
   const stockByVariant = useVariantStock(allItems);
-
-  const PAGE_SIZE = 20;
-  const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
-  const pageClamped = Math.min(page, totalPages);
+  const { page: pageClamped, setPage, totalPages, pageItems: items } = usePagedList(allItems);
 
   const save = useMutation({
     mutationFn: ({ variantId, available }: { variantId: string; available: number }) =>
@@ -71,7 +65,6 @@ export function InventoryPage() {
     return <NoStoreSelected />;
   }
 
-  const items = allItems.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
   if (!isLoading && allItems.length === 0) {
     return (
       <EmptyState

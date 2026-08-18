@@ -22,7 +22,7 @@ public static class MetaAdsEndpoints
         var meta = group.MapGroup("/meta-ads").RequireTenant().RequirePermission(Permission.StatsRead);
 
         meta.MapGet("/status", async (
-            ITenantContext tenant, AnalyticsDbContext db, IOptions<MetaAdsOptions> options, CancellationToken ct) =>
+            AnalyticsDbContext db, IOptions<MetaAdsOptions> options, CancellationToken ct) =>
         {
             var c = await db.MetaAdsConnections.AsNoTracking().FirstOrDefaultAsync(ct);
             return Results.Ok(new
@@ -45,7 +45,7 @@ public static class MetaAdsEndpoints
             return Results.Ok(new { authUrl = client.BuildAuthorizationUrl(tokens.ProtectState(tenant.TenantId.Value)) });
         });
 
-        meta.MapDelete("/connection", async (ITenantContext tenant, AnalyticsDbContext db, CancellationToken ct) =>
+        meta.MapDelete("/connection", async (AnalyticsDbContext db, CancellationToken ct) =>
         {
             var c = await db.MetaAdsConnections.FirstOrDefaultAsync(ct);
             if (c is null) return Results.NoContent();
@@ -67,7 +67,7 @@ public static class MetaAdsEndpoints
         });
 
         meta.MapPost("/ad-account", async (
-            SelectAdAccountRequest request, ITenantContext tenant, AnalyticsDbContext db, CancellationToken ct) =>
+            SelectAdAccountRequest request, AnalyticsDbContext db, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.AdAccountId))
                 return Error.Validation("MetaAds.InvalidAccount", "Elegí una cuenta publicitaria.").ToProblem();
@@ -114,32 +114,44 @@ public static class MetaAdsEndpoints
         group.MapGet("/meta-ads/oauth/callback", async (
             string? code, string? state,
             MetaAdsClient client, MetaAdsTokenService tokens, AnalyticsDbContext db,
-            IOptions<MetaAdsOptions> options, CancellationToken ct) =>
+            IOptions<MetaAdsOptions> options, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
             var returnUrl = options.Value.AdminReturnUrl;
-            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
-                return Results.Redirect($"{returnUrl}?meta=error");
+            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state)) return Back(returnUrl, ok: false);
 
             var tenantId = tokens.TryUnprotectState(state);
-            if (tenantId is null) return Results.Redirect($"{returnUrl}?meta=error");
+            if (tenantId is null) return Back(returnUrl, ok: false);
 
-            var exchanged = await client.ExchangeCodeAsync(code, ct);
-            if (exchanged.IsFailure) return Results.Redirect($"{returnUrl}?meta=error");
+            try
+            {
+                var exchanged = await client.ExchangeCodeAsync(code, ct);
+                if (exchanged.IsFailure) return Back(returnUrl, ok: false);
 
-            var encrypted = tokens.Protect(exchanged.Value.AccessToken);
-            var existing = await db.MetaAdsConnections.IgnoreQueryFilters()
-                .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value, ct);
-            if (existing is null)
-                db.MetaAdsConnections.Add(MetaAdsConnection.Create(tenantId.Value, encrypted, exchanged.Value.ExpiresAtUtc));
-            else
-                existing.UpdateToken(encrypted, exchanged.Value.ExpiresAtUtc);
-            await db.SaveChangesAsync(ct);
+                var encrypted = tokens.Protect(exchanged.Value.AccessToken);
+                var existing = await db.MetaAdsConnections.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value, ct);
+                if (existing is null)
+                    db.MetaAdsConnections.Add(MetaAdsConnection.Create(tenantId.Value, encrypted, exchanged.Value.ExpiresAtUtc));
+                else
+                    existing.UpdateToken(encrypted, exchanged.Value.ExpiresAtUtc);
+                await db.SaveChangesAsync(ct);
 
-            return Results.Redirect($"{returnUrl}?meta=connected");
+                return Back(returnUrl, ok: true);
+            }
+            catch (Exception ex)
+            {
+                // Como Meli/Social: el browser del merchant siempre vuelve al panel.
+                loggerFactory.CreateLogger("MetaAdsOAuth")
+                    .LogError(ex, "OAuth de Meta Ads falló para tenant {TenantId}.", tenantId);
+                return Back(returnUrl, ok: false);
+            }
         });
 
         return group;
     }
+
+    private static IResult Back(string returnUrl, bool ok) =>
+        Results.Redirect($"{returnUrl}?meta={(ok ? "connected" : "error")}");
 }
 
 public sealed record SelectAdAccountRequest(string? AdAccountId, string? Name);

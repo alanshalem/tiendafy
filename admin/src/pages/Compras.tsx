@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Package, Plus, Ship, Trash2 } from 'lucide-react';
 import {
@@ -14,10 +14,10 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { fetchAllProducts } from '../lib/products';
 import { formatDate, formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { VariantPicker } from '../components/VariantPicker';
 import { TABLE_CARD } from '../lib/styles';
 import { CameraBox, useScanner } from './Products/Scanner';
 
@@ -74,38 +74,22 @@ interface Suggestion {
   suggestedQty: number;
 }
 
-interface CatalogProduct {
-  id: string;
-  name: string;
-  variants: { id: string; sku: string; optionValues: string[] }[];
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Borrador',
-  CONFIRMED: 'Confirmada',
-  INPRODUCTION: 'En producción',
-  INTRANSIT: 'En tránsito',
-  INCUSTOMS: 'En aduana',
-  RECEIVED: 'Recibida',
-  CANCELLED: 'Cancelada',
-};
-
-const STATUS_VARIANT: Record<string, BadgeVariant> = {
-  DRAFT: 'neutral',
-  CONFIRMED: 'info',
-  INPRODUCTION: 'info',
-  INTRANSIT: 'warning',
-  INCUSTOMS: 'warning',
-  RECEIVED: 'success',
-  CANCELLED: 'danger',
+const PO_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
+  DRAFT: { label: 'Borrador', variant: 'neutral' },
+  CONFIRMED: { label: 'Confirmada', variant: 'info' },
+  INPRODUCTION: { label: 'En producción', variant: 'info' },
+  INTRANSIT: { label: 'En tránsito', variant: 'warning' },
+  INCUSTOMS: { label: 'En aduana', variant: 'warning' },
+  RECEIVED: { label: 'Recibida', variant: 'success' },
+  CANCELLED: { label: 'Cancelada', variant: 'danger' },
 };
 
 /** Próximos pasos posibles del ciclo, por estado actual (Recibir va aparte). */
 const NEXT_STEPS: Record<string, string[]> = {
-  DRAFT: ['Confirmed'],
-  CONFIRMED: ['InProduction', 'InTransit'],
-  INPRODUCTION: ['InTransit'],
-  INTRANSIT: ['InCustoms'],
+  DRAFT: ['CONFIRMED'],
+  CONFIRMED: ['INPRODUCTION', 'INTRANSIT'],
+  INPRODUCTION: ['INTRANSIT'],
+  INTRANSIT: ['INCUSTOMS'],
   INCUSTOMS: [],
 };
 
@@ -122,6 +106,17 @@ interface FormExpense {
   label: string;
   amount: string;
   isLocal: boolean;
+}
+
+interface PoForm {
+  supplierName: string;
+  reference: string;
+  notes: string;
+  currency: string;
+  exchangeRate: string;
+  leadTimeDays: string;
+  items: FormItem[];
+  expenses: FormExpense[];
 }
 
 export function ComprasPage() {
@@ -200,7 +195,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
                 { value: '', label: 'Todos los estados' },
-                ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+                ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })),
               ]}
             />
           </div>
@@ -235,8 +230,8 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
                       <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
                       <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
                       <td className="px-4 py-2.5">
-                        <Badge variant={STATUS_VARIANT[po.status] ?? 'neutral'}>
-                          {STATUS_LABEL[po.status] ?? po.status}
+                        <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
+                          {PO_STATUS[po.status]?.label ?? po.status}
                         </Badge>
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-fg">
@@ -360,16 +355,7 @@ function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void })
   const editable = poId === null || po?.status === 'DRAFT';
 
   // Form state (se hidrata del detalle una vez que llega).
-  const [form, setForm] = useState<{
-    supplierName: string;
-    reference: string;
-    notes: string;
-    currency: string;
-    exchangeRate: string;
-    leadTimeDays: string;
-    items: FormItem[];
-    expenses: FormExpense[];
-  } | null>(
+  const [form, setForm] = useState<PoForm | null>(
     poId === null
       ? {
           supplierName: '',
@@ -461,7 +447,9 @@ function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void })
           <h1 className="text-xl font-semibold">
             {poId === null ? 'Nueva compra' : (po?.supplierName ?? '…')}
           </h1>
-          <Badge variant={STATUS_VARIANT[status] ?? 'neutral'}>{STATUS_LABEL[status] ?? status}</Badge>
+          <Badge variant={PO_STATUS[status]?.variant ?? 'neutral'}>
+            {PO_STATUS[status]?.label ?? status}
+          </Badge>
         </div>
         <div className="flex items-center gap-2">
           {editable && form && (
@@ -472,7 +460,7 @@ function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void })
           {poId !== null &&
             (NEXT_STEPS[status] ?? []).map((next) => (
               <Button key={next} variant="secondary" onClick={() => setStatus.mutate(next)}>
-                {STATUS_LABEL[next.toUpperCase()] ?? next}
+                {PO_STATUS[next]?.label ?? next}
               </Button>
             ))}
           {canReceive && <ReceiveButton po={po!} onDone={onBack} />}
@@ -488,7 +476,7 @@ function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void })
                     variant: 'danger',
                   })
                 )
-                  setStatus.mutate('cancelled');
+                  setStatus.mutate('CANCELLED');
               }}
             >
               Cancelar OC
@@ -591,73 +579,33 @@ function ItemsEditor({
   currency,
   po,
 }: {
-  form: NonNullable<Parameters<typeof Object>[0]> & { items: FormItem[] };
-  setForm: (f: never) => void;
+  form: PoForm;
+  setForm: Dispatch<SetStateAction<PoForm | null>>;
   editable: boolean;
   currency: string;
   po: PoDetail | null;
 }) {
-  const { store } = useStore();
-  const [search, setSearch] = useState('');
-
-  const { data: products } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<CatalogProduct>(),
-    enabled: !!store && editable,
-  });
-
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (q.length < 2 || !products) return [];
-    return products
-      .flatMap((p) =>
-        p.variants.map((v) => ({
-          variantId: v.id,
-          label: `${p.name}${v.optionValues.length ? ` · ${v.optionValues.join(' / ')}` : ''}`,
-          sku: v.sku,
-        })),
-      )
-      .filter((v) => v.label.toLowerCase().includes(q) || v.sku.toLowerCase().includes(q))
-      .filter((v) => !form.items.some((i: FormItem) => i.variantId === v.variantId))
-      .slice(0, 8);
-  }, [search, products, form.items]);
-
-  const update = (patch: Partial<{ items: FormItem[] }>) => setForm({ ...form, ...patch } as never);
+  const excluded = useMemo(() => new Set(form.items.map((i) => i.variantId)), [form.items]);
+  const update = (patch: Partial<PoForm>) => setForm((f) => (f ? { ...f, ...patch } : f));
   const landedBy = new Map((po?.items ?? []).map((i) => [i.variantId, i.landedUnitCostArsMinor]));
 
   return (
     <Card>
       <h2 className="text-sm font-semibold text-fg">Ítems</h2>
       {editable && (
-        <div className="relative mt-2">
-          <Input
+        <div className="mt-2">
+          <VariantPicker
             placeholder="Buscar producto o SKU para agregar…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            exclude={excluded}
+            onPick={(m) =>
+              update({
+                items: [
+                  ...form.items,
+                  { variantId: m.variantId, label: m.label, sku: m.sku, quantity: '1', unitCost: '' },
+                ],
+              })
+            }
           />
-          {matches.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
-              {matches.map((m) => (
-                <button
-                  key={m.variantId}
-                  type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-bg-subtle"
-                  onClick={() => {
-                    update({
-                      items: [
-                        ...form.items,
-                        { variantId: m.variantId, label: m.label, sku: m.sku, quantity: '1', unitCost: '' },
-                      ],
-                    });
-                    setSearch('');
-                  }}
-                >
-                  <span className="text-fg">{m.label}</span>
-                  <span className="text-xs text-fg-subtle">{m.sku}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -743,12 +691,12 @@ function ExpensesEditor({
   editable,
   currency,
 }: {
-  form: { expenses: FormExpense[] };
-  setForm: (f: never) => void;
+  form: PoForm;
+  setForm: Dispatch<SetStateAction<PoForm | null>>;
   editable: boolean;
   currency: string;
 }) {
-  const update = (expenses: FormExpense[]) => setForm({ ...form, expenses } as never);
+  const update = (expenses: FormExpense[]) => setForm((f) => (f ? { ...f, expenses } : f));
 
   return (
     <Card>

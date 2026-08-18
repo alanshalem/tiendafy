@@ -3,9 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { fetchAllProducts } from '../../lib/products';
+import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
-import { Pagination } from '../../components/Pagination';
+import { Pagination, usePagedList } from '../../components/Pagination';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -39,7 +40,6 @@ export function CostsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
   const { data: products, isLoading } = useQuery({
@@ -48,15 +48,11 @@ export function CostsPage() {
     enabled: !!store,
   });
 
-  const q = search.trim().toLowerCase();
-  const allItems = (products ?? []).filter(
-    (p) =>
-      q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
-  );
-  const PAGE_SIZE = 20;
-  const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
-  const pageClamped = Math.min(page, totalPages);
-  const items = allItems.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
+  // Debounce: cada página visible dispara un GET de costos por producto —
+  // sin esto, cada tecla de la búsqueda serían hasta 20 requests.
+  const q = useDebouncedValue(search).trim().toLowerCase();
+  const allItems = (products ?? []).filter((p) => matchesProduct(p, q));
+  const { page: pageClamped, setPage: setPageList, totalPages, pageItems: items } = usePagedList(allItems);
   const pageIds = items.map((p) => p.id).join(',');
 
   // Costos de los productos visibles (endpoint admin con permiso — el DTO
@@ -125,7 +121,7 @@ export function CostsPage() {
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
-          setPage(1);
+          setPageList(1);
         }}
       />
 
@@ -208,7 +204,7 @@ export function CostsPage() {
         </div>
       </Card>
 
-      <Pagination page={pageClamped} totalPages={totalPages} onPage={setPage} />
+      <Pagination page={pageClamped} totalPages={totalPages} onPage={setPageList} />
       <HelpLink id="rentabilidad" />
     </div>
   );

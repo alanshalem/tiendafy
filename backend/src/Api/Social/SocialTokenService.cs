@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Api.Auth;
 using Microsoft.AspNetCore.DataProtection;
 using SharedKernel.Common;
 
@@ -16,8 +17,6 @@ public sealed class SocialTokenService(IDataProtectionProvider dataProtection)
     private readonly IDataProtector _state = dataProtection.CreateProtector("Tiendafy.Social.OAuthState.v1");
 
     public string Protect(string tokenJson) => _tokens.Protect(tokenJson);
-
-    public string Unprotect(string encrypted) => _tokens.Unprotect(encrypted);
 
     /// <summary>State cifrado con tenant (+ verifier PKCE si la red lo usa); vence a los 15 minutos.</summary>
     public string ProtectState(Guid tenantId, string? verifier = null) =>
@@ -38,11 +37,7 @@ public sealed class SocialTokenService(IDataProtectionProvider dataProtection)
     }
 
     /// <summary>Descifra el token de una cuenta con tolerancia (claves rotadas ⇒ null = reconectar).</summary>
-    public string? TryUnprotect(string encrypted)
-    {
-        try { return _tokens.Unprotect(encrypted); }
-        catch { return null; }
-    }
+    public string? TryUnprotect(string encrypted) => _tokens.TryUnprotect(encrypted);
 
     /// <summary>Lector chico de campos del token JSON (evita DTOs por red).</summary>
     public static string? TokenField(string tokenJson, string field)

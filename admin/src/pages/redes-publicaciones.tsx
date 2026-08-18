@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
-import { Badge, Button, EmptyList, Select, useConfirm, useToast } from '@tiendafy/ui';
+import { Badge, Button, EmptyList, Select, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime } from '../lib/format';
 import { postStatus, ProviderIcon, providerMeta, type SocialPostDto } from './redes-shared';
@@ -19,7 +19,7 @@ export function PublicacionesTab({
   onChanged,
   onEdit,
 }: {
-  posts: SocialPostDto[];
+  posts: SocialPostDto[] | null; // null = cargando
   onChanged: () => void;
   onEdit: (post: SocialPostDto) => void;
 }) {
@@ -27,7 +27,7 @@ export function PublicacionesTab({
   const confirm = useConfirm();
   const [status, setStatus] = useState('');
 
-  const filtered = status ? posts.filter((p) => p.status === status) : posts;
+  const filtered = status ? (posts ?? []).filter((p) => p.status === status) : (posts ?? []);
 
   const unschedule = async (post: SocialPostDto) => {
     try {
@@ -58,6 +58,8 @@ export function PublicacionesTab({
       toast(errMsg(err, 'No se pudo eliminar.'), { variant: 'error' });
     }
   };
+
+  if (posts === null) return <Spinner />;
 
   return (
     <div>

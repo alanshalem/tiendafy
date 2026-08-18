@@ -25,7 +25,7 @@ public static class PurchasingEndpoints
         var purchasing = group.MapGroup("/purchasing").RequireTenant().RequirePermission(Permission.Purchasing);
 
         purchasing.MapGet("/purchase-orders", async (
-            ITenantContext tenant, PurchasingDbContext db, CancellationToken ct, string? status = null) =>
+            PurchasingDbContext db, CancellationToken ct, string? status = null) =>
         {
             var query = db.PurchaseOrders.AsNoTracking();
             if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var st))
@@ -118,10 +118,11 @@ public static class PurchasingEndpoints
             // frena el resto — queda logueada en el resultado).
             var reason = $"Recepción de compra {(po.Reference is { Length: > 0 } r ? r : po.SupplierName)}";
             var stockErrors = new List<string>();
+            var currentByVariant = (await stock.GetByVariantsAsync(tenant.TenantId, landed.Keys.ToList(), ct))
+                .ToDictionary(s => s.VariantId, s => s.Available);
             foreach (var (variantId, info) in landed)
             {
-                var current = await stock.GetByVariantsAsync(tenant.TenantId, [variantId], ct);
-                var available = current.Count > 0 ? current[0].Available : 0;
+                var available = currentByVariant.GetValueOrDefault(variantId);
                 try
                 {
                     await stock.SetAvailableAsync(tenant.TenantId, variantId, available + info.Received, reason, ct);

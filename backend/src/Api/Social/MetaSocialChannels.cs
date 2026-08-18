@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Api.MetaAds;
 using Microsoft.Extensions.Options;
 using SharedKernel.Common;
 
@@ -19,8 +20,9 @@ public sealed class MetaSocialConnector(HttpClient http, IOptions<SocialOptions>
     public string Key => "meta";
     public string DisplayName => "Facebook / Instagram";
     public bool Configured => _o.Configured;
+    public bool UsesPkce => false;
 
-    public string BuildAuthUrl(string state) =>
+    public string BuildAuthUrl(string state, string? verifier) =>
         OAuth2.BuildAuthorizationUrl(_o.AuthBaseUrl, new Dictionary<string, string>
         {
             ["response_type"] = "code",
@@ -30,20 +32,14 @@ public sealed class MetaSocialConnector(HttpClient http, IOptions<SocialOptions>
             ["scope"] = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish",
         });
 
-    public async Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, string? verifier, CancellationToken ct)
     {
-        // code → user token → long-lived (mismo baile que Meta Ads).
-        var shortLived = await GetTokenAsync(
-            $"{_o.ApiBaseUrl}/oauth/access_token?client_id={Uri.EscapeDataString(_o.AppId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(_o.RedirectUri)}" +
-            $"&client_secret={Uri.EscapeDataString(_o.AppSecret)}&code={Uri.EscapeDataString(code)}", ct);
-        if (shortLived is null)
+        // code → user token → long-lived: mismo baile que Meta Ads, mismo helper.
+        var pair = await MetaGraphTokens.ExchangeCodeAsync(
+            http, logger, _o.ApiBaseUrl, _o.AppId, _o.AppSecret, _o.RedirectUri, code, ct);
+        if (pair is null)
             return Result.Failure<IReadOnlyList<SocialAccountCandidate>>(new Error("Social.MetaAuth", "Meta rechazó la autorización."));
-
-        var longLived = await GetTokenAsync(
-            $"{_o.ApiBaseUrl}/oauth/access_token?grant_type=fb_exchange_token" +
-            $"&client_id={Uri.EscapeDataString(_o.AppId)}&client_secret={Uri.EscapeDataString(_o.AppSecret)}" +
-            $"&fb_exchange_token={Uri.EscapeDataString(shortLived)}", ct) ?? shortLived;
+        var longLived = pair.Value.AccessToken;
 
         // Páginas con su page token + IG business vinculado.
         using var resp = await http.GetAsync(
@@ -97,18 +93,6 @@ public sealed class MetaSocialConnector(HttpClient http, IOptions<SocialOptions>
                 "Social.MetaNoPages", "Tu usuario de Meta no administra ninguna página."));
     }
 
-    private async Task<string?> GetTokenAsync(string url, CancellationToken ct)
-    {
-        using var resp = await http.GetAsync(url, ct);
-        var json = await resp.Content.ReadAsStringAsync(ct);
-        if (!resp.IsSuccessStatusCode)
-        {
-            logger.LogError("Meta token error {Status}: {Body}", (int)resp.StatusCode, json);
-            return null;
-        }
-        using var doc = JsonDocument.Parse(json);
-        return JsonRead.GetString(doc.RootElement, "access_token");
-    }
 }
 
 /// <summary>Página de Facebook: /feed para texto, /photos (unpublished) + attached_media para imágenes.</summary>

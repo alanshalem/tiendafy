@@ -29,7 +29,8 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
 
     public string BuildAuthorizationUrl(string state)
     {
-        return OAuth2.BuildAuthorizationUrl(_o.AuthBaseUrl, new Dictionary<string, string>
+        // ML es el único cuyo endpoint de authorize cuelga de la base (+/authorization).
+        return OAuth2.BuildAuthorizationUrl($"{_o.AuthBaseUrl.TrimEnd('/')}/authorization", new Dictionary<string, string>
         {
             ["response_type"] = "code",
             ["client_id"] = _o.ClientId,

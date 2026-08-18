@@ -4,9 +4,9 @@ import { Boxes, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { fetchAllProducts } from '../../lib/products';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { VariantPicker } from '../../components/VariantPicker';
 import { TABLE_CARD } from '../../lib/styles';
 
 interface KitDto {
@@ -14,12 +14,6 @@ interface KitDto {
   kitLabel: string;
   kitSku: string;
   components: { componentVariantId: string; label: string; sku: string; quantity: number }[];
-}
-
-interface CatalogProduct {
-  id: string;
-  name: string;
-  variants: { id: string; sku: string; optionValues: string[] }[];
 }
 
 interface DraftComponent {
@@ -40,9 +34,7 @@ export function KitsPage() {
 
   const [editingKit, setEditingKit] = useState<{ variantId: string; label: string } | null>(null);
   const [components, setComponents] = useState<DraftComponent[]>([]);
-  const [kitSearch, setKitSearch] = useState('');
   const [listSearch, setListSearch] = useState('');
-  const [compSearch, setCompSearch] = useState('');
 
   const { data: kits } = useQuery({
     queryKey: ['kits', store?.id],
@@ -50,32 +42,15 @@ export function KitsPage() {
     enabled: !!store,
   });
 
-  const { data: products } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<CatalogProduct>(),
-    enabled: !!store,
-  });
-
-  const allVariants = useMemo(
+  const existingKitIds = useMemo(() => new Set((kits?.items ?? []).map((k) => k.kitVariantId)), [kits]);
+  const componentExcluded = useMemo(
     () =>
-      (products ?? []).flatMap((p) =>
-        p.variants.map((v) => ({
-          variantId: v.id,
-          label: `${p.name}${v.optionValues.length ? ` · ${v.optionValues.join(' / ')}` : ''}`,
-          sku: v.sku,
-        })),
-      ),
-    [products],
+      new Set([
+        ...(editingKit ? [editingKit.variantId] : []),
+        ...components.map((c) => c.componentVariantId),
+      ]),
+    [editingKit, components],
   );
-
-  const searchVariants = (q: string, exclude: Set<string>) => {
-    const needle = q.trim().toLowerCase();
-    if (needle.length < 2) return [];
-    return allVariants
-      .filter((v) => !exclude.has(v.variantId))
-      .filter((v) => v.label.toLowerCase().includes(needle) || v.sku.toLowerCase().includes(needle))
-      .slice(0, 8);
-  };
 
   const save = useMutation({
     mutationFn: () =>
@@ -106,7 +81,6 @@ export function KitsPage() {
         quantity: String(c.quantity),
       })),
     );
-    setKitSearch('');
   };
 
   return (
@@ -122,30 +96,12 @@ export function KitsPage() {
         <>
           <Card>
             <h2 className="text-sm font-semibold text-fg">Convertir un producto en kit</h2>
-            <div className="relative mt-2">
-              <Input
+            <div className="mt-2">
+              <VariantPicker
                 placeholder="Buscar la variante que se vende como kit…"
-                value={kitSearch}
-                onChange={(e) => setKitSearch(e.target.value)}
+                exclude={existingKitIds}
+                onPick={(v) => openEditor({ variantId: v.variantId, label: v.label }, null)}
               />
-              {searchVariants(kitSearch, new Set((kits?.items ?? []).map((k) => k.kitVariantId))).length >
-                0 && (
-                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
-                  {searchVariants(kitSearch, new Set((kits?.items ?? []).map((k) => k.kitVariantId))).map(
-                    (v) => (
-                      <button
-                        key={v.variantId}
-                        type="button"
-                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-bg-subtle"
-                        onClick={() => openEditor({ variantId: v.variantId, label: v.label }, null)}
-                      >
-                        <span className="text-fg">{v.label}</span>
-                        <span className="text-xs text-fg-subtle">{v.sku}</span>
-                      </button>
-                    ),
-                  )}
-                </div>
-              )}
             </div>
           </Card>
 
@@ -215,39 +171,17 @@ export function KitsPage() {
             </Button>
           </div>
 
-          <div className="relative mt-3">
-            <Input
+          <div className="mt-3">
+            <VariantPicker
               placeholder="Agregar componente (producto o SKU)…"
-              value={compSearch}
-              onChange={(e) => setCompSearch(e.target.value)}
+              exclude={componentExcluded}
+              onPick={(v) =>
+                setComponents((c) => [
+                  ...c,
+                  { componentVariantId: v.variantId, label: v.label, sku: v.sku, quantity: '1' },
+                ])
+              }
             />
-            {searchVariants(
-              compSearch,
-              new Set([editingKit.variantId, ...components.map((c) => c.componentVariantId)]),
-            ).length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
-                {searchVariants(
-                  compSearch,
-                  new Set([editingKit.variantId, ...components.map((c) => c.componentVariantId)]),
-                ).map((v) => (
-                  <button
-                    key={v.variantId}
-                    type="button"
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-bg-subtle"
-                    onClick={() => {
-                      setComponents((c) => [
-                        ...c,
-                        { componentVariantId: v.variantId, label: v.label, sku: v.sku, quantity: '1' },
-                      ]);
-                      setCompSearch('');
-                    }}
-                  >
-                    <span className="text-fg">{v.label}</span>
-                    <span className="text-xs text-fg-subtle">{v.sku}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           <ul className="mt-3 space-y-2">

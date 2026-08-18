@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button, cn } from '@tiendafy/ui';
-import { postDate, postStatus, ProviderIcon, type SocialPostDto } from './redes-shared';
+import { Button, Spinner, cn } from '@tiendafy/ui';
+import { POST_STATUS, postDate, postStatus, ProviderIcon, type SocialPostDto } from './redes-shared';
 
 const MONTHS = [
   'Enero',
@@ -19,13 +19,6 @@ const MONTHS = [
 ];
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const STATUS_DOT: Record<string, string> = {
-  Draft: 'bg-fg-subtle',
-  Scheduled: 'bg-info',
-  Published: 'bg-success',
-  Failed: 'bg-danger',
-};
-
 /**
  * Calendario mensual propio (42 celdas, semana lunes-domingo): los posts caen
  * en su día programado/publicado y un click en el día abre el composer con esa
@@ -38,7 +31,7 @@ export function CalendarioTab({
   onDayClick,
   onPostClick,
 }: {
-  posts: SocialPostDto[];
+  posts: SocialPostDto[] | null; // null = cargando
   month: Date; // primer día del mes visible
   onMonthChange: (month: Date) => void;
   onDayClick: (day: Date) => void;
@@ -61,7 +54,7 @@ export function CalendarioTab({
 
   const byDay = useMemo(() => {
     const map = new Map<string, SocialPostDto[]>();
-    for (const post of posts) {
+    for (const post of posts ?? []) {
       const d = postDate(post);
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       const list = map.get(key) ?? [];
@@ -73,6 +66,8 @@ export function CalendarioTab({
 
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  if (posts === null) return <Spinner />;
 
   return (
     <div>
@@ -154,7 +149,9 @@ export function CalendarioTab({
                       title={`${postStatus(post).label}: ${post.content || '(solo imagen)'}`}
                       className="flex w-full items-center gap-1 rounded bg-bg-muted/60 px-1.5 py-1 text-left hover:bg-bg-muted"
                     >
-                      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT[post.status])} />
+                      <span
+                        className={cn('h-1.5 w-1.5 shrink-0 rounded-full', POST_STATUS[post.status]?.dot)}
+                      />
                       <span className="flex shrink-0 -space-x-1">
                         {[...new Set(post.targets.map((t) => t.provider))].slice(0, 3).map((p) => (
                           <ProviderIcon key={p ?? '-'} provider={p} size="sm" />
@@ -174,16 +171,10 @@ export function CalendarioTab({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-fg-subtle">
-        {Object.entries(STATUS_DOT).map(([status, dot]) => (
+        {Object.entries(POST_STATUS).map(([status, s]) => (
           <span key={status} className="inline-flex items-center gap-1.5">
-            <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
-            {status === 'Draft'
-              ? 'Borrador'
-              : status === 'Scheduled'
-                ? 'Programado'
-                : status === 'Published'
-                  ? 'Publicado'
-                  : 'Con errores'}
+            <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
+            {s.label}
           </span>
         ))}
       </div>

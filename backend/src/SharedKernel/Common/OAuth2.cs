@@ -11,11 +11,16 @@ namespace SharedKernel.Common;
 /// </summary>
 public static class OAuth2
 {
-    public static string BuildAuthorizationUrl(string authBaseUrl, IEnumerable<KeyValuePair<string, string>> query)
+    /// <summary>
+    /// URL de autorización: el caller pasa la URL COMPLETA del endpoint de
+    /// authorize (cada proveedor tiene su propio path: /authorization en ML,
+    /// /dialog/oauth en Meta, /i/oauth2/authorize en X) + query escapada.
+    /// </summary>
+    public static string BuildAuthorizationUrl(string authorizeUrl, IEnumerable<KeyValuePair<string, string>> query)
     {
         var qs = string.Join('&', query.Select(kv =>
             $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
-        return $"{authBaseUrl.TrimEnd('/')}/authorization?{qs}";
+        return $"{authorizeUrl.TrimEnd('/')}?{qs}";
     }
 
     public static Dictionary<string, string> AuthorizationCodeGrant(

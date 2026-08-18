@@ -364,7 +364,9 @@ function CatalogImagePicker({ onClose, onPick }: { onClose: () => void; onPick: 
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchAllProducts<CatalogProduct>().then((all) => setProducts(all.filter((p) => p.imageUrl)));
+    fetchAllProducts<CatalogProduct>()
+      .then((all) => setProducts(all.filter((p) => p.imageUrl)))
+      .catch(() => setProducts([]));
   }, []);
 
   const filtered = (products ?? []).filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));

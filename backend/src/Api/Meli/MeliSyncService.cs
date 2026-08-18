@@ -148,7 +148,11 @@ public sealed class MeliSyncService(
         return list;
     }
 
-
-
-
+    /// <summary>
+    /// Snapshot cacheado (ItemsJson) → items. SIEMPRE por acá: el cache se
+    /// escribe camelCase (Web defaults) y leerlo con otras opciones devuelve
+    /// cantidades en 0 y títulos null.
+    /// </summary>
+    public static List<MeliOrderItemSnapshot> ParseSnapshot(string itemsJson) =>
+        JsonSerializer.Deserialize<List<MeliOrderItemSnapshot>>(itemsJson, ApiJson.Web) ?? [];
 }

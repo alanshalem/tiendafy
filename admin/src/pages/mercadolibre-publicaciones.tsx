@@ -202,7 +202,9 @@ function LinkModal({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchAllProducts<ProductDto>().then(setProducts);
+    fetchAllProducts<ProductDto>()
+      .then(setProducts)
+      .catch(() => setProducts([]));
   }, []);
 
   const product = products?.find((p) => p.id === productId);
@@ -288,7 +290,9 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
-    fetchAllProducts<ProductDto>().then((all) => setProducts(all.filter((p) => p.status === 'ACTIVE')));
+    fetchAllProducts<ProductDto>()
+      .then((all) => setProducts(all.filter((p) => p.status === 'ACTIVE')))
+      .catch(() => setProducts([]));
   }, []);
 
   const product = products?.find((p) => p.id === productId);

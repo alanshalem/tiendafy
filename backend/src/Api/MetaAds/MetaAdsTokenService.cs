@@ -1,4 +1,5 @@
 using Analytics.Infrastructure;
+using Api.Auth;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,13 +28,7 @@ public sealed class MetaAdsTokenService(AnalyticsDbContext db, IDataProtectionPr
             .FirstOrDefaultAsync(x => x.TenantId == tenantId, ct);
         if (c is null) return null;
         if (c.TokenExpiresAtUtc is { } exp && exp <= DateTime.UtcNow) return null;
-        try
-        {
-            return (c, _tokens.Unprotect(c.AccessTokenEncrypted));
-        }
-        catch
-        {
-            return null; // claves de DataProtection rotadas/perdidas → reconectar
-        }
+        var token = _tokens.TryUnprotect(c.AccessTokenEncrypted);
+        return token is null ? null : (c, token);
     }
 }

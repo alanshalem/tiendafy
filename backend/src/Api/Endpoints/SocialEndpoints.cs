@@ -33,12 +33,13 @@ public static class SocialEndpoints
 
         // Conectores disponibles + límites por red (el composer valida con esto).
         social.MapGet("/channels", (
-            IEnumerable<ISocialConnector> connectors, IEnumerable<ISocialChannel> channels, XSocialChannel x) =>
+            IEnumerable<ISocialConnector> connectors, IEnumerable<ISocialChannel> channels) =>
         {
+            // Telegram no tiene conector OAuth (bot por formulario): entra a mano.
+            var telegram = channels.First(c => c.Key == "telegram");
             var connectorList = connectors
                 .Select(c => new { key = c.Key, displayName = c.DisplayName, configured = c.Configured })
-                .Append(new { key = x.Key, displayName = x.DisplayName, configured = x.Configured })
-                .Append(new { key = "telegram", displayName = "Telegram", configured = true })
+                .Append(new { key = telegram.Key, displayName = telegram.DisplayName, configured = true })
                 .ToArray();
             return Results.Ok(new
             {
@@ -52,7 +53,7 @@ public static class SocialEndpoints
             });
         });
 
-        social.MapGet("/accounts", async (ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
+        social.MapGet("/accounts", async (SocialDbContext db, CancellationToken ct) =>
         {
             var accounts = await db.Accounts.AsNoTracking()
                 .OrderBy(a => a.Provider).ThenBy(a => a.Name)
@@ -63,20 +64,18 @@ public static class SocialEndpoints
         // Arranque del OAuth: devuelve la URL a la que el panel manda el browser.
         social.MapPost("/accounts/connect/{connector}", (
             string connector, ITenantContext tenant,
-            IEnumerable<ISocialConnector> connectors, XSocialChannel x, SocialTokenService tokens) =>
+            IEnumerable<ISocialConnector> connectors, SocialTokenService tokens) =>
         {
-            if (connector == "x")
-            {
-                if (!x.Configured) return NotConfigured("X");
-                var verifier = XSocialChannel.CreateVerifier();
-                return Results.Ok(new { authUrl = x.BuildAuthUrl(tokens.ProtectState(tenant.TenantId.Value, verifier), verifier) });
-            }
-
             var found = connectors.FirstOrDefault(c => c.Key == connector);
             if (found is null)
                 return Error.Validation("Social.UnknownConnector", "Esa red no existe.").ToProblem();
             if (!found.Configured) return NotConfigured(found.DisplayName);
-            return Results.Ok(new { authUrl = found.BuildAuthUrl(tokens.ProtectState(tenant.TenantId.Value)) });
+
+            var verifier = found.UsesPkce ? SocialPkce.CreateVerifier() : null;
+            return Results.Ok(new
+            {
+                authUrl = found.BuildAuthUrl(tokens.ProtectState(tenant.TenantId.Value, verifier), verifier),
+            });
         });
 
         // Telegram entra por formulario: bot token + chat, validados con getChat.
@@ -95,8 +94,7 @@ public static class SocialEndpoints
             return Results.Ok(AccountDto(account));
         });
 
-        social.MapDelete("/accounts/{id:guid}", async (
-            Guid id, ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
+        social.MapDelete("/accounts/{id:guid}", async (Guid id, SocialDbContext db, CancellationToken ct) =>
         {
             var account = await db.Accounts.FirstOrDefaultAsync(a => a.Id == id, ct);
             if (account is null) return Results.NoContent();
@@ -108,36 +106,28 @@ public static class SocialEndpoints
         // Callback OAuth público: el tenant viaja firmado en el state (15 min).
         group.MapGet("/social/oauth/callback/{connector}", async (
             string connector, string? code, string? state,
-            IEnumerable<ISocialConnector> connectors, XSocialChannel x,
+            IEnumerable<ISocialConnector> connectors,
             SocialTokenService tokens, SocialDbContext db, IOptions<SocialOptions> options,
             ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
             var logger = loggerFactory.CreateLogger("SocialOAuth");
             var returnUrl = options.Value.AdminReturnUrl;
-            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
-                return Results.Redirect($"{returnUrl}?social=error");
+            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state)) return Back(returnUrl, ok: false);
 
             var payload = tokens.TryUnprotectState(state);
-            if (payload is null) return Results.Redirect($"{returnUrl}?social=error");
+            if (payload is null) return Back(returnUrl, ok: false);
             var (tenantId, verifier) = payload.Value;
+
+            var found = connectors.FirstOrDefault(c => c.Key == connector);
+            if (found is null) return Back(returnUrl, ok: false);
 
             try
             {
-                Result<IReadOnlyList<SocialAccountCandidate>> result;
-                if (connector == "x" && verifier is not null)
-                {
-                    result = await x.CompleteConnectAsync(code, verifier, ct);
-                }
-                else
-                {
-                    var found = connectors.FirstOrDefault(c => c.Key == connector);
-                    if (found is null) return Results.Redirect($"{returnUrl}?social=error");
-                    result = await found.CompleteConnectAsync(code, ct);
-                }
+                var result = await found.CompleteConnectAsync(code, verifier, ct);
                 if (result.IsFailure)
                 {
                     logger.LogWarning("Conexión social {Connector} falló: {Error}", connector, result.Error.Message);
-                    return Results.Redirect($"{returnUrl}?social=error");
+                    return Back(returnUrl, ok: false);
                 }
 
                 foreach (var candidate in result.Value)
@@ -146,15 +136,18 @@ public static class SocialEndpoints
 
                 logger.LogInformation("{Count} cuenta(s) de {Connector} conectadas para tenant {TenantId}.",
                     result.Value.Count, connector, tenantId);
-                return Results.Redirect($"{returnUrl}?social=connected");
+                return Back(returnUrl, ok: true);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "OAuth social {Connector} falló para tenant {TenantId}.", connector, tenantId);
-                return Results.Redirect($"{returnUrl}?social=error");
+                return Back(returnUrl, ok: false);
             }
         });
     }
+
+    private static IResult Back(string returnUrl, bool ok) =>
+        Results.Redirect($"{returnUrl}?social={(ok ? "connected" : "error")}");
 
     /// <summary>Upsert por (tenant, provider, provider_id): reconectar repara el token, no duplica.</summary>
     private static async Task<SocialAccount> UpsertAccountAsync(
@@ -198,8 +191,7 @@ public static class SocialEndpoints
 
         // Lista para calendario y bandeja: rango por fecha efectiva (programada o creada).
         posts.MapGet("", async (
-            ITenantContext tenant, SocialDbContext db,
-            DateTime? from, DateTime? to, string? status, CancellationToken ct) =>
+            SocialDbContext db, DateTime? from, DateTime? to, string? status, CancellationToken ct) =>
         {
             var query = db.Posts.AsNoTracking();
             if (from is { } f) query = query.Where(p => (p.ScheduledAtUtc ?? p.CreatedAtUtc) >= AsUtc(f));
@@ -234,55 +226,36 @@ public static class SocialEndpoints
             return Results.Ok(PostDto(post, accounts));
         });
 
-        posts.MapPut("/{id:guid}", async (
-            Guid id, SocialPostRequest request, ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
-        {
-            var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id, ct);
-            if (post is null) return NotFound();
+        posts.MapPut("/{id:guid}", (Guid id, SocialPostRequest request, SocialDbContext db, CancellationToken ct) =>
+            MutatePostAsync(db, id, async post =>
+            {
+                var media = NormalizeMedia(request.MediaUrls);
+                if (media.IsFailure) return media.Error;
 
-            var media = NormalizeMedia(request.MediaUrls);
-            if (media.IsFailure) return media.Error.ToProblem();
+                var updated = post.UpdateContent(request.Content, media.Value);
+                if (updated.IsFailure) return updated.Error;
 
-            var updated = post.UpdateContent(request.Content, media.Value);
-            if (updated.IsFailure) return updated.Error.ToProblem();
-
-            var applied = await ApplyTargetsAsync(db, post, request.Targets, ct);
-            if (applied.IsFailure) return applied.Error.ToProblem();
-
-            await db.SaveChangesAsync(ct);
-            var accounts = await AccountsByIdAsync(db, post.Targets, ct);
-            return Results.Ok(PostDto(post, accounts));
-        });
+                var applied = await ApplyTargetsAsync(db, post, request.Targets, ct);
+                return applied.IsFailure ? applied.Error : null;
+            }, ct));
 
         // Programar (fecha futura) o publicar ya (sin fecha: el worker lo toma al toque).
-        posts.MapPost("/{id:guid}/schedule", async (
-            Guid id, SocialScheduleRequest request, ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
-        {
-            var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id, ct);
-            if (post is null) return NotFound();
+        posts.MapPost("/{id:guid}/schedule", (
+            Guid id, SocialScheduleRequest request, SocialDbContext db, CancellationToken ct) =>
+            MutatePostAsync(db, id, post =>
+            {
+                var result = post.Schedule(request.ScheduledAtUtc is { } d ? AsUtc(d) : null);
+                return Task.FromResult(result.IsFailure ? result.Error : (Error?)null);
+            }, ct));
 
-            var result = post.Schedule(request.ScheduledAtUtc is { } d ? AsUtc(d) : null);
-            if (result.IsFailure) return result.Error.ToProblem();
-            await db.SaveChangesAsync(ct);
-            var accounts = await AccountsByIdAsync(db, post.Targets, ct);
-            return Results.Ok(PostDto(post, accounts));
-        });
+        posts.MapPost("/{id:guid}/unschedule", (Guid id, SocialDbContext db, CancellationToken ct) =>
+            MutatePostAsync(db, id, post =>
+            {
+                var result = post.Unschedule();
+                return Task.FromResult(result.IsFailure ? result.Error : (Error?)null);
+            }, ct));
 
-        posts.MapPost("/{id:guid}/unschedule", async (
-            Guid id, ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
-        {
-            var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id, ct);
-            if (post is null) return NotFound();
-
-            var result = post.Unschedule();
-            if (result.IsFailure) return result.Error.ToProblem();
-            await db.SaveChangesAsync(ct);
-            var accounts = await AccountsByIdAsync(db, post.Targets, ct);
-            return Results.Ok(PostDto(post, accounts));
-        });
-
-        posts.MapDelete("/{id:guid}", async (
-            Guid id, ITenantContext tenant, SocialDbContext db, CancellationToken ct) =>
+        posts.MapDelete("/{id:guid}", async (Guid id, SocialDbContext db, CancellationToken ct) =>
         {
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id, ct);
             if (post is null) return Results.NoContent();
@@ -292,6 +265,24 @@ public static class SocialEndpoints
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });
+    }
+
+    /// <summary>
+    /// Esqueleto común de las mutaciones de un post: buscar → mutar (null =
+    /// ok, Error = problem) → guardar → devolver el DTO completo.
+    /// </summary>
+    private static async Task<IResult> MutatePostAsync(
+        SocialDbContext db, Guid id, Func<SocialPost, Task<Error?>> mutate, CancellationToken ct)
+    {
+        var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (post is null) return Error.NotFound("Social.PostNotFound", "Ese post no existe.").ToProblem();
+
+        var error = await mutate(post);
+        if (error is { } e) return e.ToProblem();
+
+        await db.SaveChangesAsync(ct);
+        var accounts = await AccountsByIdAsync(db, post.Targets, ct);
+        return Results.Ok(PostDto(post, accounts));
     }
 
     /// <summary>Valida que las cuentas destino existan en la tienda y aplica los targets.</summary>
@@ -363,9 +354,6 @@ public static class SocialEndpoints
         DateTimeKind.Local => value.ToUniversalTime(),
         _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
     };
-
-    private static IResult NotFound() =>
-        Error.NotFound("Social.PostNotFound", "Ese post no existe.").ToProblem();
 }
 
 public sealed record SocialTargetRequest(Guid AccountId, string? ContentOverride);

@@ -20,10 +20,6 @@ namespace Api.Endpoints;
 /// </summary>
 public static class MeliEndpoints
 {
-    // El cache de items se escribe camelCase (MeliSyncService usa Web defaults):
-    // leerlo sin las mismas opciones devuelve cantidades en 0 y títulos null.
-    private static readonly JsonSerializerOptions Json = ApiJson.Web;
-
     public static RouteGroupBuilder MapMeliEndpoints(this RouteGroupBuilder group)
     {
         MapConnection(group);
@@ -198,7 +194,7 @@ public static class MeliEndpoints
                     o.CurrencyId,
                     o.BuyerNickname,
                     o.BuyerId,
-                    items = JsonSerializer.Deserialize<List<MeliOrderItemSnapshot>>(o.ItemsJson, Json) ?? [],
+                    items = MeliSyncService.ParseSnapshot(o.ItemsJson),
                     o.ShipmentId,
                     o.StockApplied,
                 }),
@@ -222,7 +218,7 @@ public static class MeliEndpoints
                 revenue = paid.Sum(o => o.PaidAmount > 0 ? o.PaidAmount : o.TotalAmount),
                 currency = paid.Select(o => o.CurrencyId).FirstOrDefault() ?? "ARS",
                 unitsSold = paid.Sum(o =>
-                    (JsonSerializer.Deserialize<List<MeliOrderItemSnapshot>>(o.ItemsJson, Json) ?? []).Sum(i => i.Quantity)),
+                    MeliSyncService.ParseSnapshot(o.ItemsJson).Sum(i => i.Quantity)),
             });
         });
 

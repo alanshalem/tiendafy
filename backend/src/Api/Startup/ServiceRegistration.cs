@@ -136,6 +136,7 @@ public static class ServiceRegistration
         services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<Api.Social.MetaInstagramChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<Api.Social.XSocialChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddScoped<Api.Social.ISocialConnector>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
         services.AddHttpClient<Api.Social.TelegramChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaFacebookChannel>());
         services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaInstagramChannel>());

@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { Loader2, Plug, Users } from 'lucide-react';
 import { Badge, Button, EmptyList, Input, Modal, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { providerMeta, ProviderIcon, type SocialAccountDto, type SocialChannelsDto } from './redes-shared';
+import {
+  CONNECTOR_META,
+  connectorFor,
+  providerMeta,
+  ProviderIcon,
+  type SocialAccountDto,
+  type SocialChannelsDto,
+} from './redes-shared';
 
 // ---- Cuentas conectadas ------------------------------------------------------
 
@@ -54,8 +61,6 @@ export function CuentasTab({
 
   if (!channels || !accounts) return <Spinner />;
 
-  const connectorFor = (provider: string) => (provider.startsWith('meta_') ? 'meta' : provider);
-
   return (
     <div className="space-y-6">
       {/* Conectar redes */}
@@ -63,14 +68,10 @@ export function CuentasTab({
         {channels.connectors.map((c) => (
           <div key={c.key} className="rounded-lg border border-border bg-surface p-4 shadow-card">
             <div className="flex items-center gap-2.5">
-              <ProviderIcon provider={c.key === 'meta' ? 'meta_facebook' : c.key} />
+              <ProviderIcon provider={CONNECTOR_META[c.key]?.provider ?? c.key} />
               <span className="font-medium text-fg">{c.displayName}</span>
             </div>
-            <p className="mt-1.5 text-sm text-fg-muted">
-              {c.key === 'meta' && 'Páginas de Facebook y sus cuentas de Instagram Business.'}
-              {c.key === 'x' && 'Tu cuenta de X para publicar posts de texto.'}
-              {c.key === 'telegram' && 'Un canal o grupo, publicando con tu propio bot.'}
-            </p>
+            <p className="mt-1.5 text-sm text-fg-muted">{CONNECTOR_META[c.key]?.blurb}</p>
             {c.configured ? (
               <Button
                 variant="secondary"

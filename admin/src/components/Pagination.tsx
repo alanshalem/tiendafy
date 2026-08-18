@@ -1,5 +1,19 @@
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn, buildPageWindow } from '@tiendafy/ui';
+
+/**
+ * Paginado client-side de una lista ya filtrada (antes copiado entre Costos e
+ * Inventario). La página queda clampeada al total; al cambiar el filtro,
+ * llamá setPage(1) desde el onChange del input.
+ */
+export function usePagedList<T>(items: T[], pageSize = 20) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageClamped = Math.min(page, totalPages);
+  const pageItems = items.slice((pageClamped - 1) * pageSize, pageClamped * pageSize);
+  return { page: pageClamped, setPage, totalPages, pageItems };
+}
 
 /** Paginador: ‹ 1 … (p-1) p (p+1) … N › */
 export function Pagination({

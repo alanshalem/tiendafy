@@ -47,6 +47,8 @@ public interface ISocialChannel
 /// <summary>
 /// Flujo de conexión OAuth (un conector puede producir varias cuentas: el de
 /// Meta devuelve todas las páginas de Facebook y sus perfiles de Instagram).
+/// Con UsesPkce el endpoint genera el verifier y lo pasa (viaja dentro del
+/// state cifrado); los demás reciben null y lo ignoran.
 /// Telegram no tiene conector: se conecta con bot token por formulario.
 /// </summary>
 public interface ISocialConnector
@@ -54,6 +56,15 @@ public interface ISocialConnector
     string Key { get; }
     string DisplayName { get; }
     bool Configured { get; }
-    string BuildAuthUrl(string state);
-    Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, CancellationToken ct);
+    bool UsesPkce { get; }
+    string BuildAuthUrl(string state, string? verifier);
+    Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, string? verifier, CancellationToken ct);
+}
+
+/// <summary>Verifier PKCE (RFC 7636) para los conectores que lo exigen (X).</summary>
+public static class SocialPkce
+{
+    public static string CreateVerifier() =>
+        Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

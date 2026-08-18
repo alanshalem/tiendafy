@@ -17,7 +17,7 @@ namespace Api.Social;
 /// como mejora declarada (MaxImages=0).
 /// </summary>
 public sealed class XSocialChannel(HttpClient http, IOptions<SocialOptions> options, ILogger<XSocialChannel> logger)
-    : ISocialChannel
+    : ISocialChannel, ISocialConnector
 {
     private readonly SocialOptions.XSection _o = options.Value.X;
 
@@ -25,13 +25,13 @@ public sealed class XSocialChannel(HttpClient http, IOptions<SocialOptions> opti
     public string DisplayName => "X (Twitter)";
     public SocialChannelLimits Limits => new(MaxChars: 280, MaxImages: 0, RequiresMedia: false);
     public bool Configured => _o.Configured;
+    public bool UsesPkce => true;
 
     // ---------------------------------------------------------------- Connect
-    // X no entra en ISocialConnector: su PKCE necesita el verifier (que viaja
-    // dentro del state cifrado) — el endpoint lo maneja con estos métodos.
 
-    public string BuildAuthUrl(string state, string verifier)
+    public string BuildAuthUrl(string state, string? verifier)
     {
+        ArgumentException.ThrowIfNullOrEmpty(verifier); // UsesPkce: el endpoint siempre lo genera
         var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
         return OAuth2.BuildAuthorizationUrl(_o.AuthBaseUrl, new Dictionary<string, string>
         {
@@ -45,10 +45,9 @@ public sealed class XSocialChannel(HttpClient http, IOptions<SocialOptions> opti
         });
     }
 
-    public static string CreateVerifier() => Base64Url(RandomNumberGenerator.GetBytes(48));
-
-    public async Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, string verifier, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<SocialAccountCandidate>>> CompleteConnectAsync(string code, string? verifier, CancellationToken ct)
     {
+        ArgumentException.ThrowIfNullOrEmpty(verifier);
         var token = await RequestTokenAsync(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",

@@ -12,7 +12,9 @@ export function useVariantStock(products: { variants: { id: string }[] }[]): Map
   const { store } = useStore();
   const variantIds = products.flatMap((p) => p.variants.map((v) => v.id));
   const { data: stock } = useQuery({
-    queryKey: ['inventory', store?.id, variantIds.length],
+    // La clave lleva los IDs (no la cantidad): dos búsquedas con el mismo
+    // total de variantes son consultas DISTINTAS y deben refetchear.
+    queryKey: ['inventory', store?.id, variantIds.join(',')],
     queryFn: () => fetchStockChunked(variantIds),
     enabled: !!store && variantIds.length > 0,
   });

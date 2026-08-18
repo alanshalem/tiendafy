@@ -104,10 +104,7 @@ function TelegramIcon({ className }: IconProps) {
   );
 }
 
-export const PROVIDER_META: Record<
-  string,
-  { label: string; icon: ComponentType<IconProps>; className: string }
-> = {
+const PROVIDER_META: Record<string, { label: string; icon: ComponentType<IconProps>; className: string }> = {
   meta_facebook: { label: 'Facebook', icon: FacebookIcon, className: 'bg-[#1877f2] text-white' },
   meta_instagram: {
     label: 'Instagram',
@@ -143,12 +140,23 @@ export function ProviderIcon({ provider, size = 'md' }: { provider: string | nul
   );
 }
 
-export const POST_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
-  Draft: { label: 'Borrador', variant: 'neutral' },
-  Scheduled: { label: 'Programado', variant: 'info' },
-  Published: { label: 'Publicado', variant: 'success' },
-  Failed: { label: 'Con errores', variant: 'danger' },
+/** Estado del post: label, badge y color de punto (calendario) en UN mapa. */
+export const POST_STATUS: Record<string, { label: string; variant: BadgeVariant; dot: string }> = {
+  Draft: { label: 'Borrador', variant: 'neutral', dot: 'bg-fg-subtle' },
+  Scheduled: { label: 'Programado', variant: 'info', dot: 'bg-info' },
+  Published: { label: 'Publicado', variant: 'success', dot: 'bg-success' },
+  Failed: { label: 'Con errores', variant: 'danger', dot: 'bg-danger' },
 };
+
+/** Conector OAuth → red representativa (icono) y blurb del panel de cuentas. */
+export const CONNECTOR_META: Record<string, { provider: string; blurb: string }> = {
+  meta: { provider: 'meta_facebook', blurb: 'Páginas de Facebook y sus cuentas de Instagram Business.' },
+  x: { provider: 'x', blurb: 'Tu cuenta de X para publicar posts de texto.' },
+  telegram: { provider: 'telegram', blurb: 'Un canal o grupo, publicando con tu propio bot.' },
+};
+
+/** Red → conector que la reconecta (meta_facebook y meta_instagram → meta). */
+export const connectorFor = (provider: string): string => (provider.startsWith('meta_') ? 'meta' : provider);
 
 export function postStatus(post: SocialPostDto): { label: string; variant: BadgeVariant } {
   if (post.scheduleStatus === 'Processing') return { label: 'Publicando…', variant: 'info' };

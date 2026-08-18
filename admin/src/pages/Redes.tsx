@@ -95,6 +95,7 @@ export function RedesPage() {
           {tab !== 'cuentas' && (
             <Button
               onClick={() => {
+                if (accounts === null) return; // todavía cargando
                 if (!hasAuthorized) {
                   toast('Conectá una cuenta primero (pestaña Cuentas).', { variant: 'error' });
                   setTab('cuentas');
@@ -111,10 +112,11 @@ export function RedesPage() {
 
       {tab === 'calendario' && (
         <CalendarioTab
-          posts={posts ?? []}
+          posts={posts}
           month={month}
           onMonthChange={setMonth}
           onDayClick={(day) => {
+            if (accounts === null) return;
             if (!hasAuthorized) {
               setTab('cuentas');
               return;
@@ -130,7 +132,7 @@ export function RedesPage() {
       )}
       {tab === 'publicaciones' && (
         <PublicacionesTab
-          posts={posts ?? []}
+          posts={posts}
           onChanged={loadPosts}
           onEdit={(post) => setComposer({ post, date: null })}
         />
