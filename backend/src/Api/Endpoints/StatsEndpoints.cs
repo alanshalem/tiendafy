@@ -232,6 +232,10 @@ public static class StatsEndpoints
             var topPaths = views.GroupBy(v => v.Path)
                 .Select(g => new { path = g.Key, views = g.Count() })
                 .OrderByDescending(x => x.views).Take(10).ToList();
+            // De dónde viene el tráfico (utm_source de los links: redes, email…).
+            var topSources = views.GroupBy(v => v.UtmSource ?? "directo")
+                .Select(g => new { source = g.Key, views = g.Count() })
+                .OrderByDescending(x => x.views).Take(8).ToList();
 
             return Results.Ok(new
             {
@@ -239,6 +243,7 @@ public static class StatsEndpoints
                 uniqueVisitors = views.Select(v => v.VisitorId).Distinct().Count(),
                 series,
                 topPaths,
+                topSources,
             });
         });
 

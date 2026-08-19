@@ -517,6 +517,34 @@ public static class ProductEndpoints
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
 
+        // ---- Repreciación masiva ----
+        // Llegó el contenedor con dólar nuevo: +X% a todo (o a una categoría)
+        // con redondeo comercial, en un click — no variante por variante.
+        products.MapPost("/reprice", async (
+            RepriceRequest request, HttpContext http, ITenantContext tenant,
+            IProductRepository repository, UpdateProductHandler handler, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+            var rounding = request.Rounding ?? "none";
+            if (rounding is not ("none" or "100" or "1000" or "990"))
+                return Error.Validation("Product.BadRounding", "Redondeo inválido.").ToProblem();
+
+            var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
+            var targets = all
+                .Where(p => p.Status != ProductStatus.Archived)
+                .Where(p => request.CategoryId is not { } cat || p.CategoryIds.Contains(cat))
+                .Select(p => p.Id)
+                .ToList();
+            if (targets.Count == 0)
+                return Error.Validation("Product.NoTargets", "No hay productos que repreciar con ese filtro.").ToProblem();
+
+            var result = await handler.RepriceAsync(
+                new RepriceCommand(tenant.TenantId, targets, request.Percent, rounding), ct);
+            return result.IsSuccess
+                ? Results.Ok(new { products = result.Value.Products, variants = result.Value.Variants })
+                : result.Error.ToProblem();
+        });
+
         // ---- Costos por variante (rentabilidad) ----
         // Dato interno del merchant: NUNCA viaja en los DTOs públicos del catálogo.
         // Lectura y escritura exigen permiso de catálogo explícito (no ForWrites:
@@ -687,6 +715,7 @@ public sealed record AddImageRequest(string Url, string? AltText);
 
 public sealed record SetCategoriesRequest(List<Guid>? CategoryIds);
 
+public sealed record RepriceRequest(decimal Percent, Guid? CategoryId, string? Rounding);
 public sealed record SetBarcodeRequest(string? Barcode);
 
 public sealed record KitComponentEntry(Guid ComponentVariantId, int Quantity);

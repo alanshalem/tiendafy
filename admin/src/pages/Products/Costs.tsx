@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Loader2, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, useToast } from '@tiendafy/ui';
+import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { fetchAllProducts, matchesProduct } from '../../lib/products';
@@ -42,6 +43,7 @@ export function CostsPage() {
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
+  const [repriceOpen, setRepriceOpen] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', store?.id],
@@ -115,14 +117,21 @@ export function CostsPage() {
         </p>
       </div>
 
-      <Input
-        placeholder="Buscar por producto o SKU…"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPageList(1);
-        }}
-      />
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1">
+          <Input
+            placeholder="Buscar por producto o SKU…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPageList(1);
+            }}
+          />
+        </div>
+        <Button variant="secondary" className="shrink-0" onClick={() => setRepriceOpen(true)}>
+          <TrendingUp className="h-4 w-4" /> Repreciar en masa
+        </Button>
+      </div>
 
       <Card flush>
         <div className="overflow-x-auto">
@@ -209,7 +218,125 @@ export function CostsPage() {
       </Card>
 
       <Pagination page={pageClamped} totalPages={totalPages} onPage={setPageList} />
+      {repriceOpen && <RepriceModal onClose={() => setRepriceOpen(false)} />}
       <HelpLink id="rentabilidad" />
     </div>
+  );
+}
+
+// ---- Repreciacion masiva -----------------------------------------------------
+
+/**
+ * Llego el contenedor con dolar nuevo: +X% a todo el catalogo (o a una
+ * categoria) con redondeo comercial, en dos clicks.
+ */
+function RepriceModal({ onClose }: { onClose: () => void }) {
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const confirm = useConfirm();
+  const [percent, setPercent] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [rounding, setRounding] = useState('990');
+  const [busy, setBusy] = useState(false);
+
+  const { data: cats } = useQuery({
+    queryKey: ['categories', store?.id],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/categories'),
+    enabled: !!store,
+  });
+
+  const apply = async () => {
+    const pct = Number(percent);
+    if (!Number.isFinite(pct) || pct === 0) {
+      toast('Ingresa un porcentaje distinto de cero.', { variant: 'error' });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Repreciar en masa',
+      message: `Se ${pct > 0 ? 'aumentan' : 'bajan'} los precios ${Math.abs(pct)}%${categoryId ? ' de la categoria elegida' : ' de TODO el catalogo'}. Impacta en la tienda al instante y no se puede deshacer en bloque.`,
+      confirmLabel: 'Repreciar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const r = await api.post<{ products: number; variants: number }>('/api/v1/products/reprice', {
+        percent: pct,
+        categoryId: categoryId || null,
+        rounding,
+      });
+      toast(`Listo: ${r.variants} precios actualizados en ${r.products} productos.`, { variant: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+      queryClient.invalidateQueries({ queryKey: ['variant-costs', store?.id] });
+      onClose();
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo repreciar.'), { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Repreciar en masa"
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={apply} disabled={busy || !percent}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Repreciar
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-fg-muted">
+        Sube (o baja) todos los precios en un porcentaje, con redondeo comercial. Los precios tachados de
+        oferta se ajustan igual, asi la promo mantiene su descuento relativo.
+      </p>
+      <div className="mt-4 space-y-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Porcentaje (+ sube / - baja)</label>
+          <div className="w-40">
+            <Input
+              type="number"
+              step="0.5"
+              placeholder="Ej: 12"
+              value={percent}
+              onChange={(e) => setPercent(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Alcance</label>
+          <Select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            options={[
+              { value: '', label: 'Todo el catalogo' },
+              ...(cats?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-fg">Redondeo</label>
+          <Select
+            value={rounding}
+            onChange={(e) => setRounding(e.target.value)}
+            options={[
+              { value: '990', label: 'Terminacion $990 (ej: $45.990)' },
+              { value: '1000', label: 'Al $1.000 mas cercano' },
+              { value: '100', label: 'Al $100 mas cercano' },
+              { value: 'none', label: 'Sin redondeo' },
+            ]}
+          />
+        </div>
+      </div>
+    </Modal>
   );
 }

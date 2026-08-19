@@ -34,6 +34,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("access_token_enc");
 
+                    b.Property<bool>("AutoInvoiceEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_invoice_enabled");
+
                     b.Property<DateTime>("ConnectedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("connected_at_utc");
@@ -59,6 +63,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)")
                         .HasColumnName("site_id");
+
+                    b.Property<int>("StockBufferUnits")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock_buffer_units");
 
                     b.Property<bool>("StockSyncEnabled")
                         .HasColumnType("boolean")

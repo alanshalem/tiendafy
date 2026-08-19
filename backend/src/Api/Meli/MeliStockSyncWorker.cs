@@ -56,7 +56,10 @@ public sealed class MeliStockSyncWorker(
 
         foreach (var link in links)
         {
-            var available = availableByVariant.GetValueOrDefault(link.VariantId, 0);
+            // Colchón anti-oversell entre canales: ML se entera DESPUÉS de cada
+            // venta, así que se publica stock − buffer para absorber la ventana.
+            var available = Math.Max(
+                0, availableByVariant.GetValueOrDefault(link.VariantId, 0) - connection.StockBufferUnits);
             if (link.LastPushedQty == available) continue;
 
             token ??= await tokens.GetValidTokenAsync(connection.TenantId, ct);

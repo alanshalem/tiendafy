@@ -154,6 +154,42 @@ public static class FiscalEndpoints
         });
 
         // --- Emisión manual -----------------------------------------------------------
+        // Libro IVA ventas del mes en CSV (para el contador): comprobantes
+        // APROBADOS con neto/IVA/total, separador ; y BOM (Excel argentino).
+        fiscal.MapGet("/documents/export", async (
+            int year, int month, ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
+        {
+            if (year < 2020 || month is < 1 or > 12)
+                return Error.Validation("Fiscal.BadPeriod", "Período inválido.").ToProblem();
+            var from = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var to = from.AddMonths(1);
+
+            var docs = await db.Documents.AsNoTracking()
+                .Where(d => d.Result == FiscalResult.Authorized && d.CreatedAtUtc >= from && d.CreatedAtUtc < to)
+                .OrderBy(d => d.PtoVta).ThenBy(d => d.Number)
+                .ToListAsync(ct);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Fecha;Tipo;Punto de venta;Numero;Doc receptor;Neto;IVA;Total;CAE");
+            var ar = System.Globalization.CultureInfo.GetCultureInfo("es-AR");
+            foreach (var d in docs)
+            {
+                sb.Append(d.CreatedAtUtc.ToString("dd/MM/yyyy")).Append(';')
+                  .Append(d.CbteTipo).Append(';')
+                  .Append(d.PtoVta.ToString("0000")).Append(';')
+                  .Append(d.Number.ToString("00000000")).Append(';')
+                  .Append(d.DocNro == 0 ? "Consumidor final" : d.DocNro.ToString()).Append(';')
+                  .Append(d.ImpNeto.ToString("0.00", ar)).Append(';')
+                  .Append(d.ImpIVA.ToString("0.00", ar)).Append(';')
+                  .Append(d.ImpTotal.ToString("0.00", ar)).Append(';')
+                  .Append(d.Cae ?? "")
+                  .AppendLine();
+            }
+            var bytes = System.Text.Encoding.UTF8.GetPreamble()
+                .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+            return Results.File(bytes, "text/csv", $"libro-iva-ventas-{year}-{month:00}.csv");
+        });
+
         // Gateado con FiscalEmit (más restrictivo que FiscalConfig). Emite un
         // comprobante puntual desde el admin (sin orden asociada).
         var emit = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalEmit);

@@ -22,7 +22,8 @@ public sealed record MeliOrderItemSnapshot(
 /// </summary>
 public sealed class MeliSyncService(
     MeliDbContext db, MeliClient client, MeliTokenService tokens,
-    IStockRepository stock, ILogger<MeliSyncService> logger)
+    IStockRepository stock, global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter,
+    ILogger<MeliSyncService> logger)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Web;
 
@@ -89,6 +90,36 @@ public sealed class MeliSyncService(
         {
             await ApplyStockAsync(tenantId, meliOrderId, items, ct);
             row.MarkStockApplied();
+        }
+
+        // Auto-facturación (opt-in por conexión): emite ARCA a consumidor final
+        // al importar la venta pagada. Best-effort: si ARCA falla, queda el
+        // botón manual "Facturar" en el panel.
+        if (row.IsPaid && row.FiscalDocumentId is null)
+        {
+            var conn = await db.Connections.IgnoreQueryFilters().AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
+            if (conn?.AutoInvoiceEnabled == true)
+            {
+                try
+                {
+                    var amount = row.PaidAmount > 0 ? row.PaidAmount : row.TotalAmount;
+                    var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+                    if (minor > 0)
+                    {
+                        var emitted = await emitter.EmitAsync(
+                            new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenantId, OrderId: null, minor), ct);
+                        if (emitted is { IsSuccess: true, Value.Authorized: true })
+                            row.MarkInvoiced(emitted.Value.DocumentId);
+                        else
+                            logger.LogWarning("Auto-factura ML rechazada (venta {OrderId}).", meliOrderId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Auto-factura ML falló (venta {OrderId}).", meliOrderId);
+                }
+            }
         }
 
         await db.SaveChangesAsync(ct);

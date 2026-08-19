@@ -26,6 +26,7 @@ public sealed class AnalyticsDbContext : DbContext
         pv.HasQueryFilter(p => !_filterByTenant || p.TenantId == _tenantGuid);
         pv.Property(p => p.Path).HasMaxLength(512);
         pv.Property(p => p.Referrer).HasMaxLength(512);
+        pv.Property(p => p.UtmSource).HasMaxLength(40);
         pv.Property(p => p.VisitorId).HasMaxLength(64);
         pv.Property(p => p.SessionId).HasMaxLength(64);
         pv.HasIndex(p => new { p.TenantId, p.OccurredAtUtc });

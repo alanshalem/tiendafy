@@ -101,6 +101,11 @@ namespace Analytics.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
+                    b.Property<string>("UtmSource")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("utm_source");
+
                     b.Property<string>("VisitorId")
                         .IsRequired()
                         .HasMaxLength(64)

@@ -27,6 +27,12 @@ public sealed class MeliConnection
     /// <summary>Sincronizar stock Tiendafy → ML para publicaciones vinculadas.</summary>
     public bool StockSyncEnabled { get; private set; }
 
+    /// <summary>Colchón anti-oversell entre canales: en ML se publica stock − buffer.</summary>
+    public int StockBufferUnits { get; private set; }
+
+    /// <summary>Emitir factura ARCA automáticamente al importar cada venta pagada.</summary>
+    public bool AutoInvoiceEnabled { get; private set; }
+
     public DateTime ConnectedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -72,9 +78,11 @@ public sealed class MeliConnection
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void SetStockSync(bool enabled)
+    public void SetStockSync(bool enabled, int? bufferUnits = null, bool? autoInvoice = null)
     {
         StockSyncEnabled = enabled;
+        if (bufferUnits is { } buffer) StockBufferUnits = Math.Clamp(buffer, 0, 1000);
+        if (autoInvoice is { } auto) AutoInvoiceEnabled = auto;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }

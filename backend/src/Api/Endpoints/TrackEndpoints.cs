@@ -11,7 +11,7 @@ public static class TrackEndpoints
         group.MapPost("/track", async (TrackRequest req, ITenantContext tenant, AnalyticsDbContext db, CancellationToken ct) =>
         {
             if (!tenant.HasTenant) return Results.NoContent();
-            db.PageViews.Add(PageView.Create(tenant.TenantId.Value, req.Path, req.Referrer, req.VisitorId, req.SessionId));
+            db.PageViews.Add(PageView.Create(tenant.TenantId.Value, req.Path, req.Referrer, req.VisitorId, req.SessionId, req.UtmSource));
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });
@@ -20,4 +20,4 @@ public static class TrackEndpoints
     }
 }
 
-public sealed record TrackRequest(string? Path, string? Referrer, string? VisitorId, string? SessionId);
+public sealed record TrackRequest(string? Path, string? Referrer, string? VisitorId, string? SessionId, string? UtmSource = null);

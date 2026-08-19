@@ -21,6 +21,17 @@ public sealed record ChangeVariantPriceCommand(
 public sealed record AddImageCommand(TenantId TenantId, Guid ProductId, string Url, string? AltText);
 
 /// <summary>Costos por variante (null = borrar). Solo admin: nunca sale por DTOs públicos.</summary>
+/// <summary>
+/// Repreciación masiva (supervivencia con inflación): sube o baja el precio de
+/// todas las variantes de los productos dados en un porcentaje, con redondeo
+/// comercial opcional. Rounding: "none" | "100" | "1000" | "990" (terminación).
+/// </summary>
+public sealed record RepriceCommand(
+    TenantId TenantId,
+    IReadOnlyList<Guid> ProductIds,
+    decimal Percent,
+    string Rounding);
+
 public sealed record SetVariantCostsCommand(
     TenantId TenantId, Guid ProductId, IReadOnlyList<(Guid VariantId, long? CostAmount)> Costs, string Currency);
 
@@ -116,6 +127,49 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         await unitOfWork.SaveChangesAsync(ct);
         return Result.Success();
     }
+
+    public async Task<Result<(int Products, int Variants)>> RepriceAsync(RepriceCommand command, CancellationToken ct = default)
+    {
+        if (command.Percent is < -90 or > 500)
+            return Result.Failure<(int, int)>(Error.Validation(
+                "Product.BadPercent", "El porcentaje tiene que estar entre -90% y +500%."));
+
+        var factor = 1 + command.Percent / 100m;
+        int products = 0, variants = 0;
+        foreach (var productId in command.ProductIds)
+        {
+            var loaded = await LoadAsync(command.TenantId, productId, ct);
+            if (loaded.IsFailure) continue; // borrado en el medio: seguir con el resto
+            var product = loaded.Value;
+
+            var touched = false;
+            foreach (var variant in product.Variants.ToList())
+            {
+                var newPrice = ApplyRounding((long)Math.Round(variant.Price.AmountInMinorUnits * factor), command.Rounding);
+                var newCompareAt = variant.CompareAtPrice is { } cmp
+                    ? new Money(ApplyRounding((long)Math.Round(cmp.AmountInMinorUnits * factor), command.Rounding), cmp.Currency)
+                    : (Money?)null;
+                var result = product.ChangeVariantPrice(
+                    variant.Id, new Money(newPrice, variant.Price.Currency), newCompareAt);
+                if (result.IsFailure) return Result.Failure<(int, int)>(result.Error);
+                touched = true;
+                variants++;
+            }
+            if (touched) products++;
+        }
+
+        await unitOfWork.SaveChangesAsync(ct);
+        return (products, variants);
+    }
+
+    /// <summary>Redondeo comercial en centavos: al $100, al $1000 o terminación $990.</summary>
+    private static long ApplyRounding(long minor, string rounding) => rounding switch
+    {
+        "100" => Math.Max(100_00, (long)Math.Round(minor / 100_00m) * 100_00),
+        "1000" => Math.Max(1000_00, (long)Math.Round(minor / 1000_00m) * 1000_00),
+        "990" => Math.Max(990_00, (long)Math.Round(minor / 1000_00m) * 1000_00 - 10_00),
+        _ => minor,
+    };
 
     public async Task<Result> SetVariantCostsAsync(SetVariantCostsCommand command, CancellationToken ct = default)
     {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Store } from 'lucide-react';
-import { Button, Switch, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, Input, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
@@ -15,6 +15,8 @@ interface MeliConnection {
   meliUserId: number | null;
   siteId: string | null;
   stockSyncEnabled: boolean;
+  stockBufferUnits: number;
+  autoInvoiceEnabled: boolean;
   connectedAtUtc: string | null;
 }
 
@@ -82,13 +84,21 @@ export function MeliSettingsPage() {
     }
   };
 
-  const setStockSync = async (enabled: boolean) => {
+  const saveSettings = async (patch: {
+    stockSyncEnabled?: boolean;
+    stockBufferUnits?: number;
+    autoInvoiceEnabled?: boolean;
+  }) => {
+    if (!connection) return;
     try {
-      await api.put('/api/v1/admin/meli/settings', { stockSyncEnabled: enabled });
-      setConnection((c) => (c ? { ...c, stockSyncEnabled: enabled } : c));
-      toast(enabled ? 'Sincronización de stock activada' : 'Sincronización de stock desactivada', {
-        variant: 'success',
-      });
+      const body = {
+        stockSyncEnabled: patch.stockSyncEnabled ?? connection.stockSyncEnabled,
+        stockBufferUnits: patch.stockBufferUnits ?? connection.stockBufferUnits,
+        autoInvoiceEnabled: patch.autoInvoiceEnabled ?? connection.autoInvoiceEnabled,
+      };
+      await api.put('/api/v1/admin/meli/settings', body);
+      setConnection((c) => (c ? { ...c, ...body } : c));
+      toast('Configuración guardada', { variant: 'success' });
     } catch (err) {
       toast(errMsg(err, 'No se pudo guardar.'), { variant: 'error' });
     }
@@ -158,9 +168,36 @@ export function MeliSettingsPage() {
           <div className="mt-5 space-y-4 border-t border-border pt-4">
             <Switch
               checked={connection.stockSyncEnabled}
-              onChange={setStockSync}
+              onChange={(enabled) => saveSettings({ stockSyncEnabled: enabled })}
               label="Sincronizar stock con Mercado Libre"
               description="Cada venta en ML descuenta stock acá, y los cambios de stock locales se empujan a las publicaciones vinculadas (cada ~5 minutos)."
+            />
+            <div className="flex items-center gap-3">
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  defaultValue={connection.stockBufferUnits}
+                  onBlur={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0);
+                    if (v !== connection.stockBufferUnits) saveSettings({ stockBufferUnits: v });
+                  }}
+                />
+              </div>
+              <div className="text-sm">
+                <p className="font-medium text-fg">Colchón anti-sobreventa (unidades)</p>
+                <p className="text-fg-muted">
+                  En ML se publica stock − colchón: absorbe la ventana entre una venta local y el aviso a ML.
+                  0 = publicar todo el stock.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={connection.autoInvoiceEnabled}
+              onChange={(enabled) => saveSettings({ autoInvoiceEnabled: enabled })}
+              label="Facturar automáticamente las ventas de ML"
+              description="Cada venta pagada que se importa emite su comprobante ARCA a consumidor final (necesita la facturación configurada). Si ARCA falla, queda el botón Facturar manual."
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="secondary" onClick={refreshOrders} disabled={busy}>

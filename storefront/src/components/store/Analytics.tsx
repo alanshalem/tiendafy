@@ -23,10 +23,21 @@ export function Analytics({ tenantId }: { tenantId: string }) {
     try {
       const visitorId = persistentId('tiendafy.vid', localStorage);
       const sessionId = persistentId('tiendafy.sid', sessionStorage);
+      // Fuente de la visita (utm_source de campañas/redes): first-touch por
+      // sesión — llega en la primera URL y se recuerda el resto de la visita.
+      const fromUrl = new URLSearchParams(window.location.search).get('utm_source');
+      if (fromUrl) sessionStorage.setItem('tiendafy.utm', fromUrl);
+      const utmSource = fromUrl ?? sessionStorage.getItem('tiendafy.utm');
       fetch(`${API}/api/v1/track`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ path: pathname, referrer: document.referrer || null, visitorId, sessionId }),
+        body: JSON.stringify({
+          path: pathname,
+          referrer: document.referrer || null,
+          visitorId,
+          sessionId,
+          utmSource,
+        }),
         keepalive: true,
       }).catch(() => {});
     } catch {

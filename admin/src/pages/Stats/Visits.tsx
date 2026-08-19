@@ -17,6 +17,7 @@ interface Visits {
   uniqueVisitors: number;
   series: { date: string; views: number; visitors: number }[];
   topPaths: { path: string; views: number }[];
+  topSources: { source: string; views: number }[];
 }
 
 export function StatsVisitsPage() {
@@ -58,6 +59,24 @@ export function StatsVisitsPage() {
               <Sparkline data={data.series.map((s) => s.visitors)} />
             </KpiCard>
           </div>
+
+          <ChartCard
+            title="Fuentes de tráfico"
+            info="De dónde vienen las visitas: los links con utm_source (redes, email) se atribuyen a su canal; el resto es directo u orgánico."
+          >
+            {data.topSources.length === 0 ? (
+              <p className="py-4 text-sm text-fg-muted">Sin visitas en el período.</p>
+            ) : (
+              <ul className="space-y-1.5 text-sm">
+                {data.topSources.map((src) => (
+                  <li key={src.source} className="flex items-center justify-between">
+                    <span className="capitalize text-fg">{src.source}</span>
+                    <span className="tabular-nums text-fg-muted">{src.views.toLocaleString('es-AR')}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ChartCard>
 
           <ChartCard
             title="Páginas más vistas"

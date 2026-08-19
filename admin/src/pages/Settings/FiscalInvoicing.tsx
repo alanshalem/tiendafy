@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import { Download, Loader2, Lock } from 'lucide-react';
 import { useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
+import { downloadBlob } from '../../lib/download';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
@@ -55,6 +56,7 @@ export function FiscalInvoicingPage() {
       <SettingsHeader
         title="Facturación electrónica (ARCA)"
         description="Conectá tu tienda con ARCA para emitir facturas oficiales de tus ventas."
+        action={<ExportLibroIva />}
       />
 
       {!canConfig ? (
@@ -91,6 +93,51 @@ function NoPermission() {
         La configuración fiscal solo la pueden tocar los roles Dueño, Administrador o Finanzas. Si necesitás
         acceso, pedile a un administrador de la tienda que ajuste tu rol.
       </p>
+    </div>
+  );
+}
+
+// ---- Libro IVA ventas --------------------------------------------------------
+
+/** El CSV mensual que pide el contador: comprobantes aprobados con neto/IVA/total. */
+function ExportLibroIva() {
+  const { toast } = useToast();
+  const now = new Date();
+  const [period, setPeriod] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    const [year, month] = period.split('-').map(Number);
+    if (!year || !month) return;
+    setBusy(true);
+    try {
+      const blob = await api.download(`/api/v1/fiscal/documents/export?year=${year}&month=${month}`);
+      downloadBlob(blob, `libro-iva-ventas-${period}.csv`);
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo exportar el período.'), { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="month"
+        value={period}
+        onChange={(e) => setPeriod(e.target.value)}
+        className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+      <button
+        type="button"
+        onClick={download}
+        disabled={busy}
+        className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border-strong px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+        title="CSV con los comprobantes aprobados del mes: fecha, tipo, número, neto, IVA, total y CAE."
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Libro IVA
+      </button>
     </div>
   );
 }
