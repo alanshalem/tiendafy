@@ -51,8 +51,9 @@ de cada una — qué conseguir y dónde — está en
 
 ### Storefront (Next.js)
 Ver `storefront/.env.example`. Claves: `API_URL`, `NEXT_PUBLIC_API_URL`,
-`NEXT_PUBLIC_ADMIN_URL`, `NEXT_PUBLIC_ADMIN_ORIGIN` (**requerida en prod** —
-valida el origin del postMessage del editor de temas), `PLATFORM_BASE_DOMAIN`.
+`NEXT_PUBLIC_ADMIN_ORIGIN` (**requerida en prod** — es el link al panel desde
+la portada y valida el origin del postMessage del editor de temas),
+`PLATFORM_BASE_DOMAIN`.
 
 ### Admin (Vite)
 Ver `admin/.env.example`. Clave: `VITE_API_URL` (se hornea en el build estático).
