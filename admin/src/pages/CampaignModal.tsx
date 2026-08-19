@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, Search, Send, XCircle } from 'lucide-react';
+import { Check, Loader2, Plus, Search, Send, X, XCircle } from 'lucide-react';
 import { Button, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
@@ -13,6 +13,8 @@ import type { MoneyDto } from '@tiendafy/types';
 
 interface AudienceSpec {
   type: 'buyers' | 'customers' | 'custom';
+  boughtProductIds?: string[] | null;
+  favoritedProductIds?: string[] | null;
   minSpentMinor?: number | null;
   minOrders?: number | null;
   purchasedWithinDays?: number | null;
@@ -102,6 +104,10 @@ export function CampaignModal({
     spec?.purchasedWithinDays ? String(spec.purchasedWithinDays) : '',
   );
   const [inactiveDays, setInactiveDays] = useState(spec?.inactiveForDays ? String(spec.inactiveForDays) : '');
+  // Segmentación por catálogo: a los que compraron esto, o a los que lo tienen
+  // en favoritos (la lista con más intención de compra de la tienda).
+  const [boughtIds, setBoughtIds] = useState<string[]>(spec?.boughtProductIds ?? []);
+  const [favoritedIds, setFavoritedIds] = useState<string[]>(spec?.favoritedProductIds ?? []);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set(spec?.emails ?? []));
   const [couponCode, setCouponCode] = useState(campaign?.couponCode ?? '');
   const [products, setProducts] = useState<CampaignProduct[]>(campaign?.products ?? []);
@@ -121,6 +127,8 @@ export function CampaignModal({
     purchasedWithinDays: audience !== 'custom' && withinDays ? Number(withinDays) : null,
     inactiveForDays: audience !== 'custom' && inactiveDays ? Number(inactiveDays) : null,
     emails: audience === 'custom' ? [...selectedEmails] : null,
+    boughtProductIds: audience !== 'custom' && boughtIds.length ? boughtIds : null,
+    favoritedProductIds: audience !== 'custom' && favoritedIds.length ? favoritedIds : null,
     couponCode: couponCode || null,
     products,
   });
@@ -138,12 +146,14 @@ export function CampaignModal({
           purchasedWithinDays: audience !== 'custom' && withinDays ? Number(withinDays) : null,
           inactiveForDays: audience !== 'custom' && inactiveDays ? Number(inactiveDays) : null,
           emails: audience === 'custom' ? [...selectedEmails] : null,
+          boughtProductIds: audience !== 'custom' && boughtIds.length ? boughtIds : null,
+          favoritedProductIds: audience !== 'custom' && favoritedIds.length ? favoritedIds : null,
         })
         .then((r) => setAudienceCount(r.count))
         .catch(() => setAudienceCount(null));
     }, 400);
     return () => clearTimeout(t);
-  }, [audience, minSpent, minOrders, withinDays, inactiveDays, selectedEmails]);
+  }, [audience, minSpent, minOrders, withinDays, inactiveDays, selectedEmails, boughtIds, favoritedIds]);
 
   // Preview brandeada en vivo (debounced): idéntica al email real.
   useEffect(() => {
@@ -287,6 +297,10 @@ export function CampaignModal({
             setWithinDays={setWithinDays}
             inactiveDays={inactiveDays}
             setInactiveDays={setInactiveDays}
+            boughtIds={boughtIds}
+            setBoughtIds={setBoughtIds}
+            favoritedIds={favoritedIds}
+            setFavoritedIds={setFavoritedIds}
             selectedEmails={selectedEmails}
             setSelectedEmails={setSelectedEmails}
             audienceCount={audienceCount}
@@ -393,6 +407,10 @@ function AudienceBuilder(props: {
   setInactiveDays: (v: string) => void;
   selectedEmails: Set<string>;
   setSelectedEmails: (s: Set<string>) => void;
+  boughtIds: string[];
+  setBoughtIds: (v: string[]) => void;
+  favoritedIds: string[];
+  setFavoritedIds: (v: string[]) => void;
   audienceCount: number | null;
 }) {
   const { audience, setAudience, audienceCount } = props;
@@ -452,6 +470,23 @@ function AudienceBuilder(props: {
         </div>
       )}
 
+      {audience !== 'custom' && (
+        <div className="mt-2.5 space-y-2">
+          <ProductFilterRow
+            label="Compró alguno de estos productos"
+            hint="La campaña de proteína, a los que compran proteína."
+            selected={props.boughtIds}
+            onChange={props.setBoughtIds}
+          />
+          <ProductFilterRow
+            label="Lo tiene en favoritos"
+            hint="Marcaron el corazón y todavía no lo compraron: la lista con más intención de compra."
+            selected={props.favoritedIds}
+            onChange={props.setFavoritedIds}
+          />
+        </div>
+      )}
+
       {audience === 'custom' && (
         <div className="mt-2.5">
           <Button variant="secondary" onClick={() => setPickerOpen(true)}>
@@ -472,6 +507,82 @@ function AudienceBuilder(props: {
           onClose={() => setPickerOpen(false)}
           onChange={props.setSelectedEmails}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Filtro de audiencia por catálogo: se eligen productos y la campaña sale solo
+ * para quien los compró (o los tiene en favoritos). Reusa el mismo buscador de
+ * productos que los destacados del email.
+ */
+function ProductFilterRow({
+  label,
+  hint,
+  selected,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery({
+    queryKey: ['products-for-campaign'],
+    queryFn: () => fetchAllProducts<ProductDto>(),
+  });
+  const products = data ?? [];
+  const chosen = products.filter((p) => selected.includes(p.id));
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-fg">{label}</p>
+          <p className="text-xs text-fg-subtle">{hint}</p>
+        </div>
+        <Button variant="secondary" onClick={() => setOpen((v) => !v)}>
+          <Search className="h-4 w-4" /> Elegir ({selected.length})
+        </Button>
+      </div>
+
+      {chosen.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {chosen.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onChange(selected.filter((id) => id !== p.id))}
+              className="inline-flex items-center gap-1 rounded-full bg-bg-muted px-2 py-0.5 text-xs text-fg hover:bg-danger-bg hover:text-danger"
+              title="Quitar del filtro"
+            >
+              {p.name} <X className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="mt-1.5 max-h-44 overflow-y-auto rounded-md border border-border">
+          {products.map((p) => {
+            const checked = selected.includes(p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onChange(checked ? selected.filter((id) => id !== p.id) : [...selected, p.id])}
+                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-bg-subtle ${
+                  checked ? 'font-semibold text-primary' : 'text-fg'
+                }`}
+              >
+                {checked ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
+                <span className="truncate">{p.name}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

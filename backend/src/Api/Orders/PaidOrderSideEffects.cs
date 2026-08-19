@@ -1,3 +1,4 @@
+using Api.Crm;
 using Api.Notifications;
 using Discounts.Infrastructure;
 using Fiscal.Core.Abstractions;
@@ -25,6 +26,7 @@ public sealed class PaidOrderSideEffects(
     WhatsAppNotifier whatsapp,
     IFiscalEmissionQueue fiscal,
     DiscountsDbContext discounts,
+    CustomerDirectory customers,
     ILogger<PaidOrderSideEffects> logger)
 {
     /// <param name="whatsApp">
@@ -48,6 +50,10 @@ public sealed class PaidOrderSideEffects(
             order.DocNumber, EmissionTrigger.OnPayment, ct));
 
         await StepAsync("uso del cupón", order, () => RegisterCouponUseAsync(order, ct));
+
+        // La venta deja su ficha en Clientes: quien compra como invitado también
+        // es un cliente de la tienda.
+        await StepAsync("ficha del cliente", order, () => customers.UpsertFromOrderAsync(order, ct));
     }
 
     /// <summary>

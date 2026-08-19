@@ -83,7 +83,8 @@ public static class CampaignEndpoints
             AudiencePreviewRequest req, ITenantContext tenant, CampaignAudienceService audience, CancellationToken ct) =>
         {
             var spec = new AudienceSpec(req.Type ?? "buyers", req.MinSpentMinor, req.MinOrders,
-                req.PurchasedWithinDays, req.InactiveForDays, req.Emails);
+                req.PurchasedWithinDays, req.InactiveForDays, req.Emails,
+                req.BoughtProductIds, req.FavoritedProductIds);
             var members = await audience.ResolveAsync(tenant.TenantId, spec, ct);
             return Results.Ok(new
             {
@@ -406,7 +407,8 @@ public static class CampaignEndpoints
 
     private static string? SpecJson(CampaignRequest req) =>
         new AudienceSpec(req.Audience ?? "buyers", req.MinSpentMinor, req.MinOrders,
-            req.PurchasedWithinDays, req.InactiveForDays, req.Emails).Serialize();
+            req.PurchasedWithinDays, req.InactiveForDays, req.Emails,
+            req.BoughtProductIds, req.FavoritedProductIds).Serialize();
 
     private static string? ProductsJson(CampaignRequest req) =>
         req.Products is { Count: > 0 }
@@ -454,7 +456,9 @@ public sealed record CampaignRequest(
     int? InactiveForDays = null,
     List<string>? Emails = null,
     string? CouponCode = null,
-    List<CampaignProduct>? Products = null);
+    List<CampaignProduct>? Products = null,
+    List<Guid>? BoughtProductIds = null,
+    List<Guid>? FavoritedProductIds = null);
 
 public sealed record AudiencePreviewRequest(
     string? Type,
@@ -462,7 +466,9 @@ public sealed record AudiencePreviewRequest(
     int? MinOrders = null,
     int? PurchasedWithinDays = null,
     int? InactiveForDays = null,
-    List<string>? Emails = null);
+    List<string>? Emails = null,
+    List<Guid>? BoughtProductIds = null,
+    List<Guid>? FavoritedProductIds = null);
 
 public sealed record CampaignTestRequest(string? Email);
 

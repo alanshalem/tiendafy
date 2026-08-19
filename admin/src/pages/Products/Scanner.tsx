@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Check, PackageCheck, ScanLine, X } from 'lucide-react';
+import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { usePermissions } from '../../context/PermissionsContext';
 
 interface CodeHit {
   productId: string;
@@ -385,6 +386,23 @@ function PickingTab() {
   const scanner = useScanner(onCode);
   const complete = order && order.items.every((i) => (picked[i.variantId] ?? 0) >= i.quantity);
 
+  // El pedido se cierra ACÁ: verificar y después ir a buscarlo a Ventas para
+  // marcarlo enviado era salir del depósito con el celular en la mano.
+  const [tracking, setTracking] = useState('');
+  const queryClient = useQueryClient();
+  const { can } = usePermissions();
+  const fulfill = useMutation({
+    mutationFn: () => api.post(`/api/v1/orders/${order!.id}/fulfill`, { tracking: tracking.trim() || null }),
+    onSuccess: () => {
+      toast('Pedido marcado como enviado. El comprador ya recibió el aviso.', { variant: 'success' });
+      setOrderId('');
+      setPicked({});
+      setTracking('');
+      queryClient.invalidateQueries({ queryKey: ['orders-picking'] });
+    },
+    onError: (err) => toast(errMsg(err, 'No se pudo marcar como enviada.'), { variant: 'error' }),
+  });
+
   return (
     <Card>
       <p className="text-sm text-fg-muted">
@@ -438,10 +456,35 @@ function PickingTab() {
             })}
           </ul>
           {complete && (
-            <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-success">
-              <PackageCheck className="h-4 w-4" /> Pedido completo y verificado — marcalo como enviado desde
-              Ventas.
-            </p>
+            <div className="mt-3 rounded-md border border-success/40 bg-success/10 p-3">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-success">
+                <PackageCheck className="h-4 w-4" /> Pedido completo y verificado.
+              </p>
+              {can('orders.fulfill') ? (
+                <div className="mt-2 flex flex-wrap items-end gap-2">
+                  <div className="min-w-[12rem] flex-1">
+                    <Input
+                      compact
+                      placeholder="Número de seguimiento (opcional)"
+                      value={tracking}
+                      onChange={(e) => setTracking(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={() => fulfill.mutate()} disabled={fulfill.isPending}>
+                    {fulfill.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Truck className="h-4 w-4" />
+                    )}
+                    Marcar enviada
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-fg-muted">
+                  Pedile a alguien con permiso de despacho que lo marque como enviado.
+                </p>
+              )}
+            </div>
           )}
         </>
       )}

@@ -82,6 +82,30 @@ public sealed class Customer
         return Result.Success();
     }
 
+    /// <summary>
+    /// Completa lo que falta con los datos de una compra, sin pisar nada de lo
+    /// que ya está cargado: si alguien corrigió el teléfono a mano, una venta
+    /// posterior con el dato viejo no se lo revierte.
+    /// </summary>
+    /// <returns>true si algo cambió.</returns>
+    public bool FillMissingContact(string? name, string? phone, string? address)
+    {
+        var changed = false;
+
+        // El nombre solo se reemplaza si el que hay es el placeholder del email.
+        var incomingName = name?.Trim();
+        if (!string.IsNullOrEmpty(incomingName) && incomingName.Length <= 120
+            && (string.IsNullOrWhiteSpace(Name) || Name == Email?.Split('@')[0]))
+        {
+            Name = incomingName;
+            changed = true;
+        }
+
+        if (Phone is null && Norm(phone) is { } p) { Phone = p; changed = true; }
+        if (Address is null && Norm(address) is { } a) { Address = a; changed = true; }
+        return changed;
+    }
+
     private static Result Validate(string? name, string? email)
     {
         var trimmed = name?.Trim() ?? string.Empty;

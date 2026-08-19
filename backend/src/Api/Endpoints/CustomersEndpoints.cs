@@ -29,6 +29,28 @@ public static class CustomersEndpoints
             return Results.Ok(new { items = items.Select(ToDto) });
         });
 
+        // Trae a la agenda a los compradores de las ventas anteriores. De acá en
+        // más cada venta pagada deja su ficha sola (PaidOrderSideEffects); esto
+        // es para el histórico que quedó afuera.
+        customers.MapPost("/sync-from-orders", async (
+            ITenantContext tenant, global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
+            Api.Crm.CustomerDirectory directory, CancellationToken ct) =>
+        {
+            var tid = tenant.TenantId;
+            var orders = await ordersDb.Orders.AsNoTracking()
+                .Where(o => o.TenantId == tid && o.PaidAtUtc != null)
+                .OrderByDescending(o => o.PaidAtUtc)
+                .Take(5000)
+                .ToListAsync(ct);
+
+            var touched = 0;
+            foreach (var order in orders)
+                if (await directory.UpsertFromOrderAsync(order, ct))
+                    touched++;
+
+            return Results.Ok(new { imported = touched, scanned = orders.Count });
+        }).RequirePermission(Permission.CustomersWrite);
+
         customers.MapPost("/", async (CustomerRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
         {
             var created = Customer.Create(tenant.TenantId.Value, req.Name, req.Email, req.Phone, req.Address, req.Notes);

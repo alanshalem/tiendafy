@@ -17,7 +17,11 @@ public sealed record AudienceSpec(
     int? MinOrders = null,
     int? PurchasedWithinDays = null,
     int? InactiveForDays = null,
-    List<string>? Emails = null)
+    List<string>? Emails = null,
+    /// <summary>Compró alguno de estos productos (la campaña de proteína, a los que compran proteína).</summary>
+    List<Guid>? BoughtProductIds = null,
+    /// <summary>Tiene alguno de estos productos en favoritos: intención de compra sin compra todavía.</summary>
+    List<Guid>? FavoritedProductIds = null)
 {
 
     public static AudienceSpec Parse(string? json, string fallbackType)
@@ -39,7 +43,15 @@ public sealed record AudienceSpec(
 }
 
 /// <summary>Destinatario resuelto, con sus stats de compra (para preview y selección).</summary>
-public sealed record AudienceMember(string Email, string? Name, long SpentMinor, int Orders, DateTime? LastPurchaseUtc);
+public sealed record AudienceMember(
+    string Email, string? Name, long SpentMinor, int Orders, DateTime? LastPurchaseUtc)
+{
+    /// <summary>Productos que compró (para el filtro por producto).</summary>
+    public IReadOnlySet<Guid> BoughtProductIds { get; init; } = new HashSet<Guid>();
+
+    /// <summary>Productos que tiene marcados como favoritos.</summary>
+    public IReadOnlySet<Guid> FavoritedProductIds { get; init; } = new HashSet<Guid>();
+}
 
 /// <summary>
 /// Resuelve la audiencia de una campaña: agrega las compras por email (suma
@@ -51,8 +63,24 @@ public sealed record AudienceMember(string Email, string? Name, long SpentMinor,
 public sealed class CampaignAudienceService(
     OrdersDbContext orders,
     Customers.Infrastructure.CustomersDbContext customers,
-    NotificationsDbContext notifications)
+    NotificationsDbContext notifications,
+    Catalog.Infrastructure.Persistence.CatalogDbContext catalog)
 {
+    /// <summary>Mapa variante → producto para traducir las líneas de una venta.</summary>
+    private static async Task<Dictionary<Guid, Guid>> ProductByVariantAsync(
+        Catalog.Infrastructure.Persistence.CatalogDbContext catalog, TenantId tenantId,
+        List<Guid> variantIds, CancellationToken ct)
+    {
+        if (variantIds.Count == 0) return [];
+        var products = await catalog.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId)
+            .ToListAsync(ct);
+        return products
+            .SelectMany(p => p.Variants.Select(v => (v.Id, ProductId: p.Id)))
+            .Where(x => variantIds.Contains(x.Id))
+            .ToDictionary(x => x.Id, x => x.ProductId);
+    }
+
     public async Task<IReadOnlyList<AudienceMember>> ResolveAsync(
         TenantId tenantId, AudienceSpec spec, CancellationToken ct)
     {
@@ -71,6 +99,44 @@ public sealed class CampaignAudienceService(
                       Last: g.Max(o => o.PaidAtUtc),
                       Name: g.OrderByDescending(o => o.PaidAtUtc).Select(o => o.BuyerName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))));
 
+        // Qué productos compró cada email (solo si la campaña filtra por producto:
+        // es una vuelta más por el catálogo y no vale pagarla siempre).
+        var boughtByEmail = new Dictionary<string, HashSet<Guid>>();
+        if (spec.BoughtProductIds is { Count: > 0 })
+        {
+            var variantIds = paidOrders.SelectMany(o => o.Items).Select(i => i.VariantId).Distinct().ToList();
+            var productByVariant = await ProductByVariantAsync(catalog, tenantId, variantIds, ct);
+            foreach (var order in paidOrders)
+            {
+                var email = order.BuyerEmail?.Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(email) || !email.Contains('@')) continue;
+                if (!boughtByEmail.TryGetValue(email, out var set))
+                    boughtByEmail[email] = set = [];
+                foreach (var item in order.Items)
+                    if (productByVariant.TryGetValue(item.VariantId, out var productId))
+                        set.Add(productId);
+            }
+        }
+
+        // Favoritos por email: la lista de gente con la intención de compra más
+        // alta que tiene la tienda, y hasta ahora no se podía segmentar por ella.
+        var favoritesByEmail = new Dictionary<string, HashSet<Guid>>();
+        if (spec.FavoritedProductIds is { Count: > 0 })
+        {
+            var rows = await (
+                from f in customers.CustomerFavorites.AsNoTracking()
+                join c in customers.Customers.AsNoTracking() on f.CustomerId equals c.Id
+                where f.TenantId == tenantId.Value && c.Email != null
+                select new { c.Email, f.ProductId }).ToListAsync(ct);
+            foreach (var row in rows)
+            {
+                var email = row.Email!.Trim().ToLowerInvariant();
+                if (!favoritesByEmail.TryGetValue(email, out var set))
+                    favoritesByEmail[email] = set = [];
+                set.Add(row.ProductId);
+            }
+        }
+
         // Contactos del CRM (nombre + posibles no-compradores).
         var contacts = await customers.Customers.AsNoTracking()
             .Where(c => c.TenantId == tenantId.Value && c.Email != null)
@@ -85,7 +151,11 @@ public sealed class CampaignAudienceService(
             var hasStats = stats.TryGetValue(email, out var s);
             var name = (hasStats ? s.Name : null) ?? contactNames.GetValueOrDefault(email);
             return new AudienceMember(email, name,
-                hasStats ? s.Spent : 0, hasStats ? s.Orders : 0, hasStats ? s.Last : null);
+                hasStats ? s.Spent : 0, hasStats ? s.Orders : 0, hasStats ? s.Last : null)
+            {
+                BoughtProductIds = boughtByEmail.GetValueOrDefault(email, []),
+                FavoritedProductIds = favoritesByEmail.GetValueOrDefault(email, []),
+            };
         }
 
         IEnumerable<AudienceMember> members = spec.Type switch
@@ -123,6 +193,10 @@ public static class AudienceFilters
         if (spec.Type == "custom") return members;
         if (spec.MinSpentMinor is > 0) members = members.Where(m => m.SpentMinor >= spec.MinSpentMinor);
         if (spec.MinOrders is > 0) members = members.Where(m => m.Orders >= spec.MinOrders);
+        if (spec.BoughtProductIds is { Count: > 0 } bought)
+            members = members.Where(m => m.BoughtProductIds.Overlaps(bought));
+        if (spec.FavoritedProductIds is { Count: > 0 } favorited)
+            members = members.Where(m => m.FavoritedProductIds.Overlaps(favorited));
         if (spec.PurchasedWithinDays is > 0)
             members = members.Where(m => m.LastPurchaseUtc >= nowUtc.AddDays(-spec.PurchasedWithinDays.Value));
         if (spec.InactiveForDays is > 0)

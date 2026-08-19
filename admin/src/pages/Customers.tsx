@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreVertical, Pencil, Trash2, Plus, Search } from 'lucide-react';
+import { Loader2, MoreVertical, Pencil, Trash2, Plus, Search, UserPlus } from 'lucide-react';
 import {
   Button,
   Card,
@@ -57,6 +57,23 @@ export function CustomersPage() {
       toast('Cliente eliminado', { variant: 'success' });
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
+  });
+
+  // Los compradores de las ventas anteriores no estaban en la agenda: de acá en
+  // más cada venta pagada deja su ficha sola, esto trae el histórico.
+  const importFromOrders = useMutation({
+    mutationFn: () =>
+      api.post<{ imported: number; scanned: number }>('/api/v1/customers/sync-from-orders', {}),
+    onSuccess: (r) => {
+      refresh();
+      toast(
+        r.imported > 0
+          ? `Se sumaron ${r.imported} clientes de tus ventas.`
+          : 'Tus ventas ya estaban todas en la agenda.',
+        { variant: 'success' },
+      );
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudieron traer los compradores.'), { variant: 'error' }),
   });
 
   const columns: TableColumn<Customer>[] = [
@@ -143,6 +160,21 @@ export function CustomersPage() {
               placeholder="Buscar cliente..."
             />
           </form>
+          <Button
+            variant="secondary"
+            onClick={() => importFromOrders.mutate()}
+            disabled={importFromOrders.isPending}
+            title="Suma a la agenda los compradores de tus ventas anteriores"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {importFromOrders.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
+              Traer de mis ventas
+            </span>
+          </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <span className="inline-flex items-center gap-1.5">
               <Plus className="h-4 w-4" /> Agregar cliente
@@ -166,8 +198,8 @@ export function CustomersPage() {
           <EmptyState
             kicker="Clientes"
             title="Agregá tu primer cliente"
-            body="Guardá los datos de contacto de tus compradores para tener tu CRM siempre a mano."
-            action={{ label: 'Agregar cliente', onClick: () => setCreateOpen(true) }}
+            body="Cada venta pagada deja acá la ficha de su comprador. Si ya vendiste antes, traé esos compradores con un click."
+            action={{ label: 'Traer de mis ventas', onClick: () => importFromOrders.mutate() }}
           />
         )
       ) : (

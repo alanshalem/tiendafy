@@ -25,6 +25,46 @@ public class AudienceFiltersTests
         Assert.Equal("vip@mail.com", result[0].Email);
     }
 
+    private static readonly Guid Proteina = Guid.NewGuid();
+    private static readonly Guid Mancuernas = Guid.NewGuid();
+
+    /// <summary>
+    /// Segmentar por QUÉ compró cada uno: la campaña de proteína a los que
+    /// compran proteína, en vez de a toda la base.
+    /// </summary>
+    [Fact]
+    public void ProductoComprado_FiltraPorCatalogo()
+    {
+        List<AudienceMember> members =
+        [
+            new("proteico@mail.com", null, 0, 1, Now) { BoughtProductIds = new HashSet<Guid> { Proteina } },
+            new("fierrero@mail.com", null, 0, 1, Now) { BoughtProductIds = new HashSet<Guid> { Mancuernas } },
+        ];
+
+        var spec = new AudienceSpec("buyers", BoughtProductIds: [Proteina]);
+        var result = AudienceFilters.Apply(members, spec, Now).ToList();
+
+        Assert.Single(result);
+        Assert.Equal("proteico@mail.com", result[0].Email);
+    }
+
+    /// <summary>Los favoritos son la lista con más intención de compra de la tienda.</summary>
+    [Fact]
+    public void Favoritos_FiltraPorDeseo()
+    {
+        List<AudienceMember> members =
+        [
+            new("desea@mail.com", null, 0, 0, null) { FavoritedProductIds = new HashSet<Guid> { Proteina } },
+            new("nada@mail.com", null, 0, 0, null),
+        ];
+
+        var spec = new AudienceSpec("customers", FavoritedProductIds: [Proteina]);
+        var result = AudienceFilters.Apply(members, spec, Now).ToList();
+
+        Assert.Single(result);
+        Assert.Equal("desea@mail.com", result[0].Email);
+    }
+
     [Fact]
     public void ComprasMinimas_FiltraRecurrentes()
     {
