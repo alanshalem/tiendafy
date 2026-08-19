@@ -45,6 +45,15 @@ public interface IProductRepository
     Task<IReadOnlyList<Product>> ListAsync(
         TenantId tenantId, ProductStatus? status, int limit, Guid? afterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Página del catálogo para el panel: cualquier estado, búsqueda por nombre
+    /// o SKU y total. Las pantallas de costos, inventario y los buscadores de
+    /// variantes traían el catálogo COMPLETO para filtrar en el navegador.
+    /// </summary>
+    Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
+        TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
+        CancellationToken ct = default);
+
     /// <summary>Busca productos ACTIVE con filtros, orden y paginado. Devuelve la página, el total y las facetas.</summary>
     Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(
         TenantId tenantId, ProductSearchFilter filter, CancellationToken ct = default);

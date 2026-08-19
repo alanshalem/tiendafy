@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
-import { fetchAllProducts, variantLabel, type CatalogProduct } from '../lib/products';
+import { variantLabel, type CatalogProduct } from '../lib/products';
+import { api } from '../lib/api';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 
 export interface VariantOption {
   variantId: string;
@@ -26,29 +28,25 @@ export function VariantPicker({
 }) {
   const { store } = useStore();
   const [search, setSearch] = useState('');
+  const q = useDebouncedValue(search).trim();
 
+  // La búsqueda va a la base: traerse el catálogo entero para filtrar en el
+  // navegador funcionaba con 400 productos y no con 5.000.
   const { data: products } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<CatalogProduct>(),
-    enabled: !!store,
+    queryKey: ['variant-search', store?.id, q],
+    queryFn: () =>
+      api.get<{ items: CatalogProduct[] }>(`/api/v1/products?limit=10&q=${encodeURIComponent(q)}`),
+    enabled: !!store && q.length >= 2,
   });
 
-  const allVariants = useMemo(
+  const matches = useMemo(
     () =>
-      (products ?? []).flatMap((p) =>
-        p.variants.map((v) => ({ variantId: v.id, label: variantLabel(p, v), sku: v.sku })),
-      ),
-    [products],
+      (products?.items ?? [])
+        .flatMap((p) => p.variants.map((v) => ({ variantId: v.id, label: variantLabel(p, v), sku: v.sku })))
+        .filter((v) => !exclude?.has(v.variantId))
+        .slice(0, 8),
+    [products, exclude],
   );
-
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (q.length < 2) return [];
-    return allVariants
-      .filter((v) => !exclude?.has(v.variantId))
-      .filter((v) => v.label.toLowerCase().includes(q) || v.sku.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [search, allVariants, exclude]);
 
   return (
     <div className="relative">

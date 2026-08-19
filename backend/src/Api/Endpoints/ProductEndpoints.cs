@@ -45,11 +45,28 @@ public static class ProductEndpoints
             CancellationToken ct,
             string? status = null,
             int limit = 20,
-            Guid? after = null) =>
+            Guid? after = null,
+            int? offset = null,
+            string? q = null) =>
         {
             var statusFilter = ProductStatusExtensions.ParseApi(status);
-
             limit = Math.Clamp(limit, 1, 100);
+
+            // Modo página (offset/búsqueda): lo que usan Costos, Inventario y
+            // los buscadores de variantes. El modo cursor (after) queda para
+            // quien recorre el catálogo entero (export, importación).
+            if (after is null && (offset is not null || !string.IsNullOrWhiteSpace(q)))
+            {
+                var (pageItems, total) = await repository.ListPageAsync(
+                    tenant.TenantId, statusFilter, q, limit, Math.Max(0, offset ?? 0), ct);
+                return Results.Ok(new
+                {
+                    items = pageItems.Select(p => p.ToDto()).ToList(),
+                    total,
+                    hasMore = (offset ?? 0) + pageItems.Count < total,
+                });
+            }
+
             var page = await repository.ListAsync(tenant.TenantId, statusFilter, limit + 1, after, ct);
             var hasMore = page.Count > limit;
             var items = page.Take(limit).Select(p => p.ToDto()).ToList();

@@ -53,6 +53,30 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         return await query.Take(limit).ToListAsync(ct);
     }
 
+    public async Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
+        TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
+        CancellationToken ct = default)
+    {
+        var query = context.Products.Where(p => p.TenantId == tenantId);
+        if (status is { } s) query = query.Where(p => p.Status == s);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search.Trim()}%";
+            query = query.Where(p =>
+                EF.Functions.ILike(p.Name, term)
+                || p.Variants.Any(v => EF.Functions.ILike(v.Sku, term)));
+        }
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(p => p.CreatedAtUtc)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(
         TenantId tenantId, ProductSearchFilter filter, CancellationToken ct = default)
     {

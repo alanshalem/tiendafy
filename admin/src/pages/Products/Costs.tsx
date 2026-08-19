@@ -5,9 +5,8 @@ import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiend
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
-import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
-import { Pagination, usePagedList } from '../../components/Pagination';
+import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
@@ -26,6 +25,9 @@ interface VariantCost {
  * (el input es en pesos, la API trabaja en centavos). Carga masiva: columna
  * «Costo» del CSV de importación.
  */
+/** Productos por página. */
+const PAGE_SIZE = 20;
+
 export function CostsPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -34,17 +36,27 @@ export function CostsPage() {
   const [search, setSearch] = useState('');
   const [repriceOpen, setRepriceOpen] = useState(false);
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<CatalogProduct>(),
+  const [page, setPage] = useState(1);
+  const q = useDebouncedValue(search).trim();
+
+  // Una página del catálogo por request, con la búsqueda hecha en la base:
+  // antes se traía el catálogo COMPLETO (de a 100 por request) para filtrar y
+  // paginar en el navegador.
+  const { data, isLoading } = useQuery({
+    queryKey: ['products-page', store?.id, q, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: CatalogProduct[]; total: number }>(`/api/v1/products?${params}`);
+    },
     enabled: !!store,
   });
 
-  // Debounce: cada página visible dispara un GET de costos por producto —
-  // sin esto, cada tecla de la búsqueda serían hasta 20 requests.
-  const q = useDebouncedValue(search).trim().toLowerCase();
-  const allItems = (products ?? []).filter((p) => matchesProduct(p, q));
-  const { page: pageClamped, setPage: setPageList, totalPages, pageItems: items } = usePagedList(allItems);
+  const items = data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   const pageIds = items.map((p) => p.id).join(',');
 
   // Costos de los productos visibles en UN request (endpoint admin bulk con
@@ -86,7 +98,7 @@ export function CostsPage() {
     return <NoStoreSelected />;
   }
 
-  if (!isLoading && allItems.length === 0) {
+  if (!isLoading && items.length === 0 && !q) {
     return (
       <EmptyState
         kicker="Costos"
@@ -113,7 +125,7 @@ export function CostsPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setPageList(1);
+              setPage(1);
             }}
           />
         </div>
@@ -209,7 +221,7 @@ export function CostsPage() {
         </div>
       </Card>
 
-      <Pagination page={pageClamped} totalPages={totalPages} onPage={setPageList} />
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
       {repriceOpen && <RepriceModal onClose={() => setRepriceOpen(false)} />}
       <HelpLink id="rentabilidad" />
     </div>

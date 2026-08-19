@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
@@ -6,6 +7,7 @@ import { formatMoney, formatDateTime } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
 import { SETTINGS_CARD, TABLE_CARD } from '../lib/styles';
+import { Pagination } from '../components/Pagination';
 
 interface Abandoned {
   count: number;
@@ -20,15 +22,23 @@ interface Abandoned {
   }[];
 }
 
+/** Carritos por página. */
+const PAGE_SIZE = 50;
+
 export function AbandonedCartsPage() {
   const { store } = useStore();
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['abandoned-carts', store?.id],
-    queryFn: () => api.get<Abandoned>('/api/v1/stats/abandoned-carts?days=30'),
+    queryKey: ['abandoned-carts', store?.id, page],
+    queryFn: () =>
+      api.get<Abandoned>(
+        `/api/v1/stats/abandoned-carts?days=30&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
   });
 
   const items = data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-6">
@@ -87,6 +97,7 @@ export function AbandonedCartsPage() {
         </div>
       )}
       <HelpLink id="ventas" />
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
     </div>
   );
 }

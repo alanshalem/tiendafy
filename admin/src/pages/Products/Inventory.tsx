@@ -6,7 +6,7 @@ import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { useVariantStock } from './queries';
-import { Pagination, usePagedList } from '../../components/Pagination';
+import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
@@ -26,6 +26,9 @@ interface ProductDto {
   images: { url: string }[];
 }
 
+/** Productos por página. */
+const PAGE_SIZE = 20;
+
 export function InventoryPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -33,17 +36,29 @@ export function InventoryPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<ProductDto>(),
+  const [page, setPage] = useState(1);
+  const q = useDebouncedValue(search).trim();
+
+  // Una página del catálogo por request, con la búsqueda en la base: antes se
+  // traía el catálogo COMPLETO para filtrar y paginar en el navegador (y con
+  // él, el stock de todas las variantes).
+  const { data, isLoading } = useQuery({
+    queryKey: ['products-page', store?.id, q, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
+    },
     enabled: !!store,
   });
 
-  // Debounce: la búsqueda refetchea el stock del resultado — no por tecla.
-  const q = useDebouncedValue(search).trim().toLowerCase();
-  const allItems = (products ?? []).filter((p) => matchesProduct(p, q));
-  const stockByVariant = useVariantStock(allItems);
-  const { page: pageClamped, setPage, totalPages, pageItems: items } = usePagedList(allItems);
+  const items = data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+  // El stock se pide solo para lo que se ve.
+  const stockByVariant = useVariantStock(items);
 
   const save = useMutation({
     mutationFn: ({ variantId, available }: { variantId: string; available: number }) =>
@@ -66,7 +81,7 @@ export function InventoryPage() {
     return <NoStoreSelected />;
   }
 
-  if (!isLoading && allItems.length === 0) {
+  if (!isLoading && items.length === 0 && !q) {
     return (
       <EmptyState
         kicker="Inventario"
@@ -189,7 +204,7 @@ export function InventoryPage() {
         </table>
       </Card>
 
-      <Pagination page={pageClamped} totalPages={totalPages} onPage={setPage} />
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
       <HelpLink id="productos" />
     </div>
   );

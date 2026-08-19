@@ -293,7 +293,8 @@ public static class StatsEndpoints
 
         // Carritos abandonados: checkouts no completados ni pagados.
         stats.MapGet("/abandoned-carts", async (
-            ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb, int? days, CancellationToken ct) =>
+            ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb,
+            int? days, int? limit, int? offset, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 90));
@@ -302,13 +303,22 @@ public static class StatsEndpoints
                 .Where(s => s.TenantId == tid && s.CreatedAtUtc >= since && s.Status != CheckoutStatus.Completed)
                 .ToListAsync(ct);
 
+            // Solo las ventas del MISMO período: las sesiones son de ahí, así
+            // que las órdenes viejas no pueden descartar ninguna. Antes se
+            // traían los ids de todas las ventas de la historia en cada
+            // request — con años de operación, eso es un balde de guids.
             var paidSessionIds = (await ordersDb.Orders
-                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid)
+                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since)
                 .Select(o => o.CheckoutSessionId).ToListAsync(ct)).ToHashSet();
 
-            var abandoned = sessions
+            var pending = sessions
                 .Where(s => !paidSessionIds.Contains(s.Id))
                 .OrderByDescending(s => s.CreatedAtUtc)
+                .ToList();
+
+            var page = pending
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 50, 1, 200))
                 .Select(s => new
                 {
                     s.Id,
@@ -322,9 +332,10 @@ public static class StatsEndpoints
 
             return Results.Ok(new
             {
-                count = abandoned.Count,
-                recoverableValue = sessions.Where(s => !paidSessionIds.Contains(s.Id) && s.Email != null).Sum(s => s.Subtotal.AmountInMinorUnits),
-                items = abandoned,
+                count = pending.Count,
+                total = pending.Count,
+                recoverableValue = pending.Where(s => s.Email != null).Sum(s => s.Subtotal.AmountInMinorUnits),
+                items = page,
             });
         });
 
