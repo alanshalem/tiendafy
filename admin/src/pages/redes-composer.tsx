@@ -179,6 +179,10 @@ export function ComposerModal({
     }
   };
 
+  // Publicados/fallidos no se editan: el modal abre en modo lectura (el
+  // fieldset disabled apaga todos los controles de una).
+  const readOnly = post !== null && !post.isEditable;
+
   const busy = saving !== null;
   const canPublish = selected.size > 0 && needsMedia.length === 0 && overLimit.length === 0;
 
@@ -186,263 +190,275 @@ export function ComposerModal({
     <Modal
       open
       onClose={onClose}
-      title={post ? 'Editar post' : 'Nuevo post'}
+      title={readOnly ? 'Ver post' : post ? 'Editar post' : 'Nuevo post'}
       size="xl"
       footer={
-        <>
+        readOnly ? (
           <Button variant="secondary" onClick={onClose}>
-            Cancelar
+            Cerrar
           </Button>
-          <Button variant="secondary" onClick={() => save('draft')} disabled={busy}>
-            {saving === 'draft' && <Loader2 className="h-4 w-4 animate-spin" />} Guardar borrador
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => save('schedule')}
-            disabled={busy || !canPublish || !scheduleAt}
-          >
-            {saving === 'schedule' && <Loader2 className="h-4 w-4 animate-spin" />} Programar
-          </Button>
-          <Button onClick={() => save('now')} disabled={busy || !canPublish}>
-            {saving === 'now' && <Loader2 className="h-4 w-4 animate-spin" />} Publicar ahora
-          </Button>
-        </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button variant="secondary" onClick={() => save('draft')} disabled={busy}>
+              {saving === 'draft' && <Loader2 className="h-4 w-4 animate-spin" />} Guardar borrador
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => save('schedule')}
+              disabled={busy || !canPublish || !scheduleAt}
+            >
+              {saving === 'schedule' && <Loader2 className="h-4 w-4 animate-spin" />} Programar
+            </Button>
+            <Button onClick={() => save('now')} disabled={busy || !canPublish}>
+              {saving === 'now' && <Loader2 className="h-4 w-4 animate-spin" />} Publicar ahora
+            </Button>
+          </>
+        )
       }
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4">
-          {/* Cuentas destino */}
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-fg">Publicar en</p>
-            {accounts.length === 0 ? (
-              <p className="text-sm text-fg-muted">
-                No hay cuentas conectadas todavía: conectá una desde la pestaña Cuentas.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {accounts.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    disabled={!a.authorized}
-                    onClick={() => toggleAccount(a.id)}
-                    title={a.authorized ? a.name : `${a.name} — reconectá la cuenta`}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                      selected.has(a.id)
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-surface text-fg-muted hover:border-fg-subtle',
-                      !a.authorized && 'cursor-not-allowed opacity-40',
-                    )}
-                  >
-                    <ProviderIcon provider={a.provider} size="sm" />
-                    <span className="max-w-40 truncate">{a.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Texto base */}
-          <div>
-            <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="flex items-center gap-2">
-                <p className="text-sm font-medium text-fg">Texto</p>
-                {aiEnabled && content.trim().length > 0 && (
-                  <button
-                    type="button"
-                    onClick={improveWithAi}
-                    disabled={improving}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                    title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
-                  >
-                    {improving ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3" />
-                    )}
-                    Mejorar con IA
-                  </button>
-                )}
-              </span>
-              {selected.size > 0 && Number.isFinite(maxChars) && (
-                <span
-                  className={cn(
-                    'text-xs',
-                    content.length > maxChars ? 'font-semibold text-danger' : 'text-fg-subtle',
-                  )}
-                >
-                  {content.length} / {maxChars}
-                </span>
+        <fieldset disabled={readOnly} className="contents">
+          <div className="space-y-4">
+            {/* Cuentas destino */}
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-fg">Publicar en</p>
+              {accounts.length === 0 ? (
+                <p className="text-sm text-fg-muted">
+                  No hay cuentas conectadas todavía: conectá una desde la pestaña Cuentas.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {accounts.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      disabled={!a.authorized}
+                      onClick={() => toggleAccount(a.id)}
+                      title={a.authorized ? a.name : `${a.name} — reconectá la cuenta`}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                        selected.has(a.id)
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-surface text-fg-muted hover:border-fg-subtle',
+                        !a.authorized && 'cursor-not-allowed opacity-40',
+                      )}
+                    >
+                      <ProviderIcon provider={a.provider} size="sm" />
+                      <span className="max-w-40 truncate">{a.name}</span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-            <Textarea
-              rows={5}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="¿Qué querés contar? El mismo texto sale a todas las redes elegidas (podés ajustarlo por red abajo)."
-            />
-          </div>
 
-          {/* Avisos de límites por red */}
-          {needsMedia.length > 0 && (
-            <p className="flex items-center gap-1.5 text-sm text-warning">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              {needsMedia.map((a) => providerMeta(a.provider).label).join(', ')} exige al menos una imagen.
-            </p>
-          )}
-          {overLimit.length > 0 && (
-            <p className="flex items-center gap-1.5 text-sm text-danger">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              El texto supera el límite de {overLimit.map((a) => providerMeta(a.provider).label).join(', ')} —
-              acortalo o escribí una versión por red.
-            </p>
-          )}
-
-          {/* Imágenes */}
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-fg">Imágenes</p>
-            {mediaUrls.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {mediaUrls.map((url, i) => (
-                  <span key={`${url}-${i}`} className="group relative">
-                    <img
-                      src={url}
-                      alt=""
-                      className="h-16 w-16 rounded-lg border border-border object-cover"
-                    />
+            {/* Texto base */}
+            <div>
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <span className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-fg">Texto</p>
+                  {aiEnabled && content.trim().length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setMediaUrls((prev) => prev.filter((_, j) => j !== i))}
-                      className="absolute -right-1.5 -top-1.5 rounded-full bg-danger p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                      title="Quitar imagen"
+                      onClick={improveWithAi}
+                      disabled={improving}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                      title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
                     >
-                      <XIcon className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <div className="min-w-0 flex-1">
-                <Input
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUrl())}
-                  placeholder="https://… (URL pública de la imagen)"
-                />
-              </div>
-              <Button variant="secondary" onClick={addUrl} disabled={!newUrl.trim()}>
-                Agregar
-              </Button>
-              <Button variant="secondary" onClick={() => setPickerOpen(true)}>
-                <ImagePlus className="h-4 w-4" /> Del catálogo
-              </Button>
-            </div>
-          </div>
-
-          {/* Overrides por cuenta */}
-          {selectedAccounts.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-fg">Versión por red (opcional)</p>
-              <div className="space-y-1.5">
-                {selectedAccounts.map((a) => {
-                  const open = overrideOpen.has(a.id);
-                  const limit = limitsByKey[a.provider]?.maxChars;
-                  const value = overrides[a.id] ?? '';
-                  return (
-                    <div key={a.id} className="rounded-lg border border-border">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOverrideOpen((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(a.id)) next.delete(a.id);
-                            else next.add(a.id);
-                            return next;
-                          })
-                        }
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-fg-muted hover:text-fg"
-                      >
-                        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        <ProviderIcon provider={a.provider} size="sm" />
-                        <span className="truncate">{a.name}</span>
-                        {value.trim() && <span className="ml-auto text-xs text-primary">personalizado</span>}
-                      </button>
-                      {open && (
-                        <div className="border-t border-border p-3">
-                          <Textarea
-                            rows={3}
-                            value={value}
-                            onChange={(e) => setOverrides((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                            placeholder={`Texto solo para ${providerMeta(a.provider).label} (vacío = usa el texto base)`}
-                          />
-                          {limit !== undefined && (
-                            <p
-                              className={cn(
-                                'mt-1 text-right text-xs',
-                                (value.trim() || content).length > limit
-                                  ? 'font-semibold text-danger'
-                                  : 'text-fg-subtle',
-                              )}
-                            >
-                              {(value.trim() || content).length} / {limit}
-                            </p>
-                          )}
-                        </div>
+                      {improving ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
                       )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Cupón: el post se mide como una campaña de email */}
-          {activeCoupons.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-fg">Cupón para medir ventas (opcional)</p>
-              <div className="flex gap-2">
-                <div className="w-64">
-                  <Select
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    options={[
-                      { value: '', label: 'Sin cupón' },
-                      ...activeCoupons.map((c) => ({ value: c.code, label: c.code })),
-                    ]}
-                  />
-                </div>
-                {couponCode && !content.includes(couponCode) && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => setContent((c) => `${c.trimEnd()}\n🎁 Usá el cupón ${couponCode}`)}
+                      Mejorar con IA
+                    </button>
+                  )}
+                </span>
+                {selected.size > 0 && Number.isFinite(maxChars) && (
+                  <span
+                    className={cn(
+                      'text-xs',
+                      content.length > maxChars ? 'font-semibold text-danger' : 'text-fg-subtle',
+                    )}
                   >
-                    Insertar en el texto
-                  </Button>
+                    {content.length} / {maxChars}
+                  </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-fg-subtle">
-                Las ventas pagadas con este cupón después de publicar se atribuyen al post.
-              </p>
-            </div>
-          )}
-
-          {/* Fecha */}
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-fg">Programar para</p>
-            <div className="w-64">
-              <Input
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(e) => setScheduleAt(e.target.value)}
+              <Textarea
+                rows={5}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="¿Qué querés contar? El mismo texto sale a todas las redes elegidas (podés ajustarlo por red abajo)."
               />
             </div>
-            <p className="mt-1 text-xs text-fg-subtle">
-              En tu hora local. Dejalo vacío si vas a usar “Publicar ahora”.
-            </p>
+
+            {/* Avisos de límites por red */}
+            {needsMedia.length > 0 && (
+              <p className="flex items-center gap-1.5 text-sm text-warning">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {needsMedia.map((a) => providerMeta(a.provider).label).join(', ')} exige al menos una imagen.
+              </p>
+            )}
+            {overLimit.length > 0 && (
+              <p className="flex items-center gap-1.5 text-sm text-danger">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                El texto supera el límite de {overLimit
+                  .map((a) => providerMeta(a.provider).label)
+                  .join(', ')}{' '}
+                — acortalo o escribí una versión por red.
+              </p>
+            )}
+
+            {/* Imágenes */}
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-fg">Imágenes</p>
+              {mediaUrls.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {mediaUrls.map((url, i) => (
+                    <span key={`${url}-${i}`} className="group relative">
+                      <img
+                        src={url}
+                        alt=""
+                        className="h-16 w-16 rounded-lg border border-border object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMediaUrls((prev) => prev.filter((_, j) => j !== i))}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-danger p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        title="Quitar imagen"
+                      >
+                        <XIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUrl())}
+                    placeholder="https://… (URL pública de la imagen)"
+                  />
+                </div>
+                <Button variant="secondary" onClick={addUrl} disabled={!newUrl.trim()}>
+                  Agregar
+                </Button>
+                <Button variant="secondary" onClick={() => setPickerOpen(true)}>
+                  <ImagePlus className="h-4 w-4" /> Del catálogo
+                </Button>
+              </div>
+            </div>
+
+            {/* Overrides por cuenta */}
+            {selectedAccounts.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-fg">Versión por red (opcional)</p>
+                <div className="space-y-1.5">
+                  {selectedAccounts.map((a) => {
+                    const open = overrideOpen.has(a.id);
+                    const limit = limitsByKey[a.provider]?.maxChars;
+                    const value = overrides[a.id] ?? '';
+                    return (
+                      <div key={a.id} className="rounded-lg border border-border">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOverrideOpen((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(a.id)) next.delete(a.id);
+                              else next.add(a.id);
+                              return next;
+                            })
+                          }
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-fg-muted hover:text-fg"
+                        >
+                          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          <ProviderIcon provider={a.provider} size="sm" />
+                          <span className="truncate">{a.name}</span>
+                          {value.trim() && (
+                            <span className="ml-auto text-xs text-primary">personalizado</span>
+                          )}
+                        </button>
+                        {open && (
+                          <div className="border-t border-border p-3">
+                            <Textarea
+                              rows={3}
+                              value={value}
+                              onChange={(e) => setOverrides((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                              placeholder={`Texto solo para ${providerMeta(a.provider).label} (vacío = usa el texto base)`}
+                            />
+                            {limit !== undefined && (
+                              <p
+                                className={cn(
+                                  'mt-1 text-right text-xs',
+                                  (value.trim() || content).length > limit
+                                    ? 'font-semibold text-danger'
+                                    : 'text-fg-subtle',
+                                )}
+                              >
+                                {(value.trim() || content).length} / {limit}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Cupón: el post se mide como una campaña de email */}
+            {activeCoupons.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-fg">Cupón para medir ventas (opcional)</p>
+                <div className="flex gap-2">
+                  <div className="w-64">
+                    <Select
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      options={[
+                        { value: '', label: 'Sin cupón' },
+                        ...activeCoupons.map((c) => ({ value: c.code, label: c.code })),
+                      ]}
+                    />
+                  </div>
+                  {couponCode && !content.includes(couponCode) && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setContent((c) => `${c.trimEnd()}\n🎁 Usá el cupón ${couponCode}`)}
+                    >
+                      Insertar en el texto
+                    </Button>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-fg-subtle">
+                  Las ventas pagadas con este cupón después de publicar se atribuyen al post.
+                </p>
+              </div>
+            )}
+
+            {/* Fecha */}
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-fg">Programar para</p>
+              <div className="w-64">
+                <Input
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                />
+              </div>
+              <p className="mt-1 text-xs text-fg-subtle">
+                En tu hora local. Dejalo vacío si vas a usar “Publicar ahora”.
+              </p>
+            </div>
           </div>
-        </div>
+        </fieldset>
 
         <PostPreview
           accounts={selectedAccounts}

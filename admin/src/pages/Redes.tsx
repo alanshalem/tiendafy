@@ -125,9 +125,7 @@ export function RedesPage() {
             at.setHours(12, 0, 0, 0);
             setComposer({ post: null, date: at });
           }}
-          onPostClick={(post) =>
-            post.isEditable ? setComposer({ post, date: null }) : setTab('publicaciones')
-          }
+          onPostClick={(post) => setComposer({ post, date: null })}
         />
       )}
       {tab === 'publicaciones' && (

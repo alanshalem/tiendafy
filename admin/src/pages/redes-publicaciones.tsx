@@ -110,8 +110,13 @@ export function PublicacionesTab({
     return (
       <div
         key={post.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => onEdit(post)}
+        onKeyDown={(e) => e.key === 'Enter' && onEdit(post)}
+        title={post.isEditable ? 'Abrir para editar' : 'Ver el post'}
         className={cn(
-          'rounded-lg border border-border border-l-4 bg-surface p-4 shadow-card',
+          'cursor-pointer rounded-lg border border-border border-l-4 bg-surface p-4 shadow-card transition-colors hover:border-fg-subtle/40 hover:bg-bg-subtle/40',
           POST_STATUS[post.status]?.edge ?? 'border-l-border',
         )}
       >
@@ -163,6 +168,7 @@ export function PublicacionesTab({
                       href={t.externalUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="text-fg-subtle hover:text-primary"
                       title={`Ver en ${providerMeta(t.provider).label}`}
                     >
@@ -184,7 +190,7 @@ export function PublicacionesTab({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             {post.isEditable && (
               <Button variant="secondary" onClick={() => onEdit(post)} title="Editar">
                 <Pencil className="h-4 w-4" />
