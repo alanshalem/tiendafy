@@ -49,7 +49,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `MercadoPago:WebhookSecret` | Firma de webhooks de pagos | user-secrets | `.env.prod` |
 | `MercadoLibre:ClientId` / `MercadoLibre:ClientSecret` | App de plataforma en ML (canal Mercado Libre) | user-secrets (vacío = integración apagada) | `.env.prod` |
 | `MercadoLibre:RedirectUri` | Callback OAuth registrado en la app de ML | URL del túnel + `/api/v1/meli/oauth/callback` | `https://api.TUDOMINIO/api/v1/meli/oauth/callback` |
-| `MercadoLibre:AdminReturnUrl` | A dónde vuelve el navegador tras autorizar | `http://localhost:3001/configuracion/mercadolibre` | `https://admin.TUDOMINIO/configuracion/mercadolibre` |
+| `MercadoLibre:AdminReturnUrl` | A dónde vuelve el navegador tras autorizar | `http://localhost:5173/configuracion/mercadolibre` | `https://admin.TUDOMINIO/configuracion/mercadolibre` |
 | `Email:ResendApiKey` | API key de Resend | vacío = modo dev (loguea, no envía) | `.env.prod` |
 | `Email:From` | Remitente | `Tiendafy <onboarding@resend.dev>` | `Tiendafy <no-responder@TUDOMINIO>` (dominio verificado) |
 | `Email:WebhookSecret` | Firma svix del webhook de Resend | vacío = endpoint apagado | `.env.prod` |
@@ -75,8 +75,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 |---|---|---|
 | `API_URL` (SSR) | `http://localhost:5080` | `https://api.TUDOMINIO` |
 | `NEXT_PUBLIC_API_URL` (browser) | `http://localhost:5080` | `https://api.TUDOMINIO` |
-| `NEXT_PUBLIC_ADMIN_URL` | `http://localhost:3001` | `https://admin.TUDOMINIO` |
-| `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:3001` | **REQUERIDA**: `https://admin.TUDOMINIO` (seguridad del editor de temas) |
+| `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:5173` | **REQUERIDA**: `https://admin.TUDOMINIO` (link al panel + seguridad del editor de temas) |
 | `PLATFORM_BASE_DOMAIN` (server-side) | `localhost` | `TUDOMINIO` |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront |
 

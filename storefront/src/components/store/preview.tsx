@@ -13,7 +13,7 @@ export const PreviewContext = createContext(false);
  * nunca '*': un sitio malicioso que embeba el preview no debe poder inyectar
  * un theme ni recibir mensajes.
  */
-export const ADMIN_ORIGIN = process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? 'http://localhost:3001';
+export { ADMIN_ORIGIN } from '@/lib/admin';
 
 export function usePreviewHref() {
   const preview = useContext(PreviewContext);

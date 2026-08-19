@@ -38,7 +38,7 @@ public static class IdentityModule
         services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.HttpOnly = true;
-            // localhost:3001 → localhost:5080 es same-site (SameSite ignora puerto),
+            // localhost:5173 → localhost:5080 es same-site (SameSite ignora puerto),
             // y en prod admin.dominio → api.dominio también. Lax alcanza y bloquea
             // requests cross-site de terceros. CSRF tokens igual van en fase Identity 2.
             options.Cookie.SameSite = SameSiteMode.Lax;

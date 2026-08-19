@@ -15,7 +15,7 @@ public sealed class SocialOptions
     public TelegramSection Telegram { get; set; } = new();
 
     /// <summary>A dónde vuelve el navegador del merchant tras autorizar.</summary>
-    public string AdminReturnUrl { get; set; } = "http://localhost:3001/redes";
+    public string AdminReturnUrl { get; set; } = "http://localhost:5173/redes";
 
     public sealed class MetaSection
     {

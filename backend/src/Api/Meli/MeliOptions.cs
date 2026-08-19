@@ -22,7 +22,7 @@ public sealed class MeliOptions
     public string ApiBaseUrl { get; set; } = "https://api.mercadolibre.com";
 
     /// <summary>A dónde vuelve el navegador del merchant tras autorizar.</summary>
-    public string AdminReturnUrl { get; set; } = "http://localhost:3001/configuracion/mercadolibre";
+    public string AdminReturnUrl { get; set; } = "http://localhost:5173/configuracion/mercadolibre";
 
     public bool Configured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 }

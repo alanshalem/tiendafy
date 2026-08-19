@@ -21,7 +21,7 @@ public sealed class MetaAdsOptions
     public string ApiBaseUrl { get; set; } = "https://graph.facebook.com/v21.0";
 
     /// <summary>A dónde vuelve el navegador del merchant tras autorizar.</summary>
-    public string AdminReturnUrl { get; set; } = "http://localhost:3001/estadisticas/rentabilidad";
+    public string AdminReturnUrl { get; set; } = "http://localhost:5173/estadisticas/rentabilidad";
 
     public bool Configured => !string.IsNullOrWhiteSpace(AppId) && !string.IsNullOrWhiteSpace(AppSecret);
 }

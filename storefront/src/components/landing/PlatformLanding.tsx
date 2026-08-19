@@ -1,7 +1,6 @@
 import { Reveal } from './Reveal';
+import { ADMIN_ORIGIN } from '@/lib/admin';
 import { LandingThemeToggle } from './LandingThemeToggle';
-
-const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3001';
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -259,7 +258,11 @@ export function PlatformLanding() {
           </nav>
           <div className="flex items-center gap-3">
             <LandingThemeToggle />
-            <a href={ADMIN_URL} className="ld-btn" style={{ padding: '0.55rem 1.2rem', fontSize: '0.9rem' }}>
+            <a
+              href={ADMIN_ORIGIN}
+              className="ld-btn"
+              style={{ padding: '0.55rem 1.2rem', fontSize: '0.9rem' }}
+            >
               Entrar al panel
             </a>
           </div>
@@ -281,7 +284,7 @@ export function PlatformLanding() {
               que no parece plantilla.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4" data-stagger="4">
-              <a href={ADMIN_URL} className="ld-btn ld-btn--big">
+              <a href={ADMIN_ORIGIN} className="ld-btn ld-btn--big">
                 Entrar al panel
               </a>
               <a href="#tiendas" className="ld-btn ld-btn--ghost">
@@ -527,7 +530,7 @@ export function PlatformLanding() {
               Cada rubro con su tienda, su marca y su dominio. El stock, los costos y la ganancia, en un solo
               lugar.
             </p>
-            <a href={ADMIN_URL} className="ld-btn ld-btn--big mt-10">
+            <a href={ADMIN_ORIGIN} className="ld-btn ld-btn--big mt-10">
               Entrar al panel
             </a>
           </Reveal>

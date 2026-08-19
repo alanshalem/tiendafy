@@ -126,6 +126,8 @@ services:
       args:
         # NEXT_PUBLIC_* va en BUILD (se inlinea en el bundle del browser).
         NEXT_PUBLIC_API_URL: https://api.${PLATFORM_DOMAIN}
+        # Link "Entrar al panel" de la portada + validación de los mensajes
+        # del editor de tienda. Sin esto el link apunta a localhost.
         NEXT_PUBLIC_ADMIN_ORIGIN: https://admin.${PLATFORM_DOMAIN}
         NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
     restart: unless-stopped
