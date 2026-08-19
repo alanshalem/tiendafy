@@ -9,9 +9,10 @@ import {
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
+import { BarChart, DonutChart, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney } from '../../lib/format';
 import { orderStatusLabel } from '../../lib/orderStatus';
 
 interface Sales {
@@ -73,24 +74,49 @@ export function StatsSalesPage() {
           </div>
 
           <ChartCard
-            title="Pedidos por estado"
-            info="Cómo se reparten los pedidos del período entre sus estados."
+            title="Facturación por día"
+            info="Cada barra es un día con ventas cobradas. La más alta queda marcada con su fecha."
           >
-            {data.byStatus.length === 0 ? (
-              <p className="py-4 text-sm text-fg-muted">Sin pedidos en el período.</p>
-            ) : (
-              <table className="w-full text-sm">
-                <tbody>
-                  {data.byStatus.map((s) => (
-                    <tr key={s.status} className="border-b border-border last:border-b-0">
-                      <td className="py-2 text-fg">{orderStatusLabel(s.status)}</td>
-                      <td className="py-2 text-right tabular-nums text-fg">{s.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <BarChart
+              data={data.series.map((s) => ({
+                label: formatDayShort(s.date),
+                value: s.revenue,
+                title: `${formatDayShort(s.date)}: ${formatMoney(s.revenue, data.currency)} · ${s.orders} venta${s.orders === 1 ? '' : 's'}`,
+              }))}
+              format={(v) => formatMoney(v, data.currency)}
+            />
           </ChartCard>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartCard
+              title="Pedidos por estado"
+              info="Cómo se reparten los pedidos del período. Lo que no llega a 'Pagada' es plata que se cayó en el camino."
+            >
+              <DonutChart
+                slices={data.byStatus.map((s) => ({ label: orderStatusLabel(s.status), value: s.count }))}
+                centerLabel="pedidos"
+                centerValue={String(data.byStatus.reduce((t, s) => t + s.count, 0))}
+              />
+            </ChartCard>
+
+            <ChartCard
+              title="Días con más ventas"
+              info="Los cinco días que más facturaron: sirve para saber cuándo conviene publicar o mandar una campaña."
+            >
+              <RankBars
+                rows={[...data.series]
+                  .sort((a, b) => b.revenue - a.revenue)
+                  .slice(0, 5)
+                  .map((s) => ({
+                    label: formatDayShort(s.date),
+                    value: s.revenue,
+                    display: formatMoney(s.revenue, data.currency),
+                    hint: `${s.orders} venta${s.orders === 1 ? '' : 's'}`,
+                  }))}
+                emptyLabel="Sin ventas en el período."
+              />
+            </ChartCard>
+          </div>
         </>
       )}
     </div>

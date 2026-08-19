@@ -27,7 +27,8 @@ public static class StatsEndpoints
         stats.MapGet("/overview", async (
             ITenantContext tenant,
             CatalogDbContext catalog, DiscountsDbContext discounts, CustomersDbContext customers,
-            ContentDbContext content, OrdersDbContext ordersDb, CancellationToken ct) =>
+            ContentDbContext content, OrdersDbContext ordersDb,
+            MercadoLibre.Infrastructure.MeliDbContext meli, int? days, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var tidGuid = tid.Value;
@@ -44,18 +45,97 @@ public static class StatsEndpoints
             var pagesTotal = await content.Pages.CountAsync(p => p.TenantId == tidGuid, ct);
             var pagesPublished = await content.Pages.CountAsync(p => p.TenantId == tidGuid && p.Published, ct);
 
-            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid).ToListAsync(ct);
-            var revenue = paid.Sum(o => o.Total.AmountInMinorUnits);
-            var currency = paid.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
+            // Ventas del período elegido y del anterior de la misma duración:
+            // un número solo no dice si el negocio viene mejor o peor.
+            var span = Math.Clamp(days ?? 30, 1, 365);
+            var until = DateTime.UtcNow;
+            var since = until.AddDays(-span);
+            var prevSince = since.AddDays(-span);
+
+            var window = await ordersDb.Orders
+                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.PaidAtUtc >= prevSince)
+                .ToListAsync(ct);
+
+            var current = window.Where(o => o.PaidAtUtc >= since).ToList();
+            var previous = window.Where(o => o.PaidAtUtc < since).ToList();
+
+            var revenue = current.Sum(o => o.Total.AmountInMinorUnits);
+            var previousRevenue = previous.Sum(o => o.Total.AmountInMinorUnits);
+            var currency = current.FirstOrDefault()?.Currency
+                ?? previous.FirstOrDefault()?.Currency
+                ?? Money.DefaultCurrency;
+
+            // Evolución diaria del período (para el gráfico de barras).
+            var byDay = current
+                .GroupBy(o => DateOnly.FromDateTime((o.PaidAtUtc ?? o.CreatedAtUtc).Date))
+                .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.Total.AmountInMinorUnits), Orders: g.Count()));
+            var series = Enumerable.Range(0, span)
+                .Select(i => DateOnly.FromDateTime(since.AddDays(i + 1).Date))
+                .Select(d => new
+                {
+                    date = d,
+                    revenue = byDay.TryGetValue(d, out var v) ? v.Revenue : 0,
+                    orders = byDay.TryGetValue(d, out var v2) ? v2.Orders : 0,
+                })
+                .ToList();
+
+            // De dónde vienen las ventas: canal propio vs. Mercado Libre.
+            var meliRevenue = await meli.Orders.AsNoTracking()
+                .Where(o => o.TenantId == tid.Value && o.DateCreatedUtc >= since
+                    && (o.Status == "paid" || o.Status == "partially_refunded"))
+                .ToListAsync(ct);
+
+            // Origen del tráfico que terminó en venta (utm_source de la orden).
+            var bySource = current
+                .GroupBy(o => string.IsNullOrWhiteSpace(o.UtmSource) ? "directo" : o.UtmSource!)
+                .Select(g => new { source = g.Key, orders = g.Count(), revenue = g.Sum(o => o.Total.AmountInMinorUnits) })
+                .OrderByDescending(x => x.revenue)
+                .Take(6)
+                .ToList();
+
+            // Lo más vendido del período, por facturación.
+            var topProducts = current
+                .SelectMany(o => o.Items)
+                .GroupBy(i => i.ProductName)
+                .Select(g => new { product = g.Key, units = g.Sum(i => i.Quantity), revenue = g.Sum(i => i.LineTotal.AmountInMinorUnits) })
+                .OrderByDescending(x => x.revenue)
+                .Take(5)
+                .ToList();
 
             return Results.Ok(new
             {
+                days = span,
+                currency,
                 products = new { total, published, draft, archived },
                 categories,
                 coupons = new { total = couponsTotal, active = couponsActive },
                 customers = customersCount,
                 pages = new { total = pagesTotal, published = pagesPublished },
-                sales = new { available = true, orders = paid.Count, revenue, currency },
+                sales = new
+                {
+                    available = true,
+                    orders = current.Count,
+                    revenue,
+                    averageOrder = current.Count > 0 ? revenue / current.Count : 0,
+                    previous = new
+                    {
+                        orders = previous.Count,
+                        revenue = previousRevenue,
+                        averageOrder = previous.Count > 0 ? previousRevenue / previous.Count : 0,
+                    },
+                },
+                series,
+                channels = new
+                {
+                    own = new { orders = current.Count, revenue },
+                    meli = new
+                    {
+                        orders = meliRevenue.Count,
+                        revenue = meliRevenue.Sum(o => (long)Math.Round(o.BillableAmount * 100m)),
+                    },
+                },
+                bySource,
+                topProducts,
             });
         });
 
@@ -95,19 +175,43 @@ public static class StatsEndpoints
 
         // Productos más vendidos (de OrderItems de órdenes pagadas). Rango: from/to o days.
         stats.MapGet("/products/top", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, int? days, int? limit, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            ITenantContext tenant, OrdersDbContext ordersDb, CatalogDbContext catalog,
+            int? days, int? limit, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var (since, until) = Range(from, to, days ?? 30);
             var take = Math.Clamp(limit ?? 10, 1, 50);
 
             var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
-            var top = paid.SelectMany(o => o.Items)
+            var lines = paid.SelectMany(o => o.Items).ToList();
+
+            var ranked = lines
                 .GroupBy(i => i.ProductName)
                 .Select(g => new { product = g.Key, units = g.Sum(i => i.Quantity), revenue = g.Sum(i => i.LineTotal.AmountInMinorUnits) })
-                .OrderByDescending(x => x.units).Take(take).ToList();
+                .ToList();
 
-            return Results.Ok(new { items = top });
+            var top = ranked.OrderByDescending(x => x.units).Take(take).ToList();
+            var topRevenue = ranked.OrderByDescending(x => x.revenue).Take(take).ToList();
+
+            // Lo que NO se vendió es tan informativo como el top: son los
+            // productos publicados que no movieron una sola unidad en el período.
+            var sold = ranked.Select(x => x.product).ToHashSet();
+            var published = await catalog.Products
+                .Where(p => p.TenantId == tid && p.Status == ProductStatus.Active)
+                .Select(p => p.Name)
+                .ToListAsync(ct);
+            var idle = published.Where(name => !sold.Contains(name)).OrderBy(n => n).ToList();
+
+            return Results.Ok(new
+            {
+                items = top,
+                byRevenue = topRevenue,
+                totalUnits = lines.Sum(i => i.Quantity),
+                distinctProducts = ranked.Count,
+                publishedProducts = published.Count,
+                idleCount = idle.Count,
+                idleSample = idle.Take(12).ToList(),
+            });
         });
 
         // Rentabilidad REAL (informe Escalafy): ganancia = ventas de productos

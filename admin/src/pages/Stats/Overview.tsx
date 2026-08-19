@@ -1,156 +1,223 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
+import { Link } from 'react-router-dom';
+import {
+  KpiCard,
+  StatsPageHeader,
+  StatsToolbar,
+  defaultStatsRange,
+} from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
+import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 
 interface Overview {
+  days: number;
+  currency: string;
   products: { total: number; published: number; draft: number; archived: number };
   categories: number;
   coupons: { total: number; active: number };
   customers: number;
   pages: { total: number; published: number };
-  sales: { available: boolean; orders?: number; revenue?: number; currency?: string };
-}
-
-interface MeliStats {
-  connected: boolean;
-  orders: number;
-  revenue: number;
-  currency: string;
-  unitsSold: number;
+  sales: {
+    available: boolean;
+    orders: number;
+    revenue: number;
+    averageOrder: number;
+    previous: { orders: number; revenue: number; averageOrder: number };
+  };
+  series: { date: string; revenue: number; orders: number }[];
+  channels: { own: { orders: number; revenue: number }; meli: { orders: number; revenue: number } };
+  bySource: { source: string; orders: number; revenue: number }[];
+  topProducts: { product: string; units: number; revenue: number }[];
 }
 
 const fmt = (n: number) => n.toLocaleString('es-AR');
 
+const SOURCE_LABEL: Record<string, string> = {
+  directo: 'Directo / sin origen',
+  redes: 'Redes sociales',
+  email: 'Email marketing',
+  meli: 'Mercado Libre',
+};
+
+/**
+ * Tablero de la tienda: cómo viene el negocio en el período elegido y contra el
+ * anterior. Antes esta pantalla era una fila de contadores del catálogo
+ * (productos, categorías, páginas) y un total histórico de facturación: nada
+ * que responda "¿cómo vengo este mes?".
+ */
 export function StatsOverviewPage() {
   const { store } = useStore();
+  const [range, setRange] = useState(defaultStatsRange());
+  const days = Math.max(
+    1,
+    Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 86_400_000) + 1,
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ['stats', store?.id],
-    queryFn: () => api.get<Overview>('/api/v1/stats/overview'),
+    queryKey: ['stats', store?.id, days],
+    queryFn: () => api.get<Overview>(`/api/v1/stats/overview?days=${days}`),
     enabled: !!store,
   });
 
-  // Multicanal: ventas de Mercado Libre (solo si la tienda conectó su cuenta).
-  const { data: meli } = useQuery({
-    queryKey: ['stats-meli', store?.id],
-    queryFn: () => api.get<MeliStats>('/api/v1/admin/meli/stats?days=30'),
-    enabled: !!store,
-    retry: false,
-  });
+  const sales = data?.sales;
+  const currency = data?.currency ?? 'ARS';
+  const money = (v: number) => formatMoney(v, currency);
 
   return (
     <div className="space-y-5">
-      {/* Sin filtro de fecha: son totales históricos (catálogo/clientes), no un período. */}
-      <StatsPageHeader title="Visión general" />
-      <p className="-mt-3 text-sm text-fg-muted">Resumen del catálogo y los clientes de tu tienda.</p>
+      <div>
+        <StatsPageHeader title="Visión general" />
+        <p className="mt-1 text-sm text-fg-muted">
+          Cómo viene tu negocio, comparado con el período anterior.
+        </p>
+      </div>
+
+      <StatsToolbar value={range} onChange={setRange} />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-lg border border-border bg-surface shadow-card"
-            />
-          ))}
-        </div>
+        <p className="py-16 text-center text-sm text-fg-muted">Cargando…</p>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-              title="Productos"
-              hint="Total del catálogo: publicados + borradores."
-              value={fmt(data.products.total)}
+              title="Facturación"
+              value={money(sales?.revenue ?? 0)}
+              hint="Suma de las ventas cobradas en el período (sin las que están esperando pago)."
             >
-              <div className="text-xs text-fg-subtle">
-                Publicados {fmt(data.products.published)} · Borradores {fmt(data.products.draft)}
-              </div>
+              <Delta current={sales?.revenue ?? 0} previous={sales?.previous.revenue ?? 0} />
             </KpiCard>
             <KpiCard
-              title="Categorías"
-              hint="Cómo está organizado el catálogo en tu tienda."
-              value={fmt(data.categories)}
-            />
-            <KpiCard
-              title="Cupones activos"
-              hint="Cupones vigentes hoy, sobre el total creado."
-              value={fmt(data.coupons.active)}
+              title="Ventas cobradas"
+              value={fmt(sales?.orders ?? 0)}
+              hint="Cantidad de ventas pagadas."
             >
-              <div className="text-xs text-fg-subtle">
-                {fmt(data.coupons.active)} de {fmt(data.coupons.total)}
-              </div>
+              <Delta current={sales?.orders ?? 0} previous={sales?.previous.orders ?? 0} />
+            </KpiCard>
+            <KpiCard
+              title="Ticket promedio"
+              value={money(sales?.averageOrder ?? 0)}
+              hint="Facturación dividida por la cantidad de ventas: cuánto gasta en promedio quien te compra."
+            >
+              <Delta current={sales?.averageOrder ?? 0} previous={sales?.previous.averageOrder ?? 0} />
             </KpiCard>
             <KpiCard
               title="Clientes"
-              hint="Compradores con cuenta creada en tu tienda."
               value={fmt(data.customers)}
-            />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <KpiCard
-              title="Páginas"
-              hint="Páginas de contenido de la tienda: publicadas sobre el total."
-              value={fmt(data.pages.total)}
+              hint="Fichas en tu agenda: una por comprador, más los que cargaste a mano."
             >
-              <div className="text-xs text-fg-subtle">
-                {fmt(data.pages.published)} publicadas de {fmt(data.pages.total)}
-              </div>
+              <Link to="/clientes" className="text-xs font-medium text-primary hover:underline">
+                Ver clientes
+              </Link>
             </KpiCard>
+          </div>
+
+          <ChartCard
+            title="Facturación por día"
+            info="Cada barra es un día del período. La barra más alta queda marcada con su fecha."
+          >
+            <BarChart
+              data={data.series.map((s) => ({
+                label: formatDayShort(s.date),
+                value: s.revenue,
+                title: `${formatDayShort(s.date)}: ${money(s.revenue)} · ${s.orders} venta${s.orders === 1 ? '' : 's'}`,
+              }))}
+              format={money}
+            />
+          </ChartCard>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartCard
+              title="Por dónde vendés"
+              info="Participación de cada canal en la facturación del período: tu tienda y Mercado Libre."
+            >
+              <DonutChart
+                slices={[
+                  { label: 'Tienda online', value: data.channels.own.revenue },
+                  { label: 'Mercado Libre', value: data.channels.meli.revenue },
+                ]}
+                centerLabel="facturado"
+                centerValue={money(data.channels.own.revenue + data.channels.meli.revenue)}
+              />
+            </ChartCard>
 
             <ChartCard
-              title="Estadísticas de ventas"
-              info="Solo ventas PAGADAS: la plata que efectivamente entró."
-              className="lg:col-span-2"
+              title="De dónde llegan tus ventas"
+              info="Origen de cada venta de tu tienda: se guarda al comprar, desde el link por el que entró (redes, campañas de email o directo)."
             >
-              <div className="flex h-full min-h-[5rem] items-center gap-8">
-                <div>
-                  <div className="text-sm text-fg-muted">Facturación (pagado)</div>
-                  <div className="mt-1 text-2xl font-bold text-fg">
-                    {formatMoney(data.sales.revenue ?? 0, data.sales.currency ?? 'ARS')}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-fg-muted">Ventas pagadas</div>
-                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(data.sales.orders ?? 0)}</div>
-                </div>
-              </div>
+              <RankBars
+                rows={data.bySource.map((s) => ({
+                  label: SOURCE_LABEL[s.source] ?? s.source,
+                  value: s.revenue,
+                  display: money(s.revenue),
+                  hint: `${s.orders} venta${s.orders === 1 ? '' : 's'}`,
+                }))}
+                emptyLabel="Todavía no hay ventas con origen registrado."
+              />
             </ChartCard>
           </div>
 
-          {meli?.connected && (
+          <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard
-              title="Mercado Libre (últimos 30 días)"
-              info="Ventas pagadas de tu cuenta de ML conectada; una venta cancelada no suma."
+              title="Lo más vendido"
+              info="Los cinco productos que más facturaron en el período."
+              action={
+                <Link
+                  to="/estadisticas/productos"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Ver todos
+                </Link>
+              }
             >
-              <div className="flex h-full min-h-[5rem] flex-wrap items-center gap-8">
-                <div>
-                  <div className="text-sm text-fg-muted">Facturado en ML</div>
-                  <div className="mt-1 text-2xl font-bold text-fg">
-                    {meli.revenue.toLocaleString('es-AR', {
-                      style: 'currency',
-                      currency: meli.currency || 'ARS',
-                      maximumFractionDigits: 0,
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-fg-muted">Ventas en ML</div>
-                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(meli.orders)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-fg-muted">Unidades vendidas</div>
-                  <div className="mt-1 text-2xl font-bold text-fg">{fmt(meli.unitsSold)}</div>
-                </div>
-              </div>
+              <RankBars
+                rows={data.topProducts.map((p) => ({
+                  label: p.product,
+                  value: p.revenue,
+                  display: money(p.revenue),
+                  hint: `${p.units} unidad${p.units === 1 ? '' : 'es'}`,
+                }))}
+                emptyLabel="Sin ventas en este período."
+              />
             </ChartCard>
-          )}
+
+            <ChartCard
+              title="Tu tienda hoy"
+              info="El estado del catálogo y del contenido, sin importar el período."
+            >
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <CatalogRow label="Productos publicados" value={fmt(data.products.published)} />
+                <CatalogRow label="Borradores" value={fmt(data.products.draft)} />
+                <CatalogRow label="Categorías" value={fmt(data.categories)} />
+                <CatalogRow
+                  label="Cupones activos"
+                  value={`${fmt(data.coupons.active)} de ${fmt(data.coupons.total)}`}
+                />
+                <CatalogRow
+                  label="Páginas publicadas"
+                  value={`${fmt(data.pages.published)} de ${fmt(data.pages.total)}`}
+                />
+                <CatalogRow label="Archivados" value={fmt(data.products.archived)} />
+              </dl>
+            </ChartCard>
+          </div>
         </>
       )}
 
       <HelpLink id="estadisticas" />
+    </div>
+  );
+}
+
+function CatalogRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-fg-muted">{label}</dt>
+      <dd className="mt-0.5 text-lg font-semibold text-fg">{value}</dd>
     </div>
   );
 }
