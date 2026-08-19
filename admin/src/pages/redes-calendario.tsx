@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button, Spinner, cn } from '@tiendafy/ui';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Button, Spinner, Tooltip, cn } from '@tiendafy/ui';
 import { POST_STATUS, postDate, postStatus, ProviderIcon, type SocialPostDto } from './redes-shared';
 
 const MONTHS = [
@@ -119,12 +119,22 @@ export function CalendarioTab({
                 onClick={() => onDayClick(day)}
                 onKeyDown={(e) => e.key === 'Enter' && onDayClick(day)}
                 className={cn(
-                  'min-h-24 cursor-pointer border-b border-r border-border p-1.5 transition-colors hover:bg-bg-muted/40',
-                  !inMonth && 'bg-bg-muted/20 text-fg-subtle',
+                  'group relative min-h-24 cursor-pointer border-b border-r border-border p-1.5 transition-colors hover:bg-bg-muted/40',
+                  !inMonth && 'bg-bg-muted/30 opacity-60',
+                  isSameDay(day, today) && 'bg-primary/[0.04]',
                   (i + 1) % 7 === 0 && 'border-r-0',
                   i >= 35 && 'border-b-0',
                 )}
               >
+                {/* Affordance: nada indicaba que el día es clickeable */}
+                {day >= today && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+                )}
                 <span
                   className={cn(
                     'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
@@ -138,28 +148,48 @@ export function CalendarioTab({
                   {day.getDate()}
                 </span>
                 <div className="mt-0.5 space-y-1">
-                  {dayPosts.slice(0, 3).map((post) => (
-                    <button
-                      key={post.id}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPostClick(post);
-                      }}
-                      title={`${postStatus(post).label}: ${post.content || '(solo imagen)'}`}
-                      className="flex w-full items-center gap-1 rounded bg-bg-muted/60 px-1.5 py-1 text-left hover:bg-bg-muted"
-                    >
-                      <span
-                        className={cn('h-1.5 w-1.5 shrink-0 rounded-full', POST_STATUS[post.status]?.dot)}
-                      />
-                      <span className="flex shrink-0 -space-x-1">
-                        {[...new Set(post.targets.map((t) => t.provider))].slice(0, 3).map((p) => (
-                          <ProviderIcon key={p ?? '-'} provider={p} size="sm" />
-                        ))}
-                      </span>
-                      <span className="truncate text-xs text-fg-muted">{post.content || '📷'}</span>
-                    </button>
-                  ))}
+                  {dayPosts.slice(0, 3).map((post) => {
+                    const at = postDate(post);
+                    const hora = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+                    return (
+                      <Tooltip
+                        key={post.id}
+                        side="top"
+                        delayMs={200}
+                        label={
+                          <span>
+                            <span className="font-semibold">
+                              {postStatus(post).label} · {hora}
+                            </span>
+                            <br />
+                            {(post.content || '(solo imagen)').slice(0, 160)}
+                          </span>
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPostClick(post);
+                          }}
+                          className={cn(
+                            'flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors',
+                            POST_STATUS[post.status]?.chip ?? 'bg-bg-muted/60',
+                          )}
+                        >
+                          <span className="shrink-0 text-[0.65rem] font-semibold tabular-nums text-fg-muted">
+                            {hora}
+                          </span>
+                          <span className="flex shrink-0 -space-x-1">
+                            {[...new Set(post.targets.map((t) => t.provider))].slice(0, 3).map((p) => (
+                              <ProviderIcon key={p ?? '-'} provider={p} size="sm" />
+                            ))}
+                          </span>
+                          <span className="truncate text-xs text-fg">{post.content || '📷'}</span>
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
                   {dayPosts.length > 3 && (
                     <p className="px-1.5 text-xs text-fg-subtle">+{dayPosts.length - 3} más</p>
                   )}

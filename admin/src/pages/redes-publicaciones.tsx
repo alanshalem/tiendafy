@@ -1,9 +1,16 @@
 import { useState } from 'react';
-import { CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
-import { Badge, Button, EmptyList, Select, Spinner, useConfirm, useToast } from '@tiendafy/ui';
+import { AlignLeft, CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { Badge, Button, EmptyList, Select, Spinner, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
-import { postStatus, ProviderIcon, providerMeta, type SocialPostDto } from './redes-shared';
+import {
+  POST_STATUS,
+  postDate,
+  postStatus,
+  ProviderIcon,
+  providerMeta,
+  type SocialPostDto,
+} from './redes-shared';
 
 const STATUS_FILTER = [
   { value: '', label: 'Todos los estados' },
@@ -28,6 +35,11 @@ export function PublicacionesTab({
   const [status, setStatus] = useState('');
 
   const filtered = status ? (posts ?? []).filter((p) => p.status === status) : (posts ?? []);
+  // Timeline: lo que VIENE primero (ascendente), el historial después.
+  const upcoming = filtered
+    .filter((p) => p.status === 'Scheduled' || p.status === 'Draft')
+    .sort((x, y) => postDate(x).getTime() - postDate(y).getTime());
+  const history = filtered.filter((p) => p.status === 'Published' || p.status === 'Failed');
 
   const unschedule = async (post: SocialPostDto) => {
     try {
@@ -75,93 +87,122 @@ export function PublicacionesTab({
           para todas tus redes a la vez.
         </EmptyList>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((post) => {
-            const st = postStatus(post);
-            return (
-              <div key={post.id} className="rounded-lg border border-border bg-surface p-4 shadow-card">
-                <div className="flex items-start gap-3.5">
-                  {post.mediaUrls[0] && (
-                    <img
-                      src={post.mediaUrls[0]}
-                      alt=""
-                      className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={st.variant}>{st.label}</Badge>
-                      <span className="text-sm text-fg-subtle">
-                        {post.status === 'Published'
-                          ? `Publicado el ${formatDateTime(post.publishedAtUtc ?? post.createdAtUtc)}`
-                          : post.scheduledAtUtc
-                            ? `Programado para el ${formatDateTime(post.scheduledAtUtc)}`
-                            : `Creado el ${formatDateTime(post.createdAtUtc)}`}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-sm text-fg">
-                      {post.content || '(solo imagen)'}
-                    </p>
-                    {post.couponCode && (
-                      <p className="mt-1 text-xs text-fg-muted">
-                        Cupón <span className="font-mono font-medium text-fg">{post.couponCode}</span>
-                        {post.attributedOrders > 0 && (
-                          <span className="text-success">
-                            {' '}
-                            · trajo {post.attributedOrders} {post.attributedOrders === 1 ? 'venta' : 'ventas'}{' '}
-                            · {formatMoney(post.attributedRevenueMinor)}
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                      {post.targets.map((t) => (
-                        <span key={t.accountId} className="inline-flex items-center gap-1.5 text-sm">
-                          <ProviderIcon provider={t.provider} size="sm" />
-                          <span className="text-fg-muted">{t.accountName}</span>
-                          {t.externalUrl && (
-                            <a
-                              href={t.externalUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-fg-subtle hover:text-primary"
-                              title={`Ver en ${providerMeta(t.provider).label}`}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          )}
-                          {t.error && (
-                            <span className="text-xs text-danger" title={t.error}>
-                              {t.error}
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {post.isEditable && (
-                      <Button variant="secondary" onClick={() => onEdit(post)} title="Editar">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {post.status === 'Scheduled' && post.scheduleStatus === 'Pending' && (
-                      <Button variant="secondary" onClick={() => unschedule(post)} title="Volver a borrador">
-                        <CalendarClock className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {post.scheduleStatus !== 'Processing' && (
-                      <Button variant="secondary" onClick={() => remove(post)} title="Eliminar">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-6">
+          {upcoming.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-subtle">Próximos</h2>
+              <div className="space-y-3">{upcoming.map(renderPost)}</div>
+            </section>
+          )}
+          {history.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-subtle">Historial</h2>
+              <div className="space-y-3">{history.map(renderPost)}</div>
+            </section>
+          )}
         </div>
       )}
     </div>
   );
+
+  function renderPost(post: SocialPostDto) {
+    const st = postStatus(post);
+    return (
+      <div
+        key={post.id}
+        className={cn(
+          'rounded-lg border border-border border-l-4 bg-surface p-4 shadow-card',
+          POST_STATUS[post.status]?.edge ?? 'border-l-border',
+        )}
+      >
+        <div className="flex items-start gap-3.5">
+          {post.mediaUrls[0] ? (
+            <img
+              src={post.mediaUrls[0]}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover"
+            />
+          ) : (
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-muted text-fg-subtle">
+              <AlignLeft className="h-6 w-6" />
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={st.variant}>{st.label}</Badge>
+              <span className="text-sm text-fg-subtle">
+                {post.status === 'Published'
+                  ? `Publicado el ${formatDateTime(post.publishedAtUtc ?? post.createdAtUtc)}`
+                  : post.scheduledAtUtc
+                    ? `Programado para el ${formatDateTime(post.scheduledAtUtc)}`
+                    : `Creado el ${formatDateTime(post.createdAtUtc)}`}
+              </span>
+            </div>
+            <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-sm text-fg">
+              {post.content || '(solo imagen)'}
+            </p>
+            {post.couponCode && (
+              <p className="mt-1 text-xs text-fg-muted">
+                Cupón <span className="font-mono font-medium text-fg">{post.couponCode}</span>
+                {post.attributedOrders > 0 && (
+                  <span className="text-success">
+                    {' '}
+                    · trajo {post.attributedOrders} {post.attributedOrders === 1 ? 'venta' : 'ventas'} ·{' '}
+                    {formatMoney(post.attributedRevenueMinor)}
+                  </span>
+                )}
+              </p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {post.targets.map((t) => (
+                <span key={t.accountId} className="inline-flex items-center gap-1.5 text-sm">
+                  <ProviderIcon provider={t.provider} size="sm" />
+                  <span className="text-fg-muted">{t.accountName}</span>
+                  {t.externalUrl && (
+                    <a
+                      href={t.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-fg-subtle hover:text-primary"
+                      title={`Ver en ${providerMeta(t.provider).label}`}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </span>
+              ))}
+            </div>
+            {post.status === 'Failed' && (
+              <div className="mt-2 rounded-md bg-danger-bg px-2.5 py-1.5 text-xs text-danger">
+                {post.targets
+                  .filter((t) => t.error)
+                  .map((t) => (
+                    <p key={t.accountId}>
+                      <span className="font-semibold">{providerMeta(t.provider).label}:</span> {t.error}
+                    </p>
+                  ))}
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {post.isEditable && (
+              <Button variant="secondary" onClick={() => onEdit(post)} title="Editar">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {post.status === 'Scheduled' && post.scheduleStatus === 'Pending' && (
+              <Button variant="secondary" onClick={() => unschedule(post)} title="Volver a borrador">
+                <CalendarClock className="h-4 w-4" />
+              </Button>
+            )}
+            {post.scheduleStatus !== 'Processing' && (
+              <Button variant="secondary" onClick={() => remove(post)} title="Eliminar">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

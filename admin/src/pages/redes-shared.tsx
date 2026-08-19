@@ -143,12 +143,39 @@ export function ProviderIcon({ provider, size = 'md' }: { provider: string | nul
   );
 }
 
-/** Estado del post: label, badge y color de punto (calendario) en UN mapa. */
-export const POST_STATUS: Record<string, { label: string; variant: BadgeVariant; dot: string }> = {
-  Draft: { label: 'Borrador', variant: 'neutral', dot: 'bg-fg-subtle' },
-  Scheduled: { label: 'Programado', variant: 'info', dot: 'bg-info' },
-  Published: { label: 'Publicado', variant: 'success', dot: 'bg-success' },
-  Failed: { label: 'Con errores', variant: 'danger', dot: 'bg-danger' },
+/** Estado del post: label, badge, punto, chip del calendario y borde de card. */
+export const POST_STATUS: Record<
+  string,
+  { label: string; variant: BadgeVariant; dot: string; chip: string; edge: string }
+> = {
+  Draft: {
+    label: 'Borrador',
+    variant: 'neutral',
+    dot: 'bg-fg-subtle',
+    chip: 'bg-fg/5 hover:bg-fg/10',
+    edge: 'border-l-fg-subtle',
+  },
+  Scheduled: {
+    label: 'Programado',
+    variant: 'info',
+    dot: 'bg-info',
+    chip: 'bg-info/10 hover:bg-info/20',
+    edge: 'border-l-info',
+  },
+  Published: {
+    label: 'Publicado',
+    variant: 'success',
+    dot: 'bg-success',
+    chip: 'bg-success/10 hover:bg-success/20',
+    edge: 'border-l-success',
+  },
+  Failed: {
+    label: 'Con errores',
+    variant: 'danger',
+    dot: 'bg-danger',
+    chip: 'bg-danger/10 hover:bg-danger/20',
+    edge: 'border-l-danger',
+  },
 };
 
 /** Conector OAuth → red representativa (icono) y blurb del panel de cuentas. */
