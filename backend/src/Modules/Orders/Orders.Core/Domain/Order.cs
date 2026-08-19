@@ -119,7 +119,9 @@ public sealed class Order : AggregateRoot
     /// <summary>Snapshot de envío y datos del comprador (vienen del checkout, nunca del cliente).</summary>
     /// <summary>De dónde vino la venta (first-touch de la sesión del comprador).</summary>
     public void SetUtmSource(string? utmSource) =>
-        UtmSource = string.IsNullOrWhiteSpace(utmSource) ? null : utmSource.Trim().ToLowerInvariant()[..Math.Min(40, utmSource.Trim().Length)];
+        UtmSource = string.IsNullOrWhiteSpace(utmSource)
+            ? null
+            : Text.Cap(utmSource.Trim().ToLowerInvariant(), 40);
 
     public void SetShippingAndBuyer(
         Money shippingCost, string? shippingMethodName, string? shippingAddress,

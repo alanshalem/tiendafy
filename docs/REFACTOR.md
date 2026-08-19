@@ -260,6 +260,57 @@ de callers antes de cada hallazgo.
   compartido ya está extraído en `OAuthStateProtector`/`OAuth2`; tocar los
   purposes de DataProtection es máximo riesgo por ~8 líneas).
 
+## Pasada 8 — barrido completo del repo (backend + admin + storefront + infra)
+
+Tres barridos paralelos (backend, admin, storefront/shared/infra) sobre el repo
+entero. Lo aplicado, agrupado por lo que arregla:
+
+- **Bugs encontrados por el barrido** (el refactor los destapó; se arreglaron):
+  - Nota de crédito de Mercado Libre: se emitía siempre y se marcaba el flag
+    aunque la venta no estuviera cancelada; la factura manual se emitía con el
+    id de ML en vez del id de la orden local.
+  - Rentabilidad del canal ML: la resolución ítem→variante estaba copiada 3
+    veces y la copia de rentabilidad no tenía el fallback a nivel ítem, así que
+    el margen de ML salía inflado. Ahora hay un `MeliLinkResolver` único.
+  - `POST /orders/manual` con `ReturnUrl` inválido reservaba stock y recién
+    después fallaba: media hora de reservas colgadas por cada intento.
+  - Pago on-site con tarjeta nunca encolaba la factura automática: era la copia
+    incompleta de los side-effects del pago (ver abajo).
+  - Config de Mercado Libre: cualquier error de red dejaba la pantalla en
+    blanco y sin mensaje. Ahora muestra el error con botón de reintentar.
+  - Ventas de ML: el botón "Facturar" se decidía comparando la ETIQUETA visible
+    ("Pagada") en vez del estado; renombrar el texto lo apagaba en silencio.
+- **Once inputs con clases muertas**: `className="h-8 w-24"` sobre `<Input>` no
+  hacía nada — `cn` concatena sin resolver conflictos de Tailwind y `.h-10` /
+  `.w-full` de la base ganan por orden en el CSS. Se agregó la prop `compact`
+  al Input compartido (el alto es del control, no de una clase suelta) y el
+  ancho pasó a un div que lo envuelve, que es la convención del repo.
+- **DRY**: `PaidOrderSideEffects` (los efectos de "orden pagada" estaban en 3
+  copias divergidas — on-site, webhook y venta manual — y ahora corren paso a
+  paso en best-effort: antes una excepción en el medio se llevaba puesto el
+  resto y no volvían, porque el reintento del webhook ya no da "recién
+  pagada"), `PriceRounding` (modos de redondeo + su validación, antes
+  duplicados entre endpoint y handler, ahora con tests de cada borde),
+  `fieldChrome` (foco/disabled/error de Input, Select y Textarea),
+  `catalog-map` (tipos y mappers puros del catálogo, importables desde el
+  cliente), `replaceAt`, tipos del catálogo en Costos.
+- **Clean architecture**: `ManualOrderService` — el endpoint de venta manual
+  tenía 158 líneas de reglas de negocio y un `IServiceProvider` para pedir
+  servicios a mano; ahora el endpoint traduce HTTP y el servicio tiene sus
+  dependencias explícitas (y, de paso, libera las reservas si la orden no se
+  puede crear). `PostCard` y `PerNetworkOverrides` salieron de adentro de sus
+  pantallas de redes.
+- **Dead code**: modelo de tema muerto en `shared/types/tenancy.ts` (con los
+  MISMOS nombres que el vivo de `theme.ts` y otra forma — un import por
+  autocompletado compilaba y fallaba en runtime), prop `name` fantasma en
+  Radio, props `enabled`/`className` que nadie pasaba, `open &&` redundante.
+- **Infra/CI**: ancla YAML para la imagen de Postgres en docker-compose de prod
+  (postgres y pg-backup no pueden volver a quedar en versiones distintas),
+  `AI_MODEL` configurable, sitemap del storefront usando el guardrail de
+  tenant, y el CI de frontend ahora corre los builds de producción de admin y
+  storefront antes de los tests (el build de prod es lo único que detecta
+  errores que el dev server perdona).
+
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 
 - Unificar modales de envío Correo/Zipnova y `RepeatableList` del theme-editor:

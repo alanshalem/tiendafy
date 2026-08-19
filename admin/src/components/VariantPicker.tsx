@@ -19,12 +19,10 @@ export function VariantPicker({
   placeholder,
   onPick,
   exclude,
-  enabled = true,
 }: {
   placeholder: string;
   onPick: (variant: VariantOption) => void;
   exclude?: Set<string>;
-  enabled?: boolean;
 }) {
   const { store } = useStore();
   const [search, setSearch] = useState('');
@@ -32,7 +30,7 @@ export function VariantPicker({
   const { data: products } = useQuery({
     queryKey: ['products', store?.id],
     queryFn: () => fetchAllProducts<CatalogProduct>(),
-    enabled: !!store && enabled,
+    enabled: !!store,
   });
 
   const allVariants = useMemo(

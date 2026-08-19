@@ -84,9 +84,7 @@ public static class OrderEndpoints
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
-            OrderNotifier notifier,
-            WhatsAppNotifier whatsapp,
-            Api.Orders.KitStockService kitStock,
+            Api.Orders.PaidOrderSideEffects paidEffects,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
@@ -106,11 +104,7 @@ public static class OrderEndpoints
             // Aplicar el resultado ya (el webhook es backup, idempotente).
             var settleResult = await settle.HandleAsync(order.Id, card.Status, card.PaymentId, ct: ct);
             if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
-            {
-                await kitStock.ApplyAsync(settleResult.Value.Order, ct);
-                await notifier.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
-                await whatsapp.NotifyAsync(settleResult.Value.Order, "confirmacion-pago", ct);
-            }
+                await paidEffects.RunAsync(settleResult.Value.Order, ct: ct);
 
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
         }).RequireTenant().RequireRateLimiting("payments");
@@ -385,16 +379,10 @@ public static class OrderEndpoints
         group.MapPost("/orders/manual", async (
             ManualOrderRequest request,
             ITenantContext tenant,
-            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
-            Inventory.Core.Domain.IStockRepository stock,
-            IOrderRepository orders,
-            IMercadoPagoPaymentService mp,
+            Api.Orders.ManualOrderService manual,
             IConfiguration cfg,
-            IServiceProvider sp,
             CancellationToken ct) =>
         {
-            if (request.Items is not { Count: > 0 })
-                return Error.Validation("Order.Empty", "Agregá al menos un producto.").ToProblem();
             if (request.PaymentMethod is not ("cash" or "transfer" or "link"))
                 return Error.Validation("Order.BadPayment", "Método de pago inválido.").ToProblem();
             // El link de pago se le manda al comprador: necesita email real.
@@ -402,142 +390,26 @@ public static class OrderEndpoints
                 return Error.Validation("Order.LinkNeedsEmail",
                     "Para cobrar con link de Mercado Pago hace falta el email del comprador.").ToProblem();
 
-            var variantIds = request.Items.Select(i => i.VariantId).Distinct().ToList();
-            if (variantIds.Count != request.Items.Count)
-                return Error.Validation("Order.DuplicateItem", "Cada variante va una sola vez.").ToProblem();
-            var variants = (await catalogQuery.GetVariantsAsync(tenant.TenantId.Value, variantIds, ct))
-                .ToDictionary(v => v.VariantId);
-            if (variants.Count != variantIds.Count)
-                return Error.Validation("Order.UnknownVariant", "Algún producto ya no existe.").ToProblem();
-
-            var currency = variants.Values.First().Price.Currency;
-
-            // Reservas REALES (anti-oversell): si una línea no tiene stock, se
-            // liberan las anteriores y la venta no se crea.
-            var reserved = new List<(Guid VariantId, Guid ReservationId)>();
-            foreach (var item in request.Items)
-            {
-                if (item.Quantity <= 0)
-                    return Error.Validation("Order.BadQuantity", "Las cantidades tienen que ser positivas.").ToProblem();
-                var reservation = await stock.TryReserveAsync(
-                    SharedKernel.Common.TenantId.From(tenant.TenantId.Value), item.VariantId, item.Quantity, ct);
-                if (reservation.IsFailure)
-                {
-                    foreach (var (_, rid) in reserved)
-                        await stock.ReleaseReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), rid, ct);
-                    var name = variants[item.VariantId].ProductName;
-                    return Error.Conflict("Order.NoStock", $"Sin stock suficiente de {name}.").ToProblem();
-                }
-                reserved.Add((item.VariantId, reservation.Value.Id));
-            }
-
-            var reservationByVariant = reserved.ToDictionary(r => r.VariantId, r => r.ReservationId);
-            var lines = request.Items.Select(i =>
-            {
-                var v = variants[i.VariantId];
-                var unitPrice = i.UnitPriceMinor is { } price and > 0
-                    ? new Money(price, currency)
-                    : new Money(v.Price.Amount, v.Price.Currency);
-                var unitCost = v.Cost is { } c ? new Money(c.Amount, c.Currency) : (Money?)null;
-                return (i.VariantId, v.ProductName, v.VariantDescription, v.Sku,
-                    unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], unitCost);
-            }).ToList();
-
-            var email = string.IsNullOrWhiteSpace(request.BuyerEmail)
-                ? $"manual+{DateTime.UtcNow:yyyyMMddHHmmss}@sin-email.local"
-                : request.BuyerEmail.Trim();
-            var discount = request.DiscountMinor is { } d and > 0 ? new Money(d, currency) : (Money?)null;
-
-            var created = Order.Create(
-                tenant.TenantId, Guid.NewGuid(), email, currency, lines, discount);
-            if (created.IsFailure) return created.Error.ToProblem();
-            var order = created.Value;
-
-            var methodLabel = request.PaymentMethod switch
-            {
-                "cash" => "Efectivo",
-                "transfer" => "Transferencia",
-                _ => "Link de Mercado Pago",
-            };
-            order.SetShippingAndBuyer(
-                request.ShippingCostMinor is { } ship and > 0 ? new Money(ship, currency) : Money.Zero(currency),
-                request.ShippingMethodName ?? "Entrega a coordinar",
-                request.ShippingAddress,
-                request.BuyerName,
-                request.BuyerPhone,
-                request.DocNumber,
-                $"Venta manual ({methodLabel}){(string.IsNullOrWhiteSpace(request.Notes) ? "" : $" · {request.Notes!.Trim()}")}");
-
-            // Link de MP: la orden queda PENDIENTE y el webhook la cobra sola
-            // (con todos los side-effects del pago normal). Efectivo/transferencia:
-            // la plata ya está, se marca pagada acá.
+            // La URL de retorno se valida ANTES de reservar stock: un rechazo
+            // después de reservar dejaba las reservas colgadas media hora.
+            string? linkBaseUrl = null;
             if (request.PaymentMethod == "link")
             {
-                await orders.AddAsync(order, ct);
-                await orders.SaveChangesAsync(ct);
-
-                var baseUrl = SafeRedirect.SafeAbsoluteBase(request.ReturnUrl, cfg);
-                if (baseUrl is null)
+                linkBaseUrl = SafeRedirect.SafeAbsoluteBase(request.ReturnUrl, cfg);
+                if (linkBaseUrl is null)
                     return Error.Validation("Order.BadReturnUrl", "La URL de retorno no es válida.").ToProblem();
-
-                var prefItems = order.Items.Select(ToPreferenceItem).ToList();
-                var pref = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
-                    tenant.TenantId, order.Id, order.Currency, prefItems, order.BuyerEmail,
-                    SuccessUrl: $"{baseUrl}/checkout/success?order={order.Id}",
-                    FailureUrl: $"{baseUrl}/checkout/failure?order={order.Id}",
-                    PendingUrl: $"{baseUrl}/checkout/pending?order={order.Id}",
-                    DiscountAmount: order.DiscountAmount.ToDecimal()), ct);
-                if (pref.IsFailure)
-                {
-                    // Sin link no hay cobro: liberar las reservas y avisar.
-                    foreach (var (_, rid) in reserved)
-                        await stock.ReleaseReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), rid, ct);
-                    return pref.Error.ToProblem();
-                }
-
-                order.AttachPreference(pref.Value.PreferenceId);
-                await orders.SaveChangesAsync(ct);
-
-                return Results.Created($"/api/v1/orders/{order.Id}", new
-                {
-                    order.Id,
-                    total = order.Total.AmountInMinorUnits,
-                    status = order.Status.ToString().ToUpperInvariant(),
-                    paymentLink = pref.Value.InitPoint,
-                });
             }
 
-            var paid = order.MarkPaid($"manual-{request.PaymentMethod}");
-            if (paid.IsFailure) return paid.Error.ToProblem();
+            var result = await manual.CreateAsync(tenant.TenantId, request, linkBaseUrl, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
 
-            await orders.AddAsync(order, ct);
-
-            // Confirmar reservas: la mercadería sale (mismo cierre que un pago real).
-            foreach (var (_, reservationId) in reserved)
-                await stock.ConfirmReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), reservationId, ct);
-
-            await orders.SaveChangesAsync(ct);
-
-            // Side-effects del "JustPaid" (best-effort, como el webhook de MP).
-            try
-            {
-                await sp.GetRequiredService<Api.Orders.KitStockService>().ApplyAsync(order, ct);
-                if (!email.EndsWith("@sin-email.local"))
-                    await sp.GetRequiredService<OrderNotifier>().NotifyAsync(order, "confirmacion-pago", ct);
-                await sp.GetRequiredService<global::Fiscal.Core.Abstractions.IFiscalEmissionQueue>()
-                    .EnqueueInvoiceAsync(order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
-                        order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnPayment, ct);
-            }
-            catch
-            {
-                // La venta ya está registrada: un email o factura fallida no la frena.
-            }
-
+            var order = result.Value.Order;
             return Results.Created($"/api/v1/orders/{order.Id}", new
             {
                 order.Id,
                 total = order.Total.AmountInMinorUnits,
                 status = order.Status.ToString().ToUpperInvariant(),
+                paymentLink = result.Value.PaymentLink,
             });
         }).RequirePermission(Permission.OrdersFulfill);
 

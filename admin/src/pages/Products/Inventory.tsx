@@ -155,15 +155,18 @@ export function InventoryPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <Input
-                        inputMode="numeric"
-                        className="mx-auto h-8 w-20 text-center"
-                        value={value}
-                        placeholder="—"
-                        onChange={(e) =>
-                          setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
-                        }
-                      />
+                      <div className="mx-auto w-20 shrink-0">
+                        <Input
+                          compact
+                          inputMode="numeric"
+                          className="text-center"
+                          value={value}
+                          placeholder="—"
+                          onChange={(e) =>
+                            setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
+                          }
+                        />
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       {changed && (

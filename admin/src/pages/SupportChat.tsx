@@ -37,6 +37,8 @@ export function SupportChatPage() {
   const { toast } = useToast();
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -58,8 +60,11 @@ export function SupportChatPage() {
   }, []);
 
   const loadMessages = useCallback(async (id: string) => {
+    // La respuesta tardía de otra conversación no puede pisar la abierta
+    // (el polling de 8 s dispara requests que resuelven fuera de orden).
     try {
       const d = await api.get<{ items: Message[] }>(`/api/v1/support/conversations/${id}/messages`);
+      if (selectedRef.current !== id) return;
       setMessages(d.items ?? []);
       // Leído al abrir: refrescar contadores de la bandeja.
       setConvs((cs) => cs.map((c) => (c.id === id ? { ...c, unreadForStaff: 0 } : c)));

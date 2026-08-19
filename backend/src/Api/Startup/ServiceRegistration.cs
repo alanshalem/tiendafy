@@ -120,6 +120,8 @@ public static class ServiceRegistration
         services.AddHttpClient<Api.MetaAds.MetaAdsClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<Api.MetaAds.MetaAdsTokenService>();
         services.AddScoped<Api.Orders.KitStockService>();
+        services.AddScoped<Api.Orders.PaidOrderSideEffects>();
+        services.AddScoped<Api.Orders.ManualOrderService>();
         services.Configure<Api.Meli.MeliOptions>(configuration.GetSection(Api.Meli.MeliOptions.SectionName));
         services.AddHttpClient<Api.Meli.MeliClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<Api.Meli.MeliTokenService>();

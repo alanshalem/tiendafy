@@ -59,6 +59,17 @@ jobs:
       - name: Lint storefront
         run: pnpm --filter ./storefront run lint
 
+      # Build de producción en el PR: type-check no ve violaciones de frontera
+      # RSC ni fallos de bundling, y hasta ahora el único build real corría en
+      # docker-release, DESPUÉS del merge.
+      - name: Build storefront (producción)
+        run: pnpm --filter ./storefront run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5080
+
+      - name: Build admin (producción)
+        run: pnpm --filter ./admin run build
+
       - name: Unit tests + coverage (admin)
         run: pnpm --filter ./admin exec vitest run --coverage
 

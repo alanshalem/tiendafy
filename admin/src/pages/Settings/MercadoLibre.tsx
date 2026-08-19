@@ -31,13 +31,20 @@ export function MeliSettingsPage() {
   const confirm = useConfirm();
   const [params, setParams] = useSearchParams();
   const [connection, setConnection] = useState<MeliConnection | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
+    setLoadError(null);
     api
       .get<MeliConnection>('/api/v1/admin/meli/connection')
       .then(setConnection)
-      .catch(() => setConnection(null));
+      // Sin esto, cualquier error de red dejaba la pantalla en blanco y mudo:
+      // el `return null` de abajo no distingue "cargando" de "se cayó".
+      .catch((err) => {
+        setConnection(null);
+        setLoadError(errMsg(err, 'No se pudo cargar la conexión con Mercado Libre.'));
+      });
   }, []);
 
   useEffect(() => {
@@ -115,6 +122,19 @@ export function MeliSettingsPage() {
       setBusy(false);
     }
   };
+
+  if (loadError)
+    return (
+      <div>
+        <SettingsHeader title="Mercado Libre" description="Conectá tu cuenta de vendedor." />
+        <div className={SETTINGS_CARD}>
+          <p className="text-sm text-danger">{loadError}</p>
+          <Button variant="secondary" className="mt-3" onClick={load}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
 
   if (!connection) return null;
 

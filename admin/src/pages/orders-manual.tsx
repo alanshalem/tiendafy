@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Copy, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { replaceAt } from '../lib/arrays';
 import { formatMoney } from '../lib/format';
 import { VariantPicker } from '../components/VariantPicker';
 
@@ -160,26 +161,24 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
                   </span>
                   <div className="w-16 shrink-0">
                     <Input
+                      compact
                       type="number"
                       min={1}
-                      className="h-8 text-right"
+                      className="text-right"
                       value={item.quantity}
-                      onChange={(e) =>
-                        setItems((l) => l.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)))
-                      }
+                      onChange={(e) => setItems((l) => replaceAt(l, idx, { quantity: e.target.value }))}
                     />
                   </div>
                   <div className="w-28 shrink-0">
                     <Input
+                      compact
                       type="number"
                       min={0}
                       step="0.01"
                       placeholder="$ lista"
-                      className="h-8 text-right"
+                      className="text-right"
                       value={item.price}
-                      onChange={(e) =>
-                        setItems((l) => l.map((x, i) => (i === idx ? { ...x, price: e.target.value } : x)))
-                      }
+                      onChange={(e) => setItems((l) => replaceAt(l, idx, { price: e.target.value }))}
                     />
                   </div>
                   <button

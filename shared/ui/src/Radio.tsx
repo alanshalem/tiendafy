@@ -36,15 +36,13 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
 Radio.displayName = 'Radio';
 
 interface RadioGroupProps {
-  /** Nombre compartido del grupo (HTML name). */
-  name: string;
   legend: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
 /** Fieldset accesible para agrupar <Radio name={name}>. */
-export function RadioGroup({ legend, children, className }: Omit<RadioGroupProps, 'name'>) {
+export function RadioGroup({ legend, children, className }: RadioGroupProps) {
   return (
     <fieldset className={cn('space-y-2', className)}>
       <legend className="text-sm font-medium text-fg">{legend}</legend>

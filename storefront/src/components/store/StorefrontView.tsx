@@ -14,6 +14,7 @@ import { WhatsAppFab } from './WhatsAppFab';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { fetchProductsByIdsClient } from '@/lib/catalog-client';
+import { referencedProductIds } from '@/lib/catalog-map';
 import { Header } from './StoreHeader';
 import { Footer } from './StoreFooter';
 
@@ -107,13 +108,8 @@ export function StorefrontView({
   // por id al vuelo, así aparece sin recargar el preview.
   useEffect(() => {
     if (!live) return;
-    const referenced = new Set<string>();
-    for (const s of theme.sections) {
-      const ids = (s.data as { productIds?: unknown }).productIds;
-      if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && referenced.add(id));
-    }
     const present = new Set(products.map((p) => p.id));
-    const missing = [...referenced].filter((id) => !present.has(id));
+    const missing = referencedProductIds(theme.sections).filter((id) => !present.has(id));
     if (missing.length === 0) return;
 
     let cancelled = false;

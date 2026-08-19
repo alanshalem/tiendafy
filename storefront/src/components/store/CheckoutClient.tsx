@@ -343,25 +343,35 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
+  /**
+   * POST a un endpoint de pago del checkout. Los campos que van SIEMPRE (cupón
+   * y atribución) viven acá una sola vez: cuando se sumó utm_source hubo que
+   * acordarse de tocar los dos flujos, y ese olvido se paga en Rentabilidad.
+   */
+  const postPayment = async <T,>(id: string, path: 'pay' | 'pay-onsite', body: object, failMsg: string) => {
+    const res = await fetch(`${API}/api/v1/checkout/${id}/${path}`, {
+      method: 'POST',
+      headers: tenantHeaders(tenantId, true),
+      body: JSON.stringify({ ...body, couponCode: coupon?.code ?? null, utmSource: utmSource() }),
+    });
+    if (!res.ok) {
+      const p = await res.json().catch(() => null);
+      throw new Error(p?.detail ?? failMsg);
+    }
+    return (await res.json()) as T;
+  };
+
   const payPro = async () => {
     setPaying(true);
     setError(null);
     try {
       const id = await reserve(email.trim());
-      const payRes = await fetch(`${API}/api/v1/checkout/${id}/pay`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({
-          returnUrl: window.location.origin,
-          couponCode: coupon?.code ?? null,
-          utmSource: utmSource(),
-        }),
-      });
-      if (!payRes.ok) {
-        const p = await payRes.json().catch(() => null);
-        throw new Error(p?.detail ?? 'No se pudo iniciar el pago.');
-      }
-      const { initPoint } = await payRes.json();
+      const { initPoint } = await postPayment<{ initPoint?: string }>(
+        id,
+        'pay',
+        { returnUrl: window.location.origin },
+        'No se pudo iniciar el pago.',
+      );
       if (!initPoint) throw new Error('Mercado Pago no devolvió el link de pago.');
       window.location.href = initPoint;
     } catch (e) {
@@ -370,36 +380,41 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
+  /**
+   * Lo que el Payment Brick de Mercado Pago entrega al enviar el formulario.
+   * Tipado explícito: era el único `any` del camino del pago, y un rename del
+   * SDK (ej. payment_method_id) pasaba el type-check y llegaba a producción
+   * como undefined en el body.
+   */
+  interface BrickFormData {
+    token?: string;
+    payment_method_id?: string;
+    installments?: number;
+    issuer_id?: string;
+    payer?: { email?: string; identification?: { type?: string; number?: string } };
+  }
+
   // Payment Brick (on-site): el front tokeniza, el backend cobra el total real.
 
-  const onBrickSubmit = async ({ formData }: { formData: any }) => {
+  const onBrickSubmit = async ({ formData }: { formData: BrickFormData }) => {
     setError(null);
-    const payer = (formData.payer ?? {}) as {
-      email?: string;
-      identification?: { type?: string; number?: string };
-    };
+    const payer = formData.payer ?? {};
     const buyerEmail = payer.email || email;
     try {
       const id = await reserve(buyerEmail);
-      const res = await fetch(`${API}/api/v1/checkout/${id}/pay-onsite`, {
-        method: 'POST',
-        headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({
+      const data = await postPayment<{ status?: string }>(
+        id,
+        'pay-onsite',
+        {
           token: formData.token,
           paymentMethodId: formData.payment_method_id,
           installments: formData.installments,
           issuerId: formData.issuer_id,
           payerDocType: payer.identification?.type,
           payerDocNumber: payer.identification?.number,
-          couponCode: coupon?.code ?? null,
-          utmSource: utmSource(),
-        }),
-      });
-      if (!res.ok) {
-        const p = await res.json().catch(() => null);
-        throw new Error(p?.detail ?? 'El pago fue rechazado.');
-      }
-      const data = await res.json();
+        },
+        'El pago fue rechazado.',
+      );
       setResult(data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'failure' : 'pending');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');

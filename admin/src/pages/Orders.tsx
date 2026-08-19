@@ -343,15 +343,14 @@ export function OrdersPage() {
                                       : ' (total)'}
                                   </div>
                                 )}
-                                {open &&
-                                  (o.status === 'PAID' ||
-                                    o.status === 'FULFILLED' ||
-                                    o.status === 'REFUNDED' ||
-                                    o.status === 'PARTIALLYREFUNDED') && (
-                                    <div onClick={(e) => e.stopPropagation()}>
-                                      <FiscalPanel orderId={o.id} orderStatus={o.status} canEmit={canEmit} />
-                                    </div>
-                                  )}
+                                {(o.status === 'PAID' ||
+                                  o.status === 'FULFILLED' ||
+                                  o.status === 'REFUNDED' ||
+                                  o.status === 'PARTIALLYREFUNDED') && (
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <FiscalPanel orderId={o.id} orderStatus={o.status} canEmit={canEmit} />
+                                  </div>
+                                )}
                                 {(o.status === 'PAID' ||
                                   o.status === 'FULFILLED' ||
                                   o.status === 'PARTIALLYREFUNDED') &&

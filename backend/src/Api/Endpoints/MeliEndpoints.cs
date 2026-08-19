@@ -288,14 +288,15 @@ public static class MeliEndpoints
             if (order.FiscalDocumentId is not null)
                 return Error.Conflict("Meli.AlreadyInvoiced", "Esta venta ya tiene comprobante emitido.").ToProblem();
 
-            var amount = order.PaidAmount > 0 ? order.PaidAmount : order.TotalAmount;
-            var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+            var minor = order.BillableMinorUnits;
             if (minor <= 0)
                 return Error.Validation("Meli.BadAmount", "La venta no tiene importe.").ToProblem();
 
             // ML no expone el documento del comprador por esta vía: consumidor final.
+            // El id de la venta ML va como OrderId: vincula el comprobante para que
+            // la nota de crédito lo encuentre y evita doble facturación de la venta.
             var result = await emitter.EmitAsync(
-                new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenant.TenantId.Value, OrderId: null, minor), ct);
+                new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenant.TenantId.Value, order.Id, minor), ct);
             if (result.IsFailure) return result.Error.ToProblem();
             var r = result.Value;
             if (!r.Authorized)

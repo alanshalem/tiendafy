@@ -336,14 +336,16 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
           <span className="font-medium text-fg">{data?.leadTimeDays ?? '…'} días</span>, esto se agota antes
           de que llegue el próximo embarque:
         </span>
-        <Input
-          type="number"
-          min={1}
-          placeholder="Ajustar días"
-          className="h-8 w-28"
-          value={leadInput}
-          onChange={(e) => setLeadInput(e.target.value)}
-        />
+        <div className="w-28 shrink-0">
+          <Input
+            compact
+            type="number"
+            min={1}
+            placeholder="Ajustar días"
+            value={leadInput}
+            onChange={(e) => setLeadInput(e.target.value)}
+          />
+        </div>
         {suggestions.length > 0 && (
           <Button className="ml-auto shrink-0" onClick={buildOrder}>
             <Plus className="h-4 w-4" /> Armar orden de compra ({suggestions.length})
@@ -694,33 +696,39 @@ function ItemsEditor({
               <td className="py-2 text-fg">{item.label}</td>
               <td className="py-2 text-fg-subtle">{item.sku}</td>
               <td className="py-2 text-right">
-                <Input
-                  type="number"
-                  min={1}
-                  className="ml-auto h-8 w-20 text-right"
-                  value={item.quantity}
-                  disabled={!editable}
-                  onChange={(e) => {
-                    const items = [...form.items];
-                    items[idx] = { ...item, quantity: e.target.value };
-                    update({ items });
-                  }}
-                />
+                <div className="ml-auto w-20 shrink-0">
+                  <Input
+                    compact
+                    type="number"
+                    min={1}
+                    className="text-right"
+                    value={item.quantity}
+                    disabled={!editable}
+                    onChange={(e) => {
+                      const items = [...form.items];
+                      items[idx] = { ...item, quantity: e.target.value };
+                      update({ items });
+                    }}
+                  />
+                </div>
               </td>
               <td className="py-2 text-right">
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className="ml-auto h-8 w-24 text-right"
-                  value={item.unitCost}
-                  disabled={!editable}
-                  onChange={(e) => {
-                    const items = [...form.items];
-                    items[idx] = { ...item, unitCost: e.target.value };
-                    update({ items });
-                  }}
-                />
+                <div className="ml-auto w-24 shrink-0">
+                  <Input
+                    compact
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="text-right"
+                    value={item.unitCost}
+                    disabled={!editable}
+                    onChange={(e) => {
+                      const items = [...form.items];
+                      items[idx] = { ...item, unitCost: e.target.value };
+                      update({ items });
+                    }}
+                  />
+                </div>
               </td>
               <td className="py-2 text-right tabular-nums text-fg-muted">
                 {landedBy.has(item.variantId) ? formatMoney(landedBy.get(item.variantId)!) : '—'}
@@ -993,10 +1001,11 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
                   <span className="text-xs text-fg-subtle">pedidas {i.quantity}</span>
                   <div className="w-20 shrink-0">
                     <Input
+                      compact
                       type="number"
                       min={0}
                       max={i.quantity}
-                      className="h-8 text-right"
+                      className="text-right"
                       value={qtys[i.variantId] ?? String(i.quantity)}
                       onChange={(e) => setQtys((q) => ({ ...q, [i.variantId]: e.target.value }))}
                     />

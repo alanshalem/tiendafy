@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import type { CatalogProduct } from '../../lib/products';
 import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { Pagination, usePagedList } from '../../components/Pagination';
@@ -12,18 +13,6 @@ import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
-
-interface VariantDto {
-  id: string;
-  sku: string;
-  optionValues: string[];
-}
-
-interface ProductDto {
-  id: string;
-  name: string;
-  variants: VariantDto[];
-}
 
 interface VariantCost {
   variantId: string;
@@ -47,7 +36,7 @@ export function CostsPage() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<ProductDto>(),
+    queryFn: () => fetchAllProducts<CatalogProduct>(),
     enabled: !!store,
   });
 
@@ -182,15 +171,18 @@ export function CostsPage() {
                         {margin != null ? `${margin}%` : '—'}
                       </td>
                       <td className="px-4 py-2.5">
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className="mx-auto h-8 w-28 text-right"
-                          value={value}
-                          placeholder="Sin costo"
-                          onChange={(e) => setDrafts((d) => ({ ...d, [variant.id]: e.target.value }))}
-                        />
+                        <div className="mx-auto w-28 shrink-0">
+                          <Input
+                            compact
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="text-right"
+                            value={value}
+                            placeholder="Sin costo"
+                            onChange={(e) => setDrafts((d) => ({ ...d, [variant.id]: e.target.value }))}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <Button

@@ -353,7 +353,7 @@ public static class StatsEndpoints
 
         var links = await meliDb.ItemLinks.AsNoTracking()
             .Where(l => l.TenantId == tid.Value).ToListAsync(ct);
-        var linkByKey = links.ToDictionary(l => (l.MeliItemId, l.MeliVariationId), l => l.VariantId);
+        var resolver = Api.Meli.MeliLinkResolver.From(links);
         var variantIds = links.Select(l => l.VariantId).Distinct().ToList();
         var costByVariant = variantIds.Count == 0
             ? []
@@ -377,7 +377,7 @@ public static class StatsEndpoints
                     meliFees += (long)Math.Round(fee * it.Quantity * 100m);
                     unitsWithFee += it.Quantity;
                 }
-                if (linkByKey.TryGetValue((it.ItemId, it.VariationId), out var vid)
+                if (resolver.TryResolve(it.ItemId, it.VariationId, out var vid)
                     && costByVariant.TryGetValue(vid, out var unitCost))
                 {
                     meliCost += unitCost * it.Quantity;

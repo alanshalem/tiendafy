@@ -133,6 +133,11 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         if (command.Percent is < -90 or > 500)
             return Result.Failure<(int, int)>(Error.Validation(
                 "Product.BadPercent", "El porcentaje tiene que estar entre -90% y +500%."));
+        // El set de redondeos válidos vive acá (donde se aplica) y no también
+        // en el endpoint: antes un modo desconocido caía en el `_ =>` silencioso.
+        if (!PriceRounding.IsValid(command.Rounding))
+            return Result.Failure<(int, int)>(Error.Validation(
+                "Product.BadRounding", "Redondeo inválido."));
 
         var factor = 1 + command.Percent / 100m;
         int products = 0, variants = 0;
@@ -145,9 +150,9 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
             var touched = false;
             foreach (var variant in product.Variants.ToList())
             {
-                var newPrice = ApplyRounding((long)Math.Round(variant.Price.AmountInMinorUnits * factor), command.Rounding);
+                var newPrice = PriceRounding.Apply((long)Math.Round(variant.Price.AmountInMinorUnits * factor), command.Rounding);
                 var newCompareAt = variant.CompareAtPrice is { } cmp
-                    ? new Money(ApplyRounding((long)Math.Round(cmp.AmountInMinorUnits * factor), command.Rounding), cmp.Currency)
+                    ? new Money(PriceRounding.Apply((long)Math.Round(cmp.AmountInMinorUnits * factor), command.Rounding), cmp.Currency)
                     : (Money?)null;
                 var result = product.ChangeVariantPrice(
                     variant.Id, new Money(newPrice, variant.Price.Currency), newCompareAt);
@@ -161,15 +166,6 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         await unitOfWork.SaveChangesAsync(ct);
         return (products, variants);
     }
-
-    /// <summary>Redondeo comercial en centavos: al $100, al $1000 o terminación $990.</summary>
-    private static long ApplyRounding(long minor, string rounding) => rounding switch
-    {
-        "100" => Math.Max(100_00, (long)Math.Round(minor / 100_00m) * 100_00),
-        "1000" => Math.Max(1000_00, (long)Math.Round(minor / 1000_00m) * 1000_00),
-        "990" => Math.Max(990_00, (long)Math.Round(minor / 1000_00m) * 1000_00 - 10_00),
-        _ => minor,
-    };
 
     public async Task<Result> SetVariantCostsAsync(SetVariantCostsCommand command, CancellationToken ct = default)
     {

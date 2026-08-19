@@ -93,62 +93,61 @@ public sealed class MeliSyncService(
             row.MarkStockApplied();
         }
 
-        // Venta facturada que se cancela/reembolsa en ML: nota de crédito, igual
-        // que en la tienda propia. Sin esto quedaba una factura viva por una
-        // venta anulada (el ciclo fiscal cerraba solo a la ida).
+        await ApplyFiscalAsync(tenantId, row, meliOrderId, ct);
+
+        await db.SaveChangesAsync(ct);
+        return row;
+    }
+
+    /// <summary>
+    /// Ciclo fiscal de una venta ML: nota de crédito si se canceló estando
+    /// facturada, y auto-factura si la conexión la tiene activada. Best-effort:
+    /// ARCA caído no puede frenar la importación de la venta.
+    /// </summary>
+    private async Task ApplyFiscalAsync(Guid tenantId, MeliOrder row, long meliOrderId, CancellationToken ct)
+    {
+        var minor = row.BillableMinorUnits;
+        if (minor <= 0) return;
+
+        // Venta facturada que se cancela/reembolsa: nota de crédito, igual que
+        // en la tienda propia (sin esto quedaba una factura viva de una venta
+        // anulada). Solo se marca si REALMENTE se encoló: si no, se reintenta.
         if (row.FiscalDocumentId is not null && !row.CreditNoteIssued
             && row.Status is "cancelled" or "refunded")
         {
-            var amount = row.PaidAmount > 0 ? row.PaidAmount : row.TotalAmount;
-            var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
-            if (minor > 0)
+            try
             {
-                try
-                {
-                    // La NC de ML no tiene Order local: va por el outbox con el
-                    // id de la venta ML como referencia (misma cola con reintentos).
-                    await fiscalQueue.EnqueueCreditNoteAsync(tenantId, row.Id, minor, null, ct);
+                if (await fiscalQueue.EnqueueCreditNoteAsync(tenantId, row.Id, minor, null, ct))
                     row.MarkCreditNoteIssued();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "No se pudo encolar la NC de la venta ML {OrderId}.", meliOrderId);
-                }
             }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "No se pudo encolar la NC de la venta ML {OrderId}.", meliOrderId);
+            }
+            return;
         }
 
-        // Auto-facturación (opt-in por conexión): emite ARCA a consumidor final
-        // al importar la venta pagada. Best-effort: si ARCA falla, queda el
-        // botón manual "Facturar" en el panel.
+        // Auto-facturación (opt-in por conexión) a consumidor final. Si ARCA
+        // rechaza, queda el botón manual "Facturar" en el panel.
         if (row.IsPaid && row.FiscalDocumentId is null)
         {
             var conn = await db.Connections.IgnoreQueryFilters().AsNoTracking()
                 .FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
-            if (conn?.AutoInvoiceEnabled == true)
+            if (conn?.AutoInvoiceEnabled != true) return;
+            try
             {
-                try
-                {
-                    var amount = row.PaidAmount > 0 ? row.PaidAmount : row.TotalAmount;
-                    var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
-                    if (minor > 0)
-                    {
-                        var emitted = await emitter.EmitAsync(
-                            new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenantId, OrderId: null, minor), ct);
-                        if (emitted is { IsSuccess: true, Value.Authorized: true })
-                            row.MarkInvoiced(emitted.Value.DocumentId);
-                        else
-                            logger.LogWarning("Auto-factura ML rechazada (venta {OrderId}).", meliOrderId);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Auto-factura ML falló (venta {OrderId}).", meliOrderId);
-                }
+                var emitted = await emitter.EmitAsync(
+                    new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenantId, row.Id, minor), ct);
+                if (emitted is { IsSuccess: true, Value.Authorized: true })
+                    row.MarkInvoiced(emitted.Value.DocumentId);
+                else
+                    logger.LogWarning("Auto-factura ML rechazada (venta {OrderId}).", meliOrderId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Auto-factura ML falló (venta {OrderId}).", meliOrderId);
             }
         }
-
-        await db.SaveChangesAsync(ct);
-        return row;
     }
 
     /// <summary>

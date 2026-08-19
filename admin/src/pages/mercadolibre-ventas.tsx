@@ -190,7 +190,7 @@ export function VentasTab() {
                           {o.fiscalDocumentId ? (
                             <Badge variant="success">Facturada</Badge>
                           ) : (
-                            ORDER_STATUS[o.status]?.label === 'Pagada' && (
+                            o.status === 'paid' && (
                               <Button
                                 variant="secondary"
                                 disabled={invoicing === o.meliOrderId}

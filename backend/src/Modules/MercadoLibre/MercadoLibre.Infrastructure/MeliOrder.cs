@@ -79,6 +79,12 @@ public sealed class MeliOrder
 
     public bool IsPaid => Status is "paid" or "partially_refunded";
 
+    /// <summary>Importe que se factura/acredita: lo pagado, o el total si aún no hay pago informado.</summary>
+    public decimal BillableAmount => PaidAmount > 0 ? PaidAmount : TotalAmount;
+
+    /// <summary>El facturable en centavos. AwayFromZero: criterio fiscal (nunca a favor del emisor).</summary>
+    public long BillableMinorUnits => (long)Math.Round(BillableAmount * 100m, MidpointRounding.AwayFromZero);
+
     public void MarkInvoiced(Guid fiscalDocumentId)
     {
         FiscalDocumentId = fiscalDocumentId;

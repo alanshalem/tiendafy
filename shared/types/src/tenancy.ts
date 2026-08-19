@@ -15,39 +15,7 @@ export interface Tenant {
   createdAtUtc: IsoDateTime;
 }
 
-/**
- * Tokens de tema del merchant — override de las CSS vars de
- * @tiendafy/design-system (tokens.css). El storefront los inyecta en :root.
- */
-interface ThemeTokens {
-  /** "79 70 229" — canal RGB crudo, mismo formato que tokens.css. */
-  colorPrimary?: string;
-  colorPrimaryHover?: string;
-  colorAccent?: string;
-  colorBg?: string;
-  colorFg?: string;
-  fontSans?: string;
-  fontHeading?: string;
-  radiusMd?: string;
-}
-
-export type SectionType =
-  'hero' | 'featured-products' | 'collection-grid' | 'newsletter' | 'rich-text' | 'image-banner';
-
-/** Sección componible del builder de temas. */
-export interface ThemeSection {
-  id: string;
-  type: SectionType;
-  /** Settings específicos del tipo de sección (validados por schema en backend). */
-  settings: Record<string, unknown>;
-  position: number;
-}
-
-export interface Theme {
-  id: string;
-  name: string;
-  published: boolean;
-  tokens: ThemeTokens;
-  sections: ThemeSection[];
-  updatedAt: IsoDateTime;
-}
+// El modelo del tema (tokens, secciones) vive en theme.ts, que es el que
+// exporta el barrel y usan admin y storefront. Acá había una copia MUERTA con
+// los mismos nombres y otra forma (`settings`/`position` en vez de
+// `data`/`visible`): un import por autocompletado compilaba y fallaba en runtime.

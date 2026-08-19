@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
+import { replaceAt } from '../../lib/arrays';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
@@ -206,14 +207,13 @@ export function KitsPage() {
               <li key={c.componentVariantId} className="flex items-center gap-2 text-sm">
                 <div className="w-16 shrink-0">
                   <Input
+                    compact
                     type="number"
                     min={1}
-                    className="h-8 text-right"
+                    className="text-right"
                     value={c.quantity}
                     onChange={(e) =>
-                      setComponents((list) =>
-                        list.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)),
-                      )
+                      setComponents((list) => replaceAt(list, idx, { quantity: e.target.value }))
                     }
                   />
                 </div>

@@ -43,6 +43,14 @@ interface OrderLite {
  * mismo — el flujo nunca depende del hardware.
  */
 export function useScanner(onCode: (code: string) => void) {
+  // El callback vive en un ref: el interval se crea una vez al prender la
+  // cámara y, sin esto, validaba contra el pedido/OC seleccionado en ESE
+  // momento aunque el operario cambiara de pedido con la cámara prendida.
+  const onCodeRef = useRef(onCode);
+  useEffect(() => {
+    onCodeRef.current = onCode;
+  });
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [active, setActive] = useState(false);
   const [supported] = useState(() => 'BarcodeDetector' in window);
@@ -76,7 +84,7 @@ export function useScanner(onCode: (code: string) => void) {
           const now = Date.now();
           if (raw === lastRef.current.code && now - lastRef.current.at < 2500) return;
           lastRef.current = { code: raw, at: now };
-          onCode(raw);
+          onCodeRef.current(raw);
         } catch {
           /* frame no decodificable: seguir */
         }
@@ -90,7 +98,7 @@ export function useScanner(onCode: (code: string) => void) {
     } catch {
       setActive(false);
     }
-  }, [supported, onCode]);
+  }, [supported]);
 
   useEffect(() => () => stopRef.current(), []);
 
@@ -258,8 +266,8 @@ function BuscarTab() {
           </p>
           <div className="mt-2 flex gap-2">
             <Input
+              compact
               placeholder="SKU de la variante"
-              className="h-9"
               value={assignSku}
               onChange={(e) => setAssignSku(e.target.value)}
             />
@@ -295,13 +303,16 @@ function BuscarTab() {
             <div className="flex flex-wrap items-end gap-2">
               <div>
                 <label className="mb-1 block text-xs text-fg-muted">Stock disponible</label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="h-9 w-24 text-right"
-                  value={stockDraft}
-                  onChange={(e) => setStockDraft(e.target.value)}
-                />
+                <div className="w-24 shrink-0">
+                  <Input
+                    compact
+                    type="number"
+                    min={0}
+                    className="text-right"
+                    value={stockDraft}
+                    onChange={(e) => setStockDraft(e.target.value)}
+                  />
+                </div>
               </div>
               <Button
                 variant="secondary"
@@ -542,18 +553,21 @@ function ConteoTab() {
                   <td className="py-2 text-right tabular-nums text-fg-muted">{r.hit.available}</td>
                   <td className="py-2 text-right">
                     <span className="inline-flex items-center gap-1">
-                      <Input
-                        type="number"
-                        min={0}
-                        className="h-8 w-20 text-right"
-                        value={String(r.counted)}
-                        onChange={(e) =>
-                          setRows((rows) => ({
-                            ...rows,
-                            [r.hit.variantId]: { ...r, counted: Number(e.target.value) || 0 },
-                          }))
-                        }
-                      />
+                      <div className="w-20 shrink-0">
+                        <Input
+                          compact
+                          type="number"
+                          min={0}
+                          className="text-right"
+                          value={String(r.counted)}
+                          onChange={(e) =>
+                            setRows((rows) => ({
+                              ...rows,
+                              [r.hit.variantId]: { ...r, counted: Number(e.target.value) || 0 },
+                            }))
+                          }
+                        />
+                      </div>
                       {r.counted !== r.hit.available && <X className="h-4 w-4 text-danger" />}
                       {r.counted === r.hit.available && <Check className="h-4 w-4 text-success" />}
                     </span>

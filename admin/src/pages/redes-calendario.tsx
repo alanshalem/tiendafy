@@ -37,7 +37,13 @@ export function CalendarioTab({
   onDayClick: (day: Date) => void;
   onPostClick: (post: SocialPostDto) => void;
 }) {
-  const [today] = useState(() => new Date());
+  // Medianoche: comparado contra las celdas (que son medianoche) para que el
+  // affordance "+" también aparezca en el día de hoy.
+  const [today] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   const cells = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);

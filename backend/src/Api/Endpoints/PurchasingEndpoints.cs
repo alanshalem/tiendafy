@@ -202,9 +202,7 @@ public static class PurchasingEndpoints
             var links = await meliDb.ItemLinks.AsNoTracking().ToListAsync(ct);
             if (links.Count > 0)
             {
-                var linkByKey = links.ToDictionary(l => (l.MeliItemId, l.MeliVariationId), l => l.VariantId);
-                var linkByItem = links.Where(l => l.MeliVariationId == null)
-                    .ToDictionary(l => l.MeliItemId, l => l.VariantId);
+                var resolver = Api.Meli.MeliLinkResolver.From(links);
                 var meliOrders = await meliDb.Orders.AsNoTracking()
                     .Where(o => o.Status == "paid" && o.DateCreatedUtc >= since)
                     .ToListAsync(ct);
@@ -212,8 +210,7 @@ public static class PurchasingEndpoints
                 {
                     foreach (var item in Api.Meli.MeliSyncService.ParseSnapshot(order.ItemsJson))
                     {
-                        if (linkByKey.TryGetValue((item.ItemId, item.VariationId), out var vid)
-                            || linkByItem.TryGetValue(item.ItemId, out vid))
+                        if (resolver.TryResolve(item.ItemId, item.VariationId, out var vid))
                             sold[vid] = sold.GetValueOrDefault(vid) + item.Quantity;
                     }
                 }

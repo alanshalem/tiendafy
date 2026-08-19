@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   AlertTriangle,
   Bookmark,
@@ -29,12 +29,15 @@ import {
   type SocialPostDto,
 } from './redes-shared';
 
-interface CatalogProduct {
+/** Shape del catálogo que usa el picker de imágenes (el DTO trae images[], no una sola). */
+interface PickerProduct {
   id: string;
   name: string;
   slug: string;
-  imageUrl: string | null;
+  images: { url: string }[];
 }
+
+const coverUrl = (p: PickerProduct): string | null => p.images[0]?.url ?? null;
 
 /**
  * Composer multi-red (diseño Mixpost): un texto base que sale a N cuentas, con
@@ -70,7 +73,6 @@ export function ComposerModal({
       (post?.targets ?? []).filter((t) => t.contentOverride).map((t) => [t.accountId, t.contentOverride!]),
     ),
   );
-  const [overrideOpen, setOverrideOpen] = useState<Set<string>>(new Set());
   const [scheduleAt, setScheduleAt] = useState(() => {
     if (post?.scheduledAtUtc) return toLocalInput(new Date(post.scheduledAtUtc));
     if (initialDate) return toLocalInput(initialDate);
@@ -354,64 +356,13 @@ export function ComposerModal({
               </div>
             </div>
 
-            {/* Overrides por cuenta */}
-            {selectedAccounts.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-fg">Versión por red (opcional)</p>
-                <div className="space-y-1.5">
-                  {selectedAccounts.map((a) => {
-                    const open = overrideOpen.has(a.id);
-                    const limit = limitsByKey[a.provider]?.maxChars;
-                    const value = overrides[a.id] ?? '';
-                    return (
-                      <div key={a.id} className="rounded-lg border border-border">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOverrideOpen((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(a.id)) next.delete(a.id);
-                              else next.add(a.id);
-                              return next;
-                            })
-                          }
-                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-fg-muted hover:text-fg"
-                        >
-                          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          <ProviderIcon provider={a.provider} size="sm" />
-                          <span className="truncate">{a.name}</span>
-                          {value.trim() && (
-                            <span className="ml-auto text-xs text-primary">personalizado</span>
-                          )}
-                        </button>
-                        {open && (
-                          <div className="border-t border-border p-3">
-                            <Textarea
-                              rows={3}
-                              value={value}
-                              onChange={(e) => setOverrides((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                              placeholder={`Texto solo para ${providerMeta(a.provider).label} (vacío = usa el texto base)`}
-                            />
-                            {limit !== undefined && (
-                              <p
-                                className={cn(
-                                  'mt-1 text-right text-xs',
-                                  (value.trim() || content).length > limit
-                                    ? 'font-semibold text-danger'
-                                    : 'text-fg-subtle',
-                                )}
-                              >
-                                {(value.trim() || content).length} / {limit}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <PerNetworkOverrides
+              accounts={selectedAccounts}
+              overrides={overrides}
+              setOverrides={setOverrides}
+              baseContent={content}
+              limitsByKey={limitsByKey}
+            />
 
             {/* Cupón: el post se mide como una campaña de email */}
             {activeCoupons.length > 0 && (
@@ -472,7 +423,8 @@ export function ComposerModal({
         <CatalogImagePicker
           onClose={() => setPickerOpen(false)}
           onPick={(product) => {
-            if (product.imageUrl) setMediaUrls((prev) => [...prev, product.imageUrl!]);
+            const cover = coverUrl(product);
+            if (cover) setMediaUrls((prev) => [...prev, cover]);
             // El post además VENDE: link al producto con UTM para atribuir el tráfico.
             const link = store
               ? storefrontUrl(store.subdomain, `/productos/${product.slug}?utm_source=redes`)
@@ -496,16 +448,19 @@ function CatalogImagePicker({
   onPick,
 }: {
   onClose: () => void;
-  onPick: (product: CatalogProduct) => void;
+  onPick: (product: PickerProduct) => void;
 }) {
-  const [products, setProducts] = useState<CatalogProduct[] | null>(null);
+  const { store } = useStore();
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchAllProducts<CatalogProduct>()
-      .then((all) => setProducts(all.filter((p) => p.imageUrl)))
-      .catch(() => setProducts([]));
-  }, []);
+  // Reusa el cache de ['products', store?.id] que el VariantPicker ya llenó:
+  // antes recorría el catálogo entero cada vez que se abría el modal.
+  const { data: all } = useQuery({
+    queryKey: ['products', store?.id],
+    queryFn: () => fetchAllProducts<PickerProduct>(),
+    enabled: !!store,
+  });
+  const products = all === undefined ? null : all.filter((p) => coverUrl(p) !== null);
 
   const filtered = (products ?? []).filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -534,7 +489,7 @@ function CatalogImagePicker({
               title={p.name}
             >
               <img
-                src={p.imageUrl!}
+                src={coverUrl(p)!}
                 alt={p.name}
                 className="aspect-square w-full rounded-lg border border-border object-cover transition-transform group-hover:scale-[1.02]"
               />
@@ -635,6 +590,85 @@ function PostPreview({
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Versión por red": un acordeón por cuenta seleccionada para pisar el texto
+ * base. Estaba inline en el composer (60 líneas de JSX y un Set de abiertos en
+ * el estado del formulario, que no tiene nada que ver con lo que se publica).
+ */
+function PerNetworkOverrides({
+  accounts,
+  overrides,
+  setOverrides,
+  baseContent,
+  limitsByKey,
+}: {
+  accounts: SocialAccountDto[];
+  overrides: Record<string, string>;
+  setOverrides: Dispatch<SetStateAction<Record<string, string>>>;
+  baseContent: string;
+  limitsByKey: Record<string, { maxChars?: number } | undefined>;
+}) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  if (accounts.length === 0) return null;
+
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-fg">Versión por red (opcional)</p>
+      <div className="space-y-1.5">
+        {accounts.map((a) => {
+          const isOpen = open.has(a.id);
+          const limit = limitsByKey[a.provider]?.maxChars;
+          const value = overrides[a.id] ?? '';
+          // Lo que se va a publicar en ESA red: el override si lo hay, si no el texto base.
+          const effective = value.trim() || baseContent;
+          return (
+            <div key={a.id} className="rounded-lg border border-border">
+              <button
+                type="button"
+                onClick={() => toggle(a.id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-fg-muted hover:text-fg"
+              >
+                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <ProviderIcon provider={a.provider} size="sm" />
+                <span className="truncate">{a.name}</span>
+                {value.trim() && <span className="ml-auto text-xs text-primary">personalizado</span>}
+              </button>
+              {isOpen && (
+                <div className="border-t border-border p-3">
+                  <Textarea
+                    rows={3}
+                    value={value}
+                    onChange={(e) => setOverrides((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                    placeholder={`Texto solo para ${providerMeta(a.provider).label} (vacío = usa el texto base)`}
+                  />
+                  {limit !== undefined && (
+                    <p
+                      className={cn(
+                        'mt-1 text-right text-xs',
+                        effective.length > limit ? 'font-semibold text-danger' : 'text-fg-subtle',
+                      )}
+                    >
+                      {effective.length} / {limit}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

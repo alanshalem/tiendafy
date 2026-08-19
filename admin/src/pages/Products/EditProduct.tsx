@@ -52,7 +52,7 @@ export function EditProductPage() {
 
   const variantIds = useMemo(() => product?.variants.map((v) => v.id) ?? [], [product]);
   const { data: stockData } = useQuery({
-    queryKey: ['inventory', store?.id, variantIds.join(',')],
+    queryKey: ['inventory', store?.id, 'product', variantIds.join(',')],
     queryFn: () => api.get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantIds.join(',')}`),
     enabled: variantIds.length > 0,
   });

@@ -67,13 +67,7 @@ public sealed class PaymentWebhookWorker(
         switch (result.Value.Outcome)
         {
             case SettleOutcome.JustPaid:
-                await sp.GetRequiredService<Api.Orders.KitStockService>().ApplyAsync(order, ct);
-                await sp.GetRequiredService<OrderNotifier>().NotifyAsync(order, "confirmacion-pago", ct);
-                await whatsapp.NotifyAsync(order, "confirmacion-pago", ct);
-                // Factura automática si el trigger configurado es "al pagar".
-                await sp.GetRequiredService<global::Fiscal.Core.Abstractions.IFiscalEmissionQueue>()
-                    .EnqueueInvoiceAsync(order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
-                        order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnPayment, ct);
+                await sp.GetRequiredService<Api.Orders.PaidOrderSideEffects>().RunAsync(order, ct: ct);
                 break;
             case SettleOutcome.Refunded:
                 await email.SendAsync(order.TenantId.Value, order.BuyerEmail, "Tu compra fue reembolsada", OrderEmail.Refund(order), ct);

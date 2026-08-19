@@ -12,6 +12,10 @@
 name: tiendafy-prod
 
 # Logs con tope: sin esto, json-file crece sin límite y llena el disco del VPS.
+# Una sola fuente para la versión de Postgres: si el server sube de major y el
+# backup queda atrás, pg_dump falla por "server version mismatch" EN SILENCIO.
+x-pg-image: &pgimage postgres:16-alpine
+
 x-logging: &logging
   logging:
     driver: json-file
@@ -21,7 +25,7 @@ x-logging: &logging
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: *pgimage
     restart: unless-stopped
     <<: *logging
     environment:
@@ -38,7 +42,7 @@ services:
 
   # Backup diario de Postgres (pg_dump comprimido, retención 14 días).
   pg-backup:
-    image: postgres:16-alpine
+    image: *pgimage
     restart: unless-stopped
     <<: *logging
     depends_on:
@@ -103,6 +107,7 @@ services:
       Social__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/redes
       # Sugerencias con IA (Claude API). Vacío = apagado.
       Ai__ApiKey: ${AI_API_KEY:-}
+      Ai__Model: ${AI_MODEL:-claude-sonnet-5}
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).

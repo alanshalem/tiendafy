@@ -12,17 +12,9 @@ export interface LegendItem {
  * color de estado. Con `flow`, los ítems se unen con → (para ciclos con orden,
  * como el de una orden de compra).
  */
-export function StatusLegend({
-  items,
-  flow = false,
-  className,
-}: {
-  items: LegendItem[];
-  flow?: boolean;
-  className?: string;
-}) {
+export function StatusLegend({ items, flow = false }: { items: LegendItem[]; flow?: boolean }) {
   return (
-    <div className={cn('mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1', className)}>
+    <div className={'mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1'}>
       {items.map((l, i) => (
         <Fragment key={l.text}>
           {flow && i > 0 && <span className="text-xs text-fg-subtle/60">→</span>}

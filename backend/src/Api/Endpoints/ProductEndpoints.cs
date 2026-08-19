@@ -482,14 +482,19 @@ public static class ProductEndpoints
 
         // ---- Etiquetas QR imprimibles (plancha A4) ----
         products.MapGet("/labels", async (
-            string variantIds, ITenantContext tenant, IProductRepository repository, CancellationToken ct) =>
+            string variantIds, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
         {
             var ids = variantIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => Guid.TryParse(s.Trim(), out var g) ? g : Guid.Empty)
                 .Where(g => g != Guid.Empty).Take(240).ToHashSet();
             if (ids.Count == 0) return Results.BadRequest();
 
-            var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
+            // Query directa por las variantes pedidas: cargar el catálogo entero
+            // (con imágenes y opciones) para imprimir ≤240 etiquetas no escala.
+            var all = await catalogDb.Products.AsNoTracking()
+                .Where(p => p.TenantId == tenant.TenantId && p.Variants.Any(v => ids.Contains(v.Id)))
+                .ToListAsync(ct);
             var labels = all
                 .SelectMany(p => p.Variants
                     .Where(v => ids.Contains(v.Id))
@@ -559,10 +564,6 @@ public static class ProductEndpoints
             IProductRepository repository, UpdateProductHandler handler, CancellationToken ct) =>
         {
             if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
-            var rounding = request.Rounding ?? "none";
-            if (rounding is not ("none" or "100" or "1000" or "990"))
-                return Error.Validation("Product.BadRounding", "Redondeo inválido.").ToProblem();
-
             var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
             var targets = all
                 .Where(p => p.Status != ProductStatus.Archived)
@@ -573,7 +574,7 @@ public static class ProductEndpoints
                 return Error.Validation("Product.NoTargets", "No hay productos que repreciar con ese filtro.").ToProblem();
 
             var result = await handler.RepriceAsync(
-                new RepriceCommand(tenant.TenantId, targets, request.Percent, rounding), ct);
+                new RepriceCommand(tenant.TenantId, targets, request.Percent, request.Rounding ?? "none"), ct);
             return result.IsSuccess
                 ? Results.Ok(new { products = result.Value.Products, variants = result.Value.Variants })
                 : result.Error.ToProblem();
