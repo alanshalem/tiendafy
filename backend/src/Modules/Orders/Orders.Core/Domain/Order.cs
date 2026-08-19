@@ -30,6 +30,9 @@ public sealed class Order : AggregateRoot
     public string? PreferenceId { get; private set; }
     public string? PaymentId { get; private set; }
     public string? CouponCode { get; private set; }
+
+    /// <summary>Canal de adquisición (utm_source de la sesión): redes, email, ads…</summary>
+    public string? UtmSource { get; private set; }
     public Money DiscountAmount { get; private set; }
     public Money RefundedAmount { get; private set; }
     public Money ShippingCost { get; private set; }
@@ -114,6 +117,10 @@ public sealed class Order : AggregateRoot
             : Subtotal - DiscountAmount) + ShippingCost;
 
     /// <summary>Snapshot de envío y datos del comprador (vienen del checkout, nunca del cliente).</summary>
+    /// <summary>De dónde vino la venta (first-touch de la sesión del comprador).</summary>
+    public void SetUtmSource(string? utmSource) =>
+        UtmSource = string.IsNullOrWhiteSpace(utmSource) ? null : utmSource.Trim().ToLowerInvariant()[..Math.Min(40, utmSource.Trim().Length)];
+
     public void SetShippingAndBuyer(
         Money shippingCost, string? shippingMethodName, string? shippingAddress,
         string? buyerName, string? buyerPhone, string? docNumber, string? notes)

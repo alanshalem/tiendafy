@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send } from 'lucide-react';
+import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast } from '@tiendafy/ui';
-import { api } from '../lib/api';
+import { api, errMsg } from '../lib/api';
+import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
 import { formatDateTime } from '@tiendafy/types';
@@ -40,6 +41,8 @@ export function SupportChatPage() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const aiEnabled = useAiEnabled();
+  const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -87,6 +90,24 @@ export function SupportChatPage() {
     setSelected(id);
     setMessages([]);
     loadMessages(id);
+  };
+
+  // La IA redacta con el contexto del pedido; el operador edita y manda.
+  const suggestReply = async () => {
+    const lastFromCustomer = [...messages].reverse().find((m) => !m.isFromStaff);
+    if (!lastFromCustomer) return;
+    setSuggesting(true);
+    try {
+      const r = await api.post<{ text: string }>('/api/v1/ai/support-reply', {
+        message: lastFromCustomer.body,
+        orderSummary: selected ? `Pedido #${selected.slice(0, 8)}` : null,
+      });
+      setText(r.text);
+    } catch (err) {
+      toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+    } finally {
+      setSuggesting(false);
+    }
   };
 
   const send = async () => {
@@ -298,6 +319,22 @@ export function SupportChatPage() {
                   placeholder="Respondé al cliente…"
                   className="h-10 flex-1 rounded-full border border-border-strong bg-surface px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+                {aiEnabled && (
+                  <button
+                    type="button"
+                    onClick={suggestReply}
+                    disabled={suggesting}
+                    title="Sugerir una respuesta con IA (después la editás)"
+                    className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
+                    aria-label="Sugerir con IA"
+                  >
+                    {suggesting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={send}
                   disabled={!text.trim() || sending}

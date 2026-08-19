@@ -16,7 +16,16 @@ namespace Api.Orders;
 public sealed class KitStockService(
     CatalogDbContext catalog, IStockRepository stock, ILogger<KitStockService> logger)
 {
-    public async Task ApplyAsync(Order order, CancellationToken ct)
+    /// <summary>Venta: descuenta los componentes de las variantes-kit vendidas.</summary>
+    public Task ApplyAsync(Order order, CancellationToken ct) => ApplyAsync(order, reverse: false, ct);
+
+    /// <summary>
+    /// Devolución: DEVUELVE los componentes al stock. Espejo exacto de la venta
+    /// — sin esto, reingresar un kit dejaba sus piezas descontadas para siempre.
+    /// </summary>
+    public Task ReverseAsync(Order order, CancellationToken ct) => ApplyAsync(order, reverse: true, ct);
+
+    private async Task ApplyAsync(Order order, bool reverse, CancellationToken ct)
     {
         var variantIds = order.Items.Select(i => i.VariantId).Distinct().ToList();
         var components = await catalog.KitComponents.IgnoreQueryFilters().AsNoTracking()
@@ -40,15 +49,18 @@ public sealed class KitStockService(
             try
             {
                 await stock.AdjustAvailableAsync(
-                    tenant, componentVariantId, -total,
-                    $"Componentes de kit (venta {order.Id.ToString()[..8]})", ct);
+                    tenant, componentVariantId, reverse ? total : -total,
+                    reverse
+                        ? $"Componentes de kit (devolución {order.Id.ToString()[..8]})"
+                        : $"Componentes de kit (venta {order.Id.ToString()[..8]})", ct);
             }
             catch (Exception ex)
             {
                 // La venta ya está cobrada: el stock de un componente no puede
                 // frenarla. Queda logueado para corregir a mano.
-                logger.LogWarning(ex, "Kit: no se pudo descontar componente {VariantId} de la orden {OrderId}.",
-                    componentVariantId, order.Id);
+                logger.LogWarning(ex,
+                    "Kit: no se pudo {Action} componente {VariantId} de la orden {OrderId}.",
+                    reverse ? "reingresar" : "descontar", componentVariantId, order.Id);
             }
         }
     }

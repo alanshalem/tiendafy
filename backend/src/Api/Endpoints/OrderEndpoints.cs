@@ -45,7 +45,7 @@ public static class OrderEndpoints
                 return Error.Validation("Checkout.BadReturnUrl",
                     "La URL de retorno no es válida.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -92,7 +92,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -187,7 +187,8 @@ public static class OrderEndpoints
             Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
             IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
             global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
-            Inventory.Core.Domain.IStockRepository stock, CancellationToken ct) =>
+            Inventory.Core.Domain.IStockRepository stock, Api.Orders.KitStockService kits,
+            CancellationToken ct) =>
         {
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
@@ -282,6 +283,9 @@ public static class OrderEndpoints
                                 // manual de stock queda como recurso.
                             }
                         }
+                        // Kits: la venta descontó los COMPONENTES, así que la
+                        // devolución los devuelve (si no, quedaban descontados).
+                        await kits.ReverseAsync(order, ct);
                     }
                 }
                 return Results.Ok(ToDto(order));
@@ -384,13 +388,19 @@ public static class OrderEndpoints
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
             Inventory.Core.Domain.IStockRepository stock,
             IOrderRepository orders,
+            IMercadoPagoPaymentService mp,
+            IConfiguration cfg,
             IServiceProvider sp,
             CancellationToken ct) =>
         {
             if (request.Items is not { Count: > 0 })
                 return Error.Validation("Order.Empty", "Agregá al menos un producto.").ToProblem();
-            if (request.PaymentMethod is not ("cash" or "transfer"))
+            if (request.PaymentMethod is not ("cash" or "transfer" or "link"))
                 return Error.Validation("Order.BadPayment", "Método de pago inválido.").ToProblem();
+            // El link de pago se le manda al comprador: necesita email real.
+            if (request.PaymentMethod == "link" && string.IsNullOrWhiteSpace(request.BuyerEmail))
+                return Error.Validation("Order.LinkNeedsEmail",
+                    "Para cobrar con link de Mercado Pago hace falta el email del comprador.").ToProblem();
 
             var variantIds = request.Items.Select(i => i.VariantId).Distinct().ToList();
             if (variantIds.Count != request.Items.Count)
@@ -443,7 +453,12 @@ public static class OrderEndpoints
             if (created.IsFailure) return created.Error.ToProblem();
             var order = created.Value;
 
-            var methodLabel = request.PaymentMethod == "cash" ? "Efectivo" : "Transferencia";
+            var methodLabel = request.PaymentMethod switch
+            {
+                "cash" => "Efectivo",
+                "transfer" => "Transferencia",
+                _ => "Link de Mercado Pago",
+            };
             order.SetShippingAndBuyer(
                 request.ShippingCostMinor is { } ship and > 0 ? new Money(ship, currency) : Money.Zero(currency),
                 request.ShippingMethodName ?? "Entrega a coordinar",
@@ -452,6 +467,45 @@ public static class OrderEndpoints
                 request.BuyerPhone,
                 request.DocNumber,
                 $"Venta manual ({methodLabel}){(string.IsNullOrWhiteSpace(request.Notes) ? "" : $" · {request.Notes!.Trim()}")}");
+
+            // Link de MP: la orden queda PENDIENTE y el webhook la cobra sola
+            // (con todos los side-effects del pago normal). Efectivo/transferencia:
+            // la plata ya está, se marca pagada acá.
+            if (request.PaymentMethod == "link")
+            {
+                await orders.AddAsync(order, ct);
+                await orders.SaveChangesAsync(ct);
+
+                var baseUrl = SafeRedirect.SafeAbsoluteBase(request.ReturnUrl, cfg);
+                if (baseUrl is null)
+                    return Error.Validation("Order.BadReturnUrl", "La URL de retorno no es válida.").ToProblem();
+
+                var prefItems = order.Items.Select(ToPreferenceItem).ToList();
+                var pref = await mp.CreateCheckoutProPreferenceAsync(new CreatePreferenceRequest(
+                    tenant.TenantId, order.Id, order.Currency, prefItems, order.BuyerEmail,
+                    SuccessUrl: $"{baseUrl}/checkout/success?order={order.Id}",
+                    FailureUrl: $"{baseUrl}/checkout/failure?order={order.Id}",
+                    PendingUrl: $"{baseUrl}/checkout/pending?order={order.Id}",
+                    DiscountAmount: order.DiscountAmount.ToDecimal()), ct);
+                if (pref.IsFailure)
+                {
+                    // Sin link no hay cobro: liberar las reservas y avisar.
+                    foreach (var (_, rid) in reserved)
+                        await stock.ReleaseReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), rid, ct);
+                    return pref.Error.ToProblem();
+                }
+
+                order.AttachPreference(pref.Value.PreferenceId);
+                await orders.SaveChangesAsync(ct);
+
+                return Results.Created($"/api/v1/orders/{order.Id}", new
+                {
+                    order.Id,
+                    total = order.Total.AmountInMinorUnits,
+                    status = order.Status.ToString().ToUpperInvariant(),
+                    paymentLink = pref.Value.InitPoint,
+                });
+            }
 
             var paid = order.MarkPaid($"manual-{request.PaymentMethod}");
             if (paid.IsFailure) return paid.Error.ToProblem();
@@ -516,7 +570,7 @@ public static class OrderEndpoints
 
     /// <summary>Crea la Order desde un checkout enviado, aplicando el cupón validado server-side.</summary>
     private static async Task<Result<Order>> BuildOrderAsync(
-        TenantId tenantId, Guid sessionId, string? couponCode,
+        TenantId tenantId, Guid sessionId, string? couponCode, string? utmSource,
         ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder,
         Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct)
     {
@@ -565,7 +619,8 @@ public static class OrderEndpoints
             BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,
             BuyerPhone: session.Phone,
             DocNumber: session.DocNumber,
-            Notes: session.Notes), ct);
+            Notes: session.Notes,
+            UtmSource: utmSource), ct);
     }
 
     private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
@@ -614,7 +669,7 @@ public sealed record FulfillRequest(string? Tracking);
 
 public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false);
 
-public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode);
+public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode, string? UtmSource = null);
 
 public sealed record PayOnsiteRequest(
     string Token,
@@ -623,12 +678,14 @@ public sealed record PayOnsiteRequest(
     string? IssuerId,
     string? PayerDocType,
     string? PayerDocNumber,
-    string? CouponCode);
+    string? CouponCode,
+    string? UtmSource = null);
 
 public sealed record ManualOrderItemRequest(Guid VariantId, int Quantity, long? UnitPriceMinor = null);
 public sealed record ManualOrderRequest(
     IReadOnlyList<ManualOrderItemRequest>? Items,
     string PaymentMethod,
+    string? ReturnUrl = null,
     string? BuyerEmail = null,
     string? BuyerName = null,
     string? BuyerPhone = null,

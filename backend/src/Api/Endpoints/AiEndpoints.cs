@@ -38,6 +38,27 @@ public static class AiEndpoints
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
         });
 
+        // Respuesta sugerida para el chat posventa (con el contexto del pedido).
+        ai.MapPost("/support-reply", async (
+            AiSupportReplyRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.SupportChat) is { } denied) return denied;
+            if (string.IsNullOrWhiteSpace(request.Message))
+                return Error.Validation("Ai.NoMessage", "Falta el mensaje del cliente.").ToProblem();
+
+            var context = string.IsNullOrWhiteSpace(request.OrderSummary)
+                ? ""
+                : $"\nContexto del pedido: {Text.Clip(request.OrderSummary!, 600)}";
+            var result = await client.CompleteAsync(
+                "Sos atención al cliente de una tienda online argentina, en el chat posventa de un pedido. " +
+                "Empático y resolutivo, argentino neutro (vos/tenés), máximo 3 oraciones. Usá el contexto del " +
+                "pedido si ayuda, pero NO inventes fechas de entrega, números de seguimiento ni políticas que no " +
+                "estén en el contexto: si falta un dato, ofrecé confirmarlo. Respondé SOLO con el texto.",
+                $"Mensaje del cliente: {Text.Clip(request.Message, 800)}{context}",
+                400, ct);
+            return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
+        });
+
         // Borrador (o mejora) de un post para redes sociales.
         ai.MapPost("/social-post", async (
             AiSocialPostRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
@@ -81,5 +102,6 @@ public static class AiEndpoints
 }
 
 public sealed record AiMlAnswerRequest(string? Question, string? ItemTitle);
+public sealed record AiSupportReplyRequest(string? Message, string? OrderSummary);
 public sealed record AiSocialPostRequest(string? Draft, string? ProductName);
 public sealed record AiProductDescriptionRequest(string? Name, string? Notes);

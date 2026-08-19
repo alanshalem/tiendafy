@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Copy, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
@@ -29,6 +29,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const [buyerPhone, setBuyerPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
 
   const totalMinor = items.reduce((sum, i) => {
     const price = Number(i.price) > 0 ? Math.round(Number(i.price) * 100) : 0;
@@ -37,31 +38,82 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const hasCustomPrices = items.every((i) => Number(i.price) > 0);
 
   const create = async () => {
+    if (payment === 'link' && !buyerEmail.trim()) {
+      toast('Para cobrar con link de Mercado Pago hace falta el email del comprador.', {
+        variant: 'error',
+      });
+      return;
+    }
     setBusy(true);
     try {
-      await api.post('/api/v1/orders/manual', {
+      const res = await api.post<{ paymentLink?: string }>('/api/v1/orders/manual', {
         items: items.map((i) => ({
           variantId: i.variantId,
           quantity: Number(i.quantity) || 1,
           unitPriceMinor: Number(i.price) > 0 ? Math.round(Number(i.price) * 100) : null,
         })),
         paymentMethod: payment,
+        returnUrl: window.location.origin,
         buyerEmail: buyerEmail.trim() || null,
         buyerName: buyerName.trim() || null,
         buyerPhone: buyerPhone.trim() || null,
         notes: notes.trim() || null,
       });
-      toast('Venta registrada: stock descontado y factura en camino (si está configurada).', {
-        variant: 'success',
-      });
       onCreated();
-      onClose();
+      if (res.paymentLink) {
+        // Link de MP: la venta queda PENDIENTE hasta que el cliente pague
+        // (el webhook la cobra sola). Se muestra para copiar y mandar.
+        setPaymentLink(res.paymentLink);
+        toast('Venta creada: mandá el link para cobrarla.', { variant: 'success' });
+      } else {
+        toast('Venta registrada: stock descontado y factura en camino (si está configurada).', {
+          variant: 'success',
+        });
+        onClose();
+      }
     } catch (err) {
       toast(errMsg(err, 'No se pudo registrar la venta.'), { variant: 'error' });
     } finally {
       setBusy(false);
     }
   };
+
+  if (paymentLink) {
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        title="Link de pago listo"
+        size="md"
+        footer={<Button onClick={onClose}>Listo</Button>}
+      >
+        <p className="text-sm text-fg-muted">
+          Mandale este link al comprador (WhatsApp, mail, donde sea). La venta queda como{' '}
+          <span className="font-medium text-fg">pendiente de pago</span> y se marca pagada sola cuando Mercado
+          Pago confirme el cobro — con factura y emails automáticos como cualquier venta.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Input readOnly value={paymentLink} onFocus={(e) => e.currentTarget.select()} />
+          </div>
+          <Button
+            variant="secondary"
+            className="shrink-0"
+            onClick={() => {
+              navigator.clipboard?.writeText(paymentLink);
+              toast('Link copiado', { variant: 'success' });
+            }}
+          >
+            <Copy className="h-4 w-4" /> Copiar
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-fg-subtle">
+          El stock ya quedó reservado para esta venta: si el pago no llega, cancelá la orden desde Ventas para
+          liberarlo.
+        </p>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -156,7 +208,9 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Nombre" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Email (opcional)</label>
+            <label className="mb-1 block text-sm font-medium text-fg">
+              Email {payment === 'link' ? '(requerido)' : '(opcional)'}
+            </label>
             <Input
               type="email"
               value={buyerEmail}
@@ -179,6 +233,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
               options={[
                 { value: 'cash', label: 'Efectivo' },
                 { value: 'transfer', label: 'Transferencia' },
+                { value: 'link', label: 'Link de pago (Mercado Pago)' },
               ]}
             />
           </div>

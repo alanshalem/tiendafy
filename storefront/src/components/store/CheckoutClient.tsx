@@ -333,6 +333,16 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     return session.id as string;
   };
 
+  // De dónde vino esta venta: el mismo first-touch que guarda el beacon de
+  // analytics — así Rentabilidad puede medir ganancia por canal.
+  const utmSource = () => {
+    try {
+      return sessionStorage.getItem('tiendafy.utm');
+    } catch {
+      return null;
+    }
+  };
+
   const payPro = async () => {
     setPaying(true);
     setError(null);
@@ -341,7 +351,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       const payRes = await fetch(`${API}/api/v1/checkout/${id}/pay`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
-        body: JSON.stringify({ returnUrl: window.location.origin, couponCode: coupon?.code ?? null }),
+        body: JSON.stringify({
+          returnUrl: window.location.origin,
+          couponCode: coupon?.code ?? null,
+          utmSource: utmSource(),
+        }),
       });
       if (!payRes.ok) {
         const p = await payRes.json().catch(() => null);
@@ -378,6 +392,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           payerDocType: payer.identification?.type,
           payerDocNumber: payer.identification?.number,
           couponCode: coupon?.code ?? null,
+          utmSource: utmSource(),
         }),
       });
       if (!res.ok) {

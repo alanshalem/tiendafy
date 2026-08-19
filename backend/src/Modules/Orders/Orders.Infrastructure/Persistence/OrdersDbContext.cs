@@ -43,6 +43,7 @@ public sealed class OrdersDbContext : DbContext
         order.Property(o => o.PreferenceId).HasMaxLength(128);
         order.Property(o => o.PaymentId).HasMaxLength(64);
         order.Property(o => o.CouponCode).HasMaxLength(40);
+        order.Property(o => o.UtmSource).HasMaxLength(40);
         order.Property(o => o.DiscountAmount)
             .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("discount_amount")

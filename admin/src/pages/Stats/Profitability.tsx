@@ -35,6 +35,13 @@ interface Profitability {
     profit: number;
     marginPct: number;
   }[];
+  byChannel: {
+    source: string;
+    orders: number;
+    revenue: number;
+    profit: number;
+    ordersWithCost: number;
+  }[];
   meli: {
     orders: number;
     revenue: number;
@@ -138,6 +145,40 @@ export function StatsProfitabilityPage() {
                   value={formatMoney(data.mpFees, data.currency)}
                 />
               </div>
+
+              <ChartCard
+                title="Ganancia por canal"
+                info="De dónde vino cada venta (el utm_source del link que trajo al comprador): redes, email, ads o directo. La ganancia solo cuenta las órdenes con costo cargado."
+              >
+                {data.byChannel.length === 0 ? (
+                  <p className="py-4 text-sm text-fg-muted">Sin ventas en el período.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-fg-muted">
+                        <th className="py-2 font-medium">Canal</th>
+                        <th className="py-2 text-right font-medium">Ventas</th>
+                        <th className="py-2 text-right font-medium">Facturado</th>
+                        <th className="py-2 text-right font-medium">Ganancia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.byChannel.map((c) => (
+                        <tr key={c.source} className="border-b border-border last:border-b-0">
+                          <td className="py-2 capitalize text-fg">{c.source}</td>
+                          <td className="py-2 text-right tabular-nums text-fg-muted">{c.orders}</td>
+                          <td className="py-2 text-right tabular-nums text-fg">
+                            {formatMoney(c.revenue, data.currency)}
+                          </td>
+                          <td className="py-2 text-right tabular-nums font-medium text-fg">
+                            {c.ordersWithCost > 0 ? formatMoney(c.profit, data.currency) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </ChartCard>
 
               <ChartCard
                 title="Ganancia por producto"

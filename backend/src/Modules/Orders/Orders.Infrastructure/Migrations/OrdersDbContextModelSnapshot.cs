@@ -148,6 +148,11 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tracking");
 
+                    b.Property<string>("UtmSource")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("utm_source");
+
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()

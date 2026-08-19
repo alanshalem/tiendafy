@@ -39,6 +39,9 @@ public sealed class MeliOrder
     /// <summary>Comprobante ARCA emitido para esta venta ML (null = sin facturar).</summary>
     public Guid? FiscalDocumentId { get; private set; }
 
+    /// <summary>Nota de crédito ya encolada (la venta se canceló estando facturada).</summary>
+    public bool CreditNoteIssued { get; private set; }
+
     public DateTime FirstSeenAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -79,6 +82,12 @@ public sealed class MeliOrder
     public void MarkInvoiced(Guid fiscalDocumentId)
     {
         FiscalDocumentId = fiscalDocumentId;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void MarkCreditNoteIssued()
+    {
+        CreditNoteIssued = true;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

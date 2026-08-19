@@ -226,6 +226,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("buyer_nickname");
 
+                    b.Property<bool>("CreditNoteIssued")
+                        .HasColumnType("boolean")
+                        .HasColumnName("credit_note_issued");
+
                     b.Property<string>("CurrencyId")
                         .IsRequired()
                         .HasMaxLength(5)

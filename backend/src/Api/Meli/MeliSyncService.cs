@@ -23,6 +23,7 @@ public sealed record MeliOrderItemSnapshot(
 public sealed class MeliSyncService(
     MeliDbContext db, MeliClient client, MeliTokenService tokens,
     IStockRepository stock, global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter,
+    global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
     ILogger<MeliSyncService> logger)
 {
     private static readonly JsonSerializerOptions Json = ApiJson.Web;
@@ -90,6 +91,30 @@ public sealed class MeliSyncService(
         {
             await ApplyStockAsync(tenantId, meliOrderId, items, ct);
             row.MarkStockApplied();
+        }
+
+        // Venta facturada que se cancela/reembolsa en ML: nota de crédito, igual
+        // que en la tienda propia. Sin esto quedaba una factura viva por una
+        // venta anulada (el ciclo fiscal cerraba solo a la ida).
+        if (row.FiscalDocumentId is not null && !row.CreditNoteIssued
+            && row.Status is "cancelled" or "refunded")
+        {
+            var amount = row.PaidAmount > 0 ? row.PaidAmount : row.TotalAmount;
+            var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+            if (minor > 0)
+            {
+                try
+                {
+                    // La NC de ML no tiene Order local: va por el outbox con el
+                    // id de la venta ML como referencia (misma cola con reintentos).
+                    await fiscalQueue.EnqueueCreditNoteAsync(tenantId, row.Id, minor, null, ct);
+                    row.MarkCreditNoteIssued();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "No se pudo encolar la NC de la venta ML {OrderId}.", meliOrderId);
+                }
+            }
         }
 
         // Auto-facturación (opt-in por conexión): emite ARCA a consumidor final

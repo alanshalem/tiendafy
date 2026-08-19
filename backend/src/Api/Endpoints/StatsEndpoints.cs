@@ -149,6 +149,26 @@ public static class StatsEndpoints
                 })
                 .OrderBy(x => x.date).ToList();
 
+            // Por canal de adquisición (utm_source de la sesión del comprador):
+            // cierra el triángulo redes/campaña → tráfico → PLATA.
+            var byChannel = paid
+                .GroupBy(o => o.UtmSource ?? "directo")
+                .Select(g =>
+                {
+                    var gWithCost = g.Where(o => o.ProductCost is not null).ToList();
+                    return new
+                    {
+                        source = g.Key,
+                        orders = g.Count(),
+                        revenue = g.Sum(ItemsNet),
+                        profit = gWithCost.Sum(o =>
+                            ItemsNet(o) - o.ProductCost!.Value.AmountInMinorUnits - (o.MpFeeAmount?.AmountInMinorUnits ?? 0)),
+                        ordersWithCost = gWithCost.Count,
+                    };
+                })
+                .OrderByDescending(x => x.revenue)
+                .ToList();
+
             // Por producto: solo ítems CON costo (margen honesto, no inventado).
             var byProduct = paid.SelectMany(o => o.Items)
                 .Where(i => i.UnitCost is not null)
@@ -184,6 +204,7 @@ public static class StatsEndpoints
                 coverage = new { ordersWithCost = withCost.Count, ordersTotal = paid.Count },
                 series,
                 byProduct,
+                byChannel,
                 meli,
             });
         });

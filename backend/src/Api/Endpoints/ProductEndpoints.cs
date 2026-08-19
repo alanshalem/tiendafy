@@ -517,6 +517,40 @@ public static class ProductEndpoints
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
 
+        // Costo sugerido de un kit: la suma del costo de sus componentes por
+        // cantidad. Sin esto, el costo del combo era un número a mano y la
+        // rentabilidad de los kits dependía de que alguien hiciera la cuenta.
+        products.MapGet("/kits/suggested-costs", async (
+            HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+
+            var components = await catalogDb.KitComponents.AsNoTracking().ToListAsync(ct);
+            if (components.Count == 0) return Results.Ok(new { items = Array.Empty<object>() });
+
+            var neededIds = components.Select(c => c.ComponentVariantId).Distinct().ToList();
+            var costByVariant = (await catalogDb.Products.AsNoTracking()
+                    .Where(p => p.TenantId == tenant.TenantId && p.Variants.Any(v => neededIds.Contains(v.Id)))
+                    .ToListAsync(ct))
+                .SelectMany(p => p.Variants)
+                .Where(v => v.Cost is not null)
+                .ToDictionary(v => v.Id, v => v.Cost!.Value.AmountInMinorUnits);
+
+            var items = components
+                .GroupBy(c => c.KitVariantId)
+                .Select(g => new
+                {
+                    kitVariantId = g.Key,
+                    // null = falta el costo de algún componente (no se puede sumar).
+                    suggestedCostMinor = g.All(c => costByVariant.ContainsKey(c.ComponentVariantId))
+                        ? g.Sum(c => costByVariant[c.ComponentVariantId] * c.Quantity)
+                        : (long?)null,
+                })
+                .ToList();
+            return Results.Ok(new { items });
+        });
+
         // ---- Repreciación masiva ----
         // Llegó el contenedor con dólar nuevo: +X% a todo (o a una categoría)
         // con redondeo comercial, en un click — no variante por variante.

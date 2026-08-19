@@ -202,6 +202,15 @@ function AvisosCard() {
     queryFn: () => api.get<{ posts: unknown[] }>('/api/v1/admin/social/posts?status=Failed'),
     enabled: !!store && canSocial,
   });
+  const { data: meliOrders } = useQuery({
+    queryKey: ['meli-orders-home', store?.id],
+    queryFn: () =>
+      api.get<{ items: { status: string; fiscalDocumentId: string | null }[] }>(
+        '/api/v1/admin/meli/orders?limit=50',
+      ),
+    enabled: !!store && canStats,
+  });
+
   const { data: profit } = useQuery({
     queryKey: ['profitability-coverage', store?.id],
     queryFn: () =>
@@ -232,6 +241,15 @@ function AvisosCard() {
       text: `${failed} ${failed === 1 ? 'post salió' : 'posts salieron'} con errores en alguna red.`,
       to: '/redes',
       action: 'Revisar',
+    });
+  const unbilledMeli = (meliOrders?.items ?? []).filter(
+    (o) => o.status === 'paid' && !o.fiscalDocumentId,
+  ).length;
+  if (unbilledMeli > 0)
+    avisos.push({
+      text: `${unbilledMeli} ${unbilledMeli === 1 ? 'venta de Mercado Libre pagada sin facturar' : 'ventas de Mercado Libre pagadas sin facturar'}.`,
+      to: '/mercadolibre',
+      action: 'Facturar',
     });
   if (
     profit &&

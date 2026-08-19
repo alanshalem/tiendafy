@@ -4,6 +4,7 @@ import { Boxes, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { VariantPicker } from '../../components/VariantPicker';
@@ -35,6 +36,17 @@ export function KitsPage() {
   const [editingKit, setEditingKit] = useState<{ variantId: string; label: string } | null>(null);
   const [components, setComponents] = useState<DraftComponent[]>([]);
   const [listSearch, setListSearch] = useState('');
+
+  // Costo del kit = suma de sus componentes: sin esto era un número a mano.
+  const { data: suggested } = useQuery({
+    queryKey: ['kit-costs', store?.id],
+    queryFn: () =>
+      api.get<{ items: { kitVariantId: string; suggestedCostMinor: number | null }[] }>(
+        '/api/v1/products/kits/suggested-costs',
+      ),
+    enabled: !!store,
+  });
+  const suggestedByKit = new Map((suggested?.items ?? []).map((i) => [i.kitVariantId, i.suggestedCostMinor]));
 
   const { data: kits } = useQuery({
     queryKey: ['kits', store?.id],
@@ -138,6 +150,11 @@ export function KitsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-fg-muted">
                         {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
+                        {suggestedByKit.get(k.kitVariantId) != null && (
+                          <span className="ml-2 text-xs text-fg-subtle">
+                            · costo de componentes: {formatMoney(suggestedByKit.get(k.kitVariantId)!)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <Button
