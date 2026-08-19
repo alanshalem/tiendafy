@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
+import { Pagination } from '../components/Pagination';
 import { formatDateTime } from '@tiendafy/types';
 
 interface ContactMessage {
@@ -22,8 +23,12 @@ interface ContactMessage {
   read: boolean;
   createdAtUtc: string;
 }
+/** Mensajes por página. */
+const PAGE_SIZE = 50;
+
 interface MessagesResponse {
   items: ContactMessage[];
+  total: number;
   unread: number;
 }
 
@@ -37,11 +42,16 @@ export function MessagesPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todos');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['contact-messages', store?.id],
-    queryFn: () => api.get<MessagesResponse>('/api/v1/contact/messages'),
+    queryKey: ['contact-messages', store?.id, page],
+    queryFn: () =>
+      api.get<MessagesResponse>(
+        `/api/v1/contact/messages?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
   });
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   const markRead = async (id: string) => {
     await api.post(`/api/v1/contact/messages/${id}/read`, {});
@@ -191,6 +201,8 @@ export function MessagesPage() {
           })}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+
       {/* Acá caen también las solicitudes del Botón de Arrepentimiento → guía legal. */}
       <HelpLink id="legal" />
     </div>

@@ -11,6 +11,14 @@ public interface IOrderRepository
 
     Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Página de ventas con su total, buscando y filtrando en la base. Con
+    /// miles de ventas, traerlas todas al navegador para buscar en memoria no
+    /// es una opción: el filtro tiene que correr donde están los datos.
+    /// </summary>
+    Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(
+        TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default);
+
     /// <summary>Pedidos de un comprador (por email) — para "Mis pedidos" del storefront.</summary>
     Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default);
 

@@ -13,7 +13,11 @@ public static class CustomersEndpoints
         // Grupo 100% admin: PII de clientes. Toda lectura/escritura exige membresía.
         var customers = group.MapGroup("/customers").RequirePermission(Permission.CustomersRead).RequirePermissionForWrites(Permission.CustomersWrite);
 
-        customers.MapGet("/", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct, string? q = null) =>
+        // Página + total: la agenda tiene un cliente por comprador, así que crece
+        // con las ventas. Buscar y paginar se hacen en la base.
+        customers.MapGet("/", async (
+            ITenantContext tenant, CustomersDbContext db, CancellationToken ct,
+            string? q = null, int? limit = null, int? offset = null) =>
         {
             var tid = tenant.TenantId.Value;
             var query = db.Customers.AsNoTracking().Where(c => c.TenantId == tid);
@@ -25,8 +29,14 @@ public static class CustomersEndpoints
                 query = query.Where(c => EF.Functions.ILike(c.Name, term)
                     || (c.Email != null && EF.Functions.ILike(c.Email, term)));
             }
-            var items = await query.OrderByDescending(c => c.CreatedAtUtc).ToListAsync(ct);
-            return Results.Ok(new { items = items.Select(ToDto) });
+
+            var total = await query.CountAsync(ct);
+            var items = await query
+                .OrderByDescending(c => c.CreatedAtUtc)
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 50, 1, 200))
+                .ToListAsync(ct);
+            return Results.Ok(new { items = items.Select(ToDto), total });
         });
 
         // Trae a la agenda a los compradores de las ventas anteriores. De acá en

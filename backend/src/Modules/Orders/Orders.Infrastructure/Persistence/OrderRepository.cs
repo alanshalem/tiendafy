@@ -36,6 +36,37 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
         return await query.Take(limit).ToListAsync(ct);
     }
 
+    public async Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(
+        TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default)
+    {
+        var query = context.Orders.Where(o => o.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var wanted = status.Trim().ToUpperInvariant();
+            query = query.Where(o => o.Status.ToString().ToUpper() == wanted);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search.Trim()}%";
+            // Email, nombre del comprador o el principio del id (lo que se ve
+            // en la tabla como número de orden).
+            query = query.Where(o =>
+                EF.Functions.ILike(o.BuyerEmail, term)
+                || (o.BuyerName != null && EF.Functions.ILike(o.BuyerName, term))
+                || EF.Functions.ILike(o.Id.ToString(), term));
+        }
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(o => o.CreatedAtUtc)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task AddAsync(Order order, CancellationToken ct = default) =>
         await context.Orders.AddAsync(order, ct);
 

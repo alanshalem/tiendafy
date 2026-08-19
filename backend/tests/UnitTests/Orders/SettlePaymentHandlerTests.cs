@@ -21,6 +21,8 @@ public class SettlePaymentHandlerTests
         public Task<Order?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) => Task.FromResult(order);
         public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) => Task.FromResult(order);
         public Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Order>>([]);
+        public Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default) =>
+            Task.FromResult<(IReadOnlyList<Order>, int)>(([], 0));
         public Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Order>>([]);
         public Task AddAsync(Order order, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) { Saves++; return Task.CompletedTask; }

@@ -19,6 +19,7 @@ import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
+import { Pagination } from '../components/Pagination';
 
 interface Customer {
   id: string;
@@ -30,6 +31,9 @@ interface Customer {
   createdAtUtc: string;
 }
 
+/** Clientes por página. */
+const PAGE_SIZE = 50;
+
 export function CustomersPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -40,13 +44,25 @@ export function CustomersPage() {
   const [term, setTerm] = useState('');
   const [q, setQ] = useState('');
 
+  const [page, setPage] = useState(1);
+
+  // La agenda crece con cada venta: la página y la búsqueda las resuelve la
+  // base, no el navegador.
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', store?.id, q],
-    queryFn: () =>
-      api.get<{ items: Customer[] }>(`/api/v1/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    queryKey: ['customers', store?.id, q, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: Customer[]; total: number }>(`/api/v1/customers?${params}`);
+    },
     enabled: !!store,
   });
   const customers = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
 
@@ -149,6 +165,7 @@ export function CustomersPage() {
             onSubmit={(e) => {
               e.preventDefault();
               setQ(term.trim());
+              setPage(1);
             }}
             className="relative"
           >
@@ -205,6 +222,7 @@ export function CustomersPage() {
       ) : (
         <Card flush>
           <Table columns={columns} rows={customers} rowKey={(c) => c.id} emptyState="No hay clientes." />
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </Card>
       )}
 

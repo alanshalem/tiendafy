@@ -147,10 +147,22 @@ public static class OrderEndpoints
             return Results.Ok(ToDto(order));
         }).RequireTenant();
 
+        // Listado del panel: página + total + búsqueda y filtro en la base. El
+        // modo cursor (after) se mantiene para el escáner del depósito, que
+        // recorre las ventas pendientes de despacho.
         group.MapGet("/orders", async (
-            ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit, CancellationToken ct) =>
+            ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit,
+            int? offset, string? q, string? status, CancellationToken ct) =>
         {
-            var items = await orders.ListAsync(tenant.TenantId, Math.Clamp(limit ?? 20, 1, 100), after, ct);
+            var take = Math.Clamp(limit ?? 20, 1, 100);
+            if (after is null)
+            {
+                var (page, total) = await orders.ListPageAsync(
+                    tenant.TenantId, take, Math.Max(0, offset ?? 0), q, status, ct);
+                return Results.Ok(new { items = page.Select(ToDto), total });
+            }
+
+            var items = await orders.ListAsync(tenant.TenantId, take, after, ct);
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequirePermission(Permission.OrdersRead);
 

@@ -71,12 +71,16 @@ public static class ContactEndpoints
         // arrepentimiento con número de pedido válido, se resuelve la venta para
         // que el panel muestre "Ver venta".
         contact.MapGet("/messages", async (
-            ITenantContext tenant, CustomersDbContext db, IOrderRepository orders, CancellationToken ct) =>
+            ITenantContext tenant, CustomersDbContext db, IOrderRepository orders, CancellationToken ct,
+            int? limit = null, int? offset = null) =>
         {
             var tid = tenant.TenantId.Value;
-            var rows = await db.ContactMessages.AsNoTracking()
-                .Where(m => m.TenantId == tid)
+            var query = db.ContactMessages.AsNoTracking().Where(m => m.TenantId == tid);
+            var total = await query.CountAsync(ct);
+            var rows = await query
                 .OrderByDescending(m => m.CreatedAtUtc)
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 50, 1, 200))
                 .Select(m => new { m.Id, m.Name, m.Email, m.Body, m.Kind, m.Reference, m.OrderRef, m.Read, m.CreatedAtUtc })
                 .ToListAsync(ct);
 
@@ -103,7 +107,7 @@ public static class ContactEndpoints
                 });
             }
             var unread = rows.Count(m => !m.Read);
-            return Results.Ok(new { items, unread });
+            return Results.Ok(new { items, unread, total });
         }).RequirePermission(Permission.MessagesRead);
 
         // Marcar leído.
