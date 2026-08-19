@@ -36,7 +36,7 @@ const tickerItems = [
 const steps = [
   {
     title: 'Creá tu tienda',
-    body: 'Elegí un nombre, un subdominio y listo: tu tienda existe. Sin tarjeta de crédito, sin llamadas comerciales, sin vueltas.',
+    body: 'Elegís un nombre, un subdominio y listo: la tienda existe, con su catálogo y su identidad propia.',
   },
   {
     title: 'Cargá tus productos',
@@ -59,7 +59,7 @@ const features = [
   },
   {
     title: 'Tu dominio, tu marca',
-    body: 'Arrancás en tutienda.tiendafy.com y cuando quieras conectás tu dominio propio con SSL automático.',
+    body: 'Cada tienda arranca en su subdominio y cuando quieras conecta su dominio propio con SSL automático.',
   },
   {
     title: 'Stock sin sustos',
@@ -143,50 +143,6 @@ const testimonials = [
   },
 ];
 
-const plans = [
-  {
-    name: 'Semilla',
-    price: 'Gratis',
-    period: 'para siempre',
-    items: [
-      'Hasta 25 productos',
-      'Subdominio .tiendafy.com',
-      'Checkout con Mercado Pago',
-      'Soporte por email',
-    ],
-    cta: 'Empezar gratis',
-    featured: false,
-  },
-  {
-    name: 'Emprendedor',
-    price: '$19.999',
-    period: 'por mes',
-    items: [
-      'Productos ilimitados',
-      'Tu dominio propio + SSL',
-      'Cupones y descuentos',
-      'Estadísticas completas',
-      'Soporte prioritario',
-    ],
-    cta: 'Probar 14 días gratis',
-    featured: true,
-  },
-  {
-    name: 'Pro',
-    price: '$49.999',
-    period: 'por mes',
-    items: [
-      'Todo lo de Emprendedor',
-      '0% comisión por venta',
-      'API y webhooks',
-      'Múltiples usuarios con roles',
-      'Soporte por WhatsApp',
-    ],
-    cta: 'Hablar con ventas',
-    featured: false,
-  },
-];
-
 const faqs = [
   {
     q: '¿Necesito saber programar?',
@@ -198,7 +154,7 @@ const faqs = [
   },
   {
     q: '¿Puedo usar mi propio dominio?',
-    a: 'Sí. Arrancás con tutienda.tiendafy.com gratis, y en los planes pagos conectás tu dominio propio con certificado SSL automático.',
+    a: 'Sí. Cada tienda puede tener su dominio propio con certificado de seguridad automático, además de su subdominio de la plataforma.',
   },
   {
     q: '¿Qué pasa si me quiero ir?',
@@ -297,9 +253,6 @@ export function PlatformLanding() {
             <a href="#funciones" className="ld-nav-link">
               Funciones
             </a>
-            <a href="#precios" className="ld-nav-link">
-              Precios
-            </a>
             <a href="#preguntas" className="ld-nav-link">
               Preguntas
             </a>
@@ -307,7 +260,7 @@ export function PlatformLanding() {
           <div className="flex items-center gap-3">
             <LandingThemeToggle />
             <a href={ADMIN_URL} className="ld-btn" style={{ padding: '0.55rem 1.2rem', fontSize: '0.9rem' }}>
-              Crear mi tienda
+              Entrar al panel
             </a>
           </div>
         </div>
@@ -329,14 +282,14 @@ export function PlatformLanding() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4" data-stagger="4">
               <a href={ADMIN_URL} className="ld-btn ld-btn--big">
-                Crear mi tienda gratis
+                Entrar al panel
               </a>
               <a href="#tiendas" className="ld-btn ld-btn--ghost">
                 Ver tiendas reales
               </a>
             </div>
             <p className="mt-5 text-sm" style={{ color: 'var(--ld-cream-muted)' }} data-stagger="5">
-              Gratis hasta 25 productos · Sin tarjeta de crédito · Tus datos son tuyos
+              Catálogo, depósito, facturación y canales de venta en un solo lugar
             </p>
           </div>
 
@@ -539,43 +492,6 @@ export function PlatformLanding() {
         </div>
       </section>
 
-      {/* ---------- Pricing ---------- */}
-      <section id="precios" className="py-28">
-        <div className="ld-container">
-          <Reveal>
-            <span className="ld-eyebrow">Precios</span>
-            <h2 className="ld-display ld-section-title mt-3 max-w-xl">
-              Planes simples, en pesos, sin sorpresas.
-            </h2>
-          </Reveal>
-          <div className="mt-14 grid items-stretch gap-8 lg:grid-cols-3">
-            {plans.map((plan, i) => (
-              <Reveal key={plan.name} delay={i * 120} className="h-full">
-                <div className={`ld-plan h-full ${plan.featured ? 'ld-plan--featured' : ''}`}>
-                  {plan.featured && <span className="ld-plan-sticker">El más elegido</span>}
-                  <div className="ld-eyebrow">{plan.name}</div>
-                  <div className="ld-plan-price mt-4">{plan.price}</div>
-                  <div className="text-sm" style={{ color: 'var(--ld-ink-soft)' }}>
-                    {plan.period}
-                  </div>
-                  <ul className="mt-6 flex-1">
-                    {plan.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                  <a
-                    href={ADMIN_URL}
-                    className={`ld-btn mt-8 justify-center ${plan.featured ? '' : 'ld-btn--ghost'}`}
-                  >
-                    {plan.cta}
-                  </a>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ---------- FAQ ---------- */}
       <section id="preguntas" className="pb-28">
         <div className="ld-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
@@ -603,16 +519,16 @@ export function PlatformLanding() {
         <div className="ld-container">
           <Reveal>
             <h2 className="ld-display" style={{ fontSize: 'clamp(2.75rem, 7vw, 5.5rem)', lineHeight: 0.98 }}>
-              Empezá hoy.
+              Todo el negocio.
               <br />
-              <em style={{ color: 'var(--ld-verm)', fontStyle: 'italic' }}>Gratis.</em>
+              <em style={{ color: 'var(--ld-verm)', fontStyle: 'italic' }}>Un solo panel.</em>
             </h2>
             <p className="mx-auto mt-6 max-w-md text-lg" style={{ color: 'var(--ld-cream-muted)' }}>
-              Tu tienda puede estar vendiendo esta misma semana. La única pregunta es si va a ser la tuya o la
-              de tu competencia.
+              Cada rubro con su tienda, su marca y su dominio. El stock, los costos y la ganancia, en un solo
+              lugar.
             </p>
             <a href={ADMIN_URL} className="ld-btn ld-btn--big mt-10">
-              Crear mi tienda gratis
+              Entrar al panel
             </a>
           </Reveal>
         </div>
@@ -631,7 +547,7 @@ export function PlatformLanding() {
             </p>
           </div>
           {[
-            { title: 'Producto', links: ['Funciones', 'Precios', 'Novedades'] },
+            { title: 'Producto', links: ['Funciones', 'Novedades'] },
             { title: 'Recursos', links: ['Centro de ayuda', 'Guías para vender', 'API para developers'] },
             { title: 'Compañía', links: ['Quiénes somos', 'Términos y privacidad', 'Contacto'] },
           ].map((col) => (

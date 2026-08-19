@@ -78,6 +78,7 @@ export function UsersNotificationsPage() {
 
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [role, setRole] = useState('vendedor');
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['members'] });
@@ -85,12 +86,13 @@ export function UsersNotificationsPage() {
   const onError = (e: unknown) => toast(errMsg(e, 'No se pudo completar la acción.'), { variant: 'error' });
 
   const addM = useMutation({
-    mutationFn: () => api.post('/api/v1/members', { email, role }),
+    mutationFn: () => api.post('/api/v1/members', { email, role, name: name.trim() || null }),
     onSuccess: () => {
       setEmail('');
+      setName('');
       setRole('vendedor');
       setAdding(false);
-      toast('Usuario agregado', { variant: 'success' });
+      toast('Usuario agregado. Le llegó un email para definir su contraseña.', { variant: 'success' });
       invalidate();
     },
     onError,
@@ -141,7 +143,8 @@ export function UsersNotificationsPage() {
           {adding && canManage && (
             <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-card">
               <p className="mb-2 text-sm text-fg-muted">
-                La persona tiene que tener una cuenta de Tiendafy. Ingresá su email y elegí un rol.
+                Ingresá el email de la persona y elegí su rol. Si todavía no tiene cuenta, se la creamos y le
+                llega un email para que defina su contraseña.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -150,6 +153,12 @@ export function UsersNotificationsPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@ejemplo.com"
                   className="h-10 min-w-[14rem] flex-1 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
+                />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nombre (opcional)"
+                  className="h-10 min-w-[10rem] flex-1 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
                 />
                 <select
                   value={role}

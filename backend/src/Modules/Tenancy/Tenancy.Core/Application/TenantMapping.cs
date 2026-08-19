@@ -12,6 +12,5 @@ public static class TenantMapping
         tenant.Subdomain.Value,
         tenant.CustomDomain,
         tenant.Status.ToString().ToUpperInvariant(),
-        tenant.Plan.ToString().ToUpperInvariant(),
         tenant.CreatedAtUtc);
 }

@@ -57,16 +57,48 @@ public static class MembersEndpoints
         }).RequirePermission(Permission.MembersRead);
 
         // Sumar miembro por email con rol (la persona debe tener cuenta de Tiendafy).
-        members.MapPost("/", async (AddMemberRequest req, HttpContext http, ITenantContext tenant, IMembershipService memberships, UserManager<AppUser> users, CancellationToken ct) =>
+        members.MapPost("/", async (
+            AddMemberRequest req, HttpContext http, ITenantContext tenant, IMembershipService memberships,
+            UserManager<AppUser> users, Api.Notifications.IEmailSender mailer, IConfiguration cfg,
+            CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(req.Role))
                 return Results.Problem(title: "Members.InvalidRole", detail: "Falta el rol.", statusCode: 400);
             var check = await CheckHierarchyAsync(http, tenant, memberships, req.Role, targetUserId: null, ct);
             if (check is not null) return check;
 
-            var user = await users.FindByEmailAsync(req.Email ?? string.Empty);
+            var email = (req.Email ?? string.Empty).Trim();
+            if (email.Length == 0 || !email.Contains('@'))
+                return Results.Problem(title: "Members.InvalidEmail", detail: "El email no es válido.", statusCode: 400);
+
+            // Si la persona todavía no tiene cuenta, se la crea acá: el registro
+            // del panel está cerrado a propósito (esto no es un SaaS con alta
+            // pública), así que el alta del equipo la hace un dueño y a la
+            // persona le llega un email para poner su contraseña.
+            var user = await users.FindByEmailAsync(email);
             if (user is null)
-                return Results.Problem(title: "Members.UserNotFound", detail: "Esa persona todavía no tiene cuenta. Pedile que se registre primero.", statusCode: 404);
+            {
+                user = new AppUser
+                {
+                    UserName = email,
+                    Email = email,
+                    DisplayName = string.IsNullOrWhiteSpace(req.Name) ? email.Split('@')[0] : req.Name!.Trim(),
+                    // La da de alta alguien de adentro: el email ya está validado
+                    // por el dueño y no hace falta el circuito de verificación.
+                    EmailConfirmed = true,
+                };
+
+                // Contraseña de un solo uso que nadie conoce: la real la define
+                // la persona con el link del email.
+                var created = await users.CreateAsync(user, Guid.NewGuid().ToString("N") + "aA1!");
+                if (!created.Succeeded)
+                    return Results.ValidationProblem(created.Errors
+                        .GroupBy(e => e.Code)
+                        .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
+
+                await SendWelcomeAsync(user, http, users, mailer, cfg, ct);
+            }
+
             await memberships.UpsertAsync(user.Id, tenant.TenantId.Value, req.Role!.ToLowerInvariant(), ct);
             return Results.NoContent();
         }).RequirePermission(Permission.MembersManage);
@@ -142,7 +174,26 @@ public static class MembersEndpoints
 
         return null;
     }
+    /// <summary>
+    /// Le avisa a la persona que la sumaron y le da el link para definir su
+    /// contraseña. Reusa el token de restablecer: es el mismo trámite, y así no
+    /// existe ninguna contraseña provisoria dando vueltas por email.
+    /// </summary>
+    private static async Task SendWelcomeAsync(
+        AppUser user, HttpContext http, UserManager<AppUser> users,
+        Api.Notifications.IEmailSender mailer, IConfiguration cfg, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(user.Email)) return;
+
+        var token = await users.GeneratePasswordResetTokenAsync(user);
+        var origin = http.Request.Headers.Origin.ToString();
+        var baseUrl = AuthEndpoints.SafeAdminBaseUrl(origin, cfg);
+        var link = $"{baseUrl}/restablecer?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(token)}";
+
+        await mailer.SendAsync(user.Email, "Te sumaron al panel de tu tienda",
+            $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>Ya tenés acceso al panel</h2><p>Definí tu contraseña para entrar.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Crear mi contraseña</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct: ct);
+    }
 }
 
-public sealed record AddMemberRequest(string Email, string? Role);
+public sealed record AddMemberRequest(string Email, string? Role, string? Name = null);
 public sealed record ChangeRoleRequest(string Role);

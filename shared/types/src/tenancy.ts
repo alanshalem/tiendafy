@@ -1,7 +1,6 @@
 import type { IsoDateTime, TenantId } from './common';
 
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
-export type PlanTier = 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE';
 
 export interface Tenant {
   id: TenantId;
@@ -11,7 +10,6 @@ export interface Tenant {
   /** Dominio custom verificado, si tiene. */
   customDomain: string | null;
   status: TenantStatus;
-  plan: PlanTier;
   createdAtUtc: IsoDateTime;
 }
 

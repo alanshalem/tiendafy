@@ -9,6 +9,7 @@ import { formatMoney } from '../lib/format';
 import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
+import { storefrontHost } from '../lib/storefront';
 
 interface ProductsResponse {
   items: unknown[];
@@ -47,6 +48,11 @@ export function HomePage() {
     queryFn: () => api.get<{ connected: boolean }>('/api/v1/payments/mercadopago/connection'),
     enabled: !!store,
   });
+  const { data: theme } = useQuery({
+    queryKey: ['theme-published', store?.id],
+    queryFn: () => api.get<{ logo?: string }>('/api/v1/admin/theme'),
+    enabled: !!store,
+  });
 
   if (!store) {
     return <NoStoreSelected message="Elegí una tienda arriba para empezar." />;
@@ -58,7 +64,7 @@ export function HomePage() {
     {
       done: true,
       title: 'Creaste tu tienda',
-      body: `${store.subdomain}.tiendafy.com ya existe.`,
+      body: `${storefrontHost(store.subdomain)} ya existe.`,
       to: '/tenants',
     },
     {
@@ -76,12 +82,16 @@ export function HomePage() {
       to: '/configuracion/medios-de-pago',
     },
     {
-      done: false,
+      done: Boolean(theme?.logo),
       title: 'Personalizá tu tienda',
-      body: 'Colores, tipografía y secciones a tu medida. (Pronto)',
+      body: 'Logo, colores, tipografía y secciones a tu medida.',
       to: '/canales/tienda-online',
     },
   ];
+
+  // Puesta en marcha: sirve al abrir una tienda nueva y estorba el resto del
+  // tiempo. Cuando está todo hecho, la tarjeta desaparece sola.
+  const pendingSteps = steps.filter((s) => !s.done).length;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -125,42 +135,46 @@ export function HomePage() {
           <div className="mt-1 text-2xl font-bold text-fg">
             {store.status === 'ACTIVE' ? 'Activa' : store.status}
           </div>
-          <div className="mt-1 text-xs text-fg-subtle">Plan {store.plan}</div>
+          <div className="mt-1 text-xs text-fg-subtle">
+            {store.customDomain ?? storefrontHost(store.subdomain)}
+          </div>
         </Card>
       </div>
 
-      <Card title="Poné tu tienda en marcha" flush>
-        {steps.map((step, i) => (
-          <Link
-            key={step.title}
-            to={step.to}
-            className="flex items-start gap-3 border-b border-border px-4 py-3.5 transition-colors last:border-b-0 hover:bg-bg-subtle"
-          >
-            <span
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.65rem] font-bold ${
-                step.done
-                  ? 'border-success bg-success-bg text-success'
-                  : 'border-border-strong text-fg-subtle'
-              }`}
+      {pendingSteps > 0 && (
+        <Card title="Poné tu tienda en marcha" flush>
+          {steps.map((step, i) => (
+            <Link
+              key={step.title}
+              to={step.to}
+              className="flex items-start gap-3 border-b border-border px-4 py-3.5 transition-colors last:border-b-0 hover:bg-bg-subtle"
             >
-              {step.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
-            </span>
-            <span className="min-w-0">
               <span
-                className={`block text-sm font-semibold ${step.done ? 'text-fg-muted line-through' : 'text-fg'}`}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.65rem] font-bold ${
+                  step.done
+                    ? 'border-success bg-success-bg text-success'
+                    : 'border-border-strong text-fg-subtle'
+                }`}
               >
-                {step.title}
+                {step.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </span>
-              <span className="block text-xs text-fg-muted">{step.body}</span>
-            </span>
-            {step.done && (
-              <Badge variant="success" className="ml-auto shrink-0">
-                Listo
-              </Badge>
-            )}
-          </Link>
-        ))}
-      </Card>
+              <span className="min-w-0">
+                <span
+                  className={`block text-sm font-semibold ${step.done ? 'text-fg-muted line-through' : 'text-fg'}`}
+                >
+                  {step.title}
+                </span>
+                <span className="block text-xs text-fg-muted">{step.body}</span>
+              </span>
+              {step.done && (
+                <Badge variant="success" className="ml-auto shrink-0">
+                  Listo
+                </Badge>
+              )}
+            </Link>
+          ))}
+        </Card>
+      )}
       <HelpLink id="primerosPasos" />
     </div>
   );

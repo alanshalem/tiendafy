@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Identity.Infrastructure;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -46,12 +49,35 @@ public sealed class TenantIsolationTests
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    /// <summary>Registra un merchant (queda logueado por cookie) y le crea una tienda.</summary>
-    private static async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
+    /// <summary>
+    /// Da de alta un merchant (queda logueado por cookie) y le crea una tienda.
+    /// El usuario se crea por dentro, como lo hace el alta desde Usuarios: el
+    /// panel NO tiene registro público, así que pedirlo por HTTP daría 403.
+    /// </summary>
+    private async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
     {
-        var reg = await client.PostAsJsonAsync("/api/v1/auth/register",
-            new { name = $"Test {tag}", email = $"it-{tag}@test.local", password = "password-larga-123" });
-        Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var email = $"it-{tag}@test.local";
+        const string password = "password-larga-123";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            if (await users.FindByEmailAsync(email) is null)
+            {
+                var user = new AppUser
+                {
+                    UserName = email,
+                    Email = email,
+                    DisplayName = $"Test {tag}",
+                    EmailConfirmed = true,
+                };
+                var created = await users.CreateAsync(user, password);
+                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
+            }
+        }
+
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
 
         var create = await client.PostAsJsonAsync("/api/v1/tenants",
             new { name = $"Tienda {tag}", subdomain = tag });

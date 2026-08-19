@@ -9,8 +9,8 @@ export const EQUIPO = {
       {
         heading: 'Agregar a alguien',
         steps: [
-          'La persona se registra en Tiendafy con su email (una vez).',
           'En Configuración → Usuarios, tocá “Agregar”, poné su email y elegí el rol.',
+          'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña.',
           'Listo: al entrar al panel ve solo las secciones y acciones de su rol.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Usuarios'] }],
@@ -22,7 +22,7 @@ export const EQUIPO = {
             type: 'table',
             headers: ['Rol', 'Qué puede', 'Qué NO puede'],
             rows: [
-              ['Dueño', 'Control total: dominios, plan y gestión de otros dueños', '—'],
+              ['Dueño', 'Control total: dominios, alta de usuarios y borrar la tienda', '—'],
               ['Administrador', 'Todo lo operativo y la configuración', 'Plan y gestión de dueños'],
               [
                 'Vendedor',

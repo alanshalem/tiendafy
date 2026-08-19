@@ -37,6 +37,17 @@ export function Login() {
   const [needsVerify, setNeedsVerify] = useState(false); // login bloqueado por email sin verificar
   const [resent, setResent] = useState(false);
 
+  // El panel no tiene alta pública: el equipo se da de alta desde Usuarios. La
+  // única excepción es una instalación vacía, donde hay que poder crear al
+  // primer dueño — el backend decide y acá solo se refleja.
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  useEffect(() => {
+    api
+      .get<{ open: boolean }>('/api/v1/auth/registration-open')
+      .then((r) => setRegistrationOpen(r.open))
+      .catch(() => setRegistrationOpen(false));
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -186,19 +197,21 @@ export function Login() {
             Volver a iniciar sesión
           </button>
         ) : (
-          <>
-            {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setMode(mode === 'login' ? 'register' : 'login');
-              }}
-              className="font-semibold text-primary hover:underline"
-            >
-              {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
-            </button>
-          </>
+          registrationOpen && (
+            <>
+              {mode === 'login' ? '¿Sos el primero?' : '¿Ya tenés cuenta?'}{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setMode(mode === 'login' ? 'register' : 'login');
+                }}
+                className="font-semibold text-primary hover:underline"
+              >
+                {mode === 'login' ? 'Creá la cuenta de dueño' : 'Iniciá sesión'}
+              </button>
+            </>
+          )
         )}
       </p>
     </Shell>

@@ -118,7 +118,6 @@ export function TenantsPage() {
       header: 'Dominio propio',
       cell: (t) => t.customDomain ?? <span className="text-fg-subtle">—</span>,
     },
-    { key: 'plan', header: 'Plan', cell: (t) => <Badge variant="primary">{t.plan}</Badge> },
     {
       key: 'status',
       header: 'Estado',

@@ -9,5 +9,4 @@ public sealed record TenantDto(
     string Subdomain,
     string? CustomDomain,
     string Status,
-    string Plan,
     DateTime CreatedAtUtc);

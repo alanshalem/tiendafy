@@ -30,7 +30,7 @@ public enum Permission
     FiscalEmit,          // emitir / anular comprobantes (mueve obligaciones fiscales)
     Purchasing,          // compras a proveedores e importaciones (landed cost)
     Social,              // redes sociales: cuentas, posts y calendario
-    TenantAdmin,         // dominios / plan / borrar tienda — solo owner
+    TenantAdmin,         // dominios / borrar tienda — solo owner
 }
 
 /// <summary>

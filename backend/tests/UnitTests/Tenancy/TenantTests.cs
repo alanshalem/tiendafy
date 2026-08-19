@@ -9,12 +9,11 @@ public class TenantTests
     private static Tenant CreateValid() => Tenant.Create("Mi Tienda", "mitienda").Value;
 
     [Fact]
-    public void Create_WithValidData_StartsActiveOnFreePlan()
+    public void Create_WithValidData_StartsActive()
     {
         var tenant = CreateValid();
 
         Assert.Equal(TenantStatus.Active, tenant.Status);
-        Assert.Equal(PlanTier.Free, tenant.Plan);
         Assert.Equal(tenant.Id, tenant.TenantId.Value); // tenant es su propio tenant
     }
 
@@ -77,7 +76,6 @@ public class TenantTests
         var tenant = CreateValid();
         tenant.Cancel();
 
-        Assert.Throws<DomainException>(() => tenant.ChangePlan(PlanTier.Pro));
         Assert.Throws<DomainException>(() => tenant.Suspend());
         Assert.Throws<DomainException>(() => tenant.AttachCustomDomain("www.tienda.com"));
     }

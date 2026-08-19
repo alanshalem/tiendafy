@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Endpoints;
 
@@ -9,6 +10,13 @@ public static class AuthEndpoints
     public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder group)
     {
         var auth = group.MapGroup("/auth");
+
+        // Esta plataforma es de UNA empresa, no un SaaS con registro abierto: el
+        // alta la hace un dueño desde Usuarios. La única excepción es el
+        // arranque — en una instalación sin ningún usuario hay que poder crear
+        // el primero, o no entra nadie.
+        auth.MapGet("/registration-open", async (UserManager<AppUser> userManager) =>
+            Results.Ok(new { open = !await userManager.Users.AnyAsync() }));
 
         auth.MapPost("/register", async (
             RegisterRequest request,
@@ -20,6 +28,12 @@ public static class AuthEndpoints
             IConfiguration cfg,
             CancellationToken ct) =>
         {
+            if (await userManager.Users.AnyAsync(ct))
+                return Results.Problem(
+                    title: "Auth.RegistrationClosed",
+                    detail: "El acceso al panel lo da de alta un dueño desde Configuración → Usuarios.",
+                    statusCode: 403);
+
             if (!await captcha.VerifyAsync(request.Captcha, ct))
                 return Results.Problem(title: "Captcha.Failed", detail: "Verificación anti-bots fallida.", statusCode: 400);
 
@@ -165,6 +179,10 @@ public static class AuthEndpoints
         await email.SendAsync(user.Email, "Verificá tu email — Tiendafy",
             $"""<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2>¡Bienvenido a Tiendafy!</h2><p>Confirmá tu email para asegurar tu cuenta y poder iniciar sesión.</p><p><a href="{link}" style="background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Verificar mi email</a></p><p style="color:#888;font-size:12px;word-break:break-all">{link}</p></div>""", ct: ct);
     }
+
+    /// <summary>Base para los links del panel: el Origin si es propio, o vacío.</summary>
+    internal static string SafeAdminBaseUrl(string? origin, IConfiguration cfg) =>
+        IsSafeAdminOrigin(origin, cfg) ? (origin ?? string.Empty).TrimEnd('/') : string.Empty;
 
     /// <summary>Origin propio del admin (localhost/*.localhost o dominio de plataforma).</summary>
     private static bool IsSafeAdminOrigin(string? origin, IConfiguration cfg)

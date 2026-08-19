@@ -15,7 +15,6 @@ public sealed class Tenant : AggregateRoot
     public Subdomain Subdomain { get; private set; } = null!;
     public string? CustomDomain { get; private set; }
     public TenantStatus Status { get; private set; }
-    public PlanTier Plan { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
     private Tenant() { } // EF Core
@@ -26,7 +25,6 @@ public sealed class Tenant : AggregateRoot
         Name = name;
         Subdomain = subdomain;
         Status = TenantStatus.Active;
-        Plan = PlanTier.Free;
         CreatedAtUtc = DateTime.UtcNow;
     }
 
@@ -71,12 +69,6 @@ public sealed class Tenant : AggregateRoot
             return Result.Failure(result.Error);
         Subdomain = result.Value;
         return Result.Success();
-    }
-
-    public void ChangePlan(PlanTier newPlan)
-    {
-        EnsureNotCanceled();
-        Plan = newPlan;
     }
 
     public void AttachCustomDomain(string domain)

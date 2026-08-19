@@ -40,7 +40,6 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .HasFilter("custom_domain IS NOT NULL");
 
         builder.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
-        builder.Property(t => t.Plan).HasConversion<string>().HasMaxLength(20);
 
         builder.Property(t => t.CreatedAtUtc);
 
