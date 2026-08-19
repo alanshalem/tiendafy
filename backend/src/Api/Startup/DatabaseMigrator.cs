@@ -8,6 +8,7 @@ using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
 using MercadoLibre.Infrastructure;
+using Purchasing.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;
@@ -51,6 +52,10 @@ public static class DatabaseMigrator
         await MigrateAsync<NotificationsDbContext>(sp, logger);
         await MigrateAsync<SupportDbContext>(sp, logger);
         await MigrateAsync<FiscalDbContext>(sp, logger);
+        // Compras e importaciones. Faltaba en esta lista: sus migraciones nunca
+        // se aplicaban solas, así que un deploy limpio levantaba sin las tablas
+        // del módulo (en desarrollo pasó inadvertido porque ya existían).
+        await MigrateAsync<PurchasingDbContext>(sp, logger);
         await MigrateAsync<MeliDbContext>(sp, logger);
         await MigrateAsync<SocialDbContext>(sp, logger);
     }

@@ -184,15 +184,15 @@ function ComprasList({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-[18rem] flex-1">
           <h1 className="text-xl font-semibold">Compras e importaciones</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
             Órdenes de compra a proveedores, ciclo de importación y landed cost: el costo real de cada unidad
             puesta en el depósito alimenta Rentabilidad.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <VatBookDownload />
           <Button onClick={() => onNew()}>
             <Plus className="h-4 w-4" /> Nueva compra
