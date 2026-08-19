@@ -137,7 +137,7 @@ export function OrdersPage() {
   const [refunding, setRefunding] = useState<Order | null>(null);
 
   const doRefund = useCallback(
-    async (o: Order, amount: number | null, reason: string) => {
+    async (o: Order, amount: number | null, reason: string, restock: boolean) => {
       const label = amount === null ? money(o.refundable ?? o.total) : formatMoney(amount, o.currency);
       if (
         !(await confirm({
@@ -150,7 +150,7 @@ export function OrdersPage() {
         return false;
       setBusy(o.id);
       try {
-        await api.post(`/api/v1/orders/${o.id}/refund`, { amount, reason: reason.trim() || null });
+        await api.post(`/api/v1/orders/${o.id}/refund`, { amount, reason: reason.trim() || null, restock });
         toast('Reembolso realizado', { variant: 'success' });
         await load();
         return true;
@@ -435,8 +435,8 @@ export function OrdersPage() {
           order={refunding}
           busy={busy === refunding.id}
           onClose={() => setRefunding(null)}
-          onSubmit={async (amount, reason) => {
-            const ok = await doRefund(refunding, amount, reason);
+          onSubmit={async (amount, reason, restock) => {
+            const ok = await doRefund(refunding, amount, reason, restock);
             if (ok) setRefunding(null);
           }}
         />

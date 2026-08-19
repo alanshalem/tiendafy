@@ -16,12 +16,13 @@ export function RefundDialog({
   order: Order;
   busy: boolean;
   onClose: () => void;
-  onSubmit: (amount: number | null, reason: string) => void;
+  onSubmit: (amount: number | null, reason: string, restock: boolean) => void;
 }) {
   const refundable = order.refundable?.amount ?? order.total.amount;
   const [mode, setMode] = useState<'total' | 'partial'>('total');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [restock, setRestock] = useState(true);
   const [history, setHistory] = useState<RefundRecord[] | null>(null);
 
   useEffect(() => {
@@ -105,6 +106,24 @@ export function RefundDialog({
         />
       </div>
 
+      {mode === 'total' && (
+        <label className="mt-3 flex items-start gap-2 text-sm text-fg">
+          <input
+            type="checkbox"
+            checked={restock}
+            onChange={(e) => setRestock(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span>
+            Reingresar el stock de los productos
+            <span className="block text-xs text-fg-muted">
+              Si la mercadería volvió al depósito, el stock se suma de nuevo (queda en el historial como
+              “Devolución”). Destildalo si el producto no vuelve (dañado, extraviado).
+            </span>
+          </span>
+        </label>
+      )}
+
       {history && history.length > 0 && (
         <div className="mt-4 rounded-md border border-border bg-bg-muted/40 p-3">
           <div className="mb-1.5 text-xs font-semibold text-fg">Reembolsos anteriores</div>
@@ -130,7 +149,7 @@ export function RefundDialog({
           Cancelar
         </button>
         <button
-          onClick={() => onSubmit(mode === 'total' ? null : parsed, reason)}
+          onClick={() => onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock)}
           disabled={busy || !amountValid}
           className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
         >

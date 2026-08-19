@@ -186,7 +186,8 @@ public static class OrderEndpoints
         group.MapPost("/orders/{id:guid}/refund", async (
             Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
             IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
-            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
+            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
+            Inventory.Core.Domain.IStockRepository stock, CancellationToken ct) =>
         {
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
@@ -225,10 +226,16 @@ public static class OrderEndpoints
 
                 // MP primero (la plata), estado local después. amount null a MP = total
                 // del pago; con parciales previos siempre mandamos monto explícito.
-                var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
-                var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, idemKey, ct);
-                if (refund.IsFailure) return refund.Error.ToProblem();
-                audit.AttachMercadoPagoId(refund.Value.RefundId);
+                // Ventas manuales (efectivo/transferencia): la plata se devuelve a
+                // mano — solo se registra el estado y la auditoría.
+                var isManualPayment = order.PaymentId!.StartsWith("manual-", StringComparison.Ordinal);
+                if (!isManualPayment)
+                {
+                    var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
+                    var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, idemKey, ct);
+                    if (refund.IsFailure) return refund.Error.ToProblem();
+                    audit.AttachMercadoPagoId(refund.Value.RefundId);
+                }
 
                 var applied = order.ApplyRefund(amount);
                 if (applied.IsFailure) return applied.Error.ToProblem();
@@ -255,6 +262,27 @@ public static class OrderEndpoints
                     // Nota de crédito automática si la orden estaba facturada.
                     await fiscalQueue.EnqueueCreditNoteAsync(tenant.TenantId.Value, order.Id,
                         order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct);
+
+                    // Devolución física: reingresar el stock (opt-in del operador,
+                    // solo con reembolso TOTAL — un parcial no dice qué volvió).
+                    // Sin esto, un reembolso dejaba el stock mintiendo.
+                    if (req.Restock)
+                    {
+                        foreach (var item in order.Items)
+                        {
+                            try
+                            {
+                                await stock.AdjustAvailableAsync(
+                                    tenant.TenantId, item.VariantId, item.Quantity,
+                                    $"Devolución venta {order.Id.ToString()[..8]}", ct);
+                            }
+                            catch
+                            {
+                                // best-effort: el reembolso ya está hecho; el ajuste
+                                // manual de stock queda como recurso.
+                            }
+                        }
+                    }
                 }
                 return Results.Ok(ToDto(order));
             }
@@ -399,9 +427,10 @@ public static class OrderEndpoints
                 var v = variants[i.VariantId];
                 var unitPrice = i.UnitPriceMinor is { } price and > 0
                     ? new Money(price, currency)
-                    : v.Price;
+                    : new Money(v.Price.Amount, v.Price.Currency);
+                var unitCost = v.Cost is { } c ? new Money(c.Amount, c.Currency) : (Money?)null;
                 return (i.VariantId, v.ProductName, v.VariantDescription, v.Sku,
-                    unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], v.Cost);
+                    unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], unitCost);
             }).ToList();
 
             var email = string.IsNullOrWhiteSpace(request.BuyerEmail)
@@ -583,7 +612,7 @@ public static class OrderEndpoints
 
 public sealed record FulfillRequest(string? Tracking);
 
-public sealed record RefundRequest(decimal? Amount, string? Reason);
+public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false);
 
 public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode);
 
