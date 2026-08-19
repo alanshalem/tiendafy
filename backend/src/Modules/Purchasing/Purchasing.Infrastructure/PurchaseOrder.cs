@@ -40,6 +40,25 @@ public sealed class PurchaseOrder
     /// <summary>Días entre confirmar y recibir (alimenta la reposición).</summary>
     public int? LeadTimeDays { get; private set; }
 
+    // --- Comprobante del proveedor (para el libro de IVA compras) -----------
+    // Opcionales: una OC sirve igual sin ellos, pero sin comprobante cargado no
+    // entra en el libro que se le pasa al contador.
+
+    /// <summary>CUIT del proveedor.</summary>
+    public string? SupplierTaxId { get; private set; }
+
+    /// <summary>Tipo de comprobante tal como figura: "A", "B", "C", "Despacho"…</summary>
+    public string? InvoiceType { get; private set; }
+
+    public string? InvoiceNumber { get; private set; }
+    public DateTime? InvoiceDateUtc { get; private set; }
+
+    /// <summary>Neto gravado del comprobante, en pesos.</summary>
+    public decimal? InvoiceNetArs { get; private set; }
+
+    /// <summary>IVA del comprobante, en pesos (el crédito fiscal de la compra).</summary>
+    public decimal? InvoiceVatArs { get; private set; }
+
     public PurchaseOrderStatus Status { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? ConfirmedAtUtc { get; private set; }
@@ -99,6 +118,33 @@ public sealed class PurchaseOrder
         LeadTimeDays = leadTimeDays;
         return Result.Success();
     }
+
+    /// <summary>
+    /// Carga (o borra) el comprobante del proveedor. Se puede tocar en cualquier
+    /// estado: la factura del proveedor suele llegar después de recibir la
+    /// mercadería, y el contador la necesita igual.
+    /// </summary>
+    public Result SetSupplierInvoice(
+        string? taxId, string? type, string? number, DateTime? dateUtc, decimal? netArs, decimal? vatArs)
+    {
+        if (netArs is < 0 || vatArs is < 0)
+            return Result.Failure(Error.Validation("Purchase.InvalidInvoiceAmounts",
+                "Los importes del comprobante no pueden ser negativos."));
+
+        SupplierTaxId = Trim(taxId, 20);
+        InvoiceType = Trim(type, 20);
+        InvoiceNumber = Trim(number, 40);
+        InvoiceDateUtc = dateUtc;
+        InvoiceNetArs = netArs;
+        InvoiceVatArs = vatArs;
+        return Result.Success();
+    }
+
+    /// <summary>Con número y fecha ya se puede asentar en el libro de IVA compras.</summary>
+    public bool HasSupplierInvoice => !string.IsNullOrWhiteSpace(InvoiceNumber) && InvoiceDateUtc is not null;
+
+    private static string? Trim(string? value, int max) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, max)];
 
     /// <summary>Reemplaza los ítems (edición de borrador: la lista viene entera del form).</summary>
     public Result SetItems(IReadOnlyList<(Guid VariantId, string ProductName, string VariantDescription, string Sku, int Quantity, decimal UnitCost)> lines)

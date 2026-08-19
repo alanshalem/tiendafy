@@ -17,7 +17,7 @@ namespace Customers.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -163,6 +163,10 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_id");
 
+                    b.Property<DateTime?>("LastAlertAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_alert_at_utc");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
                         .HasColumnName("product_id");
@@ -170,6 +174,14 @@ namespace Customers.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<bool>("WasOutOfStock")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_out_of_stock");
+
+                    b.Property<long?>("WatchedPriceMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("watched_price_minor");
 
                     b.HasKey("Id")
                         .HasName("pk_customer_favorites");

@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Plus, Ship, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Loader2, Package, Plus, Ship, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
+  FormField,
   Input,
   Modal,
   Select,
@@ -21,6 +22,7 @@ import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { TABLE_CARD } from '../lib/styles';
+import { downloadBlob } from '../lib/download';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
@@ -63,6 +65,12 @@ interface PoDetail {
   createdAtUtc: string;
   totalFob: number;
   totalExpensesArs: number;
+  supplierTaxId: string | null;
+  invoiceType: string | null;
+  invoiceNumber: string | null;
+  invoiceDateUtc: string | null;
+  invoiceNetArs: number | null;
+  invoiceVatArs: number | null;
   items: PoItem[];
   expenses: { label: string; amount: number; isLocal: boolean }[];
 }
@@ -184,9 +192,12 @@ function ComprasList({
             puesta en el depósito alimenta Rentabilidad.
           </p>
         </div>
-        <Button className="shrink-0" onClick={() => onNew()}>
-          <Plus className="h-4 w-4" /> Nueva compra
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <VatBookDownload />
+          <Button onClick={() => onNew()}>
+            <Plus className="h-4 w-4" /> Nueva compra
+          </Button>
+        </div>
       </div>
 
       <Tabs
@@ -621,6 +632,7 @@ function PoEditor({
             po={po ?? null}
           />
           <ExpensesEditor form={form} setForm={setForm} editable={editable} currency={form.currency} />
+          {po && <SupplierInvoiceCard po={po} />}
 
           {po && (
             <p className="text-xs text-fg-muted">
@@ -632,6 +644,128 @@ function PoEditor({
         </>
       )}
     </>
+  );
+}
+
+// ------------------------------------------- Comprobante del proveedor (IVA)
+
+/**
+ * Libro de IVA compras del mes: el crédito fiscal de lo que se compró, en el
+ * mismo formato que el libro de ventas. Entran las compras que tienen cargado
+ * el comprobante del proveedor.
+ */
+function VatBookDownload() {
+  const { toast } = useToast();
+  const now = new Date();
+  const [period, setPeriod] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    const [year, month] = period.split('-').map(Number);
+    if (!year || !month) return;
+    setBusy(true);
+    try {
+      const blob = await api.download(`/api/v1/purchasing/vat-book?year=${year}&month=${month}`);
+      downloadBlob(blob, `libro-iva-compras-${period}.csv`);
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo exportar el período.'), { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="month"
+        value={period}
+        onChange={(e) => setPeriod(e.target.value)}
+        className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+      <Button variant="secondary" onClick={download} disabled={busy} title="Libro de IVA compras del mes">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+        Libro de IVA
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * La factura del proveedor: lo que el contador necesita para el libro de IVA
+ * compras. Es opcional y se puede cargar después de recibir la mercadería —
+ * que es cuando suele llegar el papel.
+ */
+function SupplierInvoiceCard({ po }: { po: PoDetail }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [taxId, setTaxId] = useState(po.supplierTaxId ?? '');
+  const [type, setType] = useState(po.invoiceType ?? '');
+  const [number, setNumber] = useState(po.invoiceNumber ?? '');
+  const [date, setDate] = useState(po.invoiceDateUtc ? po.invoiceDateUtc.slice(0, 10) : '');
+  const [net, setNet] = useState(po.invoiceNetArs != null ? String(po.invoiceNetArs) : '');
+  const [vat, setVat] = useState(po.invoiceVatArs != null ? String(po.invoiceVatArs) : '');
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/purchasing/purchase-orders/${po.id}/invoice`, {
+        supplierTaxId: taxId.trim() || null,
+        invoiceType: type.trim() || null,
+        invoiceNumber: number.trim() || null,
+        invoiceDateUtc: date ? new Date(`${date}T00:00:00Z`).toISOString() : null,
+        invoiceNetArs: net ? Number(net) : null,
+        invoiceVatArs: vat ? Number(vat) : null,
+      }),
+    onSuccess: () => {
+      toast('Comprobante guardado. Ya entra en el libro de IVA compras.', { variant: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', po.id] });
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudo guardar el comprobante.'), { variant: 'error' }),
+  });
+
+  return (
+    <Card>
+      <h2 className="text-sm font-semibold text-fg">Comprobante del proveedor</h2>
+      <p className="mt-1 text-xs text-fg-muted">
+        Opcional. Con estos datos la compra entra en el libro de IVA compras que se descarga desde esta misma
+        pantalla.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <FormField label="CUIT del proveedor">
+          <Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="30-12345678-9" />
+        </FormField>
+        <FormField label="Tipo">
+          <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="A / B / Despacho" />
+        </FormField>
+        <FormField label="Número">
+          <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="0001-00001234" />
+        </FormField>
+        <FormField label="Fecha">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </FormField>
+        <FormField label="Neto ($)">
+          <Input
+            value={net}
+            onChange={(e) => setNet(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+          />
+        </FormField>
+        <FormField label="IVA ($)">
+          <Input
+            value={vat}
+            onChange={(e) => setVat(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+          />
+        </FormField>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Guardar comprobante
+        </Button>
+      </div>
+    </Card>
   );
 }
 

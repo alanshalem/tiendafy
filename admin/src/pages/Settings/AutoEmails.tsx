@@ -21,7 +21,17 @@ interface Tpl {
 }
 
 const GROUPS = ['Promociones', 'Cuenta de usuarios', 'Ventas'];
-const VARS = ['{{store}}', '{{order_id}}', '{{total}}', '{{items}}', '{{name}}', '{{link}}'];
+// {{product}} y {{price}} solo tienen valor en los avisos de favoritos.
+const VARS = [
+  '{{store}}',
+  '{{order_id}}',
+  '{{total}}',
+  '{{items}}',
+  '{{name}}',
+  '{{link}}',
+  '{{product}}',
+  '{{price}}',
+];
 
 export function AutoEmailsPage() {
   const { store } = useStore();

@@ -25,6 +25,20 @@ public static class EmailTemplateCatalog
             "¿Te olvidaste algo en {{store}}?",
             Wrap("Tu carrito te espera", "<p>Hola, dejaste productos en tu carrito. ¡Terminá tu compra cuando quieras!</p><p><a href=\"{{link}}\">Volver al carrito</a></p>")),
 
+        // Favoritos: el comprador ya dijo que lo quiere. Estos dos avisos son la
+        // diferencia entre un corazón guardado en la base y una venta.
+        new("favorito-baja-precio", "Promociones", "Bajó un favorito",
+            "Avisa a quien marcó un producto como favorito cuando baja de precio.", false,
+            "Bajó de precio: {{product}}",
+            Wrap("Bajó lo que estabas mirando 👀",
+                "<p>Hola {{name}}, <strong>{{product}}</strong> ahora cuesta {{price}} en {{store}}.</p><p><a href=\"{{link}}\">Verlo en la tienda</a></p>")),
+
+        new("favorito-repuesto", "Promociones", "Volvió un favorito",
+            "Avisa a quien marcó un producto como favorito cuando vuelve a haber stock.", false,
+            "Volvió: {{product}}",
+            Wrap("Volvió lo que esperabas 🎉",
+                "<p>Hola {{name}}, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
+
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
             "Ayuda al cliente a confirmar su cuenta.", true,
             "Confirmá tu cuenta en {{store}}",

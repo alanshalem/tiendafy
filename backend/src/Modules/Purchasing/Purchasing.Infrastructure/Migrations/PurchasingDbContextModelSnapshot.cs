@@ -47,6 +47,26 @@ namespace Purchasing.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("exchange_rate");
 
+                    b.Property<DateTime?>("InvoiceDateUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invoice_date_utc");
+
+                    b.Property<decimal?>("InvoiceNetArs")
+                        .HasColumnType("numeric")
+                        .HasColumnName("invoice_net_ars");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<string>("InvoiceType")
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_type");
+
+                    b.Property<decimal?>("InvoiceVatArs")
+                        .HasColumnType("numeric")
+                        .HasColumnName("invoice_vat_ars");
+
                     b.Property<int?>("LeadTimeDays")
                         .HasColumnType("integer")
                         .HasColumnName("lead_time_days");
@@ -76,6 +96,10 @@ namespace Purchasing.Infrastructure.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("supplier_name");
+
+                    b.Property<string>("SupplierTaxId")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_tax_id");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")

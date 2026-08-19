@@ -170,6 +170,62 @@ public static class PurchasingEndpoints
         // Cobertura (stock / venta diaria de 60 días) vs lead time + colchón.
         // La demanda suma TODO lo que consume stock: ventas de la tienda,
         // ventas de Mercado Libre (vía vínculos) y componentes de kits.
+        // Comprobante del proveedor. Se puede cargar en cualquier estado: la
+        // factura suele llegar después de la mercadería, y el contador la
+        // necesita igual.
+        purchasing.MapPut("/purchase-orders/{id:guid}/invoice", async (
+            Guid id, SupplierInvoiceRequest request, PurchasingDbContext db, CancellationToken ct) =>
+        {
+            var po = await db.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (po is null) return Results.NotFound();
+
+            var result = po.SetSupplierInvoice(
+                request.SupplierTaxId, request.InvoiceType, request.InvoiceNumber,
+                request.InvoiceDateUtc, request.InvoiceNetArs, request.InvoiceVatArs);
+            if (result.IsFailure) return result.Error.ToProblem();
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(ToDetailDto(po));
+        });
+
+        // Libro de IVA compras del mes, en el mismo formato que el de ventas:
+        // el crédito fiscal de las compras que hasta ahora no salía del sistema.
+        purchasing.MapGet("/vat-book", async (
+            int year, int month, PurchasingDbContext db, CancellationToken ct) =>
+        {
+            if (year < 2020 || month is < 1 or > 12)
+                return Error.Validation("Purchase.BadPeriod", "Período inválido.").ToProblem();
+            var from = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var to = from.AddMonths(1);
+
+            var orders = (await db.PurchaseOrders.AsNoTracking()
+                    .Where(p => p.InvoiceDateUtc >= from && p.InvoiceDateUtc < to)
+                    .ToListAsync(ct))
+                .Where(p => p.HasSupplierInvoice)
+                .OrderBy(p => p.InvoiceDateUtc)
+                .ToList();
+
+            var bytes = Api.Fiscal.VatBookCsv.Build(
+                "Fecha;Tipo;Numero;CUIT proveedor;Proveedor;Neto;IVA;Total",
+                orders.Select(p =>
+                {
+                    var net = p.InvoiceNetArs ?? 0m;
+                    var vat = p.InvoiceVatArs ?? 0m;
+                    return new[]
+                    {
+                        Api.Fiscal.VatBookCsv.Date(p.InvoiceDateUtc!.Value),
+                        p.InvoiceType ?? "",
+                        p.InvoiceNumber ?? "",
+                        p.SupplierTaxId ?? "",
+                        p.SupplierName,
+                        Api.Fiscal.VatBookCsv.Amount(net),
+                        Api.Fiscal.VatBookCsv.Amount(vat),
+                        Api.Fiscal.VatBookCsv.Amount(net + vat),
+                    };
+                }));
+            return Results.File(bytes, "text/csv", $"libro-iva-compras-{year}-{month:00}.csv");
+        });
+
         purchasing.MapGet("/reorder-suggestions", async (
             ITenantContext tenant, OrdersDbContext ordersDb, PurchasingDbContext purchasingDb,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
@@ -329,6 +385,12 @@ public static class PurchasingEndpoints
         receivedAtUtc = po.ReceivedAtUtc,
         totalFob = po.TotalFob,
         totalExpensesArs = po.TotalExpensesArs,
+        supplierTaxId = po.SupplierTaxId,
+        invoiceType = po.InvoiceType,
+        invoiceNumber = po.InvoiceNumber,
+        invoiceDateUtc = po.InvoiceDateUtc,
+        invoiceNetArs = po.InvoiceNetArs,
+        invoiceVatArs = po.InvoiceVatArs,
         items = po.Items.Select(i => new
         {
             variantId = i.VariantId,
@@ -352,6 +414,10 @@ public sealed record SavePurchaseOrderRequest(
     string? SupplierName, string? Reference, string? Notes, string? Currency,
     decimal? ExchangeRate, int? LeadTimeDays,
     List<PurchaseItemRequest>? Items, List<PurchaseExpenseRequest>? Expenses);
+
+public sealed record SupplierInvoiceRequest(
+    string? SupplierTaxId, string? InvoiceType, string? InvoiceNumber,
+    DateTime? InvoiceDateUtc, decimal? InvoiceNetArs, decimal? InvoiceVatArs);
 
 public sealed record SetPurchaseStatusRequest(string Status);
 

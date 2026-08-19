@@ -111,6 +111,7 @@ public static class ServiceRegistration
         // Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
         services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
         if (runPollingWorkers) services.AddHostedService<AbandonedCartWorker>();
+        if (runPollingWorkers) services.AddHostedService<FavoriteAlertWorker>();
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();
         services.AddScoped<CampaignAudienceService>();
 
