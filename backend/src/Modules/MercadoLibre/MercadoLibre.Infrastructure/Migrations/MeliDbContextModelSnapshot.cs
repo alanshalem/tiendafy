@@ -52,6 +52,14 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("nickname");
 
+                    b.Property<decimal>("PriceMarkupPct")
+                        .HasColumnType("numeric")
+                        .HasColumnName("price_markup_pct");
+
+                    b.Property<bool>("PriceSyncEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("price_sync_enabled");
+
                     b.Property<string>("RefreshTokenEnc")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -107,6 +115,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
+                    b.Property<long?>("LastPushedPriceMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_pushed_price_minor");
+
                     b.Property<int?>("LastPushedQty")
                         .HasColumnType("integer")
                         .HasColumnName("last_pushed_qty");
@@ -130,6 +142,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
                         .HasColumnName("product_id");
+
+                    b.Property<bool>("SyncPrice")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sync_price");
 
                     b.Property<bool>("SyncStock")
                         .HasColumnType("boolean")

@@ -180,6 +180,46 @@ public class MeliOrderTests
     }
 }
 
+/// <summary>
+/// Precio que se publica en ML. Tiene plata adentro: el canal cobra más
+/// comisión que la tienda propia, así que el recargo es lo que evita vender en
+/// ML con la mitad del margen.
+/// </summary>
+public class MeliPricingTests
+{
+    [Theory]
+    [InlineData(10_000_00, 0, 10_000_00)]      // mismo precio que la tienda
+    [InlineData(10_000_00, 15, 11_500_00)]     // recargo del 15 %
+    [InlineData(10_000_00, -10, 9_000_00)]     // más barato en ML
+    [InlineData(9_990_00, 12.5, 11_238_75)]    // con decimales, sin perder centavos
+    public void ForChannel_AplicaElRecargo(long localMinor, decimal pct, long expected) =>
+        Assert.Equal(expected, MeliPricing.ForChannel(localMinor, pct));
+
+    [Fact]
+    public void ForChannel_SinPrecioLocal_DevuelveCero() =>
+        Assert.Equal(0, MeliPricing.ForChannel(0, 20));
+
+    /// <summary>ML no acepta publicaciones en cero: el piso es un centavo.</summary>
+    [Fact]
+    public void ForChannel_NuncaPublicaEnCero() =>
+        Assert.Equal(1, MeliPricing.ForChannel(1, -50));
+
+    [Fact]
+    public void ToApiAmount_ConvierteCentavosAPesos() =>
+        Assert.Equal(11_500m, MeliPricing.ToApiAmount(11_500_00));
+
+    [Theory]
+    [InlineData(500, 200)]     // el recargo se acota…
+    [InlineData(-90, -50)]     // …en los dos extremos
+    public void Conexion_AcotaElRecargoAUnRangoSensato(decimal pedido, decimal esperado)
+    {
+        var connection = MeliConnection.Create(
+            Guid.NewGuid(), 1, "tienda", "MLA", "enc", "enc", DateTime.UtcNow.AddHours(6)).Value;
+        connection.SetPriceSync(true, pedido);
+        Assert.Equal(esperado, connection.PriceMarkupPct);
+    }
+}
+
 public class MeliSyncParseTests
 {
     [Fact]

@@ -48,6 +48,8 @@ public static class MeliEndpoints
                 siteId = c?.SiteId,
                 stockSyncEnabled = c?.StockSyncEnabled ?? false,
                 stockBufferUnits = c?.StockBufferUnits ?? 0,
+                priceSyncEnabled = c?.PriceSyncEnabled ?? false,
+                priceMarkupPct = c?.PriceMarkupPct ?? 0m,
                 autoInvoiceEnabled = c?.AutoInvoiceEnabled ?? false,
                 connectedAtUtc = c?.ConnectedAtUtc,
             });
@@ -78,11 +80,14 @@ public static class MeliEndpoints
             if (c is null)
                 return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
             c.SetStockSync(request.StockSyncEnabled, request.StockBufferUnits, request.AutoInvoiceEnabled);
+            c.SetPriceSync(request.PriceSyncEnabled ?? c.PriceSyncEnabled, request.PriceMarkupPct);
             await db.SaveChangesAsync(ct);
             return Results.Ok(new
             {
                 stockSyncEnabled = c.StockSyncEnabled,
                 stockBufferUnits = c.StockBufferUnits,
+                priceSyncEnabled = c.PriceSyncEnabled,
+                priceMarkupPct = c.PriceMarkupPct,
                 autoInvoiceEnabled = c.AutoInvoiceEnabled,
             });
         });
@@ -515,6 +520,8 @@ public static class MeliEndpoints
                                 link.MeliVariationId,
                                 link.SyncStock,
                                 link.LastPushedQty,
+                                link.SyncPrice,
+                                lastPushedPrice = link.LastPushedPriceMinor is { } m ? m / 100m : (decimal?)null,
                             },
                         });
                     }
@@ -707,7 +714,9 @@ public static class MeliEndpoints
 
 }
 
-public sealed record MeliSettingsRequest(bool StockSyncEnabled, int? StockBufferUnits = null, bool? AutoInvoiceEnabled = null);
+public sealed record MeliSettingsRequest(
+    bool StockSyncEnabled, int? StockBufferUnits = null, bool? AutoInvoiceEnabled = null,
+    bool? PriceSyncEnabled = null, decimal? PriceMarkupPct = null);
 public sealed record MeliAnswerRequest(string Text);
 public sealed record MeliSendMessageRequest(string Text);
 public sealed record MeliLinkRequest(Guid ProductId, Guid VariantId, long? MeliVariationId, string? Title);

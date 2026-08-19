@@ -16,6 +16,8 @@ interface MeliConnection {
   siteId: string | null;
   stockSyncEnabled: boolean;
   stockBufferUnits: number;
+  priceSyncEnabled: boolean;
+  priceMarkupPct: number;
   autoInvoiceEnabled: boolean;
   connectedAtUtc: string | null;
 }
@@ -94,6 +96,8 @@ export function MeliSettingsPage() {
   const saveSettings = async (patch: {
     stockSyncEnabled?: boolean;
     stockBufferUnits?: number;
+    priceSyncEnabled?: boolean;
+    priceMarkupPct?: number;
     autoInvoiceEnabled?: boolean;
   }) => {
     if (!connection) return;
@@ -101,6 +105,8 @@ export function MeliSettingsPage() {
       const body = {
         stockSyncEnabled: patch.stockSyncEnabled ?? connection.stockSyncEnabled,
         stockBufferUnits: patch.stockBufferUnits ?? connection.stockBufferUnits,
+        priceSyncEnabled: patch.priceSyncEnabled ?? connection.priceSyncEnabled,
+        priceMarkupPct: patch.priceMarkupPct ?? connection.priceMarkupPct,
         autoInvoiceEnabled: patch.autoInvoiceEnabled ?? connection.autoInvoiceEnabled,
       };
       await api.put('/api/v1/admin/meli/settings', body);
@@ -213,6 +219,36 @@ export function MeliSettingsPage() {
                 </p>
               </div>
             </div>
+            <Switch
+              checked={connection.priceSyncEnabled}
+              onChange={(enabled) => saveSettings({ priceSyncEnabled: enabled })}
+              label="Sincronizar precios con Mercado Libre"
+              description="Cuando cambiás un precio acá (incluida la repreciación masiva), se actualiza solo en las publicaciones vinculadas. Sin esto, subís precios por inflación y ML sigue vendiendo al precio viejo."
+            />
+            {connection.priceSyncEnabled && (
+              <div className="flex items-center gap-3">
+                <div className="w-24">
+                  <Input
+                    type="number"
+                    min={-50}
+                    max={200}
+                    step="0.5"
+                    defaultValue={connection.priceMarkupPct}
+                    onBlur={(e) => {
+                      const v = Number(e.target.value) || 0;
+                      if (v !== connection.priceMarkupPct) saveSettings({ priceMarkupPct: v });
+                    }}
+                  />
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-fg">Recargo para Mercado Libre (%)</p>
+                  <p className="text-fg-muted">
+                    ML cobra bastante más comisión que tu tienda: con 15, un producto de $10.000 se publica a
+                    $11.500. 0 = mismo precio que en tu tienda.
+                  </p>
+                </div>
+              </div>
+            )}
             <Switch
               checked={connection.autoInvoiceEnabled}
               onChange={(enabled) => saveSettings({ autoInvoiceEnabled: enabled })}

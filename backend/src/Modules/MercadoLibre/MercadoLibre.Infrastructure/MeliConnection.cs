@@ -30,6 +30,17 @@ public sealed class MeliConnection
     /// <summary>Colchón anti-oversell entre canales: en ML se publica stock − buffer.</summary>
     public int StockBufferUnits { get; private set; }
 
+    /// <summary>Sincronizar precios Tiendafy → ML para publicaciones vinculadas.</summary>
+    public bool PriceSyncEnabled { get; private set; }
+
+    /// <summary>
+    /// Recargo (o descuento, si es negativo) que se aplica al precio local
+    /// antes de publicarlo en ML. La comisión del canal es distinta a la de la
+    /// tienda propia, así que vender al mismo precio en los dos lados suele
+    /// significar vender con la mitad del margen en ML.
+    /// </summary>
+    public decimal PriceMarkupPct { get; private set; }
+
     /// <summary>Emitir factura ARCA automáticamente al importar cada venta pagada.</summary>
     public bool AutoInvoiceEnabled { get; private set; }
 
@@ -83,6 +94,17 @@ public sealed class MeliConnection
         StockSyncEnabled = enabled;
         if (bufferUnits is { } buffer) StockBufferUnits = Math.Clamp(buffer, 0, 1000);
         if (autoInvoice is { } auto) AutoInvoiceEnabled = auto;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Precio hacia ML. El recargo se acota a un rango sensato: un dedazo de
+    /// más no puede publicar el catálogo a diez veces su precio.
+    /// </summary>
+    public void SetPriceSync(bool enabled, decimal? markupPct = null)
+    {
+        PriceSyncEnabled = enabled;
+        if (markupPct is { } pct) PriceMarkupPct = Math.Clamp(pct, -50m, 200m);
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }

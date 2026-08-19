@@ -27,8 +27,14 @@ public sealed class MeliItemLink
 
     public bool SyncStock { get; private set; } = true;
 
+    /// <summary>Empujar el precio local a esta publicación (con el recargo de la conexión).</summary>
+    public bool SyncPrice { get; private set; } = true;
+
     /// <summary>Último stock empujado a ML (null = nunca se empujó).</summary>
     public int? LastPushedQty { get; private set; }
+
+    /// <summary>Último precio empujado (centavos): evita PUTear lo que ya está publicado.</summary>
+    public long? LastPushedPriceMinor { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -58,5 +64,9 @@ public sealed class MeliItemLink
 
     public void SetSyncStock(bool enabled) => SyncStock = enabled;
 
+    public void SetSyncPrice(bool enabled) => SyncPrice = enabled;
+
     public void MarkPushed(int qty) => LastPushedQty = qty;
+
+    public void MarkPricePushed(long priceMinor) => LastPushedPriceMinor = priceMinor;
 }
