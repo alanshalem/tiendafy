@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, ImagePlus, Loader2, X as XIcon } from 'lucide-react';
-import { Button, Input, Modal, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useStore } from '../context/StoreContext';
+import { storefrontUrl } from '../lib/storefront';
 import { fetchAllProducts } from '../lib/products';
 import {
   localInputToUtcIso,
@@ -16,6 +19,7 @@ import {
 interface CatalogProduct {
   id: string;
   name: string;
+  slug: string;
   imageUrl: string | null;
 }
 
@@ -40,7 +44,9 @@ export function ComposerModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
+  const { store } = useStore();
   const [content, setContent] = useState(post?.content ?? '');
+  const [couponCode, setCouponCode] = useState(post?.couponCode ?? '');
   const [mediaUrls, setMediaUrls] = useState<string[]>(post?.mediaUrls ?? []);
   const [newUrl, setNewUrl] = useState('');
   const [selected, setSelected] = useState<Set<string>>(
@@ -58,6 +64,14 @@ export function ComposerModal({
     return '';
   });
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Cupones activos para medir ventas del post (misma atribución que campañas).
+  const { data: couponsData } = useQuery({
+    queryKey: ['coupons', store?.id],
+    queryFn: () => api.get<{ items: { code: string; active: boolean }[] }>('/api/v1/coupons'),
+    enabled: !!store,
+  });
+  const activeCoupons = (couponsData?.items ?? []).filter((c) => c.active);
   const [saving, setSaving] = useState<'draft' | 'schedule' | 'now' | null>(null);
 
   const limitsByKey = useMemo(
@@ -105,6 +119,7 @@ export function ComposerModal({
       const body = {
         content,
         mediaUrls,
+        couponCode: couponCode || null,
         targets: [...selected].map((accountId) => ({
           accountId,
           contentOverride: overrides[accountId]?.trim() || null,
@@ -332,6 +347,36 @@ export function ComposerModal({
           </div>
         )}
 
+        {/* Cupón: el post se mide como una campaña de email */}
+        {activeCoupons.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-fg">Cupón para medir ventas (opcional)</p>
+            <div className="flex gap-2">
+              <div className="w-64">
+                <Select
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  options={[
+                    { value: '', label: 'Sin cupón' },
+                    ...activeCoupons.map((c) => ({ value: c.code, label: c.code })),
+                  ]}
+                />
+              </div>
+              {couponCode && !content.includes(couponCode) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setContent((c) => `${c.trimEnd()}\n🎁 Usá el cupón ${couponCode}`)}
+                >
+                  Insertar en el texto
+                </Button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-fg-subtle">
+              Las ventas pagadas con este cupón después de publicar se atribuyen al post.
+            </p>
+          </div>
+        )}
+
         {/* Fecha */}
         <div>
           <p className="mb-1.5 text-sm font-medium text-fg">Programar para</p>
@@ -347,8 +392,16 @@ export function ComposerModal({
       {pickerOpen && (
         <CatalogImagePicker
           onClose={() => setPickerOpen(false)}
-          onPick={(url) => {
-            setMediaUrls((prev) => [...prev, url]);
+          onPick={(product) => {
+            if (product.imageUrl) setMediaUrls((prev) => [...prev, product.imageUrl!]);
+            // El post además VENDE: link al producto con UTM para atribuir el tráfico.
+            const link = store
+              ? storefrontUrl(store.subdomain, `/productos/${product.slug}?utm_source=redes`)
+              : null;
+            if (link && !content.includes(link)) {
+              setContent((c) => (c.trim().length > 0 ? `${c.trimEnd()}\n${link}` : link));
+              toast('Imagen y link del producto agregados al post', { variant: 'success' });
+            }
             setPickerOpen(false);
           }}
         />
@@ -359,7 +412,13 @@ export function ComposerModal({
 
 // ---- Selector de imágenes del catálogo ---------------------------------------
 
-function CatalogImagePicker({ onClose, onPick }: { onClose: () => void; onPick: (url: string) => void }) {
+function CatalogImagePicker({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (product: CatalogProduct) => void;
+}) {
   const [products, setProducts] = useState<CatalogProduct[] | null>(null);
   const [search, setSearch] = useState('');
 
@@ -391,7 +450,7 @@ function CatalogImagePicker({ onClose, onPick }: { onClose: () => void; onPick: 
             <button
               key={p.id}
               type="button"
-              onClick={() => onPick(p.imageUrl!)}
+              onClick={() => onPick(p)}
               className="group text-left"
               title={p.name}
             >

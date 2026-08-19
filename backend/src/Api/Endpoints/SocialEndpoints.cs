@@ -4,6 +4,7 @@ using Api.Social;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Orders.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 using Social.Infrastructure;
@@ -191,7 +192,8 @@ public static class SocialEndpoints
 
         // Lista para calendario y bandeja: rango por fecha efectiva (programada o creada).
         posts.MapGet("", async (
-            SocialDbContext db, DateTime? from, DateTime? to, string? status, CancellationToken ct) =>
+            SocialDbContext db, OrdersDbContext ordersDb,
+            ITenantContext tenant, DateTime? from, DateTime? to, string? status, CancellationToken ct) =>
         {
             var query = db.Posts.AsNoTracking();
             if (from is { } f) query = query.Where(p => (p.ScheduledAtUtc ?? p.CreatedAtUtc) >= AsUtc(f));
@@ -204,7 +206,8 @@ public static class SocialEndpoints
                 .Take(200)
                 .ToListAsync(ct);
             var accounts = await AccountsByIdAsync(db, rows.SelectMany(p => p.Targets), ct);
-            return Results.Ok(new { posts = rows.Select(p => PostDto(p, accounts)) });
+            var attribution = await CouponAttributionAsync(ordersDb, tenant.TenantId, rows, ct);
+            return Results.Ok(new { posts = rows.Select(p => PostDto(p, accounts, attribution.GetValueOrDefault(p.Id))) });
         });
 
         posts.MapPost("", async (
@@ -219,6 +222,7 @@ public static class SocialEndpoints
 
             var applied = await ApplyTargetsAsync(db, post, request.Targets, ct);
             if (applied.IsFailure) return applied.Error.ToProblem();
+            post.SetCoupon(request.CouponCode);
 
             db.Posts.Add(post);
             await db.SaveChangesAsync(ct);
@@ -236,7 +240,9 @@ public static class SocialEndpoints
                 if (updated.IsFailure) return updated.Error;
 
                 var applied = await ApplyTargetsAsync(db, post, request.Targets, ct);
-                return applied.IsFailure ? applied.Error : null;
+                if (applied.IsFailure) return applied.Error;
+                var coupon = post.SetCoupon(request.CouponCode);
+                return coupon.IsFailure ? coupon.Error : null;
             }, ct));
 
         // Programar (fecha futura) o publicar ya (sin fecha: el worker lo toma al toque).
@@ -323,29 +329,63 @@ public static class SocialEndpoints
             : await db.Accounts.AsNoTracking().Where(a => ids.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
     }
 
-    private static object PostDto(SocialPost p, Dictionary<Guid, SocialAccount> accounts) => new
+    /// <summary>
+    /// Ventas atribuidas a cada post por su cupón (mismo criterio que las
+    /// campañas de email): órdenes pagadas con ese código DESPUÉS de publicar.
+    /// </summary>
+    private static async Task<Dictionary<Guid, (int Orders, long RevenueMinor)>> CouponAttributionAsync(
+        OrdersDbContext ordersDb, SharedKernel.Common.TenantId tenantId,
+        IReadOnlyList<SocialPost> posts, CancellationToken ct)
     {
-        p.Id,
-        p.Content,
-        mediaUrls = JsonSerializer.Deserialize<List<string>>(p.MediaUrlsJson) ?? [],
-        status = p.Status.ToString(),
-        scheduleStatus = p.ScheduleStatus.ToString(),
-        p.ScheduledAtUtc,
-        p.PublishedAtUtc,
-        p.CreatedAtUtc,
-        p.IsEditable,
-        targets = p.Targets.Select(t => new
+        var withCoupon = posts
+            .Where(p => p.CouponCode is not null && p.PublishedAtUtc is not null)
+            .ToList();
+        if (withCoupon.Count == 0) return [];
+
+        var codes = withCoupon.Select(p => p.CouponCode!).Distinct().ToList();
+        var earliest = withCoupon.Min(p => p.PublishedAtUtc!.Value);
+        var orders = await ordersDb.Orders.AsNoTracking()
+            .Where(o => o.TenantId == tenantId && o.CouponCode != null
+                && codes.Contains(o.CouponCode) && o.PaidAtUtc >= earliest)
+            .Select(o => new { o.CouponCode, o.PaidAtUtc, Total = o.Total.AmountInMinorUnits })
+            .ToListAsync(ct);
+
+        return withCoupon.ToDictionary(
+            p => p.Id,
+            p =>
+            {
+                var mine = orders.Where(o => o.CouponCode == p.CouponCode && o.PaidAtUtc >= p.PublishedAtUtc).ToList();
+                return (mine.Count, mine.Sum(o => o.Total));
+            });
+    }
+
+    private static object PostDto(
+        SocialPost p, Dictionary<Guid, SocialAccount> accounts, (int Orders, long RevenueMinor) attribution = default) => new
         {
-            t.AccountId,
-            provider = accounts.TryGetValue(t.AccountId, out var a) ? a.Provider : null,
-            accountName = accounts.TryGetValue(t.AccountId, out var n) ? n.Name : "Cuenta eliminada",
-            t.ContentOverride,
-            t.ProviderPostId,
-            t.ExternalUrl,
-            t.Error,
-            t.PublishedAtUtc,
-        }),
-    };
+            p.Id,
+            p.Content,
+            mediaUrls = JsonSerializer.Deserialize<List<string>>(p.MediaUrlsJson) ?? [],
+            status = p.Status.ToString(),
+            scheduleStatus = p.ScheduleStatus.ToString(),
+            p.ScheduledAtUtc,
+            p.PublishedAtUtc,
+            p.CreatedAtUtc,
+            p.IsEditable,
+            couponCode = p.CouponCode,
+            attributedOrders = attribution.Orders,
+            attributedRevenueMinor = attribution.RevenueMinor,
+            targets = p.Targets.Select(t => new
+            {
+                t.AccountId,
+                provider = accounts.TryGetValue(t.AccountId, out var a) ? a.Provider : null,
+                accountName = accounts.TryGetValue(t.AccountId, out var n) ? n.Name : "Cuenta eliminada",
+                t.ContentOverride,
+                t.ProviderPostId,
+                t.ExternalUrl,
+                t.Error,
+                t.PublishedAtUtc,
+            }),
+        };
 
     /// <summary>El panel manda UTC; sin zona explícita se asume UTC (nunca hora del server).</summary>
     private static DateTime AsUtc(DateTime value) => value.Kind switch
@@ -357,6 +397,10 @@ public static class SocialEndpoints
 }
 
 public sealed record SocialTargetRequest(Guid AccountId, string? ContentOverride);
-public sealed record SocialPostRequest(string? Content, IReadOnlyList<string>? MediaUrls, IReadOnlyList<SocialTargetRequest>? Targets);
+public sealed record SocialPostRequest(
+    string? Content,
+    IReadOnlyList<string>? MediaUrls,
+    IReadOnlyList<SocialTargetRequest>? Targets,
+    string? CouponCode = null);
 public sealed record SocialScheduleRequest(DateTime? ScheduledAtUtc);
 public sealed record SocialTelegramRequest(string BotToken, string ChatId);

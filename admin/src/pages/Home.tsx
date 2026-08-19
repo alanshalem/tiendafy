@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Check } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import { Badge, Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
+import { canAny, usePermissions } from '../context/PermissionsContext';
 import { api } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { Sparkline } from '../components/charts';
@@ -91,6 +92,8 @@ export function HomePage() {
         </p>
       </div>
 
+      <AvisosCard />
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Ventas (30 días)</div>
@@ -160,5 +163,104 @@ export function HomePage() {
       </Card>
       <HelpLink id="primerosPasos" />
     </div>
+  );
+}
+
+// ---- Avisos accionables ------------------------------------------------------
+
+interface Aviso {
+  text: string;
+  to: string;
+  action: string;
+}
+
+/**
+ * "El sistema te busca a vos": lo urgente de cada módulo en el Inicio, con su
+ * acción — reposición vencida, cuentas sociales caídas, posts fallidos,
+ * ventas sin costo cargado. Sin nada que avisar, no se muestra.
+ */
+function AvisosCard() {
+  const { store } = useStore();
+  const { can } = usePermissions();
+
+  const canPurchasing = canAny(can, 'purchasing');
+  const canSocial = canAny(can, 'social');
+  const canStats = canAny(can, 'stats.read');
+
+  const { data: reorder } = useQuery({
+    queryKey: ['reorder-suggestions', store?.id, ''],
+    queryFn: () => api.get<{ items: unknown[] }>('/api/v1/purchasing/reorder-suggestions'),
+    enabled: !!store && canPurchasing,
+  });
+  const { data: accounts } = useQuery({
+    queryKey: ['social-accounts', store?.id],
+    queryFn: () => api.get<{ accounts: { authorized: boolean }[] }>('/api/v1/admin/social/accounts'),
+    enabled: !!store && canSocial,
+  });
+  const { data: failedPosts } = useQuery({
+    queryKey: ['social-posts-failed', store?.id],
+    queryFn: () => api.get<{ posts: unknown[] }>('/api/v1/admin/social/posts?status=Failed'),
+    enabled: !!store && canSocial,
+  });
+  const { data: profit } = useQuery({
+    queryKey: ['profitability-coverage', store?.id],
+    queryFn: () =>
+      api.get<{ coverage: { ordersWithCost: number; ordersTotal: number } }>(
+        '/api/v1/stats/profitability?days=30',
+      ),
+    enabled: !!store && canStats,
+  });
+
+  const avisos: Aviso[] = [];
+  const reorderCount = reorder?.items.length ?? 0;
+  if (reorderCount > 0)
+    avisos.push({
+      text: `${reorderCount} ${reorderCount === 1 ? 'producto se agota' : 'productos se agotan'} antes de que llegue el próximo embarque.`,
+      to: '/compras',
+      action: 'Ver reposición',
+    });
+  const deadAccounts = (accounts?.accounts ?? []).filter((a) => !a.authorized).length;
+  if (deadAccounts > 0)
+    avisos.push({
+      text: `${deadAccounts} ${deadAccounts === 1 ? 'cuenta social necesita' : 'cuentas sociales necesitan'} reconectarse — los posts hacia ${deadAccounts === 1 ? 'ella' : 'ellas'} van a fallar.`,
+      to: '/redes',
+      action: 'Reconectar',
+    });
+  const failed = failedPosts?.posts.length ?? 0;
+  if (failed > 0)
+    avisos.push({
+      text: `${failed} ${failed === 1 ? 'post salió' : 'posts salieron'} con errores en alguna red.`,
+      to: '/redes',
+      action: 'Revisar',
+    });
+  if (
+    profit &&
+    profit.coverage.ordersTotal > 0 &&
+    profit.coverage.ordersWithCost < profit.coverage.ordersTotal
+  )
+    avisos.push({
+      text: `${profit.coverage.ordersTotal - profit.coverage.ordersWithCost} de ${profit.coverage.ordersTotal} ventas del mes no tienen costo cargado: la ganancia real se calcula incompleta.`,
+      to: '/productos/costos',
+      action: 'Cargar costos',
+    });
+
+  if (avisos.length === 0) return null;
+
+  return (
+    <Card>
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
+        <AlertTriangle className="h-4 w-4 text-warning" /> Para hacer hoy
+      </h2>
+      <ul className="mt-3 space-y-2.5">
+        {avisos.map((a) => (
+          <li key={a.text} className="flex items-start justify-between gap-3 text-sm">
+            <span className="text-fg-muted">{a.text}</span>
+            <Link to={a.to} className="shrink-0 font-medium text-primary hover:underline">
+              {a.action}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

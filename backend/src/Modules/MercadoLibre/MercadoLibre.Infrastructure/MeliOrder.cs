@@ -36,6 +36,9 @@ public sealed class MeliOrder
     /// <summary>Idempotencia del descuento de stock local: se aplica UNA sola vez por orden.</summary>
     public bool StockApplied { get; private set; }
 
+    /// <summary>Comprobante ARCA emitido para esta venta ML (null = sin facturar).</summary>
+    public Guid? FiscalDocumentId { get; private set; }
+
     public DateTime FirstSeenAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -72,6 +75,12 @@ public sealed class MeliOrder
     }
 
     public bool IsPaid => Status is "paid" or "partially_refunded";
+
+    public void MarkInvoiced(Guid fiscalDocumentId)
+    {
+        FiscalDocumentId = fiscalDocumentId;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
 
     public void MarkStockApplied() => StockApplied = true;
 }

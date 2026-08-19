@@ -38,6 +38,9 @@ public sealed class SocialPost
     /// <summary>JSON array de URLs de imágenes (de la biblioteca propia o del catálogo).</summary>
     public string MediaUrlsJson { get; private set; } = "[]";
 
+    /// <summary>Cupón asociado para medir ventas del post (como las campañas de email).</summary>
+    public string? CouponCode { get; private set; }
+
     public SocialPostStatus Status { get; private set; }
     public SocialScheduleStatus ScheduleStatus { get; private set; }
 
@@ -87,6 +90,15 @@ public sealed class SocialPost
             return Result.Failure(Error.Validation("Social.Empty", "El post necesita texto o al menos una imagen."));
         Content = trimmed;
         MediaUrlsJson = mediaUrlsJson;
+        UpdatedAtUtc = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public Result SetCoupon(string? code)
+    {
+        if (!IsEditable)
+            return Result.Failure(Error.Conflict("Social.NotEditable", "El post ya se publicó o se está publicando."));
+        CouponCode = string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
         UpdatedAtUtc = DateTime.UtcNow;
         return Result.Success();
     }

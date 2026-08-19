@@ -52,6 +52,9 @@ export interface SocialPostDto {
   publishedAtUtc: string | null;
   createdAtUtc: string;
   isEditable: boolean;
+  couponCode: string | null;
+  attributedOrders: number;
+  attributedRevenueMinor: number;
   targets: SocialTargetDto[];
 }
 

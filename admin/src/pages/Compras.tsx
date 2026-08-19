@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, Plus, Ship, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
   Input,
+  Modal,
   Select,
   Tabs,
   useConfirm,
@@ -125,6 +127,8 @@ export function ComprasPage() {
   const { store } = useStore();
   const [view, setView] = useState<'list' | 'detail' | 'new'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Items precargados al armar una OC desde las sugerencias de reposición.
+  const [draftItems, setDraftItems] = useState<FormItem[] | null>(null);
 
   if (!store) return <NoStoreSelected />;
 
@@ -132,14 +136,19 @@ export function ComprasPage() {
     <div className="mx-auto max-w-5xl space-y-4">
       {view === 'list' && (
         <ComprasList
-          onNew={() => setView('new')}
+          onNew={(items) => {
+            setDraftItems(items ?? null);
+            setView('new');
+          }}
           onOpen={(id) => {
             setSelectedId(id);
             setView('detail');
           }}
         />
       )}
-      {view === 'new' && <PoEditor poId={null} onBack={() => setView('list')} />}
+      {view === 'new' && (
+        <PoEditor poId={null} initialItems={draftItems ?? undefined} onBack={() => setView('list')} />
+      )}
       {view === 'detail' && selectedId && <PoEditor poId={selectedId} onBack={() => setView('list')} />}
     </div>
   );
@@ -147,7 +156,13 @@ export function ComprasPage() {
 
 // ------------------------------------------------------------------- Lista
 
-function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) => void }) {
+function ComprasList({
+  onNew,
+  onOpen,
+}: {
+  onNew: (items?: FormItem[]) => void;
+  onOpen: (id: string) => void;
+}) {
   const { store } = useStore();
   const [tab, setTab] = useState('ordenes');
   const [search, setSearch] = useState('');
@@ -169,7 +184,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
             puesta en el depósito alimenta Rentabilidad.
           </p>
         </div>
-        <Button className="shrink-0" onClick={onNew}>
+        <Button className="shrink-0" onClick={() => onNew()}>
           <Plus className="h-4 w-4" /> Nueva compra
         </Button>
       </div>
@@ -277,7 +292,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
           </div>
         </>
       ) : (
-        <Reposicion />
+        <Reposicion onCreateOrder={(items) => onNew(items)} />
       )}
       <HelpLink id="compras" />
     </>
@@ -286,7 +301,7 @@ function ComprasList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string
 
 // -------------------------------------------------------------- Reposición
 
-function Reposicion() {
+function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => void }) {
   const { store } = useStore();
   const [leadInput, setLeadInput] = useState('');
   const lead = Number(leadInput);
@@ -300,6 +315,18 @@ function Reposicion() {
       ),
     enabled: !!store,
   });
+
+  const suggestions = data?.items ?? [];
+  const buildOrder = () =>
+    onCreateOrder(
+      suggestions.map((s) => ({
+        variantId: s.variantId,
+        label: s.variant ? `${s.product} · ${s.variant}` : s.product,
+        sku: s.sku,
+        quantity: String(s.suggestedQty),
+        unitCost: '',
+      })),
+    );
 
   return (
     <div className="space-y-3">
@@ -317,6 +344,11 @@ function Reposicion() {
           value={leadInput}
           onChange={(e) => setLeadInput(e.target.value)}
         />
+        {suggestions.length > 0 && (
+          <Button className="ml-auto shrink-0" onClick={buildOrder}>
+            <Plus className="h-4 w-4" /> Armar orden de compra ({suggestions.length})
+          </Button>
+        )}
       </div>
       <div className={TABLE_CARD}>
         <table className="w-full text-sm">
@@ -363,7 +395,15 @@ function Reposicion() {
 
 // ------------------------------------------------------- Detalle / creación
 
-function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void }) {
+function PoEditor({
+  poId,
+  initialItems,
+  onBack,
+}: {
+  poId: string | null;
+  initialItems?: FormItem[];
+  onBack: () => void;
+}) {
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -387,7 +427,7 @@ function PoEditor({ poId, onBack }: { poId: string | null; onBack: () => void })
           currency: 'USD',
           exchangeRate: '',
           leadTimeDays: '90',
-          items: [],
+          items: initialItems ?? [],
           expenses: [],
         }
       : null,
@@ -810,6 +850,7 @@ function ExpensesEditor({
 
 function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
   const { store } = useStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -840,22 +881,31 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
   );
   const scanner = useScanner(onScan);
 
+  const [lowMargin, setLowMargin] = useState<
+    { variantId: string; product: string; variant: string; marginPct: number }[] | null
+  >(null);
+
   const receive = useMutation({
     mutationFn: () =>
-      api.post(`/api/v1/purchasing/purchase-orders/${po.id}/receive`, {
+      api.post<{
+        lowMargin: { variantId: string; product: string; variant: string; marginPct: number }[];
+      }>(`/api/v1/purchasing/purchase-orders/${po.id}/receive`, {
         exchangeRate: Number(rate) > 0 ? Number(rate) : null,
         items: po.items.map((i) => ({
           variantId: i.variantId,
           receivedQuantity: qtys[i.variantId] !== undefined ? Number(qtys[i.variantId]) : i.quantity,
         })),
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
       queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
       queryClient.invalidateQueries({ queryKey: ['variant-costs', store?.id] });
       toast('Compra recibida: stock actualizado y costos fijados al landed cost', { variant: 'success' });
       setOpen(false);
-      onDone();
+      // Loop costo→precio: si el landed nuevo aplastó márgenes, se avisa ACÁ
+      // (no cuando al merchant se le ocurra entrar a Costos).
+      if (res.lowMargin.length > 0) setLowMargin(res.lowMargin);
+      else onDone();
     },
     onError: (e) => toast(errMsg(e, 'No se pudo recibir la compra'), { variant: 'error' }),
   });
@@ -863,6 +913,52 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
   return (
     <>
       <Button onClick={() => setOpen(true)}>Recibir</Button>
+      {lowMargin && (
+        <Modal
+          open
+          onClose={() => {
+            setLowMargin(null);
+            onDone();
+          }}
+          title="⚠ Márgenes aplastados por el costo nuevo"
+          size="md"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setLowMargin(null);
+                  onDone();
+                }}
+              >
+                Después
+              </Button>
+              <Button onClick={() => navigate('/productos/costos')}>Revisar precios en Costos</Button>
+            </>
+          }
+        >
+          <p className="text-sm text-fg-muted">
+            Con el landed cost de esta recepción, {lowMargin.length}{' '}
+            {lowMargin.length === 1 ? 'variante quedó' : 'variantes quedaron'} con margen menor al 15% al
+            precio actual — estás vendiendo casi al costo (o debajo).
+          </p>
+          <ul className="mt-3 max-h-64 space-y-1.5 overflow-y-auto text-sm">
+            {lowMargin.map((m) => (
+              <li key={m.variantId} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-fg">
+                  {m.product}
+                  {m.variant && <span className="text-fg-muted"> · {m.variant}</span>}
+                </span>
+                <span
+                  className={`shrink-0 tabular-nums font-semibold ${m.marginPct < 0 ? 'text-danger' : 'text-warning'}`}
+                >
+                  {m.marginPct.toLocaleString('es-AR')}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-5 shadow-card">

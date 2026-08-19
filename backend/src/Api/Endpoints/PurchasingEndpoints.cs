@@ -132,27 +132,48 @@ public static class PurchasingEndpoints
 
             // Costos: agrupar por producto y fijar el landed unitario en ARS.
             var variantIds = landed.Keys.ToList();
-            var byProduct = (await catalog.GetVariantsAsync(tenant.TenantId.Value, variantIds, ct))
-                .GroupBy(v => v.ProductId);
-            foreach (var g in byProduct)
+            var variantInfos = await catalog.GetVariantsAsync(tenant.TenantId.Value, variantIds, ct);
+            foreach (var g in variantInfos.GroupBy(v => v.ProductId))
             {
                 var costs = g.Select(v => (v.VariantId, (long?)landed[v.VariantId].CostMinor)).ToList();
                 await products.SetVariantCostsAsync(
                     new SetVariantCostsCommand(tenant.TenantId, g.Key, costs, Money.DefaultCurrency), ct);
             }
 
+            // Cierre del loop costo→precio: qué variantes quedaron con margen
+            // aplastado al costo nuevo (el panel lo muestra al terminar — sin
+            // esto, el merchant se entera solo si se le ocurre entrar a Costos).
+            var lowMargin = variantInfos
+                .Where(v => v.Price.Amount > 0)
+                .Select(v => new
+                {
+                    variantId = v.VariantId,
+                    product = v.ProductName,
+                    variant = v.VariantDescription,
+                    marginPct = Math.Round(
+                        (v.Price.Amount - landed[v.VariantId].CostMinor) * 100m / v.Price.Amount, 1),
+                })
+                .Where(x => x.marginPct < 15m)
+                .OrderBy(x => x.marginPct)
+                .ToList();
+
             return Results.Ok(new
             {
                 order = ToDetailDto(po),
                 stockErrors,
                 costsUpdated = landed.Count,
+                lowMargin,
             });
         });
 
         // Reposición con lead time: para un importador, "stock bajo" avisa tarde.
         // Cobertura (stock / venta diaria de 60 días) vs lead time + colchón.
+        // La demanda suma TODO lo que consume stock: ventas de la tienda,
+        // ventas de Mercado Libre (vía vínculos) y componentes de kits.
         purchasing.MapGet("/reorder-suggestions", async (
             ITenantContext tenant, OrdersDbContext ordersDb, PurchasingDbContext purchasingDb,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
+            MercadoLibre.Infrastructure.MeliDbContext meliDb,
             IStockRepository stock, ICatalogCheckoutQuery catalog, CancellationToken ct,
             int? leadTimeDays = null) =>
         {
@@ -175,6 +196,44 @@ public static class PurchasingEndpoints
                 .SelectMany(o => o.Items)
                 .GroupBy(i => i.VariantId)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+
+            // Ventas de Mercado Libre: descuentan el mismo stock (unificado),
+            // así que son la misma demanda — mapeadas a variantes por vínculo.
+            var links = await meliDb.ItemLinks.AsNoTracking().ToListAsync(ct);
+            if (links.Count > 0)
+            {
+                var linkByKey = links.ToDictionary(l => (l.MeliItemId, l.MeliVariationId), l => l.VariantId);
+                var linkByItem = links.Where(l => l.MeliVariationId == null)
+                    .ToDictionary(l => l.MeliItemId, l => l.VariantId);
+                var meliOrders = await meliDb.Orders.AsNoTracking()
+                    .Where(o => o.Status == "paid" && o.DateCreatedUtc >= since)
+                    .ToListAsync(ct);
+                foreach (var order in meliOrders)
+                {
+                    foreach (var item in Api.Meli.MeliSyncService.ParseSnapshot(order.ItemsJson))
+                    {
+                        if (linkByKey.TryGetValue((item.ItemId, item.VariationId), out var vid)
+                            || linkByItem.TryGetValue(item.ItemId, out vid))
+                            sold[vid] = sold.GetValueOrDefault(vid) + item.Quantity;
+                    }
+                }
+            }
+
+            // Kits: vender el kit consume sus componentes, pero esa demanda no
+            // figura como venta de la variante componente — se expande acá.
+            var kitIds = sold.Keys.ToList();
+            var kitComponents = await catalogDb.KitComponents.AsNoTracking()
+                .Where(k => kitIds.Contains(k.KitVariantId))
+                .ToListAsync(ct);
+            if (kitComponents.Count > 0)
+            {
+                var kitQty = sold.ToDictionary(kv => kv.Key, kv => kv.Value); // snapshot pre-expansión
+                foreach (var component in kitComponents)
+                    sold[component.ComponentVariantId] =
+                        sold.GetValueOrDefault(component.ComponentVariantId)
+                        + component.Quantity * kitQty[component.KitVariantId];
+            }
+
             if (sold.Count == 0) return Results.Ok(new { leadTimeDays = lead, items = Array.Empty<object>() });
 
             var stockByVariant = (await stock.GetByVariantsAsync(tenant.TenantId, sold.Keys.ToList(), ct))

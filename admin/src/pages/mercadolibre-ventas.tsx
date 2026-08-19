@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, MessageSquare, Send } from 'lucide-react';
+import { FileText, Loader2, MessageSquare, Send } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -8,6 +8,7 @@ import {
   Modal,
   Spinner,
   StatCard,
+  useConfirm,
   useToast,
   type BadgeVariant,
 } from '@tiendafy/ui';
@@ -38,6 +39,7 @@ interface MeliOrder {
   buyerId: number;
   items: MeliOrderItem[];
   stockApplied: boolean;
+  fiscalDocumentId: string | null;
 }
 
 interface MeliStats {
@@ -71,9 +73,43 @@ const LEGEND = [
 // ---- Ventas ------------------------------------------------------------------
 
 export function VentasTab() {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [orders, setOrders] = useState<MeliOrder[] | null>(null);
   const [stats, setStats] = useState<MeliStats | null>(null);
   const [chatOrder, setChatOrder] = useState<MeliOrder | null>(null);
+  const [invoicing, setInvoicing] = useState<number | null>(null);
+
+  // Facturación ARCA de la venta ML (consumidor final, camino de emisión manual).
+  const invoice = async (o: MeliOrder) => {
+    const ok = await confirm({
+      title: 'Emitir comprobante ARCA',
+      message: `Se factura la venta de ${o.buyerNickname || 'ML'} por ${moneyMajor(o.paidAmount > 0 ? o.paidAmount : o.totalAmount, o.currencyId)} a consumidor final. La emisión es real y queda registrada en ARCA.`,
+      confirmLabel: 'Facturar',
+    });
+    if (!ok) return;
+    setInvoicing(o.meliOrderId);
+    try {
+      const r = await api.post<{ cae: string | null; ptoVta: number; number: number }>(
+        `/api/v1/admin/meli/orders/${o.meliOrderId}/invoice`,
+        {},
+      );
+      toast(
+        `Comprobante ${String(r.ptoVta).padStart(4, '0')}-${String(r.number).padStart(8, '0')} emitido (CAE ${r.cae ?? '—'})`,
+        {
+          variant: 'success',
+        },
+      );
+      setOrders(
+        (prev) =>
+          prev?.map((x) => (x.meliOrderId === o.meliOrderId ? { ...x, fiscalDocumentId: 'ok' } : x)) ?? null,
+      );
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo facturar la venta.'), { variant: 'error' });
+    } finally {
+      setInvoicing(null);
+    }
+  };
 
   useEffect(() => {
     api.get<{ items: MeliOrder[] }>('/api/v1/admin/meli/orders?limit=50').then((r) => setOrders(r.items));
@@ -150,9 +186,29 @@ export function VentasTab() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button variant="secondary" onClick={() => setChatOrder(o)}>
-                          <MessageSquare className="h-4 w-4" /> Mensajes
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {o.fiscalDocumentId ? (
+                            <Badge variant="success">Facturada</Badge>
+                          ) : (
+                            ORDER_STATUS[o.status]?.label === 'Pagada' && (
+                              <Button
+                                variant="secondary"
+                                disabled={invoicing === o.meliOrderId}
+                                onClick={() => invoice(o)}
+                              >
+                                {invoicing === o.meliOrderId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}{' '}
+                                Facturar
+                              </Button>
+                            )
+                          )}
+                          <Button variant="secondary" onClick={() => setChatOrder(o)}>
+                            <MessageSquare className="h-4 w-4" /> Mensajes
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

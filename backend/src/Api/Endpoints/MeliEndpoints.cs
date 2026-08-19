@@ -197,6 +197,7 @@ public static class MeliEndpoints
                     items = MeliSyncService.ParseSnapshot(o.ItemsJson),
                     o.ShipmentId,
                     o.StockApplied,
+                    o.FiscalDocumentId,
                 }),
             });
         });
@@ -262,6 +263,53 @@ public static class MeliEndpoints
             {
                 return Error.Validation("Meli.Questions", ex.Message).ToProblem();
             }
+        });
+
+        // Facturación ARCA de una venta ML: el cache de ML no crea una Order
+        // local, así que se emite por el camino de emisión manual (OrderId null,
+        // consumidor final) y el comprobante queda vinculado a la venta.
+        var fiscal = group.MapGroup("/admin/meli").RequirePermission(Permission.FiscalEmit);
+        fiscal.MapPost("/orders/{meliOrderId:long}/invoice", async (
+            long meliOrderId, ITenantContext tenant, MeliDbContext db,
+            global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
+        {
+            var order = await db.Orders.FirstOrDefaultAsync(o => o.MeliOrderId == meliOrderId, ct);
+            if (order is null)
+                return Error.NotFound("Meli.OrderNotFound", "Esa venta no existe.").ToProblem();
+            if (!order.IsPaid)
+                return Error.Validation("Meli.NotPaid", "Solo se facturan ventas pagadas.").ToProblem();
+            if (order.FiscalDocumentId is not null)
+                return Error.Conflict("Meli.AlreadyInvoiced", "Esta venta ya tiene comprobante emitido.").ToProblem();
+
+            var amount = order.PaidAmount > 0 ? order.PaidAmount : order.TotalAmount;
+            var minor = (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+            if (minor <= 0)
+                return Error.Validation("Meli.BadAmount", "La venta no tiene importe.").ToProblem();
+
+            // ML no expone el documento del comprador por esta vía: consumidor final.
+            var result = await emitter.EmitAsync(
+                new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(tenant.TenantId.Value, OrderId: null, minor), ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+            var r = result.Value;
+            if (!r.Authorized)
+            {
+                var detail = r.Errors.Count > 0
+                    ? string.Join("; ", r.Errors.Select(e => $"{e.Code} {e.Message}"))
+                    : "ARCA rechazó el comprobante.";
+                return Error.Validation("Meli.InvoiceRejected", detail).ToProblem();
+            }
+
+            order.MarkInvoiced(r.DocumentId);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new
+            {
+                r.DocumentId,
+                r.PtoVta,
+                cbteTipo = r.CbteTipo,
+                r.Number,
+                r.Cae,
+                caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
+            });
         });
 
         var actions = group.MapGroup("/admin/meli").RequirePermission(Permission.OrdersFulfill);

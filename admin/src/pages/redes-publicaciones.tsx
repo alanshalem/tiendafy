@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { Badge, Button, EmptyList, Select, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { formatDateTime } from '../lib/format';
+import { formatDateTime, formatMoney } from '../lib/format';
 import { postStatus, ProviderIcon, providerMeta, type SocialPostDto } from './redes-shared';
 
 const STATUS_FILTER = [
@@ -102,6 +102,18 @@ export function PublicacionesTab({
                     <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-sm text-fg">
                       {post.content || '(solo imagen)'}
                     </p>
+                    {post.couponCode && (
+                      <p className="mt-1 text-xs text-fg-muted">
+                        Cupón <span className="font-mono font-medium text-fg">{post.couponCode}</span>
+                        {post.attributedOrders > 0 && (
+                          <span className="text-success">
+                            {' '}
+                            · trajo {post.attributedOrders} {post.attributedOrders === 1 ? 'venta' : 'ventas'}{' '}
+                            · {formatMoney(post.attributedRevenueMinor)}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                       {post.targets.map((t) => (
                         <span key={t.accountId} className="inline-flex items-center gap-1.5 text-sm">

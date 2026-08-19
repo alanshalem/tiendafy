@@ -41,6 +41,7 @@ public sealed class SocialDbContext : DbContext
         post.HasQueryFilter(p => !_filterByTenant || p.TenantId == _tenantGuid);
         post.Property(p => p.Content).HasMaxLength(10_000);
         post.Property(p => p.MediaUrlsJson).HasMaxLength(8000);
+        post.Property(p => p.CouponCode).HasMaxLength(40);
         post.Property(p => p.Status).HasConversion<string>().HasMaxLength(12);
         post.Property(p => p.ScheduleStatus).HasConversion<string>().HasMaxLength(12);
         post.HasIndex(p => new { p.TenantId, p.ScheduledAtUtc });

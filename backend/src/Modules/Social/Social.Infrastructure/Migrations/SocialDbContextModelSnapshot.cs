@@ -105,6 +105,11 @@ namespace Social.Infrastructure.Migrations
                         .HasColumnType("character varying(10000)")
                         .HasColumnName("content");
 
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("coupon_code");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
