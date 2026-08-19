@@ -345,6 +345,119 @@ public static class OrderEndpoints
         }).RequirePermission(Permission.FiscalEmit);
 
         // PDF del comprobante con QR de ARCA. type=invoice (default) | creditnote.
+        // ---- Venta manual (WhatsApp / mostrador / teléfono) ----
+        // La única puerta de entrada de una venta era el checkout: esto crea la
+        // orden desde el admin — reserva stock de verdad, nace PAGADA (efectivo
+        // o transferencia) y dispara los mismos side-effects que un pago de MP:
+        // kits, email de confirmación y factura automática si está configurada.
+        group.MapPost("/orders/manual", async (
+            ManualOrderRequest request,
+            ITenantContext tenant,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
+            Inventory.Core.Domain.IStockRepository stock,
+            IOrderRepository orders,
+            IServiceProvider sp,
+            CancellationToken ct) =>
+        {
+            if (request.Items is not { Count: > 0 })
+                return Error.Validation("Order.Empty", "Agregá al menos un producto.").ToProblem();
+            if (request.PaymentMethod is not ("cash" or "transfer"))
+                return Error.Validation("Order.BadPayment", "Método de pago inválido.").ToProblem();
+
+            var variantIds = request.Items.Select(i => i.VariantId).Distinct().ToList();
+            if (variantIds.Count != request.Items.Count)
+                return Error.Validation("Order.DuplicateItem", "Cada variante va una sola vez.").ToProblem();
+            var variants = (await catalogQuery.GetVariantsAsync(tenant.TenantId.Value, variantIds, ct))
+                .ToDictionary(v => v.VariantId);
+            if (variants.Count != variantIds.Count)
+                return Error.Validation("Order.UnknownVariant", "Algún producto ya no existe.").ToProblem();
+
+            var currency = variants.Values.First().Price.Currency;
+
+            // Reservas REALES (anti-oversell): si una línea no tiene stock, se
+            // liberan las anteriores y la venta no se crea.
+            var reserved = new List<(Guid VariantId, Guid ReservationId)>();
+            foreach (var item in request.Items)
+            {
+                if (item.Quantity <= 0)
+                    return Error.Validation("Order.BadQuantity", "Las cantidades tienen que ser positivas.").ToProblem();
+                var reservation = await stock.TryReserveAsync(
+                    SharedKernel.Common.TenantId.From(tenant.TenantId.Value), item.VariantId, item.Quantity, ct);
+                if (reservation.IsFailure)
+                {
+                    foreach (var (_, rid) in reserved)
+                        await stock.ReleaseReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), rid, ct);
+                    var name = variants[item.VariantId].ProductName;
+                    return Error.Conflict("Order.NoStock", $"Sin stock suficiente de {name}.").ToProblem();
+                }
+                reserved.Add((item.VariantId, reservation.Value.Id));
+            }
+
+            var reservationByVariant = reserved.ToDictionary(r => r.VariantId, r => r.ReservationId);
+            var lines = request.Items.Select(i =>
+            {
+                var v = variants[i.VariantId];
+                var unitPrice = i.UnitPriceMinor is { } price and > 0
+                    ? new Money(price, currency)
+                    : v.Price;
+                return (i.VariantId, v.ProductName, v.VariantDescription, v.Sku,
+                    unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], v.Cost);
+            }).ToList();
+
+            var email = string.IsNullOrWhiteSpace(request.BuyerEmail)
+                ? $"manual+{DateTime.UtcNow:yyyyMMddHHmmss}@sin-email.local"
+                : request.BuyerEmail.Trim();
+            var discount = request.DiscountMinor is { } d and > 0 ? new Money(d, currency) : (Money?)null;
+
+            var created = Order.Create(
+                tenant.TenantId, Guid.NewGuid(), email, currency, lines, discount);
+            if (created.IsFailure) return created.Error.ToProblem();
+            var order = created.Value;
+
+            var methodLabel = request.PaymentMethod == "cash" ? "Efectivo" : "Transferencia";
+            order.SetShippingAndBuyer(
+                request.ShippingCostMinor is { } ship and > 0 ? new Money(ship, currency) : Money.Zero(currency),
+                request.ShippingMethodName ?? "Entrega a coordinar",
+                request.ShippingAddress,
+                request.BuyerName,
+                request.BuyerPhone,
+                request.DocNumber,
+                $"Venta manual ({methodLabel}){(string.IsNullOrWhiteSpace(request.Notes) ? "" : $" · {request.Notes!.Trim()}")}");
+
+            var paid = order.MarkPaid($"manual-{request.PaymentMethod}");
+            if (paid.IsFailure) return paid.Error.ToProblem();
+
+            await orders.AddAsync(order, ct);
+
+            // Confirmar reservas: la mercadería sale (mismo cierre que un pago real).
+            foreach (var (_, reservationId) in reserved)
+                await stock.ConfirmReservationAsync(SharedKernel.Common.TenantId.From(tenant.TenantId.Value), reservationId, ct);
+
+            await orders.SaveChangesAsync(ct);
+
+            // Side-effects del "JustPaid" (best-effort, como el webhook de MP).
+            try
+            {
+                await sp.GetRequiredService<Api.Orders.KitStockService>().ApplyAsync(order, ct);
+                if (!email.EndsWith("@sin-email.local"))
+                    await sp.GetRequiredService<OrderNotifier>().NotifyAsync(order, "confirmacion-pago", ct);
+                await sp.GetRequiredService<global::Fiscal.Core.Abstractions.IFiscalEmissionQueue>()
+                    .EnqueueInvoiceAsync(order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
+                        order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnPayment, ct);
+            }
+            catch
+            {
+                // La venta ya está registrada: un email o factura fallida no la frena.
+            }
+
+            return Results.Created($"/api/v1/orders/{order.Id}", new
+            {
+                order.Id,
+                total = order.Total.AmountInMinorUnits,
+                status = order.Status.ToString().ToUpperInvariant(),
+            });
+        }).RequirePermission(Permission.OrdersFulfill);
+
         group.MapGet("/orders/{id:guid}/invoice.pdf", async (
             Guid id, string? type, ITenantContext tenant, IOrderRepository orders,
             global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
@@ -482,3 +595,17 @@ public sealed record PayOnsiteRequest(
     string? PayerDocType,
     string? PayerDocNumber,
     string? CouponCode);
+
+public sealed record ManualOrderItemRequest(Guid VariantId, int Quantity, long? UnitPriceMinor = null);
+public sealed record ManualOrderRequest(
+    IReadOnlyList<ManualOrderItemRequest>? Items,
+    string PaymentMethod,
+    string? BuyerEmail = null,
+    string? BuyerName = null,
+    string? BuyerPhone = null,
+    string? DocNumber = null,
+    string? Notes = null,
+    long? DiscountMinor = null,
+    long? ShippingCostMinor = null,
+    string? ShippingMethodName = null,
+    string? ShippingAddress = null);

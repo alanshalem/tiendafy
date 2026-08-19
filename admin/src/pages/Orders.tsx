@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn, Input, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
+import { ManualSaleModal } from './orders-manual';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 import { FiscalPanel } from './orders-fiscal';
 import { RefundDialog } from './orders-refund';
@@ -71,6 +72,7 @@ export function OrdersPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
+  const [manualOpen, setManualOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -181,15 +183,26 @@ export function OrdersPage() {
           La venta buscada no está entre las últimas 50 — usá “Actualizar” o buscala por el email del cliente.
         </p>
       )}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Ventas</h1>
-        <button
-          onClick={load}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-        >
-          <RefreshCw className="h-4 w-4" /> Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          {can('orders.fulfill') && (
+            <button
+              onClick={() => setManualOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+            >
+              <Plus className="h-4 w-4" /> Venta manual
+            </button>
+          )}
+          <button
+            onClick={load}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
+          >
+            <RefreshCw className="h-4 w-4" /> Actualizar
+          </button>
+        </div>
       </div>
+      {manualOpen && <ManualSaleModal onClose={() => setManualOpen(false)} onCreated={load} />}
 
       <Input
         placeholder="Buscar por email, nombre o número de orden…"
