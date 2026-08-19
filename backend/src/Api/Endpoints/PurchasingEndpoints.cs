@@ -25,13 +25,20 @@ public static class PurchasingEndpoints
         var purchasing = group.MapGroup("/purchasing").RequireTenant().RequirePermission(Permission.Purchasing);
 
         purchasing.MapGet("/purchase-orders", async (
-            PurchasingDbContext db, CancellationToken ct, string? status = null) =>
+            PurchasingDbContext db, CancellationToken ct,
+            string? status = null, int? limit = null, int? offset = null) =>
         {
             var query = db.PurchaseOrders.AsNoTracking();
             if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var st))
                 query = query.Where(p => p.Status == st);
-            var orders = await query.OrderByDescending(p => p.CreatedAtUtc).Take(200).ToListAsync(ct);
-            return Results.Ok(new { items = orders.Select(ToListDto) });
+
+            var total = await query.CountAsync(ct);
+            var orders = await query
+                .OrderByDescending(p => p.CreatedAtUtc)
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 50, 1, 200))
+                .ToListAsync(ct);
+            return Results.Ok(new { items = orders.Select(ToListDto), total });
         });
 
         purchasing.MapGet("/purchase-orders/{id:guid}", async (

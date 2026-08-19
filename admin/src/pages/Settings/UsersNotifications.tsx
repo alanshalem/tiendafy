@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
 import { TABLE_CARD } from '../../lib/styles';
+import { Pagination } from '../../components/Pagination';
 
 interface Member {
   userId: string;
@@ -57,6 +58,9 @@ const roleMeta = (r: string): RoleMeta =>
 
 const roleOptionLabel = (r: RoleMeta) => (r.desc ? `${r.label} — ${r.desc}` : r.label);
 
+/** Usuarios por página. */
+const PAGE_SIZE = 25;
+
 export function UsersNotificationsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -67,11 +71,16 @@ export function UsersNotificationsPage() {
   const isOwner = myRole === 'owner';
   const canManage = can('members.manage');
 
+  const [page, setPage] = useState(1);
   const membersQ = useQuery({
-    queryKey: ['members'],
-    queryFn: () => api.get<{ items: Member[] }>('/api/v1/members'),
+    queryKey: ['members', page],
+    queryFn: () =>
+      api.get<{ items: Member[]; total: number }>(
+        `/api/v1/members?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     retry: false,
   });
+  const totalPages = Math.max(1, Math.ceil((membersQ.data?.total ?? 0) / PAGE_SIZE));
 
   // Roles asignables: nunca por encima del propio. Solo el dueño puede asignar "owner".
   const assignable = isOwner ? ROLES : ROLES.filter((r) => r.value !== 'owner');
@@ -281,6 +290,7 @@ export function UsersNotificationsPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
 
           <div className="mt-3 grid gap-1 text-xs text-fg-muted sm:grid-cols-2">
             {ROLES.map((r) => (

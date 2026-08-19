@@ -34,9 +34,16 @@ public static class MembersEndpoints
         var members = group.MapGroup("/members");
 
         // Listado de miembros con su email/nombre.
-        members.MapGet("/", async (ITenantContext tenant, IMembershipService memberships, UserManager<AppUser> users, CancellationToken ct) =>
+        members.MapGet("/", async (
+            ITenantContext tenant, IMembershipService memberships, UserManager<AppUser> users,
+            CancellationToken ct, int? limit = null, int? offset = null) =>
         {
-            var list = await memberships.ListAsync(tenant.TenantId.Value, ct);
+            var all = await memberships.ListAsync(tenant.TenantId.Value, ct);
+            var total = all.Count;
+            var list = all
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 25, 1, 100))
+                .ToList();
             var ids = list.Select(m => m.UserId).ToList();
             var byId = await users.Users.AsNoTracking()
                 .Where(u => ids.Contains(u.Id))
@@ -53,6 +60,7 @@ public static class MembersEndpoints
                     name = byId.TryGetValue(m.UserId, out var u2) ? u2.DisplayName : null,
                     createdAtUtc = m.CreatedAtUtc,
                 }),
+                total,
             });
         }).RequirePermission(Permission.MembersRead);
 

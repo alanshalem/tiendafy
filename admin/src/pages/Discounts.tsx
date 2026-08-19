@@ -24,6 +24,7 @@ import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { Pagination } from '../components/Pagination';
 
 type CouponType = 'Percentage' | 'FixedAmount' | 'FreeShipping';
 
@@ -59,6 +60,9 @@ function vigencia(c: Coupon): string {
   return 'Sin vencimiento';
 }
 
+/** Cupones por página. */
+const PAGE_SIZE = 50;
+
 export function DiscountsPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -67,11 +71,16 @@ export function DiscountsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
 
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['coupons', store?.id],
-    queryFn: () => api.get<{ items: Coupon[] }>('/api/v1/coupons'),
+    queryKey: ['coupons', store?.id, page],
+    queryFn: () =>
+      api.get<{ items: Coupon[]; total: number }>(
+        `/api/v1/coupons?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
   });
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   const [search, setSearch] = useState('');
   const coupons = (data?.items ?? []).filter(
     (c) => search.trim() === '' || c.code.toLowerCase().includes(search.trim().toLowerCase()),
@@ -200,6 +209,7 @@ export function DiscountsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
           <Table columns={columns} rows={coupons} rowKey={(c) => c.id} emptyState="No hay cupones." />
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </Card>
       )}
 

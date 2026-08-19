@@ -13,14 +13,19 @@ public static class DiscountsEndpoints
     {
         var coupons = group.MapGroup("/coupons").RequireTenant();
 
-        coupons.MapGet("/", async (ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>
+        coupons.MapGet("/", async (
+            ITenantContext tenant, DiscountsDbContext db, CancellationToken ct,
+            int? limit = null, int? offset = null) =>
         {
             var tid = tenant.TenantId.Value;
-            var items = await db.Coupons.AsNoTracking()
-                .Where(c => c.TenantId == tid)
+            var query = db.Coupons.AsNoTracking().Where(c => c.TenantId == tid);
+            var total = await query.CountAsync(ct);
+            var items = await query
                 .OrderByDescending(c => c.CreatedAtUtc)
+                .Skip(Math.Max(0, offset ?? 0))
+                .Take(Math.Clamp(limit ?? 50, 1, 200))
                 .ToListAsync(ct);
-            return Results.Ok(new { items = items.Select(ToDto) });
+            return Results.Ok(new { items = items.Select(ToDto), total });
         }).RequirePermission(Permission.DiscountsRead); // validate es público aparte
 
         coupons.MapPost("/", async (CouponRequest req, ITenantContext tenant, DiscountsDbContext db, CancellationToken ct) =>

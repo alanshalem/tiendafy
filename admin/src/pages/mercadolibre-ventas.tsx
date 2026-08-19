@@ -15,6 +15,7 @@ import {
 import { api, errMsg } from '../lib/api';
 import { StatusLegend } from '../components/StatusLegend';
 import { fecha, moneyMajor } from './mercadolibre-shared';
+import { Pagination } from '../components/Pagination';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -72,6 +73,9 @@ const LEGEND = [
 
 // ---- Ventas ------------------------------------------------------------------
 
+/** Ventas de ML por página. */
+const PAGE_SIZE = 25;
+
 export function VentasTab() {
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -79,6 +83,9 @@ export function VentasTab() {
   const [stats, setStats] = useState<MeliStats | null>(null);
   const [chatOrder, setChatOrder] = useState<MeliOrder | null>(null);
   const [invoicing, setInvoicing] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Facturación ARCA de la venta ML (consumidor final, camino de emisión manual).
   const invoice = async (o: MeliOrder) => {
@@ -112,12 +119,19 @@ export function VentasTab() {
   };
 
   useEffect(() => {
-    api.get<{ items: MeliOrder[] }>('/api/v1/admin/meli/orders?limit=50').then((r) => setOrders(r.items));
+    api
+      .get<{ items: MeliOrder[]; total: number }>(
+        `/api/v1/admin/meli/orders?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      )
+      .then((r) => {
+        setOrders(r.items);
+        setTotal(r.total ?? 0);
+      });
     api
       .get<MeliStats>('/api/v1/admin/meli/stats?days=30')
       .then(setStats)
       .catch(() => undefined);
-  }, []);
+  }, [page]);
 
   return (
     <div>

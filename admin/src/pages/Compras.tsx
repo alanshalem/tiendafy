@@ -26,6 +26,7 @@ import { downloadBlob } from '../lib/download';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
+import { Pagination } from '../components/Pagination';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -131,6 +132,9 @@ interface PoForm {
   expenses: FormExpense[];
 }
 
+/** Órdenes de compra por página. */
+const PO_PAGE_SIZE = 25;
+
 export function ComprasPage() {
   const { store } = useStore();
   const [view, setView] = useState<'list' | 'detail' | 'new'>('list');
@@ -176,11 +180,16 @@ function ComprasList({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
+  const [page, setPage] = useState(1);
   const { data } = useQuery({
-    queryKey: ['purchase-orders', store?.id],
-    queryFn: () => api.get<{ items: PoListItem[] }>('/api/v1/purchasing/purchase-orders'),
+    queryKey: ['purchase-orders', store?.id, page],
+    queryFn: () =>
+      api.get<{ items: PoListItem[]; total: number }>(
+        `/api/v1/purchasing/purchase-orders?limit=${PO_PAGE_SIZE}&offset=${(page - 1) * PO_PAGE_SIZE}`,
+      ),
     enabled: !!store,
   });
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PO_PAGE_SIZE));
 
   return (
     <>
@@ -301,6 +310,7 @@ function ComprasList({
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </>
       ) : (
         <Reposicion onCreateOrder={(items) => onNew(items)} />

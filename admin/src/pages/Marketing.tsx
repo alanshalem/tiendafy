@@ -9,6 +9,7 @@ import { NotificationUsage } from '../components/NotificationUsage';
 import { StatusLegend } from '../components/StatusLegend';
 import { HelpLink } from '../components/HelpLink';
 import { AUDIENCE_LABEL, CampaignModal, type Campaign } from './CampaignModal';
+import { Pagination } from '../components/Pagination';
 
 interface CampaignDetail {
   campaign: Campaign;
@@ -39,6 +40,9 @@ const DEFAULT_STATUS = CAMPAIGN_STATUS.draft!;
  * o selección manual), preview brandeada en vivo, cupón con atribución de
  * ingresos, productos embebidos, programación y métricas por campaña.
  */
+/** Campañas por página. */
+const PAGE_SIZE = 25;
+
 export function MarketingPage() {
   const { store } = useStore();
   const { toast } = useToast();
@@ -47,13 +51,18 @@ export function MarketingPage() {
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
   const { data } = useQuery({
-    queryKey: ['campaigns', store?.id],
-    queryFn: () => api.get<{ items: Campaign[] }>('/api/v1/admin/campaigns'),
+    queryKey: ['campaigns', store?.id, page],
+    queryFn: () =>
+      api.get<{ items: Campaign[]; total: number }>(
+        `/api/v1/admin/campaigns?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
     refetchInterval: (query) =>
       query.state.data?.items.some((c) => c.status === 'sending' || c.status === 'scheduled') ? 5000 : false,
   });
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   const items = data?.items ?? [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['campaigns', store?.id] });
 
@@ -214,6 +223,7 @@ export function MarketingPage() {
               );
             })}
           </div>
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </>
       )}
 
