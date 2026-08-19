@@ -101,6 +101,8 @@ services:
       Social__X__ClientSecret: ${SOCIAL_X_CLIENT_SECRET:-}
       Social__X__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/social/oauth/callback/x
       Social__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/redes
+      # Sugerencias con IA (Claude API). Vacío = apagado.
+      Ai__ApiKey: ${AI_API_KEY:-}
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       # Segunda réplica de la API: setear Workers__Enabled=false para no duplicar
       # los background workers (webhooks/facturación/carritos corren en UNA sola).

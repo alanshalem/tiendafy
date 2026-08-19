@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Trash2, GripVertical } from 'lucide-react';
+import { Plus, X, Trash2, GripVertical, Loader2, Sparkles } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, Textarea, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { useAiEnabled } from '../../lib/useAi';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { StickyFormBar } from './StickyFormBar';
@@ -63,6 +64,8 @@ export function EditProductPage() {
 
   // Estado del form (se inicializa al cargar el producto).
   const [name, setName] = useState('');
+  const aiEnabled = useAiEnabled();
+  const [aiWriting, setAiWriting] = useState(false);
   const [description, setDescription] = useState('');
   const [brand, setBrand] = useState('');
   const [seoTitle, setSeoTitle] = useState('');
@@ -237,7 +240,38 @@ export function EditProductPage() {
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </FormField>
           <FormField label="Descripción">
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+            <div>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+              {aiEnabled && name.trim().length > 2 && (
+                <button
+                  type="button"
+                  disabled={aiWriting}
+                  onClick={async () => {
+                    setAiWriting(true);
+                    try {
+                      const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
+                        name,
+                        notes: description || null,
+                      });
+                      setDescription(r.text);
+                    } catch (err) {
+                      toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
+                    } finally {
+                      setAiWriting(false);
+                    }
+                  }}
+                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
+                >
+                  {aiWriting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Escribir con IA
+                </button>
+              )}
+            </div>
           </FormField>
           <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
             <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />

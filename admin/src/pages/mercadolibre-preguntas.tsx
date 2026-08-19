@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { Button, EmptyList, Input, Spinner, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useAiEnabled } from '../lib/useAi';
 import { fecha } from './mercadolibre-shared';
 
 interface MeliQuestion {
@@ -20,6 +21,8 @@ export function PreguntasTab() {
   const [soloSinResponder, setSoloSinResponder] = useState(true);
   const [questions, setQuestions] = useState<MeliQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const aiEnabled = useAiEnabled();
+  const [suggesting, setSuggesting] = useState<number | null>(null);
   const [sendingId, setSendingId] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -36,6 +39,22 @@ export function PreguntasTab() {
   }, [soloSinResponder, toast]);
 
   useEffect(load, [load]);
+
+  // La IA sugiere, el vendedor decide: llena el input, editable antes de enviar.
+  const suggest = async (q: MeliQuestion) => {
+    setSuggesting(q.id);
+    try {
+      const r = await api.post<{ text: string }>('/api/v1/ai/ml-answer', {
+        question: q.text,
+        itemTitle: q.itemId,
+      });
+      setAnswers((a) => ({ ...a, [q.id]: r.text }));
+    } catch (err) {
+      toast(errMsg(err, 'La IA no pudo sugerir una respuesta.'), { variant: 'error' });
+    } finally {
+      setSuggesting(null);
+    }
+  };
 
   const answer = async (q: MeliQuestion) => {
     const text = (answers[q.id] ?? '').trim();
@@ -97,6 +116,20 @@ export function PreguntasTab() {
                     placeholder="Escribí tu respuesta…"
                     onKeyDown={(e) => e.key === 'Enter' && answer(q)}
                   />
+                  {aiEnabled && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => suggest(q)}
+                      disabled={suggesting === q.id}
+                      title="Sugerir una respuesta con IA (después la editás)"
+                    >
+                      {suggesting === q.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                   <Button
                     onClick={() => answer(q)}
                     disabled={sendingId === q.id || !(answers[q.id] ?? '').trim()}

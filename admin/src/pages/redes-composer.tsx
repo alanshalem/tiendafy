@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, ImagePlus, Loader2, X as XIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  ImagePlus,
+  Loader2,
+  Sparkles,
+  X as XIcon,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { useAiEnabled } from '../lib/useAi';
 import { storefrontUrl } from '../lib/storefront';
 import { fetchAllProducts } from '../lib/products';
 import {
@@ -64,6 +73,8 @@ export function ComposerModal({
     return '';
   });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const aiEnabled = useAiEnabled();
+  const [improving, setImproving] = useState(false);
 
   // Cupones activos para medir ventas del post (misma atribución que campañas).
   const { data: couponsData } = useQuery({
@@ -151,6 +162,19 @@ export function ComposerModal({
     }
   };
 
+  // La IA reescribe el borrador con tono vendedor conservando link y cupón.
+  const improveWithAi = async () => {
+    setImproving(true);
+    try {
+      const r = await api.post<{ text: string }>('/api/v1/ai/social-post', { draft: content });
+      setContent(r.text);
+    } catch (err) {
+      toast(errMsg(err, 'La IA no pudo mejorar el texto.'), { variant: 'error' });
+    } finally {
+      setImproving(false);
+    }
+  };
+
   const busy = saving !== null;
   const canPublish = selected.size > 0 && needsMedia.length === 0 && overLimit.length === 0;
 
@@ -217,7 +241,25 @@ export function ComposerModal({
         {/* Texto base */}
         <div>
           <div className="mb-1.5 flex items-baseline justify-between">
-            <p className="text-sm font-medium text-fg">Texto</p>
+            <span className="flex items-center gap-2">
+              <p className="text-sm font-medium text-fg">Texto</p>
+              {aiEnabled && content.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={improveWithAi}
+                  disabled={improving}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
+                >
+                  {improving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Mejorar con IA
+                </button>
+              )}
+            </span>
             {selected.size > 0 && Number.isFinite(maxChars) && (
               <span
                 className={cn(

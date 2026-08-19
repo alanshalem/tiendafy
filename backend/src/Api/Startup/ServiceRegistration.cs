@@ -144,6 +144,10 @@ public static class ServiceRegistration
         services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.TelegramChannel>());
         if (runPollingWorkers) services.AddHostedService<Api.Social.SocialPublishWorker>();
 
+        // Sugerencias con IA (Claude API). Vacío = apagado, botones ocultos.
+        services.Configure<Api.Ai.AiOptions>(configuration.GetSection(Api.Ai.AiOptions.SectionName));
+        services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(45));
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
 
