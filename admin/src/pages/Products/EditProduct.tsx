@@ -12,6 +12,7 @@ import { Section } from './FormSection';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { statusLabel, type Category, type StockItem } from './types';
+import { AddImagesTile, RemovableThumb } from './ImageTiles';
 
 interface VariantDto {
   id: string;
@@ -307,41 +308,14 @@ export function EditProductPage() {
                 }}
                 className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
               >
-                <img
-                  src={img.url}
-                  alt=""
-                  className="h-24 w-24 rounded-md border border-border object-cover"
-                />
-                <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  <GripVertical className="h-3.5 w-3.5" />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeImage.mutate(img.id)}
-                  aria-label="Quitar imagen"
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <RemovableThumb src={img.url} onRemove={() => removeImage.mutate(img.id)}>
+                  <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <GripVertical className="h-3.5 w-3.5" />
+                  </span>
+                </RemovableThumb>
               </div>
             ))}
-          <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary hover:bg-primary/[0.05]">
-            <Plus className="h-5 w-5" />
-            <span className="text-[0.65rem] font-semibold">
-              {addImages.isPending ? 'Subiendo…' : 'Agregar'}
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              disabled={addImages.isPending}
-              onChange={(e) => {
-                const f = Array.from(e.target.files ?? []);
-                if (f.length) addImages.mutate(f);
-              }}
-            />
-          </label>
+          <AddImagesTile busy={addImages.isPending} onFiles={(f) => addImages.mutate(f)} />
         </div>
       </Section>
 

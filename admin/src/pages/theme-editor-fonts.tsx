@@ -1,29 +1,13 @@
 import { cn } from '@tiendafy/ui';
-import { type ThemeConfig, FONT_OPTIONS } from '@tiendafy/types';
+import { type ThemeConfig, FONT_OPTIONS, FONT_FAMILY_CSS } from '@tiendafy/types';
 import { BackHeader, Field, Select } from './theme-editor-inputs';
 
 // Catálogo compartido (@tiendafy/types). Copia mutable para el <Select> (options no-readonly).
 const fontOptions: { value: string; label: string }[] = [...FONT_OPTIONS];
 
-// Familias CSS para previsualizar en el panel (mismas que el storefront).
-const FONT_CSS: Record<string, string> = {
-  sans: 'ui-sans-serif, system-ui, sans-serif',
-  serif: 'Georgia, "Times New Roman", serif',
-  display: 'Georgia, serif',
-  mono: 'ui-monospace, monospace',
-  poppins: "'Poppins', sans-serif",
-  montserrat: "'Montserrat', sans-serif",
-  dmsans: "'DM Sans', sans-serif",
-  manrope: "'Manrope', sans-serif",
-  worksans: "'Work Sans', sans-serif",
-  spacegrotesk: "'Space Grotesk', sans-serif",
-  playfair: "'Playfair Display', serif",
-  lora: "'Lora', serif",
-  cormorant: "'Cormorant Garamond', serif",
-  dmserif: "'DM Serif Display', serif",
-  bebas: "'Bebas Neue', sans-serif",
-  archivoblack: "'Archivo Black', sans-serif",
-};
+// Familias CSS para previsualizar (catálogo compartido con la tienda). El
+// tema guarda la fuente como string libre, así que el índice es string.
+const FONT_CSS: Record<string, string> = FONT_FAMILY_CSS;
 
 // Combinaciones de tipografías que funcionan bien juntas (título + cuerpo).
 // Curadas según pares clásicos de diseño, usando sólo fuentes ya cargadas.

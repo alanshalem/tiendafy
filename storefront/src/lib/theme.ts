@@ -1,5 +1,12 @@
 import { apiGetTenant } from './api';
-import { type ThemeConfig, baseTheme, DEFAULT_SECTIONS, normalizeTheme, contrastText } from '@tiendafy/types';
+import {
+  type ThemeConfig,
+  baseTheme,
+  DEFAULT_SECTIONS,
+  normalizeTheme,
+  contrastText,
+  FONT_FAMILY_CSS,
+} from '@tiendafy/types';
 
 /* ============================================================
    El schema de tema vive en @tiendafy/types (fuente única, compartida
@@ -58,23 +65,12 @@ export async function fetchDraftTheme(tenantId: string, previewToken?: string): 
   return fetchPublishedTheme(tenantId).catch(() => mergeTheme(null));
 }
 
+// Catálogo compartido, con las fuentes que la tienda ya carga como variables.
 const FONT_FAMILIES: Record<string, string> = {
+  ...FONT_FAMILY_CSS,
   sans: 'var(--font-sans)',
-  serif: 'Georgia, "Times New Roman", serif',
   display: 'var(--font-fraunces, Georgia, serif)',
   mono: 'var(--font-mono)',
-  poppins: "'Poppins', sans-serif",
-  montserrat: "'Montserrat', sans-serif",
-  dmsans: "'DM Sans', sans-serif",
-  manrope: "'Manrope', sans-serif",
-  worksans: "'Work Sans', sans-serif",
-  spacegrotesk: "'Space Grotesk', sans-serif",
-  playfair: "'Playfair Display', serif",
-  lora: "'Lora', serif",
-  cormorant: "'Cormorant Garamond', serif",
-  dmserif: "'DM Serif Display', serif",
-  bebas: "'Bebas Neue', sans-serif",
-  archivoblack: "'Archivo Black', sans-serif",
 };
 
 /** Texto legible (blanco u oscuro) según la luminancia del fondo "R G B" (fuente única en @tiendafy/types). */

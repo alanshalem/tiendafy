@@ -625,15 +625,7 @@ public static class ProductEndpoints
                 .ToListAsync(ct);
             return Results.Ok(new
             {
-                items = withCosts.SelectMany(p => p.Variants.Select(v => new
-                {
-                    variantId = v.Id,
-                    sku = v.Sku,
-                    description = v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "Única",
-                    priceAmount = v.Price.AmountInMinorUnits,
-                    costAmount = v.Cost?.AmountInMinorUnits,
-                    currency = v.Price.Currency,
-                })),
+                items = withCosts.SelectMany(p => p.Variants.Select(VariantCostDto)),
             });
         });
 
@@ -728,6 +720,20 @@ public static class ProductEndpoints
 
     private static IResult MultipartExpected() =>
         Results.BadRequest(new { error = "Se espera multipart/form-data." });
+    /// <summary>
+    /// Variante con precio y costo: la forma exacta que consume la pantalla de
+    /// Costos, servida tanto de a un producto como en el bulk de la página.
+    /// </summary>
+    private static object VariantCostDto(Catalog.Core.Domain.Variant v) => new
+    {
+        variantId = v.Id,
+        sku = v.Sku,
+        description = v.OptionValues.Count > 0 ? string.Join(" / ", v.OptionValues) : "Única",
+        priceAmount = v.Price.AmountInMinorUnits,
+        costAmount = v.Cost?.AmountInMinorUnits,
+        currency = v.Price.Currency,
+    };
+
 
 }
 

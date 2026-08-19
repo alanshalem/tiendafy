@@ -24,3 +24,31 @@ export const FONT_OPTIONS = [
 
 /** Valor (`value`) de una fuente del catálogo, p.ej. 'sans' | 'poppins' | … */
 export type FontOptionValue = (typeof FONT_OPTIONS)[number]['value'];
+
+/**
+ * Familia CSS de cada fuente del catálogo. Estaba copiada en el panel (para
+ * previsualizar) y en la tienda (para renderizar): agregar una fuente al
+ * catálogo y olvidar una de las dos copias dejaba al comerciante eligiendo una
+ * tipografía que su tienda no aplicaba.
+ *
+ * La tienda pisa `sans`, `display` y `mono` con las variables de sus fuentes
+ * ya cargadas; el resto es idéntico en las dos apps.
+ */
+export const FONT_FAMILY_CSS: Record<FontOptionValue, string> = {
+  sans: 'ui-sans-serif, system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  display: 'Georgia, serif',
+  mono: 'ui-monospace, monospace',
+  poppins: "'Poppins', sans-serif",
+  montserrat: "'Montserrat', sans-serif",
+  dmsans: "'DM Sans', sans-serif",
+  manrope: "'Manrope', sans-serif",
+  worksans: "'Work Sans', sans-serif",
+  spacegrotesk: "'Space Grotesk', sans-serif",
+  playfair: "'Playfair Display', serif",
+  lora: "'Lora', serif",
+  cormorant: "'Cormorant Garamond', serif",
+  dmserif: "'DM Serif Display', serif",
+  bebas: "'Bebas Neue', sans-serif",
+  archivoblack: "'Archivo Black', sans-serif",
+};

@@ -19,32 +19,9 @@ public sealed class ProductImportWorker(
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
     IHttpClientFactory httpFactory,
-    ILogger<ProductImportWorker> logger) : BackgroundService
+    ILogger<ProductImportWorker> logger) : ImportQueueWorker<ImportJob>(queue, logger)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var jobId in queue.Reader.ReadAllAsync(stoppingToken))
-        {
-            var job = queue.Get(jobId);
-            if (job is null) continue;
-
-            try
-            {
-                await ProcessJobAsync(job, stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                job.Status = ImportStatus.Failed;
-                // No exponemos ex.Message al cliente (puede filtrar detalles internos);
-                // el stack completo queda en el log del servidor.
-                job.FailureMessage = "La importación falló por un error inesperado.";
-                job.FinishedAtUtc = DateTime.UtcNow;
-                logger.LogError(ex, "Importación {JobId} falló", job.Id);
-            }
-        }
-    }
-
-    private async Task ProcessJobAsync(ImportJob job, CancellationToken ct)
+    protected override async Task ProcessJobAsync(ImportJob job, CancellationToken ct)
     {
         job.Status = ImportStatus.Processing;
         var tenant = TenantId.From(job.TenantId);

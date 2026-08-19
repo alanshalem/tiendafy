@@ -6,7 +6,7 @@ import { useCart } from './cart';
 import { Captcha } from './Captcha';
 
 import { submitContact } from '@/lib/contact';
-import { INPUT_LIGHT_11 } from './styles';
+import { BTN_SUBMIT_PUBLIC, INPUT_LIGHT_11, TEXTAREA_LIGHT } from './styles';
 
 export function ContactForm() {
   const { tenantId } = useCart();
@@ -62,18 +62,14 @@ export function ContactForm() {
         placeholder="Tu mensaje"
         aria-label="Tu mensaje"
         rows={5}
-        className="w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-black"
+        className={TEXTAREA_LIGHT}
       />
 
       <Captcha onToken={setCaptcha} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={busy || captcha === null}
-        className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-fg disabled:opacity-60"
-      >
+      <button type="submit" disabled={busy || captcha === null} className={BTN_SUBMIT_PUBLIC}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Enviar
       </button>

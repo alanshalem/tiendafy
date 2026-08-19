@@ -133,6 +133,51 @@ public class MeliOrderTests
         order.Apply(status, DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
         Assert.Equal(expected, order.IsPaid);
     }
+
+    private static MeliOrder Sold(string status)
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 1);
+        order.Apply("paid", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        order.MarkStockApplied();
+        order.Apply(status, DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        return order;
+    }
+
+    /// <summary>
+    /// Una venta de ML que se cancela tiene que devolver el stock que descontó:
+    /// sin esto la mercadería quedaba descontada para siempre y la tienda
+    /// dejaba de vender lo que en realidad tenía en el depósito.
+    /// </summary>
+    [Fact]
+    public void VentaCancelada_PideDevolverElStock() =>
+        Assert.True(Sold("cancelled").NeedsStockReversal);
+
+    [Fact]
+    public void DevolverElStock_SeHaceUnaSolaVez()
+    {
+        var order = Sold("cancelled");
+        order.MarkStockReverted();
+        Assert.False(order.NeedsStockReversal);
+    }
+
+    /// <summary>
+    /// "refunded" es una devolución DESPUÉS del envío: la mercadería puede
+    /// estar en viaje, dañada o perdida, así que el reingreso lo decide una
+    /// persona (igual que en la tienda propia). No se toca el stock solo.
+    /// </summary>
+    [Theory]
+    [InlineData("refunded")]
+    [InlineData("paid")]
+    public void OtrosEstados_NoDevuelvenStockSolos(string status) =>
+        Assert.False(Sold(status).NeedsStockReversal);
+
+    [Fact]
+    public void SinStockDescontado_NoHayNadaQueDevolver()
+    {
+        var order = MeliOrder.Create(Guid.NewGuid(), 1);
+        order.Apply("cancelled", DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
+        Assert.False(order.NeedsStockReversal);
+    }
 }
 
 public class MeliSyncParseTests

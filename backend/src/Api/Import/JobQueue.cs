@@ -8,6 +8,11 @@ public interface IImportJob
 {
     Guid Id { get; }
     Guid TenantId { get; }
+
+    // Estado del job: lo escribe el worker (y la base, si el job falla).
+    ImportStatus Status { get; set; }
+    string? FailureMessage { get; set; }
+    DateTime? FinishedAtUtc { get; set; }
 }
 
 /// <summary>

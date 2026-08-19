@@ -288,6 +288,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("stock_applied");
 
+                    b.Property<bool>("StockReverted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("stock_reverted");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");

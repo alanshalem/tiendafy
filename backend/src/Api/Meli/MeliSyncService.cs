@@ -89,8 +89,15 @@ public sealed class MeliSyncService(
 
         if (row.IsPaid && !row.StockApplied)
         {
-            await ApplyStockAsync(tenantId, meliOrderId, items, ct);
+            await MoveStockAsync(tenantId, meliOrderId, items, reverse: false, ct);
             row.MarkStockApplied();
+        }
+        else if (row.NeedsStockReversal)
+        {
+            // La venta se canceló: la mercadería que se había descontado vuelve
+            // al disponible. Idempotente por el flag, igual que la ida.
+            await MoveStockAsync(tenantId, meliOrderId, items, reverse: true, ct);
+            row.MarkStockReverted();
         }
 
         await ApplyFiscalAsync(tenantId, row, meliOrderId, ct);
@@ -151,11 +158,14 @@ public sealed class MeliSyncService(
     }
 
     /// <summary>
-    /// Descuenta stock local para los items vinculados. Best-effort por item:
-    /// una publicación sin vincular simplemente no toca stock.
+    /// Mueve el stock local de los items vinculados: lo descuenta al venderse
+    /// y lo devuelve si la venta se cancela. Un solo camino para los dos
+    /// sentidos — con dos copias, la vuelta se olvida (y se olvidó).
+    /// Best-effort por item: una publicación sin vincular no toca stock.
     /// </summary>
-    private async Task ApplyStockAsync(
-        Guid tenantId, long meliOrderId, IReadOnlyList<MeliOrderItemSnapshot> items, CancellationToken ct)
+    private async Task MoveStockAsync(
+        Guid tenantId, long meliOrderId, IReadOnlyList<MeliOrderItemSnapshot> items,
+        bool reverse, CancellationToken ct)
     {
         foreach (var item in items)
         {
@@ -169,11 +179,14 @@ public sealed class MeliSyncService(
             if (link is null || !link.SyncStock) continue;
 
             var tenant = TenantId.From(tenantId);
-            var after = await stock.AdjustAvailableAsync(tenant, link.VariantId, -item.Quantity,
-                $"Venta Mercado Libre #{meliOrderId}", ct);
+            var delta = reverse ? item.Quantity : -item.Quantity;
+            var reason = reverse
+                ? $"Cancelación Mercado Libre #{meliOrderId}"
+                : $"Venta Mercado Libre #{meliOrderId}";
+            var after = await stock.AdjustAvailableAsync(tenant, link.VariantId, delta, reason, ct);
             logger.LogInformation(
-                "Stock ML aplicado: tenant {TenantId}, variante {VariantId}, -{Qty} → queda {After}.",
-                tenantId, link.VariantId, item.Quantity, after);
+                "Stock ML {Action}: tenant {TenantId}, variante {VariantId}, {Delta} → queda {After}.",
+                reverse ? "devuelto" : "aplicado", tenantId, link.VariantId, delta, after);
         }
     }
 

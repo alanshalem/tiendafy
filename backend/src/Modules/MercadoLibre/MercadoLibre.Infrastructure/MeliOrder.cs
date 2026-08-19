@@ -36,6 +36,14 @@ public sealed class MeliOrder
     /// <summary>Idempotencia del descuento de stock local: se aplica UNA sola vez por orden.</summary>
     public bool StockApplied { get; private set; }
 
+    /// <summary>
+    /// La venta se canceló y el stock que había descontado ya volvió al
+    /// disponible. Es el espejo de <see cref="StockApplied"/>: sin él, una
+    /// venta cancelada dejaba la mercadería descontada para siempre y la
+    /// tienda dejaba de vender lo que en realidad tenía en el depósito.
+    /// </summary>
+    public bool StockReverted { get; private set; }
+
     /// <summary>Comprobante ARCA emitido para esta venta ML (null = sin facturar).</summary>
     public Guid? FiscalDocumentId { get; private set; }
 
@@ -98,4 +106,14 @@ public sealed class MeliOrder
     }
 
     public void MarkStockApplied() => StockApplied = true;
+
+    public void MarkStockReverted() => StockReverted = true;
+
+    /// <summary>
+    /// Venta cancelada cuya mercadería nunca salió: corresponde devolver el
+    /// stock. Solo "cancelled" — un "refunded" es una devolución después del
+    /// envío y ahí la mercadería puede estar en viaje, dañada o perdida; esa
+    /// decisión es del humano, como en la tienda propia.
+    /// </summary>
+    public bool NeedsStockReversal => StockApplied && !StockReverted && Status is "cancelled";
 }

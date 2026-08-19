@@ -5,6 +5,59 @@ import { api, errMsg } from '../lib/api';
 
 /* Uploaders del editor de diseño (imagen / video / multi-imagen del carrusel). */
 
+/**
+ * Zona de "elegir archivo" con su subida: el trámite (spinner, POST a /media,
+ * error legible, reset del input) es idéntico para imagen y para video, y
+ * estaba escrito dos veces. Cada uploader pone su preview y sus textos.
+ */
+function UploadDropzone({
+  accept,
+  idleLabel,
+  busyLabel,
+  errorMsg,
+  onUploaded,
+}: {
+  accept: string;
+  idleLabel: string;
+  busyLabel: string;
+  errorMsg: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
+  return (
+    <label
+      className={cn(
+        'flex h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary',
+        uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/[0.05]',
+      )}
+    >
+      {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
+      <span className="text-xs font-semibold">{uploading ? busyLabel : idleLabel}</span>
+      <input
+        type="file"
+        accept={accept}
+        className="hidden"
+        disabled={uploading}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setUploading(true);
+          try {
+            const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
+            onUploaded(url);
+          } catch (err) {
+            toast(errMsg(err, errorMsg), { variant: 'error' });
+          } finally {
+            setUploading(false);
+            e.target.value = '';
+          }
+        }}
+      />
+    </label>
+  );
+}
+
 export function ImageUploader({
   value,
   onChange,
@@ -14,8 +67,6 @@ export function ImageUploader({
   onChange: (url: string) => void;
   allowSvg?: boolean;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
   // SVG solo para logo/favicon (vectorial, nítido). NO para og:image — las redes
   // sociales no renderizan SVG al compartir.
   const accept = allowSvg
@@ -49,35 +100,13 @@ export function ImageUploader({
           </button>
         </div>
       ) : (
-        <label
-          className={cn(
-            'flex h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary',
-            uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/[0.05]',
-          )}
-        >
-          {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
-          <span className="text-xs font-semibold">{uploading ? 'Subiendo imagen…' : 'Elegir imagen'}</span>
-          <input
-            type="file"
-            accept={accept}
-            className="hidden"
-            disabled={uploading}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setUploading(true);
-              try {
-                const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
-                onChange(url);
-              } catch (err) {
-                toast(errMsg(err, errorMsg), { variant: 'error' });
-              } finally {
-                setUploading(false);
-                e.target.value = '';
-              }
-            }}
-          />
-        </label>
+        <UploadDropzone
+          accept={accept}
+          idleLabel="Elegir imagen"
+          busyLabel="Subiendo imagen…"
+          errorMsg={errorMsg}
+          onUploaded={onChange}
+        />
       )}
     </div>
   );
@@ -94,8 +123,6 @@ export function VideoUploader({
   accept: string;
   label: string;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
   return (
     <div>
       {value ? (
@@ -117,37 +144,13 @@ export function VideoUploader({
           </button>
         </div>
       ) : (
-        <label
-          className={cn(
-            'flex h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/40 text-primary',
-            uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/[0.05]',
-          )}
-        >
-          {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
-          <span className="text-xs font-semibold">{uploading ? 'Subiendo video…' : label}</span>
-          <input
-            type="file"
-            accept={accept}
-            className="hidden"
-            disabled={uploading}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setUploading(true);
-              try {
-                const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
-                onChange(url);
-              } catch (err) {
-                toast(errMsg(err, 'Error subiendo el video. Usá MP4 o WebM (hasta 20MB).'), {
-                  variant: 'error',
-                });
-              } finally {
-                setUploading(false);
-                e.target.value = '';
-              }
-            }}
-          />
-        </label>
+        <UploadDropzone
+          accept={accept}
+          idleLabel={label}
+          busyLabel="Subiendo video…"
+          errorMsg="Error subiendo el video. Usá MP4 o WebM (hasta 20MB)."
+          onUploaded={onChange}
+        />
       )}
     </div>
   );

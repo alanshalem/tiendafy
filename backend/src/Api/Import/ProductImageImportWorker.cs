@@ -15,38 +15,16 @@ public sealed partial class ProductImageImportWorker(
     ImageImportQueue queue,
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
-    ILogger<ProductImageImportWorker> logger) : BackgroundService
+    ILogger<ProductImageImportWorker> logger) : ImportQueueWorker<ImageImportJob>(queue, logger)
 {
 
     [GeneratedRegex(@"^(.*)-(\d+)$")]
     private static partial Regex SuffixRegex();
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var jobId in queue.Reader.ReadAllAsync(stoppingToken))
-        {
-            var job = queue.Get(jobId);
-            if (job is null) continue;
+    /// <summary>Los archivos subidos se borran del disco pase lo que pase.</summary>
+    protected override void OnFinished(ImageImportJob job) => TryCleanup(job.TempDir);
 
-            try
-            {
-                await ProcessJobAsync(job, stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                job.Status = ImportStatus.Failed;
-                job.FailureMessage = ex.Message;
-                job.FinishedAtUtc = DateTime.UtcNow;
-                logger.LogError(ex, "Import de imágenes {JobId} falló", job.Id);
-            }
-            finally
-            {
-                TryCleanup(job.TempDir);
-            }
-        }
-    }
-
-    private async Task ProcessJobAsync(ImageImportJob job, CancellationToken ct)
+    protected override async Task ProcessJobAsync(ImageImportJob job, CancellationToken ct)
     {
         job.Status = ImportStatus.Processing;
         var tenant = TenantId.From(job.TenantId);

@@ -311,6 +311,38 @@ entero. Lo aplicado, agrupado por lo que arregla:
   storefront antes de los tests (el build de prod es lo único que detecta
   errores que el dev server perdona).
 
+## Pasada 9 — clones medidos, no intuidos
+
+Barrido con un detector de bloques repetidos (ventanas de 7 líneas
+normalizadas) sobre backend, admin, storefront y shared: 36 grupos de código
+duplicado, de los que se atacaron los que tenían riesgo real de divergir.
+
+- **Bug destapado**: una venta de Mercado Libre **cancelada nunca devolvía el
+  stock** que había descontado. Mismo patrón que el de kits: la ida existía y
+  la vuelta no. `MoveStockAsync` ahora hace los dos sentidos con la misma
+  resolución de vínculo, con flag `StockReverted` para que no se aplique dos
+  veces (migración `AddMeliOrderStockReverted`). Solo se revierte en
+  `cancelled`: un `refunded` es una devolución posterior al envío y esa
+  decisión es de una persona, igual que en la tienda propia.
+- **Fuga menor cerrada**: el worker de importación de imágenes devolvía
+  `ex.Message` crudo a la pantalla del usuario (el de productos ya usaba un
+  mensaje genérico). Los dos comparten ahora `ImportQueueWorker<TJob>`, que
+  centraliza el consumo de la cola, el marcado de fallo y la limpieza.
+- **DRY**: `FONT_FAMILY_CSS` en `@tiendafy/types` (el mapa de familias estaba
+  copiado entre el panel y la tienda: agregar una fuente y olvidar una copia
+  dejaba al comerciante eligiendo una tipografía que su tienda no aplicaba),
+  `VariantCostDto` en ProductEndpoints, `RemovableThumb`/`AddImagesTile` entre
+  alta y edición de producto, `UploadDropzone` entre los uploaders de imagen y
+  video del editor, y `TEXTAREA_LIGHT`/`BTN_SUBMIT_PUBLIC` entre los dos
+  formularios públicos de la tienda.
+- **Higiene verificada**: cero TODO/FIXME, cero `console.log`, un solo `any`
+  (la API de BarcodeDetector, que no está en los tipos del navegador).
+- **NO aplicado a propósito**: envolver el preámbulo de los 7 endpoints de
+  Mercado Libre (`ResolveConnectionAsync` + `NotConnected`) en un helper con
+  lambdas — lo compartido ya está extraído y el wrapper agrega indirección por
+  3 líneas; y los 3 endpoints de reservas de Inventory sin consumidor, que son
+  la API pública del módulo (mismo criterio que los tipos exportados).
+
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 
 - Unificar modales de envío Correo/Zipnova y `RepeatableList` del theme-editor:

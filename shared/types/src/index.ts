@@ -29,5 +29,5 @@ export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS
 export { formatMoney, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText } from './color';
-export { FONT_OPTIONS } from './fonts';
+export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
 export type { MoneyDto } from './wire';
