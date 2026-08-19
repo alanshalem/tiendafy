@@ -1,6 +1,8 @@
 using Api.Notifications;
+using Discounts.Infrastructure;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
+using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 
 namespace Api.Orders;
@@ -22,6 +24,7 @@ public sealed class PaidOrderSideEffects(
     OrderNotifier notifier,
     WhatsAppNotifier whatsapp,
     IFiscalEmissionQueue fiscal,
+    DiscountsDbContext discounts,
     ILogger<PaidOrderSideEffects> logger)
 {
     /// <param name="whatsApp">
@@ -43,6 +46,27 @@ public sealed class PaidOrderSideEffects(
         await StepAsync("factura automática", order, () => fiscal.EnqueueInvoiceAsync(
             order.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
             order.DocNumber, EmissionTrigger.OnPayment, ct));
+
+        await StepAsync("uso del cupón", order, () => RegisterCouponUseAsync(order, ct));
+    }
+
+    /// <summary>
+    /// Suma un uso al cupón de la venta. El contador ya se mostraba en el panel
+    /// y el límite "máximo N usos" ya se validaba… pero nadie lo incrementaba:
+    /// un cupón con tope era, en los hechos, ilimitado. Se cuenta al PAGARSE y
+    /// no al crear la orden, así "usos" son ventas cobradas y no intentos.
+    /// </summary>
+    private async Task RegisterCouponUseAsync(Order order, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(order.CouponCode)) return;
+
+        var code = order.CouponCode.Trim().ToUpperInvariant();
+        var coupon = await discounts.Coupons
+            .FirstOrDefaultAsync(c => c.TenantId == order.TenantId.Value && c.Code == code, ct);
+        if (coupon is null) return;
+
+        coupon.RegisterUse();
+        await discounts.SaveChangesAsync(ct);
     }
 
     private async Task StepAsync(string step, Order order, Func<Task> run)

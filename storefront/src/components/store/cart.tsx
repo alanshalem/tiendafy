@@ -4,12 +4,25 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 
-import { readJson, writeJson } from '@/lib/storage';
+import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 
 export const cartStorageKey = (storeKey: string) => `tiendafy.cart.${storeKey}`;
+
+/**
+ * El cupón aplicado vive al lado del carrito (misma tienda, misma duración):
+ * antes moría en el estado del drawer y el comprador tenía que volver a
+ * escribirlo en el checkout — o se olvidaba y pagaba de más.
+ */
+export const couponStorageKey = (storeKey: string) => `tiendafy.coupon.${storeKey}`;
+
+export interface StoredCoupon {
+  code: string;
+  discount: number; // centavos
+  freeShipping: boolean;
+}
 
 export interface CartLine {
   variantId: string;
@@ -118,12 +131,22 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
   const remaining = Math.max(0, threshold - totalAmount);
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
 
+  const couponKey = couponStorageKey(tenantId);
   const [couponInput, setCouponInput] = useState('');
-  const [coupon, setCoupon] = useState<{ code: string; discount: number; freeShipping: boolean } | null>(
-    null,
-  );
+  const [coupon, setCouponState] = useState<StoredCoupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+
+  // Guardar y leer van juntos: el cupón sobrevive al viaje al checkout.
+  const setCoupon = (next: StoredCoupon | null) => {
+    setCouponState(next);
+    if (next) writeJson(couponKey, next);
+    else removeKey(couponKey);
+  };
+
+  useEffect(() => {
+    setCouponState(readJson<StoredCoupon | null>(couponKey, null));
+  }, [couponKey]);
 
   // A11y: enfoca el drawer al abrir, atrapa el Tab dentro y restaura el foco al cerrar.
   const drawerRef = useFocusTrap<HTMLElement>(open);
@@ -153,11 +176,14 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
     setChecking(false);
   };
 
-  // Re-validar el cupón aplicado si cambia el subtotal (sumar/quitar productos).
+  // Re-validar el cupón aplicado si cambia el subtotal (sumar/quitar productos);
+  // si el carrito quedó vacío, el cupón se descarta con él.
   useEffect(() => {
-    if (coupon) validateCoupon(coupon.code);
+    if (!coupon) return;
+    if (lines.length === 0) setCoupon(null);
+    else validateCoupon(coupon.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalAmount]);
+  }, [totalAmount, lines.length]);
 
   const discount = coupon?.discount ?? 0;
   const finalTotal = Math.max(0, totalAmount - discount);

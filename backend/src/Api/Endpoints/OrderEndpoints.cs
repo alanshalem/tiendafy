@@ -454,6 +454,7 @@ public static class OrderEndpoints
 
         // Cupón: NUNCA confiar en el descuento del cliente; recalcular server-side.
         Money discount = Money.Zero(session.Currency);
+        var freeShipping = false;
         var code = (couponCode ?? string.Empty).Trim().ToUpperInvariant();
         if (code.Length > 0)
         {
@@ -463,9 +464,18 @@ public static class OrderEndpoints
             if (coupon is not null)
             {
                 var ev = coupon.Evaluate(subtotal, DateTime.UtcNow);
-                if (ev.Valid && ev.Discount > 0) discount = new Money(ev.Discount, session.Currency);
+                if (ev.Valid)
+                {
+                    if (ev.Discount > 0) discount = new Money(ev.Discount, session.Currency);
+                    freeShipping = ev.FreeShipping;
+                }
             }
         }
+
+        // Un cupón de envío gratis no descuenta del producto: pone el envío en
+        // cero. Sin esto, el carrito prometía "envío gratis" y el comprador
+        // igual pagaba el envío completo.
+        var shippingCost = freeShipping ? Money.Zero(session.Currency) : session.ShippingCost;
 
         // Snapshot de COSTO al momento de la venta (rentabilidad): se lee del
         // catálogo acá y no en el checkout — el costo que importa es el vigente
@@ -485,7 +495,7 @@ public static class OrderEndpoints
         return await createOrder.HandleAsync(new CreateOrderCommand(
             tenantId, session.Id, session.Email ?? string.Empty, session.Currency, lines,
             discount.IsZero ? null : discount, code.Length > 0 ? code : null,
-            ShippingCost: session.ShippingCost,
+            ShippingCost: shippingCost,
             ShippingMethodName: session.ShippingMethodName,
             ShippingAddress: session.ShippingAddress,
             BuyerName: buyerFullName.Length > 0 ? buyerFullName : null,

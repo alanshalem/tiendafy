@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
 import { formatDate, formatMoney } from '@tiendafy/types';
@@ -8,8 +8,8 @@ import { CheckoutResult } from './CheckoutResult';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
-import { cartStorageKey, type CartLine } from './cart';
-import { readJson } from '@/lib/storage';
+import { cartStorageKey, couponStorageKey, type CartLine, type StoredCoupon } from './cart';
+import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
 
@@ -119,7 +119,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [notes, setNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   const [couponInput, setCouponInput] = useState('');
-  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [coupon, setCoupon] = useState<StoredCoupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
 
   const [paying, setPaying] = useState(false);
@@ -128,6 +128,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   useEffect(() => {
     setLines(readJson<CartLine[]>(cartStorageKey(tenantId), []));
+    // El cupón que el comprador aplicó en el carrito llega hasta acá; igual se
+    // revalida contra el servidor antes de cobrar (nunca se confía en el dato
+    // guardado en el navegador).
+    setCoupon(readJson<StoredCoupon | null>(couponStorageKey(tenantId), null));
     setHydrated(true);
   }, [tenantId]);
 
@@ -164,8 +168,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const selectedZipnova = shippingId?.startsWith('zipnova-')
     ? (zipnovaOptions?.[Number(shippingId.slice(8))] ?? null)
     : null;
-  const shipCost =
+  const quotedShipping =
     selectedCorreo?.price.amount ?? selectedZipnova?.price.amount ?? selected?.price.amount ?? 0; // centavos (ApiJson.MoneyJson)
+  // Cupón de envío gratis: el servidor pone el envío en cero al crear la orden,
+  // así que lo que se muestra acá tiene que decir lo mismo.
+  const shipCost = coupon?.freeShipping ? 0 : quotedShipping;
   const total = Math.max(0, subtotal - discount) + shipCost;
   const needsAddress =
     selected?.kind === 'DELIVERY' || selectedCorreo?.kind === 'D' || selectedZipnova !== null;
@@ -258,17 +265,31 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
-  const applyCoupon = async () => {
-    const code = couponInput.trim().toUpperCase();
+  const applyCoupon = async (raw?: string) => {
+    const code = (raw ?? couponInput).trim().toUpperCase();
     if (!code) return;
     setCouponError(null);
     const r = await validateCouponApi(tenantId, code, subtotal);
-    if (r.ok) setCoupon({ code: r.code, discount: r.discount });
-    else {
+    if (r.ok) {
+      const applied: StoredCoupon = { code: r.code, discount: r.discount, freeShipping: r.freeShipping };
+      setCoupon(applied);
+      writeJson(couponStorageKey(tenantId), applied);
+    } else {
       setCoupon(null);
+      removeKey(couponStorageKey(tenantId));
       setCouponError(r.error);
     }
   };
+
+  // El cupón que vino del carrito se revalida con el subtotal real de esta
+  // compra: si venció o ya no llega al mínimo, se cae acá y no en el cobro.
+  const revalidated = useRef(false);
+  useEffect(() => {
+    if (revalidated.current || !hydrated || !coupon || subtotal <= 0) return;
+    revalidated.current = true;
+    applyCoupon(coupon.code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, coupon, subtotal]);
 
   const formattedAddress = () =>
     needsAddress
@@ -915,7 +936,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
             )}
             {(selected || selectedCorreo || selectedZipnova) && (
               <div className="flex justify-between">
-                <span className="opacity-70">Costo de envío</span>
+                <span className="opacity-70">
+                  Costo de envío
+                  {coupon?.freeShipping && quotedShipping > 0 ? ` (gratis con ${coupon.code})` : ''}
+                </span>
                 <span className="tabular-nums">
                   {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
                 </span>
@@ -937,7 +961,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                   className={INPUT_LIGHT_10}
                 />
                 <button
-                  onClick={applyCoupon}
+                  onClick={() => applyCoupon()}
                   className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold"
                 >
                   <Tag className="h-4 w-4" /> Aplicar
