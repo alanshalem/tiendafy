@@ -67,7 +67,11 @@ export function BarChart({
       </div>
       <div className="mt-1.5 flex justify-between text-[0.65rem] text-fg-subtle">
         <span>{data[0]!.label}</span>
-        {data.length > 2 && <span className="font-medium text-fg-muted">{data[peak]!.label}</span>}
+        {/* El pico solo se rotula si no es ya la primera ni la última: si no,
+            la fecha aparece repetida en la misma línea. */}
+        {data.length > 2 && peak !== 0 && peak !== data.length - 1 && (
+          <span className="font-medium text-fg-muted">{data[peak]!.label}</span>
+        )}
         <span>{data[data.length - 1]!.label}</span>
       </div>
     </div>

@@ -11,9 +11,11 @@ import {
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
+import { BarChart, Delta } from '../../components/charts/viz';
+import { Pagination } from '../../components/Pagination';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 
 interface Profitability {
@@ -25,7 +27,9 @@ interface Profitability {
   shippingCharged: number;
   profit: number;
   marginPct: number;
+  previous: { revenue: number; profit: number; marginPct: number };
   coverage: { ordersWithCost: number; ordersTotal: number };
+  productsTotal: number;
   series: { date: string; profit: number; revenue: number }[];
   byProduct: {
     product: string;
@@ -72,14 +76,22 @@ interface MetaSpend {
  * Rentabilidad REAL: ganancia = venta de productos (neta de cupón) − costo
  * snapshot − comisión de MP. Vender no es ganar: acá se ve cuánto queda.
  */
+/** Productos por página en la tabla de ganancia. */
+const PAGE_SIZE = 20;
+
 export function StatsProfitabilityPage() {
   const { store } = useStore();
   const [range, setRange] = useState(defaultStatsRange());
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['stats-profitability', store?.id, range.from, range.to],
-    queryFn: () => api.get<Profitability>(`/api/v1/stats/profitability?${rangeQuery(range)}`),
+    queryKey: ['stats-profitability', store?.id, range.from, range.to, page],
+    queryFn: () =>
+      api.get<Profitability>(
+        `/api/v1/stats/profitability?${rangeQuery(range)}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
   });
+  const totalPages = Math.max(1, Math.ceil((data?.productsTotal ?? 0) / PAGE_SIZE));
 
   const coverage = data?.coverage;
   const partial = coverage && coverage.ordersWithCost < coverage.ordersTotal;
@@ -128,12 +140,17 @@ export function StatsProfitabilityPage() {
                   value={formatMoney(data.profit, data.currency)}
                 >
                   <Sparkline data={data.series.map((s) => s.profit)} />
+                  <div className="mt-1">
+                    <Delta current={data.profit} previous={data.previous.profit} />
+                  </div>
                 </KpiCard>
                 <KpiCard
                   title="Margen"
                   hint="Ganancia ÷ ventas, contando solo las órdenes con costo cargado."
                   value={`${data.marginPct.toLocaleString('es-AR')}%`}
-                />
+                >
+                  <Delta current={data.marginPct} previous={data.previous.marginPct} />
+                </KpiCard>
                 <KpiCard
                   title="Costo de productos"
                   hint="El costo del momento de la venta (snapshot), no el de hoy."
@@ -222,8 +239,23 @@ export function StatsProfitabilityPage() {
                         ))}
                       </tbody>
                     </table>
+                    <Pagination page={page} totalPages={totalPages} onPage={setPage} />
                   </div>
                 )}
+              </ChartCard>
+
+              <ChartCard
+                title="Ganancia por día"
+                info="Cuánto quedó cada día después del costo y las comisiones. Solo cuenta las ventas con costo cargado."
+              >
+                <BarChart
+                  data={data.series.map((s) => ({
+                    label: formatDayShort(s.date),
+                    value: s.profit,
+                    title: `${formatDayShort(s.date)}: ${formatMoney(s.profit, data.currency)} de ganancia`,
+                  }))}
+                  format={(v) => formatMoney(v, data.currency)}
+                />
               </ChartCard>
 
               <p className="text-xs text-fg-muted">

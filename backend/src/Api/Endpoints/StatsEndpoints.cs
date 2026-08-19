@@ -221,10 +221,11 @@ public static class StatsEndpoints
         stats.MapGet("/profitability", async (
             ITenantContext tenant, OrdersDbContext ordersDb, CatalogDbContext catalogDb,
             MercadoLibre.Infrastructure.MeliDbContext meliDb,
-            int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var (since, until) = Range(from, to, days ?? 30);
+            var previousSince = since - (until - since);
 
             var paid = await ordersDb.Orders
                 .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until)
@@ -295,6 +296,18 @@ public static class StatsEndpoints
 
             var meli = await MeliChannelProfitAsync(meliDb, catalogDb, tid, since, until, ct);
 
+            // Mismo cálculo sobre el período anterior de igual duración: el
+            // margen sin contra qué compararlo no dice si vas mejorando.
+            var beforePaid = await ordersDb.Orders
+                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                    && o.CreatedAtUtc >= previousSince && o.CreatedAtUtc < since)
+                .ToListAsync(ct);
+            var beforeWithCost = beforePaid.Where(o => o.ProductCost is not null).ToList();
+            var beforeRevenueWithCost = beforeWithCost.Sum(ItemsNet);
+            var beforeProfit = beforeRevenueWithCost
+                - beforeWithCost.Sum(o => o.ProductCost!.Value.AmountInMinorUnits)
+                - beforeWithCost.Sum(o => o.MpFeeAmount?.AmountInMinorUnits ?? 0);
+
             return Results.Ok(new
             {
                 currency,
@@ -305,9 +318,21 @@ public static class StatsEndpoints
                 shippingCharged,
                 profit,
                 marginPct = revenueWithCost > 0 ? Math.Round(profit * 100m / revenueWithCost, 1) : 0m,
+                previous = new
+                {
+                    revenue = beforePaid.Sum(ItemsNet),
+                    profit = beforeProfit,
+                    marginPct = beforeRevenueWithCost > 0
+                        ? Math.Round(beforeProfit * 100m / beforeRevenueWithCost, 1)
+                        : 0m,
+                },
                 coverage = new { ordersWithCost = withCost.Count, ordersTotal = paid.Count },
                 series,
-                byProduct,
+                productsTotal = byProduct.Count,
+                byProduct = byProduct
+                    .Skip(Math.Max(0, offset ?? 0))
+                    .Take(Math.Clamp(limit ?? 20, 1, 100))
+                    .ToList(),
                 byChannel,
                 meli,
             });
@@ -315,23 +340,43 @@ public static class StatsEndpoints
 
         // Reporte de cupones (uso real desde Orders + estado desde Discounts).
         stats.MapGet("/coupons", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, DiscountsDbContext discounts, CancellationToken ct) =>
+            ITenantContext tenant, OrdersDbContext ordersDb, DiscountsDbContext discounts,
+            int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
+            var (since, until) = Range(from, to, days ?? 90);
+            var previousSince = since - (until - since);
 
-            var used = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CouponCode != null).ToListAsync(ct);
+            var window = await ordersDb.Orders
+                .Where(o => o.TenantId == tid && o.CouponCode != null && o.CreatedAtUtc >= previousSince && o.CreatedAtUtc < until)
+                .ToListAsync(ct);
+            var used = window.Where(o => o.CreatedAtUtc >= since).ToList();
+            var before = window.Where(o => o.CreatedAtUtc < since).ToList();
+
             var byCoupon = used.GroupBy(o => o.CouponCode!)
-                .Select(g => new
+                .Select(g =>
                 {
-                    code = g.Key,
-                    uses = g.Count(),
-                    paidUses = g.Count(o => o.Status == OrderStatus.Paid),
-                    discountGiven = g.Where(o => o.Status == OrderStatus.Paid).Sum(o => o.DiscountAmount.AmountInMinorUnits),
+                    var paidOrders = g.Where(o => o.Status == OrderStatus.Paid).ToList();
+                    var discount = paidOrders.Sum(o => o.DiscountAmount.AmountInMinorUnits);
+                    // Lo que el cupón TRAJO, no solo lo que regaló: sin esto no
+                    // se puede saber si un descuento valió la pena.
+                    var revenue = paidOrders.Sum(o => o.Total.AmountInMinorUnits);
+                    return new
+                    {
+                        code = g.Key,
+                        uses = g.Count(),
+                        paidUses = paidOrders.Count,
+                        discountGiven = discount,
+                        revenue,
+                        netRevenue = revenue - discount,
+                    };
                 })
-                .OrderByDescending(x => x.uses).ToList();
+                .OrderByDescending(x => x.revenue)
+                .ToList();
 
             var totalCoupons = await discounts.Coupons.CountAsync(c => c.TenantId == tid.Value, ct);
             var activeCoupons = await discounts.Coupons.CountAsync(c => c.TenantId == tid.Value && c.Active, ct);
+            var previousPaid = before.Where(o => o.Status == OrderStatus.Paid).ToList();
 
             return Results.Ok(new
             {
@@ -339,33 +384,90 @@ public static class StatsEndpoints
                 activeCoupons,
                 totalUses = byCoupon.Sum(x => x.uses),
                 totalDiscount = byCoupon.Sum(x => x.discountGiven),
-                items = byCoupon,
+                totalRevenue = byCoupon.Sum(x => x.revenue),
+                previous = new
+                {
+                    totalUses = before.Count,
+                    totalDiscount = previousPaid.Sum(o => o.DiscountAmount.AmountInMinorUnits),
+                    totalRevenue = previousPaid.Sum(o => o.Total.AmountInMinorUnits),
+                },
+                total = byCoupon.Count,
+                items = byCoupon
+                    .Skip(Math.Max(0, offset ?? 0))
+                    .Take(Math.Clamp(limit ?? 20, 1, 100))
+                    .ToList(),
             });
         });
 
         // Visitas (de page_views). Rango: from/to o days.
         stats.MapGet("/visits", async (
-            ITenantContext tenant, AnalyticsDbContext analytics, int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            ITenantContext tenant, AnalyticsDbContext analytics, OrdersDbContext ordersDb,
+            int? days, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
-            var tidGuid = tenant.TenantId.Value;
+            var tid = tenant.TenantId;
+            var tidGuid = tid.Value;
             var (since, until) = Range(from, to, days ?? 14);
+            var previousSince = since - (until - since);
 
-            var views = await analytics.PageViews.Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= since && v.OccurredAtUtc < until).ToListAsync(ct);
-            var series = views.GroupBy(v => v.OccurredAtUtc.Date)
-                .Select(g => new { date = g.Key, views = g.Count(), visitors = g.Select(x => x.VisitorId).Distinct().Count() })
-                .OrderBy(x => x.date).ToList();
-            var topPaths = views.GroupBy(v => v.Path)
+            // Todo se cuenta en la base: una tienda con tráfico real tiene
+            // decenas de miles de vistas por período y traerlas para contarlas
+            // en memoria es pedirle al servidor que se caiga solo.
+            var period = analytics.PageViews.Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= since && v.OccurredAtUtc < until);
+
+            var totalViews = await period.CountAsync(ct);
+            var uniqueVisitors = await period.Select(v => v.VisitorId).Distinct().CountAsync(ct);
+
+            var series = (await period
+                    .GroupBy(v => v.OccurredAtUtc.Date)
+                    .Select(g => new { date = g.Key, views = g.Count(), visitors = g.Select(x => x.VisitorId).Distinct().Count() })
+                    .ToListAsync(ct))
+                .OrderBy(x => x.date)
+                .ToList();
+
+            var topPaths = await period
+                .GroupBy(v => v.Path)
                 .Select(g => new { path = g.Key, views = g.Count() })
-                .OrderByDescending(x => x.views).Take(10).ToList();
+                .OrderByDescending(x => x.views)
+                .Take(10)
+                .ToListAsync(ct);
+
             // De dónde viene el tráfico (utm_source de los links: redes, email…).
-            var topSources = views.GroupBy(v => v.UtmSource ?? "directo")
+            var topSources = await period
+                .GroupBy(v => v.UtmSource ?? "directo")
                 .Select(g => new { source = g.Key, views = g.Count() })
-                .OrderByDescending(x => x.views).Take(8).ToList();
+                .OrderByDescending(x => x.views)
+                .Take(8)
+                .ToListAsync(ct);
+
+            var previous = analytics.PageViews.Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= previousSince && v.OccurredAtUtc < since);
+            var previousViews = await previous.CountAsync(ct);
+            var previousVisitors = await previous.Select(v => v.VisitorId).Distinct().CountAsync(ct);
+
+            // Conversión: de cada 100 visitantes distintos, cuántos compraron.
+            // Es la métrica que convierte "tuve mucha visita" en "sirvió".
+            var ordersInPeriod = await ordersDb.Orders
+                .CountAsync(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                    && o.PaidAtUtc >= since && o.PaidAtUtc < until, ct);
+            var previousOrders = await ordersDb.Orders
+                .CountAsync(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                    && o.PaidAtUtc >= previousSince && o.PaidAtUtc < since, ct);
+
+            static decimal Rate(int orders, int visitors) =>
+                visitors > 0 ? Math.Round(orders * 100m / visitors, 2) : 0m;
 
             return Results.Ok(new
             {
-                totalViews = views.Count,
-                uniqueVisitors = views.Select(v => v.VisitorId).Distinct().Count(),
+                totalViews,
+                uniqueVisitors,
+                orders = ordersInPeriod,
+                conversionPct = Rate(ordersInPeriod, uniqueVisitors),
+                previous = new
+                {
+                    totalViews = previousViews,
+                    uniqueVisitors = previousVisitors,
+                    orders = previousOrders,
+                    conversionPct = Rate(previousOrders, previousVisitors),
+                },
                 series,
                 topPaths,
                 topSources,
@@ -374,7 +476,7 @@ public static class StatsEndpoints
 
         // Tiempo real (page_views de los últimos 5 minutos).
         stats.MapGet("/realtime", async (
-            ITenantContext tenant, AnalyticsDbContext analytics, CancellationToken ct) =>
+            ITenantContext tenant, AnalyticsDbContext analytics, OrdersDbContext ordersDb, CancellationToken ct) =>
         {
             var tidGuid = tenant.TenantId.Value;
             var since = DateTime.UtcNow.AddMinutes(-5);
@@ -386,12 +488,53 @@ public static class StatsEndpoints
                 .Select(g => new { path = g.Key, visitors = g.Select(x => x.VisitorId).Distinct().Count() })
                 .OrderByDescending(x => x.visitors).Take(10).ToList();
 
+            // Pulso de la última hora, minuto a minuto: un número de "ahora"
+            // no dice si la tienda se está despertando o apagando.
+            var hourAgo = DateTime.UtcNow.AddMinutes(-60);
+            var lastHour = await analytics.PageViews
+                .Where(v => v.TenantId == tidGuid && v.OccurredAtUtc >= hourAgo)
+                .GroupBy(v => new { v.OccurredAtUtc.Hour, v.OccurredAtUtc.Minute })
+                .Select(g => new { g.Key.Hour, g.Key.Minute, views = g.Count() })
+                .ToListAsync(ct);
+            var pulse = Enumerable.Range(0, 60)
+                .Select(i => hourAgo.AddMinutes(i))
+                .Select(t => new
+                {
+                    minute = t.ToString("HH:mm"),
+                    views = lastHour.FirstOrDefault(x => x.Hour == t.Hour && x.Minute == t.Minute)?.views ?? 0,
+                })
+                .ToList();
+
+            // Lo de hoy contra lo de ayer a esta misma hora: la comparación que
+            // sirve cuando el día todavía no terminó.
+            var startOfToday = DateTime.UtcNow.Date;
+            var elapsed = DateTime.UtcNow - startOfToday;
+            var today = await ordersDb.Orders
+                .Where(o => o.TenantId == tenant.TenantId && o.Status == OrderStatus.Paid && o.PaidAtUtc >= startOfToday)
+                .ToListAsync(ct);
+            var yesterday = await ordersDb.Orders
+                .Where(o => o.TenantId == tenant.TenantId && o.Status == OrderStatus.Paid
+                    && o.PaidAtUtc >= startOfToday.AddDays(-1) && o.PaidAtUtc < startOfToday.AddDays(-1) + elapsed)
+                .ToListAsync(ct);
+
             return Results.Ok(new
             {
                 activeVisitors = views.Select(v => v.VisitorId).Distinct().Count(),
                 views = views.Count,
                 recent,
                 activePaths,
+                pulse,
+                today = new
+                {
+                    orders = today.Count,
+                    revenue = today.Sum(o => o.Total.AmountInMinorUnits),
+                    currency = today.FirstOrDefault()?.Currency ?? Money.DefaultCurrency,
+                },
+                yesterdaySoFar = new
+                {
+                    orders = yesterday.Count,
+                    revenue = yesterday.Sum(o => o.Total.AmountInMinorUnits),
+                },
             });
         });
 
