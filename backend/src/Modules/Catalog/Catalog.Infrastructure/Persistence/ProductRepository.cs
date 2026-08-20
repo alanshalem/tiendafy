@@ -54,31 +54,78 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
     }
 
     public async Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
-        TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
-        bool onlyWithoutCost = false, CancellationToken ct = default)
+        TenantId tenantId, AdminProductFilter filter, int limit, int offset,
+        CancellationToken ct = default)
     {
         var query = context.Products.Where(p => p.TenantId == tenantId);
-        if (status is { } s) query = query.Where(p => p.Status == s);
 
-        // El costo va serializado en texto, así que no se puede sumar en SQL —
-        // pero "¿está cargado?" es la columna en null, y eso sí filtra la base.
-        if (onlyWithoutCost) query = query.Where(p => p.Variants.Any(v => v.Cost == null));
+        if (filter.Status is { } status) query = query.Where(p => p.Status == status);
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            var term = $"%{search.Trim()}%";
+            var term = $"%{filter.Search.Trim()}%";
             query = query.Where(p =>
                 EF.Functions.ILike(p.Name, term)
                 || p.Variants.Any(v => EF.Functions.ILike(v.Sku, term)));
         }
 
+        if (filter.CategoryId is { } categoryId)
+            query = await FilterBySubtreeAsync(query, tenantId, categoryId, ct);
+
+        // Costo y precio tachado van serializados en texto: no se pueden sumar
+        // ni comparar en SQL, pero "¿está cargado?" es la columna en null.
+        if (filter.OnlyWithoutCost) query = query.Where(p => p.Variants.Any(v => v.Cost == null));
+        if (filter.OnlyWithoutImage) query = query.Where(p => !p.Images.Any());
+        if (filter.HasPromoPrice is { } promo)
+        {
+            query = promo
+                ? query.Where(p => p.Variants.Any(v => v.CompareAtPrice != null))
+                : query.Where(p => p.Variants.All(v => v.CompareAtPrice == null));
+        }
+
+        // El stock lo resuelve el Api (otro módulo): acá llega ya como la lista
+        // de variantes disponibles. Npgsql la manda como array y filtra con ANY.
+        if (filter.InStock is { } inStock && filter.VariantIdsInStock is { } withStock)
+        {
+            query = inStock
+                ? query.Where(p => p.Variants.Any(v => withStock.Contains(v.Id)))
+                : query.Where(p => !p.Variants.Any(v => withStock.Contains(v.Id)));
+        }
+
         var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderByDescending(p => p.CreatedAtUtc)
-            .Skip(offset)
-            .Take(limit)
-            .ToListAsync(ct);
+
+        query = filter.Sort switch
+        {
+            AdminProductSort.Oldest => query.OrderBy(p => p.CreatedAtUtc),
+            AdminProductSort.NameAsc => query.OrderBy(p => p.Name),
+            AdminProductSort.NameDesc => query.OrderByDescending(p => p.Name),
+            _ => query.OrderByDescending(p => p.CreatedAtUtc),
+        };
+
+        var items = await query.Skip(offset).Take(limit).ToListAsync(ct);
         return (items, total);
+    }
+
+    /// <summary>
+    /// Filtra por categoría incluyendo sus descendientes: los productos se
+    /// asignan a la hoja, así que filtrar por el padre sin bajar el árbol no
+    /// devolvería nada. Mismo criterio que la búsqueda del storefront.
+    /// </summary>
+    private async Task<IQueryable<Product>> FilterBySubtreeAsync(
+        IQueryable<Product> query, TenantId tenantId, Guid categoryId, CancellationToken ct)
+    {
+        var path = await context.Categories.AsNoTracking()
+            .Where(c => c.TenantId == tenantId && c.Id == categoryId)
+            .Select(c => c.Path).FirstOrDefaultAsync(ct);
+
+        if (path is null)
+            return query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
+
+        var subtree = await context.Categories.AsNoTracking()
+            .Where(c => c.TenantId == tenantId && (c.Path == path || c.Path.StartsWith(path + "/")))
+            .Select(c => c.Id).ToListAsync(ct);
+
+        return query.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Any(id => subtree.Contains(id)));
     }
 
     public async Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(

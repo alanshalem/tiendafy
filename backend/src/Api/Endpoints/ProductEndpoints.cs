@@ -42,25 +42,53 @@ public static class ProductEndpoints
         products.MapGet("/", async (
             ITenantContext tenant,
             IProductRepository repository,
+            Inventory.Infrastructure.Persistence.InventoryDbContext inventoryDb,
             CancellationToken ct,
             string? status = null,
             int limit = 20,
             Guid? after = null,
             int? offset = null,
             string? q = null,
-            bool? missingCost = null) =>
+            bool? missingCost = null,
+            bool? missingImage = null,
+            bool? promo = null,
+            bool? inStock = null,
+            Guid? categoryId = null,
+            string? sort = null) =>
         {
             var statusFilter = ProductStatusExtensions.ParseApi(status);
             limit = Math.Clamp(limit, 1, 100);
 
-            // Modo página (offset/búsqueda): lo que usan Costos, Inventario y
-            // los buscadores de variantes. El modo cursor (after) queda para
-            // quien recorre el catálogo entero (export, importación).
-            if (after is null && (offset is not null || !string.IsNullOrWhiteSpace(q) || missingCost == true))
+            var paged = offset is not null
+                || !string.IsNullOrWhiteSpace(q)
+                || missingCost == true || missingImage == true
+                || promo is not null || inStock is not null
+                || categoryId is not null || sort is not null;
+
+            // Modo página (offset/filtros): lo que usan el listado del panel,
+            // Costos, Inventario y los buscadores de variantes. El modo cursor
+            // (after) queda para quien recorre el catálogo entero (export,
+            // importación) y no debe cambiar.
+            if (after is null && paged)
             {
+                // El stock vive en otro módulo, así que el filtro se arma acá:
+                // el catálogo recibe la lista de variantes disponibles ya resuelta.
+                List<Guid>? withStock = null;
+                if (inStock is not null)
+                {
+                    withStock = await inventoryDb.StockItems.AsNoTracking()
+                        .Where(s => s.Available > 0)
+                        .Select(s => s.VariantId)
+                        .ToListAsync(ct);
+                }
+
+                var filter = new AdminProductFilter(
+                    statusFilter, q, categoryId,
+                    missingCost == true, missingImage == true, promo,
+                    withStock, inStock, ParseSort(sort));
+
                 var (pageItems, total) = await repository.ListPageAsync(
-                    tenant.TenantId, statusFilter, q, limit, Math.Max(0, offset ?? 0),
-                    missingCost == true, ct);
+                    tenant.TenantId, filter, limit, Math.Max(0, offset ?? 0), ct);
                 return Results.Ok(new
                 {
                     items = pageItems.Select(p => p.ToDto()).ToList(),
@@ -800,6 +828,15 @@ public static class ProductEndpoints
         currency = v.Price.Currency,
     };
 
+
+    /// <summary>Orden del listado del panel. Sin valor válido, lo más nuevo primero.</summary>
+    private static AdminProductSort ParseSort(string? sort) => sort?.ToLowerInvariant() switch
+    {
+        "oldest" => AdminProductSort.Oldest,
+        "nameasc" => AdminProductSort.NameAsc,
+        "namedesc" => AdminProductSort.NameDesc,
+        _ => AdminProductSort.Newest,
+    };
 
 }
 

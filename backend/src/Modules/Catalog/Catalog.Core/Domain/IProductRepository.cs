@@ -22,6 +22,42 @@ public sealed record ProductSearchFilter(
     string? Brand = null,
     IReadOnlyList<string>? OptionValues = null);   // valores de opción seleccionados (Color/Talle/…); AND entre ellos
 
+/// <summary>Orden del listado del panel (el del storefront es <see cref="ProductSort"/>).</summary>
+public enum AdminProductSort
+{
+    Newest = 0,
+    Oldest = 1,
+    NameAsc = 2,
+    NameDesc = 3,
+}
+
+/// <summary>
+/// Filtro del listado de productos DEL PANEL. Distinto del storefront: acá se
+/// ven todos los estados y se filtra por lo que falta completar.
+/// </summary>
+/// <param name="OnlyWithoutCost">
+/// Solo productos con alguna variante sin costo cargado. El costo va serializado
+/// en texto y no se puede sumar en SQL, pero "¿está cargado?" es la columna en
+/// null y eso sí filtra la base.
+/// </param>
+/// <param name="HasPromoPrice">true = con precio tachado; false = sin promoción.</param>
+/// <param name="VariantIdsInStock">
+/// Variantes con disponible &gt; 0. Las resuelve el Api, no el repositorio:
+/// el stock vive en otro módulo y el catálogo no lo conoce. Sin esta lista,
+/// <paramref name="InStock"/> se ignora.
+/// </param>
+/// <param name="InStock">true = con stock; false = agotados; null = sin filtro.</param>
+public sealed record AdminProductFilter(
+    ProductStatus? Status = null,
+    string? Search = null,
+    Guid? CategoryId = null,
+    bool OnlyWithoutCost = false,
+    bool OnlyWithoutImage = false,
+    bool? HasPromoPrice = null,
+    IReadOnlyCollection<Guid>? VariantIdsInStock = null,
+    bool? InStock = null,
+    AdminProductSort Sort = AdminProductSort.Newest);
+
 /// <summary>Un filtro de opción con sus valores disponibles (ej: "Color" → ["Rojo","Azul"]).</summary>
 public sealed record OptionFacet(string Name, IReadOnlyList<string> Values);
 
@@ -50,14 +86,9 @@ public interface IProductRepository
     /// o SKU y total. Las pantallas de costos, inventario y los buscadores de
     /// variantes traían el catálogo COMPLETO para filtrar en el navegador.
     /// </summary>
-    /// <param name="onlyWithoutCost">
-    /// Solo productos con alguna variante sin costo cargado. Es el filtro que
-    /// abre la métrica "sin costo cargado": llevarla a una pantalla que igual
-    /// muestra el catálogo entero deja el trabajo de encontrarlos sin hacer.
-    /// </param>
     Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
-        TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
-        bool onlyWithoutCost = false, CancellationToken ct = default);
+        TenantId tenantId, AdminProductFilter filter, int limit, int offset,
+        CancellationToken ct = default);
 
     /// <summary>Busca productos ACTIVE con filtros, orden y paginado. Devuelve la página, el total y las facetas.</summary>
     Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(

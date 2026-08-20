@@ -4,7 +4,6 @@ import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
-import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';

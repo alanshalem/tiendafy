@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
@@ -6,9 +6,9 @@ import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { fetchAllProducts } from '../../lib/products';
 import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination } from '../../components/Pagination';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
@@ -34,19 +34,29 @@ export interface ProductDto {
   images: { url: string }[];
 }
 
-const SORTS = ['Más nuevo', 'Más viejo', 'Nombre A-Z', 'Nombre Z-A'] as const;
+/** Orden visible ↔ el que entiende el endpoint. */
+const SORTS = {
+  'Más nuevo': 'newest',
+  'Más viejo': 'oldest',
+  'Nombre A-Z': 'nameAsc',
+  'Nombre Z-A': 'nameDesc',
+} as const;
 
-/**
- * Atajo desde la fila de métricas: cada número de arriba filtra el listado de
- * abajo. Vive aparte del panel de filtros porque no es una preferencia que se
- * arma, es "mostrame lo que acabo de contar".
- */
-type Focus = 'none' | 'published' | 'draft' | 'noImage';
+type SortLabel = keyof typeof SORTS;
 
-const FOCUS_LABEL: Record<Exclude<Focus, 'none'>, string> = {
-  published: 'Publicados',
-  draft: 'En borrador',
-  noImage: 'Sin foto',
+/** Productos por página. */
+const PAGE_SIZE = 20;
+
+/** Cómo se lee el filtro puesto, para el cartel de arriba de la tabla. */
+const FILTER_LABEL: Record<string, string> = {
+  'status:active': 'Publicados',
+  'status:draft': 'Borradores',
+  'status:archived': 'Archivados',
+  'missing:image': 'Sin foto',
+  'stock:in': 'En stock',
+  'stock:out': 'Sin stock',
+  'priceType:promo': 'Con promoción',
+  'priceType:noPromo': 'Sin promoción',
 };
 
 export function ProductsPage() {
@@ -56,24 +66,55 @@ export function ProductsPage() {
   const { toast } = useToast();
 
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<(typeof SORTS)[number]>('Más nuevo');
+  const [sort, setSort] = useState<SortLabel>('Más nuevo');
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
-  const [focus, setFocus] = useState<Focus>('none');
-  // Volver a tocar la misma métrica saca el filtro: es el gesto que espera
-  // cualquiera que la usó para mirar y quiere volver al listado completo.
-  const toggleFocus = (next: Exclude<Focus, 'none'>) =>
-    setFocus((current) => (current === next ? 'none' : next));
+  const [page, setPage] = useState(1);
+
+  /**
+   * Volver a tocar la misma métrica saca el filtro: es el gesto que espera
+   * cualquiera que la usó para mirar y quiere volver al listado completo.
+   */
+  const toggleFilter = <K extends keyof ProductFilters>(key: K, value: ProductFilters[K]) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: current[key] === value ? defaultFilters[key] : value,
+    }));
+    setPage(1);
+  };
   const [draftFilters, setDraftFilters] = useState<ProductFilters>(defaultFilters);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<ProductDto>(),
-    enabled: !!store,
-  });
-  const products = useMemo(() => data ?? [], [data]);
+  const debouncedSearch = useDebouncedValue(search, 350).trim();
 
-  const stockMap = useVariantStock(products);
+  // Una página por request, con búsqueda, filtros y orden resueltos en la base.
+  // Antes se traía el catálogo COMPLETO al navegador para filtrar y paginar acá:
+  // con miles de productos eso es descargar la tienda entera en cada visita, y
+  // encima los filtros de categoría y envío no llegaban a aplicarse nunca.
+  const { data, isLoading } = useQuery({
+    queryKey: ['products-admin', store?.id, debouncedSearch, filters, sort, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+        sort: SORTS[sort],
+      });
+      if (debouncedSearch) params.set('q', debouncedSearch);
+      if (filters.category) params.set('categoryId', filters.category);
+      if (filters.status !== 'all') params.set('status', filters.status.toUpperCase());
+      if (filters.missing === 'image') params.set('missingImage', 'true');
+      if (filters.stock !== 'all') params.set('inStock', String(filters.stock === 'in'));
+      if (filters.priceType !== 'all') params.set('promo', String(filters.priceType === 'promo'));
+      return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
+    },
+    enabled: !!store,
+    placeholderData: (previous) => previous,
+  });
+
+  const pageItems = useMemo(() => data?.items ?? [], [data]);
+  const total = data?.total ?? 0;
+
+  // El stock se pide solo para lo que se ve.
+  const stockMap = useVariantStock(pageItems);
 
   // Salud del catálogo entero (no de la página): un listado paginado esconde
   // cuántos productos quedaron en borrador o sin foto.
@@ -161,47 +202,19 @@ export function ProductsPage() {
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  const filtered = useMemo(() => {
-    let list = products;
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
-      );
-    }
-    if (focus === 'published') list = list.filter((p) => p.status === 'ACTIVE');
-    if (focus === 'draft') list = list.filter((p) => p.status === 'DRAFT');
-    if (focus === 'noImage') list = list.filter((p) => p.images.length === 0);
-    if (filters.visibility === 'visible') list = list.filter((p) => p.status === 'ACTIVE');
-    if (filters.visibility === 'hidden') list = list.filter((p) => p.status !== 'ACTIVE');
-    if (filters.priceType === 'promo') list = list.filter((p) => p.variants.some((v) => v.compareAtPrice));
-    if (filters.priceType === 'noPromo')
-      list = list.filter((p) => p.variants.every((v) => !v.compareAtPrice));
-    if (filters.stock !== 'all') {
-      list = list.filter((p) => {
-        const total = p.variants.reduce((sum, v) => sum + (stockMap.get(v.id)?.available ?? 0), 0);
-        return filters.stock === 'in' ? total > 0 : total === 0;
-      });
-    }
-    const sorted = [...list];
-    if (sort === 'Nombre A-Z') sorted.sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'Nombre Z-A') sorted.sort((a, b) => b.name.localeCompare(a.name));
-    if (sort === 'Más viejo') sorted.reverse();
-    return sorted;
-  }, [products, search, filters, focus, sort, stockMap]);
-
-  const activeFilterCount = Object.entries(filters).filter(
+  const activeFilters = Object.entries(filters).filter(
     ([k, v]) => v !== defaultFilters[k as keyof ProductFilters],
-  ).length;
+  );
+  const activeFilterCount = activeFilters.length;
 
-  const PAGE_SIZE = 20;
-  const [page, setPage] = useState(1);
-  useEffect(() => {
-    setPage(1);
-  }, [search, filters, focus, sort]);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Los filtros que tienen nombre corto se listan arriba de la tabla; la
+  // categoría no entra ahí (su nombre lo sabe el panel, no este listado).
+  const filterChips = activeFilters
+    .map(([k, v]) => ({ key: k as keyof ProductFilters, label: FILTER_LABEL[`${k}:${v}`] }))
+    .filter((chip): chip is { key: keyof ProductFilters; label: string } => !!chip.label);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageClamped = Math.min(page, totalPages);
-  const pageItems = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
 
   const selectedOnPage = pageItems.filter((p) => selected.has(p.id)).length;
   const allPageSelected = pageItems.length > 0 && selectedOnPage === pageItems.length;
@@ -222,7 +235,9 @@ export function ProductsPage() {
     return <NoStoreSelected message="Elegí una tienda arriba para ver sus productos." />;
   }
 
-  const isEmpty = !isLoading && products.length === 0;
+  const hasQuery = !!debouncedSearch || activeFilterCount > 0;
+  const isEmpty = !isLoading && total === 0 && !hasQuery;
+  const noResults = !isLoading && total === 0 && hasQuery;
 
   return (
     <div className="space-y-4">
@@ -251,24 +266,24 @@ export function ProductsPage() {
               label: 'Publicados',
               value: health.published.toLocaleString('es-AR'),
               hint: `De ${health.total.toLocaleString('es-AR')} productos cargados. Solo los publicados se ven en la tienda.`,
-              onClick: () => toggleFocus('published'),
-              active: focus === 'published',
+              onClick: () => toggleFilter('status', 'active'),
+              active: filters.status === 'active',
             },
             {
               label: 'En borrador',
               value: health.draft.toLocaleString('es-AR'),
               hint: 'Cargados pero invisibles para el público. Publicalos cuando estén listos.',
               tone: health.draft > 0 ? 'warning' : 'default',
-              onClick: () => toggleFocus('draft'),
-              active: focus === 'draft',
+              onClick: () => toggleFilter('status', 'draft'),
+              active: filters.status === 'draft',
             },
             {
               label: 'Sin foto',
               value: health.withoutImage.toLocaleString('es-AR'),
               hint: 'Un producto sin foto casi no se vende. Es lo primero que conviene completar.',
               tone: health.withoutImage > 0 ? 'danger' : 'success',
-              onClick: () => toggleFocus('noImage'),
-              active: focus === 'noImage',
+              onClick: () => toggleFilter('missing', 'image'),
+              active: filters.missing === 'image',
             },
             {
               // El costo no se carga desde acá: esta métrica lleva a la pantalla
@@ -283,19 +298,23 @@ export function ProductsPage() {
         />
       )}
 
-      {focus !== 'none' && (
-        <div className="flex items-center gap-2 text-sm text-fg-muted">
+      {filterChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
           <span>
-            Mostrando solo <span className="font-medium text-fg">{FOCUS_LABEL[focus]}</span> ·{' '}
-            {filtered.length.toLocaleString('es-AR')} {filtered.length === 1 ? 'producto' : 'productos'}
+            Mostrando solo{' '}
+            <span className="font-medium text-fg">{filterChips.map((c) => c.label).join(' · ')}</span> ·{' '}
+            {total.toLocaleString('es-AR')} {total === 1 ? 'producto' : 'productos'}
           </span>
-          <button
-            type="button"
-            onClick={() => setFocus('none')}
-            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
-          >
-            <X className="h-3 w-3" /> Quitar filtro
-          </button>
+          {filterChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => toggleFilter(chip.key, defaultFilters[chip.key])}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
+            >
+              <X className="h-3 w-3" /> {chip.label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -317,7 +336,10 @@ export function ProductsPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Buscar por nombre, SKU o tags"
                 className="h-10 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
@@ -339,10 +361,13 @@ export function ProductsPage() {
             </button>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as (typeof SORTS)[number])}
+              onChange={(e) => {
+                setSort(e.target.value as SortLabel);
+                setPage(1);
+              }}
               className="h-10 appearance-none rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {SORTS.map((s) => (
+              {Object.keys(SORTS).map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -351,8 +376,10 @@ export function ProductsPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="text-sm text-fg-muted">{filtered.length} productos</div>
-            {products.length > 0 && (
+            <div className="text-sm text-fg-muted">
+              {total.toLocaleString('es-AR')} {total === 1 ? 'producto' : 'productos'}
+            </div>
+            {total > 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -434,6 +461,23 @@ export function ProductsPage() {
                       Cargando...
                     </td>
                   </tr>
+                ) : noResults ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center">
+                      <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch('');
+                          setFilters(defaultFilters);
+                          setPage(1);
+                        }}
+                        className="mt-2 text-sm font-medium text-primary hover:underline"
+                      >
+                        Limpiar búsqueda y filtros
+                      </button>
+                    </td>
+                  </tr>
                 ) : (
                   pageItems.map((product) => (
                     <ProductRows
@@ -495,7 +539,7 @@ export function ProductsPage() {
         }
       >
         <p className="text-sm text-fg-muted">
-          Vas a eliminar <span className="font-semibold text-fg">{products.length} productos</span> de{' '}
+          Vas a eliminar <span className="font-semibold text-fg">{total} productos</span> de{' '}
           <span className="font-semibold text-fg">{store.name}</span>, con sus variantes e imágenes. Esta
           acción no se puede deshacer.
         </p>

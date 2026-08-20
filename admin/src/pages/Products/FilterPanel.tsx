@@ -1,20 +1,27 @@
 import { X } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 
+/**
+ * Filtros del listado de productos. Todos se resuelven EN LA BASE: el listado
+ * trae una página por request, así que filtrar en el navegador solo alcanzaría
+ * a las veinte filas visibles.
+ */
 export interface ProductFilters {
   category: string;
   stock: 'all' | 'in' | 'out';
   priceType: 'all' | 'promo' | 'noPromo';
-  visibility: 'all' | 'visible' | 'hidden';
-  shipping: 'all' | 'free' | 'paid';
+  /** Estado real del producto: es lo que decide si se ve en la tienda. */
+  status: 'all' | 'active' | 'draft' | 'archived';
+  /** Qué le falta completar. Por ahora, la foto. */
+  missing: 'all' | 'image';
 }
 
 export const defaultFilters: ProductFilters = {
   category: '',
   stock: 'all',
   priceType: 'all',
-  visibility: 'all',
-  shipping: 'all',
+  status: 'all',
+  missing: 'all',
 };
 
 const chipGroups: {
@@ -41,21 +48,21 @@ const chipGroups: {
     ],
   },
   {
-    key: 'visibility',
-    label: 'Visibilidad en la tienda',
+    key: 'status',
+    label: 'Estado',
     options: [
-      { value: 'all', label: 'Todas' },
-      { value: 'visible', label: 'Visibles' },
-      { value: 'hidden', label: 'Ocultos' },
+      { value: 'all', label: 'Todos' },
+      { value: 'active', label: 'Publicados' },
+      { value: 'draft', label: 'Borradores' },
+      { value: 'archived', label: 'Archivados' },
     ],
   },
   {
-    key: 'shipping',
-    label: 'Tipo de envío',
+    key: 'missing',
+    label: 'Qué falta completar',
     options: [
-      { value: 'all', label: 'Todas' },
-      { value: 'free', label: 'Gratis' },
-      { value: 'paid', label: 'Pago' },
+      { value: 'all', label: 'Todo' },
+      { value: 'image', label: 'Sin foto' },
     ],
   },
 ];
