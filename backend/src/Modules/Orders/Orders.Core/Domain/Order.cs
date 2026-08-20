@@ -16,6 +16,31 @@ public enum OrderStatus
 }
 
 /// <summary>
+/// Qué estados cuentan como venta. Vivía copiado en catorce filtros del panel
+/// —todos <c>Status == Paid</c>— y por eso marcar una venta como enviada la
+/// borraba de las estadísticas: la plata había entrado igual, pero el estado ya
+/// no era Paid. Nada que dependa de "cuánto vendí" debe volver a escribir la
+/// lista a mano.
+/// </summary>
+public static class OrderStatuses
+{
+    /// <summary>
+    /// La plata entró: cobrada, despachada o cobrada con un reembolso parcial
+    /// encima. Para sumar importes va <see cref="Order.NetRevenue"/>, que
+    /// descuenta lo devuelto; el total a secas contaría de más.
+    /// </summary>
+    public static readonly OrderStatus[] Earning =
+    [
+        OrderStatus.Paid,
+        OrderStatus.Fulfilled,
+        OrderStatus.PartiallyRefunded,
+    ];
+
+    public static bool IsEarning(OrderStatus status) =>
+        status is OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.PartiallyRefunded;
+}
+
+/// <summary>
 /// Orden de compra: nace de un CheckoutSession ya con stock reservado y
 /// conserva el snapshot de precios. El <c>Id</c> es el external_reference que
 /// viaja a MercadoPago para reconciliar el pago.
@@ -115,6 +140,16 @@ public sealed class Order : AggregateRoot
         (DiscountAmount.AmountInMinorUnits >= Subtotal.AmountInMinorUnits
             ? Money.Zero(Currency)
             : Subtotal - DiscountAmount) + ShippingCost;
+
+    /// <summary>
+    /// Lo que la tienda se quedó de esta venta: el total menos lo ya devuelto.
+    /// Es el número que corresponde sumar en estadísticas — el total a secas
+    /// cuenta entero un reembolso parcial.
+    /// </summary>
+    public Money NetRevenue =>
+        RefundedAmount.AmountInMinorUnits >= Total.AmountInMinorUnits
+            ? Money.Zero(Currency)
+            : Total - RefundedAmount;
 
     /// <summary>Snapshot de envío y datos del comprador (vienen del checkout, nunca del cliente).</summary>
     /// <summary>De dónde vino la venta (first-touch de la sesión del comprador).</summary>

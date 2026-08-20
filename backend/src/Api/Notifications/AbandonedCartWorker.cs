@@ -50,7 +50,7 @@ public sealed class AbandonedCartWorker(
         // Sacar las que terminaron en una orden pagada.
         var ids = candidates.Select(s => s.Id).ToList();
         var paid = (await ordersDb.Orders
-            .Where(o => o.Status == OrderStatus.Paid && ids.Contains(o.CheckoutSessionId))
+            .Where(o => OrderStatuses.Earning.Contains(o.Status) && ids.Contains(o.CheckoutSessionId))
             .Select(o => o.CheckoutSessionId)
             .ToListAsync(ct)).ToHashSet();
 

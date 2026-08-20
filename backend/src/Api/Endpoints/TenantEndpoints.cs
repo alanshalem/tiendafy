@@ -57,16 +57,16 @@ public static class TenantEndpoints
 
                 var paid = await ordersDb.Orders.AsNoTracking().IgnoreQueryFilters()
                     .Where(o => o.TenantId == tenantId
-                        && o.Status == global::Orders.Core.Domain.OrderStatus.Paid
+                        && global::Orders.Core.Domain.OrderStatuses.Earning.Contains(o.Status)
                         && o.PaidAtUtc >= previousSince)
-                    .Select(o => new { o.PaidAtUtc, Amount = o.Total.AmountInMinorUnits, o.Total.Currency })
+                    .Select(o => new { o.PaidAtUtc, Amount = o.NetRevenue.AmountInMinorUnits, o.Total.Currency })
                     .ToListAsync(ct);
 
                 var current = paid.Where(o => o.PaidAtUtc >= since).ToList();
                 var previous = paid.Where(o => o.PaidAtUtc < since).ToList();
 
                 var lastOrder = await ordersDb.Orders.AsNoTracking().IgnoreQueryFilters()
-                    .Where(o => o.TenantId == tenantId && o.Status == global::Orders.Core.Domain.OrderStatus.Paid)
+                    .Where(o => o.TenantId == tenantId && global::Orders.Core.Domain.OrderStatuses.Earning.Contains(o.Status))
                     .OrderByDescending(o => o.PaidAtUtc)
                     .Select(o => o.PaidAtUtc)
                     .FirstOrDefaultAsync(ct);

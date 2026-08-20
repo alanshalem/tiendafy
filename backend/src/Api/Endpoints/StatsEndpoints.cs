@@ -53,14 +53,14 @@ public static class StatsEndpoints
             var prevSince = since.AddDays(-span);
 
             var window = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.PaidAtUtc >= prevSince)
+                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.PaidAtUtc >= prevSince)
                 .ToListAsync(ct);
 
             var current = window.Where(o => o.PaidAtUtc >= since).ToList();
             var previous = window.Where(o => o.PaidAtUtc < since).ToList();
 
-            var revenue = current.Sum(o => o.Total.AmountInMinorUnits);
-            var previousRevenue = previous.Sum(o => o.Total.AmountInMinorUnits);
+            var revenue = current.Sum(o => o.NetRevenue.AmountInMinorUnits);
+            var previousRevenue = previous.Sum(o => o.NetRevenue.AmountInMinorUnits);
             var currency = current.FirstOrDefault()?.Currency
                 ?? previous.FirstOrDefault()?.Currency
                 ?? Money.DefaultCurrency;
@@ -68,7 +68,7 @@ public static class StatsEndpoints
             // Evolución diaria del período (para el gráfico de barras).
             var byDay = current
                 .GroupBy(o => DateOnly.FromDateTime((o.PaidAtUtc ?? o.CreatedAtUtc).Date))
-                .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.Total.AmountInMinorUnits), Orders: g.Count()));
+                .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.NetRevenue.AmountInMinorUnits), Orders: g.Count()));
             var series = Enumerable.Range(0, span)
                 .Select(i => DateOnly.FromDateTime(since.AddDays(i + 1).Date))
                 .Select(d => new
@@ -88,7 +88,7 @@ public static class StatsEndpoints
             // Origen del tráfico que terminó en venta (utm_source de la orden).
             var bySource = current
                 .GroupBy(o => string.IsNullOrWhiteSpace(o.UtmSource) ? "directo" : o.UtmSource!)
-                .Select(g => new { source = g.Key, orders = g.Count(), revenue = g.Sum(o => o.Total.AmountInMinorUnits) })
+                .Select(g => new { source = g.Key, orders = g.Count(), revenue = g.Sum(o => o.NetRevenue.AmountInMinorUnits) })
                 .OrderByDescending(x => x.revenue)
                 .Take(6)
                 .ToList();
@@ -147,13 +147,13 @@ public static class StatsEndpoints
             var (since, until) = Range(from, to, days ?? 30);
 
             var orders = await ordersDb.Orders.Where(o => o.TenantId == tid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
-            var paid = orders.Where(o => o.Status == OrderStatus.Paid).ToList();
-            var revenue = paid.Sum(o => o.Total.AmountInMinorUnits);
+            var paid = orders.Where(o => OrderStatuses.Earning.Contains(o.Status)).ToList();
+            var revenue = paid.Sum(o => o.NetRevenue.AmountInMinorUnits);
             var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
 
             var series = paid
                 .GroupBy(o => (o.PaidAtUtc ?? o.CreatedAtUtc).Date)
-                .Select(g => new { date = g.Key, revenue = g.Sum(o => o.Total.AmountInMinorUnits), orders = g.Count() })
+                .Select(g => new { date = g.Key, revenue = g.Sum(o => o.NetRevenue.AmountInMinorUnits), orders = g.Count() })
                 .OrderBy(x => x.date).ToList();
 
             var byStatus = orders.GroupBy(o => o.Status.ToString().ToUpperInvariant())
@@ -182,7 +182,7 @@ public static class StatsEndpoints
             var (since, until) = Range(from, to, days ?? 30);
             var take = Math.Clamp(limit ?? 10, 1, 50);
 
-            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
+            var paid = await ordersDb.Orders.Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since && o.CreatedAtUtc < until).ToListAsync(ct);
             var lines = paid.SelectMany(o => o.Items).ToList();
 
             var ranked = lines
@@ -228,11 +228,11 @@ public static class StatsEndpoints
             var previousSince = since - (until - since);
 
             var paid = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since && o.CreatedAtUtc < until)
+                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since && o.CreatedAtUtc < until)
                 .ToListAsync(ct);
 
             var currency = paid.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
-            long ItemsNet(Order o) => o.Total.AmountInMinorUnits - o.ShippingCost.AmountInMinorUnits;
+            long ItemsNet(Order o) => o.NetRevenue.AmountInMinorUnits - o.ShippingCost.AmountInMinorUnits;
 
             var withCost = paid.Where(o => o.ProductCost is not null).ToList();
             var revenue = paid.Sum(ItemsNet);
@@ -299,7 +299,7 @@ public static class StatsEndpoints
             // Mismo cálculo sobre el período anterior de igual duración: el
             // margen sin contra qué compararlo no dice si vas mejorando.
             var beforePaid = await ordersDb.Orders
-                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
                     && o.CreatedAtUtc >= previousSince && o.CreatedAtUtc < since)
                 .ToListAsync(ct);
             var beforeWithCost = beforePaid.Where(o => o.ProductCost is not null).ToList();
@@ -356,11 +356,11 @@ public static class StatsEndpoints
             var byCoupon = used.GroupBy(o => o.CouponCode!)
                 .Select(g =>
                 {
-                    var paidOrders = g.Where(o => o.Status == OrderStatus.Paid).ToList();
+                    var paidOrders = g.Where(o => OrderStatuses.Earning.Contains(o.Status)).ToList();
                     var discount = paidOrders.Sum(o => o.DiscountAmount.AmountInMinorUnits);
                     // Lo que el cupón TRAJO, no solo lo que regaló: sin esto no
                     // se puede saber si un descuento valió la pena.
-                    var revenue = paidOrders.Sum(o => o.Total.AmountInMinorUnits);
+                    var revenue = paidOrders.Sum(o => o.NetRevenue.AmountInMinorUnits);
                     return new
                     {
                         code = g.Key,
@@ -376,7 +376,7 @@ public static class StatsEndpoints
 
             var totalCoupons = await discounts.Coupons.CountAsync(c => c.TenantId == tid.Value, ct);
             var activeCoupons = await discounts.Coupons.CountAsync(c => c.TenantId == tid.Value && c.Active, ct);
-            var previousPaid = before.Where(o => o.Status == OrderStatus.Paid).ToList();
+            var previousPaid = before.Where(o => OrderStatuses.Earning.Contains(o.Status)).ToList();
 
             return Results.Ok(new
             {
@@ -389,7 +389,7 @@ public static class StatsEndpoints
                 {
                     totalUses = before.Count,
                     totalDiscount = previousPaid.Sum(o => o.DiscountAmount.AmountInMinorUnits),
-                    totalRevenue = previousPaid.Sum(o => o.Total.AmountInMinorUnits),
+                    totalRevenue = previousPaid.Sum(o => o.NetRevenue.AmountInMinorUnits),
                 },
                 total = byCoupon.Count,
                 items = byCoupon
@@ -446,10 +446,10 @@ public static class StatsEndpoints
             // Conversión: de cada 100 visitantes distintos, cuántos compraron.
             // Es la métrica que convierte "tuve mucha visita" en "sirvió".
             var ordersInPeriod = await ordersDb.Orders
-                .CountAsync(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                .CountAsync(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
                     && o.PaidAtUtc >= since && o.PaidAtUtc < until, ct);
             var previousOrders = await ordersDb.Orders
-                .CountAsync(o => o.TenantId == tid && o.Status == OrderStatus.Paid
+                .CountAsync(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status)
                     && o.PaidAtUtc >= previousSince && o.PaidAtUtc < since, ct);
 
             static decimal Rate(int orders, int visitors) =>
@@ -510,10 +510,10 @@ public static class StatsEndpoints
             var startOfToday = DateTime.UtcNow.Date;
             var elapsed = DateTime.UtcNow - startOfToday;
             var today = await ordersDb.Orders
-                .Where(o => o.TenantId == tenant.TenantId && o.Status == OrderStatus.Paid && o.PaidAtUtc >= startOfToday)
+                .Where(o => o.TenantId == tenant.TenantId && OrderStatuses.Earning.Contains(o.Status) && o.PaidAtUtc >= startOfToday)
                 .ToListAsync(ct);
             var yesterday = await ordersDb.Orders
-                .Where(o => o.TenantId == tenant.TenantId && o.Status == OrderStatus.Paid
+                .Where(o => o.TenantId == tenant.TenantId && OrderStatuses.Earning.Contains(o.Status)
                     && o.PaidAtUtc >= startOfToday.AddDays(-1) && o.PaidAtUtc < startOfToday.AddDays(-1) + elapsed)
                 .ToListAsync(ct);
 
@@ -527,13 +527,13 @@ public static class StatsEndpoints
                 today = new
                 {
                     orders = today.Count,
-                    revenue = today.Sum(o => o.Total.AmountInMinorUnits),
+                    revenue = today.Sum(o => o.NetRevenue.AmountInMinorUnits),
                     currency = today.FirstOrDefault()?.Currency ?? Money.DefaultCurrency,
                 },
                 yesterdaySoFar = new
                 {
                     orders = yesterday.Count,
-                    revenue = yesterday.Sum(o => o.Total.AmountInMinorUnits),
+                    revenue = yesterday.Sum(o => o.NetRevenue.AmountInMinorUnits),
                 },
             });
         });
@@ -555,7 +555,7 @@ public static class StatsEndpoints
             // traían los ids de todas las ventas de la historia en cada
             // request — con años de operación, eso es un balde de guids.
             var paidSessionIds = (await ordersDb.Orders
-                .Where(o => o.TenantId == tid && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since)
+                .Where(o => o.TenantId == tid && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since)
                 .Select(o => o.CheckoutSessionId).ToListAsync(ct)).ToHashSet();
 
             var pending = sessions

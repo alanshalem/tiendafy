@@ -274,7 +274,7 @@ public static class PurchasingEndpoints
                 ?? 60;
 
             var sold = (await ordersDb.Orders.AsNoTracking()
-                    .Where(o => o.TenantId == tenant.TenantId && o.Status == OrderStatus.Paid && o.CreatedAtUtc >= since)
+                    .Where(o => o.TenantId == tenant.TenantId && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since)
                     .ToListAsync(ct))
                 .SelectMany(o => o.Items)
                 .GroupBy(i => i.VariantId)
