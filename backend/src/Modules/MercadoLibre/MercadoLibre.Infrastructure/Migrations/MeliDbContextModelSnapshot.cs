@@ -42,6 +42,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("connected_at_utc");
 
+                    b.Property<bool>("IsDemo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_demo");
+
                     b.Property<long>("MeliUserId")
                         .HasColumnType("bigint")
                         .HasColumnName("meli_user_id");

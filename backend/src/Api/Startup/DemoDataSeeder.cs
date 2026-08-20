@@ -1,5 +1,6 @@
 using Analytics.Infrastructure;
 using Api.Crm;
+using Api.Meli;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Checkout.Core.Domain;
@@ -7,6 +8,7 @@ using Checkout.Infrastructure.Persistence;
 using Content.Infrastructure;
 using Customers.Infrastructure;
 using Discounts.Infrastructure;
+using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Core.Domain;
@@ -28,9 +30,10 @@ namespace Api.Startup;
 /// tienda ya tiene ventas, no vuelve a inventarlas — así que se puede correr
 /// de nuevo para completar lo que falte sin duplicar lo que ya está.
 ///
-/// Lo que NO siembra, a propósito: Mercado Libre y Redes sociales. Las dos
-/// dependen de una cuenta externa conectada por OAuth; datos falsos ahí
-/// mostrarían publicaciones que no existen en ninguna red real.
+/// Lo que NO siembra, a propósito: Redes sociales. Depende de cuentas
+/// conectadas por OAuth, y un post falso mostraría algo publicado que no
+/// existe en ninguna red real. Mercado Libre sí entra, pero en modo
+/// demostración: ver SeedMeliAsync.
 /// </summary>
 public sealed class DemoDataSeeder(
     CatalogDbContext catalog,
@@ -43,6 +46,9 @@ public sealed class DemoDataSeeder(
     SupportDbContext support,
     NotificationsDbContext notifications,
     ContentDbContext content,
+    MeliDbContext meli,
+    MeliTokenService meliTokens,
+    Tenancy.Infrastructure.Persistence.TenancyDbContext tenancy,
     CustomerDirectory directory,
     ILogger<DemoDataSeeder> logger)
 {
@@ -163,6 +169,7 @@ public sealed class DemoDataSeeder(
         await Block("chat posventa", () => SeedSupportAsync(tenantId, ct));
         await Block("campañas de email", () => SeedCampaignsAsync(tenantId, ct));
         await Block("páginas de contenido", () => SeedPagesAsync(tenantId, ct));
+        await Block("canal Mercado Libre", () => SeedMeliAsync(tenantId, ct));
 
         logger.LogInformation("Demo sembrada en {TenantId}: {Created}", tenantId.Value,
             string.Join(", ", created.Select(kv => $"{kv.Key}={kv.Value}")));
@@ -750,6 +757,112 @@ public sealed class DemoDataSeeder(
         }
 
         await notifications.SaveChangesAsync(ct);
+        return added;
+    }
+
+    // --------------------------------------------------- Canal Mercado Libre
+
+    /// <summary>
+    /// Canal de Mercado Libre en modo demostración: la conexión queda marcada
+    /// como tal, así las pantallas que normalmente consultan la API de ML en
+    /// vivo contestan con el ejemplo de <see cref="MeliDemoFeed"/> en vez de
+    /// salir a la red con una cuenta que no existe.
+    ///
+    /// Las ventas sí son entidades de verdad —el panel las lee del cache local,
+    /// igual que en producción— y las publicaciones quedan vinculadas a
+    /// variantes reales del catálogo para que el stock unificado se vea.
+    ///
+    /// La sincronización de stock y de precios arranca APAGADA: encendida, el
+    /// worker intentaría escribir en Mercado Libre y fallaría en cada pasada.
+    /// </summary>
+    private async Task<int> SeedMeliAsync(TenantId tenantId, CancellationToken ct)
+    {
+        if (await meli.Connections.IgnoreQueryFilters().AnyAsync(c => c.TenantId == tenantId.Value, ct)) return 0;
+
+        // Tokens cifrados de verdad (basura adentro, formato válido): así nada
+        // revienta si algún camino intenta descifrarlos.
+        var placeholder = meliTokens.Protect($"demo-{Guid.NewGuid():N}");
+
+        // El apodo del vendedor sale del subdominio: en una demo que cambia de
+        // tienda, ver siempre el mismo nombre delata que el dato es de mentira.
+        var subdomain = await tenancy.Tenants.AsNoTracking()
+            .Where(t => t.Id == tenantId.Value)
+            .Select(t => t.Subdomain.Value)
+            .FirstOrDefaultAsync(ct);
+
+        var connected = MeliConnection.Create(
+            tenantId.Value, 2_100_400_355, $"{(subdomain ?? "tienda").ToUpperInvariant()}.DEMO", "MLA",
+            placeholder, placeholder, DateTime.UtcNow.AddYears(5));
+        if (connected.IsFailure) return 0;
+
+        var connection = connected.Value;
+        connection.MarkDemo();
+        connection.SetStockSync(false);
+        connection.SetPriceSync(false);
+        meli.Connections.Add(connection);
+
+        var sellable = await SellableVariantsAsync(tenantId, ct);
+        var products = await catalog.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active)
+            .OrderBy(p => p.CreatedAtUtc).Take(300).ToListAsync(ct);
+        var productByVariant = products
+            .SelectMany(p => p.Variants.Select(v => (VariantId: v.Id, ProductId: p.Id)))
+            .ToDictionary(x => x.VariantId, x => x.ProductId);
+
+        // Se vincula todo menos la última: una publicación sin vincular deja ver
+        // el estado "sin vincular" de la pantalla, que es la mitad del punto.
+        var added = 1;
+        for (var index = 0; index < MeliDemoFeed.Items.Length - 1 && index < sellable.Count; index++)
+        {
+            var item = MeliDemoFeed.Items[index];
+            var variant = sellable[index];
+            if (!productByVariant.TryGetValue(variant.VariantId, out var productId)) continue;
+
+            var link = MeliItemLink.Create(tenantId.Value, item.Id, null, productId, variant.VariantId, item.Title);
+            if (link.IsFailure) continue;
+            link.Value.MarkPushed(item.Quantity);
+            meli.ItemLinks.Add(link.Value);
+            added++;
+        }
+
+        // Ventas del canal: el panel las lee del cache local, así que son
+        // exactamente las mismas entidades que dejaría el webhook de ML.
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < 38; i++)
+        {
+            var order = MeliOrder.Create(tenantId.Value, 2_000_009_800_000_000 + i);
+            var item = MeliDemoFeed.Items[_rng.Next(MeliDemoFeed.Items.Length)];
+            var quantity = _rng.Next(1, 4);
+            var total = item.Price * quantity;
+
+            // Una de cada diez queda esperando el pago; el resto, cobrada.
+            var isPaid = _rng.Next(10) > 0;
+            var placed = now.AddDays(-_rng.Next(0, 60)).AddHours(-_rng.Next(0, 23));
+
+            var itemsJson = System.Text.Json.JsonSerializer.Serialize(new[]
+            {
+                new { title = item.Title, quantity, unitPrice = item.Price, sku = item.Id },
+            });
+
+            order.Apply(
+                isPaid ? "paid" : "payment_required",
+                placed,
+                isPaid ? placed.AddMinutes(_rng.Next(1, 40)) : null,
+                total,
+                isPaid ? total : 0m,
+                "ARS",
+                480_000_000 + _rng.Next(1, 900_000),
+                $"COMPRADOR{_rng.Next(100, 999)}",
+                itemsJson,
+                2_100_000_000_000 + i,
+                isPaid ? 41_000_000_000 + i : null,
+                isPaid ? "shipped" : null);
+
+            meli.Orders.Add(order);
+            added++;
+        }
+
+        await meli.SaveChangesAsync(ct);
         return added;
     }
 

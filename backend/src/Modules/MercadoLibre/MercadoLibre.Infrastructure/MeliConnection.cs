@@ -44,6 +44,17 @@ public sealed class MeliConnection
     /// <summary>Emitir factura ARCA automáticamente al importar cada venta pagada.</summary>
     public bool AutoInvoiceEnabled { get; private set; }
 
+    /// <summary>
+    /// Cuenta de demostración: no hay OAuth detrás. Las pantallas que hoy
+    /// consultan la API de Mercado Libre en vivo (preguntas, publicaciones,
+    /// reclamos, mensajes) devuelven un ejemplo fijo en vez de salir a la red,
+    /// que con una cuenta falsa terminaría en un 401 y un cartel de error.
+    ///
+    /// Solo lo enciende el sembrador de datos de desarrollo. Una conexión hecha
+    /// por el flujo real de OAuth nace y queda siempre en false.
+    /// </summary>
+    public bool IsDemo { get; private set; }
+
     public DateTime ConnectedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -88,6 +99,9 @@ public sealed class MeliConnection
         TokenExpiresAtUtc = tokenExpiresAtUtc;
         UpdatedAtUtc = DateTime.UtcNow;
     }
+
+    /// <summary>Marca la conexión como de demostración (solo el seeder de desarrollo).</summary>
+    public void MarkDemo() => IsDemo = true;
 
     public void SetStockSync(bool enabled, int? bufferUnits = null, bool? autoInvoice = null)
     {

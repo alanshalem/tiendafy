@@ -242,6 +242,7 @@ public static class MeliEndpoints
         {
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             if (c is null) return Results.Ok(new { total = 0, questions = Array.Empty<object>() });
+            if (c.IsDemo) return Results.Ok(MeliDemoFeed.Questions(status));
 
             var token = await tokens.GetValidTokenAsync(c.TenantId, ct);
             if (token is null) return Results.Ok(new { total = 0, questions = Array.Empty<object>() });
@@ -334,6 +335,8 @@ public static class MeliEndpoints
             if (string.IsNullOrWhiteSpace(request.Text))
                 return Error.Validation("Meli.EmptyAnswer", "Escribí una respuesta.").ToProblem();
 
+            if (await IsDemoAsync(db, ct)) return DemoIsReadOnly();
+
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return NotConnected();
             var (c, token) = resolved.Value;
@@ -355,6 +358,8 @@ public static class MeliEndpoints
             long packId, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
+            if (await IsDemoAsync(db, ct)) return Results.Ok(MeliDemoFeed.Messages());
+
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return NotConnected();
             var (c, token) = resolved.Value;
@@ -395,6 +400,7 @@ public static class MeliEndpoints
             if (request.Text.Length > 350)
                 return Error.Validation("Meli.MessageTooLong",
                     "Mercado Libre limita los mensajes a 350 caracteres.").ToProblem();
+            if (await IsDemoAsync(db, ct)) return DemoIsReadOnly();
 
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return NotConnected();
@@ -427,6 +433,8 @@ public static class MeliEndpoints
         sales.MapGet("/claims", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
+            if (await IsDemoAsync(db, ct)) return Results.Ok(MeliDemoFeed.Claims());
+
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return Results.Ok(new { claims = Array.Empty<object>() });
             var (c, token) = resolved.Value;
@@ -465,6 +473,17 @@ public static class MeliEndpoints
         return token is null ? null : (c!, token);
     }
 
+    /// <summary>
+    /// Cuenta de demostración: se contesta con un ejemplo fijo en vez de salir
+    /// a la API de Mercado Libre, que sin OAuth real devolvería un 401.
+    /// </summary>
+    private static async Task<bool> IsDemoAsync(MeliDbContext db, CancellationToken ct) =>
+        await db.Connections.AsNoTracking().AnyAsync(c => c.IsDemo, ct);
+
+    private static IResult DemoIsReadOnly() =>
+        Error.Conflict("Meli.Demo",
+            "Es una cuenta de demostración: no se puede escribir en Mercado Libre. Conectá una cuenta real.").ToProblem();
+
     private static IResult NotConnected() =>
         Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
 
@@ -478,6 +497,9 @@ public static class MeliEndpoints
         items.MapGet("/items", async (
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
         {
+            if (await IsDemoAsync(db, ct))
+                return Results.Ok(MeliDemoFeed.ItemsWithLinks(await db.ItemLinks.AsNoTracking().ToListAsync(ct)));
+
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return Results.Ok(new { items = Array.Empty<object>() });
             var (c, token) = resolved.Value;
@@ -611,6 +633,8 @@ public static class MeliEndpoints
             if (string.IsNullOrWhiteSpace(request.CategoryId))
                 return Error.Validation("Meli.NoCategory",
                     "Elegí una categoría de Mercado Libre (usá la sugerencia automática).").ToProblem();
+
+            if (await IsDemoAsync(db, ct)) return DemoIsReadOnly();
 
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
             if (resolved is null) return NotConnected();
