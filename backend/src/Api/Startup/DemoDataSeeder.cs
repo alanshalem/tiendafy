@@ -839,10 +839,15 @@ public sealed class DemoDataSeeder(
             var isPaid = _rng.Next(10) > 0;
             var placed = now.AddDays(-_rng.Next(0, 60)).AddHours(-_rng.Next(0, 23));
 
-            var itemsJson = System.Text.Json.JsonSerializer.Serialize(new[]
-            {
-                new { title = item.Title, quantity, unitPrice = item.Price, sku = item.Id },
-            });
+            // El snapshot se serializa con el MISMO record que lee el panel: sin
+            // itemId, la rentabilidad por canal no puede atribuir la venta a la
+            // variante vinculada (y hasta hace un rato, además, se caía).
+            var itemsJson = System.Text.Json.JsonSerializer.Serialize(
+                new List<MeliOrderItemSnapshot>
+                {
+                    new(item.Id, null, item.Title, quantity, item.Price, item.Id),
+                },
+                ApiJson.Web);
 
             order.Apply(
                 isPaid ? "paid" : "payment_required",

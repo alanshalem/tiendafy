@@ -40,6 +40,45 @@ public class MeliConnectionTests
     }
 }
 
+public class MeliLinkResolverTests
+{
+    private static MeliLinkResolver WithLink(long? variationId = null)
+    {
+        var link = MeliItemLink.Create(
+            Guid.NewGuid(), "MLA123", variationId, Guid.NewGuid(), Guid.NewGuid(), "Producto");
+        return MeliLinkResolver.From([link.Value]);
+    }
+
+    [Fact]
+    public void Resuelve_VinculoAnivelItem_AunqueLaVentaTraigaVariacion()
+    {
+        var resolver = WithLink();
+        Assert.True(resolver.TryResolve("MLA123", 99, out var variantId));
+        Assert.NotEqual(Guid.Empty, variantId);
+    }
+
+    [Fact]
+    public void SinItemId_NoResuelve_YNoRevienta()
+    {
+        // El snapshot de la venta se arma con lo que manda Mercado Libre: si el
+        // id de la publicación no viene, llega null hasta acá. Antes eso tiraba
+        // ArgumentNullException y se caía la pantalla de Rentabilidad entera.
+        var resolver = WithLink();
+
+        Assert.False(resolver.TryResolve(null, null, out var deNull));
+        Assert.Equal(Guid.Empty, deNull);
+
+        Assert.False(resolver.TryResolve("   ", null, out var deVacio));
+        Assert.Equal(Guid.Empty, deVacio);
+    }
+
+    [Fact]
+    public void ItemDesconocido_NoResuelve()
+    {
+        Assert.False(WithLink().TryResolve("MLA999", null, out _));
+    }
+}
+
 public class MeliItemLinkTests
 {
     [Fact]

@@ -11,8 +11,13 @@ namespace Api.Meli;
 /// SaleFee = comisión de ML POR UNIDAD (order_items[].sale_fee) — null en
 /// snapshots viejos (pre-campo); un resync la trae.
 /// </summary>
+/// <param name="ItemId">
+/// Publicación de Mercado Libre. Nullable porque el snapshot se deserializa de
+/// lo que quedó guardado: si el campo no está, acá llega null igual —
+/// declararlo no-nullable solo escondía el problema del compilador.
+/// </param>
 public sealed record MeliOrderItemSnapshot(
-    string ItemId, long? VariationId, string Title, int Quantity, decimal UnitPrice, string? Sku,
+    string? ItemId, long? VariationId, string Title, int Quantity, decimal UnitPrice, string? Sku,
     decimal? SaleFee = null);
 
 /// <summary>

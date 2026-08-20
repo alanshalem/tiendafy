@@ -34,8 +34,21 @@ public sealed class MeliLinkResolver
                 .ToDictionary(g => g.Key, g => g.First().VariantId));
     }
 
-    /// <summary>Vínculo exacto (item + variación) o, si no hay, el del ítem completo.</summary>
-    public bool TryResolve(string itemId, long? variationId, out Guid variantId) =>
-        _exact.TryGetValue((itemId, variationId), out variantId)
-        || _byItem.TryGetValue(itemId, out variantId);
+    /// <summary>
+    /// Vínculo exacto (item + variación) o, si no hay, el del ítem completo.
+    ///
+    /// Tolera que no venga el id de la publicación: el snapshot de la venta se
+    /// arma con lo que manda Mercado Libre y un campo faltante llegaba como
+    /// null hasta el diccionario, que tira ArgumentNullException. Una venta sin
+    /// ese dato es una venta que no se puede atribuir, no un motivo para tumbar
+    /// las estadísticas enteras.
+    /// </summary>
+    public bool TryResolve(string? itemId, long? variationId, out Guid variantId)
+    {
+        variantId = default;
+        if (string.IsNullOrWhiteSpace(itemId)) return false;
+
+        return _exact.TryGetValue((itemId, variationId), out variantId)
+            || _byItem.TryGetValue(itemId, out variantId);
+    }
 }
