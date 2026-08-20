@@ -8,6 +8,8 @@ import type { CatalogProduct } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
+import { ListStats } from '../../components/stats/ListStats';
+import { useCatalogHealth } from './queries';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -30,6 +32,7 @@ const PAGE_SIZE = 20;
 
 export function CostsPage() {
   const { store } = useStore();
+  const { data: health } = useCatalogHealth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -117,6 +120,35 @@ export function CostsPage() {
           tu ganancia real por venta. Para cargar en masa usá la columna «Costo» del CSV.
         </p>
       </div>
+
+      {health && health.variants > 0 && (
+        <ListStats
+          items={[
+            {
+              label: 'Costos cargados',
+              value: `${Math.round((health.variantsWithCost / health.variants) * 100)}%`,
+              hint: `${health.variantsWithCost} de ${health.variants} variantes. La rentabilidad solo mira las que tienen costo.`,
+              tone: health.variantsWithoutCost > 0 ? 'warning' : 'success',
+            },
+            {
+              label: 'Margen promedio',
+              value: `${health.averageMarginPct}%`,
+              hint: 'Cuánto queda del precio de venta después del costo, promediando las variantes con costo cargado. No descuenta comisiones ni envío.',
+            },
+            {
+              label: 'Margen bajo (< 15 %)',
+              value: health.lowMarginVariants.toLocaleString('es-AR'),
+              hint: 'Variantes donde el costo se come casi todo el precio. Candidatas a repreciar.',
+              tone: health.lowMarginVariants > 0 ? 'danger' : 'success',
+            },
+            {
+              label: 'Falta cargar',
+              value: health.variantsWithoutCost.toLocaleString('es-AR'),
+              hint: 'Variantes sin costo. Cargalas acá o con la columna «Costo» del CSV.',
+            },
+          ]}
+        />
+      )}
 
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">

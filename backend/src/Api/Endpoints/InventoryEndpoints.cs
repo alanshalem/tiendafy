@@ -1,6 +1,7 @@
 using Api.Auth;
 using Identity.Infrastructure;
 using Inventory.Core.Domain;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 
 namespace Api.Endpoints;
@@ -28,6 +29,66 @@ public static class InventoryEndpoints
             return Results.Ok(new
             {
                 items = items.Select(s => new { s.VariantId, s.Available, s.Reserved, s.Location }),
+            });
+        });
+
+        // Resumen del depósito: lo que la tabla de stock no contesta de un vistazo
+        // — cuántas unidades hay, cuánta plata inmovilizan y qué está en cero o
+        // por agotarse. Solo proyecta dos columnas por variante: el costo está
+        // serializado en texto, así que la valorización se suma en memoria sí o sí.
+        inventory.MapGet("/summary", async (
+            ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalog,
+            Inventory.Infrastructure.Persistence.InventoryDbContext inventoryDb,
+            int? lowStockThreshold, CancellationToken ct) =>
+        {
+            var low = Math.Clamp(lowStockThreshold ?? 5, 1, 100);
+
+            var variants = await catalog.Products.AsNoTracking()
+                .Where(p => p.TenantId == tenant.TenantId)
+                .SelectMany(p => p.Variants)
+                .Select(v => new { v.Id, v.Cost })
+                .ToListAsync(ct);
+
+            var stock = await inventoryDb.StockItems.AsNoTracking()
+                .Select(s => new { s.VariantId, s.Available, s.Reserved })
+                .ToListAsync(ct);
+            var available = stock
+                .GroupBy(s => s.VariantId)
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.Available));
+
+            var units = 0;
+            var outOfStock = 0;
+            var lowStock = 0;
+            long stockValue = 0;
+            var currency = SharedKernel.Common.Money.DefaultCurrency;
+
+            foreach (var v in variants)
+            {
+                var qty = available.GetValueOrDefault(v.Id, 0);
+                units += qty;
+                if (qty <= 0) outOfStock++;
+                else if (qty <= low) lowStock++;
+
+                // Valorización A COSTO, no a precio de venta: es la plata parada
+                // en el depósito, no lo que se espera facturar por ella.
+                if (v.Cost is { } cost)
+                {
+                    stockValue += cost.AmountInMinorUnits * Math.Max(0, qty);
+                    currency = cost.Currency;
+                }
+            }
+
+            return Results.Ok(new
+            {
+                variants = variants.Count,
+                units,
+                outOfStock,
+                lowStock,
+                reserved = stock.Sum(s => s.Reserved),
+                stockValueMinor = stockValue,
+                currency,
+                withoutCost = variants.Count(v => v.Cost is null),
             });
         });
 

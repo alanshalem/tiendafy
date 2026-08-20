@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatDate } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 import {
   Badge,
   Button,
@@ -19,11 +19,43 @@ import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-re
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { storefrontUrl, storefrontHost } from '../lib/storefront';
+import { ListStats } from '../components/stats/ListStats';
+import { Delta } from '../components/charts/viz';
 
 interface TenantsResponse {
   items: Tenant[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+/** Pulso de una tienda del grupo (ventana de 30 días). */
+interface TenantMetrics {
+  tenantId: string;
+  orders: number;
+  revenueMinor: number;
+  previousRevenueMinor: number;
+  currency: string;
+  publishedProducts: number;
+  lastOrderAtUtc: string | null;
+}
+
+interface OverviewResponse {
+  days: number;
+  items: TenantMetrics[];
+}
+
+/** Ventana del tablero, en días. */
+const WINDOW_DAYS = 30;
+
+/** "hace 3 días" — para ver de un vistazo qué tienda dejó de vender. */
+function sinceLabel(iso: string | null): string {
+  if (!iso) return 'Nunca vendió';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  if (days < 30) return `Hace ${days} días`;
+  const months = Math.round(days / 30);
+  return months === 1 ? 'Hace un mes' : `Hace ${months} meses`;
 }
 
 const statusVariant: Record<Tenant['status'], BadgeVariant> = {
@@ -56,6 +88,21 @@ export function TenantsPage() {
     queryKey: ['tenants'],
     queryFn: () => api.get<TenantsResponse>('/api/v1/tenants?limit=50'),
   });
+
+  // El pulso de cada tienda va aparte: si el tablero falla o tarda, la lista
+  // (que es lo que permite operar) igual se muestra.
+  const { data: overview } = useQuery({
+    queryKey: ['tenants-overview', WINDOW_DAYS],
+    queryFn: () => api.get<OverviewResponse>(`/api/v1/tenants/overview?days=${WINDOW_DAYS}`),
+  });
+
+  const metrics = new Map((overview?.items ?? []).map((m) => [m.tenantId, m]));
+  const all = overview?.items ?? [];
+  const revenue = all.reduce((sum, m) => sum + m.revenueMinor, 0);
+  const previousRevenue = all.reduce((sum, m) => sum + m.previousRevenueMinor, 0);
+  const currency = all.find((m) => m.revenueMinor > 0)?.currency ?? 'ARS';
+  const activeStores = (data?.items ?? []).filter((t) => t.status === 'ACTIVE').length;
+  const selling = all.filter((m) => m.orders > 0).length;
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['tenants'] });
@@ -124,6 +171,46 @@ export function TenantsPage() {
       cell: (t) => <Badge variant={statusVariant[t.status]}>{statusLabel[t.status]}</Badge>,
     },
     {
+      key: 'sales',
+      header: `Ventas (${WINDOW_DAYS} d)`,
+      cell: (t) => {
+        const m = metrics.get(t.id);
+        if (!m) return <span className="text-fg-subtle">—</span>;
+        return (
+          <div>
+            <div className="font-semibold tabular-nums text-fg">
+              {formatMoney(m.revenueMinor, m.currency)}
+            </div>
+            <div className="text-xs text-fg-subtle">
+              {m.orders} {m.orders === 1 ? 'venta' : 'ventas'} · {sinceLabel(m.lastOrderAtUtc)}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'trend',
+      header: 'Tendencia',
+      cell: (t) => {
+        const m = metrics.get(t.id);
+        if (!m) return <span className="text-fg-subtle">—</span>;
+        return <Delta current={m.revenueMinor} previous={m.previousRevenueMinor} />;
+      },
+    },
+    {
+      key: 'catalog',
+      header: 'Publicados',
+      cell: (t) => {
+        const m = metrics.get(t.id);
+        if (!m) return <span className="text-fg-subtle">—</span>;
+        return (
+          <span className={m.publishedProducts === 0 ? 'text-warning' : 'tabular-nums text-fg'}>
+            {m.publishedProducts === 0 ? 'Sin catálogo' : m.publishedProducts.toLocaleString('es-AR')}
+          </span>
+        );
+      },
+    },
+    {
       key: 'createdAtUtc',
       header: 'Creada',
       cell: (t) => formatDate(t.createdAtUtc),
@@ -179,9 +266,45 @@ export function TenantsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Tiendas</h1>
+        <div>
+          <h1 className="text-xl font-semibold">Tiendas</h1>
+          <p className="text-sm text-fg-muted">
+            Todas las tiendas del grupo y cómo viene cada una en los últimos {WINDOW_DAYS} días.
+          </p>
+        </div>
         <Button onClick={() => setCreateOpen(true)}>Crear tienda</Button>
       </div>
+
+      <ListStats
+        items={[
+          {
+            label: 'Tiendas activas',
+            value: activeStores.toLocaleString('es-AR'),
+            hint: 'Tiendas publicadas y visibles. Las archivadas no cuentan.',
+          },
+          {
+            label: `Facturado (${WINDOW_DAYS} d)`,
+            value: formatMoney(revenue, currency),
+            hint: 'Suma de las ventas cobradas de todas las tiendas del grupo.',
+          },
+          {
+            label: 'Ventas del grupo',
+            value: all.reduce((sum, m) => sum + m.orders, 0).toLocaleString('es-AR'),
+          },
+          {
+            label: 'Tiendas que vendieron',
+            value: `${selling} de ${all.length}`,
+            hint: 'Cuántas tiendas registraron al menos una venta cobrada en el período.',
+            tone: all.length > 0 && selling < all.length ? 'warning' : 'default',
+          },
+        ]}
+      />
+
+      {previousRevenue > 0 && (
+        <p className="text-sm text-fg-muted">
+          Facturación del grupo <Delta current={revenue} previous={previousRevenue} />
+        </p>
+      )}
 
       <Card flush>
         {isLoading && <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>}

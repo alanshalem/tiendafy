@@ -41,6 +41,26 @@ public static class PurchasingEndpoints
             return Results.Ok(new { items = orders.Select(ToListDto), total });
         });
 
+        // Resumen de compras: qué hay en camino y cuánta plata está comprometida.
+        purchasing.MapGet("/summary", async (PurchasingDbContext db, CancellationToken ct) =>
+        {
+            var orders = await db.PurchaseOrders.AsNoTracking().ToListAsync(ct);
+            var open = orders.Where(p => p.IsOpen).ToList();
+
+            return Results.Ok(new
+            {
+                total = orders.Count,
+                open = open.Count,
+                inTransit = orders.Count(p => p.Status is PurchaseOrderStatus.InTransit or PurchaseOrderStatus.InCustoms),
+                received = orders.Count(p => p.Status == PurchaseOrderStatus.Received),
+                // Comprometido: el FOB de todo lo que todavía no llegó. En la
+                // moneda de las OC abiertas (casi siempre USD).
+                committedFob = open.Sum(p => p.TotalFob),
+                currency = open.Count > 0 ? open[0].Currency : "USD",
+                withoutInvoice = orders.Count(p => p.Status == PurchaseOrderStatus.Received && !p.HasSupplierInvoice),
+            });
+        });
+
         purchasing.MapGet("/purchase-orders/{id:guid}", async (
             Guid id, PurchasingDbContext db, CancellationToken ct) =>
         {

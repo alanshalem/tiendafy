@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Api.Auth;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using SharedKernel.Common;
 using Tenancy.Contracts;
 using Tenancy.Core.Domain;
 using Tenancy.Core.Features.CreateTenant;
@@ -24,6 +25,68 @@ public static class TenantEndpoints
             if (!result.IsSuccess) return result.Error.ToProblem();
             await memberships.AddOwnerAsync(userId.Value, result.Value.Id, ct);
             return Results.Created($"/api/v1/tenants/{result.Value.Id}", result.Value);
+        }).RequireAuthorization();
+
+        // Tablero del grupo: la misma lista de tiendas pero con el pulso de cada
+        // una al lado. Sin esto, comparar dos tiendas propias obliga a entrar a
+        // cada una y anotar los números a mano.
+        //
+        // Los DbContext filtran por la tienda ACTIVA (el header X-Tenant-Id), así
+        // que hay que ignorar ese filtro y acotar a mano a las tiendas del usuario.
+        // Se consulta de a una tienda por vez: son un puñado, y una query por
+        // tienda es imposible de confundir con una fuga entre tenants.
+        tenants.MapGet("/overview", async (
+            ITenancyService service, ClaimsPrincipal user, IMembershipService memberships,
+            global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
+            int? days, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return Results.Unauthorized();
+
+            var window = Math.Clamp(days ?? 30, 1, 365);
+            var since = DateTime.UtcNow.AddDays(-window);
+            var previousSince = since.AddDays(-window);
+
+            var ids = await memberships.TenantIdsForUserAsync(userId.Value, ct);
+            var items = new List<object>();
+
+            foreach (var id in ids)
+            {
+                var tenantId = TenantId.From(id);
+
+                var paid = await ordersDb.Orders.AsNoTracking().IgnoreQueryFilters()
+                    .Where(o => o.TenantId == tenantId
+                        && o.Status == global::Orders.Core.Domain.OrderStatus.Paid
+                        && o.PaidAtUtc >= previousSince)
+                    .Select(o => new { o.PaidAtUtc, Amount = o.Total.AmountInMinorUnits, o.Total.Currency })
+                    .ToListAsync(ct);
+
+                var current = paid.Where(o => o.PaidAtUtc >= since).ToList();
+                var previous = paid.Where(o => o.PaidAtUtc < since).ToList();
+
+                var lastOrder = await ordersDb.Orders.AsNoTracking().IgnoreQueryFilters()
+                    .Where(o => o.TenantId == tenantId && o.Status == global::Orders.Core.Domain.OrderStatus.Paid)
+                    .OrderByDescending(o => o.PaidAtUtc)
+                    .Select(o => o.PaidAtUtc)
+                    .FirstOrDefaultAsync(ct);
+
+                var published = await catalogDb.Products.AsNoTracking().IgnoreQueryFilters()
+                    .CountAsync(p => p.TenantId == tenantId && p.Status == Catalog.Core.Domain.ProductStatus.Active, ct);
+
+                items.Add(new
+                {
+                    tenantId = id,
+                    orders = current.Count,
+                    revenueMinor = current.Sum(o => o.Amount),
+                    previousRevenueMinor = previous.Sum(o => o.Amount),
+                    currency = current.Count > 0 ? current[0].Currency : SharedKernel.Common.Money.DefaultCurrency,
+                    publishedProducts = published,
+                    lastOrderAtUtc = lastOrder,
+                });
+            }
+
+            return Results.Ok(new { days = window, items });
         }).RequireAuthorization();
 
         // Sólo las tiendas del usuario autenticado.

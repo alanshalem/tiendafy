@@ -5,6 +5,8 @@ import { Button, Tabs, useToast } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
+import { ListStats } from '../components/stats/ListStats';
+import { formatMoney } from '../lib/format';
 import { CalendarioTab } from './redes-calendario';
 import { PublicacionesTab } from './redes-publicaciones';
 import { CuentasTab } from './redes-cuentas';
@@ -79,6 +81,14 @@ export function RedesPage() {
   if (!store) return null;
 
   const onSaved = () => loadPosts();
+
+  // Del mes que se está mirando en el calendario, no de toda la historia: es
+  // el período que el resto de la pantalla ya muestra.
+  const monthPosts = posts ?? [];
+  const scheduled = monthPosts.filter((p) => p.status === 'Scheduled').length;
+  const published = monthPosts.filter((p) => p.status === 'Published').length;
+  const failed = monthPosts.filter((p) => p.status === 'Failed').length;
+  const attributedRevenue = monthPosts.reduce((sum, p) => sum + p.attributedRevenueMinor, 0);
   const hasAuthorized = (accounts ?? []).some((a) => a.authorized);
 
   return (
@@ -109,6 +119,37 @@ export function RedesPage() {
           )}
         </div>
       </div>
+
+      {tab !== 'cuentas' && monthPosts.length > 0 && (
+        <div className="mb-4">
+          <ListStats
+            items={[
+              {
+                label: 'Programados',
+                value: scheduled.toLocaleString('es-AR'),
+                hint: 'Posts de este mes esperando su turno de publicación.',
+              },
+              {
+                label: 'Publicados',
+                value: published.toLocaleString('es-AR'),
+                hint: 'Posts que ya salieron en al menos una red.',
+              },
+              {
+                label: 'Fallidos',
+                value: failed.toLocaleString('es-AR'),
+                hint: 'No se pudieron publicar (token vencido, red caída). Revisá el detalle del post.',
+                tone: failed > 0 ? 'danger' : 'success',
+              },
+              {
+                label: 'Ventas atribuidas',
+                value: formatMoney(attributedRevenue),
+                hint: 'Facturado por ventas que usaron el cupón de un post de este mes. Es el piso de lo que rindieron las redes.',
+                tone: attributedRevenue > 0 ? 'success' : 'default',
+              },
+            ]}
+          />
+        </div>
+      )}
 
       {tab === 'calendario' && (
         <CalendarioTab

@@ -79,6 +79,53 @@ public static class ProductEndpoints
             });
         });
 
+        // Salud del catálogo: qué falta completar antes de que un producto pueda
+        // venderse bien (foto, costo) y cuánto margen deja lo que sí está cargado.
+        products.MapGet("/health", async (
+            HttpContext http, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
+        {
+            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
+
+            var mine = catalogDb.Products.AsNoTracking().Where(p => p.TenantId == tenant.TenantId);
+
+            var byStatus = await mine
+                .GroupBy(p => p.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+            int Count(ProductStatus s) => byStatus.FirstOrDefault(x => x.Status == s)?.Count ?? 0;
+
+            var withoutImage = await mine.CountAsync(p => !p.Images.Any(), ct);
+
+            // Precio y costo, nada más: el costo va serializado en texto y no se
+            // puede agregar en SQL, pero al menos no se trae el producto entero.
+            var priced = await mine
+                .SelectMany(p => p.Variants)
+                .Select(v => new { Price = v.Price.AmountInMinorUnits, v.Cost })
+                .ToListAsync(ct);
+
+            // El margen promedio se calcula SOLO sobre lo que tiene costo cargado:
+            // contar el resto como margen 100 % sería inventar el número.
+            var margins = priced
+                .Where(v => v.Cost is { } c && v.Price > 0 && c.AmountInMinorUnits > 0)
+                .Select(v => (v.Price - v.Cost!.Value.AmountInMinorUnits) * 100m / v.Price)
+                .ToList();
+
+            return Results.Ok(new
+            {
+                total = byStatus.Sum(x => x.Count),
+                published = Count(ProductStatus.Active),
+                draft = Count(ProductStatus.Draft),
+                archived = Count(ProductStatus.Archived),
+                withoutImage,
+                variants = priced.Count,
+                variantsWithCost = priced.Count(v => v.Cost is not null),
+                variantsWithoutCost = priced.Count(v => v.Cost is null),
+                averageMarginPct = margins.Count > 0 ? Math.Round(margins.Average(), 1) : 0m,
+                lowMarginVariants = margins.Count(m => m < 15),
+            });
+        }).RequireTenantMembership();
+
         // Storefront: búsqueda con filtros, orden y paginado (estilo marketplace).
         products.MapGet("/search", async (
             ITenantContext tenant,

@@ -27,6 +27,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { ListStats } from '../components/stats/ListStats';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -135,6 +136,17 @@ interface PoForm {
 /** Órdenes de compra por página. */
 const PO_PAGE_SIZE = 25;
 
+/** Estado agregado de las compras (`GET /purchasing/summary`). */
+interface PurchasingSummary {
+  total: number;
+  open: number;
+  inTransit: number;
+  received: number;
+  committedFob: number;
+  currency: string;
+  withoutInvoice: number;
+}
+
 export function ComprasPage() {
   const { store } = useStore();
   const [view, setView] = useState<'list' | 'detail' | 'new'>('list');
@@ -191,6 +203,14 @@ function ComprasList({
   });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PO_PAGE_SIZE));
 
+  // Sobre TODAS las órdenes, no sobre la página: cuánta plata está comprometida
+  // en mercadería que todavía no llegó es la pregunta que abre esta pantalla.
+  const { data: summary } = useQuery({
+    queryKey: ['purchasing-summary', store?.id],
+    queryFn: () => api.get<PurchasingSummary>('/api/v1/purchasing/summary'),
+    enabled: !!store,
+  });
+
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -213,6 +233,34 @@ function ComprasList({
           </Button>
         </div>
       </div>
+
+      {summary && summary.total > 0 && (
+        <ListStats
+          items={[
+            {
+              label: 'Órdenes abiertas',
+              value: summary.open.toLocaleString('es-AR'),
+              hint: `Todo lo que todavía no se recibió ni se canceló, de ${summary.total.toLocaleString('es-AR')} órdenes en total.`,
+            },
+            {
+              label: 'En camino',
+              value: summary.inTransit.toLocaleString('es-AR'),
+              hint: 'Órdenes en tránsito o en aduana: mercadería embarcada que aún no entró al depósito.',
+            },
+            {
+              label: 'Plata comprometida',
+              value: `${summary.currency} ${summary.committedFob.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`,
+              hint: 'FOB de las órdenes abiertas: lo pactado con proveedores por mercadería que todavía no llegó. No incluye flete ni impuestos.',
+            },
+            {
+              label: 'Recibidas sin factura',
+              value: summary.withoutInvoice.toLocaleString('es-AR'),
+              hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA.',
+              tone: summary.withoutInvoice > 0 ? 'warning' : 'default',
+            },
+          ]}
+        />
+      )}
 
       <Tabs
         items={[

@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Plus, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
 import { cn, Input, Select, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
@@ -18,6 +19,7 @@ import { TABLE_CARD } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { ListStats } from '../components/stats/ListStats';
 
 interface OrderItem {
   variantId: string;
@@ -68,6 +70,16 @@ export const money = (m: Money) => formatMoney(m.amount, m.currency);
 /** Ventas por página. 50 entra cómodo en una pantalla con scroll corto. */
 const PAGE_SIZE = 25;
 
+/** Ventana de las métricas del encabezado, en días. */
+const STATS_DAYS = 30;
+
+interface SalesStats {
+  currency: string;
+  revenue: number;
+  orders: number;
+  averageOrder: number;
+}
+
 export function OrdersPage() {
   const { store } = useStore();
   const { can } = usePermissions();
@@ -112,6 +124,23 @@ export function OrdersPage() {
   }, [page, debouncedSearch, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Las métricas miran el período completo, no la página: el listado responde
+  // "qué pasó con esta venta" y estos números, "cómo viene el mes".
+  const { data: stats } = useQuery({
+    queryKey: ['sales-stats', store?.id, STATS_DAYS],
+    queryFn: () => api.get<SalesStats>(`/api/v1/stats/sales?days=${STATS_DAYS}`),
+    enabled: !!store,
+    retry: false,
+  });
+  // Cobradas y sin despachar: el trabajo pendiente del depósito, de toda la
+  // historia — no solo del período de las métricas.
+  const { data: pending } = useQuery({
+    queryKey: ['orders-pending-fulfillment', store?.id],
+    queryFn: () => api.get<{ total: number }>('/api/v1/orders?status=PAID&limit=1'),
+    enabled: !!store,
+    retry: false,
+  });
 
   const fulfill = useCallback(
     async (o: Order) => {
@@ -205,6 +234,36 @@ export function OrdersPage() {
         </div>
       </div>
       {manualOpen && <ManualSaleModal onClose={() => setManualOpen(false)} onCreated={load} />}
+
+      {stats && (
+        <div className="mb-4">
+          <ListStats
+            items={[
+              {
+                label: `Facturado (${STATS_DAYS} d)`,
+                value: formatMoney(stats.revenue, stats.currency),
+                hint: 'Suma de las ventas cobradas del período. No descuenta reembolsos ni comisiones.',
+              },
+              {
+                label: 'Ventas cobradas',
+                value: stats.orders.toLocaleString('es-AR'),
+                hint: `Ventas con el pago acreditado en los últimos ${STATS_DAYS} días.`,
+              },
+              {
+                label: 'Ticket promedio',
+                value: formatMoney(stats.averageOrder, stats.currency),
+                hint: 'Facturado dividido por la cantidad de ventas cobradas.',
+              },
+              {
+                label: 'Por despachar',
+                value: (pending?.total ?? 0).toLocaleString('es-AR'),
+                hint: 'Ventas cobradas que todavía no se marcaron como enviadas. Es la cola del depósito, de toda la historia.',
+                tone: (pending?.total ?? 0) > 0 ? 'warning' : 'success',
+              },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="min-w-[16rem] flex-1">

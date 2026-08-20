@@ -5,6 +5,7 @@ import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
+import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
 
 interface Conversation {
@@ -162,6 +163,11 @@ export function SupportChatPage() {
 
   const current = convs.find((c) => c.id === selected) ?? null;
 
+  // La bandeja llega entera, así que las métricas salen de lo que ya está en
+  // memoria: sin pedirle nada más al servidor.
+  const waiting = convs.filter((c) => c.unreadForStaff > 0).length;
+  const openCount = convs.filter((c) => c.status === 'OPEN').length;
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <div className="mb-5 flex items-center justify-between">
@@ -173,6 +179,30 @@ export function SupportChatPage() {
           <RefreshCw className="h-4 w-4" /> Actualizar
         </button>
       </div>
+
+      {convs.length > 0 && (
+        <div className="mb-4">
+          <ListStats
+            items={[
+              {
+                label: 'Esperando respuesta',
+                value: waiting.toLocaleString('es-AR'),
+                hint: 'Conversaciones con mensajes del cliente sin leer. Es la cola real de trabajo.',
+                tone: waiting > 0 ? 'danger' : 'success',
+              },
+              {
+                label: 'Abiertas',
+                value: openCount.toLocaleString('es-AR'),
+                hint: 'Consultas todavía sin cerrar, hayas respondido o no.',
+              },
+              {
+                label: 'Total de consultas',
+                value: convs.length.toLocaleString('es-AR'),
+              },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="grid h-[calc(100vh-180px)] min-h-[420px] grid-cols-1 overflow-hidden rounded-lg border border-border bg-surface shadow-card md:grid-cols-[320px_1fr]">
         {/* Bandeja */}

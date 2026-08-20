@@ -8,6 +8,8 @@ import { fetchAllProducts, matchesProduct } from '../../lib/products';
 import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
+import { ListStats } from '../../components/stats/ListStats';
+import { formatMoney } from '../../lib/format';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -28,6 +30,20 @@ interface ProductDto {
 
 /** Productos por página. */
 const PAGE_SIZE = 20;
+
+/** Desde cuántas unidades se considera "poco stock". */
+const LOW_STOCK = 5;
+
+interface InventorySummary {
+  variants: number;
+  units: number;
+  outOfStock: number;
+  lowStock: number;
+  reserved: number;
+  stockValueMinor: number;
+  currency: string;
+  withoutCost: number;
+}
 
 export function InventoryPage() {
   const { store } = useStore();
@@ -52,6 +68,14 @@ export function InventoryPage() {
       if (q) params.set('q', q);
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },
+    enabled: !!store,
+  });
+
+  // Resumen del depósito completo, no de la página: la tabla muestra 20
+  // variantes, pero la pregunta "¿cuánta plata tengo parada?" es del total.
+  const { data: summary } = useQuery({
+    queryKey: ['inventory-summary', store?.id],
+    queryFn: () => api.get<InventorySummary>(`/api/v1/inventory/summary?lowStockThreshold=${LOW_STOCK}`),
     enabled: !!store,
   });
 
@@ -115,6 +139,41 @@ export function InventoryPage() {
           Etiquetas QR de esta página
         </Button>
       </div>
+
+      {summary && (
+        <ListStats
+          items={[
+            {
+              label: 'Unidades en depósito',
+              value: summary.units.toLocaleString('es-AR'),
+              hint: `Suma del disponible de las ${summary.variants.toLocaleString('es-AR')} variantes del catálogo. No incluye lo reservado por checkouts en curso (${summary.reserved}).`,
+            },
+            {
+              label: 'Valorizado a costo',
+              value:
+                summary.withoutCost === summary.variants
+                  ? 'Sin costos'
+                  : formatMoney(summary.stockValueMinor, summary.currency),
+              hint:
+                summary.withoutCost > 0
+                  ? `Plata inmovilizada en mercadería, a costo de compra. Quedan ${summary.withoutCost} variantes sin costo cargado, así que el número es un piso.`
+                  : 'Plata inmovilizada en mercadería, valuada al costo de compra (no al precio de venta).',
+            },
+            {
+              label: 'Sin stock',
+              value: summary.outOfStock.toLocaleString('es-AR'),
+              hint: 'Variantes en cero: siguen publicadas pero no se pueden vender.',
+              tone: summary.outOfStock > 0 ? 'danger' : 'success',
+            },
+            {
+              label: `Quedan ${LOW_STOCK} o menos`,
+              value: summary.lowStock.toLocaleString('es-AR'),
+              hint: 'Variantes por agotarse. Son las candidatas a la próxima orden de compra.',
+              tone: summary.lowStock > 0 ? 'warning' : 'default',
+            },
+          ]}
+        />
+      )}
 
       <Input
         placeholder="Buscar por producto o SKU…"

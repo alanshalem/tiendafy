@@ -7,7 +7,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { fetchAllProducts } from '../../lib/products';
-import { useVariantStock } from './queries';
+import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -16,6 +16,7 @@ import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel'
 import { type Category } from './types';
 import { ProductRows } from './ProductRows';
 import { TABLE_CARD } from '../../lib/styles';
+import { ListStats } from '../../components/stats/ListStats';
 
 export interface VariantDto {
   id: string;
@@ -197,6 +198,10 @@ export function ProductsPage() {
 
   const isEmpty = !isLoading && products.length === 0;
 
+  // Salud del catálogo entero (no de la página): un listado paginado esconde
+  // cuántos productos quedaron en borrador o sin foto.
+  const { data: health } = useCatalogHealth();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -222,6 +227,36 @@ export function ProductsPage() {
           </Link>
         </div>
       </div>
+
+      {health && health.total > 0 && (
+        <ListStats
+          items={[
+            {
+              label: 'Publicados',
+              value: health.published.toLocaleString('es-AR'),
+              hint: `De ${health.total.toLocaleString('es-AR')} productos cargados. Solo los publicados se ven en la tienda.`,
+            },
+            {
+              label: 'En borrador',
+              value: health.draft.toLocaleString('es-AR'),
+              hint: 'Cargados pero invisibles para el público. Publicalos cuando estén listos.',
+              tone: health.draft > 0 ? 'warning' : 'default',
+            },
+            {
+              label: 'Sin foto',
+              value: health.withoutImage.toLocaleString('es-AR'),
+              hint: 'Un producto sin foto casi no se vende. Es lo primero que conviene completar.',
+              tone: health.withoutImage > 0 ? 'danger' : 'success',
+            },
+            {
+              label: 'Sin costo cargado',
+              value: health.variantsWithoutCost.toLocaleString('es-AR'),
+              hint: `Variantes sin costo: quedan afuera del cálculo de rentabilidad. Van ${health.variantsWithCost} de ${health.variants}.`,
+              tone: health.variantsWithoutCost > 0 ? 'warning' : 'success',
+            },
+          ]}
+        />
+      )}
 
       {isEmpty ? (
         <EmptyState
