@@ -19,7 +19,7 @@ import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 interface Customer {
   id: string;
@@ -32,7 +32,7 @@ interface Customer {
 }
 
 /** Clientes por página. */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 export function CustomersPage() {
   const { store } = useStore();
@@ -177,6 +177,11 @@ export function CustomersPage() {
               placeholder="Buscar cliente..."
             />
           </form>
+          {total > 0 && (
+            <span className="text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
+            </span>
+          )}
           <Button
             variant="secondary"
             onClick={() => importFromOrders.mutate()}

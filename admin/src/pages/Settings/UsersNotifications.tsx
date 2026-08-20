@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
 import { TABLE_CARD } from '../../lib/styles';
-import { Pagination } from '../../components/Pagination';
+import { Pagination, pageRangeLabel } from '../../components/Pagination';
 
 interface Member {
   userId: string;
@@ -130,7 +130,11 @@ export function UsersNotificationsPage() {
     <div className="mx-auto max-w-4xl">
       <SettingsHeader
         title="Usuarios y permisos"
-        description="Invitá a tu equipo y elegí qué puede hacer cada uno en el panel."
+        description={`Invitá a tu equipo y elegí qué puede hacer cada uno en el panel.${
+          (membersQ.data?.total ?? 0) > 0
+            ? ` · ${pageRangeLabel(page, PAGE_SIZE, membersQ.data!.total, membersQ.data!.total === 1 ? 'usuario' : 'usuarios')}`
+            : ''
+        }`}
         action={
           canManage && (
             <button

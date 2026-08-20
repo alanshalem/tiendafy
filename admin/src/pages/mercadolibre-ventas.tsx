@@ -15,7 +15,7 @@ import {
 import { api, errMsg } from '../lib/api';
 import { StatusLegend } from '../components/StatusLegend';
 import { fecha, moneyMajor } from './mercadolibre-shared';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -164,7 +164,14 @@ export function VentasTab() {
         </EmptyList>
       ) : (
         <>
-          <StatusLegend items={LEGEND} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <StatusLegend items={LEGEND} />
+            {total > 0 && (
+              <span className="text-xs text-fg-subtle">
+                {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
+              </span>
+            )}
+          </div>
           <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
             <table className="w-full min-w-[760px] text-sm">
               <thead>

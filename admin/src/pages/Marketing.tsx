@@ -9,7 +9,7 @@ import { NotificationUsage } from '../components/NotificationUsage';
 import { StatusLegend } from '../components/StatusLegend';
 import { HelpLink } from '../components/HelpLink';
 import { AUDIENCE_LABEL, CampaignModal, type Campaign } from './CampaignModal';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 interface CampaignDetail {
   campaign: Campaign;
@@ -122,9 +122,16 @@ export function MarketingPage() {
         title="Email marketing"
         subtitle="Campañas de email para tus clientes: novedades, promos, lanzamientos."
         actions={
-          <Button onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> Nueva campaña
-          </Button>
+          <div className="flex items-center gap-3">
+            {(data?.total ?? 0) > 0 && (
+              <span className="text-xs text-fg-subtle">
+                {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'campaña' : 'campañas')}
+              </span>
+            )}
+            <Button onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> Nueva campaña
+            </Button>
+          </div>
         }
       />
 

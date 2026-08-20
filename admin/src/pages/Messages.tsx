@@ -7,7 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { formatDateTime } from '@tiendafy/types';
 
 interface ContactMessage {
@@ -24,7 +24,7 @@ interface ContactMessage {
   createdAtUtc: string;
 }
 /** Mensajes por página. */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 interface MessagesResponse {
   items: ContactMessage[];
@@ -83,7 +83,14 @@ export function MessagesPage() {
             Lo que te escriben desde tu tienda — incluye las solicitudes del Botón de Arrepentimiento.
           </p>
         </div>
-        {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
+        <div className="flex shrink-0 items-center gap-2">
+          {(data?.total ?? 0) > 0 && (
+            <span className="text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'mensaje' : 'mensajes')}
+            </span>
+          )}
+          {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
+        </div>
       </div>
 
       <div className="mb-4 flex gap-1 border-b border-border text-sm">

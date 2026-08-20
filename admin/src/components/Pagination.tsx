@@ -82,3 +82,16 @@ function Btn({
     </button>
   );
 }
+
+/**
+ * "1–25 de 45 ventas" — el rango visible sobre el total. Sin esto, una lista
+ * con menos filas que el tamaño de página parece no tener paginación: el
+ * paginador se oculta (con razón) y nada dice cuántas cosas hay en total.
+ */
+export function pageRangeLabel(page: number, pageSize: number, total: number, noun: string): string {
+  if (total === 0) return `Sin ${noun}`;
+  const first = (page - 1) * pageSize + 1;
+  const last = Math.min(page * pageSize, total);
+  const range = first === last ? `${first}` : `${first}–${last}`;
+  return `${range} de ${total.toLocaleString('es-AR')} ${noun}`;
+}

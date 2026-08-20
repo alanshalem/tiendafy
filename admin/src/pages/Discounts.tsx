@@ -24,7 +24,7 @@ import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 type CouponType = 'Percentage' | 'FixedAmount' | 'FreeShipping';
 
@@ -61,7 +61,7 @@ function vigencia(c: Coupon): string {
 }
 
 /** Cupones por página. */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 export function DiscountsPage() {
   const { store } = useStore();
@@ -181,11 +181,18 @@ export function DiscountsPage() {
         title="Cupones de descuento"
         subtitle="Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos."
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <span className="inline-flex items-center gap-1.5">
-              <Plus className="h-4 w-4" /> Crear cupón
-            </span>
-          </Button>
+          <div className="flex items-center gap-3">
+            {(data?.total ?? 0) > 0 && (
+              <span className="text-xs text-fg-subtle">
+                {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'cupón' : 'cupones')}
+              </span>
+            )}
+            <Button onClick={() => setCreateOpen(true)}>
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> Crear cupón
+              </span>
+            </Button>
+          </div>
         }
       />
 

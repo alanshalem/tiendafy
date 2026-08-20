@@ -26,7 +26,7 @@ import { downloadBlob } from '../lib/download';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -200,6 +200,11 @@ function ComprasList({
             Órdenes de compra a proveedores, ciclo de importación y landed cost: el costo real de cada unidad
             puesta en el depósito alimenta Rentabilidad.
           </p>
+          {(data?.total ?? 0) > 0 && (
+            <p className="mt-1 text-xs text-fg-subtle">
+              {pageRangeLabel(page, PO_PAGE_SIZE, data!.total, data!.total === 1 ? 'compra' : 'compras')}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <VatBookDownload />

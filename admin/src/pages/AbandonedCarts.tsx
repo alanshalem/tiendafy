@@ -7,7 +7,7 @@ import { formatMoney, formatDateTime } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
 import { SETTINGS_CARD, TABLE_CARD } from '../lib/styles';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 interface Abandoned {
   count: number;
@@ -23,7 +23,7 @@ interface Abandoned {
 }
 
 /** Carritos por página. */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 export function AbandonedCartsPage() {
   const { store } = useStore();
@@ -45,6 +45,11 @@ export function AbandonedCartsPage() {
       <h1 className="mb-1 text-2xl font-bold text-fg">Carritos abandonados</h1>
       <p className="mb-5 text-sm text-fg-muted">
         Checkouts iniciados que no terminaron en compra (últimos 30 días).
+        {(data?.count ?? 0) > 0 && (
+          <span className="ml-2 text-xs text-fg-subtle">
+            {pageRangeLabel(page, PAGE_SIZE, data!.count, data!.count === 1 ? 'carrito' : 'carritos')}
+          </span>
+        )}
       </p>
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2">

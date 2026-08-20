@@ -16,7 +16,7 @@ import { FiscalPanel } from './orders-fiscal';
 import { RefundDialog } from './orders-refund';
 import { TABLE_CARD } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
-import { Pagination } from '../components/Pagination';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 
 interface OrderItem {
@@ -66,7 +66,7 @@ export interface RefundRecord {
 export const money = (m: Money) => formatMoney(m.amount, m.currency);
 
 /** Ventas por página. 50 entra cómodo en una pantalla con scroll corto. */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 export function OrdersPage() {
   const { store } = useStore();
@@ -232,7 +232,7 @@ export function OrdersPage() {
         </div>
         {total > 0 && (
           <span className="text-xs text-fg-subtle">
-            {total.toLocaleString('es-AR')} venta{total === 1 ? '' : 's'}
+            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
           </span>
         )}
       </div>
