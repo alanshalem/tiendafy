@@ -72,6 +72,11 @@ public static class PipelineExtensions
         apiV1.MapShopOrdersEndpoints();
         apiV1.MapContactEndpoints();
         apiV1.MapMembersEndpoints();
+
+        // Herramientas de desarrollo (sembrar datos de demo). Fuera de
+        // Development estas rutas directamente no existen.
+        if (app.Environment.IsDevelopment()) apiV1.MapDevEndpoints();
+
         return app;
     }
 }
