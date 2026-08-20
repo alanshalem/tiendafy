@@ -102,7 +102,7 @@ export function ProductsPage() {
       if (filters.category) params.set('categoryId', filters.category);
       if (filters.status !== 'all') params.set('status', filters.status.toUpperCase());
       if (filters.missing === 'image') params.set('missingImage', 'true');
-      if (filters.stock !== 'all') params.set('inStock', String(filters.stock === 'in'));
+      if (filters.stock !== 'all') params.set('stock', filters.stock);
       if (filters.priceType !== 'all') params.set('promo', String(filters.priceType === 'promo'));
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },

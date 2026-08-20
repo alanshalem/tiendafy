@@ -168,6 +168,16 @@ export function SupportChatPage() {
   const waiting = convs.filter((c) => c.unreadForStaff > 0).length;
   const openCount = convs.filter((c) => c.status === 'OPEN').length;
 
+  // La bandeja llega entera, así que el recorte también se hace acá.
+  const [inbox, setInbox] = useState<'all' | 'waiting' | 'open'>('all');
+  const toggleInbox = (next: 'waiting' | 'open') => setInbox((current) => (current === next ? 'all' : next));
+
+  const visible = convs.filter((c) => {
+    if (inbox === 'waiting') return c.unreadForStaff > 0;
+    if (inbox === 'open') return c.status === 'OPEN';
+    return true;
+  });
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <div className="mb-5 flex items-center justify-between">
@@ -189,15 +199,20 @@ export function SupportChatPage() {
                 value: waiting.toLocaleString('es-AR'),
                 hint: 'Conversaciones con mensajes del cliente sin leer. Es la cola real de trabajo.',
                 tone: waiting > 0 ? 'danger' : 'success',
+                onClick: () => toggleInbox('waiting'),
+                active: inbox === 'waiting',
               },
               {
                 label: 'Abiertas',
                 value: openCount.toLocaleString('es-AR'),
                 hint: 'Consultas todavía sin cerrar, hayas respondido o no.',
+                onClick: () => toggleInbox('open'),
+                active: inbox === 'open',
               },
               {
                 label: 'Total de consultas',
                 value: convs.length.toLocaleString('es-AR'),
+                onClick: inbox === 'all' ? undefined : () => setInbox('all'),
               },
             ]}
           />
@@ -211,14 +226,14 @@ export function SupportChatPage() {
             <div className="flex items-center gap-2 p-4 text-sm text-fg-muted">
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
             </div>
-          ) : convs.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg-muted">
               <MessageCircle className="h-8 w-8 opacity-50" />
               <p className="text-sm">Sin consultas todavía.</p>
               <p className="px-6 text-xs">Cuando un cliente escriba sobre su pedido, aparece acá.</p>
             </div>
           ) : (
-            convs.map((c) => (
+            visible.map((c) => (
               <button
                 key={c.id}
                 onClick={() => open(c.id)}

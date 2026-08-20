@@ -28,6 +28,7 @@ import { InfoDot } from '../components/charts';
 import { CameraBox, useScanner } from './Products/Scanner';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -193,14 +194,35 @@ function ComprasList({
   const [statusFilter, setStatusFilter] = useState('');
 
   const [page, setPage] = useState(1);
+  // Grupo de estados que prendió una métrica: "abiertas" o "en camino" no son
+  // un estado sino varios, así que no entran en el desplegable de estado.
+  const [group, setGroup] = useState<'' | 'open' | 'inTransit' | 'invoiceMissing'>('');
+  const debouncedSearch = useDebouncedValue(search, 350).trim();
+
+  // Búsqueda, estado y grupo se resuelven en la base: filtrar en el navegador
+  // solo alcanzaba a las 25 órdenes de la página visible.
   const { data } = useQuery({
-    queryKey: ['purchase-orders', store?.id, page],
-    queryFn: () =>
-      api.get<{ items: PoListItem[]; total: number }>(
-        `/api/v1/purchasing/purchase-orders?limit=${PO_PAGE_SIZE}&offset=${(page - 1) * PO_PAGE_SIZE}`,
-      ),
+    queryKey: ['purchase-orders', store?.id, page, debouncedSearch, statusFilter, group],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PO_PAGE_SIZE),
+        offset: String((page - 1) * PO_PAGE_SIZE),
+      });
+      if (debouncedSearch) params.set('q', debouncedSearch);
+      if (statusFilter) params.set('status', statusFilter);
+      if (group) params.set('group', group);
+      return api.get<{ items: PoListItem[]; total: number }>(`/api/v1/purchasing/purchase-orders?${params}`);
+    },
     enabled: !!store,
+    placeholderData: (previous) => previous,
   });
+
+  // Un grupo y un estado suelto se pisan: prender uno limpia el otro.
+  const toggleGroup = (next: 'open' | 'inTransit' | 'invoiceMissing') => {
+    setGroup((current) => (current === next ? '' : next));
+    setStatusFilter('');
+    setPage(1);
+  };
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PO_PAGE_SIZE));
 
   // Sobre TODAS las órdenes, no sobre la página: cuánta plata está comprometida
@@ -241,11 +263,15 @@ function ComprasList({
               label: 'Órdenes abiertas',
               value: summary.open.toLocaleString('es-AR'),
               hint: `Todo lo que todavía no se recibió ni se canceló, de ${summary.total.toLocaleString('es-AR')} órdenes en total.`,
+              onClick: () => toggleGroup('open'),
+              active: group === 'open',
             },
             {
               label: 'En camino',
               value: summary.inTransit.toLocaleString('es-AR'),
               hint: 'Órdenes en tránsito o en aduana: mercadería embarcada que aún no entró al depósito.',
+              onClick: () => toggleGroup('inTransit'),
+              active: group === 'inTransit',
             },
             {
               label: 'Plata comprometida',
@@ -257,6 +283,8 @@ function ComprasList({
               value: summary.withoutInvoice.toLocaleString('es-AR'),
               hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA.',
               tone: summary.withoutInvoice > 0 ? 'warning' : 'default',
+              onClick: () => toggleGroup('invoiceMissing'),
+              active: group === 'invoiceMissing',
             },
           ]}
         />
@@ -278,7 +306,10 @@ function ComprasList({
               <Input
                 placeholder="Buscar por proveedor o referencia…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
               />
             </div>
             {/* Ancho SIEMPRE por wrapper: el w-full base de Select/Input le gana
@@ -286,7 +317,11 @@ function ComprasList({
             <div className="w-44 shrink-0">
               <Select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setGroup('');
+                  setPage(1);
+                }}
                 options={[
                   { value: '', label: 'Todos los estados' },
                   ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })),
@@ -323,35 +358,26 @@ function ComprasList({
                 </tr>
               </thead>
               <tbody>
-                {(data?.items ?? [])
-                  .filter((po) => {
-                    const q = search.trim().toLowerCase();
-                    const matchesText =
-                      q === '' ||
-                      po.supplierName.toLowerCase().includes(q) ||
-                      (po.reference ?? '').toLowerCase().includes(q);
-                    return matchesText && (statusFilter === '' || po.status === statusFilter);
-                  })
-                  .map((po) => (
-                    <tr
-                      key={po.id}
-                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
-                      onClick={() => onOpen(po.id)}
-                    >
-                      <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
-                      <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
-                      <td className="px-4 py-2.5">
-                        <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
-                          {PO_STATUS[po.status]?.label ?? po.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                        {po.currency} {po.totalFob.toLocaleString('es-AR')}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
-                      <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
-                    </tr>
-                  ))}
+                {(data?.items ?? []).map((po) => (
+                  <tr
+                    key={po.id}
+                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
+                    onClick={() => onOpen(po.id)}
+                  >
+                    <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
+                    <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
+                    <td className="px-4 py-2.5">
+                      <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
+                        {PO_STATUS[po.status]?.label ?? po.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-fg">
+                      {po.currency} {po.totalFob.toLocaleString('es-AR')}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
+                    <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+                  </tr>
+                ))}
                 {(data?.items ?? []).length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">

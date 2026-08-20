@@ -33,6 +33,14 @@ const PAGE_SIZE = 20;
 /** Desde cuántas unidades se considera "poco stock". */
 const LOW_STOCK = 5;
 
+/** Recorte del listado. Lo resuelve la base: la tabla muestra una página. */
+type StockFilter = 'all' | 'out' | 'low';
+
+const STOCK_LABEL: Record<Exclude<StockFilter, 'all'>, string> = {
+  out: 'Sin stock',
+  low: `Quedan ${LOW_STOCK} o menos`,
+};
+
 interface InventorySummary {
   variants: number;
   units: number;
@@ -52,19 +60,30 @@ export function InventoryPage() {
   const [search, setSearch] = useState('');
 
   const [page, setPage] = useState(1);
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const q = useDebouncedValue(search).trim();
+
+  // Volver a tocar la misma métrica saca el filtro.
+  const toggleStock = (next: Exclude<StockFilter, 'all'>) => {
+    setStockFilter((current) => (current === next ? 'all' : next));
+    setPage(1);
+  };
 
   // Una página del catálogo por request, con la búsqueda en la base: antes se
   // traía el catálogo COMPLETO para filtrar y paginar en el navegador (y con
   // él, el stock de todas las variantes).
   const { data, isLoading } = useQuery({
-    queryKey: ['products-page', store?.id, q, page],
+    queryKey: ['products-page', store?.id, q, page, stockFilter],
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
         offset: String((page - 1) * PAGE_SIZE),
       });
       if (q) params.set('q', q);
+      if (stockFilter !== 'all') {
+        params.set('stock', stockFilter);
+        params.set('lowStockThreshold', String(LOW_STOCK));
+      }
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
@@ -161,17 +180,41 @@ export function InventoryPage() {
             {
               label: 'Sin stock',
               value: summary.outOfStock.toLocaleString('es-AR'),
-              hint: 'Variantes en cero: siguen publicadas pero no se pueden vender.',
+              hint: 'Variantes en cero: siguen publicadas pero no se pueden vender. Tocá para ver los productos que las tienen.',
               tone: summary.outOfStock > 0 ? 'danger' : 'success',
+              onClick: () => toggleStock('out'),
+              active: stockFilter === 'out',
             },
             {
               label: `Quedan ${LOW_STOCK} o menos`,
               value: summary.lowStock.toLocaleString('es-AR'),
-              hint: 'Variantes por agotarse. Son las candidatas a la próxima orden de compra.',
+              hint: 'Variantes por agotarse: son las candidatas a la próxima orden de compra. Tocá para ver los productos que las tienen.',
               tone: summary.lowStock > 0 ? 'warning' : 'default',
+              onClick: () => toggleStock('low'),
+              active: stockFilter === 'low',
             },
           ]}
         />
+      )}
+
+      {stockFilter !== 'all' && (
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
+          <span>
+            Mostrando solo <span className="font-medium text-fg">{STOCK_LABEL[stockFilter]}</span>
+            {data &&
+              ` · ${data.total.toLocaleString('es-AR')} ${data.total === 1 ? 'producto' : 'productos'}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setStockFilter('all');
+              setPage(1);
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
+          >
+            Ver todo
+          </button>
+        </div>
       )}
 
       <Input

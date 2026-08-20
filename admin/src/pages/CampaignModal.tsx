@@ -5,7 +5,7 @@ import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast } from '@t
 import { formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
-import { fetchAllProducts } from '../lib/products';
+import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
 import { EmailPreviewPanel } from '../components/EmailPreview';
 import type { MoneyDto } from '@tiendafy/types';
 
@@ -529,12 +529,13 @@ function ProductFilterRow({
   onChange: (v: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { data } = useQuery({
-    queryKey: ['products-for-campaign'],
-    queryFn: () => fetchAllProducts<ProductDto>(),
-  });
-  const products = data ?? [];
-  const chosen = products.filter((p) => selected.includes(p.id));
+  const [search, setSearch] = useState('');
+  const { data } = useProductSearch<ProductDto>(search);
+  const products = data?.items ?? [];
+
+  // Los elegidos se resuelven por id: pueden no estar en la búsqueda actual.
+  const { data: chosenData } = useProductsByIds<ProductDto>(selected);
+  const chosen = chosenData?.items ?? [];
 
   return (
     <div>
@@ -565,23 +566,41 @@ function ProductFilterRow({
       )}
 
       {open && (
-        <div className="mt-1.5 max-h-44 overflow-y-auto rounded-md border border-border">
-          {products.map((p) => {
-            const checked = selected.includes(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onChange(checked ? selected.filter((id) => id !== p.id) : [...selected, p.id])}
-                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-bg-subtle ${
-                  checked ? 'font-semibold text-primary' : 'text-fg'
-                }`}
-              >
-                {checked ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
-                <span className="truncate">{p.name}</span>
-              </button>
-            );
-          })}
+        <div className="mt-1.5 rounded-md border border-border">
+          <div className="border-b border-border p-1.5">
+            <Input
+              compact
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto…"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {products.length === 0 && (
+              <p className="px-2.5 py-3 text-center text-xs text-fg-muted">
+                {search ? 'Ningún producto coincide.' : 'Escribí para buscar.'}
+              </p>
+            )}
+            {products.map((p) => {
+              const checked = selected.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() =>
+                    onChange(checked ? selected.filter((id) => id !== p.id) : [...selected, p.id])
+                  }
+                  className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-bg-subtle ${
+                    checked ? 'font-semibold text-primary' : 'text-fg'
+                  }`}
+                >
+                  {checked ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
+                  <span className="truncate">{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -663,15 +682,8 @@ function ProductPicker({
   onAdd: (p: CampaignProduct) => void;
 }) {
   const [query, setQuery] = useState('');
-  const { data } = useQuery({
-    queryKey: ['products-for-campaign'],
-    queryFn: () => fetchAllProducts<ProductDto>(),
-  });
-  const products = useMemo(() => {
-    const active = (data ?? []).filter((p) => p.status === 'ACTIVE');
-    const q = query.trim().toLowerCase();
-    return q ? active.filter((p) => p.name.toLowerCase().includes(q)) : active;
-  }, [data, query]);
+  const { data } = useProductSearch<ProductDto>(query, { activeOnly: true });
+  const products = data?.items ?? [];
 
   return (
     <Modal

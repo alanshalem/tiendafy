@@ -49,20 +49,46 @@ public static class ProductEndpoints
             Guid? after = null,
             int? offset = null,
             string? q = null,
+            string? ids = null,
             bool? missingCost = null,
             bool? missingImage = null,
             bool? promo = null,
-            bool? inStock = null,
+            string? stock = null,
+            int? lowStockThreshold = null,
             Guid? categoryId = null,
             string? sort = null) =>
         {
             var statusFilter = ProductStatusExtensions.ParseApi(status);
             limit = Math.Clamp(limit, 1, 100);
 
+            // Resolver por id: lo usan los selectores para poner el nombre de lo
+            // ya elegido. Sin esto, un buscador que trae 20 productos por vez no
+            // sabe cómo se llama lo que el usuario eligió hace tres búsquedas.
+            if (!string.IsNullOrWhiteSpace(ids))
+            {
+                var wanted = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(x => Guid.TryParse(x, out var g) ? g : Guid.Empty)
+                    .Where(g => g != Guid.Empty)
+                    .Distinct()
+                    .Take(100)
+                    .ToList();
+
+                if (wanted.Count == 0) return Results.Ok(new { items = Array.Empty<object>(), total = 0 });
+
+                var found = new List<Product>();
+                foreach (var id in wanted)
+                {
+                    var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
+                    if (product is not null) found.Add(product);
+                }
+
+                return Results.Ok(new { items = found.Select(p => p.ToDto()).ToList(), total = found.Count });
+            }
+
             var paged = offset is not null
                 || !string.IsNullOrWhiteSpace(q)
                 || missingCost == true || missingImage == true
-                || promo is not null || inStock is not null
+                || promo is not null || !string.IsNullOrWhiteSpace(stock)
                 || categoryId is not null || sort is not null;
 
             // Modo página (offset/filtros): lo que usan el listado del panel,
@@ -72,20 +98,29 @@ public static class ProductEndpoints
             if (after is null && paged)
             {
                 // El stock vive en otro módulo, así que el filtro se arma acá:
-                // el catálogo recibe la lista de variantes disponibles ya resuelta.
-                List<Guid>? withStock = null;
-                if (inStock is not null)
+                // el catálogo recibe la lista de variantes que cumplen, ya resuelta.
+                //
+                // "in"  → productos con alguna variante disponible
+                // "out" → productos sin ninguna (la lista es la misma; cambia el sí/no)
+                // "low" → productos con alguna a punto de agotarse
+                List<Guid>? matching = null;
+                bool? hasMatching = null;
+                if (!string.IsNullOrWhiteSpace(stock))
                 {
-                    withStock = await inventoryDb.StockItems.AsNoTracking()
-                        .Where(s => s.Available > 0)
-                        .Select(s => s.VariantId)
-                        .ToListAsync(ct);
+                    var low = Math.Clamp(lowStockThreshold ?? 5, 1, 100);
+                    var mode = stock.Trim().ToLowerInvariant();
+
+                    var available = inventoryDb.StockItems.AsNoTracking().Where(s => s.Available > 0);
+                    if (mode == "low") available = available.Where(s => s.Available <= low);
+
+                    matching = await available.Select(s => s.VariantId).ToListAsync(ct);
+                    hasMatching = mode != "out";
                 }
 
                 var filter = new AdminProductFilter(
                     statusFilter, q, categoryId,
                     missingCost == true, missingImage == true, promo,
-                    withStock, inStock, ParseSort(sort));
+                    matching, hasMatching, ParseSort(sort));
 
                 var (pageItems, total) = await repository.ListPageAsync(
                     tenant.TenantId, filter, limit, Math.Max(0, offset ?? 0), ct);

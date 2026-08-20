@@ -3,7 +3,9 @@ import { AlertTriangle, ExternalLink, Link2, Link2Off, Loader2, Store, Upload } 
 import {
   Badge,
   Button,
+  cn,
   EmptyList,
+  Input,
   Modal,
   Select,
   Spinner,
@@ -12,7 +14,7 @@ import {
   type BadgeVariant,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { fetchAllProducts } from '../lib/products';
+import { useProductSearch } from '../lib/useProductSearch';
 import { moneyMajor } from './mercadolibre-shared';
 import type { MoneyDto } from '@tiendafy/types';
 
@@ -196,18 +198,14 @@ function LinkModal({
   onLinked: () => void;
 }) {
   const { toast } = useToast();
-  const [products, setProducts] = useState<ProductDto[] | null>(null);
+  const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
   const [variantId, setVariantId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchAllProducts<ProductDto>()
-      .then(setProducts)
-      .catch(() => setProducts([]));
-  }, []);
-
-  const product = products?.find((p) => p.id === productId);
+  const { data: found } = useProductSearch<ProductDto>(search);
+  const products = found?.items ?? [];
+  const product = products.find((p) => p.id === productId);
 
   useEffect(() => {
     const only = product?.variants.length === 1 ? product.variants[0] : undefined;
@@ -257,11 +255,12 @@ function LinkModal({
         Libre descuenta stock acá, y tu stock se empuja a la publicación.
       </p>
       <div className="mt-4 space-y-3">
-        <Select
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          placeholder={products ? 'Elegí un producto…' : 'Cargando productos…'}
-          options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))}
+        <ProductFinder
+          search={search}
+          onSearch={setSearch}
+          products={products}
+          selectedId={productId}
+          onSelect={setProductId}
         />
         {product && product.variants.length > 1 && (
           <Select
@@ -281,7 +280,7 @@ function LinkModal({
 
 function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const { toast } = useToast();
-  const [products, setProducts] = useState<ProductDto[] | null>(null);
+  const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
   const [suggestions, setSuggestions] = useState<
     { categoryId: string | null; categoryName: string | null; domainName: string | null }[] | null
@@ -289,13 +288,9 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   const [categoryId, setCategoryId] = useState('');
   const [publishing, setPublishing] = useState(false);
 
-  useEffect(() => {
-    fetchAllProducts<ProductDto>()
-      .then((all) => setProducts(all.filter((p) => p.status === 'ACTIVE')))
-      .catch(() => setProducts([]));
-  }, []);
-
-  const product = products?.find((p) => p.id === productId);
+  const { data: found } = useProductSearch<ProductDto>(search, { activeOnly: true });
+  const products = found?.items ?? [];
+  const product = products.find((p) => p.id === productId);
 
   // Al elegir producto, pedirle a ML la categoría sugerida por el título.
   useEffect(() => {
@@ -354,11 +349,12 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
         resto se puede vincular a mano).
       </p>
       <div className="mt-4 space-y-3">
-        <Select
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          placeholder={products ? 'Elegí un producto activo…' : 'Cargando productos…'}
-          options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))}
+        <ProductFinder
+          search={search}
+          onSearch={setSearch}
+          products={products}
+          selectedId={productId}
+          onSelect={setProductId}
         />
         {product && suggestions === null && (
           <p className="text-sm text-fg-subtle">Buscando la categoría de Mercado Libre…</p>
@@ -383,5 +379,63 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Buscador de producto del catálogo. Antes acá había un desplegable con TODOS
+ * los productos: con miles de opciones el navegador se traba y encontrar uno a
+ * ojo es imposible. Busca en la base y muestra los primeros que coinciden.
+ */
+function ProductFinder({
+  search,
+  onSearch,
+  products,
+  selectedId,
+  onSelect,
+}: {
+  search: string;
+  onSearch: (v: string) => void;
+  products: ProductDto[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const selected = products.find((p) => p.id === selectedId);
+
+  return (
+    <div>
+      <Input
+        value={search}
+        onChange={(e) => onSearch(e.target.value)}
+        placeholder="Buscar producto por nombre o SKU…"
+        autoFocus
+      />
+      {selected && (
+        <p className="mt-1.5 text-sm text-fg">
+          Elegido: <span className="font-medium">{selected.name}</span>
+        </p>
+      )}
+      <div className="mt-1.5 max-h-52 overflow-y-auto rounded-md border border-border">
+        {products.length === 0 ? (
+          <p className="px-3 py-4 text-center text-xs text-fg-muted">
+            {search ? 'Ningún producto coincide.' : 'Escribí para buscar en tu catálogo.'}
+          </p>
+        ) : (
+          products.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onSelect(p.id)}
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-subtle',
+                p.id === selectedId ? 'font-semibold text-primary' : 'text-fg',
+              )}
+            >
+              <span className="truncate">{p.name}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

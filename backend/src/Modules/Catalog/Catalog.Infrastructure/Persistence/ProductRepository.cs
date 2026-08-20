@@ -84,12 +84,12 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         }
 
         // El stock lo resuelve el Api (otro módulo): acá llega ya como la lista
-        // de variantes disponibles. Npgsql la manda como array y filtra con ANY.
-        if (filter.InStock is { } inStock && filter.VariantIdsInStock is { } withStock)
+        // de variantes que cumplen. Npgsql la manda como array y filtra con ANY.
+        if (filter.HasMatchingVariant is { } wanted && filter.MatchingVariantIds is { } ids)
         {
-            query = inStock
-                ? query.Where(p => p.Variants.Any(v => withStock.Contains(v.Id)))
-                : query.Where(p => !p.Variants.Any(v => withStock.Contains(v.Id)));
+            query = wanted
+                ? query.Where(p => p.Variants.Any(v => ids.Contains(v.Id)))
+                : query.Where(p => !p.Variants.Any(v => ids.Contains(v.Id)));
         }
 
         var total = await query.CountAsync(ct);

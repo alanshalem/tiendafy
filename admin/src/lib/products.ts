@@ -1,11 +1,5 @@
 import { api } from './api';
 
-interface ProductsPage<T> {
-  items: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
-}
-
 export interface StockItem {
   variantId: string;
   available: number;
@@ -32,20 +26,6 @@ export const variantLabel = (p: { name: string }, v: { optionValues: string[] })
 /** Filtro de búsqueda por nombre de producto o SKU (q ya en minúsculas). */
 export const matchesProduct = (p: { name: string; variants: { sku: string }[] }, q: string): boolean =>
   q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q));
-
-/** Trae TODOS los productos del tenant recorriendo el cursor (la API tope 100 por página). */
-export async function fetchAllProducts<T>(): Promise<T[]> {
-  const all: T[] = [];
-  let after: string | null = null;
-  for (;;) {
-    const url: string = `/api/v1/products?limit=100${after ? `&after=${after}` : ''}`;
-    const page: ProductsPage<T> = await api.get<ProductsPage<T>>(url);
-    all.push(...page.items);
-    if (!page.hasMore || !page.nextCursor) break;
-    after = page.nextCursor;
-  }
-  return all;
-}
 
 /** Stock de muchas variantes, partido en chunks para no pasarse del largo de URL. */
 export async function fetchStockChunked(variantIds: string[]): Promise<StockItem[]> {

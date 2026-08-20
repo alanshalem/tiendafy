@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   AlertTriangle,
   Bookmark,
@@ -18,7 +18,7 @@ import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
 import { storefrontUrl } from '../lib/storefront';
-import { fetchAllProducts } from '../lib/products';
+import { useProductSearch } from '../lib/useProductSearch';
 import {
   localInputToUtcIso,
   providerMeta,
@@ -450,19 +450,15 @@ function CatalogImagePicker({
   onClose: () => void;
   onPick: (product: PickerProduct) => void;
 }) {
-  const { store } = useStore();
   const [search, setSearch] = useState('');
 
-  // Reusa el cache de ['products', store?.id] que el VariantPicker ya llenó:
-  // antes recorría el catálogo entero cada vez que se abría el modal.
-  const { data: all } = useQuery({
-    queryKey: ['products', store?.id],
-    queryFn: () => fetchAllProducts<PickerProduct>(),
-    enabled: !!store,
-  });
-  const products = all === undefined ? null : all.filter((p) => coverUrl(p) !== null);
+  // La búsqueda la resuelve la base: antes se recorría el catálogo entero cada
+  // vez que se abría el modal para después filtrar por nombre en el navegador.
+  const { data, isLoading } = useProductSearch<PickerProduct>(search);
 
-  const filtered = (products ?? []).filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  // Solo sirven los que tienen foto: es una imagen para el post.
+  const filtered = (data?.items ?? []).filter((p) => coverUrl(p) !== null);
+  const products = isLoading && !data ? null : filtered;
 
   return (
     <Modal open onClose={onClose} title="Imagen del catálogo" size="lg">

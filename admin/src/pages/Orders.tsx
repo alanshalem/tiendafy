@@ -257,8 +257,13 @@ export function OrdersPage() {
               {
                 label: 'Por despachar',
                 value: (pending?.total ?? 0).toLocaleString('es-AR'),
-                hint: 'Ventas cobradas que todavía no se marcaron como enviadas. Es la cola del depósito, de toda la historia.',
+                hint: 'Ventas cobradas que todavía no se marcaron como enviadas. Es la cola del depósito, de toda la historia. Tocá para verlas.',
                 tone: (pending?.total ?? 0) > 0 ? 'warning' : 'success',
+                onClick: () => {
+                  setStatusFilter((current) => (current === 'PAID' ? '' : 'PAID'));
+                  setPage(1);
+                },
+                active: statusFilter === 'PAID',
               },
             ]}
           />

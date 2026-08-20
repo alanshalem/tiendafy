@@ -26,11 +26,36 @@ public static class PurchasingEndpoints
 
         purchasing.MapGet("/purchase-orders", async (
             PurchasingDbContext db, CancellationToken ct,
-            string? status = null, int? limit = null, int? offset = null) =>
+            string? status = null, string? q = null, string? group = null,
+            int? limit = null, int? offset = null) =>
         {
             var query = db.PurchaseOrders.AsNoTracking();
             if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var st))
                 query = query.Where(p => p.Status == st);
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = $"%{q.Trim()}%";
+                query = query.Where(p =>
+                    EF.Functions.ILike(p.SupplierName, term)
+                    || (p.Reference != null && EF.Functions.ILike(p.Reference, term)));
+            }
+
+            // Grupos de estados: lo que cuentan las métricas de la pantalla no
+            // es un estado, es un conjunto ("abiertas" son cinco de los siete).
+            // Se repiten acá en vez de usar IsOpen/HasSupplierInvoice porque esos
+            // son propiedades calculadas y no se traducen a SQL.
+            query = group?.Trim().ToLowerInvariant() switch
+            {
+                "open" => query.Where(p =>
+                    p.Status != PurchaseOrderStatus.Received && p.Status != PurchaseOrderStatus.Cancelled),
+                "intransit" => query.Where(p =>
+                    p.Status == PurchaseOrderStatus.InTransit || p.Status == PurchaseOrderStatus.InCustoms),
+                "invoicemissing" => query.Where(p =>
+                    p.Status == PurchaseOrderStatus.Received
+                    && (p.InvoiceNumber == null || p.InvoiceDateUtc == null)),
+                _ => query,
+            };
 
             var total = await query.CountAsync(ct);
             var orders = await query

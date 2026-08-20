@@ -41,12 +41,15 @@ public enum AdminProductSort
 /// null y eso sí filtra la base.
 /// </param>
 /// <param name="HasPromoPrice">true = con precio tachado; false = sin promoción.</param>
-/// <param name="VariantIdsInStock">
-/// Variantes con disponible &gt; 0. Las resuelve el Api, no el repositorio:
-/// el stock vive en otro módulo y el catálogo no lo conoce. Sin esta lista,
-/// <paramref name="InStock"/> se ignora.
+/// <param name="MatchingVariantIds">
+/// Variantes que cumplen un filtro que el catálogo no sabe evaluar (hoy, el
+/// stock: vive en otro módulo). Las resuelve el Api y las manda ya calculadas.
 /// </param>
-/// <param name="InStock">true = con stock; false = agotados; null = sin filtro.</param>
+/// <param name="HasMatchingVariant">
+/// true = productos con alguna de esas variantes; false = productos sin
+/// ninguna; null = sin filtro. Sirve tanto para "agotados" (ninguna con stock)
+/// como para "por agotarse" (alguna con poco).
+/// </param>
 public sealed record AdminProductFilter(
     ProductStatus? Status = null,
     string? Search = null,
@@ -54,8 +57,8 @@ public sealed record AdminProductFilter(
     bool OnlyWithoutCost = false,
     bool OnlyWithoutImage = false,
     bool? HasPromoPrice = null,
-    IReadOnlyCollection<Guid>? VariantIdsInStock = null,
-    bool? InStock = null,
+    IReadOnlyCollection<Guid>? MatchingVariantIds = null,
+    bool? HasMatchingVariant = null,
     AdminProductSort Sort = AdminProductSort.Newest);
 
 /// <summary>Un filtro de opción con sus valores disponibles (ej: "Color" → ["Rojo","Azul"]).</summary>
