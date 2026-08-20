@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowUpDown, Filter, List, Plus, Search, Sparkles, Trash2, Upload, X } from 'lucide-react';
-import { Button, Modal, useToast } from '@tiendafy/ui';
+import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -36,8 +36,22 @@ export interface ProductDto {
 
 const SORTS = ['Más nuevo', 'Más viejo', 'Nombre A-Z', 'Nombre Z-A'] as const;
 
+/**
+ * Atajo desde la fila de métricas: cada número de arriba filtra el listado de
+ * abajo. Vive aparte del panel de filtros porque no es una preferencia que se
+ * arma, es "mostrame lo que acabo de contar".
+ */
+type Focus = 'none' | 'published' | 'draft' | 'noImage';
+
+const FOCUS_LABEL: Record<Exclude<Focus, 'none'>, string> = {
+  published: 'Publicados',
+  draft: 'En borrador',
+  noImage: 'Sin foto',
+};
+
 export function ProductsPage() {
   const { store } = useStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -45,6 +59,11 @@ export function ProductsPage() {
   const [sort, setSort] = useState<(typeof SORTS)[number]>('Más nuevo');
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
+  const [focus, setFocus] = useState<Focus>('none');
+  // Volver a tocar la misma métrica saca el filtro: es el gesto que espera
+  // cualquiera que la usó para mirar y quiere volver al listado completo.
+  const toggleFocus = (next: Exclude<Focus, 'none'>) =>
+    setFocus((current) => (current === next ? 'none' : next));
   const [draftFilters, setDraftFilters] = useState<ProductFilters>(defaultFilters);
 
   const { data, isLoading } = useQuery({
@@ -55,6 +74,10 @@ export function ProductsPage() {
   const products = useMemo(() => data ?? [], [data]);
 
   const stockMap = useVariantStock(products);
+
+  // Salud del catálogo entero (no de la página): un listado paginado esconde
+  // cuántos productos quedaron en borrador o sin foto.
+  const { data: health } = useCatalogHealth();
 
   const { data: cats } = useQuery({
     queryKey: ['categories', store?.id],
@@ -146,6 +169,9 @@ export function ProductsPage() {
         (p) => p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q)),
       );
     }
+    if (focus === 'published') list = list.filter((p) => p.status === 'ACTIVE');
+    if (focus === 'draft') list = list.filter((p) => p.status === 'DRAFT');
+    if (focus === 'noImage') list = list.filter((p) => p.images.length === 0);
     if (filters.visibility === 'visible') list = list.filter((p) => p.status === 'ACTIVE');
     if (filters.visibility === 'hidden') list = list.filter((p) => p.status !== 'ACTIVE');
     if (filters.priceType === 'promo') list = list.filter((p) => p.variants.some((v) => v.compareAtPrice));
@@ -162,7 +188,7 @@ export function ProductsPage() {
     if (sort === 'Nombre Z-A') sorted.sort((a, b) => b.name.localeCompare(a.name));
     if (sort === 'Más viejo') sorted.reverse();
     return sorted;
-  }, [products, search, filters, sort, stockMap]);
+  }, [products, search, filters, focus, sort, stockMap]);
 
   const activeFilterCount = Object.entries(filters).filter(
     ([k, v]) => v !== defaultFilters[k as keyof ProductFilters],
@@ -172,7 +198,7 @@ export function ProductsPage() {
   const [page, setPage] = useState(1);
   useEffect(() => {
     setPage(1);
-  }, [search, filters, sort]);
+  }, [search, filters, focus, sort]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageClamped = Math.min(page, totalPages);
   const pageItems = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
@@ -198,26 +224,16 @@ export function ProductsPage() {
 
   const isEmpty = !isLoading && products.length === 0;
 
-  // Salud del catálogo entero (no de la página): un listado paginado esconde
-  // cuántos productos quedaron en borrador o sin foto.
-  const { data: health } = useCatalogHealth();
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Productos</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <HeaderBtn onClick={() => toast('Organizar — próximamente', { variant: 'info' })}>
-            <List className="h-4 w-4" /> Organizar
-          </HeaderBtn>
           <Link to="/productos/exportar-importar">
             <HeaderBtn>
               <ArrowUpDown className="h-4 w-4" /> Exportar e importar
             </HeaderBtn>
           </Link>
-          <HeaderBtn onClick={() => toast('Agregar con IA — próximamente', { variant: 'info' })}>
-            <Sparkles className="h-4 w-4" /> Agregar con IA
-          </HeaderBtn>
           <Link to="/productos/nuevo">
             <Button>
               <span className="inline-flex items-center gap-1.5">
@@ -235,27 +251,52 @@ export function ProductsPage() {
               label: 'Publicados',
               value: health.published.toLocaleString('es-AR'),
               hint: `De ${health.total.toLocaleString('es-AR')} productos cargados. Solo los publicados se ven en la tienda.`,
+              onClick: () => toggleFocus('published'),
+              active: focus === 'published',
             },
             {
               label: 'En borrador',
               value: health.draft.toLocaleString('es-AR'),
               hint: 'Cargados pero invisibles para el público. Publicalos cuando estén listos.',
               tone: health.draft > 0 ? 'warning' : 'default',
+              onClick: () => toggleFocus('draft'),
+              active: focus === 'draft',
             },
             {
               label: 'Sin foto',
               value: health.withoutImage.toLocaleString('es-AR'),
               hint: 'Un producto sin foto casi no se vende. Es lo primero que conviene completar.',
               tone: health.withoutImage > 0 ? 'danger' : 'success',
+              onClick: () => toggleFocus('noImage'),
+              active: focus === 'noImage',
             },
             {
+              // El costo no se carga desde acá: esta métrica lleva a la pantalla
+              // donde sí se puede hacer algo con ella, ya filtrada.
               label: 'Sin costo cargado',
               value: health.variantsWithoutCost.toLocaleString('es-AR'),
-              hint: `Variantes sin costo: quedan afuera del cálculo de rentabilidad. Van ${health.variantsWithCost} de ${health.variants}.`,
+              hint: `Variantes sin costo: quedan afuera del cálculo de rentabilidad. Van ${health.variantsWithCost} de ${health.variants}. Tocá para cargarlos.`,
               tone: health.variantsWithoutCost > 0 ? 'warning' : 'success',
+              onClick: () => navigate('/productos/costos?sinCosto=1'),
             },
           ]}
         />
+      )}
+
+      {focus !== 'none' && (
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
+          <span>
+            Mostrando solo <span className="font-medium text-fg">{FOCUS_LABEL[focus]}</span> ·{' '}
+            {filtered.length.toLocaleString('es-AR')} {filtered.length === 1 ? 'producto' : 'productos'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFocus('none')}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
+          >
+            <X className="h-3 w-3" /> Quitar filtro
+          </button>
+        </div>
       )}
 
       {isEmpty ? (
@@ -371,13 +412,9 @@ export function ProductsPage() {
               <thead>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
                   <th className="w-10 px-3 py-2.5">
-                    <input
-                      type="checkbox"
-                      className="rounded-sm border-border-strong"
+                    <Checkbox
                       checked={allPageSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = somePageSelected;
-                      }}
+                      indeterminate={somePageSelected}
                       onChange={toggleSelectAll}
                       aria-label="Seleccionar todos"
                     />

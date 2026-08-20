@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
@@ -39,6 +40,12 @@ export function CostsPage() {
   const [search, setSearch] = useState('');
   const [repriceOpen, setRepriceOpen] = useState(false);
 
+  // Se entra acá desde la métrica "sin costo cargado" de Productos, que manda
+  // ?sinCosto=1. El filtro se resuelve en la base: sobre miles de productos,
+  // buscar a ojo cuáles faltan es exactamente el trabajo que evita el atajo.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onlyMissing = searchParams.get('sinCosto') === '1';
+
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search).trim();
 
@@ -46,13 +53,14 @@ export function CostsPage() {
   // antes se traía el catálogo COMPLETO (de a 100 por request) para filtrar y
   // paginar en el navegador.
   const { data, isLoading } = useQuery({
-    queryKey: ['products-page', store?.id, q, page],
+    queryKey: ['products-page', store?.id, q, page, onlyMissing],
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
         offset: String((page - 1) * PAGE_SIZE),
       });
       if (q) params.set('q', q);
+      if (onlyMissing) params.set('missingCost', 'true');
       return api.get<{ items: CatalogProduct[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
@@ -121,6 +129,26 @@ export function CostsPage() {
         </p>
       </div>
 
+      {onlyMissing && (
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
+          <span>
+            Mostrando solo los productos con alguna variante{' '}
+            <span className="font-medium text-fg">sin costo cargado</span>
+            {data && ` · ${data.total.toLocaleString('es-AR')}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchParams({});
+              setPage(1);
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
+          >
+            Ver todos
+          </button>
+        </div>
+      )}
+
       {health && health.variants > 0 && (
         <ListStats
           items={[
@@ -145,6 +173,11 @@ export function CostsPage() {
               label: 'Falta cargar',
               value: health.variantsWithoutCost.toLocaleString('es-AR'),
               hint: 'Variantes sin costo. Cargalas acá o con la columna «Costo» del CSV.',
+              onClick: () => {
+                setSearchParams(onlyMissing ? {} : { sinCosto: '1' });
+                setPage(1);
+              },
+              active: onlyMissing,
             },
           ]}
         />

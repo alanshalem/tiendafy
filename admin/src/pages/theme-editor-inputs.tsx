@@ -1,3 +1,4 @@
+import { Checkbox } from '@tiendafy/ui';
 import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
 import type { ThemeConfig } from '@tiendafy/types';
@@ -124,12 +125,7 @@ export function Check({
 }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded-sm"
-      />
+      <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
   );

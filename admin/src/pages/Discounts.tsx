@@ -5,17 +5,18 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Dropdown,
   FormField,
   Input,
   Modal,
   PageHeader,
   Select,
-  useToast,
+  Table,
   useConfirm,
+  useToast,
   type BadgeVariant,
   type TableColumn,
-  Table,
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -392,12 +393,7 @@ function CouponModal({
         </div>
 
         <label className="flex items-center gap-2 text-sm font-medium text-fg">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="rounded-sm"
-          />
+          <Checkbox checked={active} onChange={(e) => setActive(e.target.checked)} />
           Activo
         </label>
       </div>

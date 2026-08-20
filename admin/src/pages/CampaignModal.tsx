@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, Loader2, Plus, Search, Send, X, XCircle } from 'lucide-react';
-import { Button, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -635,7 +635,7 @@ function RecipientPicker({
             key={m.email}
             className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-bg-muted"
           >
-            <input type="checkbox" checked={selected.has(m.email)} onChange={() => toggle(m.email)} />
+            <Checkbox checked={selected.has(m.email)} onChange={() => toggle(m.email)} />
             <span className="min-w-0 flex-1">
               <span className="font-medium text-fg">{m.name ?? m.email}</span>
               {m.name && <span className="ml-2 text-fg-muted">{m.email}</span>}

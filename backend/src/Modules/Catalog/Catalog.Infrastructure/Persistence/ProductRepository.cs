@@ -55,10 +55,14 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
 
     public async Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
         TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
-        CancellationToken ct = default)
+        bool onlyWithoutCost = false, CancellationToken ct = default)
     {
         var query = context.Products.Where(p => p.TenantId == tenantId);
         if (status is { } s) query = query.Where(p => p.Status == s);
+
+        // El costo va serializado en texto, así que no se puede sumar en SQL —
+        // pero "¿está cargado?" es la columna en null, y eso sí filtra la base.
+        if (onlyWithoutCost) query = query.Where(p => p.Variants.Any(v => v.Cost == null));
 
         if (!string.IsNullOrWhiteSpace(search))
         {

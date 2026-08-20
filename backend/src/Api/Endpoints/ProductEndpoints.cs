@@ -47,7 +47,8 @@ public static class ProductEndpoints
             int limit = 20,
             Guid? after = null,
             int? offset = null,
-            string? q = null) =>
+            string? q = null,
+            bool? missingCost = null) =>
         {
             var statusFilter = ProductStatusExtensions.ParseApi(status);
             limit = Math.Clamp(limit, 1, 100);
@@ -55,10 +56,11 @@ public static class ProductEndpoints
             // Modo página (offset/búsqueda): lo que usan Costos, Inventario y
             // los buscadores de variantes. El modo cursor (after) queda para
             // quien recorre el catálogo entero (export, importación).
-            if (after is null && (offset is not null || !string.IsNullOrWhiteSpace(q)))
+            if (after is null && (offset is not null || !string.IsNullOrWhiteSpace(q) || missingCost == true))
             {
                 var (pageItems, total) = await repository.ListPageAsync(
-                    tenant.TenantId, statusFilter, q, limit, Math.Max(0, offset ?? 0), ct);
+                    tenant.TenantId, statusFilter, q, limit, Math.Max(0, offset ?? 0),
+                    missingCost == true, ct);
                 return Results.Ok(new
                 {
                     items = pageItems.Select(p => p.ToDto()).ToList(),

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Badge, Dropdown, useToast, useConfirm } from '@tiendafy/ui';
+import { Badge, Checkbox, Dropdown, useConfirm, useToast } from '@tiendafy/ui';
 import { MoreVertical } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
 import { toFormPrice, toDomainPrice } from '../../lib/price';
@@ -69,9 +69,7 @@ export function ProductRows({
             {vi === 0 ? (
               <>
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
-                  <input
-                    type="checkbox"
-                    className="rounded-sm border-border-strong"
+                  <Checkbox
                     checked={selected}
                     onChange={onToggleSelect}
                     aria-label={`Seleccionar ${product.name}`}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { Checkbox, cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { PlainDialog } from '../components/PlainDialog';
@@ -108,12 +108,7 @@ export function RefundDialog({
 
       {mode === 'total' && (
         <label className="mt-3 flex items-start gap-2 text-sm text-fg">
-          <input
-            type="checkbox"
-            checked={restock}
-            onChange={(e) => setRestock(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-primary"
-          />
+          <Checkbox checked={restock} onChange={(e) => setRestock(e.target.checked)} className="mt-0.5" />
           <span>
             Reingresar el stock de los productos
             <span className="block text-xs text-fg-muted">

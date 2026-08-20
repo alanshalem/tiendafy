@@ -50,9 +50,14 @@ public interface IProductRepository
     /// o SKU y total. Las pantallas de costos, inventario y los buscadores de
     /// variantes traían el catálogo COMPLETO para filtrar en el navegador.
     /// </summary>
+    /// <param name="onlyWithoutCost">
+    /// Solo productos con alguna variante sin costo cargado. Es el filtro que
+    /// abre la métrica "sin costo cargado": llevarla a una pantalla que igual
+    /// muestra el catálogo entero deja el trabajo de encontrarlos sin hacer.
+    /// </param>
     Task<(IReadOnlyList<Product> Items, int Total)> ListPageAsync(
         TenantId tenantId, ProductStatus? status, string? search, int limit, int offset,
-        CancellationToken ct = default);
+        bool onlyWithoutCost = false, CancellationToken ct = default);
 
     /// <summary>Busca productos ACTIVE con filtros, orden y paginado. Devuelve la página, el total y las facetas.</summary>
     Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(

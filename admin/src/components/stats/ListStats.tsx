@@ -8,6 +8,14 @@ export interface ListStat {
   hint?: string;
   /** Resalta el número cuando pide acción (sin stock, sin facturar…). */
   tone?: 'default' | 'warning' | 'danger' | 'success';
+  /**
+   * Convierte la métrica en un filtro: al tocarla, el listado de abajo muestra
+   * exactamente esas filas. Un número que se puede mirar pero no abrir obliga a
+   * ir a buscar a mano lo que ya se contó.
+   */
+  onClick?: () => void;
+  /** El filtro de esta métrica está puesto. */
+  active?: boolean;
 }
 
 const TONE: Record<NonNullable<ListStat['tone']>, string> = {
@@ -34,17 +42,52 @@ export function ListStats({ items, className }: { items: ListStat[]; className?:
         className,
       )}
     >
-      {items.map((s) => (
-        <div key={s.label} className="bg-surface px-4 py-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-fg-muted">
-            {s.label}
-            {s.hint && <InfoDot info={s.hint} />}
-          </div>
-          <div className={cn('mt-1 text-xl font-bold tabular-nums', TONE[s.tone ?? 'default'])}>
-            {s.value}
-          </div>
-        </div>
-      ))}
+      {items.map((s) => {
+        const body = (
+          <>
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-fg-muted">
+              {s.label}
+              {s.hint && <InfoDot info={s.hint} />}
+            </div>
+            <div className={cn('mt-1 text-xl font-bold tabular-nums', TONE[s.tone ?? 'default'])}>
+              {s.value}
+            </div>
+          </>
+        );
+
+        if (!s.onClick) {
+          return (
+            <div key={s.label} className="bg-surface px-4 py-3">
+              {body}
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={s.label}
+            type="button"
+            onClick={s.onClick}
+            aria-pressed={s.active}
+            title={s.active ? 'Quitar el filtro' : `Ver solo: ${s.label}`}
+            className={cn(
+              'group bg-surface px-4 py-3 text-left transition-colors hover:bg-bg-muted',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40',
+              s.active && 'bg-primary/10 hover:bg-primary/15',
+            )}
+          >
+            {body}
+            <span
+              className={cn(
+                'mt-1 block text-[0.65rem] font-medium text-primary transition-opacity',
+                s.active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+              )}
+            >
+              {s.active ? 'Filtrando · tocá para quitar' : 'Ver solo estos'}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
