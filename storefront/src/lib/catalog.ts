@@ -7,11 +7,22 @@ interface OptionFacet {
   values: string[];
 }
 
+/** Un campo de ficha técnica con los valores que existen en el set actual. */
+export interface SpecFacet {
+  definitionId: string;
+  key: string;
+  name: string;
+  unit: string | null;
+  values: string[];
+}
+
 export interface ProductFacets {
   brands: string[];
   options: OptionFacet[];
   priceMin: number | null; // en centavos
   priceMax: number | null;
+  /** Puede faltar en una respuesta cacheada de antes de existir el campo. */
+  specs?: SpecFacet[];
 }
 
 interface ProductsPage {
@@ -45,7 +56,7 @@ interface ProductSearchResult {
   facets: ProductFacets;
 }
 
-const EMPTY_FACETS: ProductFacets = { brands: [], options: [], priceMin: null, priceMax: null };
+const EMPTY_FACETS: ProductFacets = { brands: [], options: [], priceMin: null, priceMax: null, specs: [] };
 
 export interface CategoryDto {
   id: string;
@@ -66,6 +77,8 @@ interface SearchParams {
   priceMax?: number;
   brand?: string;
   options?: string[]; // valores de opción seleccionados (Color/Talle/…)
+  /** Pares `<definitionId>:<valor>` de ficha técnica. */
+  specs?: string[];
 }
 
 export async function searchProducts(tenantId: string, params: SearchParams): Promise<ProductSearchResult> {
@@ -77,6 +90,8 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   if (params.priceMax != null) qs.set('priceMax', String(params.priceMax));
   if (params.brand) qs.set('brand', params.brand);
   for (const o of params.options ?? []) qs.append('option', o);
+  // Ficha técnica: <definitionId>:<valor>, repetible.
+  for (const sp of params.specs ?? []) qs.append('spec', sp);
   qs.set('page', String(params.page ?? 1));
   qs.set('pageSize', String(params.pageSize ?? 24));
 

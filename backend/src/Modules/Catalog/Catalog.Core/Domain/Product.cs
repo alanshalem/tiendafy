@@ -61,6 +61,12 @@ public sealed class Product : AggregateRoot
     private readonly List<Guid> _categoryIds = [];
     public IReadOnlyList<Guid> CategoryIds => _categoryIds.AsReadOnly();
 
+    // Ficha técnica: los valores de este producto para los campos que definió
+    // la tienda. Van con el producto y no aparte porque se cargan, se guardan y
+    // se muestran junto con él.
+    private readonly List<ProductSpec> _specs = [];
+    public IReadOnlyList<ProductSpec> Specs => _specs.AsReadOnly();
+
     private Product() { } // EF Core
 
     private Product(Guid id, TenantId tenantId, string name, Slug slug, string? description)
@@ -71,6 +77,22 @@ public sealed class Product : AggregateRoot
         Description = description;
         Status = ProductStatus.Draft;
         CreatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Reemplaza la ficha técnica completa. Se manda todo junto y no campo por
+    /// campo: el editor conoce el estado final, y así borrar un valor es
+    /// simplemente no mandarlo.
+    /// </summary>
+    public void SetSpecs(IEnumerable<(Guid DefinitionId, string? Value)> values)
+    {
+        _specs.Clear();
+        foreach (var (definitionId, value) in values)
+        {
+            if (definitionId == Guid.Empty) continue;
+            var spec = ProductSpec.Create(definitionId, value);
+            if (spec is not null) _specs.Add(spec);
+        }
     }
 
     public static Result<Product> Create(TenantId tenantId, string? name, string? description = null)

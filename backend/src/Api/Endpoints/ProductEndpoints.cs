@@ -207,7 +207,8 @@ public static class ProductEndpoints
             decimal? priceMin = null,
             decimal? priceMax = null,
             string? brand = null,
-            string[]? option = null) =>
+            string[]? option = null,
+            string[]? spec = null) =>
         {
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 48);
@@ -224,12 +225,24 @@ public static class ProductEndpoints
             long? ToMinor(decimal? p) => p is > 0 ? (long)Math.Round(p.Value * 100) : null;
             var options = option?.Where(o => !string.IsNullOrWhiteSpace(o)).Select(o => o.Trim()).Distinct().ToList();
 
+            // Ficha técnica: llega como spec=<id>:<valor>, repetido. Se agrupa
+            // por campo para que dos valores del mismo campo sumen en vez de
+            // restar.
+            var specFilters = (spec ?? [])
+                .Select(raw => raw.Split(':', 2))
+                .Where(parts => parts.Length == 2 && Guid.TryParse(parts[0], out _) && parts[1].Trim().Length > 0)
+                .GroupBy(parts => Guid.Parse(parts[0]))
+                .Select(g => new SpecFilter(g.Key, g.Select(parts => parts[1].Trim()).Distinct().Take(30).ToList()))
+                .Take(10)
+                .ToList();
+
             var (items, total, facets) = await repository.SearchAsync(
                 tenant.TenantId,
                 new ProductSearchFilter(q, category, sortEnum, page, pageSize,
                     ToMinor(priceMin), ToMinor(priceMax),
                     string.IsNullOrWhiteSpace(brand) ? null : brand.Trim(),
-                    options is { Count: > 0 } ? options : null),
+                    options is { Count: > 0 } ? options : null,
+                    specFilters.Count > 0 ? specFilters : null),
                 ct);
 
             // Stock por producto (suma de sus variantes) para badges en la card.
@@ -252,6 +265,14 @@ public static class ProductEndpoints
                     options = facets.Options.Select(o => new { name = o.Name, values = o.Values }),
                     priceMin = facets.PriceMin,
                     priceMax = facets.PriceMax,
+                    specs = facets.Specs.Select(f => new
+                    {
+                        definitionId = f.DefinitionId,
+                        key = f.Key,
+                        name = f.Name,
+                        unit = f.Unit,
+                        values = f.Values,
+                    }),
                 },
             });
         });
@@ -786,6 +807,34 @@ public static class ProductEndpoints
             return Results.Ok(product.ToDto());
         });
 
+        MapSpecDefinitions(group);
+
+        // Ficha técnica del producto: se manda entera y reemplaza lo anterior.
+        products.MapPut("/{id:guid}/specs", async (
+            Guid id,
+            SetSpecsRequest request,
+            ITenantContext tenant,
+            IProductRepository repository,
+            Catalog.Infrastructure.Persistence.CatalogDbContext db,
+            CancellationToken ct) =>
+        {
+            var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
+            if (product is null) return Results.NotFound();
+
+            // Solo se aceptan campos que existan en esta tienda: un id inventado
+            // dejaría un valor colgado que después nadie sabe leer.
+            var known = await db.SpecDefinitions.AsNoTracking()
+                .Where(d => d.TenantId == tenant.TenantId)
+                .Select(d => d.Id).ToListAsync(ct);
+
+            product.SetSpecs((request.Values ?? [])
+                .Where(v => known.Contains(v.DefinitionId))
+                .Select(v => (v.DefinitionId, v.Value)));
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(product.ToDto());
+        }).RequirePermission(Permission.CatalogWrite);
+
         // Eliminar TODOS los productos del tenant (con sus imágenes del storage).
         products.MapDelete("/", async (
             ITenantContext tenant,
@@ -873,6 +922,117 @@ public static class ProductEndpoints
         _ => AdminProductSort.Newest,
     };
 
+    // ------------------------------------------------ Campos de ficha técnica
+
+    /// <summary>
+    /// Los campos de ficha técnica que definió esta tienda. Son por tienda
+    /// porque cada una vende otra cosa, y se acotan por categoría para que
+    /// quien carga un producto no vea cuarenta campos que no aplican.
+    /// </summary>
+    private static void MapSpecDefinitions(RouteGroupBuilder group)
+    {
+        var specs = group.MapGroup("/spec-definitions").RequireTenant();
+
+        // Público: el storefront necesita el nombre y la unidad de cada campo
+        // para mostrar la ficha. No hay nada privado acá.
+        specs.MapGet("/", async (
+            ITenantContext tenant, Catalog.Infrastructure.Persistence.CatalogDbContext db, CancellationToken ct) =>
+        {
+            var items = await db.SpecDefinitions.AsNoTracking()
+                .Where(d => d.TenantId == tenant.TenantId)
+                .OrderBy(d => d.SortOrder).ThenBy(d => d.Name)
+                .ToListAsync(ct);
+            return Results.Ok(new { items = items.Select(SpecDto) });
+        });
+
+        specs.MapPost("/", async (
+            SpecDefinitionRequest request, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext db, CancellationToken ct) =>
+        {
+            var next = await db.SpecDefinitions.CountAsync(d => d.TenantId == tenant.TenantId, ct);
+            var created = SpecDefinition.Create(tenant.TenantId, request.Name, ParseSpecType(request.Type), next);
+            if (created.IsFailure) return created.Error.ToProblem();
+
+            var definition = created.Value;
+            if (await db.SpecDefinitions.AnyAsync(d => d.TenantId == tenant.TenantId && d.Key == definition.Key, ct))
+                return Error.Conflict("Spec.Duplicate", $"Ya tenes un campo llamado {definition.Name}.").ToProblem();
+
+            var applied = ApplySpec(definition, request);
+            if (applied.IsFailure) return applied.Error.ToProblem();
+
+            db.SpecDefinitions.Add(definition);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/v1/spec-definitions/{definition.Id}", SpecDto(definition));
+        }).RequirePermission(Permission.CatalogWrite);
+
+        specs.MapPut("/{id:guid}", async (
+            Guid id, SpecDefinitionRequest request, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext db, CancellationToken ct) =>
+        {
+            var definition = await db.SpecDefinitions
+                .FirstOrDefaultAsync(d => d.TenantId == tenant.TenantId && d.Id == id, ct);
+            if (definition is null) return Results.NotFound();
+
+            var applied = ApplySpec(definition, request);
+            if (applied.IsFailure) return applied.Error.ToProblem();
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(SpecDto(definition));
+        }).RequirePermission(Permission.CatalogWrite);
+
+        specs.MapDelete("/{id:guid}", async (
+            Guid id, ITenantContext tenant,
+            Catalog.Infrastructure.Persistence.CatalogDbContext db, CancellationToken ct) =>
+        {
+            var definition = await db.SpecDefinitions
+                .FirstOrDefaultAsync(d => d.TenantId == tenant.TenantId && d.Id == id, ct);
+            if (definition is null) return Results.NoContent();
+
+            // Los valores cargados en los productos se van con el campo: dejarlos
+            // huerfanos seria guardar datos que despues nadie puede leer.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM product_specs WHERE definition_id = {id}", ct);
+            db.SpecDefinitions.Remove(definition);
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        }).RequirePermission(Permission.CatalogWrite);
+    }
+
+    private static SpecType ParseSpecType(string? raw) => raw?.ToUpperInvariant() switch
+    {
+        "NUMBER" => SpecType.Number,
+        "BOOLEAN" => SpecType.Boolean,
+        "LIST" => SpecType.List,
+        _ => SpecType.Text,
+    };
+
+    private static Result ApplySpec(SpecDefinition definition, SpecDefinitionRequest request) =>
+        definition.Update(
+            request.Name,
+            ParseSpecType(request.Type),
+            request.Unit,
+            request.Options,
+            request.CategoryIds,
+            request.ShowOnProduct,
+            request.Filterable,
+            request.MeliAttributeId,
+            request.SortOrder);
+
+    private static object SpecDto(SpecDefinition d) => new
+    {
+        d.Id,
+        d.Name,
+        d.Key,
+        type = d.Type.ToString().ToUpperInvariant(),
+        d.Unit,
+        d.Options,
+        d.CategoryIds,
+        d.ShowOnProduct,
+        d.Filterable,
+        d.MeliAttributeId,
+        d.SortOrder,
+    };
+
 }
 
 public sealed record CreateProductRequest(
@@ -911,3 +1071,17 @@ public sealed record VariantInput(
     long PriceAmount,
     string? Currency,
     long? CompareAtAmount);
+
+public sealed record SetSpecsRequest(List<ProductSpecValue>? Values);
+public sealed record ProductSpecValue(Guid DefinitionId, string? Value);
+
+public sealed record SpecDefinitionRequest(
+    string? Name,
+    string? Type,
+    string? Unit,
+    List<string>? Options,
+    List<Guid>? CategoryIds,
+    bool ShowOnProduct,
+    bool Filterable,
+    string? MeliAttributeId,
+    int SortOrder);

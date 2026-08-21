@@ -41,6 +41,7 @@ export default async function ProductsPage({
   const category = one(sp.category);
   const brand = one(sp.brand);
   const options = many(sp.option);
+  const specs = many(sp.spec);
   const priceMin = Number.parseInt(one(sp.priceMin), 10);
   const priceMax = Number.parseInt(one(sp.priceMax), 10);
 
@@ -53,6 +54,7 @@ export default async function ProductsPage({
       pageSize: 24,
       brand,
       options,
+      specs,
       priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
       priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
     }),
@@ -89,6 +91,7 @@ export default async function ProductsPage({
             category,
             brand,
             options,
+            specs,
             priceMin: one(sp.priceMin),
             priceMax: one(sp.priceMax),
           }}

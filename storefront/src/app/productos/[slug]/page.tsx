@@ -55,7 +55,17 @@ interface ProductDto {
   }[];
   images: { url: string; altText: string | null }[];
   categoryIds: string[];
+  specs: { definitionId: string; value: string }[];
   stock: number | null;
+}
+
+/** Definición de un campo de ficha técnica: da el nombre y la unidad. */
+interface SpecDefinitionDto {
+  id: string;
+  name: string;
+  unit: string | null;
+  showOnProduct: boolean;
+  sortOrder: number;
 }
 
 export default async function ProductDetailPage({
@@ -79,6 +89,11 @@ export default async function ProductDetailPage({
   // viendo (antes eran siempre los primeros 4 del catálogo). Si la categoría no
   // llega a 4, rellenamos con el resto del catálogo para no dejar huecos.
   const related = await buildRelated(data.tenant.id, slug, product?.categoryIds ?? [], data.products);
+
+  // La ficha técnica se arma acá y no en el componente: los valores vienen con
+  // el producto y los nombres con las definiciones de la tienda, y unirlos en
+  // el servidor evita un pedido más desde el navegador.
+  const specRows = await buildSpecRows(data.tenant.id, product?.specs ?? []);
 
   // Miga: Inicio › (cadena de categorías) › Producto — navegación + BreadcrumbList
   // para que Google muestre migas en el resultado en vez de la URL.
@@ -160,6 +175,7 @@ export default async function ProductDetailPage({
               images={product.images}
               options={product.options}
               variants={product.variants}
+              specs={specRows}
               config={theme.productDetail}
             />
             {theme.productDetail.showRelated && related.length > 0 && (
@@ -258,4 +274,27 @@ async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Prom
   } catch {
     return [];
   }
+}
+
+/** Cruza los valores del producto con las definiciones de la tienda. */
+async function buildSpecRows(
+  tenantId: string,
+  values: { definitionId: string; value: string }[],
+): Promise<{ name: string; value: string }[]> {
+  if (values.length === 0) return [];
+
+  const defs = await apiGetTenant<{ items: SpecDefinitionDto[] }>('/api/v1/spec-definitions/', tenantId, {
+    next: { revalidate: REVALIDATE.catalog },
+  }).catch(() => null);
+  if (!defs) return [];
+
+  const byId = new Map(defs.items.map((d) => [d.id, d]));
+  return values
+    .map((v) => ({ def: byId.get(v.definitionId), value: v.value }))
+    .filter((x): x is { def: SpecDefinitionDto; value: string } => !!x.def && x.def.showOnProduct)
+    .sort((a, b) => a.def.sortOrder - b.def.sortOrder)
+    .map((x) => ({
+      name: x.def.name,
+      value: x.def.unit ? `${x.value} ${x.def.unit}` : x.value,
+    }));
 }

@@ -676,7 +676,8 @@ public static class MeliEndpoints
         items.MapPost("/products/{productId:guid}/publish", async (
             Guid productId, MeliPublishRequest request,
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client,
-            IProductRepository products, IStockRepository stock, CancellationToken ct) =>
+            IProductRepository products, IStockRepository stock,
+            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.CategoryId))
                 return Error.Validation("Meli.NoCategory",
@@ -722,6 +723,25 @@ public static class MeliEndpoints
                 attributes.Add(new { id = "BRAND", value_name = product.Brand });
             if (!string.IsNullOrWhiteSpace(variant.Sku))
                 attributes.Add(new { id = "SELLER_SKU", value_name = variant.Sku });
+
+            // Ficha técnica: los campos que tienen equivalente declarado en
+            // Mercado Libre viajan como atributos. Una publicación con la ficha
+            // completa posiciona mejor y puede entrar al catálogo; hasta ahora
+            // mandábamos dos atributos de veinte.
+            if (product.Specs.Count > 0)
+            {
+                var mapped = await catalogDb.SpecDefinitions.AsNoTracking()
+                    .Where(d => d.TenantId == product.TenantId && d.MeliAttributeId != null)
+                    .Select(d => new { d.Id, d.MeliAttributeId })
+                    .ToDictionaryAsync(d => d.Id, d => d.MeliAttributeId!, ct);
+
+                foreach (var spec in product.Specs)
+                {
+                    if (mapped.TryGetValue(spec.DefinitionId, out var meliId))
+                        attributes.Add(new { id = meliId, value_name = spec.Value });
+                }
+            }
+
             if (attributes.Count > 0) payload["attributes"] = attributes;
 
             try

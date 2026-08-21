@@ -20,7 +20,15 @@ public sealed record ProductSearchFilter(
     long? PriceMin = null,          // en unidades menores (centavos), como se guarda
     long? PriceMax = null,
     string? Brand = null,
-    IReadOnlyList<string>? OptionValues = null);   // valores de opción seleccionados (Color/Talle/…); AND entre ellos
+    IReadOnlyList<string>? OptionValues = null,    // valores de opción seleccionados (Color/Talle/…); AND entre ellos
+    IReadOnlyList<SpecFilter>? Specs = null);      // campos de ficha técnica; OR adentro de cada campo, AND entre campos
+
+/// <summary>
+/// Un campo de ficha técnica con los valores elegidos. Dentro de un campo la
+/// relación es O —"Honda o Yamaha"—; entre campos es Y. Es lo que espera
+/// cualquiera que haya usado un filtro de catálogo.
+/// </summary>
+public sealed record SpecFilter(Guid DefinitionId, IReadOnlyList<string> Values);
 
 /// <summary>Orden del listado del panel (el del storefront es <see cref="ProductSort"/>).</summary>
 public enum AdminProductSort
@@ -64,12 +72,16 @@ public sealed record AdminProductFilter(
 /// <summary>Un filtro de opción con sus valores disponibles (ej: "Color" → ["Rojo","Azul"]).</summary>
 public sealed record OptionFacet(string Name, IReadOnlyList<string> Values);
 
-/// <summary>Valores disponibles para armar la barra de filtros del storefront (marcas, opciones, rango de precio).</summary>
+/// <summary>Un campo de ficha técnica con los valores que existen en el set actual.</summary>
+public sealed record SpecFacet(Guid DefinitionId, string Key, string Name, string? Unit, IReadOnlyList<string> Values);
+
+/// <summary>Valores disponibles para armar la barra de filtros del storefront (marcas, opciones, rango de precio, ficha técnica).</summary>
 public sealed record ProductFacets(
     IReadOnlyList<string> Brands,
     IReadOnlyList<OptionFacet> Options,
     long? PriceMin,
-    long? PriceMax);
+    long? PriceMax,
+    IReadOnlyList<SpecFacet> Specs);
 
 /// <summary>
 /// Puerto de persistencia del catálogo. Filtra por tenant explícitamente

@@ -62,6 +62,20 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasForeignKey("product_id")
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.OwnsMany(p => p.Specs, specs =>
+        {
+            specs.ToTable("product_specs");
+            specs.WithOwner().HasForeignKey("product_id");
+            specs.HasKey(x => x.Id);
+            specs.Property(x => x.Id).ValueGeneratedNever();
+            specs.Property(x => x.Value).HasMaxLength(ProductSpec.MaxValueLength).IsRequired();
+            // Un valor por campo y por producto.
+            specs.HasIndex("product_id", "DefinitionId").IsUnique();
+            // El filtro del catálogo entra por acá: "dame los productos que
+            // tienen este valor en este campo".
+            specs.HasIndex(x => new { x.DefinitionId, x.Value });
+        });
+
         builder.OwnsMany(p => p.Images, images =>
         {
             images.ToTable("product_images");

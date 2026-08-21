@@ -14,6 +14,9 @@ public sealed record VariantDto(
 
 public sealed record ProductImageDto(Guid Id, string Url, string? AltText, int Position);
 
+/// <summary>Un valor de ficha técnica del producto. `DefinitionId` lo liga con su definición.</summary>
+public sealed record ProductSpecDto(Guid DefinitionId, string Value);
+
 public sealed record ProductDto(
     Guid Id,
     string Name,
@@ -27,6 +30,7 @@ public sealed record ProductDto(
     IReadOnlyList<VariantDto> Variants,
     IReadOnlyList<ProductImageDto> Images,
     IReadOnlyList<Guid> CategoryIds,
+    IReadOnlyList<ProductSpecDto> Specs,
     DateTime CreatedAtUtc,
     // Stock total (suma de variantes). Solo lo llena la búsqueda del storefront; null = desconocido.
     int? Stock = null);

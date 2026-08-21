@@ -133,4 +133,83 @@ export const CATALOGO = {
       },
     ],
   },
+
+  fichaTecnica: {
+    title: 'Ficha técnica',
+    intro: 'Los datos propios de lo que vendés: medidas, materiales, compatibilidad, códigos.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'Para qué sirve',
+        paragraphs: [
+          'La descripción de un producto es texto libre: sirve para contar, no para comparar ni para buscar. La ficha técnica son datos sueltos y con nombre, y por eso se pueden usar de tres maneras que la descripción no permite.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Ficha técnica'] },
+          {
+            type: 'table',
+            headers: ['Dónde', 'Qué gana'],
+            rows: [
+              [
+                'Página del producto',
+                'Una tabla clara de medidas y materiales, abajo de la descripción. Contesta lo que si no te preguntan por WhatsApp.',
+              ],
+              [
+                'Filtros del catálogo',
+                'El cliente filtra por lo que le importa: «mostrame todo lo de 20 kg», «lo que entra en este modelo». Es la diferencia entre un catálogo y una casa de repuestos.',
+              ],
+              [
+                'Mercado Libre',
+                'Los campos con equivalente declarado viajan en la publicación. Una ficha completa posiciona mejor y puede entrar al catálogo de ML.',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Los campos son de esta tienda',
+        paragraphs: [
+          'Cada tienda define los suyos, porque cada una vende otra cosa: en equipamiento de gimnasio «paso de cadena» no significa nada, y en repuestos «diámetro del orificio» tampoco. Si tenés varias tiendas, cada una tiene su lista y no se pisan.',
+          'Dentro de una tienda, cada campo se acota por categoría. «Diámetro del orificio» aplica a discos y a nada más. Eso es lo que hace que quien carga un producto vea tres campos y no cuarenta: el editor muestra solo los que corresponden a la categoría del producto.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Un campo sin ninguna categoría marcada aplica a todo el catálogo. Es lo razonable para algo como «Material» o «Garantía».',
+          },
+        ],
+      },
+      {
+        heading: 'Elegir bien el tipo',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Tipo', 'Cuándo'],
+            rows: [
+              ['Texto', 'Un código OEM, un modelo compatible: valores que no se repiten.'],
+              ['Número', 'Con su unidad: 20 kg, 50 mm. Se muestra junto al valor.'],
+              ['Sí / No', 'Algo que se tiene o no: «con rodamiento».'],
+              [
+                'Lista de opciones',
+                'Valores fijos que elegís vos. Es el único tipo que rinde de verdad como filtro.',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si un campo va a filtrar el catálogo, hacelo lista. Escrito a mano, «Caucho» y «caucho » son dos valores distintos y el filtro se llena de duplicados.',
+          },
+        ],
+      },
+      {
+        heading: 'Cargar los valores',
+        paragraphs: [
+          'Los valores se completan en el editor de cada producto, en la sección Ficha técnica. Solo aparecen los campos de la categoría de ese producto, así que cargar es rápido.',
+          'Un campo que dejás vacío no se guarda ni se muestra: la ficha de la tienda no se llena de renglones en blanco.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

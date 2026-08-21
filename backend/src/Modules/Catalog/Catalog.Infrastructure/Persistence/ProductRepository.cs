@@ -162,7 +162,7 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             }
         }
 
-        var facets = await BuildFacetsAsync(baseQuery, ct);
+        var facets = await BuildFacetsAsync(context, tenantId, baseQuery, ct);
 
         // Filtros que SÍ recortan el set mostrado.
         var query = baseQuery;
@@ -176,6 +176,19 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         if (filter.OptionValues is { Count: > 0 })
             foreach (var val in filter.OptionValues)
                 query = query.Where(p => p.Options.Any(o => EF.Property<List<string>>(o, "_values").Contains(val)));
+
+        // Ficha técnica: un Where por campo, con los valores de ese campo en un
+        // Contains. Así "Honda o Yamaha" suma resultados y "Honda + disco de
+        // freno" los recorta, que es como se espera que funcione un filtro.
+        if (filter.Specs is { Count: > 0 })
+        {
+            foreach (var spec in filter.Specs.Where(s => s.Values.Count > 0))
+            {
+                var definitionId = spec.DefinitionId;
+                var values = spec.Values;
+                query = query.Where(p => p.Specs.Any(x => x.DefinitionId == definitionId && values.Contains(x.Value)));
+            }
+        }
 
         var total = await query.CountAsync(ct);
 
@@ -196,8 +209,9 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         return (items, total, facets);
     }
 
-    /// <summary>Marcas, opciones (nombre→valores) y rango de precio disponibles en el set base.</summary>
-    private static async Task<ProductFacets> BuildFacetsAsync(IQueryable<Product> baseQuery, CancellationToken ct)
+    /// <summary>Marcas, opciones, rango de precio y ficha técnica disponibles en el set base.</summary>
+    private static async Task<ProductFacets> BuildFacetsAsync(
+        CatalogDbContext context, TenantId tenantId, IQueryable<Product> baseQuery, CancellationToken ct)
     {
         var brands = await baseQuery
             .Where(p => p.Brand != null)
@@ -230,6 +244,39 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             .Take(10)
             .ToList();
 
-        return new ProductFacets(brands, options, priceMin, priceMax);
+        return new ProductFacets(brands, options, priceMin, priceMax, await SpecFacetsAsync(context, tenantId, baseQuery, ct));
+    }
+
+    /// <summary>
+    /// Campos de ficha técnica marcados como filtrables, con los valores que de
+    /// verdad existen en el set. Un filtro que ofrece un valor sin resultados es
+    /// peor que no ofrecerlo.
+    /// </summary>
+    private static async Task<IReadOnlyList<SpecFacet>> SpecFacetsAsync(
+        CatalogDbContext context, TenantId tenantId, IQueryable<Product> baseQuery, CancellationToken ct)
+    {
+        var definitions = await context.SpecDefinitions.AsNoTracking()
+            .Where(d => d.TenantId == tenantId && d.Filterable)
+            .OrderBy(d => d.SortOrder).ThenBy(d => d.Name)
+            .Take(20)
+            .ToListAsync(ct);
+        if (definitions.Count == 0) return [];
+
+        var ids = definitions.Select(d => d.Id).ToList();
+        var pairs = await baseQuery
+            .SelectMany(p => p.Specs)
+            .Where(x => ids.Contains(x.DefinitionId))
+            .Select(x => new { x.DefinitionId, x.Value })
+            .Distinct()
+            .Take(2000)
+            .ToListAsync(ct);
+
+        var byDefinition = pairs.GroupBy(x => x.DefinitionId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Value).OrderBy(v => v, StringComparer.OrdinalIgnoreCase).Take(60).ToList());
+
+        return definitions
+            .Where(d => byDefinition.ContainsKey(d.Id))
+            .Select(d => new SpecFacet(d.Id, d.Key, d.Name, d.Unit, byDefinition[d.Id]))
+            .ToList();
     }
 }

@@ -20,6 +20,7 @@ public static class ProductMapping
         product.Images.OrderBy(i => i.Position)
             .Select(i => new ProductImageDto(i.Id, i.Url, i.AltText, i.Position)).ToList(),
         product.CategoryIds,
+        product.Specs.Select(x => new ProductSpecDto(x.DefinitionId, x.Value)).ToList(),
         product.CreatedAtUtc);
 
     public static VariantDto ToDto(this Variant variant) => new(

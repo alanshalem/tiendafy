@@ -137,6 +137,80 @@ namespace Catalog.Infrastructure.Migrations
                     b.ToTable("products", (string)null);
                 });
 
+            modelBuilder.Entity("Catalog.Core.Domain.SpecDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("Filterable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("filterable");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("MeliAttributeId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("meli_attribute_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("ShowOnProduct")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_on_product");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("unit");
+
+                    b.PrimitiveCollection<List<Guid>>("_categoryIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("category_ids");
+
+                    b.PrimitiveCollection<List<string>>("_options")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("options");
+
+                    b.HasKey("Id")
+                        .HasName("pk_spec_definitions");
+
+                    b.HasIndex("TenantId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_spec_definitions_tenant_id_key");
+
+                    b.ToTable("spec_definitions", (string)null);
+                });
+
             modelBuilder.Entity("Catalog.Core.Domain.Variant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -309,9 +383,48 @@ namespace Catalog.Infrastructure.Migrations
                                 .HasConstraintName("fk_product_options_products_product_id");
                         });
 
+                    b.OwnsMany("Catalog.Core.Domain.ProductSpec", "Specs", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid>("DefinitionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("definition_id");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasMaxLength(120)
+                                .HasColumnType("character varying(120)")
+                                .HasColumnName("value");
+
+                            b1.Property<Guid>("product_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("product_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_product_specs");
+
+                            b1.HasIndex("DefinitionId", "Value")
+                                .HasDatabaseName("ix_product_specs_definition_id_value");
+
+                            b1.HasIndex("product_id", "DefinitionId")
+                                .IsUnique()
+                                .HasDatabaseName("ix_product_specs_product_id_definition_id");
+
+                            b1.ToTable("product_specs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("product_id")
+                                .HasConstraintName("fk_product_specs_products_product_id");
+                        });
+
                     b.Navigation("Images");
 
                     b.Navigation("Options");
+
+                    b.Navigation("Specs");
                 });
 
             modelBuilder.Entity("Catalog.Core.Domain.Variant", b =>

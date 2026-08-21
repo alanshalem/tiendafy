@@ -32,12 +32,19 @@ interface ProductOption {
   values: string[];
 }
 
+/** Un renglón de la ficha técnica, ya resuelto contra su definición. */
+export interface SpecRow {
+  name: string;
+  value: string;
+}
+
 export function ProductDetail({
   name,
   description,
   images,
   options,
   variants,
+  specs = [],
   config,
 }: {
   name: string;
@@ -45,6 +52,7 @@ export function ProductDetail({
   images: { url: string; altText: string | null }[];
   options: ProductOption[];
   variants: Variant[];
+  specs?: SpecRow[];
   config: DetailConfig;
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
@@ -232,6 +240,23 @@ export function ProductDetail({
         )}
 
         {description && <p className="mt-4 whitespace-pre-line opacity-75">{description}</p>}
+
+        {/* Ficha técnica: los datos que si no están, se preguntan por WhatsApp. */}
+        {specs.length > 0 && (
+          <dl className="mt-5 overflow-hidden rounded-lg border border-[rgb(var(--color-fg)/0.12)]">
+            {specs.map((row, i) => (
+              <div
+                key={row.name}
+                className={`flex gap-4 px-4 py-2.5 text-sm ${
+                  i % 2 === 1 ? 'bg-[rgb(var(--color-fg)/0.04)]' : ''
+                }`}
+              >
+                <dt className="w-40 shrink-0 opacity-60">{row.name}</dt>
+                <dd className="font-medium">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         {/* Selección por opción (color, talle…) como botones */}
         {hasOptions

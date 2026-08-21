@@ -9,6 +9,7 @@ import { api, errMsg } from '../../lib/api';
 import { useAiEnabled } from '../../lib/useAi';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
+import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { statusLabel, type Category, type StockItem } from './types';
@@ -36,6 +37,7 @@ interface ProductDto {
   variants: VariantDto[];
   images: ProductImage[];
   categoryIds: string[];
+  specs?: { definitionId: string; value: string }[];
 }
 
 export function EditProductPage() {
@@ -74,6 +76,7 @@ export function EditProductPage() {
   const [prices, setPrices] = useState<Record<string, { price: string; promo: string }>>({});
   const [stock, setStock] = useState<Record<string, string>>({});
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [specs, setSpecs] = useState<SpecValues>({});
   const [imageOrder, setImageOrder] = useState<string[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [error, setError] = useState<string>();
@@ -86,6 +89,7 @@ export function EditProductPage() {
     setSeoTitle(product.seoTitle ?? '');
     setSeoDescription(product.seoDescription ?? '');
     setCategoryIds(product.categoryIds ?? []);
+    setSpecs(Object.fromEntries((product.specs ?? []).map((x) => [x.definitionId, x.value])));
     setPrices(
       Object.fromEntries(
         product.variants.map((v) => {
@@ -190,6 +194,12 @@ export function EditProductPage() {
       const before = [...(product.categoryIds ?? [])].sort().join(',');
       if (categoryIds.slice().sort().join(',') !== before)
         await api.put(`/api/v1/products/${id}/categories`, { categoryIds });
+
+      // La ficha va entera: mandar solo lo cambiado obligaría a distinguir
+      // "no lo toqué" de "lo borré", y son cosas distintas.
+      await api.put(`/api/v1/products/${id}/specs`, {
+        values: Object.entries(specs).map(([definitionId, value]) => ({ definitionId, value })),
+      });
     },
     onSuccess: () => {
       refresh();
@@ -391,6 +401,8 @@ export function EditProductPage() {
         )}
       </Section>
 
+      <SpecSection categoryIds={categoryIds} values={specs} onChange={setSpecs} />
+
       <Section title="Estado y acciones">
         <Checkbox
           label="Mostrar en la tienda (publicado)"
@@ -432,5 +444,39 @@ export function EditProductPage() {
         </Button>
       </StickyFormBar>
     </div>
+  );
+}
+
+/**
+ * Ficha técnica del producto. Solo muestra los campos que la tienda declaró
+ * para las categorías de ESTE producto: sin eso, cargar un producto sería
+ * bajar por cuarenta campos que no aplican.
+ */
+function SpecSection({
+  categoryIds,
+  values,
+  onChange,
+}: {
+  categoryIds: string[];
+  values: SpecValues;
+  onChange: (next: SpecValues) => void;
+}) {
+  const { applicable, total } = useSpecDefinitions(categoryIds);
+  if (total === 0) return null;
+
+  return (
+    <Section
+      title="Ficha técnica"
+      hint="Se muestra en la página del producto y se puede usar como filtro del catálogo."
+    >
+      {applicable.length === 0 ? (
+        <p className="text-xs text-fg-subtle">
+          Ninguno de los campos definidos aplica a las categorías de este producto. Se configuran en
+          Configuración → Ficha técnica.
+        </p>
+      ) : (
+        <SpecFields definitions={applicable} values={values} onChange={onChange} />
+      )}
+    </Section>
   );
 }

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   ChevronLeft,
+  ListChecks,
   CreditCard,
   FileText,
   Globe,
@@ -90,6 +91,18 @@ const groups: NavGroup[] = [
         desc: 'Avisos automáticos por WhatsApp con la API oficial de Meta.',
         icon: MessageCircle,
         perm: 'settings.write',
+      },
+    ],
+  },
+  {
+    heading: 'Catálogo',
+    items: [
+      {
+        to: '/configuracion/ficha-tecnica',
+        label: 'Ficha técnica',
+        desc: 'Los datos propios de lo que vendés: medidas, materiales, compatibilidad, códigos.',
+        icon: ListChecks,
+        perm: 'catalog.write',
       },
     ],
   },

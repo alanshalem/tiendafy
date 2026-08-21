@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { buildPageWindow } from '@tiendafy/ui';
 import { colClass, type ProductListConfig } from '@/lib/theme';
-import type { CategoryDto, ProductFacets } from '@/lib/catalog';
+import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
 import { ProductCard, type StoreProduct } from './sections';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
@@ -32,6 +32,7 @@ interface Props {
     category: string;
     brand: string;
     options: string[];
+    specs?: string[];
     priceMin: string;
     priceMax: string;
   };
@@ -43,7 +44,7 @@ export function CatalogBrowser({
   page,
   totalPages,
   categories,
-  facets = { brands: [], options: [], priceMin: null, priceMax: null },
+  facets = { brands: [], options: [], priceMin: null, priceMax: null, specs: [] },
   productList,
   current,
 }: Props) {
@@ -57,6 +58,12 @@ export function CatalogBrowser({
   const [search, setSearch] = useState(current.q);
   const [priceMin, setPriceMin] = useState(current.priceMin);
   const [priceMax, setPriceMax] = useState(current.priceMax);
+
+  // Ni las facetas ni los filtros elegidos se dan por presentes: una respuesta
+  // cacheada de antes de agregar un campo no lo trae, y el listado no se puede
+  // caer por eso.
+  const specFacets = facets.specs ?? [];
+  const specSelection = current.specs ?? [];
 
   const navigate = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -78,15 +85,34 @@ export function CatalogBrowser({
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  // Ficha técnica: `spec=<definitionId>:<valor>`, repetible. Dentro de un campo
+  // los valores suman (Honda o Yamaha) y entre campos recortan.
+  const toggleSpec = (definitionId: string, value: string) => {
+    const token = `${definitionId}:${value}`;
+    const params = new URLSearchParams(searchParams.toString());
+    const cur = params.getAll('spec');
+    params.delete('spec');
+    const next = cur.includes(token) ? cur.filter((v) => v !== token) : [...cur, token];
+    for (const v of next) params.append('spec', v);
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const applyPrice = () =>
     navigate({ priceMin: priceMin.trim() || null, priceMax: priceMax.trim() || null, page: null });
 
-  const hasFilters = !!(current.brand || current.options.length || current.priceMin || current.priceMax);
+  const hasFilters = !!(
+    current.brand ||
+    current.options.length ||
+    specSelection.length ||
+    current.priceMin ||
+    current.priceMax
+  );
   const clearFilters = () => {
     setPriceMin('');
     setPriceMax('');
     const params = new URLSearchParams(searchParams.toString());
-    for (const k of ['brand', 'option', 'priceMin', 'priceMax', 'page']) params.delete(k);
+    for (const k of ['brand', 'option', 'spec', 'priceMin', 'priceMax', 'page']) params.delete(k);
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -215,6 +241,11 @@ export function CatalogBrowser({
                   onToggle={toggleOption}
                 />
               ))}
+
+            {/* Ficha técnica: los campos que la tienda marcó como filtrables. */}
+            {specFacets.map((f) => (
+              <SpecFacetChips key={f.definitionId} facet={f} selected={specSelection} onToggle={toggleSpec} />
+            ))}
 
             {hasFilters && (
               <button type="button" onClick={clearFilters} className="text-xs text-primary hover:underline">
@@ -642,5 +673,47 @@ function PageBtn({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Un campo de ficha técnica como chips. Solo se ofrecen los valores que
+ * existen en el set actual: un filtro que lleva a "sin resultados" es peor que
+ * no estar.
+ */
+function SpecFacetChips({
+  facet,
+  selected,
+  onToggle,
+}: {
+  facet: SpecFacet;
+  selected: string[];
+  onToggle: (definitionId: string, value: string) => void;
+}) {
+  if (facet.values.length === 0) return null;
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">{facet.name}</h3>
+      <div className="flex flex-wrap gap-1.5">
+        {facet.values.map((v) => {
+          const active = selected.includes(`${facet.definitionId}:${v}`);
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onToggle(facet.definitionId, v)}
+              aria-pressed={active}
+              className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                active
+                  ? 'border-primary bg-primary text-primary-fg'
+                  : 'border-[rgb(var(--color-fg)/0.2)] hover:border-[rgb(var(--color-fg)/0.45)]'
+              }`}
+            >
+              {facet.unit ? `${v} ${facet.unit}` : v}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
