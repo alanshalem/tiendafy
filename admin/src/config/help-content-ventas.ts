@@ -4,9 +4,17 @@ export const VENTAS = {
   payments: {
     title: 'Medios de pago',
     intro:
-      'Cobrá las ventas de tu tienda conectando Mercado Pago. La plata va directo a tu cuenta — Tiendafy nunca la toca.',
+      'Cobrá las ventas de tu tienda con Mercado Pago, con Payway o con los dos a la vez. La plata va directo a tu cuenta — Tiendafy nunca la toca.',
     category: 'Ventas y pagos',
     sections: [
+      {
+        heading: 'Cuál te conviene',
+        paragraphs: [
+          'Mercado Pago se conecta en un clic desde el panel y cobra con tarjeta, saldo, transferencia y efectivo. Es lo más rápido para arrancar y lo que más formas de pago le da al comprador.',
+          'Payway (ex Decidir) cobra solo con tarjeta, pero el comprador nunca sale de tu tienda y las condiciones las negociás vos. El alta la hace un ejecutivo comercial, así que lleva más tiempo.',
+          'No son excluyentes: con los dos activos, el checkout muestra las dos opciones.',
+        ],
+      },
       {
         heading: 'Conectá tu cuenta de Mercado Pago',
         paragraphs: [
@@ -91,6 +99,103 @@ export const VENTAS = {
             tone: 'info',
             text: 'Tiendafy no cobra comisión por venta. Lo único que se descuenta de tus cobros es la comisión de Mercado Pago.',
           },
+        ],
+      },
+    ],
+  },
+
+  payway: {
+    title: 'Cobrar con Payway',
+    intro:
+      'Cobro con tarjeta de crédito y débito sin que el comprador salga de tu tienda. Payway es el ex Decidir, de Prisma.',
+    category: 'Ventas y pagos',
+    sections: [
+      {
+        heading: 'En qué se diferencia de Mercado Pago',
+        paragraphs: [
+          'Con Mercado Pago el comprador paga con su cuenta, su saldo o su tarjeta, y vos no manejás ninguna relación bancaria: la cuenta se conecta sola desde el panel.',
+          'Payway es una pasarela clásica: cobra solo con tarjeta, la plata se acredita según el contrato que firmás con ellos, y el alta la hace un ejecutivo comercial. A cambio, el comprador nunca sale de tu tienda y las comisiones suelen negociarse.',
+          'Podés tener los dos activos: el checkout muestra las dos opciones y el comprador elige.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['', 'Mercado Pago', 'Payway'],
+            rows: [
+              ['Alta', 'Desde el panel, en un clic', 'Con un ejecutivo comercial'],
+              ['Medios', 'Tarjeta, saldo, transferencia, efectivo', 'Solo tarjeta de crédito y débito'],
+              ['El comprador', 'Puede salir a Mercado Pago', 'Paga dentro de tu tienda'],
+              ['Cuotas', 'Las administra Mercado Pago', 'Las acordás con Payway'],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Qué necesitás',
+        steps: [
+          'Dar de alta el comercio con Payway. No hay registro autogestionado: se hace con un ejecutivo comercial y lleva su tiempo.',
+          'Que te entreguen el número de comercio (site ID) y dos claves: una pública y una privada.',
+          'Que Payway certifique tu integración antes de habilitarte a cobrar de verdad. Podés probar todo en el ambiente de pruebas mientras tanto.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Para qué sirve cada clave',
+            text: 'La pública viaja al navegador del comprador y sirve para una sola cosa: convertir los datos de la tarjeta en un código. La privada es la que cobra, se guarda cifrada y no sale nunca de nuestro servidor — ni siquiera te la mostramos a vos después de cargarla.',
+          },
+        ],
+      },
+      {
+        heading: 'Configurarlo',
+        steps: [
+          'En Configuración → Medios de pago, bajá hasta la tarjeta de Payway.',
+          'Cargá el número de comercio y las dos claves.',
+          'Elegí el ambiente: empezá en “Pruebas” hasta que Payway te certifique.',
+          'Escribí el nombre que querés que aparezca en el resumen de la tarjeta del comprador.',
+          'Elegí las cuotas que vas a ofrecer y guardá.',
+          'Tocá “Probar conexión” para verificar que Payway responde.',
+        ],
+        blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago', 'Payway'] }],
+      },
+      {
+        heading: 'Las cuotas se acuerdan con Payway',
+        paragraphs: [
+          'Payway no tiene forma automática de decirnos qué promociones y planes de cuotas tenés vigentes: eso se pacta con ellos y con los bancos. Las cuotas que elegís en el panel se muestran en el checkout sin recargo.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si acordaste cuotas CON interés, no las cargues acá todavía: hoy el checkout las muestra sin recargo y estarías regalando la diferencia. Ofrecé solo los planes sin interés hasta que sumemos el cálculo del costo financiero.',
+          },
+        ],
+      },
+      {
+        heading: 'Qué ve el comprador',
+        paragraphs: [
+          'En el checkout elige “Tarjeta de crédito o débito” y completa los datos en tu tienda. Los datos de la tarjeta viajan directo a Payway: no pasan por nuestros servidores ni quedan guardados en ningún lado.',
+          'Si el banco rechaza el pago, le mostramos el motivo en castellano y qué puede hacer: probar con otra tarjeta, elegir menos cuotas o llamar al banco.',
+        ],
+      },
+      {
+        heading: 'Probar sin cobrar de verdad',
+        paragraphs: [
+          'Con el ambiente en “Pruebas” podés hacer el circuito completo. Tarjeta de prueba: 4507 9900 0000 4905, cualquier código de seguridad y cualquier vencimiento futuro. Para ver un rechazo, usá 4000 3000 1111 2220.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Los datos de la tarjeta caducan a los 15 minutos de cargarlos. Si el comprador deja el checkout abierto mucho tiempo y después paga, va a tener que cargarlos de nuevo — no es un error.',
+          },
+        ],
+      },
+      {
+        heading: 'Si un pago queda en duda',
+        paragraphs: [
+          'Payway no nos avisa solo cuando algo cambia, así que ante un corte de conexión le preguntamos directamente qué pasó con ese pago y adoptamos su respuesta. Nunca reintentamos por las nuestras: es así como se cobra dos veces.',
+          'Si ves una venta que quedó sin confirmar, no la vuelvas a cobrar: consultá el estado en el panel de Payway antes de hacer nada.',
         ],
       },
     ],

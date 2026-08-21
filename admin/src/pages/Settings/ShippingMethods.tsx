@@ -205,6 +205,7 @@ export function ShippingMethodsPage() {
       <AndreaniCard />
       <HelpLink id="correoArgentino" />
       <HelpLink id="zipnova" className="mt-2" />
+      <HelpLink id="andreani" className="mt-2" />
     </div>
   );
 }

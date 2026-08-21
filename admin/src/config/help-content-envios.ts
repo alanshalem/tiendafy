@@ -30,10 +30,10 @@ export const ENVIOS = {
         ],
       },
       {
-        heading: 'Cotización automática: Correo Argentino y Zipnova',
+        heading: 'Cotización automática: Correo Argentino, Zipnova y Andreani',
         paragraphs: [
-          'Además de los métodos manuales, podés conectar cotizadores en vivo: Correo Argentino (a domicilio o a sucursal) y Zipnova (Andreani, OCA y más transportes detrás de una sola cuenta, con etiqueta PDF). El comprador pone su dirección en el checkout y ve los precios reales de todos los que tengas activos, juntos.',
-          'Se configuran en esta misma pantalla — mirá los artículos de Correo Argentino y de Zipnova.',
+          'Además de los métodos manuales, podés conectar cotizadores en vivo: Correo Argentino (a domicilio o a sucursal), Andreani con tu propio contrato, y Zipnova (Andreani, OCA y más transportes detrás de una sola cuenta). El comprador pone su dirección en el checkout y ve los precios reales de todos los que tengas activos, juntos.',
+          'Se configuran en esta misma pantalla — mirá los artículos de cada uno.',
         ],
         blocks: [
           {
@@ -43,6 +43,7 @@ export const ENVIOS = {
               ['Domicilio (manual)', 'Fijo, lo definís vos', 'Lo coordinás vos'],
               ['Retiro en punto', 'Fijo o gratis', 'El cliente retira'],
               ['Correo Argentino', 'Cotizado en vivo por CP', 'Se paga y etiqueta en el panel MiCorreo'],
+              ['Andreani', 'Cotizado en vivo por CP', 'Etiqueta PDF desde la venta'],
               [
                 'Zipnova (Andreani, OCA…)',
                 'Cotizado en vivo por ciudad y CP',
@@ -207,6 +208,133 @@ export const ENVIOS = {
         heading: 'Correo Argentino y Zipnova a la vez',
         paragraphs: [
           'Podés tener las dos integraciones activas: el comprador ve todas las opciones cotizadas juntas en el checkout y elige la que prefiera. También podés pausar una sin desconectarla.',
+        ],
+      },
+    ],
+  },
+
+  andreani: {
+    title: 'Envíos con Andreani',
+    intro:
+      'Cotización en el checkout por código postal, generación del envío desde la venta, etiqueta PDF y seguimiento, con tu propio contrato de Andreani.',
+    category: 'Envíos',
+    sections: [
+      {
+        heading: 'Qué hace la integración',
+        paragraphs: [
+          'Con la integración activa, el comprador pone su código postal en el checkout y ve el precio real de Andreani para su destino. Después, desde la venta pagada, generás el envío y descargás la etiqueta para pegar en el paquete.',
+          'El precio lo firma el servidor al cotizar: no se puede manipular desde el navegador, y si el carrito cambia el checkout pide recotizar.',
+        ],
+      },
+      {
+        heading: 'Andreani directo o vía Zipnova',
+        paragraphs: [
+          'Se puede llegar a Andreani por dos caminos y conviene entender la diferencia antes de elegir.',
+          'Con esta integración usás TU contrato con Andreani: negociás vos las tarifas y facturás con ellos. Con Zipnova usás la cuenta de Zipnova, que ya trae Andreani entre sus transportes — es más rápido de arrancar, pero la relación comercial es con Zipnova.',
+          'Si ya tenés contrato con Andreani, esta integración te da mejor precio. Si no lo tenés y querés empezar hoy, Zipnova es el camino corto.',
+        ],
+      },
+      {
+        heading: 'Qué necesitás',
+        steps: [
+          'Dar de alta el servicio con Andreani. No hay registro autogestionado: se hace con un ejecutivo comercial y puede tardar varias semanas.',
+          'Que te entreguen usuario, contraseña y al menos un número de contrato.',
+          'Tu código de cliente (10 dígitos) y la sucursal desde la que despachás.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Un contrato por modalidad',
+            text: 'En Andreani cada forma de entrega es un contrato distinto: uno para entrega a domicilio y otro para retiro en sucursal. Si solo tenés uno, el checkout ofrece esa sola opción. Pediles los dos si querés ofrecer las dos.',
+          },
+        ],
+      },
+      {
+        heading: 'Configurarlo',
+        steps: [
+          'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Andreani.',
+          'Cargá usuario y contraseña. La contraseña se guarda cifrada y no se vuelve a mostrar.',
+          'Poné el código de cliente y los contratos que tengas.',
+          'Completá los datos del remitente y la dirección desde donde despachás: van en cada envío que generes.',
+          'Definí el paquete estimado por unidad (peso y medidas) y guardá.',
+          'Tocá “Probar conexión” para verificar que Andreani te reconoce.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Medios de envío', 'Andreani'] },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Podés cotizar apenas cargás el contrato, incluso antes de tener el resto listo. Los datos del remitente hacen falta recién para generar el primer envío — el panel te avisa si faltan.',
+          },
+        ],
+      },
+      {
+        heading: 'Las medidas cambian el precio tanto como el peso',
+        paragraphs: [
+          'Andreani cobra por el mayor entre el peso real del paquete y su “peso volumétrico”, que sale de las medidas. Una caja grande y liviana puede costar más que una chica y pesada.',
+          'Por eso el paquete que configurás no es un detalle: si ponés medidas más grandes que las reales, vas a cotizarle de más al comprador; si las ponés más chicas, la diferencia la vas a pagar vos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Andreani no acepta bultos de más de un metro cúbico aproximadamente. Si vendés algo más grande, va a hacer falta dividirlo en varios paquetes.',
+          },
+        ],
+      },
+      {
+        heading: 'Despachar un pedido, paso a paso',
+        steps: [
+          'En la venta pagada, tocá “Crear envío en Andreani”: se precargan el destinatario y la dirección.',
+          'Revisá los datos. Si el envío es a sucursal, activá esa opción y poné el número de la sucursal donde lo retiran.',
+          'Al confirmar, ves el número de seguimiento. Si el pedido va en varios bultos, cada uno tiene el suyo.',
+          'Tocá “Etiqueta PDF” y pegá una etiqueta en cada paquete.',
+          'Entregá los paquetes a Andreani según lo pactado en tu contrato.',
+          'Usá “Seguimiento” cuando quieras saber por dónde va, y “Marcar enviada” en la venta para que el comprador reciba el aviso.',
+        ],
+      },
+      {
+        heading: 'Un envío generado no se puede anular',
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Andreani no tiene forma de cancelar un envío desde el sistema: si generás uno de más, no se puede deshacer y probablemente te lo facturen igual. Por eso el panel pide confirmar antes de generar y nunca crea dos envíos para la misma venta, aunque toques el botón dos veces. Si te equivocaste, llamá a tu ejecutivo de Andreani.',
+          },
+        ],
+      },
+      {
+        heading: 'Errores frecuentes al despachar',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué pasa', 'Por qué', 'Cómo se resuelve'],
+            rows: [
+              [
+                'Rechaza el email del comprador',
+                'Andreani no acepta emails de más de 40 caracteres',
+                'El panel te avisa antes de generar. Usá otro email de contacto',
+              ],
+              [
+                'Rechaza la localidad',
+                'Tiene que escribirse igual que en el catálogo de Andreani',
+                'Corregí la localidad en el formulario del envío',
+              ],
+              [
+                'No aparece el seguimiento',
+                'Andreani lo habilita usuario por usuario',
+                'Pedíselo a tu ejecutivo: no alcanza con tener las credenciales',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Sobre los estados del seguimiento',
+        paragraphs: [
+          'Andreani no publica la lista completa de estados que puede informar, así que traducimos los que conocemos y mostramos “Sin novedades” cuando aparece uno que no reconocemos. En ese caso no le avisamos nada al comprador: preferimos no decirle algo que no entendemos del todo.',
+          'El detalle completo del recorrido siempre lo ves en “Seguimiento”, tal como lo informa Andreani.',
         ],
       },
     ],

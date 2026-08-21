@@ -16,6 +16,7 @@ export function PaymentMethodsPage() {
       <MercadoPagoConnect />
       <PaywayConnect />
       <HelpLink id="payments" />
+      <HelpLink id="payway" className="mt-2" />
     </div>
   );
 }
