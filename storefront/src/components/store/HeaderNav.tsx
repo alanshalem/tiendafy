@@ -1,16 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
+import { CategoryMenu } from './CategoryMenu';
 
-export interface NavLinkItem {
-  key: string;
+export interface NavItem {
+  id: string;
   label: string;
   href: string;
+  /** El de categorías se dibuja como desplegable cuando entra. */
+  kind?: 'link' | 'categories';
 }
 
-/** `useLayoutEffect` avisa en el render del servidor; en el servidor no hay nada que medir. */
+/** `useLayoutEffect` avisa en el render del servidor; ahí no hay nada que medir. */
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 /** Separación entre ítems, en píxeles. Tiene que coincidir con el `gap-x-5` de abajo. */
@@ -19,36 +22,25 @@ const GAP = 20;
 /**
  * Menú del encabezado en UNA sola línea.
  *
- * El problema es que la cantidad de ítems la decide el comercio: cada página de
- * contenido que crea suma uno, y con nombres como "Términos y condiciones" no
- * hay ancho que alcance siempre. Dejarlos envolver a un segundo renglón se ve
- * desprolijo, y partir el texto al medio se lee como un error de la página.
+ * La cantidad de ítems y el largo de cada nombre los decide el comercio: cada
+ * página de contenido que crea suma uno, y con nombres como "Términos y
+ * condiciones" no hay ancho que alcance siempre. Envolver a un segundo renglón
+ * se ve desprolijo y partir el texto al medio se lee como un error.
  *
- * Así que se mide cuánto entra de verdad y lo que sobra se va a un "Más". No se
- * esconde nada —sigue estando todo, a un clic— y el encabezado no cambia de
- * alto según cuántas páginas tenga la tienda.
+ * Así que se mide cuánto entra de verdad y lo que sobra se va a un "Más". Nada
+ * se esconde: sigue estando todo, a un clic. Y como el que sobra es el último,
+ * el orden que elige el comercio en el editor de diseño decide qué queda a la
+ * vista.
  */
-export function HeaderNav({
-  fixed,
-  items,
-  align = 'center',
-}: {
-  /** Ítems que no se mueven nunca: Inicio, Productos, el menú de categorías. */
-  fixed: ReactNode;
-  /** Los que pueden irse a "Más" si no entran. */
-  items: NavLinkItem[];
-  align?: 'center' | 'start';
-}) {
+export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align?: 'center' | 'start' }) {
   const navRef = useRef<HTMLElement>(null);
-  const fixedRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(items.length);
 
   const recompute = useCallback(() => {
     const nav = navRef.current;
-    const fixedBox = fixedRef.current;
     const measure = measureRef.current;
-    if (!nav || !fixedBox || !measure) return;
+    if (!nav || !measure) return;
 
     const available = nav.clientWidth;
     const kids = Array.from(measure.children) as HTMLElement[];
@@ -56,15 +48,14 @@ export function HeaderNav({
     const moreWidth = kids[kids.length - 1]?.offsetWidth ?? 0;
     const widths = kids.slice(0, items.length).map((el) => el.offsetWidth);
 
-    const fixedWidth = fixedBox.offsetWidth;
-    const everything = widths.reduce((sum, w) => sum + w + GAP, fixedWidth);
+    const everything = widths.reduce((sum, w) => sum + w + GAP, 0);
     if (everything <= available) {
       setShown(items.length);
       return;
     }
 
     // No entran todos: hay que reservar el lugar del "Más" antes de repartir.
-    let used = fixedWidth + moreWidth + GAP;
+    let used = moreWidth + GAP;
     let count = 0;
     for (const width of widths) {
       if (used + width + GAP > available) break;
@@ -90,42 +81,52 @@ export function HeaderNav({
     <nav
       ref={navRef}
       // Sin `overflow-hidden`: recortaría el propio desplegable de "Más", que
-      // cuelga por fuera del menú. Lo que sobra se recorta cambiando qué se
+      // cuelga por fuera del menú. Lo que sobra se resuelve cambiando qué se
       // dibuja, no tapándolo.
       className={`relative flex min-w-0 flex-1 items-center gap-x-5 whitespace-nowrap text-sm ${
         align === 'center' ? 'justify-center' : 'justify-start'
       }`}
     >
-      {/* Medidor: mismo texto y mismo tamaño, fuera de la vista. Sin esto no hay
-          forma de saber cuánto ocupa un nombre sin dibujarlo. */}
+      {/* Medidor: una copia fiel de cada ítem, fuera de la vista. Sin esto no
+          hay forma de saber cuánto ocupa un nombre sin dibujarlo. */}
       <div
         ref={measureRef}
         aria-hidden
         className="pointer-events-none absolute -left-[9999px] top-0 flex gap-x-5 whitespace-nowrap text-sm"
       >
         {items.map((item) => (
-          <span key={item.key}>{item.label}</span>
+          <span key={item.id} className="flex items-center gap-1">
+            {item.label}
+            {item.kind === 'categories' && <span className="h-4 w-4" />}
+          </span>
         ))}
-        <span>Más</span>
+        <span className="flex items-center gap-1">
+          Más
+          <span className="h-4 w-4" />
+        </span>
       </div>
 
-      <div ref={fixedRef} className="flex shrink-0 items-center gap-x-5">
-        {fixed}
-      </div>
-
-      {visible.map((item) => (
-        <Link key={item.key} href={item.href} className="shrink-0 opacity-90 hover:opacity-100">
-          {item.label}
-        </Link>
-      ))}
+      {visible.map((item) =>
+        item.kind === 'categories' ? (
+          <CategoryMenu key={item.id} label={item.label} />
+        ) : (
+          <Link key={item.id} href={item.href} className="shrink-0 opacity-90 hover:opacity-100">
+            {item.label}
+          </Link>
+        ),
+      )}
 
       {hidden.length > 0 && <MoreMenu items={hidden} />}
     </nav>
   );
 }
 
-/** Lo que no entró. Mismo aspecto que el menú de categorías. */
-function MoreMenu({ items }: { items: NavLinkItem[] }) {
+/**
+ * Lo que no entró. Adentro va todo como link plano, incluso el de categorías:
+ * un desplegable dentro de otro no se maneja bien con el dedo ni con el
+ * teclado, y el listado de productos ya muestra las categorías al costado.
+ */
+function MoreMenu({ items }: { items: NavItem[] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -148,7 +149,7 @@ function MoreMenu({ items }: { items: NavLinkItem[] }) {
           <div className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
             {items.map((item) => (
               <Link
-                key={item.key}
+                key={item.id}
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className="block rounded-md px-3 py-2 text-sm hover:bg-fg/5"

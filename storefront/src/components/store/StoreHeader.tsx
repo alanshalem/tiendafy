@@ -10,9 +10,9 @@ import { Icon } from './Icon';
 import { useCart } from './cart';
 import { useFavorites } from './favorites';
 import { AccountButton } from './AccountButton';
-import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
+import { CategoryMenuMobile } from './CategoryMenu';
 import { PagesNav, usePublishedPages } from './PagesNav';
-import { HeaderNav, type NavLinkItem } from './HeaderNav';
+import { HeaderNav, type NavItem } from './HeaderNav';
 import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
 import { MarqueeTrack } from './MarqueeTrack';
@@ -219,36 +219,32 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     { href: href('/productos'), label: 'Productos' },
     { href: href('/contacto'), label: 'Contacto' },
   ];
-  // El menú va SIEMPRE en una línea: lo que no entra cae en un "Más". La
-  // cantidad de ítems la decide el comercio —cada página de contenido suma
-  // uno— así que no hay ancho que alcance siempre, y dejarlos envolver a un
-  // segundo renglón se ve desprolijo.
+  // El menú del encabezado: los ítems fijos + las páginas de contenido, en el
+  // orden y con la visibilidad que el comercio eligió en el editor de diseño.
   //
-  // Inicio, Productos y el menú de categorías no se mueven nunca: son la
-  // navegación principal. Contacto y las páginas propias son las que ceden.
-  const navItem = 'shrink-0 whitespace-nowrap opacity-90 hover:opacity-100';
+  // El tema guarda PREFERENCIAS, no la lista: acá se arma lo que existe de
+  // verdad y después se aplica. Una página nueva aparece sola al final —
+  // publicarla y que no se vea sería desconcertante— y una borrada deja una
+  // preferencia que no coincide con nada.
   const pages = usePublishedPages();
-  const navExtras: NavLinkItem[] = [
-    { key: 'contacto', label: navLinks[2].label, href: navLinks[2].href },
-    ...pages.map((p) => ({ key: p.id, label: p.title, href: href(`/paginas/${p.slug}`) })),
+  const allItems: NavItem[] = [
+    { id: 'home', label: 'Inicio', href: href('/') },
+    { id: 'products', label: 'Productos', href: href('/productos') },
+    { id: 'categories', label: 'Categorías', href: href('/productos'), kind: 'categories' },
+    { id: 'contact', label: 'Contacto', href: href('/contacto') },
+    ...pages.map((p) => ({ id: `page:${p.id}`, label: p.title, href: href(`/paginas/${p.slug}`) })),
   ];
-  const navFor = (align: 'center' | 'start') => (
-    <HeaderNav
-      align={align}
-      items={navExtras}
-      fixed={
-        <>
-          <Link href={navLinks[0].href} className={navItem}>
-            {navLinks[0].label}
-          </Link>
-          <Link href={navLinks[1].href} className={navItem}>
-            {navLinks[1].label}
-          </Link>
-          <CategoryMenu />
-        </>
-      }
-    />
-  );
+
+  const prefs = header.menu ?? [];
+  const rank = new Map(prefs.map((m, i) => [m.id, i]));
+  const hiddenIds = new Set(prefs.filter((m) => !m.visible).map((m) => m.id));
+  const navItems = allItems
+    .filter((item) => !hiddenIds.has(item.id))
+    .sort(
+      (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+
+  const navFor = (align: 'center' | 'start') => <HeaderNav align={align} items={navItems} />;
   const nav = navFor('center');
 
   const search = header.showSearch ? (

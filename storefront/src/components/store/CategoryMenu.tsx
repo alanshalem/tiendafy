@@ -90,14 +90,14 @@ function CategoryTree({ nodes, onNavigate }: { nodes: CatNode[]; onNavigate: () 
 }
 
 /** Desktop: botón "Categorías" con dropdown acordeón. */
-export function CategoryMenu() {
+export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
   const tree = useCategoryTree();
   const [open, setOpen] = useState(false);
 
   if (tree.length === 0) return null;
 
   return (
-    <div className="relative" onMouseLeave={() => setOpen(false)}>
+    <div className="relative shrink-0" onMouseLeave={() => setOpen(false)}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -106,7 +106,7 @@ export function CategoryMenu() {
         aria-expanded={open}
         className="flex items-center gap-1 whitespace-nowrap opacity-90 hover:opacity-100"
       >
-        Categorías{' '}
+        {label}{' '}
         <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 

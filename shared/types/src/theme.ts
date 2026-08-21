@@ -20,6 +20,22 @@ export interface ThemeFonts {
   body: string;
 }
 
+/**
+ * Una preferencia del comercio sobre un ítem del menú del encabezado.
+ *
+ * Es una lista de PREFERENCIAS, no la fuente de verdad de qué existe: los
+ * ítems reales los arma el storefront (los fijos + las páginas publicadas) y
+ * después aplica esto. Así, una página nueva aparece sola al final —publicar y
+ * que no se vea sería desconcertante— y una borrada deja un id que
+ * simplemente no coincide con nada.
+ *
+ * `id` es 'home' | 'products' | 'categories' | 'contact' | 'page:<id>'.
+ */
+export interface ThemeMenuItem {
+  id: string;
+  visible: boolean;
+}
+
 export interface ThemeHeader {
   bg: string;
   sticky: boolean;
@@ -38,6 +54,12 @@ export interface ThemeHeader {
   cartStyle: 'icon' | 'text';
   showAccount: boolean;
   border: 'none' | 'line' | 'shadow';
+  /**
+   * Qué se muestra en el menú y en qué orden. Vacío = todo visible en el orden
+   * natural. El orden importa de verdad: lo que no entra a lo ancho se va a un
+   * desplegable "Más", así que el orden decide qué queda a la vista.
+   */
+  menu: ThemeMenuItem[];
 }
 
 /** Un anuncio de la barra superior: texto + link opcional. */
@@ -255,6 +277,7 @@ export const baseTheme: ThemeConfig = {
     cartStyle: 'icon',
     showAccount: false,
     border: 'none',
+    menu: [],
   },
   announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }] },
   comingSoon: {
@@ -380,7 +403,16 @@ export function normalizeTheme(
       : baseTheme.iconKit,
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
-    header: { ...baseTheme.header, ...raw.header },
+    header: {
+      ...baseTheme.header,
+      ...raw.header,
+      // El menú puede venir de una config guardada antes de que existiera.
+      menu: Array.isArray(raw.header?.menu)
+        ? raw.header!.menu.filter(
+            (m): m is ThemeMenuItem => typeof m?.id === 'string' && typeof m?.visible === 'boolean',
+          )
+        : [],
+    },
     announcement: normalizeAnnouncement(raw.announcement),
     comingSoon: { ...baseTheme.comingSoon, ...raw.comingSoon },
     sections: Array.isArray(raw.sections) && raw.sections.length > 0 ? raw.sections : fallbackSections,
