@@ -3,7 +3,10 @@ using Api.Shipping;
 using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
+using Checkout.Infrastructure.Persistence;
+using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
@@ -112,6 +115,8 @@ public static class CheckoutEndpoints
             return result.IsSuccess ? Results.Ok(ToDto(result.Value)) : result.Error.ToProblem();
         });
 
+        MapSettings(group);
+
         // Medios de envío visibles al comprador (activos) + si la tienda cotiza
         // en vivo con Correo Argentino (el storefront muestra el bloque de CP).
         group.MapGet("/shipping/methods", async (
@@ -206,6 +211,72 @@ public static class CheckoutEndpoints
         shippingMethod = session.ShippingMethodName,
         shippingAddress = session.ShippingAddress,
     };
+    // --------------------------------------------------- Opciones del checkout
+
+    /// <summary>
+    /// Qué se le pide y qué se le muestra al comprador. El comercio lo edita
+    /// desde el panel y el storefront lo lee sin sesión: son decisiones de la
+    /// tienda, no datos de nadie.
+    /// </summary>
+    private static void MapSettings(RouteGroupBuilder group)
+    {
+        group.MapGet("/checkout-settings", async (
+            ITenantContext tenant, CheckoutDbContext db, CancellationToken ct) =>
+        {
+            var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(ct);
+            return Results.Ok(SettingsDto(s, tenant.TenantId));
+        });
+
+        var admin = group.MapGroup("/admin/checkout").RequirePermission(Permission.SettingsWrite);
+
+        admin.MapGet("/settings", async (
+            ITenantContext tenant, CheckoutDbContext db, CancellationToken ct) =>
+        {
+            var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(ct);
+            return Results.Ok(SettingsDto(s, tenant.TenantId));
+        });
+
+        admin.MapPut("/settings", async (
+            CheckoutSettingsRequest request, ITenantContext tenant, CheckoutDbContext db,
+            CancellationToken ct) =>
+        {
+            var s = await db.Settings.FirstOrDefaultAsync(ct);
+            if (s is null)
+            {
+                s = CheckoutSettings.CreateDefault(tenant.TenantId);
+                db.Settings.Add(s);
+            }
+
+            s.Update(
+                request.SingleColumn, request.RequirePhone, request.RequireDocument,
+                request.CustomerNoteEnabled, request.CustomerNoteLabel,
+                request.OrderMessageEnabled, request.OrderMessageText);
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(SettingsDto(s, tenant.TenantId));
+        });
+    }
+
+    /// <summary>
+    /// Una tienda que nunca tocó la pantalla no tiene fila: se responden los
+    /// valores por defecto en vez de un 404, así el storefront no necesita
+    /// saber que la fila puede faltar.
+    /// </summary>
+    private static object SettingsDto(CheckoutSettings? s, TenantId tenantId)
+    {
+        s ??= CheckoutSettings.CreateDefault(tenantId);
+        return new
+        {
+            singleColumn = s.SingleColumn,
+            requirePhone = s.RequirePhone,
+            requireDocument = s.RequireDocument,
+            customerNoteEnabled = s.CustomerNoteEnabled,
+            customerNoteLabel = s.CustomerNoteLabel,
+            orderMessageEnabled = s.OrderMessageEnabled,
+            orderMessageText = s.OrderMessageText,
+        };
+    }
+
 }
 
 public sealed record StartCheckoutRequest(List<CheckoutLineInput>? Lines);
@@ -223,3 +294,12 @@ public sealed record SubmitCheckoutRequest(
     string? Address = null,
     string? ShippingQuoteToken = null,
     string? CorreoAgency = null);
+
+public sealed record CheckoutSettingsRequest(
+    bool SingleColumn,
+    bool RequirePhone,
+    bool RequireDocument,
+    bool CustomerNoteEnabled,
+    string? CustomerNoteLabel,
+    bool OrderMessageEnabled,
+    string? OrderMessageText);

@@ -46,6 +46,31 @@ interface ZipnovaOption {
 }
 
 /**
+ * Lo que el comercio configuró en el panel sobre este checkout. Se leen los
+ * valores por defecto si la tienda nunca tocó la pantalla, así que el checkout
+ * nunca queda esperando esta respuesta para poder dibujarse.
+ */
+interface CheckoutSettings {
+  singleColumn: boolean;
+  requirePhone: boolean;
+  requireDocument: boolean;
+  customerNoteEnabled: boolean;
+  customerNoteLabel: string;
+  orderMessageEnabled: boolean;
+  orderMessageText: string;
+}
+
+const DEFAULT_SETTINGS: CheckoutSettings = {
+  singleColumn: false,
+  requirePhone: true,
+  requireDocument: false,
+  customerNoteEnabled: true,
+  customerNoteLabel: 'Aclaraciones sobre tu pedido',
+  orderMessageEnabled: false,
+  orderMessageText: '',
+};
+
+/**
  * Opción de Andreani. No trae plazo de entrega porque su cotización no lo
  * devuelve — y una fecha inventada en el checkout es una promesa que después
  * hay que sostener.
@@ -136,6 +161,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   // Paso Pago
   const [notes, setNotes] = useState('');
+  const [settings, setSettings] = useState<CheckoutSettings>(DEFAULT_SETTINGS);
   const [showNotes, setShowNotes] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [coupon, setCoupon] = useState<StoredCoupon | null>(null);
@@ -172,6 +198,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       .then((r) => r.json())
       .then((c: PaywayPublicConfig) => setPayway(c.enabled ? c : null))
       .catch(() => setPayway(null));
+
+    fetch(`${API}/api/v1/checkout-settings`, { headers })
+      .then((r) => r.json())
+      .then((d: CheckoutSettings) => setSettings({ ...DEFAULT_SETTINGS, ...d }))
+      .catch(() => setSettings(DEFAULT_SETTINGS));
 
     fetch(`${API}/api/v1/shipping/methods`, { headers })
       .then((r) => r.json())
@@ -377,7 +408,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     if (selectedCorreo?.kind === 'S' && !agencyCode)
       return setFieldError('Elegí la sucursal de Correo donde querés retirar.');
     if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
-    if (!phone.trim()) return setFieldError('Completá tu teléfono.');
+    if (settings.requirePhone && !phone.trim()) return setFieldError('Completá tu teléfono.');
+    if (settings.requireDocument && !doc.trim())
+      return setFieldError('Completá tu DNI o CUIT para poder facturarte.');
     if (needsAddress && (!street.trim() || !streetNumber.trim() || !city.trim() || !zip.trim()))
       return setFieldError('Completá la dirección de entrega (calle, número, ciudad y código postal).');
     setStep('pago');
@@ -602,7 +635,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         <StepDot label="Pago" state={step === 'pago' ? 'current' : 'todo'} />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+      <div className={settings.singleColumn ? 'grid gap-8' : 'grid gap-8 lg:grid-cols-[1fr_360px]'}>
         <div>
           {step === 'entrega' ? (
             <div className="space-y-7">
@@ -900,13 +933,15 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Teléfono"
+                    placeholder={settings.requirePhone ? 'Teléfono' : 'Teléfono (opcional)'}
                     className={inputCls}
                   />
                   <input
                     value={doc}
                     onChange={(e) => setDoc(e.target.value)}
-                    placeholder="DNI o CUIT (facturación)"
+                    placeholder={
+                      settings.requireDocument ? 'DNI o CUIT (facturación)' : 'DNI o CUIT (opcional)'
+                    }
                     className={inputCls}
                   />
                 </div>
@@ -1005,26 +1040,28 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     </span>
                   </div>
                 )}
-                <div className="flex items-start gap-2.5">
-                  <MessageSquare className="mt-0.5 h-4 w-4 opacity-50" />
-                  {showNotes ? (
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      maxLength={500}
-                      rows={2}
-                      placeholder="Notas del pedido (opcional)"
-                      className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black"
-                    />
-                  ) : (
-                    <>
-                      <span className="flex-1 opacity-70">{notes ? notes : 'Notas de pedido'}</span>
-                      <button onClick={() => setShowNotes(true)} className="text-xs underline opacity-70">
-                        {notes ? 'Editar' : 'Agregar'}
-                      </button>
-                    </>
-                  )}
-                </div>
+                {settings.customerNoteEnabled && (
+                  <div className="flex items-start gap-2.5">
+                    <MessageSquare className="mt-0.5 h-4 w-4 opacity-50" />
+                    {showNotes ? (
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        maxLength={500}
+                        rows={2}
+                        placeholder={settings.customerNoteLabel}
+                        className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black"
+                      />
+                    ) : (
+                      <>
+                        <span className="flex-1 opacity-70">{notes || settings.customerNoteLabel}</span>
+                        <button onClick={() => setShowNotes(true)} className="text-xs underline opacity-70">
+                          {notes ? 'Editar' : 'Agregar'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <h2 className="flex items-center gap-2 text-lg font-bold">

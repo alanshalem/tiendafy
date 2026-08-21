@@ -253,6 +253,37 @@ export const VENTAS = {
         blocks: [{ type: 'path', segments: ['Configuración', 'Opciones del checkout'] }],
       },
       {
+        heading: 'Qué podés configurar',
+        paragraphs: [
+          'Cada opción cambia lo que ve el comprador, así que se guarda en tu tienda y no en tu navegador: la tocás una vez y vale para todos.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Opción', 'Qué cambia'],
+            rows: [
+              [
+                'Teléfono',
+                'Obligatorio u opcional. Sin teléfono cuesta coordinar una entrega, pero cada campo obligatorio hace que algunos abandonen.',
+              ],
+              [
+                'DNI o CUIT',
+                'Obligatorio si facturás todas las ventas o vendés a empresas. Opcional deja facturar como consumidor final, que tiene tope de monto.',
+              ],
+              [
+                'Nota del comprador',
+                'El campo libre del carrito, y qué dice adentro. «¿Timbre o portero?» rinde más que «Aclaraciones».',
+              ],
+              [
+                'Mensaje al terminar',
+                'Un texto tuyo en la pantalla final, junto con la confirmación del pago. No aparece si el pago se rechaza.',
+              ],
+              ['Diseño', 'Formulario y resumen en dos columnas, o todo en una sola.'],
+            ],
+          },
+        ],
+      },
+      {
         heading: 'Cupones en el checkout',
         paragraphs: [
           'El cliente puede aplicar un cupón de descuento desde el resumen del pedido. El descuento se valida y recalcula en el servidor antes de cobrar.',

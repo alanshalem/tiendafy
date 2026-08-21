@@ -1,166 +1,285 @@
-import { Checkbox, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { Button, Input, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
+import { api, errMsg } from '../../lib/api';
+import { useStore } from '../../context/StoreContext';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { useSettings } from './useSettings';
 import { SETTINGS_CARD } from '../../lib/styles';
 
-interface CheckoutData {
+interface CheckoutSettings {
   singleColumn: boolean;
   requirePhone: boolean;
-  billingType: 'consumerFinal' | 'always';
-  customerNote: boolean;
+  requireDocument: boolean;
+  customerNoteEnabled: boolean;
   customerNoteLabel: string;
-  trackingMessage: boolean;
-  trackingMessageText: string;
-  restrict: 'all' | 'registered';
-  allowChangePayment: boolean;
-  acceleratedCheckout: boolean;
+  orderMessageEnabled: boolean;
+  orderMessageText: string;
 }
 
+const DEFAULTS: CheckoutSettings = {
+  singleColumn: false,
+  requirePhone: true,
+  requireDocument: false,
+  customerNoteEnabled: true,
+  customerNoteLabel: 'Aclaraciones sobre tu pedido',
+  orderMessageEnabled: false,
+  orderMessageText: '',
+};
+
+const NOTE_MAX = 60;
+const MESSAGE_MAX = 500;
+
+/**
+ * Qué datos se le piden al comprador y qué se le muestra al terminar.
+ *
+ * Todo lo de acá lo lee el storefront: antes la pantalla guardaba en el
+ * localStorage del navegador del comerciante, así que cada máquina tenía su
+ * propia configuración y el comprador no veía ninguna.
+ */
 export function CheckoutOptionsPage() {
+  const { store } = useStore();
   const { toast } = useToast();
-  const { value, update, save, dirty } = useSettings<CheckoutData>('checkoutOptions', {
-    singleColumn: false,
-    requirePhone: true,
-    billingType: 'consumerFinal',
-    customerNote: true,
-    customerNoteLabel: 'Aclaraciones sobre tu pedido',
-    trackingMessage: true,
-    trackingMessageText: '',
-    restrict: 'all',
-    allowChangePayment: false,
-    acceleratedCheckout: true,
-  });
+
+  const [value, setValue] = useState<CheckoutSettings>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    api
+      .get<CheckoutSettings>('/api/v1/admin/checkout/settings')
+      .then((d) => {
+        setValue({ ...DEFAULTS, ...d });
+        setDirty(false);
+      })
+      .catch((err) => setLoadError(errMsg(err, 'No se pudieron cargar las opciones del checkout.')))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (store) load();
+  }, [store, load]);
+
+  const update = (patch: Partial<CheckoutSettings>) => {
+    setValue((v) => ({ ...v, ...patch }));
+    setDirty(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const saved = await api.put<CheckoutSettings>('/api/v1/admin/checkout/settings', value);
+      setValue({ ...DEFAULTS, ...saved });
+      setDirty(false);
+      toast('Opciones del checkout guardadas', { variant: 'success' });
+    } catch (err) {
+      toast(errMsg(err, 'No se pudieron guardar las opciones.'), { variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loadError)
+    return (
+      <div className="mx-auto max-w-2xl">
+        <SettingsHeader title="Opciones del checkout" description="Qué se le pide al comprador." />
+        <div className={SETTINGS_CARD}>
+          <p className="text-sm text-danger">{loadError}</p>
+          <Button variant="secondary" className="mt-3" onClick={load}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+
+  if (loading)
+    return (
+      <div className="mx-auto max-w-2xl">
+        <SettingsHeader title="Opciones del checkout" description="Qué se le pide al comprador." />
+        <div className={`${SETTINGS_CARD} flex items-center gap-2 text-sm text-fg-muted`}>
+          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+        </div>
+      </div>
+    );
 
   return (
     <div className="mx-auto max-w-2xl pb-20">
       <SettingsHeader
         title="Opciones del checkout"
-        description="Configurá las opciones disponibles para solicitar información adicional a tu cliente durante el proceso de compra."
+        description="Qué datos se le piden al comprador para terminar la compra, y qué ve cuando termina."
       />
 
       <div className="space-y-4">
-        <Section title="Diseño">
-          <Checkbox
-            label="Usar una columna en el diseño en el checkout"
-            checked={value.singleColumn}
-            onChange={(e) => update({ singleColumn: e.target.checked })}
-          />
-        </Section>
-
-        <Section title="Información del cliente">
-          <div className="space-y-3">
-            <div>
-              <div className="mb-1.5 text-sm font-medium text-fg">Teléfono</div>
-              <Checkbox
-                label="Pedir teléfono no obligatorio"
-                checked={!value.requirePhone}
-                onChange={(e) => update({ requirePhone: !e.target.checked })}
-              />
-            </div>
-            <div>
-              <div className="mb-1.5 text-sm font-medium text-fg">Facturación</div>
-              <RadioGroup legend="">
-                <Radio
-                  name="billing"
-                  label="Pedir datos para Consumidor Final (DNI / CUIT)"
-                  checked={value.billingType === 'consumerFinal'}
-                  onChange={() => update({ billingType: 'consumerFinal' })}
-                />
-                <Radio
-                  name="billing"
-                  label="Pedir siempre datos de facturación"
-                  checked={value.billingType === 'always'}
-                  onChange={() => update({ billingType: 'always' })}
-                />
-              </RadioGroup>
-            </div>
+        <Section
+          title="Datos que se piden"
+          description="Cuantos menos campos obligatorios, menos gente abandona a mitad de camino. Pero sin teléfono cuesta coordinar una entrega, y sin documento no se puede facturar como corresponde."
+        >
+          <div className="space-y-4">
+            <Choice
+              name="phone"
+              label="Teléfono"
+              value={value.requirePhone ? 'req' : 'opt'}
+              onChange={(v) => update({ requirePhone: v === 'req' })}
+              options={[
+                {
+                  id: 'req',
+                  label: 'Obligatorio',
+                  hint: 'Sirve para coordinar la entrega o avisar de un problema.',
+                },
+                {
+                  id: 'opt',
+                  label: 'Opcional',
+                  hint: 'Se muestra el campo, pero se puede comprar sin completarlo.',
+                },
+              ]}
+            />
+            <Choice
+              name="doc"
+              label="DNI o CUIT"
+              value={value.requireDocument ? 'req' : 'opt'}
+              onChange={(v) => update({ requireDocument: v === 'req' })}
+              options={[
+                {
+                  id: 'opt',
+                  label: 'Opcional',
+                  hint: 'Quien no lo complete se factura como consumidor final, que tiene tope de monto.',
+                },
+                {
+                  id: 'req',
+                  label: 'Obligatorio',
+                  hint: 'Necesario si facturás todas las ventas o vendés a empresas.',
+                },
+              ]}
+            />
+            {value.requireDocument && (
+              <p className="text-xs text-fg-subtle">
+                Con esto encendido, quien no tenga el documento a mano no puede terminar la compra. Revisá que
+                te convenga en{' '}
+                <Link to="/configuracion/facturacion" className="text-primary hover:underline">
+                  Facturación
+                </Link>
+                .
+              </p>
+            )}
           </div>
         </Section>
 
         <Section
-          title="Nota del cliente"
+          title="Nota del comprador"
+          description="Un campo libre para que aclare algo del pedido: un timbre, un horario, un color."
           toggle={
-            <Switch checked={value.customerNote} onChange={(customerNote) => update({ customerNote })} />
-          }
-          description="Tu cliente puede dejar notas sobre su pedido (texto/aclaraciones) en el carrito."
-        >
-          {value.customerNote && (
-            <input
-              value={value.customerNoteLabel}
-              onChange={(e) => update({ customerNoteLabel: e.target.value })}
-              placeholder="Nombre del campo"
-              className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
+            <Switch
+              checked={value.customerNoteEnabled}
+              onChange={(customerNoteEnabled) => update({ customerNoteEnabled })}
             />
+          }
+        >
+          {value.customerNoteEnabled && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-fg">Qué dice el campo</label>
+              <Input
+                value={value.customerNoteLabel}
+                maxLength={NOTE_MAX}
+                onChange={(e) => update({ customerNoteLabel: e.target.value })}
+                placeholder="Aclaraciones sobre tu pedido"
+              />
+              <p className="mt-1 text-xs text-fg-muted">
+                Es el texto que el comprador ve dentro del recuadro. Cuanto más concreto, mejores notas
+                recibís: «¿Timbre o portero?» rinde más que «Aclaraciones».
+              </p>
+            </div>
           )}
         </Section>
 
         <Section
-          title="Mensaje en la página de seguimiento"
+          title="Mensaje al terminar la compra"
+          description="Se muestra en la pantalla final, junto con la confirmación del pago. Es donde contestar lo que todos preguntan apenas pagan: cuándo sale el pedido, cómo lo siguen, a dónde escribir."
           toggle={
             <Switch
-              checked={value.trackingMessage}
-              onChange={(trackingMessage) => update({ trackingMessage })}
+              checked={value.orderMessageEnabled}
+              onChange={(orderMessageEnabled) => update({ orderMessageEnabled })}
             />
           }
-          description="Esta página permite a tu cliente saber el estado de su compra."
         >
-          {value.trackingMessage && (
-            <Textarea
-              value={value.trackingMessageText}
-              onChange={(e) => update({ trackingMessageText: e.target.value })}
-              rows={2}
-              placeholder="Aclará por tu cuenta el momento de la entrega o el estado del pedido."
-            />
+          {value.orderMessageEnabled && (
+            <div>
+              <Textarea
+                value={value.orderMessageText}
+                maxLength={MESSAGE_MAX}
+                onChange={(e) => update({ orderMessageText: e.target.value })}
+                rows={3}
+                placeholder="Preparamos los pedidos de lunes a viernes y despachamos dentro de las 48 horas. Cualquier duda escribinos por WhatsApp al 11 5555-5555."
+              />
+              <p className="mt-1 text-xs text-fg-muted">
+                {value.orderMessageText.length}/{MESSAGE_MAX}. No aparece cuando el pago se rechaza: ahí no
+                hay pedido del que hablar.
+              </p>
+            </div>
           )}
         </Section>
 
-        <Section title="Restringir compras" description="Definí quiénes pueden comprar en tu tienda.">
-          <RadioGroup legend="">
-            <Radio
-              name="restrict"
-              label="Todos los clientes"
-              checked={value.restrict === 'all'}
-              onChange={() => update({ restrict: 'all' })}
-            />
-            <Radio
-              name="restrict"
-              label="Solo clientes registrados"
-              checked={value.restrict === 'registered'}
-              onChange={() => update({ restrict: 'registered' })}
-            />
-          </RadioGroup>
-        </Section>
-
-        <Section title="Cambiar medio de pago">
-          <Checkbox
-            label="Permitir que tus clientes elijan otro medio de pago desde la página de seguimiento si la compra está pendiente"
-            checked={value.allowChangePayment}
-            onChange={(e) => update({ allowChangePayment: e.target.checked })}
+        <Section
+          title="Cómo se ve"
+          description="En pantallas grandes el checkout muestra el formulario a la izquierda y el resumen de la compra a la derecha."
+        >
+          <Choice
+            name="layout"
+            label="Diseño"
+            value={value.singleColumn ? 'one' : 'two'}
+            onChange={(v) => update({ singleColumn: v === 'one' })}
+            options={[
+              {
+                id: 'two',
+                label: 'Dos columnas',
+                hint: 'El resumen queda siempre a la vista mientras completa.',
+              },
+              {
+                id: 'one',
+                label: 'Una columna',
+                hint: 'Todo en fila, uno abajo del otro. Menos distracción.',
+              },
+            ]}
           />
         </Section>
-
-        <Section
-          title="Checkout acelerado"
-          toggle={
-            <Switch
-              checked={value.acceleratedCheckout}
-              onChange={(acceleratedCheckout) => update({ acceleratedCheckout })}
-            />
-          }
-          description="Autocompleta datos personales y direcciones. Tus clientes pueden comprar más rápido guardando sus datos de forma segura."
-        />
       </div>
 
       <HelpLink id="checkout" />
 
-      <SaveBar
-        dirty={dirty}
-        onSave={() => {
-          save();
-          toast('Opciones del checkout guardadas', { variant: 'success' });
-        }}
-      />
+      <SaveBar dirty={dirty && !saving} onSave={save} />
+    </div>
+  );
+}
+
+/** Elección entre dos alternativas, cada una con su consecuencia escrita. */
+function Choice({
+  name,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  options: { id: string; label: string; hint: string }[];
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-sm font-medium text-fg">{label}</div>
+      <RadioGroup legend="">
+        {options.map((o) => (
+          <div key={o.id}>
+            <Radio name={name} label={o.label} checked={value === o.id} onChange={() => onChange(o.id)} />
+            <p className="ml-6 text-xs text-fg-muted">{o.hint}</p>
+          </div>
+        ))}
+      </RadioGroup>
     </div>
   );
 }

@@ -26,6 +26,7 @@ public sealed class CheckoutDbContext : DbContext
     public DbSet<ZipnovaShipment> ZipnovaShipments => Set<ZipnovaShipment>();
     public DbSet<AndreaniConfig> AndreaniConfigs => Set<AndreaniConfig>();
     public DbSet<AndreaniShipment> AndreaniShipments => Set<AndreaniShipment>();
+    public DbSet<CheckoutSettings> Settings => Set<CheckoutSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,18 @@ public sealed class CheckoutDbContext : DbContext
             .HasColumnName("shipping_cost")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+
+        var settings = modelBuilder.Entity<CheckoutSettings>();
+        settings.ToTable("checkout_settings");
+        settings.HasKey(x => x.Id);
+        settings.Property(x => x.Id).ValueGeneratedNever();
+        settings.Property(x => x.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        settings.HasQueryFilter(x => !_filterByTenant || x.TenantId == _currentTenant);
+        // Una sola configuración por tienda: el índice único lo garantiza aunque
+        // dos pedidos entren a la vez y los dos vean que no existe.
+        settings.HasIndex(x => x.TenantId).IsUnique();
+        settings.Property(x => x.CustomerNoteLabel).HasMaxLength(CheckoutSettings.MaxLabelLength);
+        settings.Property(x => x.OrderMessageText).HasMaxLength(CheckoutSettings.MaxMessageLength);
 
         var shipping = modelBuilder.Entity<ShippingMethod>();
         shipping.ToTable("shipping_methods");

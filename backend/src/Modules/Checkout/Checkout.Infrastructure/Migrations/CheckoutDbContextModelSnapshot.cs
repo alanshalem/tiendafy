@@ -328,6 +328,62 @@ namespace Checkout.Infrastructure.Migrations
                     b.ToTable("checkout_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("Checkout.Core.Domain.CheckoutSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("CustomerNoteEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("customer_note_enabled");
+
+                    b.Property<string>("CustomerNoteLabel")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("customer_note_label");
+
+                    b.Property<bool>("OrderMessageEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("order_message_enabled");
+
+                    b.Property<string>("OrderMessageText")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("order_message_text");
+
+                    b.Property<bool>("RequireDocument")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_document");
+
+                    b.Property<bool>("RequirePhone")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_phone");
+
+                    b.Property<bool>("SingleColumn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("single_column");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_checkout_settings");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_checkout_settings_tenant_id");
+
+                    b.ToTable("checkout_settings", (string)null);
+                });
+
             modelBuilder.Entity("Checkout.Core.Domain.CorreoArgentinoConfig", b =>
                 {
                     b.Property<Guid>("Id")

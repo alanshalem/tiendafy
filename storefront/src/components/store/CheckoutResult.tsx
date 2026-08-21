@@ -23,6 +23,24 @@ export function CheckoutResult({
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(orderId));
 
+  // Mensaje propio del comercio para esta pantalla: cuándo despacha, cómo
+  // sigue el pedido, a qué WhatsApp escribir. Es lo primero que el comprador
+  // se pregunta apenas paga, y hasta ahora no había dónde contestarlo.
+  const [ownMessage, setOwnMessage] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${API}/api/v1/checkout-settings`, { headers: tenantHeaders(tenantId) })
+      .then((r) => r.json())
+      .then((d: { orderMessageEnabled?: boolean; orderMessageText?: string }) => {
+        if (active && d.orderMessageEnabled) setOwnMessage((d.orderMessageText ?? '').trim());
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [tenantId]);
+
   useEffect(() => {
     if (!orderId) {
       setLoading(false);
@@ -98,6 +116,13 @@ export function CheckoutResult({
         {view.title}
       </h1>
       <p className="max-w-md opacity-70">{view.text}</p>
+      {/* Solo cuando la compra salió bien o quedó esperando el pago: en un pago
+          rechazado no hay pedido del que hablar. */}
+      {ownMessage && resolved !== 'failure' && (
+        <p className="max-w-md whitespace-pre-line rounded-lg border border-black/10 bg-black/[0.03] px-4 py-3 text-sm">
+          {ownMessage}
+        </p>
+      )}
       {orderId && <p className="text-xs opacity-40">Orden {orderId}</p>}
       <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">
         Volver a la tienda
