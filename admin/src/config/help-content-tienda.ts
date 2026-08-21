@@ -151,89 +151,44 @@ export const TIENDA = {
     ],
   },
 
-  externalCodes: {
-    title: 'Analytics, Pixel y códigos externos',
-    intro: 'Medí tu tráfico y tus campañas insertando los scripts de Google, Meta o el chat que uses.',
-    category: 'Tu tienda online',
-    sections: [
-      {
-        heading: 'Dónde va cada cosa',
-        paragraphs: [
-          'En Configuración → Códigos externos hay dos cajas. Lo que pegues se carga en todas las páginas de tu tienda.',
-        ],
-        blocks: [
-          { type: 'path', segments: ['Configuración', 'Códigos externos'] },
-          {
-            type: 'table',
-            headers: ['Caja', 'Para qué sirve', 'Ejemplos'],
-            rows: [
-              [
-                '<head>',
-                'Etiquetas de medición y verificación',
-                'Google Analytics, Meta Pixel, Search Console',
-              ],
-              ['Antes de </body>', 'Widgets visibles y chats', 'Chats de atención, botones de terceros'],
-            ],
-          },
-        ],
-      },
-      {
-        heading: 'Google Analytics 4',
-        steps: [
-          'En analytics.google.com creá una propiedad para tu tienda y elegí plataforma “Web”.',
-          'Copiá el código de la etiqueta de Google (empieza con <script async src="https://www.googletagmanager.com/gtag/js…").',
-          'Pegalo en la caja de <head> y guardá. Los datos empiezan a aparecer en minutos (probá con “Tiempo real”).',
-        ],
-      },
-      {
-        heading: 'Meta Pixel (Facebook e Instagram Ads)',
-        steps: [
-          'En el Administrador de eventos de Meta creá un píxel para tu negocio.',
-          'Elegí “Instalar el código manualmente”, copiá el bloque del píxel.',
-          'Pegalo en la caja de <head> y guardá. Verificalo con la extensión Meta Pixel Helper.',
-        ],
-      },
-      {
-        heading: 'Cuidados',
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'danger',
-            text: 'Pegá solo códigos de servicios que conozcas: un script se ejecuta con acceso total a la página. Un script roto o lento puede afectar la velocidad o el funcionamiento de tu tienda — si algo se rompe después de pegar un código, borralo y guardá.',
-          },
-        ],
-      },
-    ],
-  },
-
   ajustesAvanzados: {
-    title: 'Ajustes avanzados',
-    intro: 'Redirecciones 301, idioma y moneda, y campos personalizados — los ajustes finos de tu tienda.',
+    title: 'Redirecciones',
+    intro: 'Que un link viejo no termine en “página no encontrada”.',
     category: 'Tu tienda online',
     sections: [
       {
-        heading: 'Redireccionamientos 301',
+        heading: 'Para qué sirven',
         paragraphs: [
-          'Cuando una URL vieja deja de existir (cambiaste el nombre de un producto, borraste una página), creá una redirección 301 hacia la nueva. El visitante no ve un error y Google transfiere el posicionamiento a la URL nueva. Formato: desde “/producto-viejo” hacia “/productos/nuevo-slug”.',
+          'Cada dirección que publicaste queda dando vueltas: en Google, en un mail, en un posteo, en el chat de alguien. Si cambiás el nombre de un producto o borrás una página, esa dirección deja de existir y el que la sigue cae en un error. Una redirección lo lleva directo al lugar nuevo, y Google le pasa a la dirección nueva el posicionamiento que tenía la vieja.',
         ],
         blocks: [
+          { type: 'path', segments: ['Configuración', 'Redirecciones'] },
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Regla simple: cada vez que cambies o borres una URL que ya estaba publicada, creá su redirección en el momento. Es un minuto que protege meses de posicionamiento.',
+            text: 'Regla simple: cada vez que cambies o borres una dirección que ya estaba publicada, creá su redirección en el momento. Es un minuto que protege meses de posicionamiento.',
           },
         ],
       },
       {
-        heading: 'Idiomas y monedas',
-        paragraphs: [
-          'Definí el idioma y la moneda con que opera tu tienda (por defecto, español de Argentina y pesos). Afecta textos, formatos de precio y el checkout.',
+        heading: 'Cómo se cargan',
+        steps: [
+          'Escribí la dirección vieja, solo la parte que va después del dominio: /remera-negra-vieja.',
+          'Escribí la nueva: /productos/remera-negra. También vale una dirección completa de otro sitio.',
+          'Tocá Agregar. Se guarda al instante, no hay nada más que confirmar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Al visitante le llega una redirección permanente (un 308, el equivalente moderno del clásico 301). Google las trata igual: le pasa a la dirección nueva el posicionamiento de la vieja.',
+          },
         ],
       },
       {
-        heading: 'Campos personalizados',
+        heading: 'La columna “Se usó”',
         paragraphs: [
-          'Agregá atributos propios a tus productos (material, dedicatoria, talle especial…) cuando las opciones estándar no alcanzan. Definí el nombre y el tipo de dato, y usalos para enriquecer tu catálogo.',
+          'Cuenta cuántas visitas salvó cada regla. Una que dice “Nunca” después de varias semanas se puede borrar sin drama. Una que se usa mucho es la señal de que ese link viejo sigue circulando en algún lado: si está en un posteo o un mail tuyo, conviene corregirlo también en el origen.',
         ],
       },
     ],

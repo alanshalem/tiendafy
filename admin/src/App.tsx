@@ -8,16 +8,10 @@ import { ShippingMethodsPage } from './pages/Settings/ShippingMethods';
 import { AutoEmailsPage } from './pages/Settings/AutoEmails';
 import { WhatsAppAutoPage } from './pages/Settings/WhatsAppAuto';
 import { CheckoutOptionsPage } from './pages/Settings/CheckoutOptions';
+import { RedirectsPage } from './pages/Settings/Redirects';
 import { FiscalInvoicingPage } from './pages/Settings/FiscalInvoicing';
 import { DomainsPage } from './pages/Settings/Domains';
 import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
-import {
-  DistributionCentersPage,
-  ExternalCodesPage,
-  LanguagesCurrenciesPage,
-  RedirectsPage,
-  CustomFieldsPage,
-} from './pages/Settings/MiscPages';
 import { HomePage } from './pages/Home';
 import { ProductsPage } from './pages/Products';
 import { CategoriesPage } from './pages/Products/Categories';
@@ -129,17 +123,13 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'medios-de-pago', perm: 'payments.read', el: <PaymentMethodsPage /> },
   { path: 'medios-de-envio', perm: 'settings.write', el: <ShippingMethodsPage /> },
   { path: 'mercadolibre', perm: 'settings.write', el: <MeliSettingsPage /> },
-  { path: 'centros-de-distribucion', perm: 'settings.write', el: <DistributionCentersPage /> },
   { path: 'emails-automaticos', perm: 'settings.write', el: <AutoEmailsPage /> },
   { path: 'whatsapp-automatico', perm: 'settings.write', el: <WhatsAppAutoPage /> },
   { path: 'opciones-del-checkout', perm: 'settings.write', el: <CheckoutOptionsPage /> },
   { path: 'facturacion', perm: 'fiscal.config', el: <FiscalInvoicingPage /> },
   { path: 'usuarios', perm: 'members.read', el: <UsersNotificationsPage /> },
   { path: 'dominios', perm: 'settings.write', el: <DomainsPage /> },
-  { path: 'codigos-externos', perm: 'settings.write', el: <ExternalCodesPage /> },
-  { path: 'idiomas-y-monedas', perm: 'settings.write', el: <LanguagesCurrenciesPage /> },
   { path: 'redirecciones', perm: 'settings.write', el: <RedirectsPage /> },
-  { path: 'campos-personalizados', perm: 'settings.write', el: <CustomFieldsPage /> },
 ];
 
 const renderRoute = (r: AppRoute) => (

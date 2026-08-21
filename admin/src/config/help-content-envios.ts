@@ -339,27 +339,4 @@ export const ENVIOS = {
       },
     ],
   },
-
-  distributionCenters: {
-    title: 'Centros de distribución',
-    intro: 'Si despachás desde más de un depósito o local, registrá cada uno acá.',
-    category: 'Envíos',
-    sections: [
-      {
-        heading: '¿Para qué sirve?',
-        paragraphs: [
-          'Un centro de distribución es un punto desde el que salen tus envíos o donde el cliente retira. Si tenés varios, los administrás por separado.',
-        ],
-        blocks: [{ type: 'path', segments: ['Configuración', 'Centros de distribución'] }],
-      },
-      {
-        heading: 'Cómo agregar uno',
-        steps: [
-          'Tocá “Agregar”.',
-          'Cargá el nombre y la dirección del centro.',
-          'Guardá. Después podés asociarlo a tus medios de envío.',
-        ],
-      },
-    ],
-  },
 } satisfies Record<string, HelpArticle>;

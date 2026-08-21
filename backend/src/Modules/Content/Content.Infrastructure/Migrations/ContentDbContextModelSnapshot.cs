@@ -17,7 +17,7 @@ namespace Content.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -69,6 +69,50 @@ namespace Content.Infrastructure.Migrations
                         .HasDatabaseName("ix_pages_tenant_id_slug");
 
                     b.ToTable("pages", (string)null);
+                });
+
+            modelBuilder.Entity("Content.Infrastructure.UrlRedirect", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("FromPath")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("from_path");
+
+                    b.Property<int>("Hits")
+                        .HasColumnType("integer")
+                        .HasColumnName("hits");
+
+                    b.Property<DateTime?>("LastHitAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_hit_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("ToPath")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("to_path");
+
+                    b.HasKey("Id")
+                        .HasName("pk_url_redirects");
+
+                    b.HasIndex("TenantId", "FromPath")
+                        .IsUnique()
+                        .HasDatabaseName("ix_url_redirects_tenant_id_from_path");
+
+                    b.ToTable("url_redirects", (string)null);
                 });
 #pragma warning restore 612, 618
         }

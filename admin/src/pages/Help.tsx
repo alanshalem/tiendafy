@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  Code2,
   CreditCard,
   FileText,
   Globe,
@@ -37,7 +36,6 @@ import {
   TrendingUp,
   Truck,
   Users,
-  Warehouse,
   Wrench,
 } from 'lucide-react';
 import {
@@ -61,7 +59,6 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   shipping: Truck,
   correoArgentino: Truck,
   zipnova: Truck,
-  distributionCenters: Warehouse,
   productos: Package,
   clientes: Users,
   posventa: MessageCircle,
@@ -79,7 +76,6 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   fiscal: Receipt,
   legal: Scale,
   seo: TrendingUp,
-  externalCodes: Code2,
   ajustesAvanzados: SlidersHorizontal,
 };
 

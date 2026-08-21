@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Package,
   ShoppingCart,
+  Signpost,
   Store,
   User,
   type LucideIcon,
@@ -120,12 +121,16 @@ const groups: NavGroup[] = [
         icon: Globe,
         perm: 'settings.write',
       },
+      {
+        to: '/configuracion/redirecciones',
+        label: 'Redirecciones',
+        desc: 'Mandar una dirección vieja a la nueva para no perder visitas ni posicionamiento.',
+        icon: Signpost,
+        perm: 'settings.write',
+      },
     ],
   },
 ];
-// Fuera del menú hasta que tengan backend real (hoy guardan solo en localStorage
-// o son mockups): Centros de distribución, Códigos externos, Idiomas y monedas,
-// Redireccionamientos 301, Campos personalizados. Las rutas siguen accesibles.
 
 export function SettingsLayout() {
   const navigate = useNavigate();

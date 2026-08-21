@@ -15,6 +15,7 @@ public sealed class ContentDbContext : DbContext
     }
 
     public DbSet<Page> Pages => Set<Page>();
+    public DbSet<UrlRedirect> Redirects => Set<UrlRedirect>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,5 +31,16 @@ public sealed class ContentDbContext : DbContext
         page.Property(p => p.Published);
         page.Property(p => p.CreatedAtUtc);
         page.Property(p => p.UpdatedAtUtc);
+
+        var redirect = modelBuilder.Entity<UrlRedirect>();
+        redirect.ToTable("url_redirects");
+        redirect.HasKey(r => r.Id);
+        redirect.Property(r => r.Id).ValueGeneratedNever();
+        redirect.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        // La ruta vieja resuelve a un solo destino: el índice único evita que
+        // dos reglas se peleen por la misma URL.
+        redirect.HasIndex(r => new { r.TenantId, r.FromPath }).IsUnique();
+        redirect.Property(r => r.FromPath).HasMaxLength(UrlRedirect.MaxPathLength).IsRequired();
+        redirect.Property(r => r.ToPath).HasMaxLength(UrlRedirect.MaxPathLength).IsRequired();
     }
 }

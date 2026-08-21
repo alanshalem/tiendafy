@@ -16,6 +16,8 @@ public static class PagesEndpoints
 
     public static RouteGroupBuilder MapPageEndpoints(this RouteGroupBuilder group)
     {
+        MapRedirects(group);
+
         var pages = group.MapGroup("/pages").RequireTenant().RequirePermissionForWrites(Permission.ContentWrite);
 
         // Admin: todas las páginas del tenant.
@@ -98,6 +100,76 @@ public static class PagesEndpoints
         p.CreatedAtUtc,
         p.UpdatedAtUtc,
     };
+    // ------------------------------------------------ Redirecciones 301
+
+    /// <summary>
+    /// Reglas de "esta URL vieja ahora está en esta otra". El storefront las
+    /// consulta recién cuando una página no existe, así que en el camino normal
+    /// no cuestan nada.
+    /// </summary>
+    private static void MapRedirects(RouteGroupBuilder group)
+    {
+        var redirects = group.MapGroup("/redirects").RequireTenant();
+
+        // Público: lo llama el storefront desde su pantalla de 404.
+        redirects.MapGet("/resolve", async (
+            string? path, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var from = UrlRedirect.NormalizeFrom(path);
+            if (from is null) return Results.NotFound();
+
+            var rule = await db.Redirects.FirstOrDefaultAsync(r => r.FromPath == from, ct);
+            if (rule is null) return Results.NotFound();
+
+            rule.RegisterHit();
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { to = rule.ToPath });
+        });
+
+        redirects.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var items = await db.Redirects.AsNoTracking()
+                .OrderByDescending(r => r.Hits).ThenByDescending(r => r.CreatedAtUtc)
+                .Select(r => new { r.Id, from = r.FromPath, to = r.ToPath, r.Hits, r.LastHitAtUtc })
+                .ToListAsync(ct);
+            return Results.Ok(new { items });
+        }).RequirePermission(Permission.SettingsWrite);
+
+        redirects.MapPost("/", async (
+            RedirectRequest request, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var result = UrlRedirect.Create(tenant.TenantId.Value, request.From, request.To);
+            if (result.IsFailure) return result.Error.ToProblem();
+
+            var from = result.Value.FromPath;
+            if (await db.Redirects.AnyAsync(r => r.FromPath == from, ct))
+                return Error.Conflict("Redirect.Duplicate", $"Ya hay una redirección para {from}.").ToProblem();
+
+            db.Redirects.Add(result.Value);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/v1/redirects/{result.Value.Id}", new
+            {
+                result.Value.Id,
+                from = result.Value.FromPath,
+                to = result.Value.ToPath,
+                result.Value.Hits,
+                result.Value.LastHitAtUtc,
+            });
+        }).RequirePermission(Permission.SettingsWrite);
+
+        redirects.MapDelete("/{id:guid}", async (
+            Guid id, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var rule = await db.Redirects.FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (rule is null) return Results.NoContent();
+            db.Redirects.Remove(rule);
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        }).RequirePermission(Permission.SettingsWrite);
+    }
+
 }
 
 public sealed record PageRequest(string Title, string? Slug, string? Body, bool Published);
+
+public sealed record RedirectRequest(string? From, string? To);
