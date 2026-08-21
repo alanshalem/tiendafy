@@ -9,6 +9,10 @@
  * El admin overridea todos los tokens en admin/src/index.css (estética propia).
  */
 :root {
+  /* Le dice al browser en qué tema dibujar lo que él controla: el menú
+     desplegable de un <select>, las barras de scroll, el autocompletado y
+     el `color` por defecto del <dialog>. */
+  color-scheme: light;
   /* ---------- Colores: marca (rebrand "obsidiana y papel" 2026-06) ---------- */
   --color-primary: 232 80 30; /* bermellón Tiendafy */
   --color-primary-hover: 196 61 18; /* bermellón profundo */
@@ -67,6 +71,7 @@
    superficies, bordes y textos. Lo usa el switch del admin.
    ============================================================ */
 [data-theme='dark'] {
+  color-scheme: dark;
   --color-bg: 16 18 22;
   --color-bg-subtle: 22 25 31;
   --color-bg-muted: 33 37 45;

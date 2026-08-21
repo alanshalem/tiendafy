@@ -314,7 +314,7 @@ function MethodDialog({
   };
 
   const inputCls =
-    'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+    'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary';
 
   return (
     <Modal
@@ -393,7 +393,7 @@ function MethodDialog({
               onChange={(e) => setPickupAddress(e.target.value)}
               rows={2}
               placeholder="Av. Corrientes 1234, CABA · Lun a Vie de 10 a 18 h"
-              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {touched && !pickupValid && (
               <p className="mt-1 text-xs text-danger">Indicá dónde y cuándo se retira el pedido.</p>

@@ -59,7 +59,10 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
         // overflow-hidden pisa el `overflow: auto` que el browser le pone a
         // <dialog>: sin esto scrollea el diálogo entero y en un modal largo se
         // van de pantalla el título, la X de cerrar y los botones del pie.
-        'w-full overflow-hidden rounded-lg bg-surface p-0 shadow-overlay backdrop:bg-black/50',
+        // text-fg no es decorativo: el browser le pone `color: CanvasText` al
+        // <dialog>, que en tema oscuro es negro. Sin esto, todo lo que hereda
+        // el color —los <input>, por el preflight de Tailwind— sale ilegible.
+        'w-full overflow-hidden rounded-lg bg-surface p-0 text-fg shadow-overlay backdrop:bg-black/50',
         'm-auto', // centrado
         sizeClasses[size],
       )}

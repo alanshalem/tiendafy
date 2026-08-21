@@ -101,7 +101,7 @@ export function RefundDialog({
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
             placeholder={`Hasta ${formatMoney(refundable, order.currency)}`}
-            className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
           />
           {amount && !amountValid && (
             <p className="mt-1 text-xs text-red-600">
@@ -118,7 +118,7 @@ export function RefundDialog({
           onChange={(e) => setReason(e.target.value)}
           maxLength={500}
           placeholder="Ej: producto dañado, arrepentimiento…"
-          className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 

@@ -115,7 +115,7 @@ export function FilterPanel({
             <select
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-              className="h-10 w-full appearance-none rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-10 w-full appearance-none rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Todas</option>
               {categories.map((c) => (
