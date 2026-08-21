@@ -393,10 +393,12 @@ export function ProductsPage() {
             )}
           </div>
 
-          {/* Barra de acciones masivas */}
+          {/* Barra de acciones masivas. Se fija por debajo del encabezado del
+              panel, que también es sticky: con `top` chico quedaba flotando
+              encima y tapaba el selector de tienda. */}
           {selected.size > 0 && (
-            <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-2.5 shadow-card">
-              <span className="text-sm font-medium text-fg">{selected.size} seleccionados</span>
+            <div className="sticky top-[calc(var(--header-height)+0.5rem)] z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-xl">
+              <span className="text-sm font-semibold text-primary">{selected.size} seleccionados</span>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"

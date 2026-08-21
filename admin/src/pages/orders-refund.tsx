@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Checkbox, cn } from '@tiendafy/ui';
+import { Button, Checkbox, Modal, cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
-import { PlainDialog } from '../components/PlainDialog';
 import { money, type Order, type RefundRecord } from './Orders';
 
 /** Modal de reembolso: total o parcial con monto y motivo, más historial. */
@@ -44,9 +43,26 @@ export function RefundDialog({
   const amountValid = mode === 'total' || (Number.isFinite(parsed) && parsed > 0 && parsed <= refundable);
 
   return (
-    <PlainDialog onClose={onClose}>
-      <h2 className="text-lg font-bold text-fg">Reembolsar pedido</h2>
-      <p className="mt-0.5 text-sm text-fg-muted">
+    <Modal
+      open
+      onClose={onClose}
+      title="Reembolsar pedido"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock)}
+            disabled={busy || !amountValid}
+          >
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Reembolsar
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-fg-muted">
         {order.buyerEmail} · disponible {formatMoney(refundable, order.currency)}
       </p>
 
@@ -135,22 +151,6 @@ export function RefundDialog({
           </div>
         </div>
       )}
-
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium text-fg hover:bg-bg-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={() => onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock)}
-          disabled={busy || !amountValid}
-          className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} Reembolsar
-        </button>
-      </div>
-    </PlainDialog>
+    </Modal>
   );
 }

@@ -153,148 +153,161 @@ function AuthModal({ onClose }: { onClose: () => void }) {
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="relative w-full max-w-sm rounded-2xl border border-[rgb(var(--color-fg)/0.12)] bg-bg p-6 text-fg shadow-2xl outline-none"
+        className="relative flex max-h-[85dvh] w-full max-w-sm flex-col rounded-2xl border border-[rgb(var(--color-fg)/0.12)] bg-bg text-fg shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-modal-title"
       >
+        {/* La X queda fija sobre la tarjeta; lo que scrollea es el formulario.
+            En una pantalla baja —o en horizontal— el registro no entra entero,
+            y sin esto lo que sobra quedaba fuera de alcance. */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Cerrar"
-          className="absolute right-3 top-3 rounded-full p-1 opacity-60 hover:opacity-100"
+          className="absolute right-3 top-3 z-10 rounded-full bg-bg p-1 opacity-60 hover:opacity-100"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <h2 id="auth-modal-title" className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {mode === 'forgot' ? 'Recuperar contraseña' : mode === 'login' ? 'Iniciá sesión' : 'Creá tu cuenta'}
-        </h2>
-        <p className="mt-1 text-sm opacity-60">
-          {mode === 'forgot'
-            ? 'Te enviamos un link para crear una nueva.'
-            : mode === 'login'
-              ? 'Para ver tus favoritos y comprar más rápido.'
-              : 'Guardá favoritos y seguí tus compras.'}
-        </p>
-
-        {sent ? (
-          <p className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
-            Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo (y
-            spam).
-          </p>
-        ) : (
-          <>
-            {mode !== 'forgot' && googleOn && (
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = googleUrl(
-                    typeof window !== 'undefined' ? window.location.href : '/',
-                  );
-                }}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
-              >
-                <GoogleIcon /> Continuar con Google
-              </button>
-            )}
-
-            <form onSubmit={submit} className="mt-4 space-y-3">
-              {mode === 'register' && (
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nombre"
-                  required
-                  className={INPUT_THEMED_11}
-                />
-              )}
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                required
-                className={INPUT_THEMED_11}
-              />
-              {mode !== 'forgot' && (
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Contraseña"
-                  required
-                  minLength={8}
-                  className={INPUT_THEMED_11}
-                />
-              )}
-
-              {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
-
-              {error && <p className="text-sm text-red-500">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={busy || (mode !== 'forgot' && captcha === null)}
-                className={BTN_PRIMARY_BLOCK}
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : mode === 'forgot' ? (
-                  'Enviar link'
-                ) : mode === 'login' ? (
-                  'Iniciar sesión'
-                ) : (
-                  'Crear cuenta'
-                )}
-              </button>
-            </form>
-          </>
-        )}
-
-        {mode === 'login' && !sent && (
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setMode('forgot');
-            }}
-            className="mt-3 block w-full text-center text-sm opacity-70 hover:underline"
+        <div className="overflow-y-auto p-6">
+          <h2
+            id="auth-modal-title"
+            className="text-xl font-bold"
+            style={{ fontFamily: 'var(--font-heading)' }}
           >
-            ¿Olvidaste tu contraseña?
-          </button>
-        )}
+            {mode === 'forgot'
+              ? 'Recuperar contraseña'
+              : mode === 'login'
+                ? 'Iniciá sesión'
+                : 'Creá tu cuenta'}
+          </h2>
+          <p className="mt-1 text-sm opacity-60">
+            {mode === 'forgot'
+              ? 'Te enviamos un link para crear una nueva.'
+              : mode === 'login'
+                ? 'Para ver tus favoritos y comprar más rápido.'
+                : 'Guardá favoritos y seguí tus compras.'}
+          </p>
 
-        <p className="mt-4 text-center text-sm opacity-70">
-          {mode === 'forgot' ? (
+          {sent ? (
+            <p className="mt-6 rounded-md bg-[rgb(var(--color-fg)/0.05)] p-4 text-sm">
+              Si hay una cuenta con ese email, te llegó un link para cambiar la contraseña. Revisá tu correo
+              (y spam).
+            </p>
+          ) : (
+            <>
+              {mode !== 'forgot' && googleOn && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = googleUrl(
+                      typeof window !== 'undefined' ? window.location.href : '/',
+                    );
+                  }}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.05)]"
+                >
+                  <GoogleIcon /> Continuar con Google
+                </button>
+              )}
+
+              <form onSubmit={submit} className="mt-4 space-y-3">
+                {mode === 'register' && (
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre"
+                    required
+                    className={INPUT_THEMED_11}
+                  />
+                )}
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  required
+                  className={INPUT_THEMED_11}
+                />
+                {mode !== 'forgot' && (
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contraseña"
+                    required
+                    minLength={8}
+                    className={INPUT_THEMED_11}
+                  />
+                )}
+
+                {mode !== 'forgot' && <Captcha onToken={setCaptcha} />}
+
+                {error && <p className="text-sm text-red-500">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={busy || (mode !== 'forgot' && captcha === null)}
+                  className={BTN_PRIMARY_BLOCK}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : mode === 'forgot' ? (
+                    'Enviar link'
+                  ) : mode === 'login' ? (
+                    'Iniciar sesión'
+                  ) : (
+                    'Crear cuenta'
+                  )}
+                </button>
+              </form>
+            </>
+          )}
+
+          {mode === 'login' && !sent && (
             <button
               type="button"
               onClick={() => {
                 setError(null);
-                setSent(false);
-                setMode('login');
+                setMode('forgot');
               }}
-              className="font-semibold text-primary hover:underline"
+              className="mt-3 block w-full text-center text-sm opacity-70 hover:underline"
             >
-              Volver a iniciar sesión
+              ¿Olvidaste tu contraseña?
             </button>
-          ) : (
-            <>
-              {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
+          )}
+
+          <p className="mt-4 text-center text-sm opacity-70">
+            {mode === 'forgot' ? (
               <button
                 type="button"
                 onClick={() => {
                   setError(null);
-                  setMode(mode === 'login' ? 'register' : 'login');
+                  setSent(false);
+                  setMode('login');
                 }}
                 className="font-semibold text-primary hover:underline"
               >
-                {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
+                Volver a iniciar sesión
               </button>
-            </>
-          )}
-        </p>
+            ) : (
+              <>
+                {mode === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setMode(mode === 'login' ? 'register' : 'login');
+                  }}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
+                </button>
+              </>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );

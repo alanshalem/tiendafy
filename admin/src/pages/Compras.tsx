@@ -1191,10 +1191,23 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
         </Modal>
       )}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-5 shadow-card">
-            <h2 className="text-base font-semibold text-fg">Recibir mercadería</h2>
-            <p className="mt-1 text-sm text-fg-muted">
+        <Modal
+          open
+          onClose={() => setOpen(false)}
+          title="Recibir mercadería"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setOpen(false)}>
+                Volver
+              </Button>
+              <Button onClick={() => receive.mutate()} loading={receive.isPending}>
+                Confirmar recepción
+              </Button>
+            </>
+          }
+        >
+          <div>
+            <p className="text-sm text-fg-muted">
               Confirmá lo que llegó: el stock sube y el costo de cada variante queda fijado al landed cost con
               el tipo de cambio definitivo.
             </p>
@@ -1236,16 +1249,8 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setOpen(false)}>
-                Volver
-              </Button>
-              <Button onClick={() => receive.mutate()} loading={receive.isPending}>
-                Confirmar recepción
-              </Button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );
