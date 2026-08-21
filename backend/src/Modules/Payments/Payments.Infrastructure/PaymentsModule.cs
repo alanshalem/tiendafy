@@ -5,6 +5,7 @@ using Payments.Core.Abstractions;
 using Payments.Core.Domain;
 using Payments.Core.Features.Connect;
 using Payments.Infrastructure.MercadoPago;
+using Payments.Infrastructure.Payway;
 using Payments.Infrastructure.Persistence;
 using Payments.Infrastructure.Security;
 using SharedKernel.Persistence;
@@ -21,8 +22,10 @@ public static class PaymentsModule
 
         services.AddHttpClient<IMercadoPagoOAuthClient, MercadoPagoOAuthClient>();
         services.AddHttpClient<IMercadoPagoPaymentService, MercadoPagoCheckoutClient>();
+        services.AddHttpClient<IPaywayPaymentService, PaywayClient>();
 
         services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();
+        services.AddSingleton<IPaywayCredentialProtector, PaywayCredentialProtector>();
         services.AddSingleton<IOAuthStateProtector, DataProtectionStateProtector>();
         services.AddSingleton<IMercadoPagoWebhookValidator, MercadoPagoWebhookValidator>();
 

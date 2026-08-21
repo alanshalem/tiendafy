@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
 import { formatDate, formatMoney } from '@tiendafy/types';
+import { PaywayCardForm, type PaywayCardToken, type PaywayPublicConfig } from './PaywayCardForm';
 import { CheckoutResult } from './CheckoutResult';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
@@ -79,6 +80,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [hydrated, setHydrated] = useState(false);
   const [mode, setMode] = useState<Mode | null>(null);
   const [pubKey, setPubKey] = useState<string | null>(null);
+  const [payway, setPayway] = useState<PaywayPublicConfig | null>(null);
+  // Con los dos medios disponibles, el comprador elige.
+  const [method, setMethod] = useState<'mp' | 'payway'>('mp');
   const [connected, setConnected] = useState(true);
 
   const [step, setStep] = useState<Step>('entrega');
@@ -146,6 +150,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         if (c.checkoutMode === 'API' && c.publicKey) initMercadoPago(c.publicKey, { locale: 'es-AR' });
       })
       .catch(() => setMode('PRO'));
+
+    // Payway se pide aparte: son dos medios de pago independientes y que uno
+    // falle no tiene por qué dejar sin cobrar al otro.
+    fetch(`${API}/api/v1/payments/payway/public-config`, { headers })
+      .then((r) => r.json())
+      .then((c: PaywayPublicConfig) => setPayway(c.enabled ? c : null))
+      .catch(() => setPayway(null));
 
     fetch(`${API}/api/v1/shipping/methods`, { headers })
       .then((r) => r.json())
@@ -369,7 +380,12 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
    * y atribución) viven acá una sola vez: cuando se sumó utm_source hubo que
    * acordarse de tocar los dos flujos, y ese olvido se paga en Rentabilidad.
    */
-  const postPayment = async <T,>(id: string, path: 'pay' | 'pay-onsite', body: object, failMsg: string) => {
+  const postPayment = async <T,>(
+    id: string,
+    path: 'pay' | 'pay-onsite' | 'pay-payway',
+    body: object,
+    failMsg: string,
+  ) => {
     const res = await fetch(`${API}/api/v1/checkout/${id}/${path}`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
@@ -440,6 +456,50 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
       throw e;
+    }
+  };
+
+  /**
+   * Cobro con Payway. El formulario ya cambió la tarjeta por un token contra
+   * Payway; acá solo viaja ese token con el BIN y los últimos cuatro dígitos.
+   */
+  const onPaywayToken = async (card: PaywayCardToken) => {
+    setError(null);
+    setPaying(true);
+    try {
+      const id = await reserve(email.trim());
+      const data = await postPayment<{ status?: string; message?: string }>(
+        id,
+        'pay-payway',
+        {
+          token: card.token,
+          bin: card.bin,
+          cardLastFour: card.lastFour,
+          cardBrand: card.brand,
+          isDebit: card.isDebit,
+          installments: card.installments,
+        },
+        'No se pudo procesar el pago.',
+      );
+
+      if (data.status === 'APPROVED') {
+        setResult('success');
+        return;
+      }
+
+      // Un rechazo llega con el motivo ya redactado por el backend. Los estados
+      // intermedios (revisión de antifraude, 3D Secure) NO son un fracaso: la
+      // orden queda pendiente y se resuelve cuando Payway confirma.
+      if (data.status === 'DECLINED') {
+        setError(data.message ?? 'El pago fue rechazado. Probá con otra tarjeta.');
+        setPaying(false);
+        return;
+      }
+
+      setResult('pending');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
+      setPaying(false);
     }
   };
 
@@ -881,7 +941,37 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <CreditCard className="h-5 w-5" /> Medio de pago
               </h2>
 
-              {mode === 'API' && pubKey ? (
+              {payway && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMethod('mp')}
+                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                      method === 'mp' ? 'border-black bg-black text-white' : 'border-black/20'
+                    }`}
+                  >
+                    Mercado Pago
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethod('payway')}
+                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                      method === 'payway' ? 'border-black bg-black text-white' : 'border-black/20'
+                    }`}
+                  >
+                    Tarjeta de crédito o débito
+                  </button>
+                </div>
+              )}
+
+              {payway && method === 'payway' ? (
+                <PaywayCardForm
+                  config={payway}
+                  amountLabel={formatMoney(total, currency)}
+                  paying={paying}
+                  onToken={onPaywayToken}
+                />
+              ) : mode === 'API' && pubKey ? (
                 <Payment
                   key={total}
                   initialization={{ amount: total / 100, payer: { email: email || undefined } }}

@@ -37,3 +37,14 @@ public interface IOAuthStateProtector
     string Protect(TenantId tenantId);
     TenantId? TryUnprotect(string state);
 }
+
+/// <summary>
+/// Cifra la clave privada de Payway en reposo. Separado de
+/// <see cref="ITokenProtector"/> (que es el de Mercado Pago) para que cada
+/// integración tenga su propio propósito de Data Protection.
+/// </summary>
+public interface IPaywayCredentialProtector
+{
+    string Protect(string plaintext);
+    string Unprotect(string ciphertext);
+}

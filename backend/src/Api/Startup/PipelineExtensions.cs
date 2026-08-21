@@ -60,6 +60,7 @@ public static class PipelineExtensions
         apiV1.MapZipnovaEndpoints();
         apiV1.MapCampaignEndpoints();
         apiV1.MapPaymentsEndpoints();
+        apiV1.MapPaywayEndpoints();
         apiV1.MapMeliEndpoints();
         apiV1.MapSocialEndpoints();
         apiV1.MapAiEndpoints();

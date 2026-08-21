@@ -109,6 +109,67 @@ public static class OrderEndpoints
             return Results.Ok(new { orderId = order.Id, status = card.Status, statusDetail = card.StatusDetail });
         }).RequireTenant().RequireRateLimiting("payments");
 
+        // Pagar con Payway (ex Decidir): mismo camino que el on-site de Mercado
+        // Pago, con dos diferencias que vienen de la API — el monto viaja en
+        // centavos (que es como ya lo guarda la orden) y hay que mandarle la IP
+        // real del comprador.
+        group.MapPost("/checkout/{id:guid}/pay-payway", async (
+            Guid id,
+            PayPaywayRequest request,
+            HttpContext http,
+            ITenantContext tenant,
+            ICheckoutRepository checkouts,
+            DiscountsDbContext discountsDb,
+            CreateOrderHandler createOrder,
+            Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
+            SettlePaymentHandler settle,
+            IPaywayPaymentService payway,
+            Api.Orders.PaidOrderSideEffects paidEffects,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.Bin))
+                return Error.Validation("Payway.MissingToken", "Falta el token de la tarjeta.").ToProblem();
+
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            if (orderResult.IsFailure) return orderResult.Error.ToProblem();
+            var order = orderResult.Value;
+
+            // El total sale del snapshot de la orden, nunca de lo que mande el
+            // navegador, y ya está en centavos: la unidad que espera Payway.
+            var payResult = await payway.ChargeAsync(new PaywayChargeRequest(
+                tenant.TenantId, order.Id,
+                order.Total.AmountInMinorUnits, order.Currency,
+                request.Token, request.Bin.Trim(),
+                Math.Clamp(request.Installments ?? 1, 1, 99),
+                order.BuyerEmail,
+                http.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0",
+                request.CardLastFour, request.CardBrand, request.IsDebit,
+                $"Pedido {order.Id.ToString()[..8]}"), ct);
+
+            if (payResult.IsFailure) return payResult.Error.ToProblem();
+            var charge = payResult.Value;
+
+            // Solo un pago aprobado toca la orden. Un "en revisión" o un estado
+            // que no supimos interpretar la dejan pendiente a propósito: se
+            // despacha cuando Payway confirma, no antes.
+            if (charge.IsApproved && charge.ProviderPaymentId is { } paymentId)
+            {
+                var settleResult = await settle.HandleAsync(order.Id, "approved", paymentId, ct: ct);
+                if (settleResult.IsSuccess && settleResult.Value.Outcome == SettleOutcome.JustPaid && settleResult.Value.Order is not null)
+                    await paidEffects.RunAsync(settleResult.Value.Order, ct: ct);
+            }
+
+            return Results.Ok(new
+            {
+                orderId = order.Id,
+                status = charge.Status.ToString().ToUpperInvariant(),
+                authorizationCode = charge.AuthorizationCode,
+                // El motivo del rechazo ya viene redactado para mostrarlo tal cual.
+                message = charge.Decline?.BuyerMessage,
+                retryable = charge.Decline?.IsRetryable,
+            });
+        }).RequireTenant().RequireRateLimiting("payments");
+
         // Estado de la orden — PÚBLICO pero mínimo (sin PII). Lo usa la página de
         // "gracias por tu compra" para pollear el resultado del pago sin login.
         group.MapGet("/orders/{id:guid}/status", async (
@@ -564,6 +625,20 @@ public sealed record FulfillRequest(string? Tracking);
 public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false);
 
 public sealed record PayCheckoutRequest(string? ReturnUrl, string? CouponCode, string? UtmSource = null);
+
+/// <summary>
+/// Cobro con Payway. El navegador ya cambió la tarjeta por un token contra
+/// Payway, así que acá nunca llegan ni el número ni el código de seguridad.
+/// </summary>
+public sealed record PayPaywayRequest(
+    string Token,
+    string Bin,
+    int? Installments,
+    string? CardLastFour,
+    string? CardBrand,
+    bool IsDebit,
+    string? CouponCode,
+    string? UtmSource = null);
 
 public sealed record PayOnsiteRequest(
     string Token,

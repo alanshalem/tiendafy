@@ -24,6 +24,8 @@ public sealed class PaymentsDbContext : DbContext
     public DbSet<MercadoPagoConnection> MercadoPagoConnections => Set<MercadoPagoConnection>();
     public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
     public DbSet<PaymentRefund> PaymentRefunds => Set<PaymentRefund>();
+    public DbSet<PaywayConnection> PaywayConnections => Set<PaywayConnection>();
+    public DbSet<PaywayPaymentAttempt> PaywayPaymentAttempts => Set<PaywayPaymentAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +33,10 @@ public sealed class PaymentsDbContext : DbContext
             .HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
         modelBuilder.Entity<PaymentRefund>()
             .HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        modelBuilder.Entity<PaywayConnection>()
+            .HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant);
+        modelBuilder.Entity<PaywayPaymentAttempt>()
+            .HasQueryFilter(a => !_filterByTenant || a.TenantId == _tenantGuid);
 
         var wh = modelBuilder.Entity<PaymentWebhookEvent>();
         wh.ToTable("payment_webhook_events");
@@ -74,5 +80,44 @@ public sealed class PaymentsDbContext : DbContext
         connection.Property(c => c.StatementDescriptor).HasMaxLength(22);
 
         connection.Ignore(c => c.DomainEvents);
+
+        var payway = modelBuilder.Entity<PaywayConnection>();
+        payway.ToTable("payway_connections");
+        payway.HasKey(c => c.Id);
+        payway.Property(c => c.Id).ValueGeneratedNever();
+        payway.Property(c => c.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        payway.HasIndex(c => c.TenantId).IsUnique();
+        payway.Property(c => c.SiteId).HasMaxLength(20).IsRequired();
+        payway.Property(c => c.Environment).HasConversion<string>().HasMaxLength(12);
+        // La pública viaja al navegador (tokeniza la tarjeta y nada más); la
+        // privada va cifrada con Data Protection y no sale del backend.
+        payway.Property(c => c.PublicKey).HasMaxLength(128).IsRequired();
+        payway.Property(c => c.PrivateKeyEncrypted).HasColumnType("text").IsRequired();
+        payway.Property(c => c.BaseUrlOverride).HasMaxLength(200);
+        payway.Property(c => c.EstablishmentName).HasMaxLength(60);
+        payway.Property<List<int>>("_installmentOptions").HasColumnName("installment_options");
+        payway.Ignore(c => c.InstallmentOptions);
+
+        var attempt = modelBuilder.Entity<PaywayPaymentAttempt>();
+        attempt.ToTable("payway_payment_attempts");
+        attempt.HasKey(a => a.Id);
+        attempt.Property(a => a.Id).ValueGeneratedNever();
+        attempt.Property(a => a.SiteTransactionId).HasMaxLength(39).IsRequired();
+        // Payway no tiene idempotencia: este índice es lo que impide que dos
+        // requests en paralelo terminen en dos cobros de la misma orden.
+        attempt.HasIndex(a => new { a.TenantId, a.SiteTransactionId }).IsUnique();
+        attempt.HasIndex(a => new { a.TenantId, a.OrderId, a.AttemptNumber }).IsUnique();
+        attempt.HasIndex(a => new { a.TenantId, a.OrderId });
+        attempt.Property(a => a.Status).HasConversion<string>().HasMaxLength(16);
+        attempt.Property(a => a.RawStatus).HasMaxLength(40);
+        attempt.Property(a => a.ProviderPaymentId).HasMaxLength(64);
+        attempt.Property(a => a.Currency).HasMaxLength(3).IsRequired();
+        attempt.Property(a => a.CardBin).HasMaxLength(6);
+        attempt.Property(a => a.CardLastFour).HasMaxLength(4);
+        attempt.Property(a => a.CardBrand).HasMaxLength(30);
+        attempt.Property(a => a.AuthorizationCode).HasMaxLength(20);
+        attempt.Property(a => a.NetworkTransactionId).HasMaxLength(40);
+        attempt.Property(a => a.TicketNumber).HasMaxLength(20);
+        attempt.Property(a => a.DeclineDescription).HasMaxLength(200);
     }
 }
