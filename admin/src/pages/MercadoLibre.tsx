@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Store } from 'lucide-react';
 import { Tabs } from '@tiendafy/ui';
 import { api } from '../lib/api';
@@ -29,7 +29,17 @@ const TABS: { id: Tab; label: string }[] = [
 export function MercadoLibrePage() {
   const { store } = useStore();
   const [status, setStatus] = useState<MeliStatus | null>(null);
-  const [tab, setTab] = useState<Tab>('ventas');
+
+  // La pestaña vive en la URL para poder mandar a alguien directo a la que
+  // resuelve su problema — desde Configuración, por ejemplo, a vincular
+  // publicaciones — y para que el botón Atrás del browser haga lo esperable.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: Tab = TABS.some((t) => t.id === requested) ? (requested as Tab) : 'ventas';
+  const setTab = (next: Tab) => {
+    params.set('tab', next);
+    setParams(params, { replace: true });
+  };
 
   useEffect(() => {
     if (!store) return;
