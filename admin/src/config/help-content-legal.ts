@@ -58,9 +58,8 @@ export const LEGAL = {
         blocks: [
           {
             type: 'callout',
-            tone: 'danger',
-            title: 'Para quien administra la plataforma: backup de dpkeys',
-            text: 'Todos los secretos por tienda (certificados ARCA, tokens de Mercado Pago/Libre, WhatsApp, MiCorreo, Zipnova) están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero. Verificá que esté dentro del backup diario. Lo demás no requiere nada: las URLs de ARCA (homologación y producción) ya vienen configuradas.',
+            tone: 'info',
+            text: 'No hace falta configurar nada más: las direcciones de ARCA, tanto las de prueba como las de producción, ya vienen puestas.',
           },
         ],
       },

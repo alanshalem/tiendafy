@@ -98,7 +98,11 @@ export const HELP_LINKS = {
   seo: { label: 'Más sobre cómo aparecer en Google' },
   externalCodes: { label: 'Más sobre Analytics, Pixel y códigos externos' },
   ajustesAvanzados: { label: 'Más sobre ajustes avanzados' },
-  integracionesProduccion: { label: 'Poner las integraciones en producción' },
+  plataformaPuestaEnMarcha: { label: 'Poner Tiendafy en marcha' },
+  plataformaClaves: { label: 'Qué conseguir y dónde se carga cada cosa' },
+  plataformaTramites: { label: 'Trámites y altas con proveedores' },
+  integracionesProduccion: { label: 'Checklist antes de cobrar y despachar' },
+  plataformaOperacion: { label: 'Mantener la plataforma andando' },
 } as const;
 
 export type HelpLinkId = keyof typeof HELP_LINKS;

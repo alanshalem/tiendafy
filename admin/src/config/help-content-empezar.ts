@@ -61,7 +61,7 @@ export const EMPEZAR = {
           {
             type: 'callout',
             tone: 'tip',
-            text: 'Cada guía de integración tiene su sección “Para quien administra la plataforma” con los pasos exactos. El inventario completo de claves y variables vive en docs/CONFIGURACION.md del proyecto.',
+            text: 'Todo lo de plataforma está junto en el centro de ayuda, en la categoría “Administrar la plataforma”: qué levantar y en qué orden, el inventario completo de credenciales y los trámites con cada proveedor.',
           },
         ],
       },

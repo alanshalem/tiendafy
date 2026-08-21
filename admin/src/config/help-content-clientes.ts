@@ -106,22 +106,9 @@ export const CLIENTES = {
         ],
       },
       {
-        heading: 'Para quien administra la plataforma: Resend',
+        heading: '¿Quién manda los emails?',
         paragraphs: [
-          'Todos los emails (transaccionales y campañas, de todas las tiendas) salen por una sola cuenta de Resend a nivel plataforma. Configuración una sola vez:',
-        ],
-        steps: [
-          'Creá la cuenta en resend.com y generá una API key → variable Email:ResendApiKey del servidor.',
-          'Verificá tu dominio en Resend (registros SPF y DKIM en tu DNS) y usá un remitente de ese dominio en Email:From — sin dominio verificado, los emails van a spam o Resend los rechaza.',
-          'Webhook de rebotes: en Resend → Webhooks, eventos email.bounced y email.complained hacia la URL pública de la API + /api/v1/webhooks/resend; el signing secret va en Email:WebhookSecret. Con eso, los rebotes y quejas se suprimen solos de las campañas.',
-          'PublicApiBaseUrl = URL pública de la API: la usan los links de baja y el tracking de las campañas (sin esto, esos links quedan rotos en producción).',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'info',
-            text: 'Sin Email:ResendApiKey configurada, el sistema entra en modo desarrollo: los emails se escriben en los logs del servidor en vez de enviarse. Útil para probar sin gastar cuota ni ensuciar casillas reales.',
-          },
+          'Salen todos por una misma cuenta a nivel plataforma, configurada una sola vez. No hay nada que cargar por tienda. El detalle está en el centro de ayuda, en Administrar la plataforma → Qué conseguir y dónde se carga cada cosa.',
         ],
       },
       {
@@ -402,7 +389,7 @@ export const CLIENTES = {
         heading: 'Conectar tus cuentas',
         paragraphs: [
           'Facebook e Instagram se conectan juntos: autorizás con tu usuario de Meta y aparecen todas tus páginas con sus cuentas de Instagram Business vinculadas. X se conecta con su propio botón. Telegram no usa autorización: creás un bot con @BotFather, lo hacés administrador de tu canal y pegás el token en el formulario.',
-          'Igual que con Mercado Libre, los botones de Facebook/Instagram y X necesitan que la plataforma tenga su app configurada en el servidor (una sola vez). Telegram funciona siempre.',
+          'Facebook, Instagram y X necesitan una configuración de plataforma que se hace una sola vez; si el botón avisa que falta, es eso. Telegram funciona siempre.',
         ],
         blocks: [
           { type: 'path', segments: ['Redes sociales', 'Cuentas'] },

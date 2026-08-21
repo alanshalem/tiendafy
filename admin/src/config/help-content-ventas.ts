@@ -24,22 +24,9 @@ export const VENTAS = {
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
       },
       {
-        heading: 'Para quien administra la plataforma (una sola vez)',
+        heading: 'Configuración de la plataforma',
         paragraphs: [
-          'El botón de conectar existe porque la plataforma tiene su propia app registrada en Mercado Pago (mismo esquema de dos niveles que Mercado Libre). Si el OAuth falla o el botón avisa que falta configuración, falta este paso:',
-        ],
-        steps: [
-          'Entrá al panel de desarrolladores de Mercado Pago (mercadopago.com.ar/developers) → crear aplicación con modelo MARKETPLACE (permite operar en nombre de otros vendedores vía OAuth).',
-          'Redirect URI: la URL pública de la API + /api/v1/payments/mercadopago/oauth/callback (en desarrollo, un túnel tipo cloudflared/ngrok).',
-          'Webhook de pagos: URL pública de la API + /api/v1/payments/webhook, con su secret — así cada pago concilia la orden aunque el comprador cierre el navegador.',
-          'Cargá Client ID, Client Secret, Redirect URI y Webhook Secret en la configuración del servidor (sección MercadoPago; detalle exacto en docs/CONFIGURACION.md) y reiniciá la API.',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'warning',
-            text: 'El Client Secret y el Webhook Secret son credenciales de servidor: user-secrets en desarrollo, variables de entorno en producción. Nunca en el panel ni en un repositorio.',
-          },
+          'Esta integración necesita además una configuración que se hace una sola vez para todo Tiendafy, no por tienda. Está en el centro de ayuda, en Administrar la plataforma → Trámites y altas con proveedores.',
         ],
       },
       {
@@ -378,22 +365,9 @@ export const VENTAS = {
         ],
       },
       {
-        heading: 'Configuración inicial de la plataforma (una sola vez)',
+        heading: 'Configuración de la plataforma',
         paragraphs: [
-          'Si el panel dice “faltan las credenciales de la app de Mercado Libre en el servidor”, falta este paso:',
-        ],
-        steps: [
-          'Entrá a developers.mercadolibre.com.ar con una cuenta de Mercado Libre → “Mis aplicaciones” → crear aplicación.',
-          'Redirect URI: la URL pública de la API + /api/v1/meli/oauth/callback (en desarrollo hace falta un túnel tipo cloudflared/ngrok, igual que con Mercado Pago).',
-          'Notificaciones: URL pública de la API + /api/v1/webhooks/meli, suscripta al topic orders_v2 — así cada venta de ML llega sola al panel.',
-          'Cargá el Client ID, el Client Secret y la Redirect URI en la configuración del servidor (sección MercadoLibre; el detalle exacto está en docs/CONFIGURACION.md del proyecto) y reiniciá la API.',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'warning',
-            text: 'El Client Secret es una credencial de servidor: nunca va en el panel, en el navegador ni en un repositorio. En desarrollo se carga con user-secrets; en producción, como variable de entorno.',
-          },
+          'Esta integración necesita además una configuración que se hace una sola vez para todo Tiendafy, no por tienda. Está en el centro de ayuda, en Administrar la plataforma → Trámites y altas con proveedores.',
         ],
       },
       {
