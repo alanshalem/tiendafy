@@ -7,6 +7,15 @@
 @config '../tailwind.config.ts';
 @source '../../shared/ui/src';
 
+/* El menú desplegable de un <select> lo dibuja el browser: las opciones heredan
+   el color del texto del control pero NO su fondo. En tema oscuro eso deja
+   texto casi blanco sobre un panel claro. Se declara acá para que valga también
+   en los selects armados a mano. */
+option {
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-fg));
+}
+
 /* ============================================================
    Tokens de PLATAFORMA (admin) — estética estilo Apple / macOS.
    Overridean los defaults de tokens.css SOLO en el build del admin

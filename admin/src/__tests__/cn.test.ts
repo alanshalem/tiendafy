@@ -22,6 +22,13 @@ describe('cn', () => {
     expect(cn('h-header', 'h-10')).toBe('h-10');
   });
 
+  // El caso que rompió los <select>: la posición del fondo se llevaba puesto al
+  // color del fondo. Queda escrito para que se entienda por qué la flechita del
+  // Select va por `style` y no por clases.
+  it('trata la posición del fondo como el mismo grupo que el color', () => {
+    expect(cn('bg-surface', 'bg-[right_0.5rem_center]')).toBe('bg-[right_0.5rem_center]');
+  });
+
   it('no toca las que no compiten', () => {
     expect(cn('sticky left-0 bg-surface', 'z-20 py-2')).toBe('sticky left-0 bg-surface z-20 py-2');
   });
