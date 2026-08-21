@@ -58,6 +58,7 @@ public static class PipelineExtensions
         apiV1.MapShippingEndpoints();
         apiV1.MapCorreoArgentinoEndpoints();
         apiV1.MapZipnovaEndpoints();
+        apiV1.MapAndreaniEndpoints();
         apiV1.MapCampaignEndpoints();
         apiV1.MapPaymentsEndpoints();
         apiV1.MapPaywayEndpoints();

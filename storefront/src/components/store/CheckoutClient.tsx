@@ -45,6 +45,18 @@ interface ZipnovaOption {
   estimatedDelivery: string | null;
 }
 
+/**
+ * Opción de Andreani. No trae plazo de entrega porque su cotización no lo
+ * devuelve — y una fecha inventada en el checkout es una promesa que después
+ * hay que sostener.
+ */
+interface AndreaniOption {
+  token: string;
+  name: string;
+  price: MoneyDto;
+  toBranch: boolean;
+}
+
 const CORREO_PROVINCES: [string, string][] = [
   ['B', 'Buenos Aires'],
   ['C', 'CABA'],
@@ -108,6 +120,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [quoteProvince, setQuoteProvince] = useState('');
   const [zipnovaOptions, setZipnovaOptions] = useState<ZipnovaOption[] | null>(null);
   const [zipnovaError, setZipnovaError] = useState<string | null>(null);
+  const [andreaniEnabled, setAndreaniEnabled] = useState(false);
+  const [andreaniOptions, setAndreaniOptions] = useState<AndreaniOption[] | null>(null);
+  const [andreaniError, setAndreaniError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -164,6 +179,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         setShippingOptions(d.items ?? []);
         setCorreoEnabled(Boolean(d.correoArgentino?.enabled));
         setZipnovaEnabled(Boolean(d.zipnova?.enabled));
+        setAndreaniEnabled(Boolean(d.andreani?.enabled));
       })
       .catch(() => setShippingOptions([]));
   }, [tenantId]);
@@ -179,16 +195,28 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const selectedZipnova = shippingId?.startsWith('zipnova-')
     ? (zipnovaOptions?.[Number(shippingId.slice(8))] ?? null)
     : null;
+  const selectedAndreani = shippingId?.startsWith('andreani-')
+    ? (andreaniOptions?.[Number(shippingId.slice(9))] ?? null)
+    : null;
   const quotedShipping =
-    selectedCorreo?.price.amount ?? selectedZipnova?.price.amount ?? selected?.price.amount ?? 0; // centavos (ApiJson.MoneyJson)
+    selectedCorreo?.price.amount ??
+    selectedZipnova?.price.amount ??
+    selectedAndreani?.price.amount ??
+    selected?.price.amount ??
+    0; // centavos (ApiJson.MoneyJson)
   // Cupón de envío gratis: el servidor pone el envío en cero al crear la orden,
   // así que lo que se muestra acá tiene que decir lo mismo.
   const shipCost = coupon?.freeShipping ? 0 : quotedShipping;
   const total = Math.max(0, subtotal - discount) + shipCost;
   const needsAddress =
-    selected?.kind === 'DELIVERY' || selectedCorreo?.kind === 'D' || selectedZipnova !== null;
-  const shippingLabel = selectedCorreo?.name ?? selectedZipnova?.name ?? selected?.name ?? null;
-  const anyQuoter = correoEnabled || zipnovaEnabled;
+    selected?.kind === 'DELIVERY' ||
+    selectedCorreo?.kind === 'D' ||
+    selectedZipnova !== null ||
+    // Retiro en sucursal de Andreani no necesita dirección.
+    (selectedAndreani !== null && !selectedAndreani.toBranch);
+  const shippingLabel =
+    selectedCorreo?.name ?? selectedZipnova?.name ?? selectedAndreani?.name ?? selected?.name ?? null;
+  const anyQuoter = correoEnabled || zipnovaEnabled || andreaniEnabled;
 
   // Cotiza contra TODOS los carriers activos en paralelo. Correo solo pide CP;
   // Zipnova además ciudad + provincia (su API resuelve el destino por localidad).
@@ -203,12 +231,18 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       if (!correoEnabled) return;
     } else {
       setZipnovaError(null);
+      setAndreaniError(null);
     }
     setCorreoLoading(true);
     setCorreoError(null);
     setCorreoOptions(null);
     setZipnovaOptions(null);
-    if (shippingId?.startsWith('correo-') || shippingId?.startsWith('zipnova-')) setShippingId(null);
+    if (
+      shippingId?.startsWith('correo-') ||
+      shippingId?.startsWith('zipnova-') ||
+      shippingId?.startsWith('andreani-')
+    )
+      setShippingId(null);
     setAgencyCode(null);
     const units = lines.reduce((s, l) => s + l.quantity, 0);
     const headers = tenantHeaders(tenantId, true);
@@ -256,7 +290,25 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
             .catch((e) => setZipnovaError(e instanceof Error ? e.message : 'No se pudo cotizar con Zipnova.'))
         : Promise.resolve();
 
-    await Promise.all([correoPromise, zipnovaPromise]);
+    // Andreani solo necesita el código postal: su cotización no pide ciudad
+    // ni provincia.
+    const andreaniPromise = andreaniEnabled
+      ? fetch(`${API}/api/v1/shipping/andreani/quote`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ postalCode: cp, units, declaredValue: subtotal / 100 }),
+        })
+          .then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
+            setAndreaniOptions(data.options ?? []);
+            if ((data.options ?? []).length === 0)
+              setAndreaniError('Andreani no tiene tarifas para ese código postal.');
+          })
+          .catch((e) => setAndreaniError(e instanceof Error ? e.message : 'No se pudo cotizar con Andreani.'))
+      : Promise.resolve();
+
+    await Promise.all([correoPromise, zipnovaPromise, andreaniPromise]);
     if (!zip.trim()) setZip(cp);
     if (quoteCity.trim() && !city.trim()) setCity(quoteCity.trim());
     setCorreoLoading(false);
@@ -352,9 +404,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         phone: phone.trim() || null,
         docNumber: doc.trim() || null,
         notes: notes.trim() || null,
-        shippingMethodId: selectedCorreo || selectedZipnova ? null : shippingId,
+        shippingMethodId: selectedCorreo || selectedZipnova || selectedAndreani ? null : shippingId,
         address: formattedAddress(),
-        shippingQuoteToken: selectedCorreo?.token ?? selectedZipnova?.token ?? null,
+        shippingQuoteToken:
+          selectedCorreo?.token ?? selectedZipnova?.token ?? selectedAndreani?.token ?? null,
         correoAgency: selectedCorreo?.kind === 'S' ? agencyCode : null,
       }),
     });
@@ -658,6 +711,43 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     </div>
                     {correoError && <p className="mt-2 text-xs text-red-600">{correoError}</p>}
                     {zipnovaError && <p className="mt-2 text-xs text-red-600">{zipnovaError}</p>}
+                    {andreaniError && <p className="mt-2 text-xs text-red-600">{andreaniError}</p>}
+
+                    {andreaniOptions && andreaniOptions.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {andreaniOptions.map((o, i) => {
+                          const id = `andreani-${i}`;
+                          return (
+                            <label
+                              key={id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={shippingId === id}
+                                onChange={() => setShippingId(id)}
+                                className="mt-1"
+                              />
+                              <span className="flex-1">
+                                <span className="flex items-center gap-1.5 font-semibold">
+                                  <Truck className="h-4 w-4" />
+                                  {o.name}
+                                </span>
+                                {o.toBranch && (
+                                  <span className="mt-0.5 block text-xs opacity-60">
+                                    Lo retirás en una sucursal de Andreani
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-semibold">
+                                {formatMoney(o.price.amount, o.price.currency)}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {zipnovaOptions && zipnovaOptions.length > 0 && (
                       <div className="mt-3 space-y-2">

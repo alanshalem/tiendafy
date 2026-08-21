@@ -18,6 +18,7 @@ public static class CheckoutModule
         services.AddScoped<IShippingMethodRepository, ShippingMethodRepository>();
         services.AddScoped<ICorreoArgentinoConfigRepository, CorreoArgentinoConfigRepository>();
         services.AddScoped<IZipnovaRepository, ZipnovaRepository>();
+        services.AddScoped<IAndreaniRepository, AndreaniRepository>();
         services.AddScoped<StartCheckoutHandler>();
         services.AddScoped<SubmitCheckoutHandler>();
 

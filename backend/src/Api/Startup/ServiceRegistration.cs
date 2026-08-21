@@ -110,6 +110,9 @@ public static class ServiceRegistration
         services.AddSingleton<Api.Shipping.ShippingSecretProtector>();
         // Zipnova: timeout corto y SIN retries (la creación de envíos no es idempotente).
         services.AddHttpClient<Api.Shipping.ZipnovaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        // El timeout real lo pone cada operación: cotizar corta a los 6 s
+        // porque está en el camino del checkout, despachar tolera 20.
+        services.AddHttpClient<Api.Shipping.AndreaniClient>(c => c.Timeout = TimeSpan.FromSeconds(40));
         if (runPollingWorkers) services.AddHostedService<AbandonedCartWorker>();
         if (runPollingWorkers) services.AddHostedService<FavoriteAlertWorker>();
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();

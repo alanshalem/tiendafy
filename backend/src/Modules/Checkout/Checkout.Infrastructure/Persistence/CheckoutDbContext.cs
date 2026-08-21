@@ -24,6 +24,8 @@ public sealed class CheckoutDbContext : DbContext
     public DbSet<CorreoArgentinoConfig> CorreoArgentinoConfigs => Set<CorreoArgentinoConfig>();
     public DbSet<ZipnovaConfig> ZipnovaConfigs => Set<ZipnovaConfig>();
     public DbSet<ZipnovaShipment> ZipnovaShipments => Set<ZipnovaShipment>();
+    public DbSet<AndreaniConfig> AndreaniConfigs => Set<AndreaniConfig>();
+    public DbSet<AndreaniShipment> AndreaniShipments => Set<AndreaniShipment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +102,46 @@ public sealed class CheckoutDbContext : DbContext
         zipShipment.Property(s => s.CarrierTrackingId).HasMaxLength(80);
         zipShipment.Property(s => s.TrackingUrl).HasMaxLength(500);
         zipShipment.Property(s => s.Status).HasMaxLength(40);
+
+        var andreani = modelBuilder.Entity<AndreaniConfig>();
+        andreani.ToTable("andreani_configs");
+        andreani.HasKey(c => c.Id);
+        andreani.Property(c => c.Id).ValueGeneratedNever();
+        andreani.HasIndex(c => c.TenantId).IsUnique();
+        andreani.Property(c => c.Username).HasMaxLength(120).IsRequired();
+        andreani.Property(c => c.PasswordEncrypted).IsRequired();
+        andreani.Property(c => c.ClientCode).HasMaxLength(20);
+        // Un contrato por modalidad: para ofrecer domicilio Y sucursal hacen
+        // falta los dos, y son dos cotizaciones distintas.
+        andreani.Property(c => c.HomeDeliveryContract).HasMaxLength(30);
+        andreani.Property(c => c.BranchPickupContract).HasMaxLength(30);
+        andreani.Property(c => c.OriginBranch).HasMaxLength(20);
+        andreani.Property(c => c.VolumetricFactor).HasColumnType("numeric(6,3)");
+        andreani.Property(c => c.SenderName).HasMaxLength(40);
+        andreani.Property(c => c.SenderEmail).HasMaxLength(40);
+        andreani.Property(c => c.SenderDocumentType).HasMaxLength(10);
+        andreani.Property(c => c.SenderDocumentNumber).HasMaxLength(20);
+        andreani.Property(c => c.SenderPhone).HasMaxLength(15);
+        andreani.Property(c => c.OriginStreet).HasMaxLength(40);
+        andreani.Property(c => c.OriginNumber).HasMaxLength(40);
+        andreani.Property(c => c.OriginCity).HasMaxLength(40);
+        andreani.Property(c => c.OriginPostalCode).HasMaxLength(12);
+
+        var andreaniShipment = modelBuilder.Entity<AndreaniShipment>();
+        andreaniShipment.ToTable("andreani_shipments");
+        andreaniShipment.HasKey(s => s.Id);
+        andreaniShipment.Property(s => s.Id).ValueGeneratedNever();
+        // Andreani no tiene idempotencia ni cancelación: un envío duplicado no
+        // se puede deshacer y se factura igual. El índice es la única defensa.
+        andreaniShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
+        andreaniShipment.HasIndex(s => s.TrackingNumber);
+        andreaniShipment.Property(s => s.TrackingNumber).HasMaxLength(40).IsRequired();
+        andreaniShipment.Property(s => s.AllTrackingNumbers).HasMaxLength(500);
+        andreaniShipment.Property(s => s.LabelUrl).HasMaxLength(500);
+        andreaniShipment.Property(s => s.ContractUsed).HasMaxLength(30);
+        andreaniShipment.Property(s => s.BranchName).HasMaxLength(120);
+        andreaniShipment.Property(s => s.Status).HasMaxLength(30).IsRequired();
+        andreaniShipment.Property(s => s.RawStatus).HasMaxLength(80);
 
         session.OwnsMany(s => s.Items, items =>
         {

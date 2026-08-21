@@ -17,10 +17,218 @@ namespace Checkout.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Checkout.Core.Domain.AndreaniConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<string>("BranchPickupContract")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("branch_pickup_contract");
+
+                    b.Property<string>("ClientCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("client_code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("DefaultHeightCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_height_cm");
+
+                    b.Property<int>("DefaultLengthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_length_cm");
+
+                    b.Property<int>("DefaultWeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_weight_grams");
+
+                    b.Property<int>("DefaultWidthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_width_cm");
+
+                    b.Property<string>("HomeDeliveryContract")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("home_delivery_contract");
+
+                    b.Property<string>("OriginBranch")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origin_branch");
+
+                    b.Property<string>("OriginCity")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("origin_city");
+
+                    b.Property<string>("OriginNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("origin_number");
+
+                    b.Property<string>("OriginPostalCode")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("origin_postal_code");
+
+                    b.Property<string>("OriginStreet")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("origin_street");
+
+                    b.Property<string>("PasswordEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("password_encrypted");
+
+                    b.Property<string>("SenderDocumentNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sender_document_number");
+
+                    b.Property<string>("SenderDocumentType")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("sender_document_type");
+
+                    b.Property<string>("SenderEmail")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("sender_email");
+
+                    b.Property<string>("SenderName")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("sender_name");
+
+                    b.Property<string>("SenderPhone")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("sender_phone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<bool>("UseQa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("use_qa");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("username");
+
+                    b.Property<decimal>("VolumetricFactor")
+                        .HasColumnType("numeric(6,3)")
+                        .HasColumnName("volumetric_factor");
+
+                    b.HasKey("Id")
+                        .HasName("pk_andreani_configs");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_andreani_configs_tenant_id");
+
+                    b.ToTable("andreani_configs", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.AndreaniShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AllTrackingNumbers")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("all_tracking_numbers");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("branch_name");
+
+                    b.Property<string>("ContractUsed")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("contract_used");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("LabelUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("label_url");
+
+                    b.Property<DateTime?>("LastTrackedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_tracked_at_utc");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("RawStatus")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("raw_status");
+
+                    b.Property<int?>("RawStatusId")
+                        .HasColumnType("integer")
+                        .HasColumnName("raw_status_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TrackingNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("tracking_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_andreani_shipments");
+
+                    b.HasIndex("TrackingNumber")
+                        .HasDatabaseName("ix_andreani_shipments_tracking_number");
+
+                    b.HasIndex("TenantId", "OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_andreani_shipments_tenant_id_order_id");
+
+                    b.ToTable("andreani_shipments", (string)null);
+                });
 
             modelBuilder.Entity("Checkout.Core.Domain.CheckoutSession", b =>
                 {

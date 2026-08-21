@@ -13,6 +13,7 @@ import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ManualSaleModal } from './orders-manual';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
+import { AndreaniShipmentButton } from '../components/AndreaniShipment';
 import { FiscalPanel } from './orders-fiscal';
 import { RefundDialog } from './orders-refund';
 import { TABLE_CARD } from '../lib/styles';
@@ -451,7 +452,10 @@ export function OrdersPage() {
                                     )}
                                     {o.status === 'PAID' && canFulfill && <CorreoShipmentButton order={o} />}
                                     {(o.status === 'PAID' || o.status === 'FULFILLED') && canFulfill && (
-                                      <ZipnovaShipmentButton order={o} />
+                                      <>
+                                        <ZipnovaShipmentButton order={o} />
+                                        <AndreaniShipmentButton order={o} />
+                                      </>
                                     )}
                                     {o.status === 'FULFILLED' && canFulfill && (
                                       <button

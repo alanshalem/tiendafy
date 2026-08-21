@@ -8,6 +8,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { CorreoArgentinoCard } from './CorreoArgentino';
 import { ZipnovaCard } from './Zipnova';
+import { AndreaniCard } from './Andreani';
 import type { MoneyDto } from '@tiendafy/types';
 import { PlainDialog } from '../../components/PlainDialog';
 
@@ -201,6 +202,7 @@ export function ShippingMethodsPage() {
       )}
       <CorreoArgentinoCard />
       <ZipnovaCard />
+      <AndreaniCard />
       <HelpLink id="correoArgentino" />
       <HelpLink id="zipnova" className="mt-2" />
     </div>
