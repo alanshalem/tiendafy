@@ -11,7 +11,8 @@ import { useCart } from './cart';
 import { useFavorites } from './favorites';
 import { AccountButton } from './AccountButton';
 import { CategoryMenu, CategoryMenuMobile } from './CategoryMenu';
-import { PagesNav } from './PagesNav';
+import { PagesNav, usePublishedPages } from './PagesNav';
+import { HeaderNav, type NavLinkItem } from './HeaderNav';
 import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
 import { MarqueeTrack } from './MarqueeTrack';
@@ -218,26 +219,37 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     { href: href('/productos'), label: 'Productos' },
     { href: href('/contacto'), label: 'Contacto' },
   ];
-  // `whitespace-nowrap` en cada ítem y `flex-wrap` en el menú: un nombre largo
-  // como "Términos y condiciones" nunca se parte al medio, y si no entran todos
-  // bajan enteros a un segundo renglón. Antes se cortaban en dos líneas —
-  // "Términos y / condiciones"— y el encabezado se veía roto.
-  const navItem = 'whitespace-nowrap opacity-90 hover:opacity-100';
-  const nav = (
-    <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm lg:gap-x-6">
-      <Link href={navLinks[0].href} className={navItem}>
-        {navLinks[0].label}
-      </Link>
-      <Link href={navLinks[1].href} className={navItem}>
-        {navLinks[1].label}
-      </Link>
-      <CategoryMenu />
-      <Link href={navLinks[2].href} className={navItem}>
-        {navLinks[2].label}
-      </Link>
-      <PagesNav />
-    </nav>
+  // El menú va SIEMPRE en una línea: lo que no entra cae en un "Más". La
+  // cantidad de ítems la decide el comercio —cada página de contenido suma
+  // uno— así que no hay ancho que alcance siempre, y dejarlos envolver a un
+  // segundo renglón se ve desprolijo.
+  //
+  // Inicio, Productos y el menú de categorías no se mueven nunca: son la
+  // navegación principal. Contacto y las páginas propias son las que ceden.
+  const navItem = 'shrink-0 whitespace-nowrap opacity-90 hover:opacity-100';
+  const pages = usePublishedPages();
+  const navExtras: NavLinkItem[] = [
+    { key: 'contacto', label: navLinks[2].label, href: navLinks[2].href },
+    ...pages.map((p) => ({ key: p.id, label: p.title, href: href(`/paginas/${p.slug}`) })),
+  ];
+  const navFor = (align: 'center' | 'start') => (
+    <HeaderNav
+      align={align}
+      items={navExtras}
+      fixed={
+        <>
+          <Link href={navLinks[0].href} className={navItem}>
+            {navLinks[0].label}
+          </Link>
+          <Link href={navLinks[1].href} className={navItem}>
+            {navLinks[1].label}
+          </Link>
+          <CategoryMenu />
+        </>
+      }
+    />
   );
+  const nav = navFor('center');
 
   const search = header.showSearch ? (
     <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3">
@@ -305,7 +317,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
               {cartBtn}
             </div>
           </div>
-          <div className="mt-1.5 flex justify-center">{nav}</div>
+          <div className="mt-1.5 flex min-w-0 justify-center">{nav}</div>
         </div>
       );
       break;
@@ -313,8 +325,8 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       inner = (
         <div className="flex min-h-16 items-center gap-6 py-2">
           {logo}
-          {nav}
-          <div className="ml-auto">{icons}</div>
+          {navFor('start')}
+          <div className="shrink-0">{icons}</div>
         </div>
       );
       break;
@@ -322,9 +334,9 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       inner = (
         <div className="flex min-h-16 items-center justify-between gap-4 py-2">
           {logo}
-          <div className="flex items-center gap-6">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-6">
             {nav}
-            {icons}
+            <div className="shrink-0">{icons}</div>
           </div>
         </div>
       );
@@ -333,7 +345,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       inner = (
         <div className="flex min-h-16 items-center justify-between gap-4 py-2">
           {logo}
-          <div className="hidden flex-1 justify-center md:flex">{nav}</div>
+          <div className="hidden min-w-0 flex-1 justify-center md:flex">{nav}</div>
           {icons}
         </div>
       );

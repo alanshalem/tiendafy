@@ -13,10 +13,13 @@ interface Pg {
   slug: string;
 }
 
-/** Links a las páginas institucionales publicadas (Sobre nosotros, Términos, etc.). */
-export function PagesNav() {
+/**
+ * Páginas institucionales publicadas. Se expone como hook porque el menú del
+ * encabezado necesita medirlas para decidir cuáles entran, y para eso las
+ * necesita como datos y no como links ya dibujados.
+ */
+export function usePublishedPages(): Pg[] {
   const { tenantId } = useCart();
-  const href = usePreviewHref();
   const [pages, setPages] = useState<Pg[]>([]);
 
   useEffect(() => {
@@ -25,6 +28,14 @@ export function PagesNav() {
       setPages(d?.items ?? []),
     );
   }, [tenantId]);
+
+  return pages;
+}
+
+/** Los mismos links, uno por línea. Lo usa el menú de mano del celular. */
+export function PagesNav() {
+  const href = usePreviewHref();
+  const pages = usePublishedPages();
 
   if (pages.length === 0) return null;
 
