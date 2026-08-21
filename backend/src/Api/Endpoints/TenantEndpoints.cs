@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Api.Auth;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using SharedKernel.Abstractions;
 using SharedKernel.Common;
 using Tenancy.Contracts;
 using Tenancy.Core.Domain;
@@ -103,6 +104,53 @@ public static class TenantEndpoints
             }
             return Results.Ok(new { items, nextCursor = (string?)null, hasMore = false });
         }).RequireAuthorization();
+
+        // Estado REAL del dominio propio de la tienda activa.
+        //
+        // Antes el panel mostraba "Activado · SSL activado" fijo, sin consultar
+        // nada: un dominio recién cargado y sin DNS apuntado se veía igual que
+        // uno funcionando. Eso es peor que no mostrar nada, porque da por
+        // resuelto un paso que el comerciante todavía tiene que hacer en su
+        // proveedor de dominios.
+        tenants.MapGet("/domain-status", async (
+            ITenantContext tenant, ITenancyService service, IConfiguration cfg, CancellationToken ct) =>
+        {
+            var store = await service.GetByIdAsync(tenant.TenantId.Value, ct);
+            if (store is null) return Results.NotFound();
+
+            var platform = (cfg["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+            var custom = store.CustomDomain;
+
+            if (string.IsNullOrWhiteSpace(custom))
+            {
+                return Results.Ok(new
+                {
+                    subdomain = $"{store.Subdomain}.{platform}",
+                    customDomain = (string?)null,
+                    platformTarget = platform,
+                });
+            }
+
+            // Se comparan las IPs a las que resuelve cada uno: si el dominio
+            // propio llega al mismo lugar que la plataforma, el CNAME está
+            // puesto. Es lo mismo que haría alguien a mano con un nslookup.
+            var (customIps, customError) = await ResolveAsync(custom, ct);
+            var (platformIps, _) = await ResolveAsync(platform, ct);
+
+            var resolves = customIps.Count > 0;
+            var pointsHere = resolves && platformIps.Count > 0 && customIps.Intersect(platformIps).Any();
+
+            return Results.Ok(new
+            {
+                subdomain = $"{store.Subdomain}.{platform}",
+                customDomain = custom,
+                platformTarget = platform,
+                resolves,
+                pointsHere,
+                addresses = customIps,
+                error = customError,
+            });
+        }).RequireTenant().RequirePermission(Permission.TenantAdmin);
 
         tenants.MapGet("/{id:guid}", async (Guid id, ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
         {
@@ -250,6 +298,27 @@ public static class TenantEndpoints
 
     private static IResult OwnerOnly() =>
         Results.Problem(title: "Auth.Forbidden", detail: "Solo el dueño de la tienda puede hacer esto.", statusCode: StatusCodes.Status403Forbidden);
+    /// <summary>
+    /// A qué direcciones resuelve un dominio. Devuelve la lista vacía y el
+    /// motivo si no resuelve — que es justo el caso que hay que mostrarle al
+    /// comerciante cuando todavía no cargó el registro en su proveedor.
+    /// </summary>
+    private static async Task<(List<string> Addresses, string? Error)> ResolveAsync(string host, CancellationToken ct)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+
+            var entries = await System.Net.Dns.GetHostAddressesAsync(host, timeout.Token);
+            return ([.. entries.Select(a => a.ToString())], null);
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException)
+        {
+            return ([], "El dominio todavía no resuelve. Puede tardar hasta 48 horas desde que cargás el registro.");
+        }
+    }
+
 }
 
 public sealed record CreateTenantRequest(string Name, string Subdomain);

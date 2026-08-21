@@ -253,10 +253,11 @@ export const TIENDA = {
       {
         heading: 'Configurá tu dominio propio',
         steps: [
-          'Comprá tu dominio en cualquier registrador (por ej. tudominio.com).',
-          'En el panel de tu registrador, creá un registro CNAME apuntando al dominio base de la plataforma.',
-          'Agregá el dominio en la sección Dominios y guardá.',
-          'Esperá la propagación de DNS (puede tardar hasta 48 hs).',
+          'Comprá tu dominio en cualquier registrador (NIC.ar para los .com.ar, o GoDaddy, Cloudflare, Donweb).',
+          'En Configuración → Dominios, tocá “Conectar mi dominio” y escribilo sin https:// ni barra final.',
+          'La pantalla te muestra el registro CNAME exacto que tenés que crear: tipo, nombre y valor. Copiá el valor con el botón.',
+          'Entrá al panel de tu registrador, buscá la sección de DNS y creá ese registro.',
+          'Volvé a Dominios y tocá el botón de refrescar. Cuando el estado diga “Apuntando bien”, terminaste.',
         ],
         blocks: [
           {
@@ -269,7 +270,30 @@ export const TIENDA = {
       {
         heading: 'Verificá la configuración',
         paragraphs: [
-          'Cuando el DNS propague, el estado del dominio pasa a “Activado”. Si sigue pendiente después de 48 hs, revisá que el CNAME apunte exactamente a donde indicamos y que no haya registros A en conflicto.',
+          'La pantalla de Dominios consulta el DNS de verdad cada vez que la abrís: no te dice “listo” hasta que tu dominio resuelva al mismo lugar que la plataforma.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Estado', 'Qué significa', 'Qué hacer'],
+            rows: [
+              [
+                'Sin apuntar todavía',
+                'El dominio no resuelve a ningún lado.',
+                'Falta crear el CNAME, o todavía está propagando.',
+              ],
+              [
+                'Apunta a otro lado',
+                'Resuelve, pero a un servidor que no es el nuestro.',
+                'Suele ser un registro A viejo o un redirect del registrador. Borralo y dejá solo el CNAME.',
+              ],
+              [
+                'Apuntando bien',
+                'Tu tienda ya responde en tu dominio.',
+                'Nada. El certificado se emite solo en la primera visita.',
+              ],
+            ],
+          },
         ],
       },
       {
@@ -281,36 +305,7 @@ export const TIENDA = {
       {
         heading: 'Certificado de seguridad (SSL)',
         paragraphs: [
-          'El candado HTTPS se emite y renueva solo, sin que hagas nada. Cuando el dominio queda activo, el estado del certificado pasa a “SSL activado”. Puede tardar unos minutos extra después de que el dominio propague.',
-        ],
-      },
-      {
-        heading: 'Para quien administra la plataforma: DNS del servidor',
-        paragraphs: [
-          'El DNS base de la plataforma se configura una sola vez. Caddy emite y renueva el TLS solo (incluido “on-demand” para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión del certificado).',
-        ],
-        blocks: [
-          {
-            type: 'table',
-            headers: ['Registro', 'Nombre', 'Apunta a', 'Para qué'],
-            rows: [
-              ['A', 'TUDOMINIO', 'IP del VPS', 'Dominio base'],
-              ['A (wildcard)', '*.TUDOMINIO', 'IP del VPS', 'Subdominios de todas las tiendas'],
-              ['A', 'api.TUDOMINIO', 'IP del VPS', 'La API (webhooks, OAuth, emails)'],
-              ['A', 'admin.TUDOMINIO', 'IP del VPS', 'El panel de administración'],
-              [
-                'CNAME',
-                'tienda del merchant',
-                'TUDOMINIO',
-                'Cada dominio propio (lo crea el dueño del dominio)',
-              ],
-            ],
-          },
-          {
-            type: 'callout',
-            tone: 'info',
-            text: 'El deploy completo (compose, Caddy, variables, backups) está en docs/DEPLOY.md y docs/CONFIGURACION.md del proyecto.',
-          },
+          'El candado HTTPS se emite y renueva solo, sin que hagas nada y sin costo. No se puede emitir antes de que el dominio apunte, así que hasta ese momento la columna del certificado queda en espera. Después de que el DNS propague puede tardar unos minutos más, hasta la primera visita.',
         ],
       },
     ],
