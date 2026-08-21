@@ -40,7 +40,7 @@ export function CorreoArgentinoCard() {
   return (
     <>
       <CarrierCard
-        className="mt-6"
+        className="mt-3"
         icon={<Mail className="h-5 w-5" />}
         title="Correo Argentino"
         tag="Cotización automática"

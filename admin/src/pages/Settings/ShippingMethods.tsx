@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
-import { Button, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { Calculator, Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
+import { Button, Modal, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -10,7 +10,6 @@ import { CorreoArgentinoCard } from './CorreoArgentino';
 import { ZipnovaCard } from './Zipnova';
 import { AndreaniCard } from './Andreani';
 import type { MoneyDto } from '@tiendafy/types';
-import { PlainDialog } from '../../components/PlainDialog';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -95,14 +94,59 @@ export function ShippingMethodsPage() {
       <SettingsHeader
         title="Medios de envío"
         description="Definí cómo entregás los pedidos. El comprador los elige en el checkout."
-        action={
-          items && items.length > 0 ? (
-            <Button onClick={() => setEditing('new')}>
-              <Plus className="h-4 w-4" /> Agregar medio de envío
-            </Button>
-          ) : undefined
-        }
       />
+
+      {/* La pregunta que se hace cualquiera al abrir esta pantalla: si abajo
+          están Correo Argentino, Zipnova y Andreani, para qué sirve cargar
+          además un medio a mano. Son dos cosas distintas y se usan juntas. */}
+      <div className="mb-6 rounded-lg border border-border bg-surface p-4 shadow-card">
+        <h3 className="text-sm font-semibold text-fg">
+          Hay dos maneras de cobrar el envío, y no compiten entre sí
+        </h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md border border-border bg-bg-subtle p-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <Truck className="h-4 w-4 text-fg-muted" /> Tarifas que ponés vos
+            </div>
+            <p className="mt-1 text-sm text-fg-muted">
+              Un precio fijo que elegís y un plazo que escribís. No se consulta con nadie: aparecen siempre,
+              vaya donde vaya el pedido.
+            </p>
+            <p className="mt-1.5 text-xs text-fg-subtle">
+              Sirven para el retiro en tu local, tu propio reparto en la zona, un precio único para todo el
+              país, o envío gratis (poné 0).
+            </p>
+          </div>
+          <div className="rounded-md border border-border bg-bg-subtle p-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <Calculator className="h-4 w-4 text-fg-muted" /> Correos que cotizan solos
+            </div>
+            <p className="mt-1 text-sm text-fg-muted">
+              Calculan el precio en el checkout según el código postal del comprador y lo que pesa el carrito.
+              Después, desde la venta, sacás la etiqueta y el seguimiento.
+            </p>
+            <p className="mt-1.5 text-xs text-fg-subtle">
+              Sirven para vender a todo el país sin tener que adivinar cuánto sale cada envío.
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-fg-muted">
+          En el checkout se muestran todas juntas y el comprador elige. Lo habitual es tener las dos: una
+          tarifa propia para el retiro o tu zona, y un correo para el resto del país.
+        </p>
+      </div>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-fg">Tus tarifas</h2>
+          <p className="text-sm text-fg-muted">Precio y plazo fijos, puestos por vos.</p>
+        </div>
+        {items && items.length > 0 && (
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Agregar medio de envío
+          </Button>
+        )}
+      </div>
 
       {loading ? (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-6 text-sm text-fg-muted shadow-card">
@@ -200,6 +244,13 @@ export function ShippingMethodsPage() {
           }}
         />
       )}
+      <div className="mb-3 mt-8">
+        <h2 className="text-base font-semibold text-fg">Correos que cotizan solos</h2>
+        <p className="text-sm text-fg-muted">
+          Conectá el que uses. No hace falta ninguno para vender, pero sin alguno el comprador de otra
+          provincia solo puede elegir entre tus tarifas fijas.
+        </p>
+      </div>
       <CorreoArgentinoCard />
       <ZipnovaCard />
       <AndreaniCard />
@@ -266,12 +317,25 @@ function MethodDialog({
     'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 
   return (
-    <PlainDialog onClose={onClose}>
-      <h2 className="text-lg font-bold text-fg">
-        {method ? 'Editar medio de envío' : 'Agregar medio de envío'}
-      </h2>
-      <p className="mt-0.5 text-sm text-fg-muted">
-        El comprador lo va a ver con este nombre y precio en el checkout.
+    <Modal
+      open
+      onClose={onClose}
+      title={method ? 'Editar medio de envío' : 'Agregar medio de envío'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {method ? 'Guardar cambios' : 'Crear medio de envío'}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-fg-muted">
+        Una tarifa tuya: el precio lo ponés acá y no se consulta con ningún correo. El comprador la va a ver
+        con este nombre en el checkout.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -345,16 +409,6 @@ function MethodDialog({
           <Switch checked={active} onChange={setActive} />
         </div>
       </div>
-
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancelar
-        </Button>
-        <Button onClick={submit} disabled={busy}>
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {method ? 'Guardar cambios' : 'Crear medio de envío'}
-        </Button>
-      </div>
-    </PlainDialog>
+    </Modal>
   );
 }
