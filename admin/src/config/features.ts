@@ -98,6 +98,7 @@ export const HELP_LINKS = {
   seo: { label: 'Más sobre cómo aparecer en Google' },
   externalCodes: { label: 'Más sobre Analytics, Pixel y códigos externos' },
   ajustesAvanzados: { label: 'Más sobre ajustes avanzados' },
+  integracionesProduccion: { label: 'Poner las integraciones en producción' },
 } as const;
 
 export type HelpLinkId = keyof typeof HELP_LINKS;

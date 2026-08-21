@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, User } from 'lucide-react';
+import { Loader2, Plus, ShieldAlert, ShieldCheck, Trash2, User } from 'lucide-react';
 import { cn, useToast, useConfirm } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { HelpLink } from '../../components/HelpLink';
@@ -10,6 +10,8 @@ import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
 import { TABLE_CARD } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
+import { ListStats } from '../../components/stats/ListStats';
+import { RolePermissionsMatrix, SENSITIVE_KEYS, usePermissionMatrix } from './RolePermissionsMatrix';
 
 interface Member {
   userId: string;
@@ -57,6 +59,8 @@ const roleMeta = (r: string): RoleMeta =>
   };
 
 const roleOptionLabel = (r: RoleMeta) => (r.desc ? `${r.label} — ${r.desc}` : r.label);
+
+const ROLE_LABELS: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
 
 /** Usuarios por página. */
 const PAGE_SIZE = 25;
@@ -125,6 +129,50 @@ export function UsersNotificationsPage() {
   });
 
   const members = membersQ.data?.items ?? [];
+  const [matrixOpen, setMatrixOpen] = useState(false);
+
+  // La matriz real del backend: la misma que decide los permisos en cada
+  // request. Sirve para marcar quién tiene accesos sensibles sin repetir acá
+  // una copia de la política que puede quedar desactualizada.
+  const { data: matrix } = usePermissionMatrix();
+  const permissionsOf = (role: string): string[] =>
+    matrix?.items.find((r) => r.role === normalizeRole(role))?.permissions ?? [];
+  const sensitiveOf = (role: string) => permissionsOf(role).filter((p) => SENSITIVE_KEYS.includes(p));
+
+  const total = membersQ.data?.total ?? 0;
+  const owners = members.filter((m) => normalizeRole(m.role) === 'owner');
+  const canRefund = members.filter((m) => permissionsOf(m.role).includes('orders.refund'));
+  const canInvite = members.filter((m) => permissionsOf(m.role).includes('members.manage'));
+
+  /**
+   * Los cambios que no se pueden deshacer solos piden confirmación: ascender a
+   * alguien a dueño le da control total de la tienda, y bajarse el rol propio
+   * puede dejarte sin poder volver a entrar acá.
+   */
+  const confirmRoleChange = async (m: Member, next: string): Promise<boolean> => {
+    const who = m.name ?? m.email ?? 'esta persona';
+
+    if (next === 'owner') {
+      return confirm({
+        title: 'Hacer dueño',
+        message: `${who} va a tener control total de la tienda, incluido borrarla y sacarte a vos. ¿Seguís?`,
+        confirmLabel: 'Sí, hacer dueño',
+        variant: 'danger',
+      });
+    }
+
+    if (m.userId === me?.id) {
+      return confirm({
+        title: 'Cambiar tu propio rol',
+        message:
+          'Vas a cambiar tus permisos. Según el rol que elijas, puede que ya no puedas volver a esta pantalla.',
+        confirmLabel: 'Cambiar igual',
+        variant: 'danger',
+      });
+    }
+
+    return true;
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -153,6 +201,49 @@ export function UsersNotificationsPage() {
         </div>
       ) : (
         <>
+          {total > 0 && (
+            <ListStats
+              className="mb-4"
+              items={[
+                {
+                  label: 'Personas con acceso',
+                  value: total.toLocaleString('es-AR'),
+                  hint: 'Cuánta gente puede entrar al panel de esta tienda.',
+                },
+                {
+                  label: 'Dueños',
+                  value: owners.length.toLocaleString('es-AR'),
+                  hint: 'Control total: pueden cambiar cualquier cosa, incluido borrar la tienda.',
+                  tone: owners.length === 1 ? 'warning' : 'default',
+                },
+                {
+                  label: 'Pueden devolver plata',
+                  value: canRefund.length.toLocaleString('es-AR'),
+                  hint: 'Un reembolso mueve dinero real y no se puede deshacer.',
+                  tone: canRefund.length > 0 ? 'warning' : 'default',
+                },
+                {
+                  label: 'Pueden invitar gente',
+                  value: canInvite.length.toLocaleString('es-AR'),
+                  hint: 'Quien puede sumar gente al equipo puede darle accesos a alguien más.',
+                },
+              ]}
+            />
+          )}
+
+          {/* Un solo dueño es un punto único de falla: si pierde el acceso,
+              nadie puede administrar la tienda. */}
+          {owners.length === 1 && canManage && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-bg px-3 py-2.5 text-sm text-warning">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Hay un solo dueño. Si {owners[0]?.userId === me?.id ? 'perdés' : 'pierde'} el acceso a esa
+                cuenta, nadie va a poder administrar la tienda. Conviene que haya un segundo dueño de
+                confianza.
+              </span>
+            </div>
+          )}
+
           {adding && canManage && (
             <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-card">
               <p className="mb-2 text-sm text-fg-muted">
@@ -202,6 +293,9 @@ export function UsersNotificationsPage() {
                   <th className="px-4 py-2.5">Nombre</th>
                   <th className="px-4 py-2.5">Email</th>
                   <th className="px-4 py-2.5">Rol</th>
+                  <th className="px-4 py-2.5" title="Permisos que mueven plata o dan más accesos.">
+                    Accesos sensibles
+                  </th>
                   <th className="px-4 py-2.5">Desde</th>
                   <th className="px-4 py-2.5 text-right">Acciones</th>
                 </tr>
@@ -209,7 +303,7 @@ export function UsersNotificationsPage() {
               <tbody>
                 {membersQ.isLoading && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
+                    <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
                       <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                     </td>
                   </tr>
@@ -239,7 +333,18 @@ export function UsersNotificationsPage() {
                           <select
                             value={normalizeRole(m.role)}
                             disabled={changeRole.isPending}
-                            onChange={(e) => changeRole.mutate({ userId: m.userId, role: e.target.value })}
+                            onChange={async (e) => {
+                              const next = e.target.value;
+                              const current = normalizeRole(m.role);
+                              if (next === current) return;
+                              if (!(await confirmRoleChange(m, next))) {
+                                // Volver a dejar el select como estaba: el
+                                // cambio se cancela, no queda a medias.
+                                e.target.value = current;
+                                return;
+                              }
+                              changeRole.mutate({ userId: m.userId, role: next });
+                            }}
                             className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg outline-none focus:border-primary disabled:opacity-60"
                             title={meta.desc || undefined}
                           >
@@ -255,6 +360,21 @@ export function UsersNotificationsPage() {
                             title={meta.desc || undefined}
                           >
                             {meta.label}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {sensitiveOf(m.role).length > 0 ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-medium text-warning"
+                            title={`Accesos sensibles: ${sensitiveOf(m.role).length}. Mirá el detalle en "Qué puede hacer cada rol".`}
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                            {sensitiveOf(m.role).length}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-fg-subtle">
+                            <ShieldCheck className="h-3.5 w-3.5" /> —
                           </span>
                         )}
                       </td>
@@ -286,7 +406,7 @@ export function UsersNotificationsPage() {
                 })}
                 {!membersQ.isLoading && members.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
+                    <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
                       No hay usuarios.
                     </td>
                   </tr>
@@ -296,13 +416,31 @@ export function UsersNotificationsPage() {
           </div>
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />
 
-          <div className="mt-3 grid gap-1 text-xs text-fg-muted sm:grid-cols-2">
-            {ROLES.map((r) => (
-              <div key={r.value}>
-                <strong className="text-fg">{r.label}</strong> — {r.desc}
+          <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-fg">Los roles, en resumen</p>
+                <div className="mt-2 grid gap-1 text-xs text-fg-muted sm:grid-cols-2">
+                  {ROLES.map((r) => (
+                    <div key={r.value}>
+                      <strong className="text-fg">{r.label}</strong> — {r.desc}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+              <button
+                type="button"
+                onClick={() => setMatrixOpen(true)}
+                className="shrink-0 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
+              >
+                Ver qué puede hacer cada rol
+              </button>
+            </div>
           </div>
+
+          {matrixOpen && (
+            <RolePermissionsMatrix roleLabels={ROLE_LABELS} onClose={() => setMatrixOpen(false)} />
+          )}
         </>
       )}
 

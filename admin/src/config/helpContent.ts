@@ -35,6 +35,9 @@ export const HELP_CATEGORIES = [
   'Clientes y comunicación',
   'Tu tienda online',
   'Equipo',
+  // Última a propósito: es la única categoría que NO está escrita para quien
+  // vende, sino para quien opera la plataforma.
+  'Administrar la plataforma',
 ] as const;
 export type HelpCategory = (typeof HELP_CATEGORIES)[number];
 
@@ -54,6 +57,7 @@ import { CATALOGO } from './help-content-catalogo';
 import { CLIENTES } from './help-content-clientes';
 import { TIENDA } from './help-content-tienda';
 import { EQUIPO } from './help-content-equipo';
+import { PLATAFORMA } from './help-content-plataforma';
 
 /** Manuales reales de cada parte del sistema. Se muestran en /ayuda/:topic. */
 export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
@@ -65,4 +69,5 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
   ...CLIENTES,
   ...TIENDA,
   ...EQUIPO,
+  ...PLATAFORMA,
 };

@@ -31,6 +31,23 @@ public static class MembersEndpoints
             });
         }).RequireTenant().RequireAuthorization();
 
+        // Qué puede hacer cada rol, con la matriz REAL — la misma que decide
+        // los permisos en cada request. El panel la muestra tal cual: si acá se
+        // duplicara la lista, tarde o temprano diría una cosa distinta de la
+        // que el sistema hace.
+        group.MapGet("/members/roles", () => Results.Ok(new
+        {
+            items = RolePermissions.AssignableRoles.Select(role => new
+            {
+                role,
+                rank = RolePermissions.Rank(role),
+                permissions = RolePermissions.For(role).Select(RolePermissions.WireKey).OrderBy(p => p),
+            }),
+            // Todos los permisos que existen, para que el panel pueda mostrar
+            // también los que un rol NO tiene.
+            all = Enum.GetValues<Permission>().Select(RolePermissions.WireKey).OrderBy(p => p),
+        })).RequireTenant().RequirePermission(Permission.MembersRead);
+
         var members = group.MapGroup("/members");
 
         // Listado de miembros con su email/nombre.

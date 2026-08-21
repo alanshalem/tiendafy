@@ -38,6 +38,7 @@ import {
   Truck,
   Users,
   Warehouse,
+  Wrench,
 } from 'lucide-react';
 import {
   HELP_CONTENT,
@@ -93,6 +94,7 @@ const CATEGORY_ICONS: Record<HelpCategory, typeof BookOpen> = {
   'Clientes y comunicación': MessageCircle,
   'Tu tienda online': Palette,
   Equipo: Users,
+  'Administrar la plataforma': Wrench,
 };
 
 /** Artículos destacados en el índice cuando no hay búsqueda. */
