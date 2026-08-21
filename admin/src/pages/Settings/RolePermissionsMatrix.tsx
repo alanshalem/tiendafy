@@ -52,6 +52,16 @@ const PERMISSIONS: { key: string; label: string; area: string; sensitive?: boole
 
 const AREAS = ['Ventas', 'Catálogo', 'Clientes', 'Marketing', 'Facturación', 'Configuración'];
 
+/**
+ * La columna de la izquierda queda fija al scrollear de costado. En una tabla
+ * angosta, sin esto se ve una columna de tildes sin saber a qué permiso
+ * corresponde cada fila. Fondo opaco para que el resto pase por abajo.
+ */
+const STICKY_LABEL = 'sticky left-0 bg-surface text-left';
+/** Los bordes van por celda (la tabla usa border-separate). */
+const HEAD_LINE = 'border-b border-border';
+const ROW_LINE = 'border-b border-border/60';
+
 /** Permisos que conviene señalar en la fila de cada persona. */
 export const SENSITIVE_KEYS = PERMISSIONS.filter((p) => p.sensitive).map((p) => p.key);
 
@@ -93,67 +103,86 @@ export function RolePermissionsMatrix({
             Lo que no está tildado, no se puede: quien tenga ese rol ni siquiera ve la opción en el panel.
           </p>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="py-2 pr-3 text-left font-medium text-fg-muted">Puede…</th>
-                  {roles.map((r) => (
-                    <th key={r.role} className="px-2 py-2 text-center font-semibold text-fg">
-                      {roleLabels[r.role] ?? r.role}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {AREAS.map((area) => (
-                  <Fragment key={area}>
-                    <tr>
-                      <td
-                        colSpan={roles.length + 1}
-                        className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-fg-subtle"
-                      >
-                        {area}
-                      </td>
-                    </tr>
-                    {PERMISSIONS.filter((p) => p.area === area).map((p) => (
-                      <tr key={p.key} className="border-b border-border/60 last:border-b-0">
-                        <td className="py-1.5 pr-3 text-fg">
-                          {p.label}
-                          {p.sensitive && (
-                            <span
-                              className="ml-1.5 rounded-full bg-warning-bg px-1.5 py-0.5 text-[10px] font-semibold text-warning"
-                              title="Permiso sensible: puede mover plata o dar más accesos."
-                            >
-                              sensible
-                            </span>
-                          )}
-                        </td>
-                        {roles.map((r) => {
-                          const has = r.permissions.includes(p.key);
-                          return (
-                            <td key={r.role} className="px-2 py-1.5 text-center">
-                              {has ? (
-                                <Check
-                                  className={cn(
-                                    'mx-auto h-4 w-4',
-                                    p.sensitive ? 'text-warning' : 'text-success',
-                                  )}
-                                  aria-label="Sí"
-                                />
-                              ) : (
-                                <Minus className="mx-auto h-4 w-4 text-fg-subtle/40" aria-label="No" />
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </Fragment>
+          {/* Sin wrapper de scroll propio: el que scrollea es el cuerpo del
+              modal, y así los `sticky` de abajo se anclan a algo que se mueve.
+              border-separate es lo que hace que los bordes los pinte cada
+              celda — con bordes colapsados los pinta la tabla y desaparecen
+              debajo de las celdas fijas. */}
+          <table className="w-full min-w-[40rem] border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                {/* La esquina se fija en los dos ejes, por eso va por encima. */}
+                <th className={cn(STICKY_LABEL, 'top-0 z-30 py-2 pr-3 font-medium text-fg-muted', HEAD_LINE)}>
+                  Puede…
+                </th>
+                {roles.map((r) => (
+                  <th
+                    key={r.role}
+                    className={cn(
+                      'sticky top-0 z-10 bg-surface px-2 py-2 text-center font-semibold text-fg',
+                      HEAD_LINE,
+                    )}
+                  >
+                    {roleLabels[r.role] ?? r.role}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {AREAS.map((area) => (
+                <Fragment key={area}>
+                  {/* El nombre del área va en su propia celda y no en un
+                      colSpan: una celda del ancho de la tabla no se puede
+                      fijar a la izquierda, y al scrollear de costado el
+                      renglón quedaba en blanco. */}
+                  <tr>
+                    <td
+                      className={cn(
+                        STICKY_LABEL,
+                        'z-[1] pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-fg-subtle',
+                      )}
+                    >
+                      {area}
+                    </td>
+                    <td colSpan={roles.length} className="pb-1 pt-4" />
+                  </tr>
+                  {PERMISSIONS.filter((p) => p.area === area).map((p) => (
+                    <tr key={p.key}>
+                      <td className={cn(STICKY_LABEL, 'z-[1] py-1.5 pr-3 text-fg', ROW_LINE)}>
+                        {p.label}
+                        {p.sensitive && (
+                          <span
+                            className="ml-1.5 rounded-full bg-warning-bg px-1.5 py-0.5 text-[10px] font-semibold text-warning"
+                            title="Permiso sensible: puede mover plata o dar más accesos."
+                          >
+                            sensible
+                          </span>
+                        )}
+                      </td>
+                      {roles.map((r) => {
+                        const has = r.permissions.includes(p.key);
+                        return (
+                          <td key={r.role} className={cn('px-2 py-1.5 text-center', ROW_LINE)}>
+                            {has ? (
+                              <Check
+                                className={cn(
+                                  'mx-auto h-4 w-4',
+                                  p.sensitive ? 'text-warning' : 'text-success',
+                                )}
+                                aria-label="Sí"
+                              />
+                            ) : (
+                              <Minus className="mx-auto h-4 w-4 text-fg-subtle/40" aria-label="No" />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
 
           <p className="text-xs text-fg-subtle">
             Nadie puede asignar un rol por encima del suyo, y la tienda no puede quedarse sin dueño.

@@ -56,14 +56,20 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
         if (e.target === dialogRef.current) onClose();
       }}
       className={cn(
-        'w-full rounded-lg bg-surface p-0 shadow-overlay backdrop:bg-black/50',
+        // overflow-hidden pisa el `overflow: auto` que el browser le pone a
+        // <dialog>: sin esto scrollea el diálogo entero y en un modal largo se
+        // van de pantalla el título, la X de cerrar y los botones del pie.
+        'w-full overflow-hidden rounded-lg bg-surface p-0 shadow-overlay backdrop:bg-black/50',
         'm-auto', // centrado
         sizeClasses[size],
       )}
     >
-      <div onClick={(e) => e.stopPropagation()}>
+      {/* El alto lo pone este div y no el <dialog>, así el cuerpo es lo único
+          que scrollea. min-h-0 es lo que deja al cuerpo achicarse: sin eso un
+          hijo de flex nunca baja de su alto de contenido y no scrollea nada. */}
+      <div className="flex max-h-[85dvh] flex-col" onClick={(e) => e.stopPropagation()}>
         {title && (
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-base font-semibold text-fg">{title}</h2>
             <button
               type="button"
@@ -77,8 +83,15 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
             </button>
           </div>
         )}
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>}
+        {/* El padding de arriba y abajo va adentro y no en el contenedor que
+            scrollea: si no, un encabezado `sticky top-0` se ancla debajo del
+            padding y deja pasar una franja de contenido por encima. */}
+        <div className="min-h-0 flex-1 overflow-auto px-5">
+          <div className="py-4">{children}</div>
+        </div>
+        {footer && (
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>
+        )}
       </div>
     </dialog>,
     document.body,
