@@ -24,7 +24,13 @@ export function WhatsAppFab({
   const initial = (storeName || 'T').trim().charAt(0).toUpperCase();
 
   return (
-    <div className="group fixed bottom-5 right-5 z-[70]">
+    // El aviso de consentimiento ocupa el borde inferior mientras está: publica
+    // su alto en --tf-consent-h y el botón se corre para no taparle el
+    // "Aceptar". Sin el aviso la variable no existe y queda donde siempre.
+    <div
+      className="group fixed right-5 z-[70]"
+      style={{ bottom: 'calc(1.25rem + var(--tf-consent-h, 0px))' }}
+    >
       {showPreview && (
         <div
           className="pointer-events-none invisible absolute bottom-[4.5rem] right-0 w-[19rem] translate-y-2 overflow-hidden rounded-2xl opacity-0 shadow-2xl ring-1 ring-black/10 transition-all duration-200 md:group-hover:pointer-events-auto md:group-hover:visible md:group-hover:translate-y-0 md:group-hover:opacity-100"

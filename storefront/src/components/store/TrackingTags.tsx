@@ -275,36 +275,69 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
   return <ConsentBar onDecide={decide} />;
 }
 
-/** Barra de consentimiento. Aparece solo si hay algo que consentir. */
+/**
+ * Aviso de consentimiento. Aparece en todas las pantallas de la tienda hasta
+ * que la persona responde, y no vuelve a aparecer.
+ *
+ * Toma la estética de la tienda donde está parado sin configurar nada: los
+ * colores y las tipografías salen de las variables del tema, y el redondeo lo
+ * resuelve la hoja de estilos global según lo que eligió el comercio en el
+ * editor de diseño. Un aviso que se ve pegado no genera confianza, y esto es
+ * justamente una pregunta de confianza.
+ */
 function ConsentBar({ onDecide }: { onDecide: (d: Decision) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+
+  // Publica el alto del aviso para que lo que flota sobre el borde inferior
+  // —hoy el botón de WhatsApp— se corra en vez de taparlo.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const publish = () =>
+      document.documentElement.style.setProperty('--tf-consent-h', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--tf-consent-h');
+    };
+  }, []);
+
   return (
     <div
+      ref={box}
       role="dialog"
       aria-live="polite"
       aria-label="Preferencias de medición"
-      className="fixed inset-x-0 bottom-0 z-[70] border-t border-[rgb(var(--color-fg)/0.12)] bg-bg px-4 py-4 text-fg shadow-2xl sm:px-6"
+      className="fixed inset-x-0 bottom-0 z-[70] border-t border-[rgb(var(--color-fg)/0.12)] bg-bg text-fg shadow-[0_-8px_32px_-12px_rgb(0_0_0/0.35)]"
     >
-      <div className="mx-auto flex max-w-container flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm leading-relaxed opacity-80">
-          Usamos herramientas de Google y Meta para entender cómo se usa la tienda y qué avisos funcionan.
-          Dejan cookies en tu navegador. Podés decir que no y comprar igual.{' '}
-          <a href="/privacidad" className="font-semibold underline underline-offset-2">
-            Cómo tratamos tus datos
-          </a>
-          .
-        </p>
+      <div className="mx-auto flex max-w-container flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+        <div className="min-w-0">
+          <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+            Antes de seguir
+          </p>
+          <p className="mt-0.5 text-sm leading-relaxed opacity-70">
+            Usamos herramientas de Google y Meta para entender cómo se usa la tienda y qué avisos funcionan.
+            Dejan cookies en tu navegador. Podés decir que no y comprar igual.{' '}
+            <a href="/privacidad" className="font-semibold underline underline-offset-2">
+              Cómo tratamos tus datos
+            </a>
+            .
+          </p>
+        </div>
         <div className="flex shrink-0 gap-2">
           <button
             type="button"
             onClick={() => onDecide('denied')}
-            className="rounded-md border border-[rgb(var(--color-fg)/0.25)] px-4 py-2 text-sm font-semibold"
+            className="rounded-md border border-[rgb(var(--color-fg)/0.25)] px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-[rgb(var(--color-fg)/0.06)]"
           >
             No, gracias
           </button>
           <button
             type="button"
             onClick={() => onDecide('granted')}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg"
           >
             Aceptar
           </button>
