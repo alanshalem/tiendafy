@@ -4,7 +4,7 @@ import { Button, Input, Select, Textarea, useToast } from '@tiendafy/ui';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { useSettings } from './useSettings';
-import { SETTINGS_CARD, TABLE_CARD } from '../../lib/styles';
+import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY } from '../../lib/styles';
 
 /* ---------- Centros de distribución ---------- */
 export function DistributionCentersPage() {
@@ -174,7 +174,7 @@ export function RedirectsPage() {
 
         {value.rules.length > 0 && (
           <table className="mt-4 w-full text-sm">
-            <thead>
+            <thead className={TABLE_HEAD_STICKY}>
               <tr className="border-b border-border text-left text-xs text-fg-muted">
                 <th className="py-2 font-medium">Desde</th>
                 <th className="py-2 font-medium">Hacia</th>

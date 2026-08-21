@@ -6,7 +6,7 @@ import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
-import { SETTINGS_CARD, TABLE_CARD } from '../lib/styles';
+import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 interface Abandoned {
@@ -76,7 +76,7 @@ export function AbandonedCartsPage() {
       ) : (
         <div className={TABLE_CARD}>
           <table className="w-full text-sm">
-            <thead>
+            <thead className={TABLE_HEAD_STICKY}>
               <tr className="border-b border-border text-left text-xs text-fg-muted">
                 <th className="px-4 py-2.5 font-medium">Fecha</th>
                 <th className="px-4 py-2.5 font-medium">Cliente</th>

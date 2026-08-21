@@ -36,16 +36,25 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
   }
 
   return (
-    <div className={cn('overflow-x-auto', className)}>
+    // El scroll de costado solo hace falta en pantalla chica: en grande estas
+    // tablas entran sobradas. Y mientras el envoltorio sea contenedor de
+    // scroll, el `sticky` del encabezado se ancla a él —que no scrollea— en vez
+    // de a la página, así que dejar de serlo es la condición para que funcione.
+    <div className={cn('overflow-x-auto lg:overflow-x-visible', className)}>
       <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border bg-bg-subtle">
+        {/* El fondo va en cada `th` y no en el `tr`: el elemento fijo pinta su
+            propio fondo y el de la fila queda debajo, así que las filas se le
+            verían a través. El borde inferior va como sombra porque con bordes
+            colapsados lo pinta la tabla y bajo una celda fija desaparece. */}
+        <thead className="sticky top-[var(--header-height)] z-10">
+          <tr className="border-b border-border">
             {columns.map((col) => (
               <th
                 key={col.key}
                 scope="col"
                 className={cn(
-                  'px-4 py-2.5 font-medium text-fg-muted',
+                  'bg-bg-subtle px-4 py-2.5 font-medium text-fg-muted',
+                  'shadow-[inset_0_-1px_0_rgb(var(--color-border))]',
                   alignClasses[col.align ?? 'left'],
                   col.className,
                 )}

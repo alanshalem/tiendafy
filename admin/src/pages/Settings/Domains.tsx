@@ -7,7 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_CARD } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
 
 interface DomainStatus {
   subdomain: string;
@@ -82,7 +82,7 @@ export function DomainsPage() {
 
       <div className={TABLE_CARD}>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={TABLE_HEAD_STICKY_SUBTLE}>
             <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
               <th className="px-4 py-2.5">Dirección</th>
               <th className="px-4 py-2.5">Estado</th>

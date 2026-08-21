@@ -8,7 +8,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate } from '../../lib/format';
-import { TABLE_CARD } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
 import { RolePermissionsMatrix, SENSITIVE_KEYS, usePermissionMatrix } from './RolePermissionsMatrix';
@@ -288,7 +288,7 @@ export function UsersNotificationsPage() {
 
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_STICKY_SUBTLE}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
                   <th className="px-4 py-2.5">Nombre</th>
                   <th className="px-4 py-2.5">Email</th>

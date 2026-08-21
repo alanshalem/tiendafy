@@ -15,6 +15,7 @@ import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
 interface CouponRow {
   code: string;
@@ -127,9 +128,9 @@ export function StatsCouponsPage() {
           <p className="py-4 text-sm text-fg-muted">Todavía nadie usó un cupón.</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className={TABLE_SCROLL_X}>
               <table className="w-full min-w-[640px] text-sm">
-                <thead>
+                <thead className={TABLE_HEAD_STICKY}>
                   <tr className="border-b border-border text-left text-xs text-fg-muted">
                     <th className="py-2 font-medium">Código</th>
                     <th className="py-2 text-center font-medium">Usos</th>

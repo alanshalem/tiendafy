@@ -8,6 +8,7 @@ import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
+import { TABLE_HEAD_STICKY } from '../../lib/styles';
 
 interface CodeHit {
   productId: string;
@@ -579,7 +580,7 @@ function ConteoTab() {
       {list.length > 0 && (
         <>
           <table className="mt-3 w-full text-sm">
-            <thead>
+            <thead className={TABLE_HEAD_STICKY}>
               <tr className="border-b border-border text-left text-xs text-fg-muted">
                 <th className="py-2 font-medium">Producto</th>
                 <th className="py-2 text-right font-medium">Sistema</th>

@@ -21,7 +21,7 @@ import { formatDate, formatMoney } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
-import { TABLE_CARD } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_HEAD_STICKY_SUBTLE } from '../lib/styles';
 import { downloadBlob } from '../lib/download';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
@@ -312,8 +312,8 @@ function ComprasList({
                 }}
               />
             </div>
-            {/* Ancho SIEMPRE por wrapper: el w-full base de Select/Input le gana
-                a un w-* pasado por className (cn no resuelve conflictos). */}
+            {/* Ancho por wrapper: acá el control comparte fila con el buscador,
+                así que el que manda es el layout, no el control. */}
             <div className="w-44 shrink-0">
               <Select
                 value={statusFilter}
@@ -342,7 +342,7 @@ function ComprasList({
           />
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_STICKY_SUBTLE}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
                   <th className="px-4 py-2.5 font-medium">Proveedor</th>
                   <th className="px-4 py-2.5 font-medium">Referencia</th>
@@ -454,7 +454,7 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
       </div>
       <div className={TABLE_CARD}>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={TABLE_HEAD_STICKY_SUBTLE}>
             <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
               <th className="px-4 py-2.5 font-medium">Producto</th>
               <th className="px-4 py-2.5 font-medium">SKU</th>
@@ -898,7 +898,7 @@ function ItemsEditor({
       )}
 
       <table className="mt-3 w-full text-sm">
-        <thead>
+        <thead className={TABLE_HEAD_STICKY}>
           <tr className="border-b border-border text-left text-xs text-fg-muted">
             <th className="py-2 font-medium">Producto</th>
             <th className="py-2 font-medium">SKU</th>

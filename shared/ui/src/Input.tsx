@@ -6,11 +6,10 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Pinta borde rojo + aria-invalid. El mensaje va en FormError, no acá. */
   error?: boolean;
   /**
-   * Alto reducido, para celdas de tabla (cantidades, costos, stock). Es una
-   * prop y no una clase suelta a propósito: `cn` concatena sin resolver
-   * conflictos de Tailwind, así que un `className="h-8"` pierde contra el
-   * `h-10` de la base y queda de adorno — que es exactamente lo que pasaba en
-   * once pantallas. El ANCHO sigue yendo en un div que envuelve al control.
+   * Alto reducido, para celdas de tabla (cantidades, costos, stock). Sigue
+   * siendo una prop y no una clase suelta porque nombra una intención —"esto
+   * va en una celda"— y ajusta alto y padding a la vez. Desde que `cn` resuelve
+   * los conflictos de Tailwind, un `className="h-8"` también funcionaría.
    */
   compact?: boolean;
 }

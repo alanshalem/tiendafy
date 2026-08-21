@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
@@ -15,7 +15,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 import { type Category } from './types';
 import { ProductRows } from './ProductRows';
-import { TABLE_CARD } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR } from '../../lib/styles';
 import { ListStats } from '../../components/stats/ListStats';
 
 export interface VariantDto {
@@ -436,9 +436,12 @@ export function ProductsPage() {
           )}
 
           {/* Tabla agrupada */}
-          <div className={TABLE_CARD}>
+          <div
+            className={TABLE_CARD}
+            style={{ '--bulk-bar': selected.size > 0 ? '4rem' : '0px' } as CSSProperties}
+          >
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
                   <th className="w-10 px-3 py-2.5">
                     <Checkbox

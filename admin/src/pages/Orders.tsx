@@ -16,7 +16,7 @@ import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 import { AndreaniShipmentButton } from '../components/AndreaniShipment';
 import { FiscalPanel } from './orders-fiscal';
 import { RefundDialog } from './orders-refund';
-import { TABLE_CARD } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
@@ -325,7 +325,7 @@ export function OrdersPage() {
           />
           <div className={TABLE_CARD}>
             <table className="w-full text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_STICKY}>
                 <tr className="border-b border-border text-left text-xs text-fg-muted">
                   <th className="px-4 py-2.5 font-medium">Fecha</th>
                   <th className="px-4 py-2.5 font-medium">Cliente</th>

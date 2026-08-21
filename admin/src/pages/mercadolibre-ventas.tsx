@@ -16,6 +16,7 @@ import { api, errMsg } from '../lib/api';
 import { StatusLegend } from '../components/StatusLegend';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -172,9 +173,9 @@ export function VentasTab() {
               </span>
             )}
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
+          <div className={`${TABLE_SCROLL_X} rounded-lg border border-border bg-surface shadow-card`}>
             <table className="w-full min-w-[760px] text-sm">
-              <thead>
+              <thead className={TABLE_HEAD_STICKY}>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Comprador</th>

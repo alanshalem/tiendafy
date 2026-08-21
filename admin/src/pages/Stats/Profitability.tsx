@@ -17,6 +17,7 @@ import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDayShort, formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
 interface Profitability {
   currency: string;
@@ -171,7 +172,7 @@ export function StatsProfitabilityPage() {
                   <p className="py-4 text-sm text-fg-muted">Sin ventas en el período.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className={TABLE_HEAD_STICKY}>
                       <tr className="border-b border-border text-left text-xs text-fg-muted">
                         <th className="py-2 font-medium">Canal</th>
                         <th className="py-2 text-right font-medium">Ventas</th>
@@ -204,9 +205,9 @@ export function StatsProfitabilityPage() {
                 {data.byProduct.length === 0 ? (
                   <p className="py-4 text-sm text-fg-muted">Sin ventas con costo en el período.</p>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className={TABLE_SCROLL_X}>
                     <table className="w-full min-w-[560px] text-sm">
-                      <thead>
+                      <thead className={TABLE_HEAD_STICKY}>
                         <tr className="border-b border-border text-left text-xs text-fg-muted">
                           <th className="py-2 font-medium">Producto</th>
                           <th className="py-2 text-right font-medium">Unidades</th>
