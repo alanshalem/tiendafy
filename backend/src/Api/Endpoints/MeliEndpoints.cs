@@ -35,14 +35,50 @@ public static class MeliEndpoints
     {
         var config = group.MapGroup("/admin/meli").RequirePermission(Permission.SettingsWrite);
 
+        // Además de la configuración, lo que hace falta para saber si la
+        // integración está haciendo algo: cuántas publicaciones hay vinculadas
+        // (sin vínculos, los interruptores de stock y precio no tocan nada) y
+        // cuándo fue la última señal de vida de Mercado Libre.
         config.MapGet("/connection", async (
             ITenantContext tenant, MeliDbContext db, IOptions<MeliOptions> options, CancellationToken ct) =>
         {
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
+
+            var links = c is null
+                ? null
+                : await db.ItemLinks.AsNoTracking()
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        total = g.Count(),
+                        stock = g.Count(x => x.SyncStock),
+                        price = g.Count(x => x.SyncPrice),
+                    })
+                    .FirstOrDefaultAsync(ct);
+
+            var orders = c is null
+                ? null
+                : await db.Orders.AsNoTracking()
+                    .GroupBy(_ => 1)
+                    .Select(g => new { total = g.Count(), last = (DateTime?)g.Max(x => x.DateCreatedUtc) })
+                    .FirstOrDefaultAsync(ct);
+
+            var notifications = c is null
+                ? null
+                : await db.Notifications.AsNoTracking()
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        last = (DateTime?)g.Max(x => x.CreatedAtUtc),
+                        stuck = g.Count(x => x.Status == InboxEntry.StatusDead),
+                    })
+                    .FirstOrDefaultAsync(ct);
+
             return Results.Ok(new
             {
                 available = options.Value.Configured,
                 connected = c is not null,
+                isDemo = c?.IsDemo ?? false,
                 nickname = c?.Nickname,
                 meliUserId = c?.MeliUserId,
                 siteId = c?.SiteId,
@@ -52,6 +88,13 @@ public static class MeliEndpoints
                 priceMarkupPct = c?.PriceMarkupPct ?? 0m,
                 autoInvoiceEnabled = c?.AutoInvoiceEnabled ?? false,
                 connectedAtUtc = c?.ConnectedAtUtc,
+                linkedItems = links?.total ?? 0,
+                linkedStock = links?.stock ?? 0,
+                linkedPrice = links?.price ?? 0,
+                ordersImported = orders?.total ?? 0,
+                lastOrderAtUtc = orders?.last,
+                lastNotificationAtUtc = notifications?.last,
+                stuckNotifications = notifications?.stuck ?? 0,
             });
         });
 
@@ -99,10 +142,15 @@ public static class MeliEndpoints
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             if (c is null)
                 return Error.Conflict("Meli.NotConnected", "Conectá tu cuenta de Mercado Libre primero.").ToProblem();
+
+            // Con una cuenta de ejemplo no hay a dónde ir a buscar: el token es
+            // falso y salir a la API terminaría en un 401 y un cartel de error.
+            if (c.IsDemo) return Results.Ok(new { imported = 0, demo = true });
+
             try
             {
                 var count = await sync.BackfillOrdersAsync(c.TenantId, c.MeliUserId, ct);
-                return Results.Ok(new { imported = count });
+                return Results.Ok(new { imported = count, demo = false });
             }
             catch (MeliException ex)
             {

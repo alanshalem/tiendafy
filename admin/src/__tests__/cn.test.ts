@@ -27,6 +27,7 @@ describe('cn', () => {
   });
 
   it('sigue soportando las condicionales de clsx', () => {
-    expect(cn('p-2', false && 'p-8', undefined, ['text-fg'])).toBe('p-2 text-fg');
+    const compact: boolean = false;
+    expect(cn('p-2', compact && 'p-8', undefined, ['text-fg'])).toBe('p-2 text-fg');
   });
 });

@@ -28,7 +28,9 @@ public sealed class MeliStockSyncWorker(
         var db = sp.GetRequiredService<MeliDbContext>();
 
         var connections = await db.Connections.IgnoreQueryFilters().AsNoTracking()
-            .Where(c => c.StockSyncEnabled)
+            // Una cuenta de ejemplo no tiene token real: empujarle stock termina
+            // en 401 y en un reintento cada cinco minutos, para siempre.
+            .Where(c => c.StockSyncEnabled && !c.IsDemo)
             .ToListAsync(ct);
 
         foreach (var connection in connections)
