@@ -28,11 +28,13 @@ Hay dos niveles, no mezclarlos:
 | **MinIO / S3** | Access key + Secret key | tu propio MinIO (el compose de dev lo incluye; en prod es un servicio externo) o un S3 compatible | Plataforma | Sí (imágenes/videos) |
 | **Mercado Libre** | App: Client ID + Client Secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar) → crear aplicación. Redirect URI: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Opcional (canal ML) |
 | **Mercado Pago del merchant** | — (un click) | El merchant conecta su cuenta desde Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
+| **Payway (ex Decidir)** | site_id + public key + private key (sandbox y producción son distintos) | Alta comercial con Payway → te dan las credenciales por ambiente. El comercio las carga en Configuración → Medios de pago → Payway | Tienda | Opcional (tarjeta sin salir del checkout) |
 | **Mercado Libre del merchant** | — (un click) | El merchant conecta su cuenta de vendedor desde Configuración → Mercado Libre (OAuth) | Tienda | Opcional |
 | **WhatsApp Cloud API** | Phone Number ID + access token permanente + plantillas aprobadas | [developers.facebook.com](https://developers.facebook.com) → app con producto WhatsApp; token de system user en Meta Business | Tienda | Opcional |
 | **ARCA (facturación)** | CUIT + certificado digital (vía CSR) + punto de venta | ARCA con clave fiscal: Administración de Certificados Digitales + Puntos de venta (Web Services) — el wizard del admin te guía | Tienda | Para facturar |
 | **Correo Argentino (MiCorreo)** | userToken + passwordToken (TEST y PROD separados) + customerId | Cuenta en [MiCorreo](https://www.correoargentino.com.ar/MiCorreo/public/) + credenciales por su formulario de contacto | Tienda | Opcional |
 | **Zipnova** | API Token + API Secret + account ID | Panel Zipnova → Configuración → Integraciones → Gestionar credenciales. Para probar: registrarse y pedir a soporte que habilite la modalidad "testing" en la cuenta (se desactiva al operar en serio). ⚠️ Fuera de testing, crear envíos consume saldo real | Tienda | Opcional |
+| **Andreani** | Usuario + contraseña de la API + número de cliente + contratos (domicilio y/o sucursal) + sucursal de origen | Alta comercial con Andreani → te habilitan el acceso a la API y te dan los contratos. El comercio los carga en Configuración → Medios de envío → Andreani | Tienda | Opcional |
 
 ---
 
@@ -90,7 +92,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 
 La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla a `.env.prod` (nunca commitearlo) y completarla. El `docker-compose.prod.yml` mapea el subconjunto que está en `.env.prod.example`; el resto de las claves (Mercado Libre, `Email:WebhookSecret`, `PublicApiBaseUrl`, Captcha, Google, `Media:*`, CORS) va como variables de entorno manuales del servicio `api`. Claves del archivo: `PLATFORM_DOMAIN`, `ACME_EMAIL` (TLS de Caddy), `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `SENTRY_DSN_*`, `WORKERS_ENABLED`.
 
-> **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, WhatsApp, MiCorreo, Zipnova, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
+> **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, credenciales de Payway, WhatsApp, MiCorreo, Zipnova, Andreani, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
 
 ## 5. Checklist de lanzamiento (orden sugerido)
 
@@ -103,7 +105,7 @@ La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla 
 7. Sentry DSNs.
 8. Probar compra punta a punta con una tienda de prueba (tarjetas de test de MP).
 9. Backups: verificar que el sidecar de Postgres escriba y que `dpkeys` esté en el respaldo.
-10. Cada tienda conecta lo suyo desde el admin: MP (un click), WhatsApp, ARCA, MiCorreo, Zipnova.
+10. Cada tienda conecta lo suyo desde el admin: MP (un click), Payway, WhatsApp, ARCA, MiCorreo, Zipnova, Andreani.
 
 ## 6. Credenciales de desarrollo (solo local)
 
