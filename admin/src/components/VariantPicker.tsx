@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
+import { Z_ANCHORED } from '../lib/styles';
 import { variantLabel, type CatalogProduct } from '../lib/products';
 import { api } from '../lib/api';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
@@ -52,7 +53,11 @@ export function VariantPicker({
     <div className="relative">
       <Input placeholder={placeholder} value={search} onChange={(e) => setSearch(e.target.value)} />
       {matches.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card">
+        // Sin un z por encima del chrome fijo, la lista queda debajo del
+        // encabezado de la tabla que suele haber abajo en la misma pantalla.
+        <div
+          className={`absolute ${Z_ANCHORED} mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-card`}
+        >
           {matches.map((v) => (
             <button
               key={v.variantId}

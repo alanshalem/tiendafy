@@ -3,6 +3,35 @@
  * estaban copiados en muchas páginas — el render no cambia.
  */
 
+/**
+ * Orden de apilado del panel, completo y en un solo lugar.
+ *
+ * Los números sueltos repartidos por las pantallas son justamente lo que hace
+ * que una capa flotante termine tapada: no hay dónde mirar qué va arriba de
+ * qué, y dos elementos con el mismo z los ordena el HTML —que no es el orden
+ * en que se leen en el código—.
+ *
+ *   10   encabezado fijo de una tabla        (es chrome de la tabla)
+ *   20   chrome fijo de la pantalla          (encabezado del panel, barra de selección)
+ *   30   barras de guardar al pie
+ *   40   capa flotante anclada a un control  (autocompletado, popover en flujo)
+ *   50   paneles laterales y pantallas completas
+ *   70   tooltips (van por portal)
+ *   90   paleta de comandos
+ *  100   avisos
+ *  200   menús de @tiendafy/ui (van por portal)
+ *
+ * Lo que va por portal —tooltips, menús, modales— queda fuera del problema:
+ * se dibuja en la raíz del documento y no compite con nada de la pantalla.
+ */
+
+/**
+ * Capa que se abre pegada a un control y desaparece al elegir. Va por encima
+ * de todo lo que está fijo en la pantalla: es transitoria y es lo que la
+ * persona está usando en ese momento.
+ */
+export const Z_ANCHORED = 'z-40';
+
 /** Card de configuración (p-5; distinta del <Card> de @tiendafy/ui, que usa p-4). */
 export const SETTINGS_CARD = 'rounded-lg border border-border bg-surface p-5 shadow-card';
 
@@ -25,6 +54,10 @@ export const TABLE_CARD = 'overflow-clip rounded-lg border border-border bg-surf
  * fondo y el de la fila queda por debajo, así que las filas se le verían a
  * través. El borde inferior va como sombra porque con bordes colapsados lo
  * pinta la tabla, y bajo una celda fija desaparece.
+ *
+ * El z-10 es el escalón más bajo de la escala de arriba: al pasar a ser un
+ * elemento posicionado, la tabla empieza a competir con lo que flota sobre
+ * ella, y tiene que perder.
  */
 export const TABLE_HEAD_STICKY =
   'sticky top-[var(--header-height)] z-10 [&_th]:bg-surface [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
