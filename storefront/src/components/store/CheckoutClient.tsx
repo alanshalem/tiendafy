@@ -448,6 +448,20 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       const p = await submitRes.json().catch(() => null);
       throw new Error(p?.detail ?? 'No hay stock suficiente para algún producto.');
     }
+
+    // El monto queda anotado en esta pestaña para que la pantalla de "listo"
+    // pueda medir la venta. Va acá y no en un endpoint público porque el total
+    // de una orden no puede quedar a mano de cualquiera que tenga el id; es un
+    // dato del propio comprador, guardado en su propio navegador.
+    try {
+      sessionStorage.setItem(
+        'tiendafy.purchase',
+        JSON.stringify({ orderId: session.id, value: total / 100, currency }),
+      );
+    } catch {
+      /* sin almacenamiento no se mide la venta, pero la compra sigue */
+    }
+
     return session.id as string;
   };
 

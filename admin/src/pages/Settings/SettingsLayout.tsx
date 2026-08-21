@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
+  BarChart3,
   ChevronLeft,
   CreditCard,
   FileText,
@@ -126,6 +127,13 @@ const groups: NavGroup[] = [
         label: 'Redirecciones',
         desc: 'Mandar una dirección vieja a la nueva para no perder visitas ni posicionamiento.',
         icon: Signpost,
+        perm: 'settings.write',
+      },
+      {
+        to: '/configuracion/medicion',
+        label: 'Medición y píxeles',
+        desc: 'Google Analytics, Google Ads, el píxel de Meta y Clarity, con permiso del visitante.',
+        icon: BarChart3,
         perm: 'settings.write',
       },
     ],

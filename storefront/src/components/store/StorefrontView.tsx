@@ -10,6 +10,7 @@ import { CashDiscountContext, type StoreProduct } from './sections';
 import { HomeSections } from './HomeSections';
 import { EditableRegion } from './EditableRegion';
 import { Analytics } from './Analytics';
+import { TrackingTags } from './TrackingTags';
 import { WhatsAppFab } from './WhatsAppFab';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
@@ -150,6 +151,9 @@ export function StorefrontView({
           {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
           {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
           {!live && tenantId && <Analytics tenantId={tenantId} />}
+          {/* En la vista previa del editor no: son datos de prueba, y ensuciarían
+              la medición de la tienda con las visitas de quien la está armando. */}
+          {!live && tenantId && <TrackingTags tenantId={tenantId} />}
           <PreviewContext.Provider value={!!live}>
             <LiveThemeContext.Provider value={live ? theme : null}>
               <AuthProvider storeKey={tenantId}>

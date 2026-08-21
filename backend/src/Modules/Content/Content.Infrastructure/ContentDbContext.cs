@@ -16,6 +16,7 @@ public sealed class ContentDbContext : DbContext
 
     public DbSet<Page> Pages => Set<Page>();
     public DbSet<UrlRedirect> Redirects => Set<UrlRedirect>();
+    public DbSet<TrackingSettings> Tracking => Set<TrackingSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,5 +43,18 @@ public sealed class ContentDbContext : DbContext
         redirect.HasIndex(r => new { r.TenantId, r.FromPath }).IsUnique();
         redirect.Property(r => r.FromPath).HasMaxLength(UrlRedirect.MaxPathLength).IsRequired();
         redirect.Property(r => r.ToPath).HasMaxLength(UrlRedirect.MaxPathLength).IsRequired();
+
+        var tracking = modelBuilder.Entity<TrackingSettings>();
+        tracking.ToTable("tracking_settings");
+        tracking.HasKey(t => t.Id);
+        tracking.Property(t => t.Id).ValueGeneratedNever();
+        tracking.HasQueryFilter(t => !_filterByTenant || t.TenantId == _tenantGuid);
+        tracking.HasIndex(t => t.TenantId).IsUnique();
+        // 40 alcanza de sobra para cualquier identificador y es un tope más:
+        // lo que entra acá ya pasó por una lista blanca de caracteres.
+        tracking.Property(t => t.Ga4Id).HasMaxLength(40);
+        tracking.Property(t => t.GoogleAdsId).HasMaxLength(40);
+        tracking.Property(t => t.MetaPixelId).HasMaxLength(40);
+        tracking.Property(t => t.ClarityId).HasMaxLength(40);
     }
 }

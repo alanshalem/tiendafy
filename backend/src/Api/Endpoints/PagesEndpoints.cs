@@ -17,6 +17,7 @@ public static class PagesEndpoints
     public static RouteGroupBuilder MapPageEndpoints(this RouteGroupBuilder group)
     {
         MapRedirects(group);
+        MapTracking(group);
 
         var pages = group.MapGroup("/pages").RequireTenant().RequirePermissionForWrites(Permission.ContentWrite);
 
@@ -168,8 +169,92 @@ public static class PagesEndpoints
         }).RequirePermission(Permission.SettingsWrite);
     }
 
+    // ------------------------------------------------ Medición y píxeles
+
+    /// <summary>
+    /// Identificadores de las herramientas de medición. Nunca HTML ni
+    /// JavaScript: el storefront arma el cargador con su propia plantilla.
+    /// </summary>
+    private static void MapTracking(RouteGroupBuilder group)
+    {
+        var tracking = group.MapGroup("/tracking").RequireTenant();
+
+        // Público: lo lee el storefront para decidir qué cargar.
+        tracking.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var t = await db.Tracking.AsNoTracking().FirstOrDefaultAsync(ct);
+            // Apagado general: se responde como si no hubiera nada configurado,
+            // así el storefront no necesita conocer la diferencia.
+            if (t is null || !t.Enabled)
+                return Results.Ok(new { requireConsent = true, ga4Id = (string?)null, googleAdsId = (string?)null, metaPixelId = (string?)null, clarityId = (string?)null });
+
+            return Results.Ok(new
+            {
+                requireConsent = t.RequireConsent,
+                ga4Id = t.Ga4Id,
+                googleAdsId = t.GoogleAdsId,
+                metaPixelId = t.MetaPixelId,
+                clarityId = t.ClarityId,
+            });
+        });
+
+        var admin = group.MapGroup("/admin/tracking")
+            .RequireTenant()
+            .RequirePermission(Permission.SettingsWrite);
+
+        admin.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
+        {
+            var t = await db.Tracking.AsNoTracking().FirstOrDefaultAsync(ct);
+            return Results.Ok(AdminDto(t, tenant.TenantId.Value));
+        });
+
+        admin.MapPut("/", async (
+            TrackingRequest request, HttpContext http, ITenantContext tenant,
+            ContentDbContext db, CancellationToken ct) =>
+        {
+            var t = await db.Tracking.FirstOrDefaultAsync(ct);
+            if (t is null)
+            {
+                t = TrackingSettings.CreateDefault(tenant.TenantId.Value);
+                db.Tracking.Add(t);
+            }
+
+            var result = t.Update(
+                request.Enabled, request.RequireConsent,
+                request.Ga4Id, request.GoogleAdsId, request.MetaPixelId, request.ClarityId,
+                http.User.GetUserId());
+            if (result.IsFailure) return result.Error.ToProblem();
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(AdminDto(t, tenant.TenantId.Value));
+        });
+    }
+
+    private static object AdminDto(TrackingSettings? t, Guid tenantId)
+    {
+        t ??= TrackingSettings.CreateDefault(tenantId);
+        return new
+        {
+            enabled = t.Enabled,
+            requireConsent = t.RequireConsent,
+            ga4Id = t.Ga4Id,
+            googleAdsId = t.GoogleAdsId,
+            metaPixelId = t.MetaPixelId,
+            clarityId = t.ClarityId,
+            updatedByUserId = t.UpdatedByUserId,
+            updatedAtUtc = t.UpdatedAtUtc,
+        };
+    }
 }
 
 public sealed record PageRequest(string Title, string? Slug, string? Body, bool Published);
 
 public sealed record RedirectRequest(string? From, string? To);
+
+public sealed record TrackingRequest(
+    bool Enabled,
+    bool RequireConsent,
+    string? Ga4Id,
+    string? GoogleAdsId,
+    string? MetaPixelId,
+    string? ClarityId);

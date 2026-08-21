@@ -151,6 +151,83 @@ export const TIENDA = {
     ],
   },
 
+  externalCodes: {
+    title: 'Medición y píxeles',
+    intro:
+      'Conectá Google, Meta y Clarity para saber de dónde viene tu gente y qué avisos terminan en venta.',
+    category: 'Tu tienda online',
+    sections: [
+      {
+        heading: 'Pegás un identificador, no un código',
+        paragraphs: [
+          'En otras plataformas hay una caja para pegar el fragmento que te da Google o Meta. Acá no, y es a propósito: el formulario donde tu cliente escribe el número de tarjeta está dentro de tu propia tienda, y un código de afuera metido en esa pantalla es exactamente la forma en que se roban tarjetas en el comercio electrónico.',
+          'Vos cargás el identificador —una cadena corta como G-ABCD123456— y el código lo escribe Tiendafy. Ninguna de estas herramientas se carga en la pantalla de pago, ni siquiera si el visitante ya aceptó.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Medición y píxeles'] },
+          {
+            type: 'table',
+            headers: ['Herramienta', 'Para qué', 'Dónde está el identificador'],
+            rows: [
+              [
+                'Google Analytics 4',
+                'Cuánta gente entra, de dónde y qué mira',
+                'analytics.google.com → Administrar → Flujos de datos',
+              ],
+              [
+                'Google Ads',
+                'Qué avisos terminan en venta',
+                'ads.google.com → Herramientas → Etiqueta de Google',
+              ],
+              [
+                'Píxel de Meta',
+                'Campañas de Facebook e Instagram',
+                'business.facebook.com → Administrador de eventos',
+              ],
+              [
+                'Microsoft Clarity',
+                'Grabaciones y mapas de calor, gratis',
+                'clarity.microsoft.com → Settings → Overview',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'El permiso del visitante',
+        paragraphs: [
+          'Con "Pedir permiso" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga nunca y no se vuelve a preguntar. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
+          'Si el navegador manda la señal de "no me rastreen" (Global Privacy Control), se toma como un no sin preguntar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Las visitas que mide Tiendafy para tus propias estadísticas no dependen de esto: son tuyas, no se comparten con nadie y no llevan a ninguna plataforma de avisos.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Nombrá las herramientas que uses en tu política de privacidad. Se edita como una página de contenido con la dirección «privacidad».',
+          },
+        ],
+      },
+      {
+        heading: 'Qué se mide y qué no',
+        paragraphs: [
+          'Se cuentan las visitas a cada pantalla y, cuando una compra termina bien, la venta con su monto — que es lo que le permite a Google y a Meta decirte cuánto te rindió cada aviso. No se mide nada en la pantalla de pago.',
+          'Si necesitás una herramienta que no está en la lista, pedila: se agrega al catálogo con su cargador escrito por nosotros. La lista es corta a propósito, no por falta de ganas.',
+        ],
+      },
+      {
+        heading: 'Verificar tu dominio en Google o Meta',
+        paragraphs: [
+          'Para eso no hace falta ningún código en la tienda: tanto Search Console como Meta aceptan verificar por DNS, agregando un registro TXT donde compraste el dominio. Es mejor así — sobrevive a cualquier cambio del sitio.',
+        ],
+      },
+    ],
+  },
+
   ajustesAvanzados: {
     title: 'Redirecciones',
     intro: 'Que un link viejo no termine en “página no encontrada”.',

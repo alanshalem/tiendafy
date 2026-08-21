@@ -71,6 +71,62 @@ namespace Content.Infrastructure.Migrations
                     b.ToTable("pages", (string)null);
                 });
 
+            modelBuilder.Entity("Content.Infrastructure.TrackingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ClarityId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("clarity_id");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("Ga4Id")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ga4id");
+
+                    b.Property<string>("GoogleAdsId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("google_ads_id");
+
+                    b.Property<string>("MetaPixelId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("meta_pixel_id");
+
+                    b.Property<bool>("RequireConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_consent");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tracking_settings");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tracking_settings_tenant_id");
+
+                    b.ToTable("tracking_settings", (string)null);
+                });
+
             modelBuilder.Entity("Content.Infrastructure.UrlRedirect", b =>
                 {
                     b.Property<Guid>("Id")

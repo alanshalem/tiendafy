@@ -76,6 +76,7 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   fiscal: Receipt,
   legal: Scale,
   seo: TrendingUp,
+  externalCodes: BarChart3,
   ajustesAvanzados: SlidersHorizontal,
 };
 

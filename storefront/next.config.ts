@@ -8,10 +8,34 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
 // (MercadoPago SDK, Cloudflare Turnstile, Google fonts) y nada más. No es airtight
 // porque las imágenes multi-tenant vienen de hosts arbitrarios, pero bloquea la
 // carga de <script> externos no autorizados (vector principal de XSS/exfiltración).
+// Orígenes de las herramientas de medición que el panel deja habilitar. Es una
+// lista cerrada y revisable: el comercio elige cuáles enciende, pero no puede
+// agregar un origen nuevo — para eso hay que tocar este archivo y que alguien
+// lea el diff. Van siempre, encienda o no la tienda sus tags: el CSP se arma en
+// build y es el mismo para todas, y no cambia nada — el navegador solo permite
+// cargar desde estos hosts, que son de Google, Meta y Microsoft, no del comercio.
+const TRACKING_SCRIPT = [
+  'https://www.googletagmanager.com',
+  'https://connect.facebook.net',
+  'https://www.clarity.ms',
+  'https://*.clarity.ms',
+].join(' ');
+
+const TRACKING_CONNECT = [
+  'https://www.google-analytics.com',
+  'https://*.google-analytics.com',
+  'https://*.analytics.google.com',
+  'https://www.googletagmanager.com',
+  'https://*.g.doubleclick.net',
+  'https://www.facebook.com',
+  'https://connect.facebook.net',
+  'https://*.clarity.ms',
+].join(' ');
+
 const csp = [
   "default-src 'self'",
   // 'unsafe-inline'/'unsafe-eval' los necesita Next (bootstrap inline + webpack).
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com https://challenges.cloudflare.com",
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://*.mercadopago.com https://challenges.cloudflare.com ${TRACKING_SCRIPT}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https: http:",
   // Videos de hero (webm/mp4): vienen del bucket de media (MinIO http en dev, R2/S3
@@ -19,7 +43,7 @@ const csp = [
   // fallback default-src 'self' y el navegador bloquea la carga.
   "media-src 'self' data: blob: https: http:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' ${API} https://*.mercadopago.com https://api.mercadopago.com https://challenges.cloudflare.com`,
+  `connect-src 'self' ${API} https://*.mercadopago.com https://api.mercadopago.com https://challenges.cloudflare.com ${TRACKING_CONNECT}`,
   // Embeds de la sección Instagram/Video: iframes de YouTube, Vimeo e Instagram.
   // Sin estos orígenes el navegador bloquea el iframe ("This content is blocked").
   'frame-src https://*.mercadopago.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.instagram.com',

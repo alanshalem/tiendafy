@@ -46,6 +46,7 @@ const NAV_VISIBILITY: Record<string, boolean> = {
   '/configuracion/usuarios': true,
   '/configuracion/dominios': true,
   '/configuracion/redirecciones': true,
+  '/configuracion/medicion': true,
 };
 
 export const isNavVisible = (to: string): boolean => NAV_VISIBILITY[to] ?? true;
@@ -92,6 +93,7 @@ export const HELP_LINKS = {
   legal: { label: 'Requisitos legales de tu tienda' },
   seo: { label: 'Más sobre cómo aparecer en Google' },
   ajustesAvanzados: { label: 'Más sobre redirecciones' },
+  externalCodes: { label: 'Más sobre medición y píxeles' },
   plataformaPuestaEnMarcha: { label: 'Poner Tiendafy en marcha' },
   plataformaClaves: { label: 'Qué conseguir y dónde se carga cada cosa' },
   plataformaTramites: { label: 'Trámites y altas con proveedores' },

@@ -9,6 +9,7 @@ import { AutoEmailsPage } from './pages/Settings/AutoEmails';
 import { WhatsAppAutoPage } from './pages/Settings/WhatsAppAuto';
 import { CheckoutOptionsPage } from './pages/Settings/CheckoutOptions';
 import { RedirectsPage } from './pages/Settings/Redirects';
+import { TrackingPage } from './pages/Settings/Tracking';
 import { FiscalInvoicingPage } from './pages/Settings/FiscalInvoicing';
 import { DomainsPage } from './pages/Settings/Domains';
 import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
@@ -130,6 +131,7 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'usuarios', perm: 'members.read', el: <UsersNotificationsPage /> },
   { path: 'dominios', perm: 'settings.write', el: <DomainsPage /> },
   { path: 'redirecciones', perm: 'settings.write', el: <RedirectsPage /> },
+  { path: 'medicion', perm: 'settings.write', el: <TrackingPage /> },
 ];
 
 const renderRoute = (r: AppRoute) => (
