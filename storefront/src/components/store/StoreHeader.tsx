@@ -218,16 +218,21 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     { href: href('/productos'), label: 'Productos' },
     { href: href('/contacto'), label: 'Contacto' },
   ];
+  // `whitespace-nowrap` en cada ítem y `flex-wrap` en el menú: un nombre largo
+  // como "Términos y condiciones" nunca se parte al medio, y si no entran todos
+  // bajan enteros a un segundo renglón. Antes se cortaban en dos líneas —
+  // "Términos y / condiciones"— y el encabezado se veía roto.
+  const navItem = 'whitespace-nowrap opacity-90 hover:opacity-100';
   const nav = (
-    <nav className="flex items-center gap-6 text-sm">
-      <Link href={navLinks[0].href} className="opacity-90 hover:opacity-100">
+    <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm lg:gap-x-6">
+      <Link href={navLinks[0].href} className={navItem}>
         {navLinks[0].label}
       </Link>
-      <Link href={navLinks[1].href} className="opacity-90 hover:opacity-100">
+      <Link href={navLinks[1].href} className={navItem}>
         {navLinks[1].label}
       </Link>
       <CategoryMenu />
-      <Link href={navLinks[2].href} className="opacity-90 hover:opacity-100">
+      <Link href={navLinks[2].href} className={navItem}>
         {navLinks[2].label}
       </Link>
       <PagesNav />
@@ -306,7 +311,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       break;
     case 'menu-left':
       inner = (
-        <div className="flex h-16 items-center gap-6">
+        <div className="flex min-h-16 items-center gap-6 py-2">
           {logo}
           {nav}
           <div className="ml-auto">{icons}</div>
@@ -315,7 +320,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       break;
     case 'menu-right':
       inner = (
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex min-h-16 items-center justify-between gap-4 py-2">
           {logo}
           <div className="flex items-center gap-6">
             {nav}
@@ -326,7 +331,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
       break;
     default: // classic
       inner = (
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex min-h-16 items-center justify-between gap-4 py-2">
           {logo}
           <div className="hidden flex-1 justify-center md:flex">{nav}</div>
           {icons}

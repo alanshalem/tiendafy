@@ -31,7 +31,11 @@ export function PagesNav() {
   return (
     <>
       {pages.map((p) => (
-        <Link key={p.id} href={href(`/paginas/${p.slug}`)} className="opacity-90 hover:opacity-100">
+        <Link
+          key={p.id}
+          href={href(`/paginas/${p.slug}`)}
+          className="whitespace-nowrap opacity-90 hover:opacity-100"
+        >
           {p.title}
         </Link>
       ))}

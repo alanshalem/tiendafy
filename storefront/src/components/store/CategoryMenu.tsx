@@ -104,7 +104,7 @@ export function CategoryMenu() {
         onMouseEnter={() => setOpen(true)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-1 opacity-90 hover:opacity-100"
+        className="flex items-center gap-1 whitespace-nowrap opacity-90 hover:opacity-100"
       >
         Categorías{' '}
         <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />

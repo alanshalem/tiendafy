@@ -199,7 +199,10 @@ export function SettingsLayout() {
                       }
                     >
                       <item.icon className="h-5 w-5 shrink-0 opacity-80" />
-                      {item.label}
+                      {/* En su propia columna: si el nombre no entra en una
+                          línea, la segunda queda alineada con la primera en vez
+                          de meterse debajo del icono. */}
+                      <span className="min-w-0">{item.label}</span>
                     </NavLink>
                   </Tooltip>
                 ))}
