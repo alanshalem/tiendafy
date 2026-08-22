@@ -136,9 +136,11 @@ export function CatalogBrowser({
         </p>
         <div className="flex items-center gap-2 text-sm">
           <span className="opacity-60">Ordenar por</span>
+          {/* El orden por defecto lo elige el comercio; sigue en la URL solo
+              cuando el visitante elige otro, así el link se puede compartir. */}
           <SortDropdown
-            value={current.sort || 'newest'}
-            onChange={(v) => navigate({ sort: v === 'newest' ? null : v, page: null })}
+            value={current.sort || list.defaultSort}
+            onChange={(v) => navigate({ sort: v === list.defaultSort ? null : v, page: null })}
           />
         </div>
       </div>

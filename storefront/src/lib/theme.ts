@@ -77,6 +77,13 @@ const FONT_FAMILIES: Record<string, string> = {
 const contrastFg = contrastText;
 
 /** Mapa de columnas de grilla del listado (compartido por sections + CatalogBrowser). */
+/** Proporción de la foto en la grilla del listado. */
+export const ratioClass: Record<string, string> = {
+  square: 'aspect-square',
+  portrait: 'aspect-[3/4]',
+  wide: 'aspect-[4/3]',
+};
+
 export const colClass: Record<number, string> = {
   2: 'grid-cols-2',
   3: 'grid-cols-2 sm:grid-cols-3',

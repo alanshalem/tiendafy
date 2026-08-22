@@ -118,8 +118,22 @@ export interface ProductListConfig {
   showCashPrice: boolean;
   installmentsCount: number; // 0 = no mostrar cuotas
   showStockBadge: boolean;
+  /** Con qué orden abre el listado. El visitante lo puede cambiar igual. */
+  defaultSort: 'newest' | 'price_asc' | 'price_desc' | 'name';
+  /** Cuántos productos por página. Más productos = página más lenta en celular. */
+  pageSize: number;
+  /** Proporción de las fotos en la grilla. Vertical favorece indumentaria. */
+  imageRatio: 'square' | 'portrait' | 'wide';
+  /** Cada producto suelto sobre el fondo, o dentro de una tarjeta con marco. */
+  cardStyle: 'plain' | 'boxed';
 }
 export interface ProductDetailConfig {
+  /** Cuotas sin interés a mostrar bajo el precio. 0 = no mostrar. */
+  installmentsCount: number;
+  /** Logos de medios de pago al lado del botón de comprar (usa los del pie). */
+  showPaymentLogos: boolean;
+  /** Botón "Consultar por este producto" con el número del botón de WhatsApp. */
+  askWhatsApp: boolean;
   showSku: boolean;
   showStock: boolean;
   galleryStyle: 'thumbs' | 'thumbs-left' | 'stacked';
@@ -296,8 +310,15 @@ export const baseTheme: ThemeConfig = {
     showCashPrice: false,
     installmentsCount: 0,
     showStockBadge: false,
+    defaultSort: 'newest',
+    pageSize: 24,
+    imageRatio: 'square',
+    cardStyle: 'plain',
   },
   productDetail: {
+    installmentsCount: 0,
+    showPaymentLogos: false,
+    askWhatsApp: false,
     showSku: false,
     showStock: true,
     galleryStyle: 'thumbs',

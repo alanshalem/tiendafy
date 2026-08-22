@@ -58,6 +58,7 @@ export function ThemeEditorPage() {
   const [publishing, setPublishing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loadKey, setLoadKey] = useState(0); // bump = reintentar la carga
+  const [reloadKey, setReloadKey] = useState(0); // bump = remontar el iframe del preview
   // Autosave visible: el usuario tiene que saber si su borrador persistió.
   const [saveState, _setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const saveStateRef = useRef(saveState); // para beforeunload (no ve el state)
@@ -233,7 +234,7 @@ export function ThemeEditorPage() {
     (next: ThemeConfig, init?: RequestInit) => {
       pendingDraft.current = next;
       setSaveState('saving');
-      api
+      return api
         .put('/api/v1/theme/draft', next, init)
         .then(() => {
           // Solo si no hubo un cambio más nuevo mientras viajaba el PUT.
@@ -256,7 +257,7 @@ export function ThemeEditorPage() {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
       }
-      if (pendingDraft.current) saveDraft(pendingDraft.current, init);
+      return pendingDraft.current ? saveDraft(pendingDraft.current, init) : Promise.resolve();
     },
     [saveDraft],
   );
@@ -297,6 +298,25 @@ export function ThemeEditorPage() {
     },
     [postToPreview, saveDraft, setSaveState],
   );
+
+  // Hay opciones que decide el servidor cuando arma la página (con qué orden
+  // trae los productos y cuántos por página): el postMessage repinta el tema,
+  // no vuelve a pedir los datos. Sin esto, esos dos controles parecían rotos.
+  // Se guarda el borrador primero: el preview lee el draft del backend.
+  const serverRendered = theme ? `${theme.productList.pageSize}|${theme.productList.defaultSort}` : '';
+  const lastServerRendered = useRef<string | null>(null);
+  useEffect(() => {
+    if (!serverRendered) return;
+    if (lastServerRendered.current === null || lastServerRendered.current === serverRendered) {
+      lastServerRendered.current = serverRendered;
+      return;
+    }
+    lastServerRendered.current = serverRendered;
+    const t = setTimeout(() => {
+      void flushDraft().then(() => setReloadKey((k) => k + 1));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [serverRendered, flushDraft]);
 
   // Ctrl/Cmd+Z deshace, Ctrl/Cmd+Shift+Z (o Ctrl+Y) rehace. Dentro de un
   // input/textarea gana el undo nativo del campo.
@@ -694,6 +714,7 @@ export function ThemeEditorPage() {
             {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
             {previewToken !== undefined ? (
               <iframe
+                key={reloadKey}
                 ref={iframeRef}
                 src={previewUrl}
                 title="Preview"

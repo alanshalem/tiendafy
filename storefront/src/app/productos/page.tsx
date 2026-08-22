@@ -45,13 +45,18 @@ export default async function ProductsPage({
   const priceMin = Number.parseInt(one(sp.priceMin), 10);
   const priceMax = Number.parseInt(one(sp.priceMax), 10);
 
+  // Orden y tamaño de página salen del diseño. El 48 es el techo del backend:
+  // pedir más de lo que sirve devolvería una página incompleta sin avisar.
+  const list = theme.productList;
+  const pageSize = Math.min(48, Math.max(1, list.pageSize || 24));
+
   const [result, categories] = await Promise.all([
     searchProducts(data.tenant.id, {
       q,
       category,
-      sort,
+      sort: sort || list.defaultSort,
       page,
-      pageSize: 24,
+      pageSize,
       brand,
       options,
       specs,

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { createContext, useContext, useState, type MouseEvent } from 'react';
 import { formatMoney } from '@tiendafy/types';
 import { Icon } from './Icon';
-import type { ProductListConfig } from '@/lib/theme';
+import { ratioClass, type ProductListConfig } from '@/lib/theme';
 import { useCart } from './cart';
 import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
@@ -48,9 +48,23 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
     e.stopPropagation();
     setImgIdx((i) => (i + dir + imgs.length) % imgs.length);
   };
+  const boxed = list.cardStyle === 'boxed';
   return (
-    <div className="group flex h-full flex-col">
-      <Link href={link} className="relative block aspect-square w-full overflow-hidden rounded-lg bg-black/5">
+    <div
+      className={`group flex h-full flex-col ${
+        // "boxed" separa cada producto del fondo: se nota cuando las fotos son
+        // recortadas o de fondo blanco y si no se pierden contra la página.
+        boxed
+          ? 'rounded-lg border border-black/10 bg-bg p-2.5 shadow-sm transition-shadow hover:shadow-md'
+          : ''
+      }`}
+    >
+      <Link
+        href={link}
+        className={`relative block w-full overflow-hidden rounded-lg bg-black/5 ${
+          ratioClass[list.imageRatio] ?? ratioClass.square
+        }`}
+      >
         {/* Badge de descuento: el lever visual de conversión en LATAM. */}
         {onSale && discountPct > 0 && (
           <span className="absolute left-2 top-2 z-10 rounded-md bg-red-600 px-1.5 py-0.5 text-[0.7rem] font-bold text-white shadow-sm">

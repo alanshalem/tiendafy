@@ -61,8 +61,8 @@ public sealed class ThemeDocument
         { "id": "info-bar", "type": "info-bar", "visible": true, "data": {} },
         { "id": "newsletter", "type": "newsletter", "visible": false, "data": { "title": "Recibí novedades", "text": "" } }
       ],
-      "productList": { "columns": 4, "showPrice": true, "showBuyButton": true, "showCompareAt": true, "filterCategories": true, "filterPrice": true, "filterBrand": true, "filterOptions": true, "showCashPrice": false, "installmentsCount": 0, "showStockBadge": false },
-      "productDetail": { "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true, "cashDiscountPercent": 0 },
+      "productList": { "columns": 4, "showPrice": true, "showBuyButton": true, "showCompareAt": true, "filterCategories": true, "filterPrice": true, "filterBrand": true, "filterOptions": true, "showCashPrice": false, "installmentsCount": 0, "showStockBadge": false, "defaultSort": "newest", "pageSize": 24, "imageRatio": "square", "cardStyle": "plain" },
+      "productDetail": { "installmentsCount": 0, "showPaymentLogos": false, "askWhatsApp": false, "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true, "cashDiscountPercent": 0 },
       "cart": { "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true, "notice": "" },
       "contact": { "showForm": true, "address": "", "phone": "", "email": "", "whatsapp": "" },
       "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "showPaymentLogos": true, "paymentLogos": ["mercadopago", "visa", "mastercard"], "whatsapps": [], "addresses": [], "phones": [], "emails": [] },

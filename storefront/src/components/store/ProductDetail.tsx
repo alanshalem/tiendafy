@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { Minus, Plus, Share2, Check, X, ChevronLeft, ChevronRight, ZoomIn, ShieldCheck } from 'lucide-react';
+import {
+  Minus,
+  Plus,
+  Share2,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ShieldCheck,
+  MessageCircle,
+} from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 import { useRouter } from 'next/navigation';
 import { useCart } from './cart';
@@ -20,6 +31,9 @@ interface Variant {
 }
 
 interface DetailConfig {
+  installmentsCount: number;
+  showPaymentLogos: boolean;
+  askWhatsApp: boolean;
   showSku: boolean;
   showStock: boolean;
   galleryStyle: 'thumbs' | 'thumbs-left' | 'stacked';
@@ -46,6 +60,8 @@ export function ProductDetail({
   variants,
   specs = [],
   config,
+  paymentLogos = [],
+  whatsappPhone = '',
 }: {
   name: string;
   description: string | null;
@@ -54,10 +70,16 @@ export function ProductDetail({
   variants: Variant[];
   specs?: SpecRow[];
   config: DetailConfig;
+  /** Logos del pie: se reusan al lado del botón de comprar. */
+  paymentLogos?: string[];
+  /** Número del botón flotante de WhatsApp, para consultar por este producto. */
+  whatsappPhone?: string;
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
   const cfg = live?.productDetail ?? config;
+  const logos = live?.footer.paymentLogos ?? paymentLogos;
+  const waPhone = (live?.whatsappButton.phone ?? whatsappPhone ?? '').replace(/\D/g, '');
   const router = useRouter();
   const href = usePreviewHref();
   const { add, setOpen } = useCart();
@@ -239,6 +261,15 @@ export function ProductDetail({
           </div>
         )}
 
+        {cfg.installmentsCount > 0 && (
+          <div className="mt-1 text-sm opacity-70">
+            {cfg.installmentsCount} cuotas sin interés de{' '}
+            <span className="font-semibold">
+              {formatMoney(Math.round(variant.price.amount / cfg.installmentsCount), variant.price.currency)}
+            </span>
+          </div>
+        )}
+
         {description && <p className="mt-4 whitespace-pre-line opacity-75">{description}</p>}
 
         {/* Ficha técnica: los datos que si no están, se preguntan por WhatsApp. */}
@@ -344,6 +375,33 @@ export function ProductDetail({
               Agregar al carrito
             </button>
           </div>
+
+          {/* Consultar antes de comprar: en muchos rubros la venta se cierra por
+              chat, y sin esto el visitante se iba a buscar el número al pie. */}
+          {cfg.askWhatsApp && waPhone && (
+            <a
+              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`¡Hola! Quería consultar por «${name}».`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-black/15 text-sm font-semibold hover:border-black/40"
+            >
+              <MessageCircle className="h-4 w-4" /> Consultar por este producto
+            </a>
+          )}
+
+          {/* Medios de pago donde se decide la compra, no solo al pie. */}
+          {cfg.showPaymentLogos && logos.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {logos.map((slug) => (
+                <img
+                  key={slug}
+                  src={`/payment-logos/${slug}.svg`}
+                  alt=""
+                  className="h-6 w-auto rounded bg-white p-0.5 opacity-80"
+                />
+              ))}
+            </div>
+          )}
 
           {/* Compartir */}
           <button

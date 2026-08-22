@@ -29,6 +29,28 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
         onReset={reset('productList', 'el listado de productos')}
       />
       <div className="space-y-4 p-4">
+        <Field label="Orden con el que abre" hint="Tu cliente lo puede cambiar desde el listado.">
+          <Select
+            value={theme.productList.defaultSort}
+            onChange={(v) => set({ defaultSort: v as ThemeConfig['productList']['defaultSort'] })}
+            options={[
+              { value: 'newest', label: 'Más nuevos primero' },
+              { value: 'price_asc', label: 'Menor precio primero' },
+              { value: 'price_desc', label: 'Mayor precio primero' },
+              { value: 'name', label: 'Nombre A-Z' },
+            ]}
+          />
+        </Field>
+        <Field
+          label="Productos por página"
+          hint="Más productos por página = menos clicks, pero más lento en celular."
+        >
+          <Select
+            value={String(theme.productList.pageSize)}
+            onChange={(v) => set({ pageSize: Number(v) })}
+            options={[12, 24, 48].map((n) => ({ value: String(n), label: `${n} productos` }))}
+          />
+        </Field>
         <Field label="Productos por fila">
           <Select
             value={String(theme.productList.columns)}
@@ -37,6 +59,27 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
               { value: '2', label: '2 columnas' },
               { value: '3', label: '3 columnas' },
               { value: '4', label: '4 columnas' },
+            ]}
+          />
+        </Field>
+        <Field label="Proporción de las fotos" hint="Vertical le queda bien a la indumentaria.">
+          <Select
+            value={theme.productList.imageRatio}
+            onChange={(v) => set({ imageRatio: v as ThemeConfig['productList']['imageRatio'] })}
+            options={[
+              { value: 'square', label: 'Cuadrada (1:1)' },
+              { value: 'portrait', label: 'Vertical (3:4)' },
+              { value: 'wide', label: 'Apaisada (4:3)' },
+            ]}
+          />
+        </Field>
+        <Field label="Presentación de cada producto">
+          <Select
+            value={theme.productList.cardStyle}
+            onChange={(v) => set({ cardStyle: v as ThemeConfig['productList']['cardStyle'] })}
+            options={[
+              { value: 'plain', label: 'Suelto sobre el fondo' },
+              { value: 'boxed', label: 'Dentro de una tarjeta' },
             ]}
           />
         </Field>
@@ -153,9 +196,41 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
           checked={theme.productDetail.showRelated}
           onChange={(v) => set({ showRelated: v })}
         />
+        <Check
+          label="Mostrar botón «Consultar por este producto»"
+          checked={theme.productDetail.askWhatsApp}
+          onChange={(v) => set({ askWhatsApp: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          Abre WhatsApp con el nombre del producto ya escrito. Usa el número del panel «Botón de WhatsApp»
+          {theme.whatsappButton.phone ? '.' : ' — todavía sin cargar.'}
+        </p>
+        <Check
+          label="Mostrar logos de medios de pago"
+          checked={theme.productDetail.showPaymentLogos}
+          onChange={(v) => set({ showPaymentLogos: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          Los mismos que elegiste en «Pie de página», pero al lado del botón de comprar.
+        </p>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-3 text-sm font-semibold text-fg">Precio y financiación</div>
+          <Field label="Cuotas sin interés (0 = no mostrar)">
+            <Select
+              value={String(theme.productDetail.installmentsCount)}
+              onChange={(v) => set({ installmentsCount: Number(v) })}
+              options={[0, 3, 6, 9, 12].map((n) => ({
+                value: String(n),
+                label: n === 0 ? 'No mostrar' : `${n} cuotas`,
+              }))}
+            />
+          </Field>
+        </div>
+
         <Field
           label="Descuento pagando en efectivo (%)"
-          hint="0 = sin descuento. Se muestra como 'precio con EFECTIVO' en la página del producto."
+          hint="0 = sin descuento. Se muestra como 'precio con EFECTIVO' acá y, si lo activaste, también en el listado."
         >
           <TextInput
             value={String(theme.productDetail.cashDiscountPercent || 0)}

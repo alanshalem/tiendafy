@@ -177,6 +177,8 @@ export default async function ProductDetailPage({
               variants={product.variants}
               specs={specRows}
               config={theme.productDetail}
+              paymentLogos={theme.footer.paymentLogos}
+              whatsappPhone={theme.whatsappButton.phone}
             />
             {theme.productDetail.showRelated && related.length > 0 && (
               <SectionRenderer
