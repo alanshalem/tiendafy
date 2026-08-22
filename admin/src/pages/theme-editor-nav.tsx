@@ -5,7 +5,9 @@ import {
   ChevronUp,
   Code,
   Construction,
+  Copy,
   ExternalLink,
+  History,
   FileText,
   Home,
   Image,
@@ -32,12 +34,18 @@ export function RootNav({
   onOpenGallery,
   onLeave,
   onSearch,
+  onHistory,
+  onCopyFromStore,
 }: {
   onNavigate: (v: string) => void;
   theme: ThemeConfig;
   onOpenGallery: () => void;
   /** Abre el buscador de opciones (también con Ctrl+K). */
   onSearch: () => void;
+  /** Abre el historial de publicaciones. */
+  onHistory: () => void;
+  /** Copiar el diseño de otra tienda. Sin otras tiendas, no se ofrece. */
+  onCopyFromStore?: () => void;
   /** Salir del editor hacia otra pantalla del panel (el borrador se guarda al desmontar). */
   onLeave: (path: string) => void;
 }) {
@@ -54,6 +62,10 @@ export function RootNav({
         <span className="flex-1">Buscar una opción…</span>
         <kbd className="rounded border border-border px-1.5 py-0.5 text-[0.65rem] font-semibold">Ctrl K</kbd>
       </button>
+
+      {onCopyFromStore && (
+        <NavRow icon={Copy} label="Copiar el diseño de otra tienda" onClick={onCopyFromStore} />
+      )}
 
       {/* Atajo a diseños completos listos (colores + fuentes + secciones en 1 click). */}
       <button
@@ -89,6 +101,7 @@ export function RootNav({
       <NavRow icon={Phone} label="Contacto" onClick={() => onNavigate('contact')} />
 
       <GroupLabel>6 · Avanzado y estado</GroupLabel>
+      <NavRow icon={History} label="Historial de publicaciones" onClick={onHistory} />
       <NavRow icon={Code} label="Edición avanzada de CSS" onClick={() => onNavigate('css')} />
       <NavRow icon={Construction} label="Tienda en construcción" onClick={() => onNavigate('coming-soon')} />
 

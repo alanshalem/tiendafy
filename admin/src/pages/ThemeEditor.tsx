@@ -28,6 +28,7 @@ import {
   WhatsAppPanel,
 } from './theme-editor-panels';
 import { OptionSearch } from './theme-editor-search';
+import { CopyFromStoreModal, HistoryModal, ScheduleModal } from './theme-editor-versions';
 
 /* ============================================================
    Editor de diseño con preview en vivo (postMessage al storefront).
@@ -120,6 +121,10 @@ export function ThemeEditorPage() {
   const [reloadKey, setReloadKey] = useState(0); // bump = remontar el iframe del preview
   const [showChanges, setShowChanges] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   // Autosave visible: el usuario tiene que saber si su borrador persistió.
   const [saveState, _setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const saveStateRef = useRef(saveState); // para beforeunload (no ve el state)
@@ -206,6 +211,10 @@ export function ThemeEditorPage() {
       .post<{ token: string }>('/api/v1/theme/preview-token', {})
       .then((r) => setPreviewToken(r.token))
       .catch(() => setPreviewToken(null));
+    api
+      .get<{ scheduledAtUtc: string | null }>('/api/v1/theme/schedule')
+      .then((r) => setScheduledAt(r.scheduledAtUtc))
+      .catch(() => setScheduledAt(null));
     // Un producto real para previsualizar el panel "Detalle de producto".
     api
       .get<{ items: { slug: string }[] }>('/api/v1/products?limit=1')
@@ -504,6 +513,10 @@ export function ThemeEditorPage() {
 
   const areas = changedAreas(theme, published);
 
+  // Restaurar o copiar entra al historial de deshacer como una edición más:
+  // si el comercio se arrepiente, Ctrl+Z lo devuelve donde estaba.
+  const applyIncoming = (cfg: Partial<ThemeConfig>) => updateTheme(() => withDefaults(cfg));
+
   const setColor = (key: keyof ThemeConfig['colors'], value: string) =>
     updateTheme((t) => ({ ...t, colors: { ...t.colors, [key]: value } }));
 
@@ -597,6 +610,16 @@ export function ThemeEditorPage() {
           >
             Ver tienda <ExternalLink className="h-4 w-4" />
           </a>
+          <button
+            onClick={() => setScheduleOpen(true)}
+            title="Programar la publicación para más adelante"
+            className={cn(
+              'text-sm font-medium hover:text-fg',
+              scheduledAt ? 'text-primary' : 'text-fg-muted',
+            )}
+          >
+            {scheduledAt ? 'Programado' : 'Programar'}
+          </button>
           {dirty && (
             <button
               onClick={() => setShowChanges(true)}
@@ -628,6 +651,8 @@ export function ThemeEditorPage() {
               onOpenGallery={() => navigate('/canales/tienda-online/disenios')}
               onLeave={navigate}
               onSearch={() => setSearchOpen(true)}
+              onHistory={() => setHistoryOpen(true)}
+              onCopyFromStore={stores.length > 1 ? () => setCopyOpen(true) : undefined}
             />
           )}
           {view === 'logo' && (

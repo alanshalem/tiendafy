@@ -15,6 +15,7 @@ public sealed class ThemesDbContext : DbContext
     }
 
     public DbSet<ThemeDocument> Themes => Set<ThemeDocument>();
+    public DbSet<ThemeVersion> ThemeVersions => Set<ThemeVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +27,14 @@ public sealed class ThemesDbContext : DbContext
         theme.HasIndex(t => t.TenantId).IsUnique();
         theme.Property(t => t.PublishedConfig).HasColumnType("jsonb");
         theme.Property(t => t.DraftConfig).HasColumnType("jsonb");
+        theme.Property(t => t.ScheduledConfig).HasColumnType("jsonb");
+
+        var version = modelBuilder.Entity<ThemeVersion>();
+        version.ToTable("theme_versions");
+        version.HasKey(v => v.Id);
+        version.Property(v => v.Id).ValueGeneratedNever();
+        version.HasQueryFilter(v => !_filterByTenant || v.TenantId == _tenantGuid);
+        version.HasIndex(v => new { v.TenantId, v.PublishedAtUtc });
+        version.Property(v => v.Config).HasColumnType("jsonb");
     }
 }

@@ -1,0 +1,50 @@
+using Microsoft.EntityFrameworkCore;
+using Themes.Infrastructure;
+
+namespace Api.Workers;
+
+/// <summary>
+/// Publica los diseños programados cuando llega la hora.
+///
+/// Existe para lo mismo que existe el Hot Sale a las 00:00: nadie tiene que
+/// quedarse despierto para apretar "Publicar". Guarda la versión anterior en el
+/// historial igual que una publicación a mano, así "volver atrás" sigue estando
+/// para un cambio que salió mientras el comercio dormía.
+/// </summary>
+public sealed class ThemeScheduleWorker(
+    IServiceScopeFactory scopeFactory,
+    ILogger<ThemeScheduleWorker> logger) : PollingWorker(TimeSpan.FromSeconds(30))
+{
+    protected override void LogPollFailure(Exception ex) =>
+        logger.LogError(ex, "Publicación programada de diseño falló.");
+
+    protected override async Task PollOnceAsync(CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        // Sin tenant en scope el filtro global no aplica: el worker mira todas las tiendas.
+        var db = scope.ServiceProvider.GetRequiredService<ThemesDbContext>();
+
+        var now = DateTime.UtcNow;
+        var due = await db.Themes
+            .Where(t => t.ScheduledAtUtc != null && t.ScheduledAtUtc <= now && t.ScheduledConfig != null)
+            .OrderBy(t => t.ScheduledAtUtc)
+            .Take(20)
+            .ToListAsync(ct);
+
+        foreach (var doc in due)
+        {
+            var next = doc.ScheduledConfig!;
+            if (!string.IsNullOrWhiteSpace(doc.PublishedConfig) && doc.PublishedConfig != next)
+                db.ThemeVersions.Add(ThemeVersion.Create(doc.TenantId, doc.PublishedConfig, null));
+
+            doc.PublishedConfig = next;
+            doc.DraftConfig = next;
+            doc.ScheduledConfig = null;
+            doc.ScheduledAtUtc = null;
+            doc.UpdatedAtUtc = now;
+            logger.LogInformation("Diseño programado publicado para el tenant {TenantId}.", doc.TenantId);
+        }
+
+        if (due.Count > 0) await db.SaveChangesAsync(ct);
+    }
+}

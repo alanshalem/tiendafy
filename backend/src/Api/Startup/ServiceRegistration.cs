@@ -116,6 +116,8 @@ public static class ServiceRegistration
         if (runPollingWorkers) services.AddHostedService<AbandonedCartWorker>();
         if (runPollingWorkers) services.AddHostedService<FavoriteAlertWorker>();
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();
+        // Diseños programados (ej. una portada de Hot Sale que sale a las 00:00).
+        if (runPollingWorkers) services.AddHostedService<Api.Workers.ThemeScheduleWorker>();
         services.AddScoped<CampaignAudienceService>();
 
         // Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,

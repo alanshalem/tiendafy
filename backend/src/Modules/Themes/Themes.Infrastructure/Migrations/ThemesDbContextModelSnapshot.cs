@@ -17,7 +17,7 @@ namespace Themes.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -38,6 +38,14 @@ namespace Themes.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("published_config");
 
+                    b.Property<DateTime?>("ScheduledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at_utc");
+
+                    b.Property<string>("ScheduledConfig")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("scheduled_config");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -54,6 +62,38 @@ namespace Themes.Infrastructure.Migrations
                         .HasDatabaseName("ix_themes_tenant_id");
 
                     b.ToTable("themes", (string)null);
+                });
+
+            modelBuilder.Entity("Themes.Infrastructure.ThemeVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Config")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("config");
+
+                    b.Property<DateTime>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at_utc");
+
+                    b.Property<Guid?>("PublishedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("published_by_user_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_theme_versions");
+
+                    b.HasIndex("TenantId", "PublishedAtUtc")
+                        .HasDatabaseName("ix_theme_versions_tenant_id_published_at_utc");
+
+                    b.ToTable("theme_versions", (string)null);
                 });
 #pragma warning restore 612, 618
         }

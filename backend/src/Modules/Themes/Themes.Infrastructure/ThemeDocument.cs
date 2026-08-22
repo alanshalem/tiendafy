@@ -19,6 +19,16 @@ public sealed class ThemeDocument
     /// <summary>Borrador del editor (preview, todavía no publicado). JSON.</summary>
     public string DraftConfig { get; set; } = DefaultConfig;
 
+    /// <summary>
+    /// Config que sale sola en <see cref="ScheduledAtUtc"/>. Es una copia congelada,
+    /// no "el borrador de ese momento": entre programar y publicar el comercio
+    /// sigue editando, y lo que se programó tiene que salir tal cual se aprobó.
+    /// </summary>
+    public string? ScheduledConfig { get; set; }
+
+    /// <summary>Cuándo sale la config programada (UTC). Null = no hay nada programado.</summary>
+    public DateTime? ScheduledAtUtc { get; set; }
+
     public DateTime UpdatedAtUtc { get; set; }
 
     public static ThemeDocument CreateDefault(Guid tenantId) => new()
