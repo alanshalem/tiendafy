@@ -1,6 +1,6 @@
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
-import { BackHeader, Check, ColorRow, contrastText } from './theme-editor-inputs';
+import { BackHeader, Check, ColorRow, ContrastNote, contrastText } from './theme-editor-inputs';
 
 // Paletas curadas. `group` separa claras de oscuras en el panel.
 const presets = [
@@ -221,6 +221,12 @@ export function ColorsPanel({
               value={theme.colors.text}
               onChange={(v) => setColor('text', v)}
               fallback="#111827"
+            />
+            <ContrastNote fg={theme.colors.text} bg={theme.colors.bg} label="el texto sobre el fondo" />
+            <ContrastNote
+              fg={contrastText(theme.colors.primary)}
+              bg={theme.colors.primary}
+              label="el texto de los botones"
             />
           </div>
         </div>

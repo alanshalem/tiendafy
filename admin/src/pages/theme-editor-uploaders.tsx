@@ -6,6 +6,18 @@ import { api, errMsg } from '../lib/api';
 /* Uploaders del editor de diseño (imagen / video / multi-imagen del carrusel). */
 
 /**
+ * A partir de acá una imagen se nota en la velocidad de la tienda.
+ *
+ * La mayoría de las visitas llegan por celular con datos móviles: una foto de
+ * 3 MB en la portada son varios segundos de pantalla en blanco, y eso se paga
+ * en ventas. No se bloquea la subida (a veces hace falta), se avisa.
+ */
+const HEAVY_IMAGE_BYTES = 600 * 1024;
+
+const kb = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+
+/**
  * Zona de "elegir archivo" con su subida: el trámite (spinner, POST a /media,
  * error legible, reset del input) es idéntico para imagen y para video, y
  * estaba escrito dos veces. Cada uploader pone su preview y sus textos.
@@ -16,12 +28,15 @@ function UploadDropzone({
   busyLabel,
   errorMsg,
   onUploaded,
+  warnHeavy = false,
 }: {
   accept: string;
   idleLabel: string;
   busyLabel: string;
   errorMsg: string;
   onUploaded: (url: string) => void;
+  /** Avisar cuando la imagen pese tanto que se note en celular. */
+  warnHeavy?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
@@ -46,6 +61,11 @@ function UploadDropzone({
           try {
             const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
             onUploaded(url);
+            if (warnHeavy && file.size > HEAVY_IMAGE_BYTES)
+              toast(
+                `La imagen pesa ${kb(file.size)}. En celular con datos móviles tarda; achicala a menos de 600 KB si podés.`,
+                { variant: 'info' },
+              );
           } catch (err) {
             toast(errMsg(err, errorMsg), { variant: 'error' });
           } finally {
@@ -106,6 +126,7 @@ export function ImageUploader({
           busyLabel="Subiendo imagen…"
           errorMsg={errorMsg}
           onUploaded={onChange}
+          warnHeavy
         />
       )}
     </div>

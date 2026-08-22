@@ -5,6 +5,7 @@ import { type ThemeConfig, baseTheme } from '@tiendafy/types';
 
 /** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
 export { contrastText } from '@tiendafy/types';
+import { contrastRatio } from '@tiendafy/types';
 
 /* Primitivos de formulario + helpers de color del editor de diseño. */
 
@@ -35,6 +36,26 @@ export const INPUT_BASE =
   'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
 /** Estilo completo de un input/textarea/select de alto estándar (h-10). */
 const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
+
+/**
+ * Aviso de legibilidad entre dos colores del tema.
+ *
+ * Es el error que más caro sale y que menos se nota editando: el comercio elige
+ * dos colores que le gustan en la pantalla grande, y en un celular al sol el
+ * precio no se lee. WCAG AA pide 4.5 para texto normal.
+ */
+export function ContrastNote({ fg, bg, label }: { fg: string; bg: string; label: string }) {
+  const ratio = contrastRatio(fg, bg);
+  if (ratio >= 4.5) return null;
+  const severe = ratio < 3;
+  return (
+    <p className={cn('mt-1.5 text-xs', severe ? 'text-danger' : 'text-warning')}>
+      {severe ? 'No se lee: ' : 'Se lee justo: '}
+      {label} tiene {ratio.toFixed(1)} de contraste y lo recomendado es 4.5.
+      {severe ? ' Elegí un color más claro o más oscuro.' : ' Miralo en un celular antes de publicar.'}
+    </p>
+  );
+}
 
 export interface QuickStyle<T> {
   name: string;

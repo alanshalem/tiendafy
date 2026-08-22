@@ -14,6 +14,7 @@ import {
   Package,
   Palette,
   Phone,
+  Search as SearchIcon,
   Sparkles,
   ShoppingCart,
   ShoppingBag,
@@ -30,16 +31,29 @@ export function RootNav({
   theme,
   onOpenGallery,
   onLeave,
+  onSearch,
 }: {
   onNavigate: (v: string) => void;
   theme: ThemeConfig;
   onOpenGallery: () => void;
+  /** Abre el buscador de opciones (también con Ctrl+K). */
+  onSearch: () => void;
   /** Salir del editor hacia otra pantalla del panel (el borrador se guarda al desmontar). */
   onLeave: (path: string) => void;
 }) {
   return (
     <div className="py-2">
       <EditorChecklist theme={theme} onNavigate={onNavigate} />
+
+      {/* Buscar una opción por nombre: más rápido que recordar en qué panel vive. */}
+      <button
+        onClick={onSearch}
+        className="mx-3 mb-2 flex w-[calc(100%-1.5rem)] items-center gap-2 rounded-lg border border-border bg-bg-muted px-3 py-2 text-left text-sm text-fg-muted hover:text-fg"
+      >
+        <SearchIcon className="h-4 w-4 shrink-0" />
+        <span className="flex-1">Buscar una opción…</span>
+        <kbd className="rounded border border-border px-1.5 py-0.5 text-[0.65rem] font-semibold">Ctrl K</kbd>
+      </button>
 
       {/* Atajo a diseños completos listos (colores + fuentes + secciones en 1 click). */}
       <button

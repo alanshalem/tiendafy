@@ -11,6 +11,7 @@ import {
   Select,
   TextInput,
   ColorRow,
+  ContrastNote,
   sectionSetter,
   useSectionReset,
   QuickStyles,
@@ -154,6 +155,15 @@ export function HeaderPanel({
               onChange={(v) => setH({ textColor: v })}
               fallback="#ffffff"
             />
+            {/* Solo cuando el encabezado es opaco: sobre una foto el contraste
+                depende de la foto y de la transparencia, no de estos dos. */}
+            {!theme.header.transparentOnHome && theme.header.textColor && (
+              <ContrastNote
+                fg={theme.header.textColor}
+                bg={theme.header.bg}
+                label="el menú sobre el encabezado"
+              />
+            )}
             <Check
               label="Encabezado transparente sobre el inicio"
               checked={theme.header.transparentOnHome}

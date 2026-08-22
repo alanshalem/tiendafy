@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { useNavigate } from 'react-router-dom';
 import { storefrontUrl } from '../lib/storefront';
-import { AlertTriangle, ExternalLink, Monitor, Smartphone, X } from 'lucide-react';
-import { Button, Dropdown, cn, useToast, useConfirm } from '@tiendafy/ui';
+import { AlertTriangle, ExternalLink, Monitor, Smartphone, Tablet, X } from 'lucide-react';
+import { Button, Dropdown, Modal, cn, useToast, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, normalizeTheme, baseTheme } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, setActiveTenant, errMsg } from '../lib/api';
@@ -27,6 +27,7 @@ import {
   RootNav,
   WhatsAppPanel,
 } from './theme-editor-panels';
+import { OptionSearch } from './theme-editor-search';
 
 /* ============================================================
    Editor de diseño con preview en vivo (postMessage al storefront).
@@ -43,6 +44,59 @@ import {
  */
 const withDefaults = (raw: Partial<ThemeConfig>): ThemeConfig => normalizeTheme(raw, []);
 
+type Device = 'mobile' | 'tablet' | 'desktop';
+const DEVICE_KEY = 'tiendafy.editor.device';
+const DEVICE_WIDTH: Record<Device, number | null> = { mobile: 390, tablet: 834, desktop: null };
+const DEVICES = [
+  { id: 'mobile' as const, label: 'Celulares', icon: Smartphone },
+  { id: 'tablet' as const, label: 'Tablets', icon: Tablet },
+  { id: 'desktop' as const, label: 'Computadoras', icon: Monitor },
+];
+const DEVICE_FRAME: Record<Device, string> = {
+  mobile: 'h-[780px]',
+  tablet: 'h-[1000px]',
+  desktop: 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+};
+
+/**
+ * Qué cambió respecto de lo publicado, en palabras. "Publicar" es irreversible
+ * para el visitante: antes de tocarlo hay que poder ver qué se va a mover.
+ */
+const AREA_LABELS: Record<string, string> = {
+  logo: 'Logo',
+  favicon: 'Favicon',
+  shareImage: 'Imagen al compartir',
+  seoTitle: 'Título para Google',
+  seoDescription: 'Descripción para Google',
+  borderRadius: 'Bordes',
+  motion: 'Movimiento',
+  density: 'Densidad',
+  iconKit: 'Íconos',
+  colors: 'Colores de tu marca',
+  fonts: 'Tipo de letra',
+  header: 'Encabezado',
+  announcement: 'Barra de anuncio',
+  comingSoon: 'Tienda en construcción',
+  sections: 'Página de inicio',
+  productList: 'Listado de productos',
+  productDetail: 'Detalle de producto',
+  cart: 'Carrito de compras',
+  contact: 'Contacto',
+  footer: 'Pie de página',
+  whatsappButton: 'Botón de WhatsApp',
+  customCss: 'CSS personalizado',
+};
+
+export function changedAreas(draft: ThemeConfig | null, published: ThemeConfig | null): string[] {
+  if (!draft || !published) return [];
+  return Object.keys(AREA_LABELS)
+    .filter(
+      (k) =>
+        JSON.stringify(draft[k as keyof ThemeConfig]) !== JSON.stringify(published[k as keyof ThemeConfig]),
+    )
+    .map((k) => AREA_LABELS[k]!);
+}
+
 export function ThemeEditorPage() {
   const { store, stores, selectStore } = useStore();
   const navigate = useNavigate();
@@ -53,12 +107,19 @@ export function ThemeEditorPage() {
   const [theme, setTheme] = useState<ThemeConfig | null>(null);
   const [published, setPublished] = useState<ThemeConfig | null>(null); // baseline para "hay cambios sin publicar"
   const [firstSlug, setFirstSlug] = useState<string | null>(null); // un producto real para previsualizar el detalle
-  const [device, setDevice] = useState<'mobile' | 'desktop'>('desktop');
+  // El ancho elegido se recuerda: quien diseña para celular no quiere volver a
+  // clickear "Celulares" cada vez que entra.
+  const [device, setDevice] = useState<Device>(() => {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(DEVICE_KEY) : null;
+    return saved === 'mobile' || saved === 'tablet' || saved === 'desktop' ? saved : 'desktop';
+  });
   const [view, setView] = useState<string>('root'); // 'root' | 'colors' | 'fonts' | 'header' | 'home' | 'home:<sectionId>' | ...
   const [publishing, setPublishing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loadKey, setLoadKey] = useState(0); // bump = reintentar la carga
   const [reloadKey, setReloadKey] = useState(0); // bump = remontar el iframe del preview
+  const [showChanges, setShowChanges] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Autosave visible: el usuario tiene que saber si su borrador persistió.
   const [saveState, _setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const saveStateRef = useRef(saveState); // para beforeunload (no ve el state)
@@ -324,8 +385,17 @@ export function ThemeEditorPage() {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      const inField = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      // Dentro de un campo gana el deshacer nativo, pero el buscador abre igual.
+      if (inField && e.key.toLowerCase() !== 'k') return;
       const k = e.key.toLowerCase();
+      if (k === 'k') {
+        // Buscar una opción: con catorce paneles, recordar dónde vive cada cosa
+        // es trabajo que no le toca al comercio.
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
       if (k === 'z' && !e.shiftKey) {
         const prev = undoStack.current.pop();
         if (prev && theme) {
@@ -432,6 +502,8 @@ export function ThemeEditorPage() {
     }
   };
 
+  const areas = changedAreas(theme, published);
+
   const setColor = (key: keyof ThemeConfig['colors'], value: string) =>
     updateTheme((t) => ({ ...t, colors: { ...t.colors, [key]: value } }));
 
@@ -499,24 +571,19 @@ export function ThemeEditorPage() {
           )}
         </div>
         <div className="flex gap-1 rounded-full border border-border bg-bg-muted p-1">
-          {(['mobile', 'desktop'] as const).map((d) => (
+          {DEVICES.map(({ id, label, icon: Icon }) => (
             <button
-              key={d}
-              onClick={() => setDevice(d)}
+              key={id}
+              onClick={() => {
+                setDevice(id);
+                localStorage.setItem(DEVICE_KEY, id);
+              }}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                device === d ? 'bg-primary text-primary-fg shadow-sm' : 'text-fg-muted hover:text-fg',
+                device === id ? 'bg-primary text-primary-fg shadow-sm' : 'text-fg-muted hover:text-fg',
               )}
             >
-              {d === 'mobile' ? (
-                <>
-                  <Smartphone className="h-4 w-4" /> Celulares
-                </>
-              ) : (
-                <>
-                  <Monitor className="h-4 w-4" /> Computadoras
-                </>
-              )}
+              <Icon className="h-4 w-4" /> {label}
             </button>
           ))}
         </div>
@@ -530,6 +597,14 @@ export function ThemeEditorPage() {
           >
             Ver tienda <ExternalLink className="h-4 w-4" />
           </a>
+          {dirty && (
+            <button
+              onClick={() => setShowChanges(true)}
+              className="text-sm font-medium text-fg-muted hover:text-fg"
+            >
+              Ver qué cambió
+            </button>
+          )}
           <button
             onClick={discard}
             disabled={!dirty}
@@ -552,6 +627,7 @@ export function ThemeEditorPage() {
               theme={theme}
               onOpenGallery={() => navigate('/canales/tienda-online/disenios')}
               onLeave={navigate}
+              onSearch={() => setSearchOpen(true)}
             />
           )}
           {view === 'logo' && (
@@ -705,11 +781,13 @@ export function ThemeEditorPage() {
           <div
             className={cn(
               'transition-all duration-300 ease-out',
-              device === 'mobile'
-                ? 'overflow-hidden rounded-[2rem] border-8 border-black bg-black shadow-2xl'
-                : 'h-full w-full',
+              device === 'mobile' &&
+                'overflow-hidden rounded-[2rem] border-8 border-black bg-black shadow-2xl',
+              device === 'tablet' &&
+                'overflow-hidden rounded-[1.5rem] border-8 border-black bg-black shadow-2xl',
+              device === 'desktop' && 'h-full w-full',
             )}
-            style={device === 'mobile' ? { width: 390 } : undefined}
+            style={DEVICE_WIDTH[device] ? { width: DEVICE_WIDTH[device]! } : undefined}
           >
             {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
             {previewToken !== undefined ? (
@@ -718,20 +796,13 @@ export function ThemeEditorPage() {
                 ref={iframeRef}
                 src={previewUrl}
                 title="Preview"
-                className={cn(
-                  'w-full bg-white',
-                  device === 'mobile'
-                    ? 'h-[780px]'
-                    : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
-                )}
+                className={cn('w-full bg-white', DEVICE_FRAME[device])}
               />
             ) : (
               <div
                 className={cn(
                   'flex w-full items-center justify-center bg-white text-sm text-fg-muted',
-                  device === 'mobile'
-                    ? 'h-[780px]'
-                    : 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+                  DEVICE_FRAME[device],
                 )}
               >
                 Cargando vista previa…
@@ -740,6 +811,32 @@ export function ThemeEditorPage() {
           </div>
         </div>
       </div>
+
+      {searchOpen && <OptionSearch onPick={(v) => setView(v)} onClose={() => setSearchOpen(false)} />}
+
+      <Modal
+        open={showChanges}
+        onClose={() => setShowChanges(false)}
+        title={`Cambios sin publicar (${areas.length})`}
+      >
+        {areas.length === 0 ? (
+          <p className="text-sm text-fg-muted">No hay cambios sin publicar.</p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-fg-muted">
+              Estas partes de tu tienda cambiaron respecto de lo que ven tus clientes hoy.
+            </p>
+            <ul className="space-y-1.5">
+              {areas.map((a) => (
+                <li key={a} className="flex items-center gap-2 text-sm text-fg">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
