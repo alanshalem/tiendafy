@@ -5,6 +5,8 @@ import {
   ChevronUp,
   Code,
   Construction,
+  ExternalLink,
+  FileText,
   Home,
   Image,
   List,
@@ -14,21 +16,26 @@ import {
   Phone,
   Sparkles,
   ShoppingCart,
+  ShoppingBag,
   Square,
   Type,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig, baseTheme } from '@tiendafy/types';
+import { HelpLink } from '../components/HelpLink';
 
 export function RootNav({
   onNavigate,
   theme,
   onOpenGallery,
+  onLeave,
 }: {
   onNavigate: (v: string) => void;
   theme: ThemeConfig;
   onOpenGallery: () => void;
+  /** Salir del editor hacia otra pantalla del panel (el borrador se guarda al desmontar). */
+  onLeave: (path: string) => void;
 }) {
   return (
     <div className="py-2">
@@ -70,6 +77,22 @@ export function RootNav({
       <GroupLabel>6 · Avanzado y estado</GroupLabel>
       <NavRow icon={Code} label="Edición avanzada de CSS" onClick={() => onNavigate('css')} />
       <NavRow icon={Construction} label="Tienda en construcción" onClick={() => onNavigate('coming-soon')} />
+
+      {/* Partes de la tienda que el comprador ve pero que no se pintan acá: sin
+          estas dos filas el diseño terminaba en un callejón y había que salir a
+          buscarlas por el menú del panel. */}
+      <GroupLabel>7 · Se edita en otra pantalla</GroupLabel>
+      <NavRow
+        icon={ShoppingBag}
+        label="Opciones del checkout"
+        external
+        onClick={() => onLeave('/configuracion/opciones-del-checkout')}
+      />
+      <NavRow icon={FileText} label="Páginas de contenido" external onClick={() => onLeave('/paginas')} />
+
+      <div className="px-4 pb-4 pt-2">
+        <HelpLink id="tema" />
+      </div>
     </div>
   );
 }
@@ -143,7 +166,18 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-function NavRow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+function NavRow({
+  icon: Icon,
+  label,
+  onClick,
+  external,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  /** Marca las filas que sacan del editor, para que nadie se sorprenda al salir. */
+  external?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
@@ -151,7 +185,11 @@ function NavRow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: strin
     >
       <Icon className="h-4 w-4 shrink-0 text-fg-muted" />
       <span className="flex-1">{label}</span>
-      <ChevronRight className="h-4 w-4 text-fg-subtle" />
+      {external ? (
+        <ExternalLink className="h-3.5 w-3.5 text-fg-subtle" />
+      ) : (
+        <ChevronRight className="h-4 w-4 text-fg-subtle" />
+      )}
     </button>
   );
 }

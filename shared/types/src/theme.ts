@@ -52,7 +52,6 @@ export interface ThemeHeader {
   showSearch: boolean;
   showCart: boolean;
   cartStyle: 'icon' | 'text';
-  showAccount: boolean;
   border: 'none' | 'line' | 'shadow';
   /**
    * Qué se muestra en el menú y en qué orden. Vacío = todo visible en el orden
@@ -275,7 +274,6 @@ export const baseTheme: ThemeConfig = {
     showSearch: false,
     showCart: true,
     cartStyle: 'icon',
-    showAccount: false,
     border: 'none',
     menu: [],
   },

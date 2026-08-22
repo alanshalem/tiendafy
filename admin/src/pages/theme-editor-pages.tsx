@@ -1,8 +1,16 @@
 import { AlertTriangle } from 'lucide-react';
-import { useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, baseTheme } from '@tiendafy/types';
+import { type ThemeConfig } from '@tiendafy/types';
 import { HelpLink } from '../components/HelpLink';
-import { BackHeader, Field, Check, Select, TextInput, TextArea, sectionSetter } from './theme-editor-inputs';
+import {
+  BackHeader,
+  Field,
+  Check,
+  Select,
+  TextInput,
+  TextArea,
+  sectionSetter,
+  useSectionReset,
+} from './theme-editor-inputs';
 
 export type PanelProps = {
   theme: ThemeConfig;
@@ -11,24 +19,14 @@ export type PanelProps = {
 };
 
 export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
-  const confirm = useConfirm();
   const set = sectionSetter(updateTheme, 'productList');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
       <BackHeader
         title="Listado de productos"
         onBack={onBack}
-        onReset={async () => {
-          if (
-            await confirm({
-              title: 'Restablecer listado',
-              message: '¿Volver el listado de productos a los valores por defecto?',
-              confirmLabel: 'Restablecer',
-              variant: 'danger',
-            })
-          )
-            updateTheme((t) => ({ ...t, productList: baseTheme.productList }));
-        }}
+        onReset={reset('productList', 'el listado de productos')}
       />
       <div className="space-y-4 p-4">
         <Field label="Productos por fila">
@@ -121,9 +119,14 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
 
 export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'productDetail');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Detalle de producto" onBack={onBack} />
+      <BackHeader
+        title="Detalle de producto"
+        onBack={onBack}
+        onReset={reset('productDetail', 'el detalle de producto')}
+      />
       <div className="space-y-4 p-4">
         <Field label="Estilo de galería">
           <Select
@@ -169,9 +172,14 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
 
 export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'comingSoon');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Tienda en construcción" onBack={onBack} />
+      <BackHeader
+        title="Tienda en construcción"
+        onBack={onBack}
+        onReset={reset('comingSoon', 'la tienda en construcción')}
+      />
       <div className="space-y-4 p-4">
         <Check
           label="Activar modo en construcción"
@@ -204,9 +212,10 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
 
 export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'cart');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Carrito de compras" onBack={onBack} />
+      <BackHeader title="Carrito de compras" onBack={onBack} onReset={reset('cart', 'el carrito')} />
       <div className="space-y-4 p-4">
         <Field label="Texto del botón de checkout">
           <TextInput
@@ -247,9 +256,10 @@ export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
 
 export function ContactPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'contact');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Contacto" onBack={onBack} />
+      <BackHeader title="Contacto" onBack={onBack} onReset={reset('contact', 'los datos de contacto')} />
       <div className="space-y-4 p-4">
         <p className="text-xs text-fg-muted">
           Estos datos salen en la <strong>página de Contacto</strong>. Los que aparecen en el{' '}

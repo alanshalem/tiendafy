@@ -1,7 +1,7 @@
-import { Checkbox } from '@tiendafy/ui';
+import { Checkbox, useConfirm } from '@tiendafy/ui';
 import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
-import type { ThemeConfig } from '@tiendafy/types';
+import { type ThemeConfig, baseTheme } from '@tiendafy/types';
 
 /** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
 export { contrastText } from '@tiendafy/types';
@@ -35,6 +35,31 @@ export const INPUT_BASE =
   'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
 /** Estilo completo de un input/textarea/select de alto estándar (h-10). */
 const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
+
+/**
+ * "Restablecer" de un panel: confirma y devuelve esa parte del tema a los
+ * valores de fábrica. Vivía suelto en tres paneles y faltaba en los otros once,
+ * así que deshacer un experimento dependía de en qué pantalla lo hubieras hecho.
+ */
+export function useSectionReset(update: (u: (t: ThemeConfig) => ThemeConfig) => void) {
+  const confirm = useConfirm();
+  return <K extends keyof ThemeConfig>(keys: K | K[], label: string) =>
+    async () => {
+      const list = Array.isArray(keys) ? keys : [keys];
+      const ok = await confirm({
+        title: `Restablecer ${label}`,
+        message: `¿Volver ${label} a los valores por defecto?`,
+        confirmLabel: 'Restablecer',
+        variant: 'danger',
+      });
+      if (!ok) return;
+      update((t) => {
+        const next = { ...t };
+        for (const k of list) next[k] = baseTheme[k];
+        return next;
+      });
+    };
+}
 
 export function BackHeader({
   title,

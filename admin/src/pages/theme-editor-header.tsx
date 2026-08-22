@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { cn, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, type ThemeMenuItem, baseTheme } from '@tiendafy/types';
+import { cn } from '@tiendafy/ui';
+import { type ThemeConfig, type ThemeMenuItem } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
-import { BackHeader, Field, Check, Select, TextInput, ColorRow, sectionSetter } from './theme-editor-inputs';
+import {
+  BackHeader,
+  Field,
+  Check,
+  Select,
+  TextInput,
+  ColorRow,
+  sectionSetter,
+  useSectionReset,
+} from './theme-editor-inputs';
 
 /** Sección plegable para paneles largos (ej. Encabezado). Título clickeable + cuerpo. */
 function Collapsible({
@@ -68,8 +77,8 @@ export function HeaderPanel({
   onBack: () => void;
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
 }) {
-  const confirm = useConfirm();
   const setH = sectionSetter(updateTheme, 'header');
+  const reset = useSectionReset(updateTheme);
   // Editar / quitar un anuncio por índice (evita repetir el map/filter en cada campo).
   const updateItem = (i: number, patch: Partial<ThemeConfig['announcement']['items'][number]>) =>
     updateTheme((t) => ({
@@ -91,17 +100,7 @@ export function HeaderPanel({
       <BackHeader
         title="Encabezado"
         onBack={onBack}
-        onReset={async () => {
-          if (
-            await confirm({
-              title: 'Restablecer encabezado',
-              message: '¿Volver el encabezado y la barra de anuncio a los valores por defecto?',
-              confirmLabel: 'Restablecer',
-              variant: 'danger',
-            })
-          )
-            updateTheme((t) => ({ ...t, header: baseTheme.header, announcement: baseTheme.announcement }));
-        }}
+        onReset={reset(['header', 'announcement'], 'el encabezado y la barra de anuncio')}
       />
       <div className="space-y-4 p-4">
         <div>
@@ -243,11 +242,6 @@ export function HeaderPanel({
                 />
               </Field>
             )}
-            <Check
-              label="Mostrar ícono de cuenta"
-              checked={theme.header.showAccount}
-              onChange={(v) => setH({ showAccount: v })}
-            />
           </div>
         </Collapsible>
 

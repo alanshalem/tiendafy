@@ -531,6 +531,7 @@ export function ThemeEditorPage() {
               onNavigate={setView}
               theme={theme}
               onOpenGallery={() => navigate('/canales/tienda-online/disenios')}
+              onLeave={navigate}
             />
           )}
           {view === 'logo' && (

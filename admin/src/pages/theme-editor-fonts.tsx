@@ -1,6 +1,6 @@
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig, FONT_OPTIONS, FONT_FAMILY_CSS } from '@tiendafy/types';
-import { BackHeader, Field, Select } from './theme-editor-inputs';
+import { BackHeader, Field, Select, useSectionReset } from './theme-editor-inputs';
 
 // Catálogo compartido (@tiendafy/types). Copia mutable para el <Select> (options no-readonly).
 const fontOptions: { value: string; label: string }[] = [...FONT_OPTIONS];
@@ -40,11 +40,12 @@ export function FontsPanel({
 }) {
   const setFont = (k: 'heading' | 'body', v: string) =>
     updateTheme((t) => ({ ...t, fonts: { ...t.fonts, [k]: v } }));
+  const reset = useSectionReset(updateTheme);
   const applyPair = (heading: string, body: string) =>
     updateTheme((t) => ({ ...t, fonts: { ...t.fonts, heading, body } }));
   return (
     <div>
-      <BackHeader title="Tipo de letra" onBack={onBack} />
+      <BackHeader title="Tipo de letra" onBack={onBack} onReset={reset('fonts', 'el tipo de letra')} />
       <div className="space-y-5 p-4">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">

@@ -49,7 +49,7 @@ public sealed class ThemeDocument
       "iconKit": "lucide",
       "colors": { "primary": "232 80 30", "accent": "27 21 16", "useAccent": false, "bg": "255 255 255", "text": "17 24 39" },
       "fonts": { "heading": "sans", "body": "sans" },
-      "header": { "bg": "27 21 16", "sticky": true, "logoSize": "md", "showTabsMobile": true, "layout": "classic", "textColor": "", "transparentOnHome": false, "transparentLevel": "full", "showSearch": false, "showCart": true, "cartStyle": "icon", "showAccount": false, "border": "none", "menu": [] },
+      "header": { "bg": "27 21 16", "sticky": true, "logoSize": "md", "showTabsMobile": true, "layout": "classic", "textColor": "", "transparentOnHome": false, "transparentLevel": "full", "showSearch": false, "showCart": true, "cartStyle": "icon", "border": "none", "menu": [] },
       "announcement": { "show": false, "animation": "static", "items": [] },
       "comingSoon": { "enabled": false, "title": "Estamos en construcción", "message": "Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!" },
       "sections": [

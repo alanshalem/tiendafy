@@ -1,9 +1,10 @@
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
-import { BackHeader, INPUT_BASE } from './theme-editor-inputs';
+import { BackHeader, INPUT_BASE, useSectionReset } from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
 
 export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
+  const reset = useSectionReset(updateTheme);
   const radiusOpts: { value: ThemeConfig['borderRadius']; label: string; sample: string }[] = [
     { value: 'rounded', label: 'Redondeado', sample: 'rounded-xl' },
     { value: 'soft', label: 'Suave', sample: 'rounded' },
@@ -18,7 +19,11 @@ export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
   ];
   return (
     <div>
-      <BackHeader title="Estilo y movimiento" onBack={onBack} />
+      <BackHeader
+        title="Estilo y movimiento"
+        onBack={onBack}
+        onReset={reset(['borderRadius', 'iconKit', 'motion', 'density'], 'el estilo y el movimiento')}
+      />
       <div className="space-y-6 p-4">
         <div>
           <div className="mb-2 text-sm font-semibold text-fg">Bordes</div>
@@ -121,9 +126,14 @@ export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
 }
 
 export function CssPanel({ theme, onBack, updateTheme }: PanelProps) {
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Edición avanzada de CSS" onBack={onBack} />
+      <BackHeader
+        title="Edición avanzada de CSS"
+        onBack={onBack}
+        onReset={reset('customCss', 'el CSS personalizado')}
+      />
       <div className="space-y-2 p-4">
         <p className="text-xs text-fg-muted">
           CSS personalizado inyectado en tu tienda. Para usuarios avanzados.

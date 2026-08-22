@@ -8,14 +8,16 @@ import {
   TextArea,
   StringList,
   sectionSetter,
+  useSectionReset,
 } from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
 
 export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'footer');
+  const reset = useSectionReset(updateTheme);
   return (
     <div>
-      <BackHeader title="Pie de página" onBack={onBack} />
+      <BackHeader title="Pie de página" onBack={onBack} onReset={reset('footer', 'el pie de página')} />
       <div className="space-y-4 p-4">
         <Field label="Texto del pie">
           <TextArea value={theme.footer.text} onChange={(v) => set({ text: v })} />

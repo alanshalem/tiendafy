@@ -1,6 +1,14 @@
 import { cn } from '@tiendafy/ui';
 import { HelpLink } from '../components/HelpLink';
-import { BackHeader, Field, Check, TextInput, TextArea, sectionSetter } from './theme-editor-inputs';
+import {
+  BackHeader,
+  Field,
+  Check,
+  TextInput,
+  TextArea,
+  sectionSetter,
+  useSectionReset,
+} from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
 
 const WHATSAPP_MESSAGES = [
@@ -13,10 +21,15 @@ const WHATSAPP_MESSAGES = [
 
 export function WhatsAppPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'whatsappButton');
+  const reset = useSectionReset(updateTheme);
   const w = theme.whatsappButton;
   return (
     <div>
-      <BackHeader title="Botón de WhatsApp" onBack={onBack} />
+      <BackHeader
+        title="Botón de WhatsApp"
+        onBack={onBack}
+        onReset={reset('whatsappButton', 'el botón de WhatsApp')}
+      />
       <div className="space-y-4 p-4">
         <p className="text-xs text-fg-muted">
           Botón flotante fijo abajo a la derecha del storefront. Tu cliente lo toca y te escribe directo.
