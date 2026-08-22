@@ -26,6 +26,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         "/api/v1/coupons/validate",
         "/api/v1/payments/webhook",
         "/api/v1/contact/submit",
+        // Suscripción a novedades desde la tienda (anónima). El único write que
+        // cuelga de acá; /newsletter/count es GET y exige permiso igual.
+        "/api/v1/newsletter",
         "/api/v1/captcha",
         // Cotización de envío del checkout (pública; NO cubre /admin/shipping/*,
         // que además exige SettingsWrite por RequirePermission).

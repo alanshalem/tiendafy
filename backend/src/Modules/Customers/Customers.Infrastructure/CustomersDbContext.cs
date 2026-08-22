@@ -39,6 +39,7 @@ public sealed class CustomersDbContext : DbContext
     public DbSet<CustomerFavorite> CustomerFavorites => Set<CustomerFavorite>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<CustomerToken> CustomerTokens => Set<CustomerToken>();
+    public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,11 +94,21 @@ public sealed class CustomersDbContext : DbContext
         cm.Property(x => x.Reference).HasMaxLength(30);
         cm.Property(x => x.OrderRef).HasMaxLength(60);
 
+        var ns = modelBuilder.Entity<NewsletterSubscriber>();
+        ns.ToTable("newsletter_subscribers");
+        ns.HasKey(x => x.Id);
+        ns.Property(x => x.Id).ValueGeneratedNever();
+        ns.Property(x => x.Email).HasMaxLength(200).IsRequired();
+        ns.Property(x => x.Source).HasMaxLength(20).IsRequired();
+        // Único por tienda: suscribirse dos veces no crea dos filas ni manda dos veces.
+        ns.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
+
         // Filtro multi-tenant global en todas las entidades tenant-scoped.
         c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         f.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         t.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         cm.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        ns.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

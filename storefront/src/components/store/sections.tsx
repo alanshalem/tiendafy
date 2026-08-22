@@ -10,7 +10,7 @@ import { StoreImage } from './StoreImage';
 // (FavoritesList, CatalogBrowser, catalog.ts) que importan desde './sections'.
 import { type StoreProduct } from './ProductCard';
 import { MarqueeTrack } from './MarqueeTrack';
-import { INPUT_LIGHT_10 } from './styles';
+import { NewsletterForm } from './NewsletterForm';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 import {
   defaultList,
@@ -357,15 +357,7 @@ function NewsletterSection({ section }: SectionRenderProps) {
           {data.title || 'Recibí novedades'}
         </h3>
         {data.text && <p className="mx-auto mt-2 max-w-md opacity-70">{data.text}</p>}
-        <form className="mx-auto mt-4 flex max-w-sm gap-2" onSubmit={(e) => e.preventDefault()}>
-          <input type="email" placeholder="tu@email.com" aria-label="Email" className={INPUT_LIGHT_10} />
-          <button
-            type="submit"
-            className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg"
-          >
-            Suscribirme
-          </button>
-        </form>
+        <NewsletterForm source="home" />
       </div>
     </section>
   );

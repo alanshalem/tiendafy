@@ -75,6 +75,8 @@ export interface ThemeAnnouncement {
 }
 
 export interface ComingSoonConfig {
+  /** Pedir el email para avisar cuando abra la tienda. */
+  collectEmails: boolean;
   enabled: boolean;
   title: string;
   message: string;
@@ -165,6 +167,15 @@ interface WhatsAppButtonConfig {
   showPreview: boolean;
 }
 export interface FooterConfig {
+  tiktok: string;
+  youtube: string;
+  /** Perfil de X (ex Twitter). */
+  x: string;
+  /** Links a las páginas de contenido publicadas (Cómo comprar, Preguntas…). */
+  showPages: boolean;
+  /** Suscripción a novedades en el pie. */
+  showNewsletter: boolean;
+  newsletterTitle: string;
   text: string;
   showSocial: boolean;
   instagram: string;
@@ -294,6 +305,7 @@ export const baseTheme: ThemeConfig = {
   announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }] },
   comingSoon: {
     enabled: false,
+    collectEmails: false,
     title: 'Estamos en construcción',
     message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!',
   },
@@ -338,6 +350,12 @@ export const baseTheme: ThemeConfig = {
     showSocial: true,
     instagram: '',
     facebook: '',
+    tiktok: '',
+    youtube: '',
+    x: '',
+    showPages: false,
+    showNewsletter: false,
+    newsletterTitle: 'Recibí novedades y ofertas',
     showPaymentLogos: true,
     paymentLogos: ['mercadopago', 'visa', 'mastercard'],
     whatsapps: [],

@@ -43,8 +43,58 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
                 placeholder="https://facebook.com/..."
               />
             </Field>
+            <Field label="TikTok (URL)">
+              <TextInput
+                value={theme.footer.tiktok}
+                onChange={(v) => set({ tiktok: v })}
+                placeholder="https://tiktok.com/@..."
+              />
+            </Field>
+            <Field label="YouTube (URL)">
+              <TextInput
+                value={theme.footer.youtube}
+                onChange={(v) => set({ youtube: v })}
+                placeholder="https://youtube.com/@..."
+              />
+            </Field>
+            <Field label="X (URL)">
+              <TextInput
+                value={theme.footer.x}
+                onChange={(v) => set({ x: v })}
+                placeholder="https://x.com/..."
+              />
+            </Field>
           </>
         )}
+        <Check
+          label="Mostrar links a tus páginas de contenido"
+          checked={theme.footer.showPages}
+          onChange={(v) => set({ showPages: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          Cómo comprar, preguntas frecuentes, envíos… Arriba compiten por lugar en el menú; acá entran todas.
+        </p>
+
+        <div className="border-t border-border pt-4">
+          <div className="mb-3 text-sm font-semibold text-fg">Suscripción a novedades</div>
+          <Check
+            label="Pedir el email en el pie"
+            checked={theme.footer.showNewsletter}
+            onChange={(v) => set({ showNewsletter: v })}
+          />
+          <p className="mb-3 mt-1 text-xs text-fg-muted">
+            Los emails quedan guardados y se pueden usar como audiencia en Email marketing.
+          </p>
+          {theme.footer.showNewsletter && (
+            <Field label="Título">
+              <TextInput
+                value={theme.footer.newsletterTitle}
+                onChange={(v) => set({ newsletterTitle: v })}
+                placeholder="Recibí novedades y ofertas"
+              />
+            </Field>
+          )}
+        </div>
         <Check
           label="Mostrar logos de medios de pago"
           checked={theme.footer.showPaymentLogos}

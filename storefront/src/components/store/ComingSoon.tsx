@@ -1,8 +1,17 @@
 import type { ThemeConfig } from '@/lib/theme';
+import { NewsletterForm } from './NewsletterForm';
 
 /** Página pública cuando la tienda está "en construcción" (toggle del editor). */
-export function ComingSoon({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
-  const { title, message } = theme.comingSoon;
+export function ComingSoon({
+  theme,
+  tenantName,
+  tenantId,
+}: {
+  theme: ThemeConfig;
+  tenantName: string;
+  tenantId: string;
+}) {
+  const { title, message, collectEmails } = theme.comingSoon;
   const primary = `rgb(${theme.colors.primary})`;
   return (
     <main
@@ -44,6 +53,14 @@ export function ComingSoon({ theme, tenantName }: { theme: ThemeConfig; tenantNa
           {title}
         </h1>
         {message && <p className="mt-4 text-base opacity-70">{message}</p>}
+
+        {/* La espera es la única oportunidad de captar a quien llegó antes de abrir. */}
+        {collectEmails && (
+          <div className="mt-7">
+            <p className="mb-2 text-sm font-medium">Dejanos tu email y te avisamos cuando abramos.</p>
+            <NewsletterForm source="coming-soon" tenantId={tenantId} />
+          </div>
+        )}
       </div>
     </main>
   );

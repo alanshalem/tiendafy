@@ -28,7 +28,10 @@ export async function resolveStorefrontPage(
     : await fetchPublishedTheme(data.tenant.id);
 
   if (!preview && theme.comingSoon.enabled) {
-    return { ok: false, fallback: <ComingSoon theme={theme} tenantName={data.tenant.name} /> };
+    return {
+      ok: false,
+      fallback: <ComingSoon theme={theme} tenantName={data.tenant.name} tenantId={data.tenant.id} />,
+    };
   }
 
   return { ok: true, data, theme, preview };

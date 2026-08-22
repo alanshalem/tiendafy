@@ -146,6 +146,15 @@ public sealed class CampaignAudienceService(
             .GroupBy(c => c.Email!.Trim().ToLowerInvariant())
             .ToDictionary(g => g.Key, g => g.First().Name);
 
+        // Suscriptores a novedades: dejaron el email en la tienda sin comprar todavía.
+        // Solo se cargan si la campaña los pide (una consulta menos en el resto).
+        var subscribers = spec.Type is "subscribers" or "customers"
+            ? await customers.NewsletterSubscribers.AsNoTracking()
+                .Where(x => x.TenantId == tenantId.Value)
+                .Select(x => x.Email)
+                .ToListAsync(ct)
+            : [];
+
         AudienceMember Build(string email)
         {
             var hasStats = stats.TryGetValue(email, out var s);
@@ -165,7 +174,8 @@ public sealed class CampaignAudienceService(
                 .Select(e => e.Trim().ToLowerInvariant())
                 .Distinct()
                 .Select(Build),
-            "customers" => stats.Keys.Concat(contactNames.Keys).Distinct().Select(Build),
+            "subscribers" => subscribers.Distinct().Select(Build),
+            "customers" => stats.Keys.Concat(contactNames.Keys).Concat(subscribers).Distinct().Select(Build),
             _ => stats.Keys.Select(Build),
         };
 

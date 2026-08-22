@@ -60,7 +60,8 @@ export default async function HomePage({
     ? await fetchDraftTheme(data.tenant.id, sp.pt)
     : await fetchPublishedTheme(data.tenant.id);
 
-  if (!preview && theme.comingSoon.enabled) return <ComingSoon theme={theme} tenantName={data.tenant.name} />;
+  if (!preview && theme.comingSoon.enabled)
+    return <ComingSoon theme={theme} tenantName={data.tenant.name} tenantId={data.tenant.id} />;
 
   const products = await withReferencedProducts(data.tenant.id, theme, data.products);
 

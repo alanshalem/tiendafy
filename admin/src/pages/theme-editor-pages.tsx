@@ -280,6 +280,15 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
             placeholder="Volvemos muy pronto con la tienda."
           />
         </Field>
+        <Check
+          label="Pedir el email para avisar cuando abras"
+          checked={theme.comingSoon.collectEmails}
+          onChange={(v) => set({ collectEmails: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          El que llegó antes de tiempo es tu primer cliente posible. Los emails quedan guardados y se pueden
+          usar como audiencia en Email marketing.
+        </p>
       </div>
     </div>
   );

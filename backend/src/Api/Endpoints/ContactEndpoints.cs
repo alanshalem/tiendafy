@@ -121,6 +121,47 @@ public static class ContactEndpoints
             return Results.NoContent();
         }).RequirePermission(Permission.MessagesRead);
 
+        // Suscripción a novedades desde la tienda (anónima). El formulario estaba
+        // en el storefront desde el principio pero no guardaba nada: quien lo
+        // usaba creía estar armando una lista y no tenía ninguna.
+        var news = group.MapGroup("/newsletter").RequireTenant();
+
+        news.MapPost("/", async (
+            NewsletterRequest req, ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        {
+            // Trampa para bots: el campo va oculto por CSS, una persona no lo completa.
+            // Se responde OK igual para no enseñarle al bot cuál era el problema.
+            if (!string.IsNullOrWhiteSpace(req.Website)) return Results.Ok(new { ok = true });
+
+            var email = (req.Email ?? string.Empty).Trim().ToLowerInvariant();
+            if (email.Length is < 3 or > 200 || !email.Contains('@'))
+                return Problem("Newsletter.InvalidEmail", "Revisá el email.");
+
+            var tid = tenant.TenantId.Value;
+            var already = await db.NewsletterSubscribers.AnyAsync(x => x.TenantId == tid && x.Email == email, ct);
+            if (!already)
+            {
+                db.NewsletterSubscribers.Add(NewsletterSubscriber.Create(tid, email, req.Source));
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateException)
+                {
+                    // Dos envíos a la vez chocan contra el índice único: ya está suscripto,
+                    // que es exactamente lo que pedía.
+                }
+            }
+            return Results.Ok(new { ok = true });
+        }).RequireRateLimiting("auth");
+
+        // Cuántos suscriptores hay (para el panel).
+        news.MapGet("/count", async (ITenantContext tenant, CustomersDbContext db, CancellationToken ct) =>
+        {
+            var tid = tenant.TenantId.Value;
+            return Results.Ok(new { count = await db.NewsletterSubscribers.CountAsync(x => x.TenantId == tid, ct) });
+        }).RequirePermission(Permission.MessagesRead);
+
         return group;
     }
 
@@ -148,6 +189,9 @@ public static class ContactEndpoints
 <p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Guardá este email como constancia.</p>";
     }
 }
+
+/// <summary>Suscripción a novedades. `Website` es el honeypot (siempre vacío).</summary>
+public sealed record NewsletterRequest(string? Email, string? Source = null, string? Website = null);
 
 public sealed record ContactSubmitRequest(
     string Name, string Email, string Body, string? Captcha, string? Kind = null, string? OrderRef = null);

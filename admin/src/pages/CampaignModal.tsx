@@ -12,7 +12,7 @@ import type { MoneyDto } from '@tiendafy/types';
 // ---- Tipos wire --------------------------------------------------------------
 
 interface AudienceSpec {
-  type: 'buyers' | 'customers' | 'custom';
+  type: 'buyers' | 'customers' | 'subscribers' | 'custom';
   boughtProductIds?: string[] | null;
   favoritedProductIds?: string[] | null;
   minSpentMinor?: number | null;
@@ -35,7 +35,7 @@ export interface Campaign {
   id: string;
   subject: string;
   bodyHtml: string;
-  audience: 'buyers' | 'customers' | 'custom';
+  audience: 'buyers' | 'customers' | 'subscribers' | 'custom';
   audienceSpec: AudienceSpec;
   couponCode: string | null;
   products: CampaignProduct[];
@@ -77,6 +77,7 @@ interface ProductDto {
 export const AUDIENCE_LABEL: Record<string, string> = {
   buyers: 'Compradores',
   customers: 'Todos los contactos',
+  subscribers: 'Suscriptores a novedades',
   custom: 'Selección manual',
 };
 
@@ -97,7 +98,9 @@ export function CampaignModal({
 
   const [subject, setSubject] = useState(campaign?.subject ?? '');
   const [body, setBody] = useState(campaign?.bodyHtml ?? '');
-  const [audience, setAudience] = useState<'buyers' | 'customers' | 'custom'>(campaign?.audience ?? 'buyers');
+  const [audience, setAudience] = useState<'buyers' | 'customers' | 'subscribers' | 'custom'>(
+    campaign?.audience ?? 'buyers',
+  );
   const [minSpent, setMinSpent] = useState(spec?.minSpentMinor ? String(spec.minSpentMinor / 100) : '');
   const [minOrders, setMinOrders] = useState(spec?.minOrders ? String(spec.minOrders) : '');
   const [withinDays, setWithinDays] = useState(
@@ -395,8 +398,8 @@ export function CampaignModal({
 // ---- Builder de audiencia ----------------------------------------------------
 
 function AudienceBuilder(props: {
-  audience: 'buyers' | 'customers' | 'custom';
-  setAudience: (a: 'buyers' | 'customers' | 'custom') => void;
+  audience: 'buyers' | 'customers' | 'subscribers' | 'custom';
+  setAudience: (a: 'buyers' | 'customers' | 'subscribers' | 'custom') => void;
   minSpent: string;
   setMinSpent: (v: string) => void;
   minOrders: string;
@@ -421,10 +424,11 @@ function AudienceBuilder(props: {
       <label className="mb-1.5 block text-sm font-medium text-fg">Audiencia</label>
       <Select
         value={audience}
-        onChange={(e) => setAudience(e.target.value as 'buyers' | 'customers' | 'custom')}
+        onChange={(e) => setAudience(e.target.value as 'buyers' | 'customers' | 'subscribers' | 'custom')}
         options={[
           { value: 'buyers', label: 'Compradores (compraron alguna vez)' },
           { value: 'customers', label: 'Todos los contactos con email' },
+          { value: 'subscribers', label: 'Suscriptores a novedades' },
           { value: 'custom', label: 'Selección manual' },
         ]}
       />

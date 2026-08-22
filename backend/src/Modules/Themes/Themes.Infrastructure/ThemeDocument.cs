@@ -51,7 +51,7 @@ public sealed class ThemeDocument
       "fonts": { "heading": "sans", "body": "sans" },
       "header": { "bg": "27 21 16", "sticky": true, "logoSize": "md", "showTabsMobile": true, "layout": "classic", "textColor": "", "transparentOnHome": false, "transparentLevel": "full", "showSearch": false, "showCart": true, "cartStyle": "icon", "border": "none", "menu": [] },
       "announcement": { "show": false, "animation": "static", "items": [] },
-      "comingSoon": { "enabled": false, "title": "Estamos en construcción", "message": "Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!" },
+      "comingSoon": { "enabled": false, "collectEmails": false, "title": "Estamos en construcción", "message": "Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!" },
       "sections": [
         { "id": "carousel", "type": "carousel", "visible": true, "data": { "images": [], "fullHeightMobile": false } },
         { "id": "featured", "type": "featured", "visible": true, "data": { "title": "Destacados", "carousel": true } },
@@ -65,7 +65,7 @@ public sealed class ThemeDocument
       "productDetail": { "installmentsCount": 0, "showPaymentLogos": false, "askWhatsApp": false, "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true, "cashDiscountPercent": 0 },
       "cart": { "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true, "notice": "" },
       "contact": { "showForm": true, "address": "", "phone": "", "email": "", "whatsapp": "" },
-      "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "showPaymentLogos": true, "paymentLogos": ["mercadopago", "visa", "mastercard"], "whatsapps": [], "addresses": [], "phones": [], "emails": [] },
+      "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "tiktok": "", "youtube": "", "x": "", "showPages": false, "showNewsletter": false, "newsletterTitle": "Recibí novedades y ofertas", "showPaymentLogos": true, "paymentLogos": ["mercadopago", "visa", "mastercard"], "whatsapps": [], "addresses": [], "phones": [], "emails": [] },
       "whatsappButton": { "enabled": false, "phone": "", "message": "¡Hola! Tengo una consulta.", "showPreview": true },
       "customCss": ""
     }

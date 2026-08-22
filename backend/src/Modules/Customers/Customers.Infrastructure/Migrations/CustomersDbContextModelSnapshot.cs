@@ -278,6 +278,42 @@ namespace Customers.Infrastructure.Migrations
 
                     b.ToTable("customer_tokens", (string)null);
                 });
+
+            modelBuilder.Entity("Customers.Infrastructure.NewsletterSubscriber", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_newsletter_subscribers");
+
+                    b.HasIndex("TenantId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_newsletter_subscribers_tenant_id_email");
+
+                    b.ToTable("newsletter_subscribers", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }
