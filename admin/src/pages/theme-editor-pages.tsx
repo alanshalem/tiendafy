@@ -10,6 +10,8 @@ import {
   TextArea,
   sectionSetter,
   useSectionReset,
+  QuickStyles,
+  type QuickStyle,
 } from './theme-editor-inputs';
 
 export type PanelProps = {
@@ -17,6 +19,81 @@ export type PanelProps = {
   onBack: () => void;
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
 };
+
+const LIST_PRESETS: QuickStyle<ThemeConfig['productList']>[] = [
+  {
+    name: 'Vitrina',
+    recommended: true,
+    patch: {
+      columns: 3,
+      imageRatio: 'portrait',
+      cardStyle: 'plain',
+      showBuyButton: true,
+      showCompareAt: true,
+      showStockBadge: false,
+    },
+  },
+  {
+    name: 'Catálogo',
+    patch: {
+      columns: 4,
+      imageRatio: 'square',
+      cardStyle: 'boxed',
+      showBuyButton: false,
+      showCompareAt: true,
+      showStockBadge: true,
+    },
+  },
+  {
+    name: 'Compacto',
+    patch: {
+      columns: 4,
+      imageRatio: 'square',
+      cardStyle: 'plain',
+      showBuyButton: false,
+      showCompareAt: false,
+      showStockBadge: false,
+    },
+  },
+];
+
+const DETAIL_PRESETS: QuickStyle<ThemeConfig['productDetail']>[] = [
+  {
+    name: 'Simple',
+    recommended: true,
+    patch: {
+      galleryStyle: 'thumbs',
+      showSku: false,
+      showStock: true,
+      showRelated: true,
+      showPaymentLogos: false,
+      askWhatsApp: false,
+    },
+  },
+  {
+    name: 'Vendedor',
+    patch: {
+      galleryStyle: 'thumbs-left',
+      showSku: true,
+      showStock: true,
+      showRelated: true,
+      showPaymentLogos: true,
+      askWhatsApp: true,
+    },
+  },
+];
+
+const CART_PRESETS: QuickStyle<ThemeConfig['cart']>[] = [
+  {
+    name: 'Directo',
+    recommended: true,
+    patch: { showSuggested: false, showCoupon: false, showContinue: true, freeShippingBar: false },
+  },
+  {
+    name: 'Con incentivos',
+    patch: { showSuggested: true, showCoupon: true, showContinue: true, freeShippingBar: true },
+  },
+];
 
 export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'productList');
@@ -29,6 +106,7 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
         onReset={reset('productList', 'el listado de productos')}
       />
       <div className="space-y-4 p-4">
+        <QuickStyles presets={LIST_PRESETS} current={theme.productList} onApply={set} />
         <Field label="Orden con el que abre" hint="Tu cliente lo puede cambiar desde el listado.">
           <Select
             value={theme.productList.defaultSort}
@@ -171,6 +249,7 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
         onReset={reset('productDetail', 'el detalle de producto')}
       />
       <div className="space-y-4 p-4">
+        <QuickStyles presets={DETAIL_PRESETS} current={theme.productDetail} onApply={set} />
         <Field label="Estilo de galería">
           <Select
             value={theme.productDetail.galleryStyle}
@@ -301,6 +380,7 @@ export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
     <div>
       <BackHeader title="Carrito de compras" onBack={onBack} onReset={reset('cart', 'el carrito')} />
       <div className="space-y-4 p-4">
+        <QuickStyles presets={CART_PRESETS} current={theme.cart} onApply={set} />
         <Field label="Texto del botón de checkout">
           <TextInput
             value={theme.cart.checkoutButtonText}
@@ -313,6 +393,20 @@ export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
           checked={theme.cart.showSuggested}
           onChange={(v) => set({ showSuggested: v })}
         />
+        <Check
+          label="Mostrar botón «Seguir comprando»"
+          checked={theme.cart.showContinue}
+          onChange={(v) => set({ showContinue: v })}
+        />
+        <Check
+          label="Mostrar campo de cupón"
+          checked={theme.cart.showCoupon}
+          onChange={(v) => set({ showCoupon: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          Si no usás cupones, apagalo: un campo vacío hace que el cliente salga a buscar un código y a veces
+          no vuelve.
+        </p>
         <Field
           label="Mensaje para clientes"
           hint="Se muestra en el carrito (ej. aclaraciones de envío o pago). Vacío = no se muestra."

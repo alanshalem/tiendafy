@@ -1,5 +1,5 @@
 import { cn } from '@tiendafy/ui';
-import { PAYMENT_LOGOS } from '@tiendafy/types';
+import { PAYMENT_LOGOS, type ThemeConfig } from '@tiendafy/types';
 import {
   BackHeader,
   Field,
@@ -9,8 +9,22 @@ import {
   StringList,
   sectionSetter,
   useSectionReset,
+  QuickStyles,
+  type QuickStyle,
 } from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
+
+const FOOTER_PRESETS: QuickStyle<ThemeConfig['footer']>[] = [
+  {
+    name: 'Mínimo',
+    patch: { showSocial: false, showPages: false, showNewsletter: false, showPaymentLogos: true },
+  },
+  {
+    name: 'Completo',
+    recommended: true,
+    patch: { showSocial: true, showPages: true, showNewsletter: true, showPaymentLogos: true },
+  },
+];
 
 export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'footer');
@@ -19,6 +33,7 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
     <div>
       <BackHeader title="Pie de página" onBack={onBack} onReset={reset('footer', 'el pie de página')} />
       <div className="space-y-4 p-4">
+        <QuickStyles presets={FOOTER_PRESETS} current={theme.footer} onApply={set} />
         <Field label="Texto del pie">
           <TextArea value={theme.footer.text} onChange={(v) => set({ text: v })} />
         </Field>

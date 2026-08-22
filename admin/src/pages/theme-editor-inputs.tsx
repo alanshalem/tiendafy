@@ -1,4 +1,4 @@
-import { Checkbox, useConfirm } from '@tiendafy/ui';
+import { Checkbox, cn, useConfirm } from '@tiendafy/ui';
 import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
 import { type ThemeConfig, baseTheme } from '@tiendafy/types';
@@ -35,6 +35,64 @@ export const INPUT_BASE =
   'rounded-md border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-primary';
 /** Estilo completo de un input/textarea/select de alto estándar (h-10). */
 const INPUT_FIELD = `h-10 w-full px-3 text-sm ${INPUT_BASE}`;
+
+export interface QuickStyle<T> {
+  name: string;
+  recommended?: boolean;
+  /** Solo los campos que define el estilo; el resto queda como esté. */
+  patch: Partial<T>;
+}
+
+/**
+ * "Estilos rápidos" de un panel: un click deja la sección entera con una
+ * combinación que se ve bien, y después se ajusta el detalle.
+ *
+ * El comercio no quiere decidir catorce casillas sueltas; quiere que su tienda
+ * se parezca a las que conoce. El estilo aparece marcado cuando los campos que
+ * define coinciden con lo que hay, así que tocar un detalle no lo desmarca
+ * salvo que sea justo uno de los suyos.
+ */
+export function QuickStyles<T extends object>({
+  presets,
+  current,
+  onApply,
+}: {
+  presets: QuickStyle<T>[];
+  current: T;
+  onApply: (patch: Partial<T>) => void;
+}) {
+  const matches = (patch: Partial<T>) =>
+    (Object.keys(patch) as (keyof T)[]).every((k) => current[k] === patch[k]);
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Estilos rápidos</div>
+      <div className="grid grid-cols-2 gap-2">
+        {presets.map((p) => (
+          <button
+            key={p.name}
+            type="button"
+            onClick={() => onApply(p.patch)}
+            aria-pressed={matches(p.patch)}
+            className={cn(
+              'relative rounded-lg border px-3 py-2.5 text-sm font-medium transition',
+              matches(p.patch)
+                ? 'border-primary text-primary ring-2 ring-primary/30'
+                : 'border-border text-fg hover:border-border-strong',
+            )}
+          >
+            {p.name}
+            {p.recommended && (
+              <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[0.6rem] font-semibold text-primary-fg">
+                Recomendado
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-fg-muted">Ajustá los detalles abajo.</p>
+    </div>
+  );
+}
 
 /**
  * "Restablecer" de un panel: confirma y devuelve esa parte del tema a los

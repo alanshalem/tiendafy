@@ -13,6 +13,8 @@ import {
   ColorRow,
   sectionSetter,
   useSectionReset,
+  QuickStyles,
+  type QuickStyle,
 } from './theme-editor-inputs';
 
 /** Sección plegable para paneles largos (ej. Encabezado). Título clickeable + cuerpo. */
@@ -41,19 +43,19 @@ function Collapsible({
   );
 }
 
-const HEADER_PRESETS: { name: string; recommended?: boolean; header: Partial<ThemeConfig['header']> }[] = [
+const HEADER_PRESETS: QuickStyle<ThemeConfig['header']>[] = [
   {
     name: 'Clásico',
     recommended: true,
-    header: { layout: 'classic', border: 'line', transparentOnHome: false, logoSize: 'md', sticky: true },
+    patch: { layout: 'classic', border: 'line', transparentOnHome: false, logoSize: 'md', sticky: true },
   },
   {
     name: 'Centrado',
-    header: { layout: 'logo-center', border: 'none', transparentOnHome: false, logoSize: 'md', sticky: true },
+    patch: { layout: 'logo-center', border: 'none', transparentOnHome: false, logoSize: 'md', sticky: true },
   },
   {
     name: 'Inmersivo',
-    header: {
+    patch: {
       layout: 'classic',
       border: 'none',
       transparentOnHome: true,
@@ -64,7 +66,7 @@ const HEADER_PRESETS: { name: string; recommended?: boolean; header: Partial<The
   },
   {
     name: 'Minimal',
-    header: { layout: 'menu-left', border: 'none', transparentOnHome: false, logoSize: 'sm', sticky: true },
+    patch: { layout: 'menu-left', border: 'none', transparentOnHome: false, logoSize: 'sm', sticky: true },
   },
 ];
 
@@ -93,8 +95,6 @@ export function HeaderPanel({
       ...t,
       announcement: { ...t.announcement, items: t.announcement.items.filter((_, idx) => idx !== i) },
     }));
-  const matchesPreset = (h: Partial<ThemeConfig['header']>) =>
-    (Object.keys(h) as (keyof ThemeConfig['header'])[]).every((k) => theme.header[k] === h[k]);
   return (
     <div>
       <BackHeader
@@ -103,35 +103,7 @@ export function HeaderPanel({
         onReset={reset(['header', 'announcement'], 'el encabezado y la barra de anuncio')}
       />
       <div className="space-y-4 p-4">
-        <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-            Estilos rápidos
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {HEADER_PRESETS.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => setH(p.header)}
-                aria-pressed={matchesPreset(p.header)}
-                className={cn(
-                  'relative rounded-lg border px-3 py-2.5 text-sm font-medium transition',
-                  matchesPreset(p.header)
-                    ? 'border-primary text-primary ring-2 ring-primary/30'
-                    : 'border-border text-fg hover:border-border-strong',
-                )}
-              >
-                {p.name}
-                {p.recommended && (
-                  <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[0.6rem] font-semibold text-primary-fg">
-                    Recomendado
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-fg-muted">Ajustá los detalles abajo.</p>
-        </div>
+        <QuickStyles presets={HEADER_PRESETS} current={theme.header} onApply={setH} />
         <ColorRow
           label="Color de fondo del encabezado"
           value={theme.header.bg}

@@ -144,6 +144,10 @@ export interface ProductDetailConfig {
   cashDiscountPercent: number;
 }
 export interface CartConfig {
+  /** Campo de cupón en el carrito. Apagado, el que no tiene código no sale a buscar uno. */
+  showCoupon: boolean;
+  /** Botón "Seguir comprando" al lado del de pagar. */
+  showContinue: boolean;
   freeShippingBar: boolean;
   freeShippingThreshold: number;
   checkoutButtonText: string;
@@ -338,6 +342,8 @@ export const baseTheme: ThemeConfig = {
     cashDiscountPercent: 0,
   },
   cart: {
+    showCoupon: true,
+    showContinue: true,
     freeShippingBar: false,
     freeShippingThreshold: 5000000,
     checkoutButtonText: 'Iniciar compra',

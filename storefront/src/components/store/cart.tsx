@@ -110,6 +110,8 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
 }
 
 interface CartConfig {
+  showCoupon: boolean;
+  showContinue: boolean;
   freeShippingBar: boolean;
   freeShippingThreshold: number;
   checkoutButtonText: string;
@@ -327,7 +329,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                 </div>
               )}
               {/* Cupón de descuento */}
-              <div className="mb-3">
+              <div className={cart?.showCoupon === false ? 'hidden' : 'mb-3'}>
                 {coupon ? (
                   <div className="flex items-center justify-between rounded-md bg-black/5 px-3 py-2 text-sm">
                     <span className="inline-flex items-center gap-1.5 font-medium text-green-600">
@@ -393,6 +395,15 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
               >
                 {cart?.checkoutButtonText || 'Iniciar compra'}
               </button>
+              {/* Volver al catálogo sin tener que cerrar el panel a mano. */}
+              {cart?.showContinue !== false && (
+                <button
+                  onClick={() => setOpen(false)}
+                  className="mt-2 w-full rounded-md py-2.5 text-sm font-medium opacity-70 hover:opacity-100"
+                >
+                  Seguir comprando
+                </button>
+              )}
             </div>
           </>
         )}

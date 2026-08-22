@@ -63,7 +63,7 @@ public sealed class ThemeDocument
       ],
       "productList": { "columns": 4, "showPrice": true, "showBuyButton": true, "showCompareAt": true, "filterCategories": true, "filterPrice": true, "filterBrand": true, "filterOptions": true, "showCashPrice": false, "installmentsCount": 0, "showStockBadge": false, "defaultSort": "newest", "pageSize": 24, "imageRatio": "square", "cardStyle": "plain" },
       "productDetail": { "installmentsCount": 0, "showPaymentLogos": false, "askWhatsApp": false, "showSku": false, "showStock": true, "galleryStyle": "thumbs", "showRelated": true, "cashDiscountPercent": 0 },
-      "cart": { "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true, "notice": "" },
+      "cart": { "showCoupon": true, "showContinue": true, "freeShippingBar": false, "freeShippingThreshold": 5000000, "checkoutButtonText": "Iniciar compra", "showSuggested": true, "notice": "" },
       "contact": { "showForm": true, "address": "", "phone": "", "email": "", "whatsapp": "" },
       "footer": { "text": "", "showSocial": true, "instagram": "", "facebook": "", "tiktok": "", "youtube": "", "x": "", "showPages": false, "showNewsletter": false, "newsletterTitle": "Recibí novedades y ofertas", "showPaymentLogos": true, "paymentLogos": ["mercadopago", "visa", "mastercard"], "whatsapps": [], "addresses": [], "phones": [], "emails": [] },
       "whatsappButton": { "enabled": false, "phone": "", "message": "¡Hola! Tengo una consulta.", "showPreview": true },
