@@ -13,6 +13,44 @@ public sealed record MediaOptions
     public string Bucket { get; init; } = "tiendafy-media";
     /// <summary>Bucket SIN policy pública: adjuntos de chat, solo URLs firmadas.</summary>
     public string PrivateBucket { get; init; } = "tiendafy-private";
+
+    /// <summary>
+    /// Región para firmar. MinIO no la mira; Cloudflare R2 firma con "auto" y
+    /// rechaza la petición si el SDK deduce otra del endpoint.
+    /// </summary>
+    public string? Region { get; init; }
+
+    /// <summary>
+    /// ¿La URL pública lleva el nombre del bucket?
+    ///
+    /// MinIO y S3 path-style sirven en {base}/{bucket}/{key}. R2 con dominio
+    /// propio (img.tutienda.com) publica el objeto en la RAÍZ: ahí el bucket
+    /// sobra y meterlo devuelve 404 en cada imagen.
+    /// </summary>
+    public bool BucketInPublicUrl { get; init; } = true;
+
+    /// <summary>URL pública de un objeto del bucket de media.</summary>
+    public string PublicUrl(string key) =>
+        BucketInPublicUrl
+            ? $"{PublicBaseUrl.TrimEnd('/')}/{Bucket}/{key}"
+            : $"{PublicBaseUrl.TrimEnd('/')}/{key}";
+
+    /// <summary>
+    /// Clave de storage a partir de una URL nuestra, o null si es de otro lado
+    /// (las imágenes re-hospedadas de un proveedor no se borran).
+    /// </summary>
+    public string? KeyFromUrl(string url)
+    {
+        if (BucketInPublicUrl)
+        {
+            var marker = $"/{Bucket}/";
+            var idx = url.IndexOf(marker, StringComparison.Ordinal);
+            return idx < 0 ? null : url[(idx + marker.Length)..];
+        }
+
+        var prefix = PublicBaseUrl.TrimEnd('/') + "/";
+        return url.StartsWith(prefix, StringComparison.Ordinal) ? url[prefix.Length..] : null;
+    }
 }
 
 public interface IMediaStorage
@@ -116,7 +154,7 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
                 ContentType = contentType,
             }, ct);
 
-            return $"{options.PublicBaseUrl.TrimEnd('/')}/{options.Bucket}/{key}";
+            return options.PublicUrl(key);
         }
         finally
         {
@@ -183,10 +221,8 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
     {
         try
         {
-            var marker = $"/{options.Bucket}/";
-            var idx = url.IndexOf(marker, StringComparison.Ordinal);
-            if (idx < 0) return; // URL externa (no re-hospedada): no la tocamos.
-            var key = url[(idx + marker.Length)..];
+            var key = options.KeyFromUrl(url);
+            if (key is null) return; // URL externa (no re-hospedada): no la tocamos.
             await s3.DeleteObjectAsync(options.Bucket, key, ct);
         }
         catch

@@ -105,6 +105,22 @@ services:
       Social__X__ClientSecret: ${SOCIAL_X_CLIENT_SECRET:-}
       Social__X__RedirectUri: https://api.${PLATFORM_DOMAIN}/api/v1/social/oauth/callback/x
       Social__AdminReturnUrl: https://admin.${PLATFORM_DOMAIN}/redes
+      # Imágenes y videos de las tiendas. Storage S3-compatible: por defecto
+      # Cloudflare R2 (egress gratis + CDN con dominio propio). Ver docs/DEPLOY.md.
+      # Los buckets se crean UNA vez desde el panel de R2: EnsureBucketOnStartup
+      # queda en false porque R2 no soporta PutBucketPolicy (el acceso público se
+      # habilita atando el dominio propio al bucket).
+      Media__Endpoint: ${MEDIA_ENDPOINT:?definir en .env.prod}
+      Media__PublicBaseUrl: ${MEDIA_PUBLIC_BASE_URL:?definir en .env.prod}
+      Media__AccessKey: ${MEDIA_ACCESS_KEY:?definir en .env.prod}
+      Media__SecretKey: ${MEDIA_SECRET_KEY:?definir en .env.prod}
+      Media__Bucket: ${MEDIA_BUCKET:-tiendafy-media}
+      Media__PrivateBucket: ${MEDIA_PRIVATE_BUCKET:-tiendafy-private}
+      Media__Region: ${MEDIA_REGION:-auto}
+      # false en R2 (dominio propio: el objeto vive en la raíz).
+      # true en MinIO o S3 path-style ({base}/{bucket}/{key}).
+      Media__BucketInPublicUrl: ${MEDIA_BUCKET_IN_PUBLIC_URL:-false}
+      Media__EnsureBucketOnStartup: ${MEDIA_ENSURE_BUCKET:-false}
       # Sugerencias con IA (Claude API). Vacío = apagado.
       Ai__ApiKey: ${AI_API_KEY:-}
       Ai__Model: ${AI_MODEL:-claude-sonnet-5}

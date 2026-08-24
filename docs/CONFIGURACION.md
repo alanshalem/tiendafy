@@ -25,7 +25,7 @@ Hay dos niveles, no mezclarlos:
 | **Redes sociales — X** | Client ID (+ Client Secret si la app es confidencial) | [developer.x.com](https://developer.x.com) → app OAuth 2.0 con scopes `tweet.read tweet.write users.read offline.access`; redirect: `https://api.TUDOMINIO/api/v1/social/oauth/callback/x` | Plataforma | Opcional (posts en X) |
 | **Telegram del merchant** | Bot token + canal | El merchant crea un bot con @BotFather, lo hace admin de su canal y lo carga en Redes sociales → Cuentas | Tienda | Opcional |
 | **IA (Claude)** | API key | [console.anthropic.com](https://console.anthropic.com) → API Keys | Plataforma | Opcional (sugerencias: respuestas ML, posts, descripciones) |
-| **MinIO / S3** | Access key + Secret key | tu propio MinIO (el compose de dev lo incluye; en prod es un servicio externo) o un S3 compatible | Plataforma | Sí (imágenes/videos) |
+| **Cloudflare R2** (o S3/MinIO) | Access key + Secret key + dominio propio | R2: panel → R2 → dos buckets + dominio propio en el de media + API token acotado a esos buckets. En dev, el MinIO del compose | Plataforma | Sí (imágenes/videos) |
 | **Mercado Libre** | App: Client ID + Client Secret | [developers.mercadolibre.com.ar](https://developers.mercadolibre.com.ar) → crear aplicación. Redirect URI: `https://api.TUDOMINIO/api/v1/meli/oauth/callback`; notificaciones (topic `orders_v2`): `https://api.TUDOMINIO/api/v1/webhooks/meli` | Plataforma | Opcional (canal ML) |
 | **Mercado Pago del merchant** | — (un click) | El merchant conecta su cuenta desde Configuración → Medios de pago (OAuth) | Tienda | Por tienda |
 | **Payway (ex Decidir)** | site_id + public key + private key (sandbox y producción son distintos) | Alta comercial con Payway → te dan las credenciales por ambiente. El comercio las carga en Configuración → Medios de pago → Payway | Tienda | Opcional (tarjeta sin salir del checkout) |
@@ -58,8 +58,10 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `Captcha:Turnstile:SiteKey` / `:Secret` | Turnstile | vacío = captcha apagado | `.env.prod` |
 | `Authentication:Google:ClientId` / `:ClientSecret` | Login Google de compradores | opcional | opcional |
 | `Sentry:Dsn` | Errores del backend | vacío = apagado | `.env.prod` |
-| `Media:Endpoint` / `Media:AccessKey` / `Media:SecretKey` / `Media:PublicBaseUrl` | MinIO/S3 | defaults del compose de dev | `.env.prod` |
-| `Media:EnsureBucketOnStartup` | Crear bucket al arrancar | `true` | `true` (primera vez) |
+| `Media:Endpoint` / `Media:AccessKey` / `Media:SecretKey` / `Media:PublicBaseUrl` | R2/S3/MinIO | defaults del compose de dev | `.env.prod` (la API no arranca en Producción con los de dev) |
+| `Media:Region` | Región de firma (`auto` en R2) | vacío | `auto` |
+| `Media:BucketInPublicUrl` | La URL pública lleva el bucket | `true` | `false` con dominio propio de R2 |
+| `Media:EnsureBucketOnStartup` | Crear bucket al arrancar | `true` | `false` en R2 (no soporta `PutBucketPolicy`; los buckets se crean a mano) |
 | `PublicApiBaseUrl` | URL pública de la API — **la usan los links de baja y tracking de los emails** | `http://localhost:5080` | `https://api.TUDOMINIO` |
 | `Tenancy:PlatformBaseDomain` | Dominio base (subdominios de tiendas) | `localhost` | `TUDOMINIO` |
 | `Cors:AllowedOrigins` | Orígenes permitidos | localhost | tus dominios de admin/storefront |
@@ -90,7 +92,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 
 ## 4. Producción: `.env.prod`
 
-La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla a `.env.prod` (nunca commitearlo) y completarla. El `docker-compose.prod.yml` mapea el subconjunto que está en `.env.prod.example`; el resto de las claves (Mercado Libre, `Email:WebhookSecret`, `PublicApiBaseUrl`, Captcha, Google, `Media:*`, CORS) va como variables de entorno manuales del servicio `api`. Claves del archivo: `PLATFORM_DOMAIN`, `ACME_EMAIL` (TLS de Caddy), `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `SENTRY_DSN_*`, `WORKERS_ENABLED`.
+La plantilla completa vive en **`infra/docker/.env.prod.example`** — copiarla a `.env.prod` (nunca commitearlo) y completarla. El `docker-compose.prod.yml` mapea el subconjunto que está en `.env.prod.example`; el resto de las claves (Mercado Libre, `Email:WebhookSecret`, `PublicApiBaseUrl`, Captcha, Google, CORS) va como variables de entorno manuales del servicio `api`. Claves del archivo: `PLATFORM_DOMAIN`, `ACME_EMAIL` (TLS de Caddy), `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `SENTRY_DSN_*`, `WORKERS_ENABLED`, `MEDIA_*` (storage de imágenes).
 
 > **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, credenciales de Payway, WhatsApp, MiCorreo, Zipnova, Andreani, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
 

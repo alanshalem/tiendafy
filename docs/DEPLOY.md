@@ -25,6 +25,12 @@ Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Produc
 | `Tenancy__PlatformBaseDomain` | `tudominio.com` | Sin esto resuelve mal los hosts |
 | `Cors__AllowedOrigins__0` | `https://midominio-propio.com` | Extra (localhost y `*.PlatformBaseDomain` ya se permiten) |
 | `DataProtection__KeyPath` | `/keys` | **Volumen persistente.** Sin esto, los tokens MP encriptados se pierden al reiniciar |
+| `Media__Endpoint` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | **Requerido.** Storage S3-compatible (R2, S3, MinIO propio). La API no arranca en Producción si apunta a localhost |
+| `Media__PublicBaseUrl` | `https://img.tudominio.com` | **Requerido.** Dominio desde el que el comprador descarga las imágenes |
+| `Media__AccessKey` / `__SecretKey` | — | **Requerido.** Token con lectura/escritura sobre los dos buckets. `minioadmin` en Producción = no arranca |
+| `Media__Region` | `auto` | R2 firma con `auto`. MinIO la ignora |
+| `Media__BucketInPublicUrl` | `false` | `false` con dominio propio de R2 (objeto en la raíz); `true` en MinIO/S3 path-style (`{base}/{bucket}/{key}`) |
+| `Media__EnsureBucketOnStartup` | `false` | R2 no soporta `PutBucketPolicy`: los buckets se crean a mano una vez |
 | `MercadoPago__ClientId` / `__ClientSecret` | — | App de MercadoPago (marketplace) |
 | `MercadoPago__RedirectUri` | `https://api.tudominio.com/api/v1/payments/mercadopago/callback` | Debe coincidir con la app MP |
 | `MercadoPago__WebhookSecret` | — | Para validar la firma del webhook |
@@ -38,6 +44,33 @@ Se pueden pasar como env vars (doble guion bajo = anidado) o `appsettings.Produc
 | `Captcha__Turnstile__SiteKey` / `__Secret` | — | Opcional. Cloudflare Turnstile anti-bots en contacto y login/signup. Vacío = sin captcha |
 | `Notifications__EmailCostUsdPer1000` | `0.40` | Opcional. Tarifa de referencia del panel "Uso del mes" (emails) |
 | `Notifications__WhatsAppCostUsdPerMessage` | `0.034` | Opcional. Ídem para WhatsApp |
+
+### Imágenes de las tiendas (storage)
+
+El backend habla S3 con cualquier proveedor compatible. **Cloudflare R2** es el
+default recomendado: el egress es gratis y las imágenes de una tienda se leen
+mil veces por cada vez que se suben, así que es el único costo que crecería con
+las ventas. Además le saca disco y ancho de banda al VPS.
+
+Alta, una sola vez:
+
+1. Cloudflare → R2 → crear dos buckets: `tiendafy-media` y `tiendafy-private`.
+2. Atar un dominio propio (ej. `img.tudominio.com`) **solo al de media**. Ese es
+   el que hace público el bucket y el que le da CDN. El privado NO se expone:
+   los adjuntos de chat se sirven con URLs firmadas de vida corta.
+3. Crear un API token de R2 con permiso de lectura/escritura sobre esos dos
+   buckets (no uses uno de cuenta entera).
+4. Completar `MEDIA_*` en `.env.prod`.
+
+Con MinIO propio en vez de R2: `Media__BucketInPublicUrl=true`,
+`Media__EnsureBucketOnStartup=true` y **exponelo por un dominio público**
+(ej. `media.tudominio.com` detrás de Caddy). No alcanza con `localhost:9000`:
+en producción `next/image` bloquea los upstreams que resuelven a IP privada y
+todas las fotos de la tienda quedan rotas.
+
+Migrar de un proveedor a otro es copiar los objetos entre buckets: las URLs
+guardadas en la base apuntan al dominio viejo, así que hay que mantenerlo vivo
+o reescribirlas.
 
 Correo Argentino no necesita env vars: las credenciales MiCorreo son **por
 tienda** y viven cifradas en la DB (las carga el merchant desde el admin).

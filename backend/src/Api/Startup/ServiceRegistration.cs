@@ -54,7 +54,8 @@ public static class ServiceRegistration
     }
 
     /// <summary>Los 19 módulos del monolito.</summary>
-    public static IServiceCollection AddAllModules(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddAllModules(
+        this IServiceCollection services, IConfiguration configuration, bool isProduction = false)
     {
         services.AddTenancyModule(configuration);
         services.AddIdentityModule(configuration);
@@ -63,7 +64,7 @@ public static class ServiceRegistration
         services.AddCustomersModule(configuration);
         services.AddContentModule(configuration);
         services.AddThemesModule(configuration);
-        services.AddMediaModule(configuration);
+        services.AddMediaModule(configuration, isProduction);
         services.AddSupportModule(configuration);
         services.AddPurchasingModule(configuration);
         services.AddFiscalModule(configuration);
