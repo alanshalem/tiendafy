@@ -15,7 +15,9 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 
 | Necesito… | Leé |
 |---|---|
-| Levantar el entorno y ver algo andando | [../README.md](../README.md) → Quick start |
+| Levantar el entorno y ver algo andando | [../README.md](../README.md) → Quick start (`.\dev-up.ps1`; admin en :5173, tiendas en `<sub>.localhost:3000`) |
+| Dónde vive cada puerto y cómo convivir con otro proyecto en la misma máquina | [URLS.md](./URLS.md) |
+| Storage de imágenes (MinIO en dev, Cloudflare R2 en prod) | [DEPLOY.md](./DEPLOY.md) → Imágenes de las tiendas |
 | Todas las API keys/secretos/variables (dev y prod) | [CONFIGURACION.md](./CONFIGURACION.md) — qué conseguir, dónde se consigue y dónde va |
 | Entender TODO el sistema de un vistazo | [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) — diagramas Mermaid: piezas, integraciones y el flujo de una venta |
 | Loguearme en dev | [usuarios-de-prueba.md](./usuarios-de-prueba.md) |

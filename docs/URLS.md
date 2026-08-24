@@ -8,7 +8,7 @@ Mapa completo de dónde vive cada pieza, en desarrollo y en producción.
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | http://localhost:3000                  | **Storefront** (Next.js): landing de la plataforma cuando entrás por `localhost`.                              |
 | http://`<subdominio>`.localhost:3000 | **Tienda de un merchant** (ej. `volxen.localhost:3000`). `*.localhost` resuelve solo, sin tocar hosts.        |
-| http://localhost:3001                  | **Admin** (Vite/React): panel del merchant. Login con los usuarios de `docs/usuarios-de-prueba.md`.             |
+| http://localhost:5173                  | **Admin** (Vite/React): panel del merchant. Puerto fijo (`strictPort` en `vite.config.ts`). Login con los usuarios de `docs/usuarios-de-prueba.md`.             |
 | http://localhost:5080                  | **API** (.NET). Todo el backend, admin y storefront le pegan acá.                                                |
 | http://localhost:5080/scalar           | **Documentación interactiva de la API** (Scalar UI).                                                             |
 | http://localhost:5080/openapi/v1.json  | Spec OpenAPI cruda.                                                                                                     |
@@ -37,19 +37,27 @@ Rutas importantes dentro del admin (SPA, todas cuelgan de la URL del admin):
 | `/tenants`                        | Alta y gestión de tiendas (multi-tenant).                                   |
 | `/ayuda`                          | Manuales internos por tema (se abre en pestaña nueva).                      |
 
-## ⚠️ Hoy en esta máquina (workaround por conflicto de puertos)
+## Convivir con otro proyecto en la misma máquina
 
-Otro proyecto (`camg-api`, docker ajeno a Tiendafy) ocupa el **3000**. Mientras corra:
+El admin está fijo en **5173** (`strictPort` en `vite.config.ts`) justamente para
+no pelearse con Next: cuando el 3000 está ocupado, Next escala solo al 3001 y si
+el admin viviera ahí los dos servidores se pisarían.
 
-| URL                   | Qué es                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
-| http://localhost:3001 | Storefront (corrido de 3000 → 3001). Por eso "el admin" en 3001 muestra la landing.                   |
-| http://localhost:5173 | **Admin** (arrancado con `npx vite --port 5173` porque su puerto 3001 lo tomó el storefront). |
+El storefront sí puede chocar: si otra app (acá `camg-api`) ya tiene el **3000**,
+levantalo en otro puerto y avisale al admin dónde quedó.
 
-Costo del workaround: los links "ver tienda" del admin y el preview del editor de tema
-apuntan a `*.localhost:3000` (donde responde camg-api), así que no funcionan.
-Para volver al mapa de diseño: parar camg-api (`docker stop <container>`),
-storefront con `npm run dev` (toma 3000) y admin con `npm run dev` (toma 3001).
+```powershell
+.\dev-up.ps1 -StorefrontPort 3001
+```
+
+```bash
+# admin/.env.local
+VITE_STOREFRONT_ORIGIN=http://{sub}.localhost:3001
+```
+
+Sin ese `VITE_STOREFRONT_ORIGIN`, el botón "Ver mi tienda" y el preview del editor
+de diseño apuntan a `*.localhost:3000` — donde responde la otra app — y parecen
+rotos sin serlo.
 
 ## Stack local dockerizado (`infra/docker/docker-compose.app.yml`)
 

@@ -43,13 +43,17 @@ Requisitos: Docker, .NET 10 SDK, Node 22+ (pnpm llega vía corepack).
 | Qué | URL |
 |---|---|
 | API | http://localhost:5080 (`/health`, `/version`) |
-| Admin (panel del merchant) | http://localhost:3001 |
+| Admin (panel del merchant) | http://localhost:5173 |
 | Storefront (tiendas) | http://`<subdominio>`.localhost:3000 |
 | Postgres | localhost:5432 (tiendafy/tiendafy) |
 | MinIO Console | localhost:9001 |
 
-**Primeros pasos**: abrí el admin (http://localhost:3001), registrate, creá una
+**Primeros pasos**: abrí el admin (http://localhost:5173), registrate, creá una
 tienda y entrá a su storefront en `http://<subdominio>.localhost:3000`.
+
+Si ya tenés otra app usando el 3000, corré el storefront en otro puerto con
+`.\dev-up.ps1 -StorefrontPort 3001` y poné `VITE_STOREFRONT_ORIGIN=http://{sub}.localhost:3001`
+en `admin/.env.local` (si no, el admin manda a "Ver mi tienda" a un puerto vacío).
 Usuarios de prueba: [docs/usuarios-de-prueba.md](./docs/usuarios-de-prueba.md).
 
 ## Comandos frecuentes

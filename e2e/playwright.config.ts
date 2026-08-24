@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E contra el stack de dev CORRIENDO (./dev-up.ps1): API :5080, admin :3001,
+ * E2E contra el stack de dev CORRIENDO (./dev-up.ps1): API :5080, admin :5173,
  * storefront :3000 (tiendas en *.localhost:3000). Los tests son auto-contenidos:
  * registran su propio merchant/tienda/producto con sufijos únicos.
  */

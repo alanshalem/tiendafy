@@ -90,7 +90,7 @@ cat <<'EOF'
   Para desarrollar (Windows: usar dev-up.ps1; Linux/WSL: a mano):
     Backend API     cd backend/src/Api && dotnet run   -> http://localhost:5080  (Swagger: /scalar)
     Storefront      cd storefront && pnpm dev          -> http://localhost:3000
-    Admin           cd admin && pnpm dev               -> http://localhost:3001
+    Admin           cd admin && pnpm dev               -> http://localhost:5173
 
   Tests backend:    dotnet test backend/backend.slnx
   Type-check FE:    pnpm --filter "./shared/**" run type-check

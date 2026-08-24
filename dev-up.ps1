@@ -29,7 +29,11 @@ param(
     [switch]$Tunnel,
     # Corre TODO el sistema en contenedores (infra + API + storefront + admin),
     # en vez del modo nativo con hot-reload. Ideal para demo/smoke/onboarding.
-    [switch]$Docker
+    [switch]$Docker,
+    # Puerto del storefront. Se puede mover cuando otra app de la máquina ya
+    # usa el 3000 (Next escala solo y después nada sabe dónde quedó). Si lo
+    # cambiás, actualizá VITE_STOREFRONT_ORIGIN en admin/.env.local.
+    [int]$StorefrontPort = 3000
 )
 
 # 'Continue' a propósito: comandos nativos (docker) escriben a stderr cuando el
@@ -56,8 +60,8 @@ if (-not $cloudflared) {
 # ---- Mapa de puertos (única fuente de verdad para el script) ----
 $PORTS = [ordered]@{
     'API'        = 5080   # backend .NET (launchSettings perfil http)
-    'Admin'      = 3001   # vite (strictPort en vite.config.ts)
-    'Storefront' = 3000   # next dev
+    'Admin'      = 5173   # vite (strictPort en vite.config.ts)
+    'Storefront' = $StorefrontPort  # next dev -p (default 3000)
     'Postgres'   = 5432
     'MinIO'      = 9000
 }
@@ -102,7 +106,14 @@ function Wait-Until($label, [scriptblock]$test, [int]$tries = 60, [int]$delay = 
 function Stop-Port([int]$port) {
     Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty OwningProcess -Unique |
-        ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+        ForEach-Object {
+            # Decir QUÉ se está matando: en una máquina con más de un proyecto,
+            # el 3000 puede ser de otra app y frenarla sin avisar es peor que
+            # no arrancar. Con -StorefrontPort se corre el nuestro a otro lado.
+            $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue
+            if ($proc) { Warn "  :$port ocupado por $($proc.ProcessName) (PID $_) — lo freno" }
+            Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
+        }
 }
 
 # Levanta un quick tunnel cloudflared sobre la API y devuelve la URL pública
@@ -235,10 +246,15 @@ if ($BackendOnly) {
         @{ Name = 'Storefront'; Dir = $storeDir; Port = $PORTS.Storefront }
     )) {
         Stop-Port $f.Port
+        # El storefront va con -p explícito: sin eso Next escala solo al 3001
+        # cuando el 3000 está tomado y el admin queda apuntando a la nada.
+        $devArgs = if ($f.Name -eq 'Storefront') { @('dev', '-p', "$($f.Port)") } else { @('dev') }
         if ($InWindows) {
-            Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', "Set-Location '$($f.Dir)'; pnpm dev"
+            Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', "Set-Location '$($f.Dir)'; pnpm $($devArgs -join ' ')"
         } else {
-            Start-Process 'pnpm' -ArgumentList 'dev' -WorkingDirectory $f.Dir `
+            # 'pnpm.cmd' y no 'pnpm': en Windows pnpm es un shim .cmd y
+            # Start-Process no lo resuelve solo ("%1 is not a valid Win32 application").
+            Start-Process 'pnpm.cmd' -ArgumentList $devArgs -WorkingDirectory $f.Dir `
                 -RedirectStandardOutput (Join-Path $root "backend\$($f.Name.ToLower())-dev.log") `
                 -RedirectStandardError  (Join-Path $root "backend\$($f.Name.ToLower())-dev.err.log")
         }

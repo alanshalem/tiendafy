@@ -85,6 +85,48 @@ export const PLATAFORMA = {
         ],
       },
       {
+        heading: 'Levantar el sistema en una máquina de desarrollo',
+        paragraphs: [
+          'Antes de tocar un servidor conviene tener todo corriendo local. En desarrollo no hace falta contratar nada: la base de datos y el almacenamiento de imágenes se levantan en contenedores.',
+        ],
+        steps: [
+          'La primera vez: setup.ps1 (o setup.sh). Verifica que estén las herramientas, levanta la infraestructura, instala dependencias, compila y corre los tests.',
+          'Después, todos los días: dev-up.ps1 levanta todo en orden — infraestructura, API y los dos frontends — y espera a que cada pieza responda antes de seguir con la siguiente.',
+          'Para apagar: dev-down.ps1.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Pieza', 'Dónde queda', 'Para qué'],
+            rows: [
+              ['API', 'localhost:5080', 'Todo el backend. /health dice si está viva'],
+              ['Panel del comercio', 'localhost:5173', 'Puerto fijo a propósito, para no chocar con Next'],
+              [
+                'Tiendas',
+                'subdominio.localhost:3000',
+                'Cada tienda en su subdominio, sin tocar el archivo hosts',
+              ],
+              ['Base de datos', 'localhost:5432', 'PostgreSQL en Docker'],
+              [
+                'Almacenamiento',
+                'localhost:9000 (consola en 9001)',
+                'MinIO en Docker: hace de S3 sin pagar nada',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Si otra aplicación de la misma máquina ya usa el puerto 3000, levantá las tiendas en otro con dev-up.ps1 -StorefrontPort 3001 y avisale al panel dónde quedaron con VITE_STOREFRONT_ORIGIN en admin/.env.local. Sin eso, “Ver mi tienda” y la vista previa del editor de diseño apuntan al puerto de la otra app y parecen rotos.',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'En desarrollo el almacenamiento no se configura: el MinIO del contenedor ya viene apuntado y crea sus buckets solo. Las credenciales de verdad recién hacen falta al subir a producción — y ahí la API se niega a arrancar si quedaron las de desarrollo.',
+          },
+        ],
+      },
+      {
         heading: 'DNS de la plataforma',
         paragraphs: [
           'Se configura una sola vez. El proxy emite y renueva los certificados solo, también para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión.',
@@ -151,10 +193,10 @@ export const PLATAFORMA = {
             rows: [
               ['PostgreSQL', 'Tu servidor', 'Servidor', 'No arranca nada'],
               [
-                'Almacenamiento MinIO o S3',
-                'Tu servidor o un proveedor',
+                'Almacenamiento de imágenes (Cloudflare R2, S3 o MinIO propio)',
+                'dash.cloudflare.com → R2',
                 'Servidor',
-                'No se pueden subir fotos',
+                'No se pueden subir fotos, y en Producción la API directamente no arranca',
               ],
               [
                 'Resend: API key',
@@ -181,6 +223,57 @@ export const PLATAFORMA = {
                 'Ninguna tienda puede conectar cobros',
               ],
             ],
+          },
+        ],
+      },
+      {
+        heading: 'Las fotos de las tiendas: dónde viven',
+        paragraphs: [
+          'Las imágenes no se guardan en el servidor de la aplicación sino en un almacenamiento aparte compatible con S3. Cambiar de proveedor es cambiar cuatro variables: el sistema habla el mismo idioma con todos.',
+          'La recomendación es Cloudflare R2 por una razón concreta: no cobra el tráfico de bajada. Las fotos de una tienda se leen miles de veces por cada vez que se suben, así que ese es el único costo que crecería con las ventas. Además saca del servidor el disco y el ancho de banda de las imágenes, que es lo que primero lo satura.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Opción', 'Costo mensual aproximado', 'Cuándo conviene'],
+            rows: [
+              [
+                'Cloudflare R2',
+                'Gratis hasta 10 GB, después centavos por GB. Bajada gratis',
+                'Por defecto: barato, con CDN incluido y sin sorpresas de tráfico',
+              ],
+              [
+                'MinIO en el propio servidor',
+                'Nada extra, pero consume disco y ancho de banda del VPS',
+                'Si no se quiere ninguna dependencia externa. Los backups quedan a cargo de uno',
+              ],
+              [
+                'Amazon S3',
+                'Storage barato, pero la bajada se cobra por GB',
+                'Si ya se usa AWS para todo lo demás',
+              ],
+            ],
+          },
+          {
+            type: 'checklist',
+            items: [
+              'Crear dos buckets: uno para las imágenes de las tiendas y otro privado para los adjuntos del chat posventa',
+              'Atar un dominio propio (por ejemplo img.tudominio.com) SOLO al bucket de imágenes: eso es lo que lo hace público y le pone el CDN adelante',
+              'No conectarle dominio al bucket privado: los adjuntos se sirven con enlaces firmados que vencen',
+              'Crear una credencial limitada a esos dos buckets, no una de la cuenta entera',
+              'Cargar las cuatro variables en el servidor y reiniciar la API',
+              'Subir un logo desde el editor de diseño y confirmar que la dirección de la imagen es la del dominio propio',
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'La dirección de cada imagen queda guardada en la base tal como se subió. Mudarse de proveedor más adelante no es solo copiar los archivos: hay que mantener vivo el dominio viejo o reescribir las direcciones. Por eso conviene que el dominio de las imágenes sea propio desde el primer día.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Las subidas pasan siempre por la API, que valida el contenido real del archivo y limpia los SVG. Por eso no hay que abrir permisos de escritura al navegador ni configurar CORS en el bucket.',
           },
         ],
       },
@@ -443,6 +536,20 @@ export const PLATAFORMA = {
         ],
       },
       {
+        heading: 'Imágenes',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Un logo subido desde el editor de diseño y la dirección de la imagen apuntando al dominio propio, no a localhost',
+              'La misma imagen abierta en una ventana de incógnito: si pide permisos, el bucket no quedó público',
+              'El bucket privado SIN dominio conectado, y un adjunto del chat posventa que se abre solo desde el panel',
+              'Una imagen borrada desde el panel que efectivamente desaparece del bucket',
+            ],
+          },
+        ],
+      },
+      {
         heading: 'Facturación y emails',
         blocks: [
           {
@@ -475,6 +582,14 @@ export const PLATAFORMA = {
               ['Los emails no llegan', 'El dominio del remitente no está verificado'],
               ['Las facturas quedan en error', 'Certificado de homologación cargado en producción'],
               ['Una tienda nueva no abre en su subdominio', 'Falta el registro comodín en el DNS'],
+              [
+                'La API no arranca y el log habla de media',
+                'Quedaron las credenciales de desarrollo del almacenamiento: en Producción se niega a arrancar a propósito',
+              ],
+              [
+                'Las fotos se suben pero se ven rotas',
+                'La dirección pública del almacenamiento está mal, o el bucket no es público',
+              ],
             ],
           },
         ],

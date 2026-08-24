@@ -136,7 +136,7 @@ Write-Host @"
   URLs:
     API             http://localhost:5080   (Swagger: /scalar, Health: /health)
     Storefront      http://localhost:3000   (probá petify.localhost:3000)
-    Admin           http://localhost:3001
+    Admin           http://localhost:5173
 
   O a mano (nativo):
     Backend API     cd backend/src/Api; dotnet run

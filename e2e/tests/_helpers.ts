@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 /** URLs y credenciales compartidas por las specs (antes duplicadas en cada una). */
-export const ADMIN = process.env.E2E_ADMIN_URL ?? 'http://localhost:3001';
+export const ADMIN = process.env.E2E_ADMIN_URL ?? 'http://localhost:5173';
 export const API = process.env.E2E_API_URL ?? 'http://localhost:5080';
 export const STORE_BASE = process.env.E2E_STORE_DOMAIN ?? 'localhost:3000';
 
