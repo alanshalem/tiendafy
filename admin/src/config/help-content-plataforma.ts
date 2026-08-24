@@ -6,19 +6,89 @@ import type { HelpArticle } from './helpContent';
  * El resto del centro de ayuda está escrito para el comerciante: qué botón
  * tocar y qué esperar. Acá vive todo lo otro — infraestructura, claves del
  * servidor, altas comerciales, certificaciones — que antes estaba repartido
- * como secciones sueltas dentro de los manuales de cada función. Repartido no
- * servía: para saber qué faltaba para arrancar había que abrir ocho artículos
- * distintos y juntar los pedazos.
+ * como secciones sueltas dentro de los manuales de cada función.
+ *
+ * El ORDEN de los artículos es el recorrido real: entender cómo está armado,
+ * levantarlo en tu máquina, conseguir las claves, instalarlo en el servidor,
+ * los trámites lentos, la verificación final y el mantenimiento. Se lee de
+ * arriba hacia abajo la primera vez, y después se entra por el que haga falta.
+ *
+ * Están escritos para alguien técnico, pero sin dar por sabido nada: cada cosa
+ * dice también qué es y por qué existe, porque el que los va a leer en la
+ * urgencia puede no ser el que los leyó la primera vez.
  */
 export const PLATAFORMA = {
   plataformaPuestaEnMarcha: {
-    title: 'Poner Tiendafy en marcha, punta a punta',
+    title: 'Cómo está armado y en qué orden se levanta',
     intro:
-      'El recorrido completo de un sistema vacío a una tienda vendiendo: qué se levanta, en qué orden, y qué bloquea qué.',
+      'El mapa antes del viaje: qué piezas hay, dónde corre cada una, y en qué orden conviene armarlas para que ninguna falle por culpa de otra.',
     category: 'Administrar la plataforma',
     sections: [
       {
-        heading: 'La regla que ordena todo: dos niveles',
+        heading: 'Las piezas',
+        paragraphs: [
+          'Tiendafy no es un programa sino seis piezas que se hablan entre sí. Saber cuál es cuál es lo que después permite entender por qué algo no anda.',
+        ],
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'La API',
+                def: 'El cerebro. Guarda los productos, cobra, factura, manda los emails. No tiene pantallas: le hablan las otras piezas. Si se cae, se cae todo.',
+              },
+              {
+                term: 'Las tiendas',
+                def: 'Lo que ve el comprador. Una sola aplicación sirve a todas las tiendas: resuelve cuál mostrar según el dominio con el que entraron.',
+              },
+              {
+                term: 'El panel',
+                def: 'Esto que estás usando. Es una aplicación que corre entera en el navegador y le pide todo a la API.',
+              },
+              {
+                term: 'La base de datos',
+                def: 'PostgreSQL. Todo lo que se escribe vive acá, con una columna que dice de qué tienda es cada fila. Es lo que más duele perder.',
+              },
+              {
+                term: 'El almacenamiento',
+                def: 'Las fotos y los videos NO van a la base ni al disco del servidor: van a un servicio aparte (Cloudflare R2) con su propio dominio.',
+              },
+              {
+                term: 'El borde',
+                def: 'Un proxy (Caddy) que atiende todo lo que llega de internet, resuelve los certificados de seguridad y reparte cada visita a la pieza que corresponde según el dominio.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Tres lugares donde corre lo mismo',
+        paragraphs: [
+          'El mismo software corre en tres lados, y la diferencia entre ellos es a qué servicios apunta, no cómo está hecho.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Dónde', 'Para qué', 'Qué pasa si se rompe'],
+            rows: [
+              ['Tu máquina', 'Escribir y probar código', 'Nada: es tuya'],
+              [
+                'Staging (stg.tudominio)',
+                'Probar como si fuera real, antes de publicar',
+                'Nada: los datos son de mentira y el dinero no existe',
+              ],
+              ['Producción (tudominio)', 'Vender', 'Los clientes lo ven'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Los tres corren los mismos contenedores. Lo único que cambia es el archivo de configuración: qué base de datos usan, a qué bucket de imágenes escriben y si las credenciales de cobro son reales o de prueba.',
+          },
+        ],
+      },
+      {
+        heading: 'La regla que ordena todo: dos niveles de credenciales',
         paragraphs: [
           'Cada credencial de Tiendafy es de uno de dos tipos, y confundirlos es la causa número uno de "lo configuré y no anda".',
           'Las de PLATAFORMA son de Tiendafy como producto: se cargan una sola vez, viven en la configuración del servidor y necesitan reiniciar la API. Las de TIENDA son de cada comercio: se cargan desde el panel, se guardan cifradas y no tocan el servidor.',
@@ -37,12 +107,14 @@ export const PLATAFORMA = {
           'Cada paso habilita al siguiente. Saltear uno hace que el que viene falle por un motivo que no parece relacionado.',
         ],
         steps: [
-          'Infraestructura: servidor, base de datos PostgreSQL, almacenamiento de imágenes (MinIO o S3) y el proxy que resuelve los certificados.',
-          'DNS de la plataforma: el dominio base, el comodín para los subdominios de las tiendas, la API y el panel.',
-          'Claves de plataforma mínimas: base de datos, almacenamiento y Resend. Sin emails no se puede ni invitar a alguien al equipo.',
-          'App de Mercado Pago: es lo que hace existir el botón de “conectar tu cuenta” en cada tienda.',
+          'Levantarlo en tu máquina. Es gratis, no necesita contratar nada y es donde se aprende cómo encaja todo.',
+          'Conseguir las claves de plataforma mínimas: almacenamiento de imágenes y Resend. Sin emails no se puede ni invitar a alguien al equipo.',
+          'Contratar el servidor y apuntar el DNS: el dominio base, el comodín de las tiendas, la API y el panel — y lo mismo para staging.',
+          'Instalar el borde y los dos ambientes en el servidor, y publicar una primera versión en staging.',
+          'Registrar la app de Mercado Pago: es lo que hace existir el botón de “conectar tu cuenta” en cada tienda.',
           'Crear la primera tienda y su dueño.',
           'Desde el panel de esa tienda: conectar el cobro, configurar envíos y cargar el certificado de facturación.',
+          'Recién ahí, publicar en producción y abrir al público.',
           'Las opcionales, cuando hagan falta: Mercado Libre, redes sociales, IA, Meta Ads.',
         ],
         blocks: [
@@ -51,11 +123,12 @@ export const PLATAFORMA = {
             headers: ['Si falta…', 'Qué deja de andar'],
             rows: [
               ['Base de datos', 'Todo'],
-              ['Almacenamiento de imágenes', 'Subir fotos de productos'],
+              ['Almacenamiento de imágenes', 'Subir fotos. En el servidor, la API directamente no arranca'],
               ['Resend', 'Todos los emails: invitaciones, confirmación de compra, campañas'],
               ['URL pública de la API', 'Webhooks de pago, links de baja y tracking de campañas'],
               ['App de Mercado Pago', 'El botón de conectar cobros, en todas las tiendas'],
               ['DNS comodín', 'Los subdominios de las tiendas nuevas'],
+              ['Volumen de claves de cifrado', 'Cada tienda tiene que reconectar TODAS sus integraciones'],
             ],
           },
         ],
@@ -85,108 +158,6 @@ export const PLATAFORMA = {
         ],
       },
       {
-        heading: 'Levantar el sistema en una máquina de desarrollo',
-        paragraphs: [
-          'Antes de tocar un servidor conviene tener todo corriendo local. En desarrollo no hace falta contratar nada: la base de datos y el almacenamiento de imágenes se levantan en contenedores.',
-        ],
-        steps: [
-          'La primera vez: setup.ps1 (o setup.sh). Verifica que estén las herramientas, levanta la infraestructura, instala dependencias, compila y corre los tests.',
-          'Después, todos los días: dev-up.ps1 levanta todo en orden — infraestructura, API y los dos frontends — y espera a que cada pieza responda antes de seguir con la siguiente.',
-          'Para apagar: dev-down.ps1.',
-        ],
-        blocks: [
-          {
-            type: 'table',
-            headers: ['Pieza', 'Dónde queda', 'Para qué'],
-            rows: [
-              ['API', 'localhost:5080', 'Todo el backend. /health dice si está viva'],
-              ['Panel del comercio', 'localhost:5173', 'Puerto fijo a propósito, para no chocar con Next'],
-              [
-                'Tiendas',
-                'subdominio.localhost:3000',
-                'Cada tienda en su subdominio, sin tocar el archivo hosts',
-              ],
-              ['Base de datos', 'localhost:5432', 'PostgreSQL en Docker'],
-              [
-                'Almacenamiento',
-                'localhost:9000 (consola en 9001)',
-                'MinIO en Docker: hace de S3 sin pagar nada',
-              ],
-            ],
-          },
-          {
-            type: 'callout',
-            tone: 'tip',
-            text: 'Si otra aplicación de la misma máquina ya usa el puerto 3000, levantá las tiendas en otro con dev-up.ps1 -StorefrontPort 3001 y avisale al panel dónde quedaron con VITE_STOREFRONT_ORIGIN en admin/.env.local. Sin eso, “Ver mi tienda” y la vista previa del editor de diseño apuntan al puerto de la otra app y parecen rotos.',
-          },
-          {
-            type: 'callout',
-            tone: 'info',
-            text: 'En desarrollo el almacenamiento no se configura: el MinIO del contenedor ya viene apuntado y crea sus buckets solo. Las credenciales de verdad recién hacen falta al subir a producción — y ahí la API se niega a arrancar si quedaron las de desarrollo.',
-          },
-        ],
-      },
-      {
-        heading: 'Dos ambientes: uno para probar, uno para vender',
-        paragraphs: [
-          'Un solo ambiente significa que cada cambio se prueba con clientes adentro. Lo profesional no es tener dos servidores: es que lo que probás sea exactamente lo que después sale, que la configuración sea lo único distinto entre los dos, y que pasar a producción sea una decisión y no un efecto secundario.',
-          'Producción vende. Staging es idéntico en software y opuesto en consecuencias: mismos contenedores, misma versión, pero con otro dominio, otra base, otro bucket de imágenes y credenciales de prueba en todo lo que cobra o avisa.',
-        ],
-        blocks: [
-          {
-            type: 'table',
-            headers: ['', 'Producción', 'Staging'],
-            rows: [
-              ['Dominio', 'tudominio.com', 'stg.tudominio.com'],
-              ['Base de datos', 'propia, con backup diario', 'propia, descartable'],
-              ['Fotos', 'su bucket', 'un bucket aparte'],
-              ['Cobros', 'Mercado Pago real', 'credenciales de prueba'],
-              ['Emails', 'se envían', 'se escriben en el log, no salen'],
-              ['Facturación', 'certificado de producción', 'homologación'],
-              ['Google', 'indexa', 'nunca: responde "no me indexes"'],
-            ],
-          },
-          {
-            type: 'checklist',
-            items: [
-              'Cada push a la rama principal se publica solo en staging',
-              'Pasar a producción pide una aprobación humana y despliega la misma versión que se probó, sin recompilar',
-              'Volver atrás es desplegar la versión anterior: las imágenes viejas se guardan',
-              'Staging se puede rellenar con una copia de producción anonimizada, para probar con volumen real',
-            ],
-          },
-          {
-            type: 'callout',
-            tone: 'danger',
-            text: 'Copiar la base de producción a staging sin anonimizar es la forma más común de mandarle un email a un cliente real desde un ambiente de prueba, o de dejar credenciales de cobro donde no corresponde. El script de refresco borra los datos de contacto y las credenciales antes de dejar levantar staging.',
-          },
-          {
-            type: 'callout',
-            tone: 'warning',
-            text: 'Staging tiene que responder “no me indexes”. Sin eso, Google levanta las tiendas de prueba y te compite en los resultados con tu propia tienda real, mostrando precios que no son.',
-          },
-        ],
-      },
-      {
-        heading: 'DNS de la plataforma',
-        paragraphs: [
-          'Se configura una sola vez. El proxy emite y renueva los certificados solo, también para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión.',
-        ],
-        blocks: [
-          {
-            type: 'table',
-            headers: ['Registro', 'Nombre', 'Apunta a', 'Para qué'],
-            rows: [
-              ['A', 'TUDOMINIO', 'IP del servidor', 'Dominio base'],
-              ['A (comodín)', '*.TUDOMINIO', 'IP del servidor', 'Subdominios de todas las tiendas'],
-              ['A', 'api.TUDOMINIO', 'IP del servidor', 'La API: webhooks, OAuth, emails'],
-              ['A', 'admin.TUDOMINIO', 'IP del servidor', 'El panel de administración'],
-              ['CNAME', 'dominio del comercio', 'TUDOMINIO', 'Lo crea el dueño del dominio, en su proveedor'],
-            ],
-          },
-        ],
-      },
-      {
         heading: 'Antes de abrir una tienda al público',
         blocks: [
           {
@@ -205,6 +176,179 @@ export const PLATAFORMA = {
             type: 'callout',
             tone: 'warning',
             text: 'Lo del segundo dueño no es burocracia: si la única cuenta con control total pierde el acceso, no hay forma de administrar la tienda desde el panel.',
+          },
+        ],
+      },
+    ],
+  },
+
+  plataformaDesarrollo: {
+    title: 'Levantar el proyecto en tu máquina',
+    intro:
+      'De un repositorio recién clonado a una tienda funcionando en tu computadora, sin contratar ni configurar nada.',
+    category: 'Administrar la plataforma',
+    sections: [
+      {
+        heading: 'Qué instalar antes',
+        paragraphs: [
+          'Tres cosas. El resto lo maneja el proyecto solo, incluida la base de datos y el almacenamiento de imágenes, que corren en contenedores y se descartan cuando querés.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué', 'Para qué', 'Cómo saber si está'],
+            rows: [
+              [
+                'Docker Desktop',
+                'Corre la base de datos y el almacenamiento sin instalarlos en tu máquina',
+                'docker info responde',
+              ],
+              ['SDK de .NET 10', 'Compila y corre la API', 'dotnet --version'],
+              [
+                'Node 22 o mayor',
+                'Corre el panel y las tiendas (pnpm llega solo con corepack)',
+                'node --version',
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'La primera vez',
+        paragraphs: [
+          'Un solo comando deja todo listo: verifica que estén las herramientas, levanta la infraestructura, instala las dependencias, compila y corre los tests. Si algo falta, avisa cuál.',
+        ],
+        steps: [
+          'Clonar el repositorio y entrar a la carpeta.',
+          'Correr setup.ps1 en Windows, o setup.sh en Linux y Mac.',
+          'Esperar. La primera vez baja bastante: contenedores, paquetes de .NET y de Node.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'No hay que crear ningún archivo de configuración. Todo cae a valores de desarrollo: la base de datos y el almacenamiento del contenedor, y las integraciones apagadas hasta que se carguen credenciales.',
+          },
+        ],
+      },
+      {
+        heading: 'El día a día',
+        paragraphs: [
+          'Un comando levanta todo en orden y espera a que cada pieza responda antes de seguir con la siguiente. Es idempotente: si algo ya estaba arriba, no lo rompe.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Comando', 'Qué hace'],
+            rows: [
+              ['dev-up.ps1', 'Levanta todo: infraestructura, API, panel y tiendas'],
+              [
+                'dev-up.ps1 -BackendOnly',
+                'Solo infraestructura y API. Útil si vas a trabajar con la API sola',
+              ],
+              [
+                'dev-up.ps1 -StorefrontPort 3001',
+                'Corre las tiendas en otro puerto, cuando otra app ya usa el 3000',
+              ],
+              [
+                'dev-up.ps1 -Docker',
+                'Corre TODO en contenedores, como en el servidor. Sin recarga automática',
+              ],
+              [
+                'dev-up.ps1 -Tunnel',
+                'Expone la API a internet con una dirección temporal, para probar webhooks de Mercado Pago',
+              ],
+              ['dev-down.ps1', 'Apaga todo'],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Dónde queda cada pieza',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Pieza', 'Dirección', 'Notas'],
+            rows: [
+              ['API', 'localhost:5080', '/health dice si está viva; /version, qué versión corre'],
+              ['Documentación de la API', 'localhost:5080/scalar', 'Todas las rutas, navegables y probables'],
+              ['Panel', 'localhost:5173', 'Puerto fijo a propósito, para no chocar con las tiendas'],
+              [
+                'Tiendas',
+                'subdominio.localhost:3000',
+                'Cada tienda en su subdominio, sin tocar archivos del sistema',
+              ],
+              ['Base de datos', 'localhost:5432', 'Usuario, clave y base: tiendafy'],
+              [
+                'Almacenamiento',
+                'localhost:9000 · consola en 9001',
+                'MinIO: hace de Cloudflare R2 sin pagar nada',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Los subdominios terminados en .localhost resuelven solos en cualquier navegador moderno. No hay que editar el archivo hosts para ver una tienda.',
+          },
+        ],
+      },
+      {
+        heading: 'Entrar y tener con qué probar',
+        paragraphs: [
+          'El sistema arranca vacío pero no desnudo: al levantar en modo desarrollo se siembran un usuario del panel con acceso a todas las tiendas y compradores de prueba en cada una. Las credenciales están en docs/usuarios-de-prueba.md del repositorio.',
+          'Para que el panel tenga algo que mostrar —ventas, clientes, estadísticas, campañas— hay un cargador de datos de demostración que llena todo de una vez. Es idempotente y solo existe en desarrollo.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Los datos de demostración se cargan con una llamada POST a /api/v1/dev/demo-seed indicando la tienda. Agregando ?reset=true borra lo anterior y vuelve a empezar. Fuera de desarrollo esa ruta no existe.',
+          },
+        ],
+      },
+      {
+        heading: 'Convivir con otro proyecto en la misma máquina',
+        paragraphs: [
+          'El panel tiene el puerto fijo, así que nunca choca. Las tiendas usan el 3000 y ese sí lo pelean con casi cualquier otro proyecto web.',
+        ],
+        steps: [
+          'Levantar las tiendas en otro puerto: dev-up.ps1 -StorefrontPort 3001.',
+          'Avisarle al panel dónde quedaron, con VITE_STOREFRONT_ORIGIN en admin/.env.local.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si se hace lo primero y no lo segundo, el botón “Ver mi tienda” y la vista previa del editor de diseño apuntan al puerto de la otra aplicación. Parecen rotos y no lo están.',
+          },
+        ],
+      },
+      {
+        heading: 'Cuando algo no arranca',
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Síntoma', 'Causa más probable'],
+            rows: [
+              [
+                'El script se queda esperando la infraestructura',
+                'Docker Desktop está apagado o todavía iniciando',
+              ],
+              [
+                'La API no levanta',
+                'Otra instancia quedó corriendo y tiene tomados los archivos. Cerrarla y reintentar',
+              ],
+              [
+                'El panel dice que la sesión venció apenas reiniciaste la API',
+                'Es esperable: al reiniciar la API en desarrollo se invalidan las sesiones. Volver a entrar',
+              ],
+              ['Las tiendas abren pero sin fotos', 'El contenedor de almacenamiento no levantó'],
+              [
+                '“Ver mi tienda” lleva a una página que no es',
+                'Las tiendas están en otro puerto del que cree el panel',
+              ],
+            ],
           },
         ],
       },
@@ -237,7 +381,7 @@ export const PLATAFORMA = {
                 'Almacenamiento de imágenes (Cloudflare R2, S3 o MinIO propio)',
                 'dash.cloudflare.com → R2',
                 'Servidor',
-                'No se pueden subir fotos, y en Producción la API directamente no arranca',
+                'No se pueden subir fotos, y en el servidor la API se niega a arrancar',
               ],
               [
                 'Resend: API key',
@@ -256,6 +400,12 @@ export const PLATAFORMA = {
                 'Es tu propio dominio',
                 'Servidor',
                 'Webhooks de pago, links de baja y tracking rotos',
+              ],
+              [
+                'Token de DNS de Cloudflare',
+                'dash.cloudflare.com → API Tokens',
+                'Servidor (el borde)',
+                'No se emiten los certificados comodín de las tiendas',
               ],
               [
                 'Mercado Pago: app marketplace',
@@ -285,7 +435,7 @@ export const PLATAFORMA = {
               ],
               [
                 'MinIO en el propio servidor',
-                'Nada extra, pero consume disco y ancho de banda del VPS',
+                'Nada extra, pero consume disco y ancho de banda del servidor',
                 'Si no se quiere ninguna dependencia externa. Los backups quedan a cargo de uno',
               ],
               [
@@ -298,11 +448,11 @@ export const PLATAFORMA = {
           {
             type: 'checklist',
             items: [
-              'Crear dos buckets: uno para las imágenes de las tiendas y otro privado para los adjuntos del chat posventa',
-              'Atar un dominio propio (por ejemplo img.tudominio.com) SOLO al bucket de imágenes: eso es lo que lo hace público y le pone el CDN adelante',
-              'No conectarle dominio al bucket privado: los adjuntos se sirven con enlaces firmados que vencen',
-              'Crear una credencial limitada a esos dos buckets, no una de la cuenta entera',
-              'Cargar las cuatro variables en el servidor y reiniciar la API',
+              'Crear cuatro buckets: imágenes y adjuntos privados, para producción y para staging',
+              'Atar un dominio propio (por ejemplo img.tudominio.com) SOLO a los de imágenes: eso es lo que los hace públicos y les pone el CDN adelante',
+              'No conectarle dominio a los privados: los adjuntos del chat se sirven con enlaces firmados que vencen',
+              'Crear una credencial limitada a esos buckets, no una de la cuenta entera',
+              'Cargar las cuatro variables en el archivo de cada ambiente',
               'Subir un logo desde el editor de diseño y confirmar que la dirección de la imagen es la del dominio propio',
             ],
           },
@@ -405,13 +555,242 @@ export const PLATAFORMA = {
           {
             type: 'callout',
             tone: 'danger',
-            text: 'Los secretos de plataforma (client secrets, webhook secrets, claves de API) van en variables de entorno del servidor. Nunca en el panel, nunca en el navegador, nunca en el repositorio.',
+            text: 'Los secretos de plataforma (client secrets, webhook secrets, claves de API) van en los archivos de variables del servidor, con permisos de lectura solo para su dueño. Nunca en el panel, nunca en el navegador, nunca en el repositorio.',
           },
           {
             type: 'callout',
             tone: 'warning',
             title: 'Lo que más duele perder',
-            text: 'Todos los secretos de cada tienda —certificados de ARCA, tokens de Mercado Pago y Mercado Libre, WhatsApp, MiCorreo, Zipnova, Payway, Andreani— están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero. Verificá que esté dentro del backup diario.',
+            text: 'Todos los secretos de cada tienda —certificados de ARCA, tokens de Mercado Pago y Mercado Libre, WhatsApp, MiCorreo, Zipnova, Payway, Andreani— están cifrados con las claves del volumen dpkeys del servidor. Si ese volumen se pierde, CADA tienda tiene que reconectar todo de cero. Verificá que esté dentro del backup.',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Producción y staging tienen credenciales distintas de punta a punta: otra base, otro bucket, otras claves de cobro. Compartir una sola es lo que termina en un cobro de prueba contra una cuenta real, o en un borrado de prueba que se lleva una foto de verdad.',
+          },
+        ],
+      },
+    ],
+  },
+
+  plataformaDeploy: {
+    title: 'Instalar y desplegar en el servidor',
+    intro:
+      'De un servidor recién contratado a dos ambientes andando, y cómo se publica cada versión nueva sin apagar nada.',
+    category: 'Administrar la plataforma',
+    sections: [
+      {
+        heading: 'Qué servidor hace falta',
+        paragraphs: [
+          'Un servidor virtual con Linux alcanza. Lo que define el tamaño no es la cantidad de visitas sino que ahí adentro conviven dos ambientes completos.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Recurso', 'Mínimo', 'Por qué'],
+            rows: [
+              [
+                'Memoria',
+                '8 GB',
+                'Producción usa unos 3 GB y staging otros 2,5. Con 4 GB se puede, teniendo staging apagado entre usos',
+              ],
+              [
+                'Disco',
+                '80 GB',
+                'Base de datos, backups y las imágenes de los contenedores. Las fotos no ocupan acá',
+              ],
+              ['Procesador', '2 núcleos', 'Suficiente: el trabajo pesado son consultas, no cálculo'],
+              ['Sistema', 'Ubuntu o Debian actual', 'Cualquiera con Docker sirve'],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Preparar el servidor',
+        steps: [
+          'Crear un usuario propio para desplegar y agregarlo al grupo de Docker. Trabajar como administrador total es innecesario y se paga caro el día que un comando sale mal.',
+          'Instalar Docker con su complemento de compose.',
+          'Dejar abiertos solo los puertos 80 y 443 hacia internet, más el de SSH. La base de datos NO se expone: las piezas se hablan por una red interna.',
+          'Generar una clave SSH para que el sistema de publicación entre solo, y cargar la parte pública en el servidor.',
+          'Clonar el repositorio en una carpeta del usuario de deploy.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si el servidor ya corre otra aplicación con su propio proxy (nginx, Apache), los dos van a pelear por los puertos 80 y 443 y el segundo no arranca. Hay que decidir cuál queda de frente y poner al otro detrás, en un puerto interno.',
+          },
+        ],
+      },
+      {
+        heading: 'El DNS',
+        paragraphs: [
+          'Se configura una sola vez, y son ocho registros: cuatro para producción y cuatro para staging. Todos apuntan a la misma dirección del servidor; lo que los distingue es el nombre con el que llega la visita.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Registro', 'Nombre', 'Para qué'],
+            rows: [
+              ['A', 'TUDOMINIO', 'La portada de la plataforma'],
+              ['A (comodín)', '*.TUDOMINIO', 'Los subdominios de todas las tiendas'],
+              ['A', 'api.TUDOMINIO', 'La API: webhooks, OAuth, emails'],
+              ['A', 'admin.TUDOMINIO', 'El panel'],
+              ['A', 'stg.TUDOMINIO', 'Lo mismo, del lado de staging'],
+              ['A (comodín)', '*.stg.TUDOMINIO', 'Las tiendas de staging'],
+              ['A', 'api.stg.TUDOMINIO', 'La API de staging'],
+              ['A', 'admin.stg.TUDOMINIO', 'El panel de staging'],
+              ['CNAME', 'dominio del comercio', 'Lo crea el dueño del dominio, en su proveedor'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Los certificados de seguridad se emiten y renuevan solos. Los de la plataforma salen por validación de DNS con el token de Cloudflare, de una sola vez para todos los subdominios. Los de los dominios propios de cada comercio se emiten la primera vez que alguien los visita, después de preguntarle a la API si ese dominio es de una tienda de verdad.',
+          },
+        ],
+      },
+      {
+        heading: 'Cómo queda organizado',
+        paragraphs: [
+          'Tres grupos de contenedores. El borde es el único que da a internet; los otros dos son ambientes completos e independientes que solo se comunican con él.',
+        ],
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Borde',
+                def: 'Un solo Caddy, con los puertos 80 y 443. Reparte por dominio: lo que llega a tudominio va a producción, lo que llega a stg.tudominio va a staging.',
+              },
+              {
+                term: 'Producción',
+                def: 'Su base de datos, su copia de seguridad diaria, la API, las tiendas y el panel.',
+              },
+              {
+                term: 'Staging',
+                def: 'Lo mismo, con otra base, otras credenciales y sin backup: sus datos son descartables por definición.',
+              },
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Los dos ambientes usan el MISMO archivo de definición. Lo único distinto es el archivo de variables. Si staging se definiera aparte, se iría pareciendo cada vez menos a producción y dejaría de servir para probar.',
+          },
+        ],
+      },
+      {
+        heading: 'Los tres archivos de variables',
+        paragraphs: [
+          'Se copian de sus plantillas de ejemplo, se completan y se les deja permiso de lectura solo a su dueño. Nunca se suben al repositorio.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Archivo', 'Qué configura'],
+            rows: [
+              ['.env.edge', 'Los dominios, el mail de los certificados y el token de DNS de Cloudflare'],
+              ['.env.prod', 'El ambiente de producción: base, imágenes, cobros, emails'],
+              ['.env.staging', 'El de staging: lo mismo, con credenciales de prueba y sin backup'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'La API se niega a arrancar si detecta que quedaron valores de desarrollo en el almacenamiento de imágenes. Es a propósito: sin eso, las subidas responderían que salió todo bien y las fotos se perderían, y se descubriría cuando un cliente ve la tienda rota.',
+          },
+        ],
+      },
+      {
+        heading: 'La primera puesta en marcha',
+        steps: [
+          'Crear la red compartida por la que se hablan el borde y los ambientes.',
+          'Copiar las tres plantillas de variables y completarlas.',
+          'Levantar el borde. Queda andando y no se toca en cada publicación.',
+          'Publicar staging y comprobar que responde: la API, una tienda y el panel.',
+          'Crear ahí la primera tienda de prueba y recorrerla entera, incluido un cobro con credenciales de prueba.',
+          'Recién entonces publicar producción.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Los comandos exactos están en docs/DEPLOY.md del repositorio, que se actualiza junto con el código. Acá va el orden y el porqué, que es lo que no cambia.',
+          },
+        ],
+      },
+      {
+        heading: 'Publicar una versión nueva',
+        paragraphs: [
+          'Cada cambio que entra a la rama principal se construye UNA vez y se publica solo en staging. Producción queda esperando una aprobación humana, y publica exactamente lo mismo que se probó: no se vuelve a construir.',
+          'Eso último es lo que hace que probar sirva. Si producción recompilara, lo que sale no serían los mismos archivos que se revisaron, y la prueba pasaría a ser una aproximación.',
+        ],
+        steps: [
+          'Alguien sube un cambio a la rama principal.',
+          'Se corren las pruebas y se construyen las imágenes, marcadas con el identificador de ese cambio.',
+          'Se publica en staging: primero las migraciones de la base, después el recambio de contenedores.',
+          'Se verifica automáticamente que staging responda.',
+          'Un humano aprueba, y se publica en producción esa misma versión.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Las migraciones de la base corren ANTES del recambio, con la versión nueva. Al revés, la aplicación nueva arranca contra una base vieja y falla en el peor momento.',
+          },
+        ],
+      },
+      {
+        heading: 'Volver atrás',
+        paragraphs: [
+          'Publicar la versión anterior. Las imágenes viejas se guardan, así que es cuestión de minutos y no requiere reconstruir nada.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Volver atrás devuelve el código, no los datos. Si la versión que falló borró o transformó información, eso no se deshace desplegando la anterior: para eso está el backup. Por eso conviene que los cambios que tocan datos pasen por staging con una copia realista.',
+          },
+        ],
+      },
+      {
+        heading: 'Refrescar staging con datos reales',
+        paragraphs: [
+          'Staging arranca vacío, y eso alcanza para la mayoría de las pruebas. Cuando hace falta realismo —una migración pesada, un informe con volumen— se puede traer una copia de producción.',
+          'La copia NO se usa tal cual: pasa por un proceso que reemplaza los datos de contacto por direcciones inventadas y borra las credenciales de cobro y facturación. Si algo queda sin anonimizar, el proceso se detiene y no levanta staging.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Restaurar producción en staging sin anonimizar es la forma más común de mandarle un email a un cliente real desde un ambiente de prueba. También deja credenciales de cobro en un lugar donde no corresponde.',
+          },
+        ],
+      },
+      {
+        heading: 'Qué hay que configurar una sola vez en el repositorio',
+        paragraphs: [
+          'La publicación automática necesita saber a qué servidor entrar y con qué llave. Se carga en la configuración del repositorio, no en el código.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué', 'Para qué'],
+            rows: [
+              ['Dirección, usuario y clave SSH del servidor', 'Que el sistema de publicación pueda entrar'],
+              ['Dominio de producción y de staging', 'Armar las direcciones que verifica al terminar'],
+              ['Carpeta del proyecto en el servidor', 'Dónde correr los comandos'],
+              [
+                'Revisor obligatorio en el ambiente de producción',
+                'Que publicar en producción exija una aprobación y no salga solo',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Sin el revisor obligatorio, el paso de producción se ejecuta sin preguntar. Es la única pieza de todo esto que se configura por fuera del repositorio y la más fácil de olvidar.',
           },
         ],
       },
@@ -516,6 +895,11 @@ export const PLATAFORMA = {
             tone: 'info',
             text: 'Sin el webhook de pagos, una compra que el comprador abandona a mitad de camino puede quedar sin impactar en la orden aunque el pago se haya acreditado.',
           },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Conviene registrar dos aplicaciones, una por ambiente, con sus propias URLs de retorno. Si se comparte una sola, la vuelta del OAuth de staging cae en producción.',
+          },
         ],
       },
       {
@@ -536,10 +920,30 @@ export const PLATAFORMA = {
 
   integracionesProduccion: {
     title: 'Checklist antes de cobrar y despachar de verdad',
-    intro:
-      'Lo último que hay que verificar de cada integración antes de que un comprador real ponga su tarjeta.',
+    intro: 'Lo último que hay que verificar antes de que un comprador real ponga su tarjeta.',
     category: 'Administrar la plataforma',
     sections: [
+      {
+        heading: 'Los ambientes',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Staging responde “no me indexes”: se comprueba mirando las cabeceras de cualquier página suya',
+              'Staging usa credenciales de prueba en cobros y el certificado de homologación en facturación',
+              'Staging no manda emails de verdad, o solo los manda a casillas propias',
+              'Producción y staging escriben en buckets de imágenes distintos',
+              'Publicar en producción exige aprobación y no sale solo',
+              'Se probó volver atrás una versión, al menos una vez, en staging',
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si staging se deja indexar, Google levanta las tiendas de prueba y te compite en los resultados con tu propia tienda real, mostrando precios que no son.',
+          },
+        ],
+      },
       {
         heading: 'Cobros',
         blocks: [
@@ -582,7 +986,7 @@ export const PLATAFORMA = {
           {
             type: 'checklist',
             items: [
-              'Un logo subido desde el editor de diseño y la dirección de la imagen apuntando al dominio propio, no a localhost',
+              'Un logo subido desde el editor de diseño y la dirección de la imagen apuntando al dominio propio, no a una dirección local',
               'La misma imagen abierta en una ventana de incógnito: si pide permisos, el bucket no quedó público',
               'El bucket privado SIN dominio conectado, y un adjunto del chat posventa que se abre solo desde el panel',
               'Una imagen borrada desde el panel que efectivamente desaparece del bucket',
@@ -625,11 +1029,19 @@ export const PLATAFORMA = {
               ['Una tienda nueva no abre en su subdominio', 'Falta el registro comodín en el DNS'],
               [
                 'La API no arranca y el log habla de media',
-                'Quedaron las credenciales de desarrollo del almacenamiento: en Producción se niega a arrancar a propósito',
+                'Quedaron las credenciales de desarrollo del almacenamiento: se niega a arrancar a propósito',
               ],
               [
                 'Las fotos se suben pero se ven rotas',
                 'La dirección pública del almacenamiento está mal, o el bucket no es público',
+              ],
+              [
+                'El panel abre pero no puede hablar con la API',
+                'La configuración que el contenedor escribe al arrancar quedó apuntando al ambiente equivocado',
+              ],
+              [
+                'Una tienda de staging pide certificado o da error de seguridad',
+                'Falta el comodín de staging en el DNS, o el token de DNS no tiene permiso sobre la zona',
               ],
             ],
           },
@@ -645,29 +1057,40 @@ export const PLATAFORMA = {
     sections: [
       {
         heading: 'El backup que realmente importa',
-        paragraphs: ['La base de datos es lo obvio. Lo que se olvida es el volumen de claves de cifrado.'],
+        paragraphs: [
+          'La base de datos es lo obvio. Lo que se olvida son las otras tres cosas, y dos de ellas no se recuperan de ninguna manera.',
+        ],
         blocks: [
           {
             type: 'table',
-            headers: ['Qué', 'Si se pierde'],
+            headers: ['Qué', 'Si se pierde', 'Se recupera'],
             rows: [
-              ['Base de datos', 'Se pierde todo: catálogo, ventas, clientes'],
-              ['Volumen dpkeys', 'Cada tienda tiene que reconectar TODAS sus integraciones de cero'],
-              ['Almacenamiento de imágenes', 'El catálogo queda sin fotos'],
+              ['Base de datos', 'Se pierde todo: catálogo, ventas, clientes', 'Del backup diario'],
+              [
+                'Volumen de claves de cifrado',
+                'Cada tienda tiene que reconectar TODAS sus integraciones de cero',
+                'No: hay que copiarlo aparte',
+              ],
+              ['Almacenamiento de imágenes', 'El catálogo queda sin fotos', 'No: el proveedor no versiona'],
+              [
+                'Archivos de variables del servidor',
+                'Hay que rearmar la configuración a mano y conseguir de nuevo las claves',
+                'No: guardarlos en un gestor de contraseñas',
+              ],
             ],
           },
           {
             type: 'callout',
             tone: 'danger',
-            text: 'Un backup que nunca se restauró no es un backup. Probá la restauración completa en un entorno aparte, al menos una vez.',
+            text: 'Un backup que nunca se restauró no es un backup. Probá la restauración completa en staging, al menos una vez. Es exactamente para eso que existe ese ambiente.',
           },
         ],
       },
       {
         heading: 'Certificados y dominios',
         paragraphs: [
-          'El proxy emite y renueva los certificados solo, también para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión. No hay renovación manual.',
-          'Lo que sí puede fallar es lo de afuera: que el comercio no haya creado el registro en su DNS, o que le venza el dominio y deje de resolver.',
+          'Los certificados se emiten y renuevan solos: los de la plataforma por validación de DNS, los de los dominios propios de cada comercio la primera vez que alguien los visita. No hay renovación manual.',
+          'Lo que sí puede fallar es lo de afuera: que el comercio no haya creado el registro en su DNS, que le venza el dominio, o que el token de DNS de la plataforma haya expirado y deje de poder validar.',
         ],
       },
       {
@@ -680,7 +1103,8 @@ export const PLATAFORMA = {
               'Facturas en error: suele ser el certificado o el punto de venta',
               'Emails rebotados en aumento: puede ser el dominio del remitente',
               'Integraciones marcadas “Reconectar”: un token que la red revocó',
-              'Espacio en disco del servidor y del almacenamiento de imágenes',
+              'Espacio en disco del servidor: los backups y los logs crecen',
+              'Que el backup diario esté generando archivos nuevos, no solo que el proceso esté vivo',
             ],
           },
         ],
