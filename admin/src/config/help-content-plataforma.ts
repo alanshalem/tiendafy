@@ -127,6 +127,47 @@ export const PLATAFORMA = {
         ],
       },
       {
+        heading: 'Dos ambientes: uno para probar, uno para vender',
+        paragraphs: [
+          'Un solo ambiente significa que cada cambio se prueba con clientes adentro. Lo profesional no es tener dos servidores: es que lo que probás sea exactamente lo que después sale, que la configuración sea lo único distinto entre los dos, y que pasar a producción sea una decisión y no un efecto secundario.',
+          'Producción vende. Staging es idéntico en software y opuesto en consecuencias: mismos contenedores, misma versión, pero con otro dominio, otra base, otro bucket de imágenes y credenciales de prueba en todo lo que cobra o avisa.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['', 'Producción', 'Staging'],
+            rows: [
+              ['Dominio', 'tudominio.com', 'stg.tudominio.com'],
+              ['Base de datos', 'propia, con backup diario', 'propia, descartable'],
+              ['Fotos', 'su bucket', 'un bucket aparte'],
+              ['Cobros', 'Mercado Pago real', 'credenciales de prueba'],
+              ['Emails', 'se envían', 'se escriben en el log, no salen'],
+              ['Facturación', 'certificado de producción', 'homologación'],
+              ['Google', 'indexa', 'nunca: responde "no me indexes"'],
+            ],
+          },
+          {
+            type: 'checklist',
+            items: [
+              'Cada push a la rama principal se publica solo en staging',
+              'Pasar a producción pide una aprobación humana y despliega la misma versión que se probó, sin recompilar',
+              'Volver atrás es desplegar la versión anterior: las imágenes viejas se guardan',
+              'Staging se puede rellenar con una copia de producción anonimizada, para probar con volumen real',
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Copiar la base de producción a staging sin anonimizar es la forma más común de mandarle un email a un cliente real desde un ambiente de prueba, o de dejar credenciales de cobro donde no corresponde. El script de refresco borra los datos de contacto y las credenciales antes de dejar levantar staging.',
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Staging tiene que responder “no me indexes”. Sin eso, Google levanta las tiendas de prueba y te compite en los resultados con tu propia tienda real, mostrando precios que no son.',
+          },
+        ],
+      },
+      {
         heading: 'DNS de la plataforma',
         paragraphs: [
           'Se configura una sola vez. El proxy emite y renueva los certificados solo, también para los dominios propios de cada tienda: la primera visita al dominio dispara la emisión.',

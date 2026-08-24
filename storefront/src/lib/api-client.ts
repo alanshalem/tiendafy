@@ -1,9 +1,11 @@
+import { runtimeValue } from './runtime';
+
 /**
  * Base URL del backend para fetches del lado del CLIENTE (browser).
  * `NEXT_PUBLIC_` → queda inline en el bundle del navegador. Antes esta constante
  * estaba duplicada (~15 veces, con nombres API/CART_API) en cada client component.
  */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5080';
+export const API_URL = runtimeValue('apiUrl');
 
 /**
  * fetch client-side que devuelve el JSON o `null` (ante !ok o error de red).

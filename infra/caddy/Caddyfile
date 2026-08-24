@@ -1,43 +1,100 @@
 # ============================================================
-# Caddy — edge de Tiendafy en producción.
-# TLS automático (Let's Encrypt) para la plataforma Y para los dominios
-# propios de los merchants (on-demand TLS): antes de emitir un certificado,
-# Caddy le pregunta a la API si ese host corresponde a una tienda
-# (GET /api/v1/tenants/resolve?host=...) — 200 emite, 404 rechaza.
+# Caddy — el borde de Tiendafy. Un solo Caddy para los dos ambientes.
+#
+# Producción y staging se distinguen por dominio, no por puerto: cada bloque
+# manda al alias de su stack en la red compartida (api-prod, api-staging…).
+#
+# TLS:
+#  - Los dominios de la plataforma usan certificados COMODÍN por DNS-01
+#    (plugin de Cloudflare). Así una tienda nueva funciona desde el primer
+#    visitante, sin emitir un certificado en el momento.
+#  - Los dominios PROPIOS de los comercios sí van on-demand: no se pueden
+#    anticipar. Antes de emitir, Caddy le pregunta a la API de PRODUCCIÓN si
+#    ese host es de una tienda (200 emite, 404 rechaza) — eso evita que
+#    cualquiera apunte su dominio al servidor y nos gaste el cupo de certs.
 # ============================================================
 
 {
 	email {$ACME_EMAIL}
 	on_demand_tls {
-		ask http://api:5080/api/v1/tenants/resolve
+		ask http://api-prod:5080/api/v1/tenants/resolve
 	}
 }
 
-# API
+# --- Snippets compartidos -----------------------------------------------
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Staging NUNCA se indexa. Sin esto, Google levanta las tiendas de prueba y te
+# compite en los resultados con tu propia tienda real, con precios que no son.
+(staging_only) {
+	import security_headers
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+}
+
+# ============================================================
+# PRODUCCIÓN
+# ============================================================
+
 api.{$PLATFORM_DOMAIN} {
-	reverse_proxy api:5080
+	import security_headers
+	reverse_proxy api-prod:5080
 }
 
-# Admin (SPA — nginx-unprivileged escucha en 8080)
 admin.{$PLATFORM_DOMAIN} {
-	reverse_proxy admin:8080
+	import security_headers
+	reverse_proxy admin-prod:8080
 }
 
-# Plataforma + tiendas por subdominio: dominio pelado y *.dominio → storefront.
-# El wildcard necesita DNS-01 o, más simple, cada subdominio se emite on-demand.
+# Plataforma + tiendas por subdominio.
 {$PLATFORM_DOMAIN}, *.{$PLATFORM_DOMAIN} {
+	import security_headers
 	tls {
-		on_demand
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
 	}
-	reverse_proxy storefront:3000
+	reverse_proxy storefront-prod:3000
 }
 
-# Dominios propios de merchants (cualquier host que la API reconozca):
-# catch-all con TLS on-demand — el "ask" de arriba evita emitir certs para
-# hosts ajenos. El storefront resuelve la tienda por header Host.
+# ============================================================
+# STAGING — mismo software, otro dominio, otros datos
+# ============================================================
+
+api.{$STAGING_DOMAIN} {
+	import staging_only
+	reverse_proxy api-staging:5080
+}
+
+admin.{$STAGING_DOMAIN} {
+	import staging_only
+	reverse_proxy admin-staging:8080
+}
+
+{$STAGING_DOMAIN}, *.{$STAGING_DOMAIN} {
+	import staging_only
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	}
+	reverse_proxy storefront-staging:3000
+}
+
+# ============================================================
+# Dominios propios de los comercios (solo producción)
+#
+# Catch-all: cualquier host que la API de producción reconozca como tienda.
+# Va ÚLTIMO — Caddy prefiere siempre el bloque más específico.
+# ============================================================
+
 https:// {
+	import security_headers
 	tls {
 		on_demand
 	}
-	reverse_proxy storefront:3000
+	reverse_proxy storefront-prod:3000
 }

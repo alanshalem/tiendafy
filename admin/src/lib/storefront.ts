@@ -1,14 +1,16 @@
 /**
- * URL pública de la tienda de un subdominio. La plantilla viene de
- * VITE_STOREFRONT_ORIGIN (con el marcador {sub}) y se hornea en el build:
+ * URL pública de la tienda de un subdominio. La plantilla lleva el marcador
+ * {sub} y llega en runtime (ver lib/runtime): la misma imagen sirve para
+ * staging y para producción.
  * - dev (default): http://{sub}.localhost:3000 — si tu storefront corre en
  *   otro puerto, sobreescribila en admin/.env.local
- * - prod: https://{sub}.TU_DOMINIO (la pasa el compose / docker-release)
+ * - servidor: https://{sub}.TU_DOMINIO
  * Antes el puerto 3000 estaba hardcodeado en 5 pantallas: en prod "Ver mi
  * tienda" apuntaba a localhost.
  */
-const TEMPLATE: string =
-  (import.meta.env.VITE_STOREFRONT_ORIGIN as string | undefined) ?? 'http://{sub}.localhost:3000';
+import { runtime } from './runtime';
+
+const TEMPLATE: string = runtime.storefrontOrigin;
 
 export const storefrontUrl = (subdomain: string, path = ''): string =>
   TEMPLATE.replace('{sub}', subdomain) + path;

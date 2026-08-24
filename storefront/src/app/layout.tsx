@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Archivo, Fraunces } from 'next/font/google';
 import './globals.css';
+import { serverRuntimeConfig } from '@/lib/runtime';
 
 // Fuentes de la landing de plataforma. Los storefronts de tenants usan
 // los tokens del design system; estas variables solo las consume .ld-root.
@@ -43,6 +44,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
       <head>
+        {/* Config de runtime: va PRIMERO, antes de cualquier bundle, porque el
+            cliente la lee al inicializar. Es lo que permite promover la misma
+            imagen de staging a producción sin recompilar. */}
+        <script
+          id="tiendafy-runtime-config"
+          dangerouslySetInnerHTML={{
+            __html: `window.__TIENDAFY_CONFIG__=${JSON.stringify(serverRuntimeConfig())}`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={STORE_FONTS_HREF} />

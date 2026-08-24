@@ -1,0 +1,202 @@
+# ============================================================
+# Tiendafy — UN stack de aplicación, dos ambientes.
+#
+# El mismo archivo levanta producción y staging: lo único que cambia es el
+# archivo de variables. Que sean el mismo compose no es prolijidad, es el
+# punto: si staging se define aparte, se va pareciendo cada vez menos a
+# producción y deja de servir para probar.
+#
+#   docker compose -f docker-compose.stack.yml --env-file .env.prod    up -d
+#   docker compose -f docker-compose.stack.yml --env-file .env.staging up -d
+#
+# El borde (Caddy, puertos 80/443) NO está acá: vive en docker-compose.edge.yml
+# y es uno solo para los dos ambientes. Por eso cada servicio se publica en la
+# red compartida con un alias que lleva el ambiente (api-prod, api-staging…).
+#
+# Migraciones como paso de deploy, antes del up:
+#   docker compose ... --env-file .env.<amb> run --rm api dotnet Api.dll migrate
+# ============================================================
+
+x-pg-image: &pgimage postgres:16-alpine
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+# Red compartida con el borde. Se crea una sola vez:
+#   docker network create tiendafy-edge
+networks:
+  default:
+  edge:
+    external: true
+    name: tiendafy-edge
+
+services:
+  postgres:
+    image: *pgimage
+    restart: unless-stopped
+    <<: *logging
+    # Cada ambiente tiene su base y su volumen. Compartir una instancia entre
+    # staging y producción ahorra memoria y cuesta caro el día que una
+    # migración de staging bloquea una tabla de producción.
+    environment:
+      POSTGRES_DB: tiendafy
+      POSTGRES_USER: tiendafy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en el .env del ambiente}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    mem_limit: ${PG_MEM_LIMIT:-1g}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tiendafy -d tiendafy']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backup diario (pg_dump comprimido, retención 14 días). En staging se puede
+  # apagar con BACKUP_REPLICAS=0: sus datos son descartables por definición.
+  pg-backup:
+    image: *pgimage
+    restart: unless-stopped
+    <<: *logging
+    deploy:
+      replicas: ${BACKUP_REPLICAS:-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups/${APP_ENV:?definir APP_ENV}:/backups
+    entrypoint: >
+      sh -c 'while true; do
+        pg_dump -h postgres -U tiendafy -d tiendafy -Fc -f "/backups/tiendafy-$$(date +%Y%m%d-%H%M).dump" &&
+        find /backups -name "tiendafy-*.dump" -mtime +14 -delete;
+        sleep 86400;
+      done'
+
+  api:
+    image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-api:${TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    <<: *logging
+    mem_limit: ${API_MEM_LIMIT:-1g}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      default:
+      edge:
+        aliases:
+          - api-${APP_ENV}
+    environment:
+      # Production también en staging: staging tiene que comportarse como
+      # producción (fail-fast de config, cookies Secure, sin seeds de dev).
+      # Lo que lo distingue es a qué servicios apunta, no cómo se comporta.
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=${POSTGRES_PASSWORD}
+      # DataProtection: SIN esta ruta la API no arranca (fail-fast). El volumen
+      # 'dpkeys' es CRÍTICO: si se pierde, se pierden todos los secretos
+      # cifrados (certificados ARCA, tokens MP). Backupear junto a la DB.
+      DataProtection__KeyPath: /keys
+      Tenancy__PlatformBaseDomain: ${STACK_DOMAIN:?definir en el .env del ambiente}
+      Email__From: ${EMAIL_FROM:-}
+      # Sin API key los emails se escriben en el log en vez de enviarse. Es el
+      # default de staging a propósito: nadie le manda un mail a un cliente
+      # real desde un ambiente de prueba.
+      Email__ResendApiKey: ${RESEND_API_KEY:-}
+      Email__WebhookSecret: ${EMAIL_WEBHOOK_SECRET:-}
+      MercadoPago__ClientId: ${MP_CLIENT_ID:-}
+      MercadoPago__ClientSecret: ${MP_CLIENT_SECRET:-}
+      MercadoPago__WebhookSecret: ${MP_WEBHOOK_SECRET:-}
+      MercadoPago__PublicApiBaseUrl: https://api.${STACK_DOMAIN}
+      MercadoPago__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/payments/mercadopago/callback
+      MercadoPago__AdminReturnUrl: https://admin.${STACK_DOMAIN}/configuracion/medios-de-pago
+      PublicApiBaseUrl: https://api.${STACK_DOMAIN}
+      MetaAds__AppId: ${META_APP_ID:-}
+      MetaAds__AppSecret: ${META_APP_SECRET:-}
+      MetaAds__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/meta-ads/oauth/callback
+      MetaAds__AdminReturnUrl: https://admin.${STACK_DOMAIN}/estadisticas/rentabilidad
+      Social__Meta__AppId: ${SOCIAL_META_APP_ID:-}
+      Social__Meta__AppSecret: ${SOCIAL_META_APP_SECRET:-}
+      Social__Meta__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/social/oauth/callback/meta
+      Social__X__ClientId: ${SOCIAL_X_CLIENT_ID:-}
+      Social__X__ClientSecret: ${SOCIAL_X_CLIENT_SECRET:-}
+      Social__X__RedirectUri: https://api.${STACK_DOMAIN}/api/v1/social/oauth/callback/x
+      Social__AdminReturnUrl: https://admin.${STACK_DOMAIN}/redes
+      # Imágenes: cada ambiente con su bucket. Compartirlo significa que un
+      # borrado de prueba se lleva puesta una foto de producción.
+      Media__Endpoint: ${MEDIA_ENDPOINT:?definir en el .env del ambiente}
+      Media__PublicBaseUrl: ${MEDIA_PUBLIC_BASE_URL:?definir en el .env del ambiente}
+      Media__AccessKey: ${MEDIA_ACCESS_KEY:?definir en el .env del ambiente}
+      Media__SecretKey: ${MEDIA_SECRET_KEY:?definir en el .env del ambiente}
+      Media__Bucket: ${MEDIA_BUCKET:-tiendafy-media}
+      Media__PrivateBucket: ${MEDIA_PRIVATE_BUCKET:-tiendafy-private}
+      Media__Region: ${MEDIA_REGION:-auto}
+      Media__BucketInPublicUrl: ${MEDIA_BUCKET_IN_PUBLIC_URL:-false}
+      Media__EnsureBucketOnStartup: ${MEDIA_ENSURE_BUCKET:-false}
+      Ai__ApiKey: ${AI_API_KEY:-}
+      Ai__Model: ${AI_MODEL:-claude-sonnet-5}
+      Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
+      Sentry__Environment: ${APP_ENV}
+      Workers__Enabled: ${WORKERS_ENABLED:-true}
+      # Migraciones como PASO DE DEPLOY, no al boot.
+      Database__MigrateOnStartup: 'false'
+    volumes:
+      - dpkeys:/keys
+
+  storefront:
+    image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-storefront:${TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: storefront/Dockerfile
+    restart: unless-stopped
+    <<: *logging
+    mem_limit: ${WEB_MEM_LIMIT:-768m}
+    networks:
+      default:
+      edge:
+        aliases:
+          - storefront-${APP_ENV}
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV}
+      # Server-side: la API por la red interna, sin salir a internet.
+      API_URL: http://api:5080
+      PLATFORM_BASE_DOMAIN: ${STACK_DOMAIN}
+      # Config que el servidor le pasa al navegador en cada request. Sin el
+      # prefijo NEXT_PUBLIC_ a propósito: esas Next las hornea al compilar y
+      # entonces la imagen tendría ambiente propio (ver storefront/src/lib/runtime.ts).
+      PUBLIC_API_URL: https://api.${STACK_DOMAIN}
+      PUBLIC_ADMIN_ORIGIN: https://admin.${STACK_DOMAIN}
+      PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
+
+  admin:
+    image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-admin:${TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: admin/Dockerfile
+    restart: unless-stopped
+    <<: *logging
+    mem_limit: ${ADMIN_MEM_LIMIT:-128m}
+    networks:
+      default:
+      edge:
+        aliases:
+          - admin-${APP_ENV}
+    environment:
+      # El contenedor escribe config.js al arrancar con estos valores: la misma
+      # imagen sirve para staging y para producción (ver admin/docker-config.sh).
+      APP_ENV: ${APP_ENV}
+      VITE_API_URL: https://api.${STACK_DOMAIN}
+      VITE_STOREFRONT_ORIGIN: https://{sub}.${STACK_DOMAIN}
+      VITE_SENTRY_DSN: ${SENTRY_DSN_ADMIN:-}
+
+volumes:
+  pgdata:
+  dpkeys:

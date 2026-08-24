@@ -1,7 +1,11 @@
-# Buildea y publica las 3 imágenes en GHCR en cada push a main (y tags v*).
-# Deploy: en el server, `docker compose -f infra/docker/docker-compose.prod.yml
-# --env-file infra/docker/.env.prod pull && ... up -d`. (Deploy automático por
-# SSH: agregar un job con appleboy/ssh-action cuando haya server definido.)
+# Construye UNA vez y promueve: las mismas imágenes que se prueban en staging
+# son las que salen a producción.
+#
+#   push a main → build (tag sha-XXXX) → deploy a staging → smoke →
+#   → aprobación manual (GitHub Environment "production") → deploy a producción
+#
+# La aprobación no se configura acá sino en el repo: Settings → Environments →
+# production → Required reviewers. Sin eso, el job de producción sale solo.
 name: docker-release
 
 on:
@@ -56,18 +60,72 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-          # NEXT_PUBLIC_*/VITE_* se hornean en build: definir la variable de repo
-          # PLATFORM_DOMAIN (Settings → Variables) para que las imágenes de admin
-          # y storefront salgan apuntando a prod. Sin ella, buildear en el server
-          # con `docker compose ... build` (toma los args del .env.prod).
-          # Sentry: cargar los secrets SENTRY_DSN_STOREFRONT / SENTRY_DSN_ADMIN
-          # cuando exista la cuenta — vacío = Sentry apagado, mismo gating que
-          # el backend (Sentry:Dsn por env en runtime).
+          # SIN URLs de ambiente en los build-args: la config entra al arrancar
+          # el contenedor (admin/docker-config.sh y storefront/src/lib/runtime.ts).
+          # Es lo que hace que una imagen probada en staging pueda promoverse
+          # tal cual a producción en vez de recompilarse.
           build-args: |
             GIT_SHA=${{ github.sha }}
-            NEXT_PUBLIC_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
-            NEXT_PUBLIC_ADMIN_ORIGIN=https://admin.${{ vars.PLATFORM_DOMAIN }}
-            NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN_STOREFRONT }}
-            VITE_API_URL=https://api.${{ vars.PLATFORM_DOMAIN }}
-            VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_ADMIN }}
-            VITE_STOREFRONT_ORIGIN=https://{sub}.${{ vars.PLATFORM_DOMAIN }}
+
+  # ---- Staging: automático en cada push a main ----------------------------
+  deploy-staging:
+    needs: build-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://${{ vars.STAGING_DOMAIN }}
+    steps:
+      - name: Deploy por SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ${{ vars.DEPLOY_PATH }}
+            git fetch --quiet origin main
+            git checkout --quiet ${{ github.sha }}
+            ./infra/deploy.sh staging sha-${GITHUB_SHA::7}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+
+  # ---- Humo: si esto falla, producción ni se ofrece -----------------------
+  smoke-staging:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: La API responde
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://api.${{ vars.STAGING_DOMAIN }}/health
+      - name: La tienda responde
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 -o /dev/null https://${{ vars.STAGING_DOMAIN }}/
+      - name: El panel responde
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 -o /dev/null https://admin.${{ vars.STAGING_DOMAIN }}/
+
+  # ---- Producción: el MISMO tag, con aprobación humana --------------------
+  deploy-production:
+    needs: smoke-staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.PLATFORM_DOMAIN }}
+    steps:
+      - name: Deploy por SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ${{ vars.DEPLOY_PATH }}
+            git fetch --quiet origin main
+            git checkout --quiet ${{ github.sha }}
+            ./infra/deploy.sh prod sha-${GITHUB_SHA::7}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: La API de producción responde
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://api.${{ vars.PLATFORM_DOMAIN }}/health

@@ -1,7 +1,64 @@
-# Deploy a producción
+# Deploy: staging y producción
 
 Guía de variables de entorno e infraestructura. **En dev no necesitás nada de
-esto** — todo cae a `localhost` por defecto. Esto es solo para producción.
+esto** — todo cae a `localhost` por defecto.
+
+## Dos ambientes en el servidor
+
+| | Producción | Staging |
+|---|---|---|
+| Dominio | `tudominio.com` | `stg.tudominio.com` |
+| Variables | `infra/docker/.env.prod` | `infra/docker/.env.staging` |
+| Proyecto compose | `tiendafy-prod` | `tiendafy-staging` |
+| Base de datos | propia, con backup diario | propia, descartable |
+| Bucket de imágenes | `tiendafy-media` | `tiendafy-media-stg` |
+| Mercado Pago | credenciales reales | credenciales de prueba |
+| Emails | Resend | sin API key: se escriben en el log |
+| Indexación | sí | `noindex` en todas las respuestas |
+
+Los dos ambientes usan **el mismo** `docker-compose.stack.yml`. Que sea el
+mismo archivo no es prolijidad: si staging se define aparte, se va pareciendo
+cada vez menos a producción y deja de servir para probar.
+
+El borde (Caddy, puertos 80/443) es **uno solo** para los dos, en
+`docker-compose.edge.yml`. Dos Caddy no pueden convivir en una máquina.
+
+```bash
+# Una sola vez
+docker network create tiendafy-edge
+cp infra/docker/.env.edge.example    infra/docker/.env.edge
+cp infra/docker/.env.prod.example    infra/docker/.env.prod
+cp infra/docker/.env.staging.example infra/docker/.env.staging
+chmod 600 infra/docker/.env.*        # tienen secretos
+docker compose -f infra/docker/docker-compose.edge.yml --env-file infra/docker/.env.edge up -d
+
+# Cada deploy (lo hace GitHub Actions, o vos a mano)
+./infra/deploy.sh staging sha-a1b2c3d
+./infra/deploy.sh prod    sha-a1b2c3d   # el MISMO tag que probaste
+```
+
+### La misma imagen en los dos ambientes
+
+Las imágenes **no tienen ambiente**: la config entra al arrancar el contenedor,
+no al compilar. El admin escribe su `config.js` en el arranque
+(`admin/docker-config.sh`) y el storefront inyecta la config en el HTML de cada
+request (`storefront/src/lib/runtime.ts`, variables `PUBLIC_*` sin el prefijo
+`NEXT_PUBLIC_`, que Next hornearía al compilar).
+
+Por eso promover es volver a desplegar el mismo tag, no volver a construir: lo
+que sale a producción son exactamente los bytes que se probaron en staging.
+
+### Refrescar staging con datos de producción
+
+```bash
+./infra/refresh-staging.sh          # toma el último backup de prod
+```
+
+Restaura el backup en staging y le pasa `infra/sql/anonymize-staging.sql`, que
+reemplaza los datos de contacto por direcciones `@example.invalid` y borra las
+credenciales de cobro y facturación. Si algo queda sin anonimizar, el script
+**no levanta staging**. Restaurar producción sin anonimizar es la forma más
+común de mandarle un email a un cliente real desde un ambiente de prueba.
 
 ## Arquitectura
 
@@ -12,7 +69,8 @@ esto** — todo cae a `localhost` por defecto. Esto es solo para producción.
 - **storefront** (Next.js) → tiendas de los merchants + landing de plataforma.
   Resuelve por host: `tudominio.com` = landing, `*.tudominio.com` = tienda.
 - **admin** (Vite SPA estática) → panel del merchant.
-- **infra**: PostgreSQL (+ backup diario) y Caddy; media en S3/MinIO externo.
+- **infra**: PostgreSQL (+ backup diario) por ambiente y un Caddy compartido;
+  imágenes en Cloudflare R2 (o cualquier S3-compatible).
 
 ## Variables de entorno
 
@@ -83,13 +141,18 @@ de cada una — qué conseguir y dónde — está en
 `.env.prod`.
 
 ### Storefront (Next.js)
-Ver `storefront/.env.example`. Claves: `API_URL`, `NEXT_PUBLIC_API_URL`,
-`NEXT_PUBLIC_ADMIN_ORIGIN` (**requerida en prod** — es el link al panel desde
-la portada y valida el origin del postMessage del editor de temas),
-`PLATFORM_BASE_DOMAIN`.
+En el servidor, todo en runtime: `API_URL` (la API por la red interna),
+`PLATFORM_BASE_DOMAIN`, `APP_ENV`, y las que viajan al navegador —
+`PUBLIC_API_URL`, `PUBLIC_ADMIN_ORIGIN` (link al panel y validación del origin
+del editor de temas), `PUBLIC_SENTRY_DSN`.
+
+Las `NEXT_PUBLIC_*` de `storefront/.env.example` siguen existiendo para
+desarrollo: Next las hornea al compilar, así que en el servidor no se leen.
 
 ### Admin (Vite)
-Ver `admin/.env.example`. Clave: `VITE_API_URL` (se hornea en el build estático).
+En el servidor: `APP_ENV`, `VITE_API_URL`, `VITE_STOREFRONT_ORIGIN`,
+`VITE_SENTRY_DSN` — leídas **al arrancar el contenedor**, no horneadas. En
+desarrollo salen de `admin/.env.local` como siempre.
 
 ## Reverse proxy / TLS
 
@@ -97,10 +160,17 @@ La API confía en `X-Forwarded-Proto`/`X-Forwarded-For` en prod (ForwardedHeader
 y manda HSTS. El proxy (nginx / Caddy / ingress) termina TLS y redirige HTTP→HTTPS.
 No hay redirect en la app (evita loops).
 
-**Wildcard DNS + TLS**: apuntá `*.tudominio.com` al storefront y conseguí un
-cert wildcard (o usá Caddy/cert-manager para emitir on-demand). Para **dominios
-propios de merchants**, el proxy debe resolver SSL por dominio (Caddy on-demand TLS
-o cert-manager) y agregarlos a `Cors__AllowedOrigins`.
+**Wildcard DNS + TLS**: `*.tudominio.com` y `*.stg.tudominio.com` apuntan al
+servidor. Los certificados comodín salen por **DNS-01 con el plugin de
+Cloudflare** (`infra/caddy/Dockerfile`), con un token acotado a la zona: así una
+tienda nueva funciona desde el primer visitante, sin emitir un certificado en el
+momento — que además choca contra el límite semanal de Let's Encrypt cuando hay
+varias tiendas.
+
+Para **dominios propios de merchants** sigue el on-demand, validado contra
+`/tenants/resolve` de la API de producción, y hay que agregarlos a
+`Cors__AllowedOrigins`. Si tu DNS no está en Cloudflare, Caddy tiene plugins
+para otros proveedores; el resto de la configuración no cambia.
 
 ## Build (Docker)
 
@@ -123,34 +193,48 @@ Notas de build (ya resueltas en los Dockerfiles):
   equivalente estricto de `npm ci`, filtrado al workspace que se buildea).
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
-- Los `NEXT_PUBLIC_*` / `VITE_*` se hornean en build-time → `--build-arg`.
+- Las imágenes NO llevan URLs de ambiente: la config entra en runtime (ver
+  "La misma imagen en los dos ambientes"). Los `--build-arg` de `NEXT_PUBLIC_*`
+  y `VITE_*` quedan solo para builds sueltos de desarrollo.
 - **pnpm**: los build scripts nativos aprobados están en `pnpm-workspace.yaml`
   (`allowBuilds`/`onlyBuiltDependencies`), si no `--frozen-lockfile` falla.
 - Cada imagen tiene su **`Dockerfile.dockerignore`** (BuildKit): el contexto solo
   lleva lo que esa imagen necesita, y repite las exclusiones de secretos porque
   reemplaza al `.dockerignore` raíz.
 
-### Producción (single-host)
+### Qué corre en el servidor
 
-```bash
-cp infra/docker/.env.prod.example infra/docker/.env.prod   # completar
-docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d --build
+```
+docker network tiendafy-edge
+├── tiendafy-edge      caddy (80/443)         ← el único que expone puertos
+├── tiendafy-prod      postgres, pg-backup, api, storefront, admin
+└── tiendafy-staging   postgres, api, storefront, admin
 ```
 
-Caddy termina TLS (plataforma + subdominios + dominios propios con on-demand
-TLS validado contra `/tenants/resolve`), `pg-backup` hace `pg_dump` diario, y el
-volumen `dpkeys` guarda el keyring de DataProtection (backupearlo junto a la DB).
-CI publica las imágenes en GHCR (`.github/workflows/docker-release.yml`).
+Cada stack publica sus servicios en la red compartida con alias por ambiente
+(`api-prod`, `api-staging`), que es contra lo que rutea el Caddyfile. Los
+límites de memoria de cada `.env` evitan que staging deje sin RAM a producción.
 
-**Deploy de una versión nueva** (las migraciones son un paso explícito, NO
-corren al boot en prod — evita carreras entre réplicas):
+CI publica las imágenes en GHCR y dispara los deploys
+(`.github/workflows/docker-release.yml`): staging automático en cada push a
+`main`, producción **con aprobación manual** (GitHub → Settings → Environments
+→ production → Required reviewers).
+
+**Deploy a mano** (las migraciones son un paso explícito, NO corren al boot):
 
 ```bash
-docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod pull
-docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm api dotnet Api.dll migrate
-docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d
+./infra/deploy.sh prod sha-a1b2c3d
 curl -s https://api.TU_DOMINIO/version   # ¿corre el sha que esperabas?
 ```
+
+**Volver atrás**: desplegar el tag anterior. Las imágenes viejas siguen en GHCR.
+
+```bash
+./infra/deploy.sh prod sha-EL_ANTERIOR
+```
+
+Ojo: eso vuelve el código, no la base. Una migración que borra datos no se
+deshace con un rollback de imagen — para eso está el backup.
 
 ### Restaurar un backup (ensayado — no improvisar en la emergencia)
 

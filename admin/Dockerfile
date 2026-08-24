@@ -32,6 +32,18 @@ RUN pnpm --filter ./admin build
 
 # Imagen nginx no-root (uid 101, escucha 8080). Solo el dist + la config.
 FROM nginxinc/nginx-unprivileged:alpine
-COPY --from=build /repo/admin/dist /usr/share/nginx/html
+# --chown: el dist trae config.js (el placeholder de public/) y el entrypoint
+# lo reescribe al arrancar como usuario nginx. Sin esto el archivo queda de
+# root y la reescritura falla con "permission denied".
+COPY --from=build --chown=101:101 /repo/admin/dist /usr/share/nginx/html
 COPY admin/nginx.conf /etc/nginx/conf.d/default.conf
+# Config de runtime: la imagen NO tiene ambiente propio. Este script reescribe
+# config.js al arrancar, así el mismo digest se promueve de staging a prod.
+COPY --chmod=755 admin/docker-config.sh /docker-entrypoint.d/40-tiendafy-config.sh
+# El entrypoint corre como el usuario nginx (uid 101), que por defecto no puede
+# escribir en el directorio del sitio. Sin este chown, config.js no se escribe
+# y el panel arranca con la config de desarrollo — apuntando a localhost.
+USER root
+RUN chown 101:101 /usr/share/nginx/html
+USER 101
 EXPOSE 8080

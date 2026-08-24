@@ -16,6 +16,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Tiendafy Admin</title>
+    <!-- Config de runtime: script clásico, corre durante el parseo y por lo
+         tanto ANTES del bundle (que es un módulo y va diferido). El contenedor
+         reescribe este archivo al arrancar: por eso la misma imagen sirve para
+         staging y para producción. -->
+    <script src="/config.js"></script>
     <!-- Fuentes elegibles del editor de diseño: se cargan para previsualizar
          las combinaciones y selectores con su tipografía real. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
