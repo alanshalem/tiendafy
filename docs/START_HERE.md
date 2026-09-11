@@ -22,6 +22,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 | Entender TODO el sistema de un vistazo | [ARQUITECTURA-VISUAL.md](./ARQUITECTURA-VISUAL.md) — diagramas Mermaid: piezas, integraciones y el flujo de una venta |
 | Loguearme en dev | [usuarios-de-prueba.md](./usuarios-de-prueba.md) |
 | Ver las 130+ rutas de la API | http://localhost:5080/scalar/v1 (con la API corriendo) |
+| Qué le falta al sistema frente a un ERP del mercado | [COMPARATIVA-LAPYME.md](./COMPARATIVA-LAPYME.md) — brechas verificadas contra el código, y qué conviene construir |
 | Deployar a producción | [DEPLOY.md](./DEPLOY.md) — imágenes, compose.prod, Caddy, backups, variables |
 | Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
 | Entender roles y permisos | [rbac.md](./rbac.md) — roles, matriz y enforcement (fuente de verdad: `Permissions.cs`) |
