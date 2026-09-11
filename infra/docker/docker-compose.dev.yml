@@ -43,9 +43,38 @@ services:
       timeout: 5s
       retries: 10
 
+  # Gestor visual de la base. Viene CON el proyecto: se levanta junto al resto,
+  # sin login, con el servidor ya cargado y conectando solo (ver pgadmin/).
+  #
+  #   http://localhost:8081
+  #
+  # Cuesta ~260 MB de RAM. Si en algún momento estorba, agregarle
+  # `profiles: ['tools']` y pasa a prenderse solo cuando se lo pide.
+  pgadmin:
+    build: ./pgadmin
+    image: tiendafy-pgadmin:dev
+    container_name: tiendafy-pgadmin
+    environment:
+      # pgAdmin VALIDA el dominio del email y se niega a arrancar con uno
+      # reservado: con @tiendafy.local muere en el arranque con un mensaje que
+      # ni menciona el dominio. Tiene que parecer un dominio real.
+      PGADMIN_DEFAULT_EMAIL: dev@tiendafy.com.ar
+      PGADMIN_DEFAULT_PASSWORD: tiendafy
+      # Modo escritorio: entra directo, sin pantalla de login ni clave maestra.
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - '127.0.0.1:8081:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 # Nota: sin dnsmasq — *.localhost resuelve a 127.0.0.1 nativamente en
 # browsers modernos y Windows 11. mitienda.localhost:3000 funciona directo.
 
 volumes:
   postgres_data:
   minio_data:
+  pgadmin_data:

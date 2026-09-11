@@ -16,6 +16,7 @@ Mapa completo de dónde vive cada pieza, en desarrollo y en producción.
 | localhost:5432                         | **Postgres** (docker `tiendafy-postgres`). User/pass/db: `tiendafy`/`tiendafy`/`tiendafy`. Solo loopback. |
 | http://localhost:9000                  | **MinIO S3 API** (imágenes de productos y assets).                                                               |
 | http://localhost:9001                  | **MinIO Console** (browser de buckets). Login: `minioadmin`/`minioadmin`.                                     |
+| http://localhost:8081                  | **pgAdmin**: gestor visual de la base. Sin login y con el servidor ya conectado (ver `infra/docker/pgadmin/`). |
 
 Rutas importantes dentro del admin (SPA, todas cuelgan de la URL del admin):
 

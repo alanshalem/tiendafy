@@ -47,6 +47,7 @@ Requisitos: Docker, .NET 10 SDK, Node 22+ (pnpm llega vía corepack).
 | Storefront (tiendas) | http://`<subdominio>`.localhost:3000 |
 | Postgres | localhost:5432 (tiendafy/tiendafy) |
 | MinIO Console | localhost:9001 |
+| pgAdmin (gestor de la base) | http://localhost:8081 — entra directo, con la base ya conectada |
 
 **Primeros pasos**: abrí el admin (http://localhost:5173), registrate, creá una
 tienda y entrá a su storefront en `http://<subdominio>.localhost:3000`.

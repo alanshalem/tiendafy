@@ -103,16 +103,25 @@ function Wait-Until($label, [scriptblock]$test, [int]$tries = 60, [int]$delay = 
     Err 'TIMEOUT'; return $false
 }
 
+# Procesos que este script puede haber arrancado. Cualquier otra cosa escuchando
+# en "nuestros" puertos es de otro proyecto (o de Docker) y NO se toca: en una
+# máquina con varios proyectos, matar el proceso equivocado puede llevarse
+# puesto el demonio de Docker y dejar todo peor que antes.
+$OURS = @('dotnet', 'Api', 'node', 'pnpm', 'next-server')
+
 function Stop-Port([int]$port) {
     Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty OwningProcess -Unique |
         ForEach-Object {
-            # Decir QUÉ se está matando: en una máquina con más de un proyecto,
-            # el 3000 puede ser de otra app y frenarla sin avisar es peor que
-            # no arrancar. Con -StorefrontPort se corre el nuestro a otro lado.
             $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue
-            if ($proc) { Warn "  :$port ocupado por $($proc.ProcessName) (PID $_) — lo freno" }
-            Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
+            if (-not $proc) { return }
+            if ($OURS -contains $proc.ProcessName) {
+                Warn "  :$port ocupado por $($proc.ProcessName) (PID $_) — lo freno"
+                Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
+            } else {
+                Warn "  :$port lo tiene $($proc.ProcessName) (PID $_), que no es nuestro — lo dejo"
+                Warn "     Si es de otro proyecto, corré el storefront en otro puerto: -StorefrontPort <puerto>"
+            }
         }
 }
 

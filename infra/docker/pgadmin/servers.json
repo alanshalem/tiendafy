@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Tiendafy (dev)",
+      "Group": "Tiendafy",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "tiendafy",
+      "Username": "tiendafy",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass",
+      "Comment": "Base de desarrollo del compose. La conexion sale sola: la clave esta en /pgpass."
+    }
+  }
+}

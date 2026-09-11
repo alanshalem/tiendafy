@@ -308,6 +308,40 @@ export const PLATAFORMA = {
         ],
       },
       {
+        heading: 'Mirar la base de datos por dentro',
+        paragraphs: [
+          'El entorno trae pgAdmin: se levanta junto con el resto del proyecto y queda en localhost:8081. Entra directo, sin pantalla de login, y con la base ya conectada — no hay nada que configurar ni contraseñas que recordar.',
+          'Antes de abrirlo conviene saber una cosa, o el mapa se lee mal: de las 76 tablas, solo 15 tienen clave foránea declarada. No es un olvido. Cada módulo es dueño de sus tablas y referencia a los demás por id, sin clave foránea, para que uno se pueda cambiar o migrar sin arrastrar al resto. Las relaciones existen, pero las hace cumplir el código.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Qué hay en la base', 'Cuántos'],
+            rows: [
+              ['Tablas', '76'],
+              ['Claves foráneas declaradas', '15, todas de un padre con sus hijos'],
+              ['Referencias entre módulos, por convención', '21'],
+              ['Triggers, vistas y funciones almacenadas', 'Ninguno'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Que no haya triggers ni funciones almacenadas es una decisión: nada pasa “por atrás” cuando se toca una fila. Para entender qué ocurre alcanza con seguir el código, sin buscar comportamiento escondido en la base.',
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'La herramienta de diagramas de pgAdmin dibuja SOLO las claves foráneas declaradas, así que va a mostrar las tablas casi sueltas. Sirve para navegar datos y escribir consultas; para entender cómo se relacionan los módulos hay que mirar el mapa del repositorio.',
+          },
+          {
+            type: 'callout',
+            tone: 'danger',
+            text: 'Todas las tablas de datos llevan una columna que indica de qué tienda es cada fila, y el filtro lo aplica la aplicación, no la base. Cualquier consulta escrita a mano ve TODAS las tiendas: al mirar datos, filtrar siempre por esa columna.',
+          },
+        ],
+      },
+      {
         heading: 'Convivir con otro proyecto en la misma máquina',
         paragraphs: [
           'El panel tiene el puerto fijo, así que nunca choca. Las tiendas usan el 3000 y ese sí lo pelean con casi cualquier otro proyecto web.',
