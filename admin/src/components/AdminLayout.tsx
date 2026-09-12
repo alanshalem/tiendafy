@@ -115,6 +115,12 @@ const sections: NavSection[] = [
             perm: 'orders.read',
           },
           {
+            to: '/presupuestos',
+            label: 'Presupuestos',
+            desc: 'Cotizale a un cliente y, si acepta, la venta sale sola con esos precios.',
+            perm: 'orders.read',
+          },
+          {
             to: '/ventas/carritos',
             label: 'Carritos abandonados',
             desc: 'Compras que quedaron a medio camino, con recupero automático por email.',
@@ -400,7 +406,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-accent/80 text-accent-fg backdrop-blur-xl">
+      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-accent/80 text-accent-fg backdrop-blur-xl print:hidden">
         <div className="flex h-header items-center gap-2.5 border-b border-border px-4">
           <LogoMark className="h-7 w-7" />
           <span className="text-lg font-bold">tiendafy</span>
@@ -453,7 +459,7 @@ export function AdminLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-header items-center justify-between border-b border-border bg-surface/80 px-6 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 flex h-header items-center justify-between border-b border-border bg-surface/80 px-6 backdrop-blur-xl print:hidden">
           <StoreSwitcher />
 
           <div className="flex items-center gap-3">
@@ -484,7 +490,7 @@ export function AdminLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6 md:p-8">
+        <main className="p-6 md:p-8 print:p-0">
           <Outlet />
         </main>
       </div>

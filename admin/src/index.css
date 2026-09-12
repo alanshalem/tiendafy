@@ -110,3 +110,14 @@ body {
 .rte-content a {
   color: rgb(var(--color-primary));
 }
+
+/* Impresión: el panel es una herramienta, pero un presupuesto es un documento
+   que el cliente recibe. Al imprimir se va el chrome (barra lateral, encabezado,
+   botones marcados con `print:hidden`) y queda la hoja con fondo blanco. */
+@media print {
+  html,
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

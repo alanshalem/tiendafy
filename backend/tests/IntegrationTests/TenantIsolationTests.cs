@@ -27,6 +27,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Database:MigrateOnStartup", "true");
         builder.UseSetting("Media:EnsureBucketOnStartup", "false"); // sin MinIO en tests
         builder.UseSetting("Workers:Enabled", "false");             // sin background workers
+        // Todos los tests loguean desde la misma IP: con el cupo de producción
+        // (10 cada 5 min) la suite empieza a fallar con 429 al crecer, por algo
+        // que en producción es justamente lo que se quiere.
+        builder.UseSetting("RateLimiting:AuthPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:GlobalPermitLimit", "100000");
     }
 }
 

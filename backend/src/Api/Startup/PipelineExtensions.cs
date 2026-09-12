@@ -51,6 +51,7 @@ public static class PipelineExtensions
         apiV1.MapMediaEndpoints();
         apiV1.MapSupportEndpoints();
         apiV1.MapPurchasingEndpoints();
+        apiV1.MapQuoteEndpoints();
         apiV1.MapFinanceEndpoints();
         apiV1.MapSupplierEndpoints();
         apiV1.MapMetaAdsEndpoints();

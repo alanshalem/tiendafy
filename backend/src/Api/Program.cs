@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddObservability();
 builder.Services.AddAllModules(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddIntegrations(builder.Configuration);
-builder.Services.AddAppRateLimiting();
+builder.Services.AddAppRateLimiting(builder.Configuration);
 builder.AddSecretProtection();
 builder.Services.AddAppCore();
 builder.Services.AddApiDocs();

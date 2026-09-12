@@ -22,6 +22,7 @@ public sealed class OrdersDbContext : DbContext
     }
 
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<Quote> Quotes => Set<Quote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,5 +100,48 @@ public sealed class OrdersDbContext : DbContext
         });
 
         order.Navigation(o => o.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        var quote = modelBuilder.Entity<Quote>();
+        quote.ToTable("quotes");
+        quote.HasKey(q => q.Id);
+        quote.Property(q => q.Id).ValueGeneratedNever();
+        quote.Property(q => q.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        quote.HasQueryFilter(q => !_filterByTenant || q.TenantId == _currentTenant);
+        quote.Property(q => q.Number).HasMaxLength(20).IsRequired();
+        quote.Property(q => q.Status).HasConversion<string>().HasMaxLength(20);
+        quote.Property(q => q.CustomerName).HasMaxLength(160).IsRequired();
+        quote.Property(q => q.CustomerEmail).HasMaxLength(200);
+        quote.Property(q => q.Currency).HasMaxLength(3);
+        quote.Property(q => q.Notes).HasMaxLength(1000);
+        quote.Property(q => q.RejectionReason).HasMaxLength(300);
+        quote.Property(q => q.DiscountAmount)
+            .HasConversion(ModuleDb.MoneyConverter)
+            .HasColumnName("discount_amount")
+            .HasMaxLength(24);
+        quote.Ignore(q => q.Subtotal);
+        quote.Ignore(q => q.Total);
+        quote.Ignore(q => q.IsExpired);
+        quote.Ignore(q => q.IsEditable);
+        // Único por tienda: el número es la referencia que se habla por teléfono.
+        quote.HasIndex(q => new { q.TenantId, q.Number }).IsUnique();
+        quote.HasIndex(q => new { q.TenantId, q.CreatedAtUtc });
+
+        quote.OwnsMany(q => q.Items, items =>
+        {
+            items.ToTable("quote_items");
+            items.WithOwner().HasForeignKey("quote_id");
+            items.HasKey(i => i.Id);
+            items.Property(i => i.Id).ValueGeneratedNever();
+            items.Property(i => i.ProductName).HasMaxLength(255);
+            items.Property(i => i.VariantDescription).HasMaxLength(200);
+            items.Property(i => i.Sku).HasMaxLength(64);
+            items.Ignore(i => i.LineTotal);
+            items.Property(i => i.UnitPrice)
+                .HasConversion(ModuleDb.MoneyConverter)
+                .HasColumnName("unit_price")
+                .HasMaxLength(24);
+        });
+
+        quote.Navigation(q => q.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

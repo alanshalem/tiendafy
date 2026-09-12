@@ -177,8 +177,17 @@ public static class ServiceRegistration
     /// Rate limiting: anti credential-stuffing / brute-force / spam. Particionado por IP.
     /// (En prod, UseForwardedHeaders hace que RemoteIpAddress sea la IP real del cliente.)
     /// </summary>
-    public static IServiceCollection AddAppRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddAppRateLimiting(
+        this IServiceCollection services, IConfiguration? configuration = null)
     {
+        // Los cupos son configurables SOLO para poder subirlos en el host de
+        // tests: veinte casos de integración logueando desde la misma IP agotan
+        // los 10 intentos legítimos y la suite falla por algo que en producción
+        // es exactamente lo que se quiere. Los defaults son los valores de prod.
+        var auth = configuration?.GetValue("RateLimiting:AuthPermitLimit", 10) ?? 10;
+        var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
+        var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
+
         // Ventana fija de 5 min por IP+ruta (cada ruta tiene su propio cupo).
         static RateLimitPartition<string> PerIpPerPath(HttpContext ctx, int permitLimit) =>
             RateLimitPartition.GetFixedWindowLimiter(
@@ -193,15 +202,15 @@ public static class ServiceRegistration
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions { PermitLimit = 300, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+                    _ => new FixedWindowRateLimiterOptions { PermitLimit = global, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
             // Estricto para login/registro/contacto: 10 intentos cada 5 min, por IP Y por
             // endpoint (login no consume el cupo de coupon).
-            options.AddPolicy("auth", ctx => PerIpPerPath(ctx, 10));
+            options.AddPolicy("auth", ctx => PerIpPerPath(ctx, auth));
 
             // Pagos: frena card-testing (probar tarjetas robadas contra pay-onsite) sin
             // molestar a un comprador real. Por IP+ruta, más laxo que "auth".
-            options.AddPolicy("payments", ctx => PerIpPerPath(ctx, 15));
+            options.AddPolicy("payments", ctx => PerIpPerPath(ctx, payments));
         });
         return services;
     }

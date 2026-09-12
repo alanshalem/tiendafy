@@ -86,6 +86,7 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   externalCodes: BarChart3,
   fichaTecnica: Package,
   ajustesAvanzados: SlidersHorizontal,
+  presupuestos: FileText,
   // Finanzas y compras: la plata y con quién se gasta.
   tesoreria: Wallet,
   cuentasCorrientes: Handshake,

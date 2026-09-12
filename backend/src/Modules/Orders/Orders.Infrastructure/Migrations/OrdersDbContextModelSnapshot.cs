@@ -171,6 +171,98 @@ namespace Orders.Infrastructure.Migrations
                     b.ToTable("orders", (string)null);
                 });
 
+            modelBuilder.Entity("Orders.Core.Domain.Quote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ConvertedOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("converted_order_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("CustomerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_email");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("customer_name");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<string>("DiscountAmount")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("number");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("ValidUntilUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_until_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_quotes");
+
+                    b.HasIndex("TenantId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_quotes_tenant_id_created_at_utc");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_quotes_tenant_id_number");
+
+                    b.ToTable("quotes", (string)null);
+                });
+
             modelBuilder.Entity("Orders.Core.Domain.Order", b =>
                 {
                     b.OwnsMany("Orders.Core.Domain.OrderItem", "Items", b1 =>
@@ -235,6 +327,66 @@ namespace Orders.Infrastructure.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("order_id")
                                 .HasConstraintName("fk_order_items_orders_order_id");
+                        });
+
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Orders.Core.Domain.Quote", b =>
+                {
+                    b.OwnsMany("Orders.Core.Domain.QuoteItem", "Items", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<string>("ProductName")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("character varying(255)")
+                                .HasColumnName("product_name");
+
+                            b1.Property<int>("Quantity")
+                                .HasColumnType("integer")
+                                .HasColumnName("quantity");
+
+                            b1.Property<string>("Sku")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("sku");
+
+                            b1.Property<string>("UnitPrice")
+                                .IsRequired()
+                                .HasMaxLength(24)
+                                .HasColumnType("character varying(24)")
+                                .HasColumnName("unit_price");
+
+                            b1.Property<string>("VariantDescription")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("variant_description");
+
+                            b1.Property<Guid>("VariantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("variant_id");
+
+                            b1.Property<Guid>("quote_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("quote_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_quote_items");
+
+                            b1.HasIndex("quote_id")
+                                .HasDatabaseName("ix_quote_items_quote_id");
+
+                            b1.ToTable("quote_items", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("quote_id")
+                                .HasConstraintName("fk_quote_items_quotes_quote_id");
                         });
 
                     b.Navigation("Items");

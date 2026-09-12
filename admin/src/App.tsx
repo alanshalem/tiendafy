@@ -39,6 +39,7 @@ import { MessagesPage } from './pages/Messages';
 import { SupportChatPage } from './pages/SupportChat';
 import { OrdersPage } from './pages/Orders';
 import { AbandonedCartsPage } from './pages/AbandonedCarts';
+import { PresupuestosPage } from './pages/Presupuestos';
 import { HelpArticlePage, HelpIndexPage } from './pages/Help';
 import { PagesPage } from './pages/Pages';
 // El editor de diseño (+ galería) es el chunk más pesado del admin y solo se usa
@@ -115,6 +116,7 @@ const MAIN_ROUTES: AppRoute[] = [
   // Ventas y el resto del panel
   { path: '/ventas', perm: 'orders.read', el: <OrdersPage /> },
   { path: '/ventas/carritos', perm: 'orders.read', el: <AbandonedCartsPage /> },
+  { path: '/presupuestos', perm: 'orders.read', el: <PresupuestosPage /> },
   { path: '/descuentos', perm: 'discounts.read', el: <DiscountsPage /> },
   { path: '/marketing', perm: 'settings.write', el: <MarketingPage /> },
   { path: '/mercadolibre', perm: 'orders.read', el: <MercadoLibrePage /> },

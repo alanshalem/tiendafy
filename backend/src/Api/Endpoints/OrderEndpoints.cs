@@ -456,7 +456,8 @@ public static class OrderEndpoints
             IConfiguration cfg,
             CancellationToken ct) =>
         {
-            if (request.PaymentMethod is not ("cash" or "transfer" or "link"))
+            if (request.PaymentMethod is not ("cash" or "transfer" or "link"
+                or Api.Orders.ManualOrderService.CurrentAccountMethod))
                 return Error.Validation("Order.BadPayment", "Método de pago inválido.").ToProblem();
             // El link de pago se le manda al comprador: necesita email real.
             if (request.PaymentMethod == "link" && string.IsNullOrWhiteSpace(request.BuyerEmail))

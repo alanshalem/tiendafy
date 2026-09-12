@@ -511,4 +511,80 @@ export const VENTAS = {
       },
     ],
   },
+  presupuestos: {
+    title: 'Presupuestos',
+    intro:
+      'Cotizale a un cliente antes de que compre, y si acepta la venta se genera sola — con los precios que cotizaste, no con los de hoy.',
+    category: 'Ventas y pagos',
+    sections: [
+      {
+        heading: 'Para qué sirve',
+        paragraphs: [
+          'Cuando le vendés a un revendedor, primero pasás precios y después el cliente piensa. Hasta que decide pueden pasar días, y en el medio los precios cambian.',
+          'El presupuesto congela los precios del día que cotizaste. Es su razón de existir: si el precio se recalculara al aceptarlo, no sería una promesa sino una estimación, y no serviría para cerrar nada.',
+        ],
+        blocks: [{ type: 'path', segments: ['Ventas', 'Presupuestos'] }],
+      },
+      {
+        heading: 'Armar uno',
+        steps: [
+          'En Ventas → Presupuestos, tocá "Nuevo presupuesto".',
+          'Elegí el cliente de la agenda. Si tiene lista de precios asignada, los precios se cargan de esa lista solos.',
+          'Agregá los productos buscándolos por nombre o SKU, con la cantidad de cada uno.',
+          'Poné hasta cuándo vale. Por defecto son 15 días.',
+          'Guardá, y cuando se lo mandes marcalo como enviado.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'También podés cotizarle a alguien que no está en la agenda',
+            text: 'Escribís el nombre y listo. Lo único que no vas a poder es cerrarlo en cuenta corriente, porque sin ficha no hay a quién anotarle la deuda.',
+          },
+        ],
+      },
+      {
+        heading: 'El stock no se reserva',
+        paragraphs: [
+          'Un presupuesto es una propuesta, no una venta: reservar mercadería por cada cotización dejaría el depósito trabado con ventas que nunca ocurrieron.',
+          'El stock se descuenta recién al aceptarlo. Si para ese momento no hay, el sistema lo avisa en vez de vender lo que no tenés.',
+        ],
+      },
+      {
+        heading: 'Cuando el cliente contesta',
+        paragraphs: [
+          'Si acepta, tocás "El cliente aceptó" y elegís cómo se cobra: efectivo, transferencia o cuenta corriente. Se crea la venta con los precios del presupuesto, se descuenta el stock y sale la factura si tenés la facturación automática activa.',
+          'Si rechaza, lo marcás como rechazado y podés dejar el motivo. Después se puede reabrir para renegociarlo: no hace falta empezar de cero.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Un presupuesto vencido no se acepta',
+            text: 'Con inflación, cerrar al precio del mes pasado es vender a pérdida. Para poder aceptarlo hay que extender la validez, que es un botón aparte justamente para que sea una decisión y no un descuido.',
+          },
+        ],
+      },
+      {
+        heading: 'Qué te dicen los números de arriba',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              { term: 'Abiertos', def: 'Presupuestos vigentes esperando respuesta.' },
+              { term: 'En juego', def: 'Cuánta plata suman esos presupuestos. Es tu pipeline.' },
+              {
+                term: 'Vencidos',
+                def: 'Se les pasó la fecha. O se renuevan o se dan por perdidos, pero conviene no dejarlos ahí.',
+              },
+              {
+                term: 'Conversión',
+                def: 'De los que ya se decidieron, cuántos terminaron en venta. Los que siguen abiertos no cuentan: todavía no ganaron ni perdieron, y meterlos hundiría el número sin motivo.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;
