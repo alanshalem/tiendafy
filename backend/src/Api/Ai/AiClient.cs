@@ -29,7 +29,34 @@ public sealed class AiClient(HttpClient http, Microsoft.Extensions.Options.IOpti
 
     public bool Configured => _o.Configured;
 
-    public async Task<Result<string>> CompleteAsync(string system, string prompt, int maxTokens, CancellationToken ct)
+    public Task<Result<string>> CompleteAsync(string system, string prompt, int maxTokens, CancellationToken ct) =>
+        SendAsync(system, [new { type = "text", text = prompt }], maxTokens, ct);
+
+    /// <summary>
+    /// Igual, pero con un archivo adjunto: un PDF o una foto. Lo usa la lectura
+    /// de facturas de compra — el contenido va en el mismo mensaje que la
+    /// consigna, que es como el modelo puede mirarlo mientras responde.
+    ///
+    /// Los bytes se mandan en base64 y no se guardan en ningún lado: el archivo
+    /// entra, sale la propuesta, y lo que queda registrado es lo que la persona
+    /// terminó confirmando.
+    /// </summary>
+    public Task<Result<string>> CompleteWithFileAsync(
+        string system, string prompt, byte[] file, string mediaType, int maxTokens, CancellationToken ct)
+    {
+        var data = Convert.ToBase64String(file);
+        var source = new { type = "base64", media_type = mediaType, data };
+        object attachment = mediaType == "application/pdf"
+            ? new { type = "document", source }
+            : new { type = "image", source };
+
+        // El archivo primero: el modelo lee mejor la consigna sabiendo ya qué
+        // tiene delante.
+        return SendAsync(system, [attachment, new { type = "text", text = prompt }], maxTokens, ct);
+    }
+
+    private async Task<Result<string>> SendAsync(
+        string system, object[] blocks, int maxTokens, CancellationToken ct)
     {
         if (!_o.Configured)
             return Result.Failure<string>(new Error("Ai.NotConfigured", "La IA no está configurada en esta plataforma."));
@@ -42,7 +69,7 @@ public sealed class AiClient(HttpClient http, Microsoft.Extensions.Options.IOpti
             model = _o.Model,
             max_tokens = maxTokens,
             system,
-            messages = new[] { new { role = "user", content = prompt } },
+            messages = new[] { new { role = "user", content = blocks } },
         }), System.Text.Encoding.UTF8, "application/json");
 
         using var response = await http.SendAsync(request, ct);

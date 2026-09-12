@@ -162,7 +162,10 @@ public static class ServiceRegistration
 
         // Sugerencias con IA (Claude API). Vacío = apagado, botones ocultos.
         services.Configure<Api.Ai.AiOptions>(configuration.GetSection(Api.Ai.AiOptions.SectionName));
-        services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(45));
+        // Leer una factura entera tarda más que redactar un párrafo: el timeout
+        // del cliente tiene que aguantar el peor caso de un PDF escaneado.
+        services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
+        services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();

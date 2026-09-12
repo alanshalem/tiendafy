@@ -256,6 +256,55 @@ public static class PurchasingEndpoints
             return Results.Ok(ToDetailDto(po));
         });
 
+        // Leer la factura del proveedor y PROPONER los datos. No guarda nada: la
+        // persona revisa la propuesta y confirma con el PUT de arriba. Un número
+        // mal leído entra derecho al libro de IVA y a la cuenta corriente.
+        purchasing.MapPost("/purchase-orders/{id:guid}/invoice/scan", async (
+            Guid id, IFormFile file, PurchasingDbContext db,
+            Api.Purchasing.InvoiceScanner scanner, CancellationToken ct) =>
+        {
+            if (!scanner.Available)
+                return Error.Validation(
+                    "Ai.NotConfigured",
+                    "La lectura automática de facturas no está configurada en esta plataforma.").ToProblem();
+
+            if (file.Length > Api.Purchasing.InvoiceScanner.MaxBytes)
+                return Error.Validation(
+                    "Invoice.TooLarge", "El archivo supera los 10 MB.").ToProblem();
+
+            var po = await db.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (po is null) return Results.NotFound();
+
+            // A memoria y no a disco: el archivo no se guarda en ningún lado, y
+            // el tope de 10 MB ya está verificado.
+            using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, ct);
+
+            var scanned = await scanner.ScanAsync(buffer.ToArray(), file.ContentType, po, ct);
+            if (scanned.IsFailure) return scanned.Error.ToProblem();
+
+            var s = scanned.Value;
+            return Results.Ok(new
+            {
+                supplierName = s.SupplierName,
+                supplierTaxId = s.SupplierTaxId,
+                invoiceType = s.InvoiceType,
+                invoiceNumber = s.InvoiceNumber,
+                invoiceDateUtc = s.InvoiceDate,
+                currency = s.Currency,
+                netAmount = s.NetAmount,
+                vatAmount = s.VatAmount,
+                totalAmount = s.TotalAmount,
+                confidence = s.Confidence,
+                warnings = s.Warnings,
+                lines = s.Lines.Select(l => new { l.Description, l.Quantity, l.UnitPrice }),
+                // Si la factura está en otra moneda que la orden, los importes
+                // del comprobante van en pesos igual (es lo que pide el libro de
+                // IVA) y hay que convertir a mano: mejor decirlo que suponerlo.
+                currencyMismatch = !string.Equals(s.Currency, "ARS", StringComparison.OrdinalIgnoreCase),
+            });
+        }).DisableAntiforgery();
+
         // Libro de IVA compras del mes, en el mismo formato que el de ventas:
         // el crédito fiscal de las compras que hasta ahora no salía del sistema.
         purchasing.MapGet("/vat-book", async (

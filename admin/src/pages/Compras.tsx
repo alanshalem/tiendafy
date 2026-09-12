@@ -1,7 +1,17 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileSpreadsheet, Loader2, Package, Plus, Ship, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileSpreadsheet,
+  Loader2,
+  Package,
+  Plus,
+  Ship,
+  Sparkles,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import {
   Badge,
   Button,
@@ -29,6 +39,7 @@ import { CameraBox, useScanner } from './Products/Scanner';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { useAiEnabled } from '../lib/useAi';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -790,12 +801,14 @@ function VatBookDownload() {
 function SupplierInvoiceCard({ po }: { po: PoDetail }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const aiEnabled = useAiEnabled();
   const [taxId, setTaxId] = useState(po.supplierTaxId ?? '');
   const [type, setType] = useState(po.invoiceType ?? '');
   const [number, setNumber] = useState(po.invoiceNumber ?? '');
   const [date, setDate] = useState(po.invoiceDateUtc ? po.invoiceDateUtc.slice(0, 10) : '');
   const [net, setNet] = useState(po.invoiceNetArs != null ? String(po.invoiceNetArs) : '');
   const [vat, setVat] = useState(po.invoiceVatArs != null ? String(po.invoiceVatArs) : '');
+  const [scan, setScan] = useState<ScannedInvoice | null>(null);
 
   const save = useMutation({
     mutationFn: () =>
@@ -816,11 +829,34 @@ function SupplierInvoiceCard({ po }: { po: PoDetail }) {
 
   return (
     <Card>
-      <h2 className="text-sm font-semibold text-fg">Comprobante del proveedor</h2>
-      <p className="mt-1 text-xs text-fg-muted">
-        Opcional. Con estos datos la compra entra en el libro de IVA compras que se descarga desde esta misma
-        pantalla.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-[16rem] flex-1">
+          <h2 className="text-sm font-semibold text-fg">Comprobante del proveedor</h2>
+          <p className="mt-1 text-xs text-fg-muted">
+            Opcional. Con estos datos la compra entra en el libro de IVA compras que se descarga desde esta
+            misma pantalla.
+          </p>
+        </div>
+        {aiEnabled && <InvoiceScanButton poId={po.id} onScanned={setScan} />}
+      </div>
+
+      {scan && (
+        <ScanReview
+          scan={scan}
+          onDismiss={() => setScan(null)}
+          onApply={() => {
+            if (scan.supplierTaxId) setTaxId(scan.supplierTaxId);
+            if (scan.invoiceType) setType(scan.invoiceType);
+            if (scan.invoiceNumber) setNumber(scan.invoiceNumber);
+            if (scan.invoiceDateUtc) setDate(scan.invoiceDateUtc.slice(0, 10));
+            if (scan.netAmount != null) setNet(String(scan.netAmount));
+            if (scan.vatAmount != null) setVat(String(scan.vatAmount));
+            setScan(null);
+            toast('Datos cargados en el formulario. Revisalos y guardá.', { variant: 'info' });
+          }}
+        />
+      )}
+
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <FormField label="CUIT del proveedor">
           <Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="30-12345678-9" />
@@ -858,6 +894,182 @@ function SupplierInvoiceCard({ po }: { po: PoDetail }) {
         </Button>
       </div>
     </Card>
+  );
+}
+
+// ------------------------------------------------ Lectura de la factura
+
+interface ScannedInvoice {
+  supplierName: string | null;
+  supplierTaxId: string | null;
+  invoiceType: string | null;
+  invoiceNumber: string | null;
+  invoiceDateUtc: string | null;
+  currency: string;
+  netAmount: number | null;
+  vatAmount: number | null;
+  totalAmount: number | null;
+  confidence: string;
+  warnings: string[];
+  lines: { description: string; quantity: number | null; unitPrice: number | null }[];
+  currencyMismatch: boolean;
+}
+
+const CONFIDENCE_TONE: Record<string, BadgeVariant> = {
+  alta: 'success',
+  media: 'warning',
+  baja: 'danger',
+};
+
+/** Tipos que acepta el backend. Filtrar acá evita el viaje y el error genérico. */
+const SCAN_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+const SCAN_MAX_BYTES = 10 * 1024 * 1024;
+
+function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan: ScannedInvoice) => void }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > SCAN_MAX_BYTES) {
+      toast('El archivo supera los 10 MB. Probá con un escaneo de menor resolución.', { variant: 'error' });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      onScanned(
+        await api.postForm<ScannedInvoice>(`/api/v1/purchasing/purchase-orders/${poId}/invoice/scan`, form),
+      );
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo leer la factura.'), { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-fg hover:bg-bg-muted">
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      {busy ? 'Leyendo…' : 'Leer factura'}
+      <input
+        type="file"
+        accept={SCAN_ACCEPT}
+        className="hidden"
+        disabled={busy}
+        onChange={(e) => {
+          void pick(e.target.files?.[0]);
+          // Sin esto, subir el mismo archivo otra vez (tras corregir algo) no
+          // dispara el onChange.
+          e.target.value = '';
+        }}
+      />
+    </label>
+  );
+}
+
+/**
+ * La propuesta antes de aceptarla. Se muestra entera —incluso lo que no pudo
+ * leer— porque el valor está en revisar: un número de factura mal leído entra
+ * derecho al libro de IVA y a la cuenta corriente del proveedor.
+ */
+function ScanReview({
+  scan,
+  onApply,
+  onDismiss,
+}: {
+  scan: ScannedInvoice;
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const rows: [string, string | null][] = [
+    ['Proveedor', scan.supplierName],
+    ['CUIT', scan.supplierTaxId],
+    ['Tipo', scan.invoiceType],
+    ['Número', scan.invoiceNumber],
+    ['Fecha', scan.invoiceDateUtc ? formatDate(scan.invoiceDateUtc) : null],
+    ['Neto', scan.netAmount != null ? scan.netAmount.toLocaleString('es-AR') : null],
+    ['IVA', scan.vatAmount != null ? scan.vatAmount.toLocaleString('es-AR') : null],
+    ['Total', scan.totalAmount != null ? scan.totalAmount.toLocaleString('es-AR') : null],
+  ];
+  const read = rows.filter(([, value]) => value);
+
+  return (
+    <div className="mt-3 rounded-md border border-border bg-bg-subtle p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Upload className="h-4 w-4" /> Lectura de la factura
+          <Badge variant={CONFIDENCE_TONE[scan.confidence] ?? 'neutral'}>Confianza {scan.confidence}</Badge>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={onDismiss}>
+            Descartar
+          </Button>
+          <Button size="sm" onClick={onApply} disabled={read.length === 0}>
+            Usar estos datos
+          </Button>
+        </div>
+      </div>
+
+      {read.length === 0 ? (
+        <p className="mt-2 text-sm text-fg-muted">
+          No se pudo leer ningún dato del archivo. Cargalos a mano abajo.
+        </p>
+      ) : (
+        <dl className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+          {read.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-2">
+              <dt className="text-fg-muted">{label}</dt>
+              <dd className="text-right font-medium">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {scan.currencyMismatch && (
+        <p className="mt-2 text-sm text-warning">
+          La factura está en {scan.currency}. El libro de IVA va en pesos: convertí el neto y el IVA antes de
+          guardar.
+        </p>
+      )}
+
+      {scan.warnings.length > 0 && (
+        <ul className="mt-2 list-inside list-disc text-sm text-fg-muted">
+          {scan.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      )}
+
+      {scan.lines.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-sm text-fg-muted">
+            {scan.lines.length} línea{scan.lines.length === 1 ? '' : 's'} del detalle
+          </summary>
+          <ul className="mt-1 space-y-0.5 text-sm text-fg-muted">
+            {scan.lines.map((l, i) => (
+              <li key={`${l.description}-${i}`} className="flex justify-between gap-2">
+                <span className="truncate">{l.description}</span>
+                <span className="shrink-0 tabular-nums">
+                  {l.quantity ?? '—'} × {l.unitPrice?.toLocaleString('es-AR') ?? '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-fg-subtle">
+            El detalle es solo para comparar contra los ítems de la orden: los precios de compra siguen siendo
+            los que cargaste arriba.
+          </p>
+        </details>
+      )}
+
+      <p className="mt-2 text-xs text-fg-subtle">
+        Lo leyó la IA a partir del archivo. Revisá los números antes de guardar: de acá salen el libro de IVA
+        y la deuda con el proveedor.
+      </p>
+    </div>
   );
 }
 
