@@ -6,6 +6,7 @@ import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
@@ -107,6 +108,8 @@ export function TesoreriaPage() {
       <AccountsGrid accounts={accounts} />
 
       <MovementsTable accounts={accounts} />
+
+      <HelpLink id="tesoreria" />
 
       {newAccount && <AccountModal onClose={() => setNewAccount(false)} />}
       {transfer && <TransferModal accounts={activas} onClose={() => setTransfer(false)} />}

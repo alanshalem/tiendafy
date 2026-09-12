@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
@@ -213,6 +214,8 @@ function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
           </table>
         </div>
       )}
+
+      <HelpLink id="proveedores" />
 
       {creating && <SupplierModal onClose={() => setCreating(false)} />}
     </>

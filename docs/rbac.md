@@ -22,7 +22,7 @@ puede. La matriz es política de producto y vive en código, no en la DB.
 | `staff` (legacy) | 2 | Equivale a `admin` — los staff pre-RBAC operaban todo el panel. |
 | `vendedor` | 1 | Pedidos (ver + despachar), clientes, chat, mensajes, cupones (ver), stats, stock (ver). |
 | `catalogo` | 1 | Catálogo (escribir) + inventario (ver y escribir). |
-| `finanzas` | 1 | Pedidos (ver + **reembolsar**), config de pagos (ver), facturación ARCA (config + emitir), compras/importaciones, clientes/cupones/stats/stock (ver). |
+| `finanzas` | 1 | Pedidos (ver + **reembolsar**), config de pagos (ver), facturación ARCA (config + emitir), compras/importaciones, **tesorería y cuentas corrientes**, clientes/cupones/stats/stock (ver). |
 | `soporte` | 1 | Pedidos (ver), clientes (ver), chat posventa, mensajes de contacto. |
 
 `Rank` gobierna la gestión de miembros: nadie asigna un rol por encima del
@@ -33,6 +33,7 @@ propio (`MembersManage` + jerarquía).
 Marcados en el enum con comentario: `OrdersRefund` (mueve plata),
 `PaymentsConfigWrite` (conectar/desconectar MP), `MembersManage` (vía de
 escalación), `FiscalConfig`/`FiscalEmit` (obligaciones fiscales),
+`Finance` (mueve saldos de caja y deuda de clientes y proveedores),
 `TenantAdmin` (solo owner).
 
 ## Enforcement (backend)

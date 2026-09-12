@@ -41,7 +41,8 @@ flowchart TB
         Discounts["Discounts<br/>cupones"]
         Support["Support<br/>chat posventa con adjuntos"]
         Meli["MercadoLibre<br/>ventas, preguntas, mensajes,<br/>stock unificado, publicar"]
-        Purchasing["Purchasing<br/>compras, importaciones,<br/>landed cost, reposición"]
+        Purchasing["Purchasing<br/>compras, proveedores,<br/>landed cost, reposición"]
+        Finance["Finance<br/>cajas y bancos, cuentas<br/>corrientes, recibos"]
         Social["Social<br/>cuentas sociales, posts<br/>multi-red programados"]
     end
 

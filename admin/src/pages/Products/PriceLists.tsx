@@ -6,6 +6,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
+import { HelpLink } from '../../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../../lib/styles';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
@@ -178,6 +179,8 @@ function ListsOverview({ onOpen }: { onOpen: (list: PriceListRow) => void }) {
           ))}
         </div>
       )}
+
+      <HelpLink id="listasDePrecios" />
 
       {(creating || editing) && (
         <PriceListModal

@@ -18,6 +18,7 @@ import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
@@ -269,6 +270,8 @@ function BalancesList({
       )}
 
       <ReceiptsList kind={kind} />
+
+      <HelpLink id="cuentasCorrientes" />
 
       {receipt && <ReceiptModal partyKind={kind} onClose={() => setReceipt(false)} />}
       {adjust && <AdjustmentModal partyKind={kind} onClose={() => setAdjust(false)} />}

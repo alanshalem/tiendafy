@@ -19,7 +19,7 @@ electrónica ARCA y envíos cotizados en vivo con Correo Argentino.
 
 ## Stack
 
-- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 19 módulos, cada uno con su DbContext y filtro global de tenant.
+- **Backend**: .NET 10 — monolito modular (ASP.NET Core minimal APIs, EF Core, PostgreSQL). 20 módulos, cada uno con su DbContext y filtro global de tenant.
 - **Storefront**: Next.js 16 (SSR multi-tenant por Host), React 19, Tailwind
 - **Admin**: React 19 + Vite (SPA), TypeScript, React Query
 - **Infra dev**: Docker (Postgres, MinIO)
@@ -113,7 +113,7 @@ Hooks locales (husky): Prettier + `dotnet format` sobre lo stageado en cada comm
 ## Estructura
 
 ```
-backend/     API .NET (src/Api) + 19 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,...})
+backend/     API .NET (src/Api) + 20 módulos (src/Modules/{Tenancy,Catalog,Orders,Payments,Fiscal,Checkout,Finance,...})
 storefront/  Next.js multi-tenant (la tienda que ve el comprador)
 admin/       SPA del panel del merchant (incluye el centro de ayuda en /ayuda)
 shared/      Paquetes pnpm compartidos (types, ui, design-system)

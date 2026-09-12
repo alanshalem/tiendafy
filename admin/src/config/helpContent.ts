@@ -32,6 +32,7 @@ export const HELP_CATEGORIES = [
   'Legal y facturación',
   'Envíos',
   'Catálogo',
+  'Finanzas',
   'Clientes y comunicación',
   'Tu tienda online',
   'Equipo',
@@ -54,6 +55,7 @@ import { VENTAS } from './help-content-ventas';
 import { LEGAL } from './help-content-legal';
 import { ENVIOS } from './help-content-envios';
 import { CATALOGO } from './help-content-catalogo';
+import { FINANZAS } from './help-content-finanzas';
 import { CLIENTES } from './help-content-clientes';
 import { TIENDA } from './help-content-tienda';
 import { EQUIPO } from './help-content-equipo';
@@ -66,6 +68,7 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
   ...LEGAL,
   ...ENVIOS,
   ...CATALOGO,
+  ...FINANZAS,
   ...CLIENTES,
   ...TIENDA,
   ...EQUIPO,

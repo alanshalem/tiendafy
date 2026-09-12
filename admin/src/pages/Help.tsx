@@ -41,6 +41,9 @@ import {
   Truck,
   Users,
   Wrench,
+  Wallet,
+  Tags,
+  Handshake,
 } from 'lucide-react';
 import {
   HELP_CONTENT,
@@ -83,6 +86,11 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   externalCodes: BarChart3,
   fichaTecnica: Package,
   ajustesAvanzados: SlidersHorizontal,
+  // Finanzas y compras: la plata y con quién se gasta.
+  tesoreria: Wallet,
+  cuentasCorrientes: Handshake,
+  listasDePrecios: Tags,
+  proveedores: Truck,
   // Administrar la plataforma: el recorrido, de entender a mantener.
   plataformaPuestaEnMarcha: Rocket,
   plataformaDesarrollo: Terminal,
@@ -101,6 +109,7 @@ const CATEGORY_ICONS: Record<HelpCategory, typeof BookOpen> = {
   'Legal y facturación': Scale,
   Envíos: Truck,
   Catálogo: Package,
+  Finanzas: Wallet,
   'Clientes y comunicación': MessageCircle,
   'Tu tienda online': Palette,
   Equipo: Users,

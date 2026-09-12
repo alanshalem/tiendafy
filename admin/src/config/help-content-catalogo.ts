@@ -212,4 +212,116 @@ export const CATALOGO = {
       },
     ],
   },
+  listasDePrecios: {
+    title: 'Listas de precios',
+    intro:
+      'Un precio mayorista y uno minorista del mismo producto, sin duplicar el catálogo ni llevar una planilla aparte.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'La idea: la lista guarda una regla, no precios',
+        paragraphs: [
+          'Una lista es un porcentaje sobre el precio del producto: "Mayorista, −30%". El precio de cada producto en esa lista se calcula cuando se pide, no se copia.',
+          'Eso es lo que la mantiene viva. Si las listas guardaran precios copiados, el día que subís el catálogo 20% la mayorista se queda con los números del mes pasado y no te enterás hasta que facturás mal. Con una regla, cambiás el precio del producto y todas las listas se mueven con él.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Listas de precios'] }],
+      },
+      {
+        heading: 'Crear una lista',
+        steps: [
+          'En Productos → Listas de precios, tocá "Nueva lista".',
+          'Ponele nombre ("Mayorista", "Revendedores", "Showroom").',
+          'Elegí sobre qué se calcula: el precio del producto, o alguna de las otras listas.',
+          'Escribí el ajuste: negativo para descuento (−30), positivo para recargo (15).',
+          'Si querés precios redondos, elegí un redondeo: a los $100, a los $1.000 o terminación $990.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Una lista sobre otra encadena los porcentajes',
+            text: 'Mayorista −30% y Distribuidor −10% sobre Mayorista da −37%, no −40%. Es el comportamiento correcto: el segundo descuento se aplica sobre el precio ya rebajado.',
+          },
+        ],
+      },
+      {
+        heading: 'Cuando un producto necesita otro número',
+        paragraphs: [
+          'Entrá a la lista con "Ver precios" y escribí el precio de ese producto. Queda fijo: deja de seguir la regla y ya no se mueve cuando cambia el precio del producto. La pantalla lo marca como "A mano" para que se vea cuál es cuál.',
+          'Para que vuelva a seguir la regla, vaciá la casilla.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Los precios a mano son la excepción',
+            text: 'La tarjeta de cada lista te dice cuántos tiene. Si son muchos, la regla que elegiste no representa cómo vendés y conviene cambiar el porcentaje en vez de pelear producto por producto.',
+          },
+        ],
+      },
+      {
+        heading: 'Cómo se aplica una lista',
+        paragraphs: [
+          'La lista se le asigna al CLIENTE, en su ficha (Clientes → editar → Lista de precios). Después, cada venta manual a ese cliente usa esos precios sin que haya que acordarse.',
+          'Por eso en la venta manual el selector de cliente está siempre a la vista, no solo cuando vendés en cuenta corriente: un mayorista también paga en efectivo.',
+          'Tu tienda online sigue mostrando el precio del producto. Las listas son para la venta asistida, que es donde sabés quién está comprando.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Apagar una lista la saca de circulación de una vez',
+            text: 'Una lista inactiva deja de aplicarse a todos los clientes que la tenían asignada, sin desasignarla uno por uno. Sirve para congelar una lista de temporada sin perderla.',
+          },
+        ],
+      },
+    ],
+  },
+
+  proveedores: {
+    title: 'Proveedores',
+    intro:
+      'La ficha de cada proveedor: sus datos, todas las compras que le hiciste y cuánto le debés, en una sola pantalla.',
+    category: 'Catálogo',
+    sections: [
+      {
+        heading: 'Por qué tener fichas',
+        paragraphs: [
+          'Antes el proveedor era un nombre escrito a mano en cada orden de compra, así que "Importadora del Sur", "Import. del Sur" e "importadora sur" eran tres proveedores distintos. Sin ficha no hay historial, no hay saldo y no hay forma de comparar precios entre compras.',
+          'Con la ficha, cada orden de compra se elige de una lista, y la pantalla del proveedor junta lo que le compraste con lo que le debés.',
+        ],
+        blocks: [{ type: 'path', segments: ['Compras e importaciones', 'Proveedores'] }],
+      },
+      {
+        heading: 'Cómo se arma el saldo',
+        paragraphs: [
+          'La deuda con un proveedor nace cuando cargás SU factura en la orden de compra, no cuando armás la orden: antes hay un pedido, no una obligación de pago.',
+          'Los pagos se registran desde Cuentas corrientes, en la solapa de proveedores, y ahí mismo se imputan a las facturas que estás cancelando.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Una orden sin ficha de proveedor no mueve la cuenta corriente',
+            text: 'Podés seguir cargando compras con el proveedor escrito a mano, pero entonces la factura no genera deuda: no hay a quién debérsela. El formulario te lo avisa cuando elegís "sin ficha".',
+          },
+        ],
+      },
+      {
+        heading: 'Leer la factura con IA',
+        paragraphs: [
+          'En la orden de compra, el botón "Leer factura" te deja subir el PDF o una foto del comprobante del proveedor. La IA propone tipo, número, fecha, CUIT, neto e IVA, y vos revisás antes de guardar.',
+          'Propone y no guarda: de esos números salen el libro de IVA compras y la deuda con el proveedor. La pantalla muestra también lo que NO pudo leer y con cuánta confianza leyó el resto.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Si no ves el botón',
+            text: 'La lectura automática necesita la clave de IA cargada en la plataforma. Sin ella el botón no aparece, igual que el resto de las sugerencias con IA del panel.',
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;
