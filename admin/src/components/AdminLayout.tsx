@@ -171,6 +171,40 @@ const sections: NavSection[] = [
         label: 'Compras e importaciones',
         desc: 'Órdenes a proveedores, ciclo de importación y costo real por unidad puesta en depósito.',
         perm: 'purchasing',
+        children: [
+          {
+            to: '/compras',
+            label: 'Órdenes de compra',
+            desc: 'El ciclo completo de una importación, con el landed cost por unidad.',
+            perm: 'purchasing',
+          },
+          {
+            to: '/proveedores',
+            label: 'Proveedores',
+            desc: 'A quiénes les comprás: datos, historial de compras y cuánto les debés.',
+            perm: 'purchasing',
+          },
+        ],
+      },
+      {
+        to: '/tesoreria',
+        label: 'Tesorería',
+        desc: 'Dónde está la plata: cajas, bancos, movimientos y transferencias.',
+        perm: 'finance',
+        children: [
+          {
+            to: '/tesoreria',
+            label: 'Cajas y bancos',
+            desc: 'El saldo de cada cuenta y todo lo que entró y salió.',
+            perm: 'finance',
+          },
+          {
+            to: '/cuentas-corrientes',
+            label: 'Cuentas corrientes',
+            desc: 'Quién te debe y a quién le debés, con cobros y pagos imputados a cada comprobante.',
+            perm: 'finance',
+          },
+        ],
       },
       {
         to: '/clientes',

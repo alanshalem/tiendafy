@@ -58,6 +58,7 @@ interface PoItem {
 
 interface PoDetail {
   id: string;
+  supplierId: string | null;
   supplierName: string;
   reference: string | null;
   notes: string | null;
@@ -124,6 +125,7 @@ interface FormExpense {
 }
 
 interface PoForm {
+  supplierId: string;
   supplierName: string;
   reference: string;
   notes: string;
@@ -523,6 +525,7 @@ function PoEditor({
   const [form, setForm] = useState<PoForm | null>(
     poId === null
       ? {
+          supplierId: '',
           supplierName: '',
           reference: '',
           notes: '',
@@ -537,6 +540,7 @@ function PoEditor({
 
   if (poId !== null && po && form === null) {
     setForm({
+      supplierId: po.supplierId ?? '',
       supplierName: po.supplierName,
       reference: po.reference ?? '',
       notes: po.notes ?? '',
@@ -582,6 +586,7 @@ function PoEditor({
   const doSave = () => {
     if (!form) return;
     save.mutate({
+      supplierId: form.supplierId || null,
       supplierName: form.supplierName,
       reference: form.reference || null,
       notes: form.notes || null,
@@ -654,14 +659,12 @@ function PoEditor({
         <>
           <Card>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">Proveedor</label>
-                <Input
-                  value={form.supplierName}
-                  disabled={!editable}
-                  onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
-                />
-              </div>
+              <SupplierField
+                supplierId={form.supplierId}
+                supplierName={form.supplierName}
+                disabled={!editable}
+                onChange={(supplierId, supplierName) => setForm({ ...form, supplierId, supplierName })}
+              />
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-fg">
                   Referencia (proforma / contenedor)
@@ -1253,5 +1256,71 @@ function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
         </Modal>
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------- Proveedor
+
+/**
+ * El proveedor de la OC: se elige de la lista, y ahí la compra queda atada a
+ * su ficha y su cuenta corriente. Sigue aceptando texto libre —las compras
+ * viejas se cargaron así y no hay por qué obligar a dar de alta a alguien a
+ * quien se le compra una sola vez—, pero sin ficha no hay saldo que actualizar
+ * cuando se cargue la factura.
+ */
+function SupplierField({
+  supplierId,
+  supplierName,
+  disabled,
+  onChange,
+}: {
+  supplierId: string;
+  supplierName: string;
+  disabled: boolean;
+  onChange: (supplierId: string, supplierName: string) => void;
+}) {
+  const { store } = useStore();
+
+  const { data } = useQuery({
+    queryKey: ['suppliers-picker', store?.id],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/suppliers'),
+    enabled: !!store,
+  });
+
+  const suppliers = data?.items ?? [];
+  // Un proveedor inactivo o borrado de la lista no puede desaparecer de una OC
+  // que ya lo tenía: se agrega al desplegable con el nombre guardado.
+  const known = suppliers.some((s) => s.id === supplierId);
+  const options = [
+    ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+    ...(supplierId && !known ? [{ value: supplierId, label: supplierName }] : []),
+    {
+      value: '',
+      label: supplierName && !supplierId ? `${supplierName} (sin ficha)` : 'Sin ficha de proveedor',
+    },
+  ];
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-fg">Proveedor</label>
+      {suppliers.length === 0 && !supplierId ? (
+        <Input value={supplierName} disabled={disabled} onChange={(e) => onChange('', e.target.value)} />
+      ) : (
+        <Select
+          value={supplierId}
+          disabled={disabled}
+          options={options}
+          onChange={(e) => {
+            const id = e.target.value;
+            onChange(id, suppliers.find((s) => s.id === id)?.name ?? supplierName);
+          }}
+        />
+      )}
+      {!supplierId && suppliers.length > 0 && (
+        <p className="mt-1 text-xs text-fg-subtle">
+          Sin ficha, la factura de esta compra no va a impactar en la cuenta corriente.
+        </p>
+      )}
+    </div>
   );
 }

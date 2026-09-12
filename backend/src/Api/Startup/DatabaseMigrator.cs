@@ -4,6 +4,7 @@ using Checkout.Infrastructure.Persistence;
 using Content.Infrastructure;
 using Customers.Infrastructure;
 using Discounts.Infrastructure;
+using Finance.Infrastructure;
 using Fiscal.Infrastructure.Persistence;
 using Identity.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
@@ -56,6 +57,7 @@ public static class DatabaseMigrator
         // se aplicaban solas, así que un deploy limpio levantaba sin las tablas
         // del módulo (en desarrollo pasó inadvertido porque ya existían).
         await MigrateAsync<PurchasingDbContext>(sp, logger);
+        await MigrateAsync<FinanceDbContext>(sp, logger);
         await MigrateAsync<MeliDbContext>(sp, logger);
         await MigrateAsync<SocialDbContext>(sp, logger);
     }

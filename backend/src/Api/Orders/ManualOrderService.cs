@@ -25,8 +25,16 @@ public sealed class ManualOrderService(
     IStockRepository stock,
     IOrderRepository orders,
     IMercadoPagoPaymentService mp,
-    PaidOrderSideEffects paidEffects)
+    PaidOrderSideEffects paidEffects,
+    Api.Finance.LedgerPoster ledger)
 {
+    /// <summary>
+    /// Venta a cuenta corriente: la mercadería sale y el cliente queda debiendo.
+    /// Es una venta cerrada —descuenta stock, factura, cuenta en las
+    /// estadísticas— y lo único distinto es que la plata todavía no entró.
+    /// </summary>
+    public const string CurrentAccountMethod = "cuenta_corriente";
+
     public async Task<Result<ManualOrderResult>> CreateAsync(
         TenantId tenantId, ManualOrderRequest request, string? linkBaseUrl, CancellationToken ct)
     {
@@ -61,9 +69,19 @@ public sealed class ManualOrderService(
             return Result.Failure<ManualOrderResult>(order.Error);
         }
 
+        // Una venta a cuenta corriente necesita saber A QUIÉN se le fía. Sin
+        // cliente sería una deuda sin deudor: mejor negarse que crear una venta
+        // que después nadie sabe cobrar.
+        if (request.PaymentMethod == CurrentAccountMethod && request.CustomerId is null)
+        {
+            await ReleaseAllAsync(tenantId, reserved, ct);
+            return Result.Failure<ManualOrderResult>(Error.Validation(
+                "Order.CustomerRequired", "Para vender en cuenta corriente elegí un cliente."));
+        }
+
         return request.PaymentMethod == "link"
             ? await CreateWithPaymentLinkAsync(tenantId, order.Value, reserved, linkBaseUrl!, ct)
-            : await CreateAlreadyPaidAsync(tenantId, order.Value, request.PaymentMethod, reserved, ct);
+            : await CreateAlreadyPaidAsync(tenantId, order.Value, request.PaymentMethod, reserved, ct, request.CustomerId);
     }
 
     /// <summary>
@@ -176,7 +194,7 @@ public sealed class ManualOrderService(
     /// <summary>Efectivo o transferencia: la plata ya está, se marca pagada acá.</summary>
     private async Task<Result<ManualOrderResult>> CreateAlreadyPaidAsync(
         TenantId tenantId, Order order, string paymentMethod,
-        List<(Guid VariantId, Guid ReservationId)> reserved, CancellationToken ct)
+        List<(Guid VariantId, Guid ReservationId)> reserved, CancellationToken ct, Guid? customerId = null)
     {
         var paid = order.MarkPaid($"manual-{paymentMethod}");
         if (paid.IsFailure)
@@ -196,6 +214,16 @@ public sealed class ManualOrderService(
         // Mismos efectos que un pago real, menos el WhatsApp (el comprador está
         // en el mostrador).
         await paidEffects.RunAsync(order, whatsApp: false, ct);
+
+        // Si se fió, queda asentado en la cuenta corriente del cliente. Va
+        // DESPUÉS de cerrar la venta: si esto fallara, la venta ya está hecha y
+        // la deuda se puede cargar a mano; al revés dejaría stock descontado sin
+        // venta.
+        if (paymentMethod == CurrentAccountMethod && customerId is { } cid)
+            await ledger.PostSaleAsync(
+                tenantId.Value, cid, order.Id, $"Venta #{order.Id.ToString()[..8]}",
+                order.Total.AmountInMinorUnits, order.Total.Currency, order.PaidAtUtc ?? DateTime.UtcNow, ct);
+
         return new ManualOrderResult(order, null);
     }
 }

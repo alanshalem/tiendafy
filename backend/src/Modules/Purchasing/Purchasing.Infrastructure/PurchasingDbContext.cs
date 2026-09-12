@@ -15,6 +15,7 @@ public sealed class PurchasingDbContext : DbContext
     }
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,10 +32,25 @@ public sealed class PurchasingDbContext : DbContext
         po.Property(p => p.Status).HasConversion<string>().HasMaxLength(15);
         po.HasIndex(p => new { p.TenantId, p.CreatedAtUtc });
         po.HasIndex(p => new { p.TenantId, p.Status });
+        po.HasIndex(p => new { p.TenantId, p.SupplierId });
         po.Ignore(p => p.TotalFob);
         po.Ignore(p => p.TotalExpensesArs);
         po.Ignore(p => p.IsEditable);
         po.Ignore(p => p.IsOpen);
+
+        var supplier = modelBuilder.Entity<Supplier>();
+        supplier.ToTable("suppliers");
+        supplier.HasKey(s => s.Id);
+        supplier.Property(s => s.Id).ValueGeneratedNever();
+        supplier.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        supplier.Property(s => s.Name).HasMaxLength(120).IsRequired();
+        supplier.Property(s => s.TaxId).HasMaxLength(20);
+        supplier.Property(s => s.Email).HasMaxLength(200);
+        supplier.Property(s => s.Phone).HasMaxLength(40);
+        supplier.Property(s => s.Address).HasMaxLength(200);
+        supplier.Property(s => s.Country).HasMaxLength(60);
+        supplier.Property(s => s.Notes).HasMaxLength(1000);
+        supplier.HasIndex(s => new { s.TenantId, s.Name });
 
         po.OwnsMany(p => p.Items, items =>
         {

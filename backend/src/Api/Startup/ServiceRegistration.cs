@@ -9,6 +9,7 @@ using Checkout.Infrastructure;
 using Content.Infrastructure;
 using Customers.Infrastructure;
 using Discounts.Infrastructure;
+using Finance.Infrastructure;
 using Fiscal.Infrastructure;
 using Identity.Infrastructure;
 using Inventory.Infrastructure;
@@ -67,6 +68,9 @@ public static class ServiceRegistration
         services.AddMediaModule(configuration, isProduction);
         services.AddSupportModule(configuration);
         services.AddPurchasingModule(configuration);
+        services.AddFinanceModule(configuration);
+        services.AddScoped<Api.Finance.LedgerPoster>();
+        services.AddScoped<Api.Finance.PartyDirectory>();
         services.AddFiscalModule(configuration);
         services.AddInventoryModule(configuration);
         services.AddCheckoutModule(configuration);

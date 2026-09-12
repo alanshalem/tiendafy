@@ -50,6 +50,8 @@ public static class PipelineExtensions
         apiV1.MapMediaEndpoints();
         apiV1.MapSupportEndpoints();
         apiV1.MapPurchasingEndpoints();
+        apiV1.MapFinanceEndpoints();
+        apiV1.MapSupplierEndpoints();
         apiV1.MapMetaAdsEndpoints();
         apiV1.MapFiscalEndpoints();
         apiV1.MapWhatsAppEndpoints();

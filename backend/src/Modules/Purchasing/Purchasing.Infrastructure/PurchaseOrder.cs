@@ -29,6 +29,15 @@ public sealed class PurchaseOrder
     public Guid TenantId { get; private set; }
 
     public string SupplierName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Ficha del proveedor, cuando se eligió una. Null en las órdenes viejas,
+    /// cargadas cuando el proveedor era solo un texto. El nombre se guarda
+    /// igual: la orden no cambia si después le editan la razón social.
+    /// </summary>
+    public Guid? SupplierId { get; private set; }
+
+    public void LinkSupplier(Guid? supplierId) => SupplierId = supplierId;
     /// <summary>Referencia libre: nro de proforma, contenedor, embarque.</summary>
     public string? Reference { get; private set; }
     public string? Notes { get; private set; }

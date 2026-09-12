@@ -20,6 +20,9 @@ import { CategoriesPage } from './pages/Products/Categories';
 import { InventoryPage } from './pages/Products/Inventory';
 import { CostsPage } from './pages/Products/Costs';
 import { ComprasPage } from './pages/Compras';
+import { ProveedoresPage } from './pages/Proveedores';
+import { TesoreriaPage } from './pages/Tesoreria';
+import { CuentasCorrientesPage } from './pages/CuentasCorrientes';
 import { ScannerPage } from './pages/Products/Scanner';
 import { KitsPage } from './pages/Products/Kits';
 import { ExportImportPage } from './pages/Products/ExportImport';
@@ -83,6 +86,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
   { path: '/productos/costos', perm: 'catalog.write', el: <CostsPage /> },
   { path: '/compras', perm: 'purchasing', el: <ComprasPage /> },
+  { path: '/proveedores', perm: 'purchasing', el: <ProveedoresPage /> },
   { path: '/productos/escaner', perm: 'inventory.read', el: <ScannerPage /> },
   { path: '/productos/kits', perm: 'catalog.write', el: <KitsPage /> },
 
@@ -114,6 +118,10 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/mercadolibre', perm: 'orders.read', el: <MercadoLibrePage /> },
   { path: '/redes', perm: 'social', el: <RedesPage /> },
   { path: '/clientes', perm: 'customers.read', el: <CustomersPage /> },
+
+  // Finanzas
+  { path: '/tesoreria', perm: 'finance', el: <TesoreriaPage /> },
+  { path: '/cuentas-corrientes', perm: 'finance', el: <CuentasCorrientesPage /> },
   { path: '/mensajes', perm: 'messages.read', el: <MessagesPage /> },
   { path: '/posventa', perm: 'support.chat', el: <SupportChatPage /> },
   { path: '/paginas', perm: 'content.write', el: <PagesPage /> },

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Copy, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
 import { formatMoney } from '../lib/format';
 import { VariantPicker } from '../components/VariantPicker';
@@ -28,6 +30,10 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
+  // Solo para la venta en cuenta corriente: sin ficha de cliente no hay a quién
+  // anotarle la deuda, así que el backend la rechaza.
+  const [customer, setCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
@@ -45,6 +51,10 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
       });
       return;
     }
+    if (payment === 'cuenta_corriente' && !customer) {
+      toast('Para vender en cuenta corriente elegí un cliente de la agenda.', { variant: 'error' });
+      return;
+    }
     setBusy(true);
     try {
       const res = await api.post<{ paymentLink?: string }>('/api/v1/orders/manual', {
@@ -54,9 +64,10 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           unitPriceMinor: Number(i.price) > 0 ? Math.round(Number(i.price) * 100) : null,
         })),
         paymentMethod: payment,
+        customerId: customer?.id ?? null,
         returnUrl: window.location.origin,
         buyerEmail: buyerEmail.trim() || null,
-        buyerName: buyerName.trim() || null,
+        buyerName: customer?.name ?? (buyerName.trim() || null),
         buyerPhone: buyerPhone.trim() || null,
         notes: notes.trim() || null,
       });
@@ -233,6 +244,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
                 { value: 'cash', label: 'Efectivo' },
                 { value: 'transfer', label: 'Transferencia' },
                 { value: 'link', label: 'Link de pago (Mercado Pago)' },
+                { value: 'cuenta_corriente', label: 'Cuenta corriente (queda debiendo)' },
               ]}
             />
           </div>
@@ -245,7 +257,91 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
         </div>
+
+        {payment === 'cuenta_corriente' && (
+          <CurrentAccountPicker
+            customer={customer}
+            search={customerSearch}
+            onSearch={setCustomerSearch}
+            onPick={setCustomer}
+          />
+        )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * A quién se le anota la deuda. Es el único dato extra que pide vender en
+ * cuenta corriente, y no puede ser texto libre: el saldo se acumula por ficha,
+ * así que "Juan" escrito dos veces distinto serían dos deudores.
+ */
+function CurrentAccountPicker({
+  customer,
+  search,
+  onSearch,
+  onPick,
+}: {
+  customer: { id: string; name: string } | null;
+  search: string;
+  onSearch: (value: string) => void;
+  onPick: (customer: { id: string; name: string } | null) => void;
+}) {
+  const debounced = useDebouncedValue(search, 300).trim();
+
+  const { data } = useQuery({
+    queryKey: ['manual-sale-customers', debounced],
+    queryFn: () =>
+      api.get<{ items: { id: string; name: string; email: string | null }[] }>(
+        `/api/v1/customers?limit=10&q=${encodeURIComponent(debounced)}`,
+      ),
+    enabled: !customer,
+  });
+
+  return (
+    <div className="rounded-md border border-border bg-bg-subtle p-3">
+      <p className="mb-2 text-sm text-fg-muted">
+        La venta se registra sin cobrar: el total queda como deuda del cliente en Cuentas corrientes, y se
+        salda cuando registres el cobro.
+      </p>
+
+      {customer ? (
+        <div className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm">
+          <span className="font-medium">{customer.name}</span>
+          <Button size="sm" variant="ghost" onClick={() => onPick(null)}>
+            Cambiar
+          </Button>
+        </div>
+      ) : (
+        <>
+          <label className="mb-1 block text-sm font-medium text-fg">Cliente de la agenda</label>
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Buscar por nombre o email…"
+          />
+          {(data?.items ?? []).length > 0 && (
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-border bg-surface">
+              {data!.items.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onPick({ id: c.id, name: c.name })}
+                  className="flex w-full items-center justify-between border-b border-border px-3 py-2 text-left text-sm last:border-0 hover:bg-bg-muted"
+                >
+                  <span>{c.name}</span>
+                  {c.email && <span className="text-xs text-fg-subtle">{c.email}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          {debounced && (data?.items ?? []).length === 0 && (
+            <p className="mt-2 text-sm text-fg-muted">
+              No hay ningún cliente con ese nombre. Crealo primero en Clientes.
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 }

@@ -91,6 +91,10 @@ namespace Purchasing.Infrastructure.Migrations
                         .HasColumnType("character varying(15)")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
                     b.Property<string>("SupplierName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -114,7 +118,73 @@ namespace Purchasing.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Status")
                         .HasDatabaseName("ix_purchase_orders_tenant_id_status");
 
+                    b.HasIndex("TenantId", "SupplierId")
+                        .HasDatabaseName("ix_purchase_orders_tenant_id_supplier_id");
+
                     b.ToTable("purchase_orders", (string)null);
+                });
+
+            modelBuilder.Entity("Purchasing.Infrastructure.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("country");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_suppliers");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("ix_suppliers_tenant_id_name");
+
+                    b.ToTable("suppliers", (string)null);
                 });
 
             modelBuilder.Entity("Purchasing.Infrastructure.PurchaseOrder", b =>

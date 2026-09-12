@@ -663,4 +663,6 @@ public sealed record ManualOrderRequest(
     long? DiscountMinor = null,
     long? ShippingCostMinor = null,
     string? ShippingMethodName = null,
-    string? ShippingAddress = null);
+    string? ShippingAddress = null,
+    // Cliente de la ficha, cuando la venta va a su cuenta corriente.
+    Guid? CustomerId = null);

@@ -226,7 +226,8 @@ public static class PurchasingEndpoints
         // factura suele llegar después de la mercadería, y el contador la
         // necesita igual.
         purchasing.MapPut("/purchase-orders/{id:guid}/invoice", async (
-            Guid id, SupplierInvoiceRequest request, PurchasingDbContext db, CancellationToken ct) =>
+            Guid id, SupplierInvoiceRequest request, ITenantContext tenant, PurchasingDbContext db,
+            Api.Finance.LedgerPoster ledger, CancellationToken ct) =>
         {
             var po = await db.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id, ct);
             if (po is null) return Results.NotFound();
@@ -237,6 +238,21 @@ public static class PurchasingEndpoints
             if (result.IsFailure) return result.Error.ToProblem();
 
             await db.SaveChangesAsync(ct);
+
+            // La factura del proveedor es el momento en que la deuda existe: antes
+            // había una orden, no una obligación de pago. Solo se asienta si la
+            // orden tiene ficha de proveedor — sin alguien a quien deberle, no hay
+            // cuenta corriente que mover.
+            if (po.SupplierId is { } supplierId && po.HasSupplierInvoice)
+            {
+                var totalArs = (po.InvoiceNetArs ?? 0m) + (po.InvoiceVatArs ?? 0m);
+                await ledger.PostPurchaseAsync(
+                    tenant.TenantId.Value, supplierId, po.Id,
+                    $"{po.InvoiceType ?? "Factura"} {po.InvoiceNumber}".Trim(),
+                    (long)Math.Round(totalArs * 100m), "ARS",
+                    po.InvoiceDateUtc ?? DateTime.UtcNow, ct);
+            }
+
             return Results.Ok(ToDetailDto(po));
         });
 
@@ -387,6 +403,8 @@ public static class PurchasingEndpoints
             request.Currency ?? "USD", request.ExchangeRate ?? 1m, request.LeadTimeDays);
         if (updated.IsFailure) return updated;
 
+        po.LinkSupplier(request.SupplierId);
+
         var itemRequests = request.Items ?? [];
         var variantIds = itemRequests.Select(i => i.VariantId).Distinct().ToList();
         var snapshots = variantIds.Count == 0
@@ -425,6 +443,7 @@ public static class PurchasingEndpoints
     private static object ToDetailDto(PurchaseOrder po) => new
     {
         id = po.Id,
+        supplierId = po.SupplierId,
         supplierName = po.SupplierName,
         reference = po.Reference,
         notes = po.Notes,
@@ -465,7 +484,10 @@ public sealed record PurchaseExpenseRequest(string Label, decimal Amount, bool I
 public sealed record SavePurchaseOrderRequest(
     string? SupplierName, string? Reference, string? Notes, string? Currency,
     decimal? ExchangeRate, int? LeadTimeDays,
-    List<PurchaseItemRequest>? Items, List<PurchaseExpenseRequest>? Expenses);
+    List<PurchaseItemRequest>? Items, List<PurchaseExpenseRequest>? Expenses,
+    // Ficha del proveedor. Opcional: las órdenes viejas y las de un proveedor
+    // ocasional siguen funcionando solo con el nombre escrito a mano.
+    Guid? SupplierId = null);
 
 public sealed record SupplierInvoiceRequest(
     string? SupplierTaxId, string? InvoiceType, string? InvoiceNumber,

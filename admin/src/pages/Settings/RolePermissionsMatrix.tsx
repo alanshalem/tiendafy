@@ -39,6 +39,7 @@ const PERMISSIONS: { key: string; label: string; area: string; sensitive?: boole
   { key: 'content.write', label: 'Editar la tienda y sus páginas', area: 'Marketing' },
   { key: 'social', label: 'Publicar en redes sociales', area: 'Marketing' },
 
+  { key: 'finance', label: 'Tesorería y cuentas corrientes', area: 'Facturación', sensitive: true },
   { key: 'fiscal.emit', label: 'Emitir y anular facturas', area: 'Facturación', sensitive: true },
   { key: 'fiscal.config', label: 'Configurar la facturación (ARCA)', area: 'Facturación', sensitive: true },
 
