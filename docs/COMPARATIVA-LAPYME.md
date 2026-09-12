@@ -27,35 +27,41 @@ usuarios, 1 depósito, 500 ventas), Pro $279.900 (8 usuarios, 3 depósitos, 2.50
 ventas), Max $599.900 (15 usuarios, 5 depósitos, 5.000 ventas). El multidepósito
 recién aparece en Pro; la contabilidad completa está en todos.
 
+> **Estado: septiembre de 2026.** Cinco de las brechas de este informe ya se
+> construyeron —tesorería, cuentas corrientes, ficha de proveedor, listas de
+> precios, presupuestos y OCR de facturas de compra—. La tabla de abajo quedó
+> como estaba al escribirlo, con una columna nueva que dice qué pasó con cada
+> una: sirve de registro de por qué se decidió lo que se decidió.
+
 ---
 
 ## Resumen de brechas
 
-| Área | La Pyme | Tiendafy | Comprobado en |
-|---|---|---|---|
-| Tesorería (cajas, bancos, cheques, conciliación) | sí | **no existe** | Sin tablas; los "cheque" del código son `chequear` |
-| Cuentas corrientes de clientes y proveedores | sí | **no existe** | `customers` no tiene saldo ni movimientos |
-| Contabilidad (plan de cuentas, asientos, balance) | sí | **no existe** | Sin tablas contables |
-| POS con turnos y arqueo de caja | sí | **parcial** | Hay venta manual; no hay caja, turno ni arqueo |
-| Lector de barras en la venta / ticket térmico | sí | **no** | El escáner existente es de depósito |
-| Multi-depósito y transferencias | sí (Pro+) | **no** | `stock_items.location` son estantes (`B1`, `C4`) |
-| Listas de precios por cliente/canal/moneda | sí | **no** | Hay repreciación y costos, no listas |
-| Multimoneda | completa | **solo compras** | `PurchaseOrder` con `Currency` + `ExchangeRate` |
-| Presupuestos y remitos | sí | **no** | Sin rastro en código |
-| Ficha de proveedor con historial y saldo | sí | **no** | El proveedor es texto libre en la OC |
-| OCR de facturas de compra | sí | **no** | — |
-| Importar comprobantes desde ARCA | sí | **no** | — |
-| Carga masiva de compras por Excel | sí | **no** | Sí existe import/export de productos |
-| Factura E (exportación) y FCE MiPyME | sí | **no** | Emite A, B, C y NC/ND A/B/C |
-| Campos personalizados | sí | **no** | — |
-| Auditoría de cambios | sí | **no** | — |
-| Dashboard personalizable / creador de reportes | sí | **no** | Reportes fijos |
-| API pública + SDK + conector MCP | sí | **no** | Sin API keys de terceros |
-| Canales Tiendanube / Shopify / WooCommerce | sí | **no** | Mercado Libre sí, completo |
-| Órdenes de compra con recepción parcial | sí | **sí** | `purchase_order_items.received_quantity` |
-| Landed cost e importación | no lo menciona | **sí** | `PurchaseOrder.LandedUnitCostArsMinor` |
-| Libro IVA ventas y compras | sí | **sí** | `FiscalEndpoints` + `PurchasingEndpoints` |
-| Roles y permisos | sí | **sí** | RBAC con matriz por rol |
+| Área | La Pyme | Tiendafy (al escribirlo) | Comprobado en | Estado hoy |
+|---|---|---|---|---|
+| Tesorería (cajas, bancos, cheques, conciliación) | sí | **no existe** | Sin tablas; los "cheque" del código son `chequear` | ✅ hecho (sin cheques ni conciliación) |
+| Cuentas corrientes de clientes y proveedores | sí | **no existe** | `customers` no tiene saldo ni movimientos | ✅ hecho |
+| Contabilidad (plan de cuentas, asientos, balance) | sí | **no existe** | Sin tablas contables | ⛔ descartado |
+| POS con turnos y arqueo de caja | sí | **parcial** | Hay venta manual; no hay caja, turno ni arqueo | ➖ hay caja; faltan turno y arqueo |
+| Lector de barras en la venta / ticket térmico | sí | **no** | El escáner existente es de depósito | ➖ pendiente |
+| Multi-depósito y transferencias | sí (Pro+) | **no** | `stock_items.location` son estantes (`B1`, `C4`) | ⛔ solo si hay más de un depósito físico |
+| Listas de precios por cliente/canal/moneda | sí | **no** | Hay repreciación y costos, no listas | ✅ hecho (por cliente; el storefront sigue con el precio del producto) |
+| Multimoneda | completa | **solo compras** | `PurchaseOrder` con `Currency` + `ExchangeRate` | ➖ cajas y listas aceptan USD; falta tipo de cambio |
+| Presupuestos y remitos | sí | **no** | Sin rastro en código | ✅ presupuestos; el remito queda pendiente |
+| Ficha de proveedor con historial y saldo | sí | **no** | El proveedor es texto libre en la OC | ✅ hecho |
+| OCR de facturas de compra | sí | **no** | — | ✅ hecho (propone, no guarda) |
+| Importar comprobantes desde ARCA | sí | **no** | — | ➖ espera el certificado de ARCA activo |
+| Carga masiva de compras por Excel | sí | **no** | Sí existe import/export de productos | ➖ pendiente |
+| Factura E (exportación) y FCE MiPyME | sí | **no** | Emite A, B, C y NC/ND A/B/C | ⛔ CKING importa, no exporta |
+| Campos personalizados | sí | **no** | — | ➖ la ficha técnica cubre el catálogo |
+| Auditoría de cambios | sí | **no** | — | ➖ pendiente |
+| Dashboard personalizable / creador de reportes | sí | **no** | Reportes fijos | ➖ pendiente |
+| API pública + SDK + conector MCP | sí | **no** | Sin API keys de terceros | ⛔ descartado |
+| Canales Tiendanube / Shopify / WooCommerce | sí | **no** | Mercado Libre sí, completo | ⛔ descartado |
+| Órdenes de compra con recepción parcial | sí | **sí** | `purchase_order_items.received_quantity` | — |
+| Landed cost e importación | no lo menciona | **sí** | `PurchaseOrder.LandedUnitCostArsMinor` | — |
+| Libro IVA ventas y compras | sí | **sí** | `FiscalEndpoints` + `PurchasingEndpoints` | — |
+| Roles y permisos | sí | **sí** | RBAC con matriz por rol | — |
 
 ---
 
@@ -168,6 +174,35 @@ Pensado para CKING —importadora con tiendas propias—, no para una pyme gené
 6. **OCR de facturas de compra.** Ya hay clave de IA en el sistema: de las que
    mejor relación esfuerzo/ahorro tienen para quien importa.
 7. **Factura E y FCE MiPyME** — solo si se exporta o se le vende a grandes.
+
+### Lo que se construyó, y cómo quedó
+
+**1, 2 y 4 — cuentas corrientes, ficha de proveedor y tesorería.** Módulo
+`Finance` nuevo. El saldo no se guarda: se calcula sumando movimientos, porque
+un saldo guardado y una lista de movimientos siempre terminan discrepando. El
+signo se lee siempre desde nuestro lado (saldo = Σ Debe − Σ Haber), así una sola
+fórmula sirve para clientes y proveedores. La factura de una orden de compra y
+la venta manual en cuenta corriente escriben ahí solas. Sin cheques ni
+conciliación bancaria, como decía el punto 4.
+
+**3 — listas de precios.** La lista guarda una REGLA (un porcentaje sobre el
+precio del producto o sobre otra lista), no una copia de precios: con precios
+copiados, subir el catálogo 20% deja la mayorista en los números del mes pasado.
+Se asigna al cliente y la venta manual la usa sola. El storefront sigue
+mostrando el precio del producto: las listas son para la venta asistida, que es
+donde se sabe quién está comprando.
+
+**6 — OCR de facturas de compra.** Con la clave de IA que ya estaba. Propone y
+no guarda: de esos números salen el libro de IVA y la deuda con el proveedor. Lo
+que no se lee con seguridad vuelve en null y nunca como un valor aproximado.
+
+**Extra — presupuestos.** No estaba en esta lista pero cierra el circuito de las
+tres anteriores: se cotiza al precio de la lista del cliente y, si acepta, la
+venta sale sola a su cuenta corriente. Congela los precios del día que se cotizó
+y por eso un presupuesto vencido no se acepta sin extender la validez a mano.
+
+Quedaron afuera el remito, el ticket térmico, el turno y arqueo de caja, la carga
+masiva de compras por Excel y la auditoría de cambios.
 
 ### Lo que no conviene construir
 
