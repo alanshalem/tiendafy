@@ -71,6 +71,7 @@ public static class ServiceRegistration
         services.AddFinanceModule(configuration);
         services.AddScoped<Api.Finance.LedgerPoster>();
         services.AddScoped<Api.Finance.PartyDirectory>();
+        services.AddScoped<Api.Pricing.PriceListService>();
         services.AddFiscalModule(configuration);
         services.AddInventoryModule(configuration);
         services.AddCheckoutModule(configuration);

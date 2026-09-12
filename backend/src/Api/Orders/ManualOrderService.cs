@@ -1,6 +1,10 @@
 using Api.Endpoints;
+using Api.Pricing;
 using Catalog.Contracts;
+using Catalog.Core.Domain;
+using Customers.Infrastructure;
 using Inventory.Core.Domain;
+using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using Payments.Contracts;
 using SharedKernel.Common;
@@ -26,7 +30,9 @@ public sealed class ManualOrderService(
     IOrderRepository orders,
     IMercadoPagoPaymentService mp,
     PaidOrderSideEffects paidEffects,
-    Api.Finance.LedgerPoster ledger)
+    Api.Finance.LedgerPoster ledger,
+    PriceListService pricing,
+    CustomersDbContext customers)
 {
     /// <summary>
     /// Venta a cuenta corriente: la mercadería sale y el cliente queda debiendo.
@@ -58,11 +64,18 @@ public sealed class ManualOrderService(
 
         var currency = variants.Values.First().Price.Currency;
 
+        // El precio que le toca a ESTE cliente. Un mayorista con lista propia
+        // paga la lista, no el precio del público: cargarle el precio de
+        // vidriera y descontar a mano es exactamente el error que las listas
+        // vienen a evitar.
+        var priceListId = await CustomerPriceListAsync(tenantId, request.CustomerId, ct);
+        var resolver = await pricing.LoadAsync(tenantId, ct);
+
         var reserveResult = await ReserveAllAsync(tenantId, request.Items, variants, ct);
         if (reserveResult.IsFailure) return Result.Failure<ManualOrderResult>(reserveResult.Error);
         var reserved = reserveResult.Value;
 
-        var order = BuildOrder(tenantId, request, variants, reserved, currency);
+        var order = BuildOrder(tenantId, request, variants, reserved, currency, resolver, priceListId);
         if (order.IsFailure)
         {
             await ReleaseAllAsync(tenantId, reserved, ct);
@@ -82,6 +95,19 @@ public sealed class ManualOrderService(
         return request.PaymentMethod == "link"
             ? await CreateWithPaymentLinkAsync(tenantId, order.Value, reserved, linkBaseUrl!, ct)
             : await CreateAlreadyPaidAsync(tenantId, order.Value, request.PaymentMethod, reserved, ct, request.CustomerId);
+    }
+
+    /// <summary>La lista asignada al cliente, si tiene una y sigue activa.</summary>
+    private async Task<Guid?> CustomerPriceListAsync(TenantId tenantId, Guid? customerId, CancellationToken ct)
+    {
+        if (customerId is not { } id) return null;
+
+        var assigned = await customers.Customers.AsNoTracking()
+            .Where(c => c.Id == id && c.TenantId == tenantId.Value)
+            .Select(c => c.PriceListId)
+            .FirstOrDefaultAsync(ct);
+
+        return await pricing.ActiveListForAsync(tenantId, assigned, ct);
     }
 
     /// <summary>
@@ -117,16 +143,18 @@ public sealed class ManualOrderService(
 
     private static Result<Order> BuildOrder(
         TenantId tenantId, ManualOrderRequest request, Dictionary<Guid, CheckoutVariantDto> variants,
-        List<(Guid VariantId, Guid ReservationId)> reserved, string currency)
+        List<(Guid VariantId, Guid ReservationId)> reserved, string currency,
+        PriceResolver resolver, Guid? priceListId)
     {
         var reservationByVariant = reserved.ToDictionary(r => r.VariantId, r => r.ReservationId);
         var lines = request.Items!.Select(i =>
         {
             var v = variants[i.VariantId];
-            // Precio de la línea: el que puso el vendedor, o el de lista.
+            // Precio de la línea: el que puso el vendedor a mano, o el que le
+            // corresponde al cliente según su lista (sin lista, el del producto).
             var unitPrice = i.UnitPriceMinor is { } price and > 0
                 ? new Money(price, currency)
-                : new Money(v.Price.Amount, v.Price.Currency);
+                : new Money(resolver.Resolve(priceListId, i.VariantId, v.Price.Amount), v.Price.Currency);
             var unitCost = v.Cost is { } c ? new Money(c.Amount, c.Currency) : (Money?)null;
             return (i.VariantId, v.ProductName, v.VariantDescription, v.Sku,
                 unitPrice, i.Quantity, (Guid?)reservationByVariant[i.VariantId], unitCost);
@@ -147,6 +175,7 @@ public sealed class ManualOrderService(
         {
             "cash" => "Efectivo",
             "transfer" => "Transferencia",
+            CurrentAccountMethod => "Cuenta corriente",
             _ => "Link de Mercado Pago",
         };
         order.SetShippingAndBuyer(

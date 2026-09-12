@@ -65,6 +65,7 @@ public static class CustomersEndpoints
         {
             var created = Customer.Create(tenant.TenantId.Value, req.Name, req.Email, req.Phone, req.Address, req.Notes);
             if (created.IsFailure) return created.Error.ToProblem();
+            created.Value.SetPriceList(req.PriceListId);
             db.Customers.Add(created.Value);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/customers/{created.Value.Id}", ToDto(created.Value));
@@ -77,6 +78,7 @@ public static class CustomersEndpoints
             if (customer is null) return Results.NotFound();
             var result = customer.Update(req.Name, req.Email, req.Phone, req.Address, req.Notes);
             if (result.IsFailure) return result.Error.ToProblem();
+            customer.SetPriceList(req.PriceListId);
             await db.SaveChangesAsync(ct);
             return Results.Ok(ToDto(customer));
         });
@@ -103,8 +105,10 @@ public static class CustomersEndpoints
         c.Phone,
         c.Address,
         c.Notes,
+        c.PriceListId,
         c.CreatedAtUtc,
     };
 }
 
-public sealed record CustomerRequest(string Name, string? Email, string? Phone, string? Address, string? Notes);
+public sealed record CustomerRequest(
+    string Name, string? Email, string? Phone, string? Address, string? Notes, Guid? PriceListId = null);

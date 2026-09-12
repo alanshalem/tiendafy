@@ -133,6 +133,10 @@ namespace Customers.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone");
 
+                    b.Property<Guid?>("PriceListId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("price_list_id");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");

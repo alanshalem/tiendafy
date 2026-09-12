@@ -8,6 +8,7 @@ import {
   FormField,
   Input,
   Modal,
+  Select,
   useToast,
   useConfirm,
   type TableColumn,
@@ -28,6 +29,7 @@ interface Customer {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  priceListId: string | null;
   createdAtUtc: string;
 }
 
@@ -260,8 +262,18 @@ function CustomerModal({
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [priceListId, setPriceListId] = useState('');
   const [error, setError] = useState<string>();
   const isEdit = !!customer;
+
+  // Las listas se piden solo con el modal abierto: la mayoría de las tiendas no
+  // tiene ninguna y el campo entero desaparece.
+  const { data: priceLists } = useQuery({
+    queryKey: ['price-lists-picker'],
+    queryFn: () => api.get<{ items: { id: string; name: string; active: boolean }[] }>('/api/v1/price-lists'),
+    enabled: open,
+  });
+  const activeLists = (priceLists?.items ?? []).filter((l) => l.active);
 
   // Inicializar los campos al abrir (crear = vacío, editar = datos del cliente).
   useEffect(() => {
@@ -271,6 +283,7 @@ function CustomerModal({
     setPhone(customer?.phone ?? '');
     setAddress(customer?.address ?? '');
     setNotes(customer?.notes ?? '');
+    setPriceListId(customer?.priceListId ?? '');
     setError(undefined);
   }, [open, customer]);
 
@@ -282,6 +295,7 @@ function CustomerModal({
         phone: phone.trim() || null,
         address: address.trim() || null,
         notes: notes.trim() || null,
+        priceListId: priceListId || null,
       };
       return isEdit
         ? api.put(`/api/v1/customers/${customer!.id}`, body)
@@ -342,6 +356,22 @@ function CustomerModal({
             placeholder="Av. Siempre Viva 742"
           />
         </FormField>
+
+        {activeLists.length > 0 && (
+          <FormField
+            label="Lista de precios"
+            hint="Las ventas manuales a este cliente van a usar los precios de esta lista."
+          >
+            <Select
+              value={priceListId}
+              onChange={(e) => setPriceListId(e.target.value)}
+              options={[
+                { value: '', label: 'Precio de lista (el del producto)' },
+                ...activeLists.map((l) => ({ value: l.id, label: l.name })),
+              ]}
+            />
+          </FormField>
+        )}
 
         <FormField label="Notas" hint="Opcional">
           <textarea

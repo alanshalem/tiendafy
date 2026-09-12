@@ -147,6 +147,12 @@ const sections: NavSection[] = [
             perm: 'catalog.write',
           },
           {
+            to: '/productos/listas-de-precios',
+            label: 'Listas de precios',
+            desc: 'Precio mayorista, minorista o por canal, sin duplicar el catálogo.',
+            perm: 'catalog.write',
+          },
+          {
             to: '/productos/escaner',
             label: 'Escáner',
             desc: 'El depósito en el celu: buscá, ajustá stock y prepará pedidos escaneando.',

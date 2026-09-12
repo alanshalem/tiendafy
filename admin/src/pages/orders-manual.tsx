@@ -30,9 +30,10 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
-  // Solo para la venta en cuenta corriente: sin ficha de cliente no hay a quién
-  // anotarle la deuda, así que el backend la rechaza.
-  const [customer, setCustomer] = useState<{ id: string; name: string } | null>(null);
+  // El cliente de la agenda: obligatorio para la cuenta corriente (sin ficha no
+  // hay a quién anotarle la deuda) y opcional para el resto, donde lo que
+  // aporta es su lista de precios.
+  const [customer, setCustomer] = useState<PickedCustomer | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -207,7 +208,9 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             <p className="mt-1.5 text-right text-sm font-semibold text-fg">
               {hasCustomPrices
                 ? `Total: ${formatMoney(totalMinor)}`
-                : 'Los precios vacíos usan el precio de lista.'}
+                : customer?.priceListName
+                  ? `Los precios vacíos usan la lista ${customer.priceListName}.`
+                  : 'Los precios vacíos usan el precio del producto.'}
             </p>
           )}
         </div>
@@ -234,6 +237,14 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           </div>
         </div>
 
+        <CustomerPicker
+          customer={customer}
+          search={customerSearch}
+          required={payment === 'cuenta_corriente'}
+          onSearch={setCustomerSearch}
+          onPick={setCustomer}
+        />
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Cobro</label>
@@ -257,64 +268,88 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
         </div>
-
-        {payment === 'cuenta_corriente' && (
-          <CurrentAccountPicker
-            customer={customer}
-            search={customerSearch}
-            onSearch={setCustomerSearch}
-            onPick={setCustomer}
-          />
-        )}
       </div>
     </Modal>
   );
 }
 
+interface PickedCustomer {
+  id: string;
+  name: string;
+  priceListName: string | null;
+}
+
 /**
- * A quién se le anota la deuda. Es el único dato extra que pide vender en
- * cuenta corriente, y no puede ser texto libre: el saldo se acumula por ficha,
- * así que "Juan" escrito dos veces distinto serían dos deudores.
+ * El cliente de la agenda. Sirve para dos cosas y por eso está siempre a la
+ * vista: para vender en cuenta corriente hace falta saber a quién se le fía, y
+ * para cualquier venta, si ese cliente tiene lista de precios asignada, los
+ * precios salen de ahí.
+ *
+ * No puede ser texto libre: el saldo y la lista se buscan por ficha, y "Juan"
+ * escrito dos veces distinto serían dos clientes.
  */
-function CurrentAccountPicker({
+function CustomerPicker({
   customer,
   search,
+  required,
   onSearch,
   onPick,
 }: {
-  customer: { id: string; name: string } | null;
+  customer: PickedCustomer | null;
   search: string;
+  required: boolean;
   onSearch: (value: string) => void;
-  onPick: (customer: { id: string; name: string } | null) => void;
+  onPick: (customer: PickedCustomer | null) => void;
 }) {
   const debounced = useDebouncedValue(search, 300).trim();
 
   const { data } = useQuery({
     queryKey: ['manual-sale-customers', debounced],
     queryFn: () =>
-      api.get<{ items: { id: string; name: string; email: string | null }[] }>(
+      api.get<{ items: { id: string; name: string; email: string | null; priceListId: string | null }[] }>(
         `/api/v1/customers?limit=10&q=${encodeURIComponent(debounced)}`,
       ),
     enabled: !customer,
   });
 
+  // Solo para mostrar de qué lista salen los precios: el que los aplica es el
+  // backend, con la lista guardada en la ficha.
+  const { data: lists } = useQuery({
+    queryKey: ['price-lists-picker'],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/price-lists'),
+  });
+
+  const nameOfList = (id: string | null) =>
+    id ? ((lists?.items ?? []).find((l) => l.id === id)?.name ?? null) : null;
+
   return (
-    <div className="rounded-md border border-border bg-bg-subtle p-3">
-      <p className="mb-2 text-sm text-fg-muted">
-        La venta se registra sin cobrar: el total queda como deuda del cliente en Cuentas corrientes, y se
-        salda cuando registres el cobro.
-      </p>
+    <div className={required ? 'rounded-md border border-border bg-bg-subtle p-3' : undefined}>
+      {required && (
+        <p className="mb-2 text-sm text-fg-muted">
+          La venta se registra sin cobrar: el total queda como deuda del cliente en Cuentas corrientes, y se
+          salda cuando registres el cobro.
+        </p>
+      )}
 
       {customer ? (
         <div className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm">
-          <span className="font-medium">{customer.name}</span>
+          <div>
+            <span className="font-medium">{customer.name}</span>
+            {customer.priceListName && (
+              <span className="ml-2 text-xs text-fg-subtle">
+                precios de la lista {customer.priceListName}
+              </span>
+            )}
+          </div>
           <Button size="sm" variant="ghost" onClick={() => onPick(null)}>
             Cambiar
           </Button>
         </div>
       ) : (
         <>
-          <label className="mb-1 block text-sm font-medium text-fg">Cliente de la agenda</label>
+          <label className="mb-1 block text-sm font-medium text-fg">
+            Cliente de la agenda {required ? '(requerido)' : '(opcional)'}
+          </label>
           <Input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
@@ -326,11 +361,11 @@ function CurrentAccountPicker({
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => onPick({ id: c.id, name: c.name })}
+                  onClick={() => onPick({ id: c.id, name: c.name, priceListName: nameOfList(c.priceListId) })}
                   className="flex w-full items-center justify-between border-b border-border px-3 py-2 text-left text-sm last:border-0 hover:bg-bg-muted"
                 >
                   <span>{c.name}</span>
-                  {c.email && <span className="text-xs text-fg-subtle">{c.email}</span>}
+                  <span className="text-xs text-fg-subtle">{nameOfList(c.priceListId) ?? c.email ?? ''}</span>
                 </button>
               ))}
             </div>

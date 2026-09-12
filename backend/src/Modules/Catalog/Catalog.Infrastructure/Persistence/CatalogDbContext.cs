@@ -20,6 +20,8 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<KitComponent> KitComponents => Set<KitComponent>();
     public DbSet<SpecDefinition> SpecDefinitions => Set<SpecDefinition>();
+    public DbSet<PriceList> PriceLists => Set<PriceList>();
+    public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +54,31 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         kit.Property(k => k.Id).ValueGeneratedNever();
         kit.HasQueryFilter(k => !_filterByTenant || k.TenantId == _currentTenant.Value);
         kit.HasIndex(k => new { k.TenantId, k.KitVariantId, k.ComponentVariantId }).IsUnique();
+
+        var priceList = modelBuilder.Entity<PriceList>();
+        priceList.ToTable("price_lists");
+        priceList.HasKey(l => l.Id);
+        priceList.Property(l => l.Id).ValueGeneratedNever();
+        priceList.HasQueryFilter(l => !_filterByTenant || l.TenantId == _currentTenant);
+        priceList.Property(l => l.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        priceList.Property(l => l.Name).HasMaxLength(60).IsRequired();
+        priceList.Property(l => l.Currency).HasMaxLength(3).IsRequired();
+        priceList.Property(l => l.Rounding).HasMaxLength(10).IsRequired();
+        priceList.Property(l => l.Notes).HasMaxLength(300);
+        // El ajuste se guarda con dos decimales: "12,5%" es un caso real y
+        // redondearlo a 13 mueve todos los precios de la lista.
+        priceList.Property(l => l.AdjustmentPercent).HasPrecision(8, 2);
+        priceList.HasIndex(l => new { l.TenantId, l.Active });
+
+        var priceItem = modelBuilder.Entity<PriceListItem>();
+        priceItem.ToTable("price_list_items");
+        priceItem.HasKey(i => i.Id);
+        priceItem.Property(i => i.Id).ValueGeneratedNever();
+        priceItem.HasQueryFilter(i => !_filterByTenant || i.TenantId == _currentTenant);
+        priceItem.Property(i => i.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        // Un precio a mano por variante y lista: sin esto, dos guardados
+        // simultáneos dejan dos filas y gana la que devuelva primero la base.
+        priceItem.HasIndex(i => new { i.PriceListId, i.VariantId }).IsUnique();
     }
 
     Task IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken) =>

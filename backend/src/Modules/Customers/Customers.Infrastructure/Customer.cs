@@ -12,6 +12,14 @@ public sealed class Customer
     public string? Phone { get; private set; }
     public string? Address { get; private set; }
     public string? Notes { get; private set; }
+
+    /// <summary>
+    /// Lista de precios de este cliente. Null = precio de lista, que es el caso
+    /// de casi todos: solo el mayorista tiene una propia. Vive en Catalog, así
+    /// que acá es un id suelto y no una clave foránea.
+    /// </summary>
+    public Guid? PriceListId { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
 
     // --- Cuenta de comprador (shopper). Null = es solo un registro de CRM
@@ -81,6 +89,9 @@ public sealed class Customer
         Notes = Norm(notes);
         return Result.Success();
     }
+
+    /// <summary>Le asigna (o le saca) una lista de precios. Null vuelve al precio de lista.</summary>
+    public void SetPriceList(Guid? priceListId) => PriceListId = priceListId;
 
     /// <summary>
     /// Completa lo que falta con los datos de una compra, sin pisar nada de lo

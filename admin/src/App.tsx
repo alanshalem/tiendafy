@@ -19,6 +19,7 @@ import { ProductsPage } from './pages/Products';
 import { CategoriesPage } from './pages/Products/Categories';
 import { InventoryPage } from './pages/Products/Inventory';
 import { CostsPage } from './pages/Products/Costs';
+import { PriceListsPage } from './pages/Products/PriceLists';
 import { ComprasPage } from './pages/Compras';
 import { ProveedoresPage } from './pages/Proveedores';
 import { TesoreriaPage } from './pages/Tesoreria';
@@ -85,6 +86,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/categorias', perm: 'catalog.write', el: <CategoriesPage /> },
   { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
   { path: '/productos/costos', perm: 'catalog.write', el: <CostsPage /> },
+  { path: '/productos/listas-de-precios', perm: 'catalog.write', el: <PriceListsPage /> },
   { path: '/compras', perm: 'purchasing', el: <ComprasPage /> },
   { path: '/proveedores', perm: 'purchasing', el: <ProveedoresPage /> },
   { path: '/productos/escaner', perm: 'inventory.read', el: <ScannerPage /> },
