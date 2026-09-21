@@ -95,19 +95,26 @@ public class FiscalDomainTests
     // ---- FiscalSequence (numeración: el corazón anti-huecos) ----
 
     [Fact]
-    public void Secuencia_Next_incrementa_y_SyncWithAuthority_nunca_retrocede()
+    public void Secuencia_la_manda_ARCA_en_las_dos_direcciones()
     {
         var seq = FiscalSequence.Create(Tenant, FiscalEnvironment.Produccion, 1, CbteTipo.FacturaC, lastNumber: 41);
 
         Assert.Equal(42, seq.Next());
         Assert.Equal(42, seq.LastNumber);
 
-        seq.SyncWithAuthority(40); // ARCA atrasada respecto de lo local → NO retrocede
-        Assert.Equal(42, seq.LastNumber);
+        // Lo local quedó adelante: se avanzó un número que ARCA nunca autorizó
+        // (un rechazo). ARCA solo acepta último+1, así que se corrige hacia atrás.
+        // Antes "nunca retrocedía" y desde ahí todas las emisiones rebotaban (10016).
+        Assert.True(seq.SyncWithAuthority(40));
+        Assert.Equal(40, seq.LastNumber);
+        Assert.Equal(41, seq.Next());
 
-        seq.SyncWithAuthority(100); // ARCA adelante (emitieron por otro sistema) → avanza
-        Assert.Equal(100, seq.LastNumber);
+        // ARCA adelante (se emitió por otro sistema): también manda.
+        Assert.True(seq.SyncWithAuthority(100));
         Assert.Equal(101, seq.Next());
+
+        // En sincronía: no hay nada que avisar.
+        Assert.False(seq.SyncWithAuthority(101));
     }
 
     // ---- FiscalAccessToken (TA de WSAA) ----

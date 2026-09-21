@@ -55,7 +55,19 @@ public sealed class FiscalCertificateFactory : IFiscalCertificateFactory
         }
 
         var cn = cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
-        return new CertificateInfo(cn, cert.NotBefore.ToUniversalTime(), cert.NotAfter.ToUniversalTime());
+        return new CertificateInfo(cn, cert.NotBefore.ToUniversalTime(), cert.NotAfter.ToUniversalTime(),
+            ReadSubjectCuit(cert.SubjectName.Name));
+    }
+
+    /// <summary>
+    /// El CUIT del titular, del "SERIALNUMBER=CUIT 20123456789" que ARCA exige en
+    /// el subject. Según la plataforma el atributo sale como SERIALNUMBER o como
+    /// OID.2.5.4.5, así que se busca el "CUIT nnnnnnnnnnn" en el nombre entero.
+    /// </summary>
+    public static string? ReadSubjectCuit(string subject)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(subject, @"CUIT\s*(\d{11})");
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     // Escapa comas/caracteres especiales del RDN.

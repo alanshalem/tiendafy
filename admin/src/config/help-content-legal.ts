@@ -68,9 +68,24 @@ export const LEGAL = {
         paragraphs: [
           'El punto de venta es el “talonario” numerado de tus facturas (el 0001 de “0001-00000123”). Se crea en ARCA: “Administración de puntos de venta y domicilios”, con el sistema de facturación “Web Services”. Después cargás ese número en el panel.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Tiene que ser de Web Services, no cualquiera',
+            text: 'Al crearlo, el sistema tiene que ser “RECE para aplicativo y web services”. Los puntos de venta de “Comprobantes en línea” (los que usás para facturar a mano en la web de ARCA) y los de controlador fiscal NO sirven, y el error que da ARCA al usar uno de esos no menciona el punto de venta por ningún lado. El paso “Probar la conexión” lo verifica por vos.',
+          },
+        ],
       },
       {
-        heading: 'Paso 4 — Preferencias de emisión',
+        heading: 'Paso 4 — Probar la conexión',
+        paragraphs: [
+          'El botón “Probar conexión con ARCA” revisa, sin emitir nada, todo lo que se puede revisar antes de la primera factura: que el certificado esté cargado y de quién es, que ARCA entregue el ticket de acceso, que acepte al CUIT que factura y que los puntos de venta sean de Web Services.',
+          'Lo que NO puede ver: si ARCA te deja emitir. La situación fiscal del contribuyente se valida recién al facturar, así que alguien con el monotributo dado de baja pasa todos los pasos en verde y falla con la primera factura. La prueba final siempre es una factura real.',
+        ],
+      },
+      {
+        heading: 'Paso 5 — Preferencias de emisión',
         paragraphs: [
           'Elegí si la factura se emite sola (recomendado) y cuándo: al confirmarse el pago o al despachar el pedido. También podés definir el punto de venta por defecto y el umbral de consumidor final (por encima de ese monto, la factura exige DNI/CUIT del comprador — el checkout ya se lo pide).',
         ],
@@ -94,6 +109,45 @@ export const LEGAL = {
         heading: 'Reembolsos y notas de crédito',
         paragraphs: [
           'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada, Tiendafy la emite automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+        ],
+      },
+      {
+        heading: 'Si ARCA no contesta: nunca dos facturas para la misma venta',
+        paragraphs: [
+          'A veces el pedido de factura llega a ARCA, ARCA la autoriza, y la respuesta se pierde en el camino (un corte, un timeout). Reintentar a ciegas en ese caso emitiría una SEGUNDA factura con CAE para la misma venta, que después habría que anular con una nota de crédito.',
+          'Por eso Tiendafy guarda cada pedido ANTES de mandarlo. Si la respuesta no llega, la venta muestra “Esperando confirmación de ARCA”, y antes de volver a intentar le pregunta a ARCA si ese comprobante quedó autorizado: si quedó, lo adopta con su CAE; si no, emite con el mismo número. Mientras tanto no aparece el botón “Facturar ahora”, justamente para no duplicarla.',
+        ],
+      },
+      {
+        heading: 'Los errores de ARCA que no dicen lo que parecen',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Error 600 — “No apareció CUIT en lista de relaciones”',
+                def: 'ARCA usa el mismo error para dos cosas distintas: que el CUIT que factura no tenga relación con el certificado (no le delegó el servicio), o que la relación exista pero el contribuyente esté inhabilitado para facturar — por ejemplo, un monotributo dado de baja por deuda. Si el trámite está bien hecho y el error sigue, revisá el estado del contribuyente en ARCA.',
+              },
+              {
+                term: '“El CEE ya posee un TA válido” (alreadyAuthenticated)',
+                def: 'ARCA entrega un ticket de acceso que dura hasta 12 horas y no da otro mientras ese siga vigente. Tiendafy lo guarda y lo reusa, así que esto solo aparece si el mismo certificado se usa en otro sistema a la vez. No lo compartas: cada sistema, su propio certificado.',
+              },
+              {
+                term: 'Rechazo por observaciones',
+                def: 'ARCA manda los motivos de rechazo en dos listas, errores y observaciones, y un comprobante puede rebotar por cualquiera de las dos. El panel muestra las dos juntas, así que un rechazo nunca queda “sin detalle”.',
+              },
+              {
+                term: '“DocNro no puede ser igual al del emisor”',
+                def: 'Alguien intentó facturarse a sí mismo — lo típico es probar la tienda con el CUIT de la propia empresa. Tiendafy lo frena antes de mandarlo, con un mensaje en castellano.',
+              },
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Certificado de otro CUIT (delegación)',
+            text: 'Si el certificado es de un CUIT y la tienda factura con otro (por ejemplo, el del estudio contable emitiendo para la empresa), el que factura tiene que delegarle el servicio “Facturación Electrónica” al titular del certificado en el Administrador de Relaciones de ARCA. El paso “Probar la conexión” te avisa cuando los dos CUIT no coinciden.',
+          },
         ],
       },
       {

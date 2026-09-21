@@ -46,7 +46,7 @@ public sealed class WsfeClient(
 
         var errors = ParseErrors(resp.Value);
         if (errors.Count > 0)
-            return Result.Failure<long>(Error.Conflict("Wsfe.Error", $"{errors[0].Code}: {errors[0].Message}"));
+            return Result.Failure<long>(Error.Conflict("Wsfe.Error", ArcaErrorCatalog.Describe(errors[0].Code, errors[0].Message)));
 
         var nro = resp.Value.Descendants().FirstOrDefault(e => e.Name.LocalName == "CbteNro")?.Value;
         return long.TryParse(nro, out var n) ? n : 0L;
@@ -112,7 +112,11 @@ public sealed class WsfeClient(
         if (resp.IsFailure) return Result.Failure<CaeOutcome>(resp.Error);
         var responseXml = resp.Value.ToString();
 
-        // Errores de nivel request (auth, estructura) → rechazo directo.
+        // ARCA devuelve DOS listas y un comprobante puede rebotar por cualquiera:
+        //   · Errors/Err, a nivel del pedido (auth, estructura, CUIT).
+        //   · Observaciones/Obs, a nivel del comprobante — y con Resultado "R"
+        //     son el MOTIVO del rechazo, no un comentario.
+        // Mirar solo Errors deja la mitad de los rechazos "sin detalle".
         var reqErrors = ParseErrors(resp.Value);
 
         var cab = resp.Value.Descendants().FirstOrDefault(e => e.Name.LocalName == "FeCabResp");
@@ -122,7 +126,13 @@ public sealed class WsfeClient(
         string DetVal(string name) => detResp?.Descendants().FirstOrDefault(e => e.Name.LocalName == name)?.Value ?? "";
 
         var obs = ParseMessages(detResp, "Obs");
-        var errors = reqErrors.Concat(ParseMessages(detResp, "Err")).ToList();
+        var errors = reqErrors;
+
+        // Events: avisos de ARCA (mantenimientos, cambios normativos). No afectan
+        // el comprobante, pero son la única forma en que ARCA avisa algo.
+        var events = resp.Value.Descendants().FirstOrDefault(e => e.Name.LocalName == "Events");
+        foreach (var evt in ParseMessages(events, "Evt"))
+            logger.LogInformation("ARCA (evento {Code}): {Msg}", evt.Code, evt.Message);
 
         DateOnly? caeVto = null;
         var vtoRaw = DetVal("CAEFchVto");
@@ -131,6 +141,88 @@ public sealed class WsfeClient(
         var cae = DetVal("CAE");
         return new CaeOutcome(resultado, string.IsNullOrEmpty(cae) ? null : cae, caeVto, obs, errors, requestXml, responseXml);
     }
+
+    public async Task<Result<ConsultedComprobante?>> ConsultAsync(
+        FiscalTicket auth, Cuit cuit, FiscalEnvironment environment,
+        int ptoVta, CbteTipo cbteTipo, long number, CancellationToken ct = default)
+    {
+        var body = new XElement(Ar + "FECompConsultar",
+            AuthElement(auth, cuit),
+            new XElement(Ar + "FeCompConsReq",
+                new XElement(Ar + "CbteTipo", (int)cbteTipo),
+                new XElement(Ar + "CbteNro", number),
+                new XElement(Ar + "PtoVta", ptoVta)));
+
+        var resp = await CallAsync(environment, "FECompConsultar", body, ct);
+        if (resp.IsFailure) return Result.Failure<ConsultedComprobante?>(resp.Error);
+
+        var get = resp.Value.Descendants().FirstOrDefault(e => e.Name.LocalName == "ResultGet");
+
+        // Sin ResultGet el número no existe en ARCA. Llega como error ("no existen
+        // datos"), pero es la respuesta que buscamos y no una falla: el número no
+        // se usó y se puede emitir tranquilo. Los errores de autenticación sí son
+        // falla: con ellos no sabemos nada del comprobante.
+        if (get is null)
+        {
+            var errors = ParseErrors(resp.Value);
+            var authError = errors.FirstOrDefault(e => e.Code is "600" or "601");
+            if (authError is not null)
+                return Result.Failure<ConsultedComprobante?>(Error.Conflict(
+                    "Wsfe.Error", ArcaErrorCatalog.Describe(authError.Code, authError.Message)));
+            return Result.Success<ConsultedComprobante?>(null);
+        }
+
+        string Val(string name) => get.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value ?? "";
+
+        return new ConsultedComprobante(
+            Number: long.TryParse(Val("CbteDesde"), out var nro) ? nro : number,
+            DocTipo: int.TryParse(Val("DocTipo"), out var dt) ? (DocTipo)dt : DocTipo.ConsumidorFinal,
+            DocNro: long.TryParse(Val("DocNro"), out var dn) ? dn : 0,
+            ImpTotal: decimal.TryParse(Val("ImpTotal"), System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var total) ? total : 0m,
+            CbteFch: ParseDate(Val("CbteFch")),
+            Resultado: Val("Resultado"),
+            Cae: string.IsNullOrEmpty(Val("CodAutorizacion")) ? null : Val("CodAutorizacion"),
+            CaeVto: ParseDate(Val("FchVto")));
+    }
+
+    public async Task<Result<IReadOnlyList<ArcaPointOfSale>?>> GetPointsOfSaleAsync(
+        FiscalTicket auth, Cuit cuit, FiscalEnvironment environment, CancellationToken ct = default)
+    {
+        var body = new XElement(Ar + "FEParamGetPtosVenta", AuthElement(auth, cuit));
+
+        var resp = await CallAsync(environment, "FEParamGetPtosVenta", body, ct);
+        if (resp.IsFailure) return Result.Failure<IReadOnlyList<ArcaPointOfSale>?>(resp.Error);
+
+        var items = resp.Value.Descendants().Where(e => e.Name.LocalName == "PtoVenta").ToList();
+        if (items.Count == 0)
+        {
+            var errors = ParseErrors(resp.Value);
+
+            // "Sin resultados" es lo normal en homologación, donde no hace falta
+            // dar de alta puntos de venta: null = "no se puede verificar", que no
+            // es lo mismo que "no tenés ninguno".
+            if (errors.Count == 0 || errors.All(e => e.Code == "602"))
+                return Result.Success<IReadOnlyList<ArcaPointOfSale>?>(
+                    environment == FiscalEnvironment.Homologacion ? null : []);
+
+            return Result.Failure<IReadOnlyList<ArcaPointOfSale>?>(Error.Conflict(
+                "Wsfe.Error", ArcaErrorCatalog.Describe(errors[0].Code, errors[0].Message)));
+        }
+
+        static string Val(XElement e, string name) =>
+            e.Elements().FirstOrDefault(x => x.Name.LocalName == name)?.Value ?? "";
+
+        return Result.Success<IReadOnlyList<ArcaPointOfSale>?>([.. items.Select(e => new ArcaPointOfSale(
+            Number: int.TryParse(Val(e, "Nro"), out var n) ? n : 0,
+            EmisionTipo: Val(e, "EmisionTipo"),
+            Blocked: Val(e, "Bloqueado").Equals("S", StringComparison.OrdinalIgnoreCase),
+            // FchBaja viene como el texto "NULL" cuando no está dado de baja.
+            Retired: Val(e, "FchBaja") is { Length: > 0 } baja && !baja.Equals("NULL", StringComparison.OrdinalIgnoreCase)))]);
+    }
+
+    private static DateOnly? ParseDate(string raw) =>
+        raw.Length == 8 && DateOnly.TryParseExact(raw, "yyyyMMdd", out var d) ? d : null;
 
     // ---- Plomería SOAP -----------------------------------------------------------
 
@@ -160,7 +252,7 @@ public sealed class WsfeClient(
         catch (Exception ex)
         {
             logger.LogError(ex, "WSFEv1 {Op}: fallo de red/TLS.", operation);
-            return Result.Failure<XElement>(Error.Conflict("Wsfe.Network", "No se pudo conectar con ARCA (WSFEv1)."));
+            return Result.Failure<XElement>(Error.Conflict(FiscalGatewayErrors.Network, "No se pudo conectar con ARCA (WSFEv1)."));
         }
 
         var text = await resp.Content.ReadAsStringAsync(ct);
@@ -172,10 +264,15 @@ public sealed class WsfeClient(
         }
 
         try { return XDocument.Parse(text).Root!; }
-        catch { return Result.Failure<XElement>(Error.Conflict("Wsfe.BadResponse", "Respuesta de WSFEv1 no válida.")); }
+        catch { return Result.Failure<XElement>(Error.Conflict(FiscalGatewayErrors.BadResponse, "Respuesta de WSFEv1 no válida.")); }
     }
 
-    private static IReadOnlyList<FiscalMessage> ParseErrors(XElement root) => ParseMessages(root, "Err");
+    /// <summary>
+    /// Los Err de la lista Errors del resultado, no cualquier Err del documento:
+    /// buscarlos en todo el árbol mezclaba los del pedido con los del comprobante.
+    /// </summary>
+    private static IReadOnlyList<FiscalMessage> ParseErrors(XElement root) =>
+        ParseMessages(root.Descendants().FirstOrDefault(e => e.Name.LocalName == "Errors"), "Err");
 
     private static IReadOnlyList<FiscalMessage> ParseMessages(XElement? scope, string localName)
     {

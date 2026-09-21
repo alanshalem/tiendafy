@@ -14,6 +14,20 @@ internal static class SoapFault
         }
         catch { return "(sin detalle)"; }
     }
+
+    /// <summary>
+    /// El faultcode ("ns1:coe.alreadyAuthenticated"). WSAA pone ahí el motivo
+    /// técnico y en faultstring una frase en castellano que no lo nombra: para
+    /// decidir qué hacer hay que mirar el código.
+    /// </summary>
+    public static string ExtractCode(string body)
+    {
+        try
+        {
+            return XDocument.Parse(body).Descendants().FirstOrDefault(e => e.Name.LocalName == "faultcode")?.Value.Trim() ?? "";
+        }
+        catch { return ""; }
+    }
 }
 
 /// <summary>

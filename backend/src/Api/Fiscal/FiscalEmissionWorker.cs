@@ -51,7 +51,26 @@ public sealed class FiscalEmissionWorker(
 
                 var result = await emitter.EmitAsync(cmd, ct);
 
-                if (result.IsFailure)
+                if (result.IsFailure && result.Error.Code is "Fiscal.AlreadyInvoiced" or "Fiscal.AlreadyCredited")
+                {
+                    // Ya está hecho: lo resolvió otro camino (el botón manual, o la
+                    // reconciliación de un pedido cuya respuesta se había perdido).
+                    // No es un error, y reintentarlo hasta agotar los intentos
+                    // terminaba marcando como fallida una venta bien facturada.
+                    var isCredit = job.Kind == FiscalJobKind.CreditNote;
+                    var existing = await db.Documents.AsNoTracking()
+                        .Where(d => d.TenantId == job.TenantId && d.OrderId == job.OrderId
+                                    && d.Result == FiscalResult.Authorized
+                                    && (isCredit
+                                        ? d.CbteTipo == CbteTipo.NotaCreditoA || d.CbteTipo == CbteTipo.NotaCreditoB || d.CbteTipo == CbteTipo.NotaCreditoC
+                                        : d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC))
+                        .OrderByDescending(d => d.CreatedAtUtc)
+                        .Select(d => d.Id)
+                        .FirstOrDefaultAsync(ct);
+                    if (existing != Guid.Empty) job.MarkDone(existing);
+                    else RescheduleOrFail(job, $"{result.Error.Code}: {result.Error.Message}");
+                }
+                else if (result.IsFailure)
                 {
                     RescheduleOrFail(job, $"{result.Error.Code}: {result.Error.Message}");
                 }
@@ -64,8 +83,11 @@ public sealed class FiscalEmissionWorker(
                 else
                 {
                     // Rechazo de ARCA: dato inválido, reintentar igual no ayuda.
-                    var err = result.Value.Errors.Count > 0
-                        ? string.Join("; ", result.Value.Errors.Select(e => $"{e.Code} {e.Message}"))
+                    // El motivo puede venir en Errors o en Observaciones: se
+                    // juntan las dos, o el rechazo queda "sin detalle".
+                    var reasons = result.Value.Errors.Concat(result.Value.Observations).ToList();
+                    var err = reasons.Count > 0
+                        ? string.Join("; ", reasons.Select(e => ArcaErrorCatalog.Describe(e.Code, e.Message)))
                         : "Rechazado por ARCA sin detalle.";
                     job.MarkFailed(err);
                     logger.LogWarning("Emisión RECHAZADA (orden {Order}): {Err}", job.OrderId, err);

@@ -9,6 +9,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import {
   CertificateStep,
+  ConnectionTestStep,
   EmissionStep,
   IntroBanner,
   IssuerStep,
@@ -72,6 +73,7 @@ export function FiscalInvoicingPage() {
           <IssuerStep config={config} onSaved={load} />
           <CertificateStep config={config} onChanged={load} />
           <PointsOfSaleStep points={points} configured={!!config?.configured} onChanged={load} />
+          <ConnectionTestStep config={config} points={points} />
           <EmissionStep config={config} points={points} onSaved={load} />
         </div>
       )}

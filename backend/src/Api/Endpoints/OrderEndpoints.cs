@@ -439,7 +439,12 @@ public static class OrderEndpoints
                 r.Number,
                 r.Cae,
                 caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
-                errors = r.Errors.Select(e => new { e.Code, e.Message }),
+                // Con Resultado "R" el motivo puede venir en Errors o en
+                // Observaciones: se devuelven juntos y explicados, o el rechazo
+                // llega al panel como "ver detalle" sin ningún detalle.
+                errors = (r.Authorized ? r.Errors : r.Errors.Concat(r.Observations))
+                    .Select(e => new { e.Code, Message = global::Fiscal.Core.Domain.ArcaErrorCatalog.Describe(e.Code, e.Message) }),
+                observations = r.Authorized ? r.Observations.Select(e => new { e.Code, e.Message }) : [],
             });
         }).RequirePermission(Permission.FiscalEmit);
 

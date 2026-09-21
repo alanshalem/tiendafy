@@ -67,6 +67,10 @@ export function FiscalPanel({
   }, [load]);
 
   const invoice = data?.documents.find((d) => !isNc(d.cbteTipo) && d.result === 'Authorized');
+  // Se pidió el CAE y la respuesta no llegó: puede estar autorizado del lado de
+  // ARCA. Mientras tanto no se ofrece "Facturar ahora": emitir otra vez es
+  // exactamente la factura duplicada que se quiere evitar.
+  const awaiting = data?.documents.find((d) => d.result === 'Pending');
   const creditNote = data?.documents.find((d) => isNc(d.cbteTipo) && d.result === 'Authorized');
   const failedJob = data?.jobs.find((j) => j.status === 'Failed');
   const activeJob = data?.jobs.find((j) => j.status === 'Pending' || j.status === 'Processing');
@@ -83,7 +87,7 @@ export function FiscalPanel({
       toast(
         r.authorized
           ? `Factura autorizada · CAE ${r.cae}`
-          : `Rechazada: ${r.errors?.[0]?.message ?? 'ver detalle'}`,
+          : `Rechazada por ARCA: ${r.errors?.map((e) => e.message).join(' · ') || 'sin detalle'}`,
         { variant: r.authorized ? 'success' : 'error' },
       );
       await load();
@@ -143,6 +147,12 @@ export function FiscalPanel({
                 <Download className="h-3 w-3" /> PDF
               </button>
             </div>
+          ) : awaiting ? (
+            <div className="text-amber-600">
+              Esperando confirmación de ARCA para el {CBTE_LABEL[awaiting.cbteTipo] ?? awaiting.cbteTipo}{' '}
+              {nro(awaiting)}: la respuesta no llegó y el próximo intento verifica con ARCA si quedó
+              autorizado, para no facturar dos veces.
+            </div>
           ) : activeJob ? (
             <div className="flex items-center gap-1.5 text-amber-600">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Facturación en proceso…
@@ -168,7 +178,7 @@ export function FiscalPanel({
               </button>
             </div>
           )}
-          {canEmit && !invoice && payable && (
+          {canEmit && !invoice && !awaiting && payable && (
             <button
               onClick={emit}
               disabled={busy}

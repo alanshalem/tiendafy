@@ -4,7 +4,12 @@ namespace Fiscal.Core.Domain;
 /// válido (H13): las Obs no son errores.</summary>
 public enum FiscalResult
 {
-    Pending = 0,     // encolado / en proceso, sin respuesta aún
+    /// <summary>
+    /// Se le pidió el CAE a ARCA y no sabemos qué contestó (timeout, corte). El
+    /// número puede estar usado del otro lado: antes de volver a emitir hay que
+    /// preguntarle a ARCA por él (FECompConsultar). Nunca se reintenta a ciegas.
+    /// </summary>
+    Pending = 0,
     Authorized = 1,  // 'A' — CAE otorgado (puede traer Observaciones)
     Rejected = 2,    // 'R' — rechazado (Errores)
     Partial = 3,     // 'P' — parcial (lotes)
@@ -86,12 +91,63 @@ public sealed class FiscalDocument
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void MarkRejected(string errorsJson, string? request, string? response)
+    /// <summary>
+    /// ARCA lo rechazó. Se guardan errores Y observaciones: con Resultado "R" las
+    /// observaciones son el motivo del rechazo, y guardar solo los errores dejaba
+    /// la mitad de los rechazos sin explicación.
+    /// </summary>
+    public void MarkRejected(string errorsJson, string? request, string? response, string? observationsJson = null)
     {
         Result = FiscalResult.Rejected;
         Errors = errorsJson;
+        Observations = observationsJson;
         RequestPayload = request;
         ResponsePayload = response;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Se mandó el pedido de CAE y la respuesta no llegó. Queda Pending con el
+    /// número reservado hasta que una reconciliación le pregunte a ARCA.
+    /// </summary>
+    public void MarkAwaitingReconciliation(string? request, string reason)
+    {
+        Result = FiscalResult.Pending;
+        RequestPayload = request;
+        Errors = System.Text.Json.JsonSerializer.Serialize(new[] { new { Code = "Pendiente", Message = reason } });
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// La reconciliación confirmó que ARCA nunca registró este número: el pedido
+    /// no llegó. Se cierra como rechazado para que el número quede libre.
+    /// </summary>
+    public void MarkNeverReachedArca()
+    {
+        Result = FiscalResult.Rejected;
+        Errors = System.Text.Json.JsonSerializer.Serialize(new[]
+        {
+            new { Code = "NoLlego", Message = "El pedido no llegó a ARCA: el número no se usó y se reintenta con el próximo." },
+        });
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// ARCA tiene ese número, pero con OTRO comprobante (otro receptor u otro
+    /// importe). No se adopta: sería ponerle a esta venta la factura de otra.
+    /// </summary>
+    public void MarkNumberTakenByAnother(long arcaDocNro, decimal arcaTotal)
+    {
+        Result = FiscalResult.Rejected;
+        Errors = System.Text.Json.JsonSerializer.Serialize(new[]
+        {
+            new
+            {
+                Code = "NumeroAjeno",
+                Message = $"ARCA tiene el número {Number} con otro comprobante (doc {arcaDocNro}, total {arcaTotal}). " +
+                          "¿Se emite con este punto de venta desde otro sistema?",
+            },
+        });
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }
@@ -123,11 +179,20 @@ public sealed class FiscalSequence
         UpdatedAtUtc = DateTime.UtcNow,
     };
 
-    /// <summary>Reconcilia con lo que dice ARCA (nunca retrocede).</summary>
-    public void SyncWithAuthority(long authorityLast)
+    /// <summary>
+    /// Se pisa con lo que dice ARCA, en las dos direcciones. ARCA acepta
+    /// exactamente último+1 (si no, rechaza con 10016), así que lo local no puede
+    /// mandar nunca: si quedó adelante es porque se avanzó un número que ARCA no
+    /// autorizó, y "no retroceder" dejaba todas las emisiones siguientes
+    /// rechazadas para siempre.
+    /// </summary>
+    /// <returns>true si lo local estaba desfasado (vale la pena loguearlo).</returns>
+    public bool SyncWithAuthority(long authorityLast)
     {
-        if (authorityLast > LastNumber) LastNumber = authorityLast;
+        var drifted = LastNumber != authorityLast;
+        LastNumber = authorityLast;
         UpdatedAtUtc = DateTime.UtcNow;
+        return drifted;
     }
 
     /// <summary>Reserva el próximo número (bajo advisory lock del caller).</summary>

@@ -2,6 +2,9 @@ import { useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleSlash,
+  PlugZap,
+  XCircle,
   ChevronDown,
   Copy,
   Download,
@@ -645,6 +648,12 @@ export function PointsOfSaleStep({
         un número) y después lo cargás acá. Podés tener varios, por ejemplo uno para tu Web y otro para
         MercadoLibre.
       </p>
+      <Hint>
+        Al crearlo en ARCA (Administración de puntos de venta y domicilios) elegí el sistema{' '}
+        <strong>RECE para aplicativo y web services</strong>. Los de &ldquo;Comprobantes en línea&rdquo; o de
+        controlador fiscal no sirven para facturar desde la tienda, y el error que da ARCA al usarlos no
+        menciona el punto de venta. En el paso siguiente el sistema lo verifica.
+      </Hint>
 
       {points.length > 0 && (
         <div className="mt-4 space-y-2">
@@ -742,7 +751,7 @@ export function EmissionStep({
 
   return (
     <StepCard
-      step={4}
+      step={5}
       title="Preferencias de emisión"
       subtitle="Opcional: cómo y cuándo se factura cada venta."
       icon={<FileText className="h-5 w-5" />}
@@ -796,6 +805,109 @@ export function EmissionStep({
           </Button>
         </div>
       </div>
+    </StepCard>
+  );
+}
+
+// ---- Paso 4: probar la conexión -------------------------------------------------
+
+interface DiagnosticStepDto {
+  key: string;
+  label: string;
+  status: 'ok' | 'warning' | 'error' | 'skipped';
+  detail: string;
+}
+
+interface DiagnosticDto {
+  ok: boolean;
+  environment: FiscalEnvironment;
+  expiresAtUtc: string | null;
+  steps: DiagnosticStepDto[];
+  caveat: string;
+}
+
+const STEP_ICON: Record<DiagnosticStepDto['status'], ReactNode> = {
+  ok: <CheckCircle2 className="h-4 w-4 text-success" />,
+  warning: <AlertTriangle className="h-4 w-4 text-warning" />,
+  error: <XCircle className="h-4 w-4 text-danger" />,
+  skipped: <CircleSlash className="h-4 w-4 text-fg-subtle" />,
+};
+
+/**
+ * Verifica, sin emitir nada, todo lo que se puede verificar antes de la primera
+ * factura: certificado, autenticación, que ARCA acepte al CUIT que factura y que
+ * los puntos de venta sean de Web Services. Y dice lo que no puede ver, porque
+ * un diagnóstico todo en verde que después falla al facturar es peor que uno
+ * que avisa hasta dónde llega.
+ */
+export function ConnectionTestStep({
+  config,
+  points,
+}: {
+  config: FiscalConfigDto | null;
+  points: PointOfSale[];
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<DiagnosticDto | null>(null);
+
+  const ready = !!config?.configured && !!config.certificate?.usable;
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      setResult(await api.post<DiagnosticDto>('/api/v1/fiscal/test-connection', {}));
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo probar la conexión con ARCA.'), { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <StepCard
+      step={4}
+      title="Probar la conexión"
+      subtitle="Sin emitir nada: verifica todo lo que se puede verificar antes de la primera factura."
+      icon={<PlugZap className="h-5 w-5" />}
+      disabled={!ready}
+    >
+      <p className="text-sm leading-relaxed text-fg-muted">
+        Revisa el certificado, pide el ticket de acceso a ARCA, confirma que ARCA acepta al CUIT que factura y
+        que {points.length === 1 ? 'el punto de venta sea' : 'los puntos de venta sean'} de Web Services.
+      </p>
+
+      <div className="mt-4">
+        <Button onClick={run} disabled={!ready || busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />} Probar
+          conexión con ARCA
+        </Button>
+        {!ready && (
+          <p className="mt-2 text-xs text-fg-subtle">
+            Primero completá los datos del emisor y activá el certificado.
+          </p>
+        )}
+      </div>
+
+      {result && (
+        <div className="mt-4 space-y-3">
+          <ul className="space-y-2">
+            {result.steps.map((st) => (
+              <li
+                key={st.key}
+                className="flex items-start gap-2 rounded-lg border border-border bg-bg-muted/30 p-3 text-sm"
+              >
+                <span className="mt-0.5 shrink-0">{STEP_ICON[st.status]}</span>
+                <div className="min-w-0">
+                  <div className="font-medium text-fg">{st.label}</div>
+                  <div className="text-fg-muted">{st.detail}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Hint>{result.caveat}</Hint>
+        </div>
+      )}
     </StepCard>
   );
 }

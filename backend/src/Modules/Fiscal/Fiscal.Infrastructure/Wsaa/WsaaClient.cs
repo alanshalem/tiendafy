@@ -13,6 +13,13 @@ public sealed record WsaaCredentials(string Token, string Sign, DateTimeOffset E
 /// </summary>
 public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
 {
+    /// <summary>
+    /// WSAA rechazó el login porque ya hay un TA vigente para este certificado.
+    /// Tiene código propio porque el caller lo puede resolver: si tiene ese TA
+    /// guardado, lo usa.
+    /// </summary>
+    public const string AlreadyAuthenticatedCode = "Wsaa.AlreadyAuthenticated";
+
     public async Task<Result<WsaaCredentials>> LoginCmsAsync(string endpoint, string cmsBase64, CancellationToken ct)
     {
         var soap =
@@ -46,9 +53,18 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
             // WSAA devuelve el detalle del error (ej. coe.notAuthorized, cms.sign.invalid)
             // en un SOAP Fault. No lo tragamos: sirve para diagnosticar.
             var fault = SoapFault.Extract(body);
-            logger.LogWarning("WSAA loginCms {Status}: {Fault}", (int)resp.StatusCode, fault);
-            return Result.Failure<WsaaCredentials>(Error.Conflict("Wsaa.Rejected",
-                $"ARCA rechazó la autenticación: {fault}"));
+            var faultCode = SoapFault.ExtractCode(body);
+            logger.LogWarning("WSAA loginCms {Status}: {Code} {Fault}", (int)resp.StatusCode, faultCode, fault);
+
+            // El motivo técnico viene en el faultcode; se evalúan los dos juntos.
+            var both = $"{faultCode} {fault}";
+            var why = Fiscal.Core.Domain.ArcaErrorCatalog.ExplainWsaaFault(both);
+            var code = both.Contains("alreadyAuthenticated", StringComparison.OrdinalIgnoreCase)
+                       || fault.Contains("ya posee un TA valido", StringComparison.OrdinalIgnoreCase)
+                ? AlreadyAuthenticatedCode
+                : "Wsaa.Rejected";
+            return Result.Failure<WsaaCredentials>(Error.Conflict(code,
+                why is null ? $"ARCA rechazó la autenticación: {fault}" : $"ARCA rechazó la autenticación: {fault} — {why}"));
         }
 
         try

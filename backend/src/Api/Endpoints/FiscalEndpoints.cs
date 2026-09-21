@@ -123,22 +123,123 @@ public static class FiscalEndpoints
         });
 
         // --- Probar conexión con ARCA -------------------------------------------------
-        // Autentica contra WSAA (pide un TA) con el cert cargado. Sirve para que el
-        // merchant valide que el certificado quedó bien y que ARCA le responde,
-        // antes de intentar facturar. No emite nada.
+        // Diagnóstico por pasos, de lo más básico a lo más cercano a facturar. Cada
+        // paso existe porque hay una falla que el anterior no ve:
+        //   1. certificado activo y de quién es (el titular no siempre factura);
+        //   2. WSAA entrega el ticket (certificado bien cargado y autorizado a wsfe);
+        //   3. WSFEv1 acepta el CUIT que factura (el error 600 aparece acá, no en 2);
+        //   4. los puntos de venta existen en ARCA como Web Services.
+        // Y dice lo que NO prueba: ARCA valida más cosas al emitir que al consultar.
         fiscal.MapPost("/test-connection", async (
-            ITenantContext tenant, FiscalDbContext db, IFiscalAuthenticator auth, CancellationToken ct) =>
+            ITenantContext tenant, FiscalDbContext db, IFiscalAuthenticator auth, IFiscalGateway gateway,
+            IFiscalCertificateFactory factory, IFiscalSecretProtector protector, CancellationToken ct) =>
         {
-            var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
+            var tid = tenant.TenantId.Value;
+            var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tid, ct);
             if (cfg is null) return Error.Conflict("Fiscal.NoConfig", "Configurá primero los datos del emisor.").ToProblem();
 
             var cuit = Cuit.Create(cfg.Cuit);
             if (cuit.IsFailure) return cuit.Error.ToProblem();
 
-            var ticket = await auth.GetTicketAsync(tenant.TenantId.Value, cuit.Value, "wsfe", cfg.Environment, ct);
-            return ticket.IsSuccess
-                ? Results.Ok(new { ok = true, expiresAtUtc = ticket.Value.ExpiresAtUtc, environment = cfg.Environment.ToString().ToUpperInvariant() })
-                : ticket.Error.ToProblem();
+            var steps = new List<DiagnosticStep>();
+            DateTime? expiresAtUtc = null;
+
+            // 1) Certificado
+            var cert = await db.Certificates.AsNoTracking()
+                .Where(c => c.TenantId == tid && c.Environment == cfg.Environment && c.Status == CertificateStatus.Active)
+                .OrderByDescending(c => c.UpdatedAtUtc).FirstOrDefaultAsync(ct);
+            if (cert?.CertificatePemEncrypted is null)
+            {
+                steps.Add(DiagnosticStep.Error("certificate", "Certificado",
+                    $"No hay un certificado activo para {cfg.Environment}. Homologación y producción usan certificados distintos."));
+                return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
+            }
+
+            var info = factory.InspectSignedCertificate(
+                protector.Unprotect(cert.CertificatePemEncrypted), protector.Unprotect(cert.PrivateKeyEncrypted));
+            var holder = info.IsSuccess ? info.Value.SubjectCuit : null;
+            if (holder is not null && holder != cfg.Cuit)
+            {
+                // No es un error —con delegación de servicio es exactamente así—,
+                // pero es la causa más común del 600 y conviene decirlo antes.
+                steps.Add(DiagnosticStep.Warning("certificate", "Certificado",
+                    $"El certificado es del CUIT {holder} y la tienda factura como {cfg.Cuit}. Funciona solo si " +
+                    $"{cfg.Cuit} le delegó el servicio de Factura Electrónica a {holder} en el Administrador de " +
+                    "Relaciones de ARCA. Si no, cargá el CUIT del certificado o generá uno nuevo."));
+            }
+            else
+            {
+                steps.Add(DiagnosticStep.Ok("certificate", "Certificado",
+                    cert.NotAfterUtc is { } until ? $"Vigente hasta el {until:dd/MM/yyyy}." : "Cargado."));
+            }
+
+            // 2) WSAA
+            var ticket = await auth.GetTicketAsync(tid, cuit.Value, "wsfe", cfg.Environment, ct);
+            if (ticket.IsFailure)
+            {
+                steps.Add(DiagnosticStep.Error("wsaa", "Autenticación (WSAA)", ticket.Error.Message));
+                return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
+            }
+            expiresAtUtc = ticket.Value.ExpiresAtUtc;
+            steps.Add(DiagnosticStep.Ok("wsaa", "Autenticación (WSAA)",
+                $"Ticket de acceso vigente hasta {ticket.Value.ExpiresAtUtc:dd/MM HH:mm} UTC."));
+
+            // 3) WSFEv1 con el CUIT que factura. FECompUltimoAutorizado es de solo
+            // lectura: no crea nada ni consume numeración.
+            var points = await db.PointsOfSale.AsNoTracking()
+                .Where(p => p.TenantId == tid && p.Active).OrderBy(p => p.Number).ToListAsync(ct);
+            var probePos = points.FirstOrDefault()?.Number ?? 1;
+            var probeType = cfg.Condition == FiscalCondition.Monotributo ? CbteTipo.FacturaC : CbteTipo.FacturaB;
+            var last = await gateway.GetLastAuthorizedAsync(ticket.Value, cuit.Value, cfg.Environment, probePos, probeType, ct);
+            if (last.IsFailure)
+            {
+                steps.Add(DiagnosticStep.Error("wsfe", "Factura electrónica (WSFEv1)", last.Error.Message));
+                return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
+            }
+            steps.Add(DiagnosticStep.Ok("wsfe", "Factura electrónica (WSFEv1)",
+                $"ARCA acepta al CUIT {cfg.Cuit}. Último comprobante {probeType} del punto de venta {probePos}: {last.Value}."));
+
+            // 4) Puntos de venta: tienen que ser de tipo Web Services. Los de
+            // Comprobantes en línea o controlador fiscal no sirven, y el error que
+            // da emitir con uno de esos no menciona el punto de venta.
+            if (points.Count == 0)
+            {
+                steps.Add(DiagnosticStep.Warning("pos", "Puntos de venta",
+                    "No cargaste ningún punto de venta. Creá uno en ARCA de tipo \"RECE para aplicativo y web services\" y cargá su número acá."));
+            }
+            else
+            {
+                var arcaPoints = await gateway.GetPointsOfSaleAsync(ticket.Value, cuit.Value, cfg.Environment, ct);
+                if (arcaPoints.IsFailure)
+                    steps.Add(DiagnosticStep.Warning("pos", "Puntos de venta",
+                        $"No se pudo consultar la lista de ARCA: {arcaPoints.Error.Message}"));
+                else if (arcaPoints.Value is null)
+                    steps.Add(DiagnosticStep.Skipped("pos", "Puntos de venta",
+                        "En homologación ARCA no lista los puntos de venta y acepta cualquier número. Se verifica en producción."));
+                else
+                {
+                    var problems = points.Select(p =>
+                    {
+                        var match = arcaPoints.Value.FirstOrDefault(a => a.Number == p.Number);
+                        return match switch
+                        {
+                            null => $"El {p.Number} ({p.Label}) no está en ARCA como punto de venta de Web Services. " +
+                                    "¿Es de Comprobantes en línea o de controlador fiscal? Esos no sirven: creá uno de " +
+                                    "tipo \"RECE para aplicativo y web services\".",
+                            { Blocked: true } => $"El {p.Number} ({p.Label}) está bloqueado en ARCA.",
+                            { Retired: true } => $"El {p.Number} ({p.Label}) está dado de baja en ARCA.",
+                            _ => null,
+                        };
+                    }).Where(m => m is not null).ToList();
+
+                    steps.Add(problems.Count == 0
+                        ? DiagnosticStep.Ok("pos", "Puntos de venta",
+                            $"{string.Join(", ", points.Select(p => p.Number))}: habilitados para Web Services.")
+                        : DiagnosticStep.Error("pos", "Puntos de venta", string.Join(" ", problems)));
+                }
+            }
+
+            return Results.Ok(DiagnosticDto(cfg, steps, expiresAtUtc));
         });
 
         // Chequeo de salud de WSFEv1 (FEDummy, no autenticado): ¿ARCA está arriba?
@@ -221,7 +322,11 @@ public static class FiscalEndpoints
                 r.Cae,
                 caeVto = r.CaeVto?.ToString("yyyy-MM-dd"),
                 observations = r.Observations.Select(o => new { o.Code, o.Message }),
-                errors = r.Errors.Select(e => new { e.Code, e.Message }),
+                // Con Resultado "R" el motivo puede venir en Errors o en
+                // Observaciones: se devuelven juntos y explicados, o el rechazo
+                // llega al panel como "ver detalle" sin ningún detalle.
+                errors = (r.Authorized ? r.Errors : r.Errors.Concat(r.Observations))
+                    .Select(e => new { e.Code, Message = global::Fiscal.Core.Domain.ArcaErrorCatalog.Describe(e.Code, e.Message) }),
             });
         });
 
@@ -252,6 +357,20 @@ public static class FiscalEndpoints
 
         return group;
     }
+
+    private static object DiagnosticDto(FiscalConfig cfg, List<DiagnosticStep> steps, DateTime? expiresAtUtc) => new
+    {
+        ok = steps.TrueForAll(st => st.Status is "ok" or "skipped"),
+        environment = cfg.Environment.ToString().ToUpperInvariant(),
+        expiresAtUtc,
+        steps = steps.Select(st => new { key = st.Key, label = st.Label, status = st.Status, detail = st.Detail }),
+        // Lo que este diagnóstico NO puede ver. ARCA valida más al emitir que al
+        // consultar: un contribuyente inhabilitado (monotributo dado de baja,
+        // por ejemplo) pasa todos los pasos y falla recién al facturar.
+        caveat = "Esto confirma que el certificado, la autenticación y la relación con el CUIT funcionan. No " +
+                 "garantiza que ARCA deje emitir: la situación fiscal del contribuyente se valida recién al " +
+                 "facturar. La primera factura real es la prueba final.",
+    };
 
     private static FiscalCondition ParseCondition(string? v) =>
         string.Equals(v, "MONOTRIBUTO", StringComparison.OrdinalIgnoreCase)
@@ -294,3 +413,12 @@ public sealed record GenerateCsrAdminRequest(string? Alias);
 public sealed record ActivateCertRequest(Guid CertificateId, string? CertificatePem);
 public sealed record PointOfSaleRequest(int Number, string? Label);
 public sealed record EmitRequest(decimal Amount, string? BuyerDoc, int? PtoVta, bool CreditNote);
+
+/// <summary>Un paso del diagnóstico de conexión con ARCA.</summary>
+public sealed record DiagnosticStep(string Key, string Label, string Status, string Detail)
+{
+    public static DiagnosticStep Ok(string key, string label, string detail) => new(key, label, "ok", detail);
+    public static DiagnosticStep Warning(string key, string label, string detail) => new(key, label, "warning", detail);
+    public static DiagnosticStep Error(string key, string label, string detail) => new(key, label, "error", detail);
+    public static DiagnosticStep Skipped(string key, string label, string detail) => new(key, label, "skipped", detail);
+}
