@@ -57,12 +57,9 @@ public static class PurchasingEndpoints
                 _ => query,
             };
 
-            var total = await query.CountAsync(ct);
-            var orders = await query
+            var (orders, total) = await query
                 .OrderByDescending(p => p.CreatedAtUtc)
-                .Skip(Math.Max(0, offset ?? 0))
-                .Take(Math.Clamp(limit ?? 50, 1, 200))
-                .ToListAsync(ct);
+                .PageAsync(offset, limit, ct);
             return Results.Ok(new { items = orders.Select(ToListDto), total });
         });
 

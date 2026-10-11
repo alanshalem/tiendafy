@@ -30,12 +30,9 @@ public static class CustomersEndpoints
                     || (c.Email != null && EF.Functions.ILike(c.Email, term)));
             }
 
-            var total = await query.CountAsync(ct);
-            var items = await query
+            var (items, total) = await query
                 .OrderByDescending(c => c.CreatedAtUtc)
-                .Skip(Math.Max(0, offset ?? 0))
-                .Take(Math.Clamp(limit ?? 50, 1, 200))
-                .ToListAsync(ct);
+                .PageAsync(offset, limit, ct);
             return Results.Ok(new { items = items.Select(ToDto), total });
         });
 

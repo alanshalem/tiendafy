@@ -140,10 +140,9 @@ public static class PriceListEndpoints
                                          || p.Variants.Any(v => EF.Functions.ILike(v.Sku, term)));
             }
 
-            var total = await query.CountAsync(ct);
-            var products = await query.OrderBy(p => p.Name)
-                .Skip(Math.Max(0, offset)).Take(Math.Clamp(limit, 1, 200))
-                .ToListAsync(ct);
+            var (products, total) = await query
+                .OrderBy(p => p.Name)
+                .PageAsync(offset, limit, ct);
 
             var resolver = await prices.LoadAsync(tid, ct);
 

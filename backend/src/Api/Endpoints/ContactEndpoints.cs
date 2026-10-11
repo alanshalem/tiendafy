@@ -76,13 +76,10 @@ public static class ContactEndpoints
         {
             var tid = tenant.TenantId.Value;
             var query = db.ContactMessages.AsNoTracking().Where(m => m.TenantId == tid);
-            var total = await query.CountAsync(ct);
-            var rows = await query
+            var (rows, total) = await query
                 .OrderByDescending(m => m.CreatedAtUtc)
-                .Skip(Math.Max(0, offset ?? 0))
-                .Take(Math.Clamp(limit ?? 50, 1, 200))
                 .Select(m => new { m.Id, m.Name, m.Email, m.Body, m.Kind, m.Reference, m.OrderRef, m.Read, m.CreatedAtUtc })
-                .ToListAsync(ct);
+                .PageAsync(offset, limit, ct);
 
             var items = new List<object>(rows.Count);
             foreach (var m in rows)

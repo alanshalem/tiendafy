@@ -100,11 +100,9 @@ public static class FinanceEndpoints
             var query = db.Movements.AsNoTracking().Where(m => m.TenantId == tid);
             if (accountId is { } a) query = query.Where(m => m.AccountId == a);
 
-            var total = await query.CountAsync(ct);
-            var rows = await query
+            var (rows, total) = await query
                 .OrderByDescending(m => m.OccurredAtUtc).ThenByDescending(m => m.CreatedAtUtc)
-                .Skip(Math.Max(0, offset)).Take(Math.Clamp(limit, 1, 200))
-                .ToListAsync(ct);
+                .PageAsync(offset, limit, ct);
 
             var names = await db.Accounts.AsNoTracking().Where(x => x.TenantId == tid)
                 .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
@@ -350,9 +348,9 @@ public static class FinanceEndpoints
             if (kind is not null)
                 query = query.Where(r => r.Kind == (kind.ToLowerInvariant() == "payment" ? ReceiptKind.Payment : ReceiptKind.Collection));
 
-            var total = await query.CountAsync(ct);
-            var rows = await query.OrderByDescending(r => r.OccurredAtUtc).ThenByDescending(r => r.CreatedAtUtc)
-                .Skip(Math.Max(0, offset)).Take(Math.Clamp(limit, 1, 200)).ToListAsync(ct);
+            var (rows, total) = await query
+                .OrderByDescending(r => r.OccurredAtUtc).ThenByDescending(r => r.CreatedAtUtc)
+                .PageAsync(offset, limit, ct);
 
             return Results.Ok(new
             {

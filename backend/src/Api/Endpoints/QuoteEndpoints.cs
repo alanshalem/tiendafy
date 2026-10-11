@@ -50,10 +50,9 @@ public static class QuoteEndpoints
                                          || EF.Functions.ILike(x.Number, term));
             }
 
-            var total = await query.CountAsync(ct);
-            var rows = await query.OrderByDescending(x => x.CreatedAtUtc)
-                .Skip(Math.Max(0, offset)).Take(Math.Clamp(limit, 1, 100))
-                .ToListAsync(ct);
+            var (rows, total) = await query
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .PageAsync(offset, limit, ct, maxLimit: 100);
 
             return Results.Ok(new { total, items = rows.Select(ToListDto) });
         });

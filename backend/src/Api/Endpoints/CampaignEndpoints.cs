@@ -32,12 +32,9 @@ public static class CampaignEndpoints
             int? limit = null, int? offset = null) =>
         {
             var query = db.EmailCampaigns.AsNoTracking().Where(c => c.TenantId == tenant.TenantId.Value);
-            var total = await query.CountAsync(ct);
-            var items = await query
+            var (items, total) = await query
                 .OrderByDescending(c => c.CreatedAtUtc)
-                .Skip(Math.Max(0, offset ?? 0))
-                .Take(Math.Clamp(limit ?? 25, 1, 100))
-                .ToListAsync(ct);
+                .PageAsync(offset, limit, ct, defaultLimit: 25, maxLimit: 100);
             return Results.Ok(new { items = items.Select(Dto), total });
         });
 
