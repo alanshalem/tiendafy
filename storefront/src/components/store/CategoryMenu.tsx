@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
+import { useHoverMenu } from './useHoverMenu';
 import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
@@ -92,18 +93,15 @@ function CategoryTree({ nodes, onNavigate }: { nodes: CatNode[]; onNavigate: () 
 /** Desktop: botón "Categorías" con dropdown acordeón. */
 export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
   const tree = useCategoryTree();
-  const [open, setOpen] = useState(false);
+  const { open, close, container, trigger } = useHoverMenu();
 
   if (tree.length === 0) return null;
 
   return (
-    <div className="relative shrink-0" onMouseLeave={() => setOpen(false)}>
+    <div className="relative shrink-0" {...container}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        onMouseEnter={() => setOpen(true)}
-        aria-haspopup="menu"
-        aria-expanded={open}
+        {...trigger}
         className="flex items-center gap-1 whitespace-nowrap opacity-90 hover:opacity-100"
       >
         {label}{' '}
@@ -114,7 +112,7 @@ export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
         // `pt-2`: puente transparente para no perder el hover al bajar el mouse.
         <div className="absolute left-0 top-full z-50 pt-2">
           <div className="max-h-[75vh] w-64 overflow-y-auto rounded-lg border border-black/10 bg-bg p-3 text-fg shadow-xl">
-            <CategoryTree nodes={tree} onNavigate={() => setOpen(false)} />
+            <CategoryTree nodes={tree} onNavigate={close} />
           </div>
         </div>
       )}

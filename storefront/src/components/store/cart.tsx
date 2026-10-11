@@ -202,6 +202,11 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-drawer-title"
+        // Cerrado queda fuera de pantalla pero en el DOM (para la animación):
+        // sin esto sus botones se alcanzaban con Tab y un lector de pantalla
+        // anunciaba un diálogo que no se ve.
+        inert={!open}
+        aria-hidden={!open}
         className={`fixed z-[60] flex flex-col overflow-hidden bg-bg text-fg shadow-2xl outline-none transition-transform
           inset-x-0 bottom-0 h-[88vh] rounded-t-2xl
           sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-auto sm:h-full sm:w-96 sm:max-w-[92vw] sm:rounded-none

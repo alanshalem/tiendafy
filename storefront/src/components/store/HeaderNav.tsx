@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { CategoryMenu } from './CategoryMenu';
+import { useHoverMenu } from './useHoverMenu';
 
 export interface NavItem {
   id: string;
@@ -127,16 +128,13 @@ export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align
  * teclado, y el listado de productos ya muestra las categorías al costado.
  */
 function MoreMenu({ items }: { items: NavItem[] }) {
-  const [open, setOpen] = useState(false);
+  const { open, close, container, trigger } = useHoverMenu();
 
   return (
-    <div className="relative shrink-0" onMouseLeave={() => setOpen(false)}>
+    <div className="relative shrink-0" {...container}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        onMouseEnter={() => setOpen(true)}
-        aria-haspopup="menu"
-        aria-expanded={open}
+        {...trigger}
         className="flex items-center gap-1 whitespace-nowrap opacity-90 hover:opacity-100"
       >
         Más
@@ -151,7 +149,7 @@ function MoreMenu({ items }: { items: NavItem[] }) {
               <Link
                 key={item.id}
                 href={item.href}
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="block rounded-md px-3 py-2 text-sm hover:bg-fg/5"
               >
                 {item.label}
