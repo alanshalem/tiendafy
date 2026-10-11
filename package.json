@@ -5,7 +5,8 @@
   "scripts": {
     "prepare": "husky",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "fixtures:api": "node scripts/fixtures-api.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",

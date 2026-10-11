@@ -148,6 +148,16 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'ficha-tecnica', perm: 'catalog.write', el: <SpecFieldsPage /> },
 ];
 
+/**
+ * Todas las pantallas del panel, con el path completo. Lo usan los tests para
+ * recorrerlas sin mantener una lista aparte que se desactualice.
+ */
+export const ALL_PATHS: readonly string[] = [
+  ...MAIN_ROUTES.map((r) => r.path),
+  ...SETTINGS_ROUTES.map((r) => `/configuracion/${r.path}`),
+  '/ayuda',
+];
+
 const renderRoute = (r: AppRoute) => (
   <Route
     key={r.path}
