@@ -50,7 +50,17 @@ public sealed class Product : AggregateRoot
     public IReadOnlyList<ProductOption> Options => _options.AsReadOnly();
 
     private readonly List<Variant> _variants = [];
-    public IReadOnlyList<Variant> Variants => _variants.AsReadOnly();
+    /// <summary>
+    /// En el orden de las opciones del producto —si el talle es XS, S, M, L,
+    /// las variantes salen en ese orden—, venga la consulta que venga.
+    ///
+    /// Los ids son aleatorios y ninguna consulta ordenaba: el listado las
+    /// devolvía en un orden y la ficha en otro, así que la primera variante
+    /// (la que la tienda muestra elegida) dependía de por dónde se hubiera
+    /// cargado el producto. El orden de los valores de cada opción ya lo
+    /// define el comercio: es el único orden con sentido que hay.
+    /// </summary>
+    public IReadOnlyList<Variant> Variants => [.. _variants.Order(Comparer<Variant>.Create(CompareVariants))];
 
     private readonly List<ProductImage> _images = [];
     public IReadOnlyList<ProductImage> Images => _images.AsReadOnly();
@@ -145,6 +155,30 @@ public sealed class Product : AggregateRoot
 
         _options.Add(new ProductOption(trimmedName, cleanValues));
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Opción por opción, según el lugar de su valor en la definición; un valor
+    /// que no figura va al final. Empate (datos importados sin opciones):
+    /// por SKU, y por id para que nunca dependa del orden de la consulta.
+    /// </summary>
+    private int CompareVariants(Variant a, Variant b)
+    {
+        for (var i = 0; i < _options.Count; i++)
+        {
+            var byOption = Rank(i, a).CompareTo(Rank(i, b));
+            if (byOption != 0) return byOption;
+        }
+
+        var bySku = string.Compare(a.Sku, b.Sku, StringComparison.OrdinalIgnoreCase);
+        return bySku != 0 ? bySku : a.Id.CompareTo(b.Id);
+    }
+
+    private int Rank(int option, Variant v)
+    {
+        if (option >= v.OptionValues.Count) return int.MaxValue;
+        var index = _options[option].IndexOf(v.OptionValues[option]);
+        return index < 0 ? int.MaxValue : index;
     }
 
     public Result<Variant> AddVariant(string? sku, IReadOnlyList<string>? optionValues, Money price, Money? compareAtPrice = null, Money? cost = null)

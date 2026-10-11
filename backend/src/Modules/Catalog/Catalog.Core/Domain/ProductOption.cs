@@ -23,4 +23,8 @@ public sealed class ProductOption
 
     public bool HasValue(string value) =>
         _values.Contains(value, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Lugar del valor en la opción (0 = primero), o -1 si no es uno de sus valores.</summary>
+    public int IndexOf(string value) =>
+        _values.FindIndex(v => string.Equals(v, value, StringComparison.OrdinalIgnoreCase));
 }
