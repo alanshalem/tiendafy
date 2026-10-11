@@ -55,7 +55,23 @@ export interface ThemePreset {
   density?: DensityStyle;
   motion?: MotionStyle;
   iconKit?: IconKit;
-  header?: { layout?: ThemeHeader['layout']; border?: ThemeHeader['border']; showSearch?: boolean };
+  header?: {
+    layout?: ThemeHeader['layout'];
+    border?: ThemeHeader['border'];
+    showSearch?: boolean;
+    /** Barra propia. Sin esto se calcula una con contraste garantizado. */
+    bg?: string;
+    textColor?: string;
+  };
+  /**
+   * Logo y favicon servidos por la propia vitrina (storefront/public/marca/…).
+   * Son marcas de esta instalación, fijas y conocidas: así la tienda queda
+   * vestida al aplicar el diseño, sin depender de que alguien suba el archivo
+   * ni de que el storage esté sembrado. El comercio puede reemplazarlos desde
+   * el editor cuando quiera.
+   */
+  logo?: string;
+  favicon?: string;
   seo?: { title: string; description: string };
   /** Para marcas que todavía no abren: la página de espera ya vestida. */
   comingSoon?: Partial<ComingSoonConfig>;
@@ -344,8 +360,17 @@ export const themePresets: ThemePreset[] = [
     motion: 'subtle',
     iconKit: 'lucide',
     fonts: { heading: 'poppins', body: 'inter' },
-    // El buscador tipo marketplace B2B es parte de la identidad, no un extra.
-    header: { layout: 'classic', border: 'line', showSearch: true },
+    // "Header blanco con el logo horizontal" + buscador tipo marketplace B2B:
+    // las dos cosas son identidad, no preferencias.
+    header: {
+      layout: 'classic',
+      border: 'line',
+      showSearch: true,
+      bg: '255 255 255',
+      textColor: '30 34 48',
+    },
+    logo: '/marca/puente-oriente/logo-horizontal.svg',
+    favicon: '/marca/puente-oriente/favicon.ico',
     seo: {
       title: 'Puente Oriente — Importación directa de China',
       description:
@@ -387,7 +412,17 @@ export const themePresets: ThemePreset[] = [
     motion: 'subtle',
     iconKit: 'tabler',
     fonts: { heading: 'montserrat', body: 'barlow' },
-    header: { layout: 'classic', border: 'none', showSearch: false },
+    // "Cartel negro con el logo principal grande a la izquierda". Sobre negro,
+    // el bloque FOX se funde con el fondo: la guía lo permite y es el efecto.
+    header: {
+      layout: 'classic',
+      border: 'none',
+      showSearch: false,
+      bg: '35 31 32',
+      textColor: '255 255 255',
+    },
+    logo: '/marca/smartfox/smartfox-logo.svg',
+    favicon: '/marca/smartfox/favicon.ico',
     seo: {
       title: 'SmartFox — Motos urbanas',
       description:

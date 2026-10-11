@@ -55,6 +55,8 @@ function presetToConfig(preset: ThemePreset) {
     ...(preset.motion ? { motion: preset.motion } : {}),
     ...(preset.iconKit ? { iconKit: preset.iconKit } : {}),
     ...(preset.seo ? { seoTitle: preset.seo.title, seoDescription: preset.seo.description } : {}),
+    ...(preset.logo ? { logo: preset.logo } : {}),
+    ...(preset.favicon ? { favicon: preset.favicon } : {}),
     ...(preset.comingSoon ? { comingSoon: preset.comingSoon } : {}),
     header: {
       bg: hdr.bg,

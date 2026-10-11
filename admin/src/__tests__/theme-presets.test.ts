@@ -1,6 +1,11 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, normalizeTheme } from '@tiendafy/types';
 import { themePresets } from '../lib/themePresets';
+
+/** Carpeta publica de la vitrina, que es quien sirve los assets de marca. */
+const PUBLICO = resolve(import.meta.dirname, '../../../storefront/public');
 
 /**
  * Los presets de marca salen de guías escritas: cada valor tiene un motivo y
@@ -78,6 +83,34 @@ describe('presets de marca', () => {
     // Las que sí venden, no.
     expect(byId('puente-oriente').comingSoon).toBeUndefined();
     expect(byId('smartfox').comingSoon).toBeUndefined();
+  });
+
+  it('las marcas con logo apuntan a un archivo que existe', () => {
+    // Un preset que referencia un archivo borrado o renombrado deja la tienda
+    // con el logo roto, y eso solo se ve publicado. Acá se chequea en el test.
+    const conLogo = themePresets.filter((p) => p.logo || p.favicon);
+    expect(conLogo.map((p) => p.id)).toEqual(['puente-oriente', 'smartfox']);
+
+    for (const preset of conLogo) {
+      for (const url of [preset.logo, preset.favicon].filter(Boolean) as string[]) {
+        expect(url.startsWith('/marca/'), `${preset.id}: ${url} no sale de /marca/`).toBe(true);
+        expect(existsSync(resolve(PUBLICO, url.slice(1))), `${preset.id}: falta ${url}`).toBe(true);
+      }
+    }
+  });
+
+  it('el texto del encabezado se lee sobre su barra', () => {
+    // Las dos marcas eligen su propia barra —Puente Oriente la pide blanca y
+    // SmartFox negra—, así que el contraste deja de estar garantizado por el
+    // cálculo automático y pasa a ser responsabilidad del preset.
+    for (const preset of themePresets) {
+      const { bg, textColor } = preset.header ?? {};
+      if (!bg || !textColor) continue;
+      expect(
+        contrastRatio(textColor, bg),
+        `${preset.id}: el menú no se lee sobre la barra`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('ningún preset repite id', () => {

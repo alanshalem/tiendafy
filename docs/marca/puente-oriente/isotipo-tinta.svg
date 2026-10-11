@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Puente Oriente">
+<title>Puente Oriente</title>
+  <circle cx="256" cy="256" r="248" fill="#1E2230"/>
+  <circle cx="256" cy="256" r="219" fill="none" stroke="#FFFFFF" stroke-width="14"/>
+  <path fill="#FFFFFF" d="M82.98,381.93 A260,260 0 0 1 429.02,381.93 A214,214 0 0 1 414.44,399.85 A260,260 0 0 0 97.56,399.85 A214,214 0 0 1 82.98,381.93 Z"/>
+  <path fill="#FFFFFF" fill-rule="evenodd" d="M196.0,196 h120 v120 h-120 Z M217.0,217 h78 v78 h-78 Z"/>
+  <path d="M120.00,315.35 A294,294 0 0 1 198.00,287.78" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+  <path d="M314.00,287.78 A294,294 0 0 1 392.00,315.35" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+  <rect x="154.50" y="300.37" width="11" height="38" fill="#FFFFFF"/>
+  <circle cx="160.00" cy="293.37" r="10" fill="#FFFFFF"/>
+  <rect x="346.50" y="300.37" width="11" height="38" fill="#FFFFFF"/>
+  <circle cx="352.00" cy="293.37" r="10" fill="#FFFFFF"/>
+  <rect x="114.50" y="320.41" width="11" height="38" fill="#FFFFFF"/>
+  <circle cx="120.00" cy="313.41" r="10" fill="#FFFFFF"/>
+  <rect x="386.50" y="320.41" width="11" height="38" fill="#FFFFFF"/>
+  <circle cx="392.00" cy="313.41" r="10" fill="#FFFFFF"/>
+  <rect x="190.0" y="400" width="132" height="10" rx="5" fill="#FFFFFF"/>
+  <rect x="222.0" y="420" width="68" height="10" rx="5" fill="#FFFFFF"/>
+</svg>
