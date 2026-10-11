@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Api.Auth;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Api.Notifications;
@@ -12,25 +12,12 @@ public sealed record UnsubscribePayload(Guid TenantId, string Email, Guid? Campa
 
 public static class UnsubscribeToken
 {
-    private const string Purpose = "Tiendafy.Marketing.Unsubscribe.v1";
+    // Sin vencimiento, y el purpose no se toca: ver SignedToken.
+    private static readonly SignedToken<UnsubscribePayload> Token = new("Tiendafy.Marketing.Unsubscribe.v1");
 
     public static string Protect(IDataProtectionProvider dp, Guid tenantId, string email, Guid? campaignId = null) =>
-        dp.CreateProtector(Purpose)
-            .Protect(JsonSerializer.Serialize(new UnsubscribePayload(tenantId, email.Trim().ToLowerInvariant(), campaignId)));
+        Token.Protect(dp, new UnsubscribePayload(tenantId, email.Trim().ToLowerInvariant(), campaignId));
 
-    public static UnsubscribePayload? Unprotect(IDataProtectionProvider dp, string token)
-    {
-        try
-        {
-            var raw = dp.CreateProtector(Purpose).Unprotect(token);
-            var payload = JsonSerializer.Deserialize<UnsubscribePayload>(raw);
-            return payload is null || payload.TenantId == Guid.Empty || string.IsNullOrEmpty(payload.Email)
-                ? null
-                : payload;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    public static UnsubscribePayload? Unprotect(IDataProtectionProvider dp, string token) =>
+        Token.Unprotect(dp, token, p => p.TenantId != Guid.Empty && !string.IsNullOrEmpty(p.Email));
 }

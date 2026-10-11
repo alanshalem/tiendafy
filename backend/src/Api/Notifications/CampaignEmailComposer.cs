@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Api.Auth;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Api.Notifications;
@@ -11,25 +12,14 @@ public sealed record CampaignProduct(Guid Id, string Name, long PriceMinor, stri
 /// <summary>Token de tracking de apertura/click: identifica campaña + destinatario.</summary>
 public static class TrackToken
 {
-    private const string Purpose = "Tiendafy.Marketing.Track.v1";
+    // Sin vencimiento, y el purpose no se toca: ver SignedToken.
+    private static readonly SignedToken<TrackPayload> Token = new("Tiendafy.Marketing.Track.v1");
 
     public static string Protect(IDataProtectionProvider dp, Guid campaignId, string email) =>
-        dp.CreateProtector(Purpose)
-            .Protect(JsonSerializer.Serialize(new TrackPayload(campaignId, email.Trim().ToLowerInvariant())));
+        Token.Protect(dp, new TrackPayload(campaignId, email.Trim().ToLowerInvariant()));
 
-    public static TrackPayload? Unprotect(IDataProtectionProvider dp, string token)
-    {
-        try
-        {
-            var raw = dp.CreateProtector(Purpose).Unprotect(token);
-            var payload = JsonSerializer.Deserialize<TrackPayload>(raw);
-            return payload is null || payload.CampaignId == Guid.Empty ? null : payload;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    public static TrackPayload? Unprotect(IDataProtectionProvider dp, string token) =>
+        Token.Unprotect(dp, token, p => p.CampaignId != Guid.Empty);
 }
 
 public sealed record TrackPayload(Guid CampaignId, string Email);
