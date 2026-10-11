@@ -24,6 +24,9 @@ export type {
   ContactConfig,
   FooterConfig,
   IconKit,
+  BorderRadiusStyle,
+  MotionStyle,
+  DensityStyle,
   ThemeConfig,
 } from './theme';
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS } from './theme';
@@ -31,4 +34,5 @@ export { formatMoney, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText, contrastRatio } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
+export type { FontOptionValue } from './fonts';
 export type { MoneyDto } from './wire';

@@ -7,8 +7,20 @@
  * verticales (gimnasio/motos/autos) quedan agrupadas.
  */
 
+import type {
+  BorderRadiusStyle,
+  ComingSoonConfig,
+  DensityStyle,
+  FontOptionValue,
+  IconKit,
+  MotionStyle,
+  SectionType,
+  ThemeHeader,
+} from '@tiendafy/types';
+
 interface ThemeSectionPreset {
-  type: 'hero' | 'featured-products' | 'info-bar' | 'newsletter';
+  /** Los cuatro de siempre, o cualquier `SectionType` real del tema. */
+  type: 'hero' | 'featured-products' | 'info-bar' | 'newsletter' | SectionType;
   visible: boolean;
   title?: string;
   variant?: 'centered' | 'banner' | 'minimal';
@@ -25,9 +37,28 @@ export interface ThemePreset {
     colorBg: string;
     colorBgSubtle: string;
     colorFg: string;
+    /** Acento propio (precios, destacados). Sin esto se usa el primario. */
+    colorAccent?: string;
   };
   announcement: string;
   sections: ThemeSectionPreset[];
+
+  /*
+   * De acá para abajo, todo opcional: los presets genéricos no lo traen y
+   * siguen comportándose igual. Lo usan los presets de MARCA, que tienen que
+   * respetar una guía — tipografías, forma de los bordes, kit de íconos— y no
+   * solo una paleta. Una identidad de bloques rectos con botones redondeados
+   * no es esa identidad.
+   */
+  fonts?: { heading: FontOptionValue; body: FontOptionValue };
+  borderRadius?: BorderRadiusStyle;
+  density?: DensityStyle;
+  motion?: MotionStyle;
+  iconKit?: IconKit;
+  header?: { layout?: ThemeHeader['layout']; border?: ThemeHeader['border']; showSearch?: boolean };
+  seo?: { title: string; description: string };
+  /** Para marcas que todavía no abren: la página de espera ya vestida. */
+  comingSoon?: Partial<ComingSoonConfig>;
 }
 
 const baseSections = (
@@ -63,7 +94,10 @@ export const themePresets: ThemePreset[] = [
     category: 'Deco y hogar',
     description: 'Cálido y artesanal, para piezas hechas a mano.',
     tokens: {
-      colorPrimary: '193 88 55',
+      // Un punto más oscuro que el original (193 88 55): así el texto encima
+      // llega a 4.5:1. Con el valor anterior no llegaba ni con blanco ni con
+      // oscuro — el botón de comprar quedaba por debajo del mínimo de WCAG AA.
+      colorPrimary: '192 87 54',
       colorPrimaryHover: '160 70 42',
       colorBg: '252 249 244',
       colorBgSubtle: '246 238 227',
@@ -281,5 +315,156 @@ export const themePresets: ThemePreset[] = [
     },
     announcement: 'Garantía oficial · Cuotas sin interés',
     sections: baseSections('minimal', 'Lo último', false),
+  },
+
+  /* ------------------------------------------------------------------
+     Marcas del grupo. No son paletas sueltas: salen de guías de marca
+     escritas, con sus tipografías, su forma y sus reglas de contraste.
+     Aplicar uno deja la tienda vestida; después se ajusta en el editor.
+     ------------------------------------------------------------------ */
+  {
+    id: 'puente-oriente',
+    name: 'Puente Oriente',
+    category: 'Marcas del grupo',
+    description: 'Naranja de marca sobre mucho blanco, forma redonda y grilla densa de catálogo B2B.',
+    tokens: {
+      // Naranja Puente #FF6A1A. NUNCA como color de texto sobre blanco: ahí la
+      // guía pide #C2410C, que es el hover y el que usa el editor para links.
+      colorPrimary: '255 106 26',
+      colorPrimaryHover: '194 65 12',
+      colorBg: '255 255 255',
+      // Niebla #F4F5F7: secciones alternas y cards de producto.
+      colorBgSubtle: '244 245 247',
+      // Tinta #1E2230.
+      colorFg: '30 34 48',
+    },
+    // El círculo es el recurso de la marca: píldoras y avatares redondos.
+    borderRadius: 'rounded',
+    density: 'cozy',
+    motion: 'subtle',
+    iconKit: 'lucide',
+    fonts: { heading: 'poppins', body: 'inter' },
+    // El buscador tipo marketplace B2B es parte de la identidad, no un extra.
+    header: { layout: 'classic', border: 'line', showSearch: true },
+    seo: {
+      title: 'Puente Oriente — Importación directa de China',
+      description:
+        'Buscamos el proveedor, negociamos en origen y te entregamos la mercadería nacionalizada en tu depósito.',
+    },
+    announcement: 'Importamos de China: desde una caja hasta un contenedor.',
+    sections: [
+      { type: 'carousel', visible: true },
+      { type: 'category-banners', visible: true, title: 'Qué traemos' },
+      { type: 'featured', visible: true, title: 'Destacados' },
+      { type: 'image-text', visible: true, title: 'Cómo trabajamos' },
+      { type: 'brands', visible: true, title: 'Marcas que importamos' },
+      { type: 'info-bar', visible: true },
+      { type: 'faq', visible: true, title: 'Preguntas sobre importar' },
+    ],
+  },
+  {
+    id: 'smartfox',
+    name: 'SmartFox',
+    category: 'Marcas del grupo',
+    description: 'Bloques verde bosque y negro asfalto, esquinas rectas y amarillo solo para el precio.',
+    tokens: {
+      // Verde bosque #195A3A.
+      colorPrimary: '25 90 58',
+      colorPrimaryHover: '18 68 43',
+      colorBg: '255 255 255',
+      // Gris cemento #ECEBE8: fondo de fotos de producto y secciones claras.
+      colorBgSubtle: '236 235 232',
+      // Negro asfalto #231F20.
+      colorFg: '35 31 32',
+      // Amarillo ruta #FFC72C: precios y llamados a la acción. Solo sobre
+      // negro o verde, o de fondo con texto negro. Nunca sobre blanco (1.6:1).
+      colorAccent: '255 199 44',
+    },
+    // "Esquinas siempre rectas: ni bloques, ni botones, ni fotos llevan bordes
+    // redondeados". Es una regla de la guía, no una preferencia.
+    borderRadius: 'sharp',
+    density: 'cozy',
+    motion: 'subtle',
+    iconKit: 'tabler',
+    fonts: { heading: 'montserrat', body: 'barlow' },
+    header: { layout: 'classic', border: 'none', showSearch: false },
+    seo: {
+      title: 'SmartFox — Motos urbanas',
+      description:
+        'Motos para moverse todos los días: al laburo, a la facu, a repartir. Astuta por naturaleza.',
+    },
+    announcement: 'Repuestos en todo el país. La garantía la responde el importador, acá.',
+    sections: [
+      { type: 'carousel', visible: true },
+      { type: 'featured', visible: true, title: 'Modelos' },
+      { type: 'image-text', visible: true, title: 'Para el que labura arriba de la moto' },
+      { type: 'info-bar', visible: true },
+      { type: 'faq', visible: true, title: 'Service, garantía y repuestos' },
+    ],
+  },
+  {
+    id: 'volxen',
+    name: 'Volxen',
+    category: 'Marcas del grupo',
+    description: 'Negro grafito y volt. Para equipamiento de gimnasio: contraste alto y nada decorativo.',
+    tokens: {
+      colorPrimary: '198 242 78',
+      colorPrimaryHover: '176 219 60',
+      colorBg: '14 15 18',
+      colorBgSubtle: '26 28 33',
+      colorFg: '244 245 247',
+    },
+    borderRadius: 'soft',
+    density: 'cozy',
+    motion: 'dynamic',
+    iconKit: 'tabler',
+    fonts: { heading: 'montserrat', body: 'barlow' },
+    header: { layout: 'classic', border: 'none', showSearch: true },
+    announcement: 'Equipamiento para entrenar en serio.',
+    sections: [
+      { type: 'carousel', visible: true },
+      { type: 'category-banners', visible: true, title: 'Por disciplina' },
+      { type: 'featured', visible: true, title: 'Lo más pedido' },
+      { type: 'info-bar', visible: true },
+    ],
+    comingSoon: {
+      enabled: true,
+      eyebrow: 'Muy pronto',
+      title: 'Volxen está por abrir',
+      message: 'Equipamiento de gimnasio para entrenar en serio, con envío a todo el país.',
+    },
+  },
+  {
+    id: 'canicari',
+    name: 'Canicari',
+    category: 'Marcas del grupo',
+    description: 'Verde agua y crema, formas redondas. Para mascotas: cercano y tranquilo.',
+    tokens: {
+      colorPrimary: '13 148 136',
+      colorPrimaryHover: '10 120 110',
+      colorBg: '255 253 250',
+      colorBgSubtle: '240 247 245',
+      colorFg: '28 44 41',
+    },
+    borderRadius: 'rounded',
+    density: 'spacious',
+    motion: 'subtle',
+    iconKit: 'phosphor',
+    fonts: { heading: 'poppins', body: 'dmsans' },
+    header: { layout: 'classic', border: 'line', showSearch: true },
+    announcement: 'Todo para tu mascota, a la puerta de tu casa.',
+    sections: [
+      { type: 'carousel', visible: true },
+      { type: 'category-banners', visible: true, title: 'Perros, gatos y más' },
+      { type: 'featured', visible: true, title: 'Destacados' },
+      { type: 'info-bar', visible: true },
+      { type: 'newsletter', visible: true, title: 'Novedades y ofertas' },
+    ],
+    comingSoon: {
+      enabled: true,
+      eyebrow: 'Muy pronto',
+      title: 'Canicari está en camino',
+      message: 'Alimento, juguetes y accesorios para tu mascota. Estamos preparando todo.',
+    },
   },
 ];
