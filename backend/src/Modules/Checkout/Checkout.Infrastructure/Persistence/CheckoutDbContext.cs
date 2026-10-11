@@ -12,11 +12,13 @@ public sealed class CheckoutDbContext : DbContext
     // (el AbandonedCartWorker recorre sesiones de todos los tenants).
     private readonly bool _filterByTenant;
     private readonly TenantId _currentTenant;
+    private readonly Guid _tenantGuid;
 
     public CheckoutDbContext(DbContextOptions<CheckoutDbContext> options, ITenantContext? tenant = null) : base(options)
     {
         _filterByTenant = tenant?.HasTenant == true;
         _currentTenant = _filterByTenant ? tenant!.TenantId : default;
+        _tenantGuid = _currentTenant.Value;
     }
 
     public DbSet<CheckoutSession> Sessions => Set<CheckoutSession>();
@@ -73,6 +75,7 @@ public sealed class CheckoutDbContext : DbContext
         shipping.HasKey(m => m.Id);
         shipping.Property(m => m.Id).ValueGeneratedNever();
         shipping.Property(m => m.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        shipping.HasQueryFilter(m => !_filterByTenant || m.TenantId == _currentTenant);
         shipping.Property(m => m.Kind).HasConversion<string>().HasMaxLength(10);
         shipping.Property(m => m.Name).HasMaxLength(120).IsRequired();
         shipping.Property(m => m.Description).HasMaxLength(300);
@@ -89,6 +92,7 @@ public sealed class CheckoutDbContext : DbContext
         correo.HasKey(c => c.Id);
         correo.Property(c => c.Id).ValueGeneratedNever();
         correo.HasIndex(c => c.TenantId).IsUnique();
+        correo.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
         correo.Property(c => c.CustomerId).HasMaxLength(20).IsRequired();
         correo.Property(c => c.UserTokenEncrypted).IsRequired();
         correo.Property(c => c.PasswordTokenEncrypted).IsRequired();
@@ -100,6 +104,7 @@ public sealed class CheckoutDbContext : DbContext
         zipnova.HasKey(c => c.Id);
         zipnova.Property(c => c.Id).ValueGeneratedNever();
         zipnova.HasIndex(c => c.TenantId).IsUnique();
+        zipnova.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
         zipnova.Property(c => c.ApiTokenEncrypted).IsRequired();
         zipnova.Property(c => c.ApiSecretEncrypted).IsRequired();
         zipnova.Property(c => c.Country).HasMaxLength(2);
@@ -111,6 +116,7 @@ public sealed class CheckoutDbContext : DbContext
         zipShipment.Property(s => s.Id).ValueGeneratedNever();
         // Guard de idempotencia: un envío Zipnova por orden, garantizado por índice.
         zipShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
+        zipShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
         zipShipment.Property(s => s.CarrierName).HasMaxLength(120);
         zipShipment.Property(s => s.CarrierTrackingId).HasMaxLength(80);
         zipShipment.Property(s => s.TrackingUrl).HasMaxLength(500);
@@ -121,6 +127,7 @@ public sealed class CheckoutDbContext : DbContext
         andreani.HasKey(c => c.Id);
         andreani.Property(c => c.Id).ValueGeneratedNever();
         andreani.HasIndex(c => c.TenantId).IsUnique();
+        andreani.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
         andreani.Property(c => c.Username).HasMaxLength(120).IsRequired();
         andreani.Property(c => c.PasswordEncrypted).IsRequired();
         andreani.Property(c => c.ClientCode).HasMaxLength(20);
@@ -144,6 +151,7 @@ public sealed class CheckoutDbContext : DbContext
         andreaniShipment.ToTable("andreani_shipments");
         andreaniShipment.HasKey(s => s.Id);
         andreaniShipment.Property(s => s.Id).ValueGeneratedNever();
+        andreaniShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
         // Andreani no tiene idempotencia ni cancelación: un envío duplicado no
         // se puede deshacer y se factura igual. El índice es la única defensa.
         andreaniShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();

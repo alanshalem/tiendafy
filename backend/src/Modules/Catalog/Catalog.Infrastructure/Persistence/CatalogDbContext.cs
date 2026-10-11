@@ -37,6 +37,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         spec.HasKey(d => d.Id);
         spec.Property(d => d.Id).ValueGeneratedNever();
         spec.Property(d => d.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        spec.HasQueryFilter(d => !_filterByTenant || d.TenantId == _currentTenant);
         spec.Property(d => d.Name).HasMaxLength(60).IsRequired();
         spec.Property(d => d.Key).HasMaxLength(80).IsRequired();
         spec.Property(d => d.Unit).HasMaxLength(12);
