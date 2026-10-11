@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Identity;
@@ -184,5 +183,12 @@ public sealed class Merchant
             buyerName = "Comprador de Test",
         });
         return order.GetProperty("id").GetGuid();
+    }
+
+    /// <summary>El stock disponible de una variante, como lo ve el panel.</summary>
+    public async Task<int> AvailableAsync(Guid variantId)
+    {
+        var body = await GetAsync($"/api/v1/inventory?variantIds={variantId}");
+        return body.GetProperty("items").EnumerateArray().Single().GetProperty("available").GetInt32();
     }
 }

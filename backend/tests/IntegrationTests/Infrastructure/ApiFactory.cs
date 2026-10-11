@@ -36,6 +36,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MercadoPago:ClientSecret", "test-client-secret");
         builder.UseSetting("MercadoPago:RedirectUri", "http://localhost:5080/api/v1/payments/mercadopago/callback");
         builder.UseSetting("MercadoPago:WebhookSecret", MercadoPagoWebhookSecret);
+        // Mercado Libre igual: con app "configurada" se puede conectar una
+        // cuenta real (contra el fake) además de la de demostración.
+        builder.UseSetting("MercadoLibre:ClientId", "test-meli-client");
+        builder.UseSetting("MercadoLibre:ClientSecret", "test-meli-secret");
+        builder.UseSetting("MercadoLibre:RedirectUri", "http://localhost:5080/api/v1/meli/oauth/callback");
 
         // Ningún test sale a internet: todos los HttpClient de la API (los
         // tipados de cada integración incluidos) terminan en el fake. La
