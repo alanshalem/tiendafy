@@ -132,7 +132,7 @@ export function ProductRows({
             {vi === 0 ? (
               <td className="px-3 py-3 text-right align-top" rowSpan={product.variants.length}>
                 <Dropdown>
-                  <Dropdown.Trigger>
+                  <Dropdown.Trigger label={`Acciones de ${product.name}`}>
                     <MoreVertical className="h-4 w-4" />
                   </Dropdown.Trigger>
                   <Dropdown.Menu align="end">

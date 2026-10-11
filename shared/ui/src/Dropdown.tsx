@@ -83,14 +83,20 @@ interface DropdownTriggerProps {
   className?: string;
   /** Sin caja ni chevron — para triggers de solo ícono (ej. ⋮). El estilo lo da className. */
   bare?: boolean;
+  /**
+   * Nombre accesible. Obligatorio en la práctica cuando el contenido es solo un
+   * ícono: sin esto un lector de pantalla anuncia "botón" y nada más.
+   */
+  label?: string;
 }
 
-function Trigger({ children, className, bare = false }: DropdownTriggerProps) {
+function Trigger({ children, className, bare = false, label }: DropdownTriggerProps) {
   const { open, setOpen, menuId, triggerRef } = useDropdown();
   return (
     <button
       ref={triggerRef}
       type="button"
+      aria-label={label}
       aria-haspopup="menu"
       aria-expanded={open}
       aria-controls={menuId}

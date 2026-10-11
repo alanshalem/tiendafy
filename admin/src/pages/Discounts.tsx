@@ -141,7 +141,7 @@ export function DiscountsPage() {
       cell: (c) => (
         <div className="flex justify-end">
           <Dropdown>
-            <Dropdown.Trigger>
+            <Dropdown.Trigger label={`Acciones de ${c.code}`}>
               <MoreVertical className="h-4 w-4" />
             </Dropdown.Trigger>
             <Dropdown.Menu align="end">

@@ -420,6 +420,7 @@ function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
         <Dropdown>
           <Dropdown.Trigger
             bare
+            label={`Acciones de ${node.name}`}
             className="h-7 w-7 justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted"
           >
             <MoreVertical className="h-4 w-4" />

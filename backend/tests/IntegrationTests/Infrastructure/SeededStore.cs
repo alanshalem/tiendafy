@@ -67,6 +67,30 @@ public static class SeededStore
                 ids["sku"] = "SEED-01";
             }
         }
+        // El primero, completo como lo deja un comercio: categoría, ficha técnica
+        // y fotos. Sin esto las fixtures de los frontends nunca ejercitan esas ramas.
+        await store.PutAsync($"/api/v1/products/{ids["product"]}/categories", new { categoryIds = new[] { ids["category"] } });
+        var material = await store.PostAsync("/api/v1/spec-definitions", new
+        {
+            name = "Material", type = "TEXT", categoryIds = new[] { ids["category"] },
+            showOnProduct = true, filterable = true, sortOrder = 1,
+        });
+        var weight = await store.PostAsync("/api/v1/spec-definitions", new
+        {
+            name = "Peso", type = "NUMBER", unit = "kg", showOnProduct = true, filterable = false, sortOrder = 2,
+        });
+        await store.PutAsync($"/api/v1/products/{ids["product"]}/specs", new
+        {
+            values = new[]
+            {
+                new { definitionId = Id(material), value = "Hierro fundido" },
+                new { definitionId = Id(weight), value = "10" },
+            },
+        });
+        foreach (var photo in new[] { "frente", "detalle" })
+            await store.PostAsync($"/api/v1/products/{ids["product"]}/images",
+                new { url = $"{ApiFactory.Storage}/tiendafy-media/seed/{photo}.jpg", altText = Products[0] });
+
         var product = await store.GetAsync($"/api/v1/products/{ids["product"]}");
         ids["productSlug"] = product.GetProperty("slug").GetString()!;
 
