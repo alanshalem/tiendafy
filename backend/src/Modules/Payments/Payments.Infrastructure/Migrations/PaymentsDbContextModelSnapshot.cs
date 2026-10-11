@@ -375,6 +375,10 @@ namespace Payments.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("last_error");
 
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at_utc");
@@ -398,8 +402,8 @@ namespace Payments.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_payment_webhook_events");
 
-                    b.HasIndex("Status", "CreatedAtUtc")
-                        .HasDatabaseName("ix_payment_webhook_events_status_created_at_utc");
+                    b.HasIndex("Status", "NextAttemptAtUtc")
+                        .HasDatabaseName("ix_payment_webhook_events_status_next_attempt_at_utc");
 
                     b.HasIndex("Type", "DataId")
                         .IsUnique()

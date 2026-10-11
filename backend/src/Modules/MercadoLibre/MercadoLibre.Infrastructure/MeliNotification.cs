@@ -17,13 +17,15 @@ public sealed class MeliNotification : InboxEntry
 
     private MeliNotification() { } // EF Core
 
-    public static MeliNotification Receive(string topic, string resource, long meliUserId) => new()
+    public static MeliNotification Receive(string topic, string resource, long meliUserId)
     {
-        Id = Guid.NewGuid(),
-        Topic = topic.Length > 60 ? topic[..60] : topic,
-        Resource = resource.Length > 300 ? resource[..300] : resource,
-        MeliUserId = meliUserId,
-        Status = StatusPending,
-        CreatedAtUtc = DateTime.UtcNow,
-    };
+        var n = new MeliNotification
+        {
+            Topic = topic.Length > 60 ? topic[..60] : topic,
+            Resource = resource.Length > 300 ? resource[..300] : resource,
+            MeliUserId = meliUserId,
+        };
+        n.Enqueue();
+        return n;
+    }
 }

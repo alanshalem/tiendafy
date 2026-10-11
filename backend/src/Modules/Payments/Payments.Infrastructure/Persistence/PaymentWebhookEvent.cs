@@ -15,13 +15,10 @@ public sealed class PaymentWebhookEvent : InboxEntry
 
     private PaymentWebhookEvent() { } // EF Core
 
-    public static PaymentWebhookEvent Receive(string type, string dataId, long userId) => new()
+    public static PaymentWebhookEvent Receive(string type, string dataId, long userId)
     {
-        Id = Guid.NewGuid(),
-        Type = type,
-        DataId = dataId,
-        UserId = userId,
-        Status = StatusPending,
-        CreatedAtUtc = DateTime.UtcNow,
-    };
+        var e = new PaymentWebhookEvent { Type = type, DataId = dataId, UserId = userId };
+        e.Enqueue();
+        return e;
+    }
 }

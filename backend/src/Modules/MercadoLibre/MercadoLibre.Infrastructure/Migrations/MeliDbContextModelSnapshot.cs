@@ -199,6 +199,10 @@ namespace MercadoLibre.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("meli_user_id");
 
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at_utc");
@@ -224,8 +228,8 @@ namespace MercadoLibre.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_meli_notifications");
 
-                    b.HasIndex("Status", "CreatedAtUtc")
-                        .HasDatabaseName("ix_meli_notifications_status_created_at_utc");
+                    b.HasIndex("Status", "NextAttemptAtUtc")
+                        .HasDatabaseName("ix_meli_notifications_status_next_attempt_at_utc");
 
                     b.ToTable("meli_notifications", (string)null);
                 });

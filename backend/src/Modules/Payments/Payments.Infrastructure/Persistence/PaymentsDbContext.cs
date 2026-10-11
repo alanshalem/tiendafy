@@ -42,7 +42,8 @@ public sealed class PaymentsDbContext : DbContext
         wh.ToTable("payment_webhook_events");
         wh.HasKey(x => x.Id);
         wh.Property(x => x.Id).ValueGeneratedNever();
-        wh.HasIndex(x => new { x.Status, x.CreatedAtUtc }); // cola: pendientes por orden
+        // Cola: el worker pide los pendientes YA vencidos, en orden de vencimiento.
+        wh.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
         // Idempotencia de ingesta: MP reenvía el mismo evento varias veces. El
         // índice único descarta duplicados a nivel DB (el endpoint traga la
         // violación y responde 200), evitando doble procesamiento/notificación.

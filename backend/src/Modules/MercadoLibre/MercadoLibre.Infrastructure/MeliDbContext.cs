@@ -62,7 +62,7 @@ public sealed class MeliDbContext : DbContext
         notification.ToTable("meli_notifications");
         notification.HasKey(n => n.Id);
         notification.Property(n => n.Id).ValueGeneratedNever();
-        notification.HasIndex(n => new { n.Status, n.CreatedAtUtc });
+        notification.HasIndex(n => new { n.Status, n.NextAttemptAtUtc });
         notification.Property(n => n.Topic).HasMaxLength(60);
         notification.Property(n => n.Resource).HasMaxLength(300);
         notification.Property(n => n.Status).HasMaxLength(10);

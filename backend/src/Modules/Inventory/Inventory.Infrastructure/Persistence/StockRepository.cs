@@ -174,15 +174,28 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         // Lote chico por pasada: el job corre seguido; sin locks largos.
         var expired = await context.Reservations
             .Where(r => r.Status == ReservationStatus.Active && r.ExpiresAtUtc <= nowUtc)
+            .OrderBy(r => r.ExpiresAtUtc)
             .Take(100)
             .ToListAsync(ct);
+
+        var released = 0;
 
         foreach (var reservation in expired)
         {
             await using var tx = await context.Database.BeginTransactionAsync(ct);
 
-            if (reservation.Release().IsFailure)
-                continue;
+            // Claim atómico por fila, igual que en el inbox de webhooks: pasar la
+            // reserva a liberada es lo que da derecho a devolver el stock. Sin
+            // esto, dos instancias del job leen la misma reserva vencida y las
+            // dos suman la cantidad a available: stock inflado de la nada, y
+            // encima vendible. Si otra llegó primero, vuelven 0 filas.
+            var claimed = await context.Reservations
+                .Where(r => r.Id == reservation.Id && r.Status == ReservationStatus.Active)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, ReservationStatus.Released), ct);
+
+            if (claimed != 1) continue;
+
+            reservation.Release(); // alinea la entidad trackeada con la base
 
             await context.StockItems
                 .Where(s => s.TenantId == reservation.TenantId && s.VariantId == reservation.VariantId)
@@ -196,9 +209,10 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
 
             await context.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+            released++;
         }
 
-        return expired.Count;
+        return released;
     }
 
     public async Task<IReadOnlyList<StockMovement>> GetLedgerAsync(
