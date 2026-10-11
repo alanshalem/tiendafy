@@ -4,6 +4,7 @@ import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
 import { isPlatformHost, loadStorefront, siteBase, withReferencedProducts } from '@/lib/storefront';
+import { PLATFORM_BRAND } from '@/lib/brand';
 import './landing.css';
 
 /** URL de la plataforma (sin el subdominio de la tienda) para el CTA de registro. */
@@ -17,14 +18,18 @@ async function platformUrl(): Promise<string> {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<import('next').Metadata> {
-  if (await isPlatformHost()) {
-    return {
-      title: 'Tiendafy — Abrí tu tienda online',
-      description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.',
-    };
-  }
+  // La tienda primero, SIEMPRE: el dominio raíz de la plataforma puede ser la
+  // tienda de una empresa (la importadora que opera la instalación vende desde
+  // ahí). Recién si ningún comercio reclama ese host se muestra la landing.
   const data = await loadStorefront();
-  if (!data) return { title: 'Tienda' };
+  if (!data) {
+    return (await isPlatformHost())
+      ? {
+          title: `${PLATFORM_BRAND} — Abrí tu tienda online`,
+          description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.',
+        }
+      : { title: 'Tienda' };
+  }
   const theme = await fetchPublishedTheme(data.tenant.id).catch(() => null);
   // El merchant define su título/descripción SEO en el editor (Identidad);
   // sin eso, un default con la marca — nunca el nombre pelado compitiendo
@@ -47,10 +52,8 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ preview?: string; pt?: string }>;
 }) {
-  if (await isPlatformHost()) return <PlatformLanding />;
-
   const data = await loadStorefront();
-  if (!data) return <StoreNotFound />;
+  if (!data) return (await isPlatformHost()) ? <PlatformLanding /> : <StoreNotFound />;
   if (data.tenant.status === 'CANCELED') return <StoreDeleted registerUrl={await platformUrl()} />;
   if (data.tenant.status === 'SUSPENDED') return <StoreSuspended name={data.tenant.name} />;
 

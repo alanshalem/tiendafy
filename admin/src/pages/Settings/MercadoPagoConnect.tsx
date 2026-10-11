@@ -8,6 +8,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
+import { BRAND } from '../../lib/runtime';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -180,7 +181,7 @@ function DisconnectedView({
     <div>
       <ul className="mb-4 space-y-2 text-sm text-fg">
         <Bullet>
-          Conectás <strong>tu propia cuenta</strong> — Tiendafy nunca toca tu plata.
+          Conectás <strong>tu propia cuenta</strong> — {BRAND} nunca toca tu plata.
         </Bullet>
         <Bullet>Aceptás todos los medios de pago que ya tengas habilitados en Mercado Pago.</Bullet>
         <Bullet>Cada venta se concilia sola: el estado del pago actualiza el pedido automáticamente.</Bullet>
@@ -201,7 +202,7 @@ function DisconnectedView({
       )}
 
       <Helper title="¿Cómo funciona?">
-        Te llevamos a Mercado Pago para que autorices a Tiendafy a cobrar <em>en tu nombre</em>. Volvés acá ya
+        Te llevamos a Mercado Pago para que autorices a {BRAND} a cobrar <em>en tu nombre</em>. Volvés acá ya
         conectado. Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña.
       </Helper>
 

@@ -71,6 +71,42 @@ public class TenancyServiceTests
     }
 
     [Fact]
+    public async Task ResolveByHost_BaseDomainClaimedByTenant_ResolvesIt()
+    {
+        // El dominio raiz de la plataforma puede ser la tienda de una empresa:
+        // la importadora que opera la instalacion vende desde ahi. Si lo
+        // reclamo como dominio propio, resuelve a esa tienda y no a la landing.
+        var tenant = Tenant.Create("Puente Oriente", "puenteoriente").Value;
+        tenant.AttachCustomDomain("tiendafy.com");
+        _repository.Seed(tenant);
+
+        var dto = await _service.ResolveByHostAsync("tiendafy.com");
+
+        Assert.NotNull(dto);
+        Assert.Equal("puenteoriente", dto.Subdomain);
+    }
+
+    [Fact]
+    public async Task ResolveByHost_WwwLlegaALaMismaTienda_EnLosDosSentidos()
+    {
+        // El comercio carga un dominio y la gente escribe el otro. Las dos
+        // formas tienen que llegar a la tienda, no a "tienda no encontrada".
+        var sinWww = Tenant.Create("Volxen", "volxen").Value;
+        sinWww.AttachCustomDomain("volxen.com.ar");
+        _repository.Seed(sinWww);
+
+        Assert.NotNull(await _service.ResolveByHostAsync("volxen.com.ar"));
+        Assert.NotNull(await _service.ResolveByHostAsync("www.volxen.com.ar"));
+
+        var conWww = Tenant.Create("Canicari", "canicari").Value;
+        conWww.AttachCustomDomain("www.canicari.com.ar");
+        _repository.Seed(conWww);
+
+        Assert.NotNull(await _service.ResolveByHostAsync("www.canicari.com.ar"));
+        Assert.NotNull(await _service.ResolveByHostAsync("canicari.com.ar"));
+    }
+
+    [Fact]
     public async Task ResolveByHost_CanceledTenant_ResolvesWithCanceledStatus()
     {
         var tenant = Tenant.Create("Mi Tienda", "mitienda").Value;

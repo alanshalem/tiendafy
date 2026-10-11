@@ -4,6 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, ConfirmProvider, PromptProvider } from '@tiendafy/ui';
 import App from './App';
+import { BRAND } from './lib/runtime';
+
+// El <title> del index.html es estático (se compila una vez); la marca de la
+// instalación llega en runtime, así que el título se fija al arrancar.
+document.title = `${BRAND} Admin`;
 import { StoreProvider } from './context/StoreContext';
 import { PermissionsProvider } from './context/PermissionsContext';
 import { AuthProvider } from './context/AuthContext';

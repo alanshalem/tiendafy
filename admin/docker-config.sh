@@ -15,7 +15,8 @@ window.__TIENDAFY_CONFIG__ = {
   apiUrl: "${VITE_API_URL:-}",
   storefrontOrigin: "${VITE_STOREFRONT_ORIGIN:-}",
   sentryDsn: "${VITE_SENTRY_DSN:-}",
-  envName: "${APP_ENV:-production}"
+  envName: "${APP_ENV:-production}",
+  brandName: "${VITE_BRAND_NAME:-}"
 };
 JS
 

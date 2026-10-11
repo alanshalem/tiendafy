@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PLATFORM_BRAND } from '@/lib/brand';
 import type { ReactNode } from 'react';
 import { Archivo, Fraunces } from 'next/font/google';
 import './globals.css';
@@ -18,7 +19,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: 'Tiendafy',
+  title: PLATFORM_BRAND,
   description: 'Tu tienda online',
 };
 

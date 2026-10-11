@@ -11,6 +11,7 @@ import {
   providerMeta,
   type SocialPostDto,
 } from './redes-shared';
+import { BRAND } from '../lib/runtime';
 
 const STATUS_FILTER = [
   { value: '', label: 'Todos los estados' },
@@ -56,7 +57,7 @@ export function PublicacionesTab({
       title: 'Eliminar post',
       message:
         post.status === 'Published'
-          ? 'Se borra del historial de Tiendafy (lo ya publicado en las redes queda).'
+          ? `Se borra del historial de ${BRAND} (lo ya publicado en las redes queda).`
           : 'El post se elimina y no se publica.',
       confirmLabel: 'Eliminar',
       variant: 'danger',

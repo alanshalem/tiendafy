@@ -8,6 +8,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { BRAND } from '../../lib/runtime';
 
 interface DomainStatus {
   subdomain: string;
@@ -267,7 +268,7 @@ export function DomainsPage() {
         <div className="mt-4 rounded-lg border border-border bg-surface p-4">
           <h3 className="text-sm font-semibold text-fg">¿Para qué conectar un dominio propio?</h3>
           <p className="mt-1 text-sm text-fg-muted">
-            Tu tienda ya funciona en {status?.subdomain ?? 'tu dirección de Tiendafy'}. Un dominio propio
+            Tu tienda ya funciona en {status?.subdomain ?? `tu dirección de ${BRAND}`}. Un dominio propio
             —tumarca.com.ar— da confianza al comprador y es tuyo: si algún día cambiás de plataforma, te lo
             llevás con vos.
           </p>
@@ -375,7 +376,7 @@ function DomainModal({
         </p>
 
         <p className="text-xs text-fg-subtle">
-          El dominio tenés que comprarlo vos en un registrador. Tiendafy no vende dominios.
+          El dominio tenés que comprarlo vos en un registrador. {BRAND} no vende dominios.
         </p>
       </div>
     </Modal>

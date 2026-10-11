@@ -53,6 +53,17 @@ admin.{$PLATFORM_DOMAIN} {
 	reverse_proxy admin-prod:8080
 }
 
+# www va al dominio pelado, no a una copia del sitio. "www" es un subdominio
+# reservado, asi que sin esto resolveria a "ninguna tienda" y mostraria la
+# landing de la plataforma en vez del sitio de la empresa.
+www.{$PLATFORM_DOMAIN} {
+	import security_headers
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	}
+	redir https://{$PLATFORM_DOMAIN}{uri} permanent
+}
+
 # Plataforma + tiendas por subdominio.
 {$PLATFORM_DOMAIN}, *.{$PLATFORM_DOMAIN} {
 	import security_headers

@@ -14,6 +14,21 @@ public sealed class TenancyService(ITenantRepository repository, TenancyOptions 
 {
     public async Task<TenantDto?> ResolveByHostAsync(string host, CancellationToken ct = default)
     {
+        var resolved = await ResolveExactAsync(host, ct);
+        if (resolved is not null) return resolved;
+
+        // "www.volxen.com.ar" tiene que llegar a la misma tienda que
+        // "volxen.com.ar": el comercio carga un dominio y la gente escribe el
+        // otro. Se reintenta sin el www —y también al revés, si lo cargó con
+        // www— en vez de mostrarle "tienda no encontrada" a quien ya la buscó.
+        var bare = host.Trim().ToLowerInvariant().Split(':')[0];
+        return bare.StartsWith("www.", StringComparison.Ordinal)
+            ? await ResolveExactAsync(bare[4..], ct)
+            : await ResolveExactAsync("www." + bare, ct);
+    }
+
+    private async Task<TenantDto?> ResolveExactAsync(string host, CancellationToken ct)
+    {
         var normalized = host.Trim().ToLowerInvariant().Split(':')[0]; // sin puerto
 
         var baseDomain = options.PlatformBaseDomain.ToLowerInvariant();

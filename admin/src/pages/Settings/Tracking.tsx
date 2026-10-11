@@ -8,6 +8,7 @@ import { useStore } from '../../context/StoreContext';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { BRAND } from '../../lib/runtime';
 
 interface Tracking {
   enabled: boolean;
@@ -136,7 +137,7 @@ export function TrackingPage() {
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
           <p className="text-sm text-fg-muted">
             Nunca vas a tener que pegar un <code className="text-fg">&lt;script&gt;</code> acá. El código lo
-            escribe Tiendafy con lo que cargues, y ninguna de estas herramientas se carga en la pantalla de
+            escribe {BRAND} con lo que cargues, y ninguna de estas herramientas se carga en la pantalla de
             pago: ahí va el número de tarjeta de tu cliente y no entra nada de afuera.
           </p>
         </div>

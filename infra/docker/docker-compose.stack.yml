@@ -175,6 +175,9 @@ services:
       PUBLIC_API_URL: https://api.${STACK_DOMAIN}
       PUBLIC_ADMIN_ORIGIN: https://admin.${STACK_DOMAIN}
       PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
+      # Solo para la landing de la plataforma y los títulos por defecto: la
+      # tienda de cada comercio muestra su propia marca.
+      PLATFORM_BRAND_NAME: ${BRAND_NAME:-}
 
   admin:
     image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-admin:${TAG:-latest}
@@ -196,6 +199,8 @@ services:
       VITE_API_URL: https://api.${STACK_DOMAIN}
       VITE_STOREFRONT_ORIGIN: https://{sub}.${STACK_DOMAIN}
       VITE_SENTRY_DSN: ${SENTRY_DSN_ADMIN:-}
+      # Marca de ESTA instalación (el panel). Vacío = Tiendafy.
+      VITE_BRAND_NAME: ${BRAND_NAME:-}
 
 volumes:
   pgdata:

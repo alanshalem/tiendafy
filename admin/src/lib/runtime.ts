@@ -12,6 +12,12 @@
  */
 export interface RuntimeConfig {
   apiUrl?: string;
+  /**
+   * Nombre de la instalación. El producto es Tiendafy; una instalación puede
+   * llevar la marca de quien la opera ("Puente Oriente") sin recompilar nada.
+   * Solo afecta al panel: cada tienda muestra SU marca al comprador.
+   */
+  brandName?: string;
   storefrontOrigin?: string;
   sentryDsn?: string;
   /** 'production' | 'staging' | … — se usa para etiquetar los errores en Sentry. */
@@ -39,4 +45,8 @@ export const runtime = {
   ),
   sentryDsn: pick(injected.sentryDsn, import.meta.env.VITE_SENTRY_DSN as string | undefined, ''),
   envName: pick(injected.envName, undefined, import.meta.env.MODE),
+  brandName: pick(injected.brandName, import.meta.env.VITE_BRAND_NAME as string | undefined, 'Tiendafy'),
 } as const;
+
+/** El nombre que ve quien usa el panel. */
+export const BRAND = runtime.brandName;

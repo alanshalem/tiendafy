@@ -50,6 +50,7 @@ export interface HelpArticle {
   sections: HelpSection[];
 }
 
+import { BRAND } from '../lib/runtime';
 import { EMPEZAR } from './help-content-empezar';
 import { VENTAS } from './help-content-ventas';
 import { LEGAL } from './help-content-legal';
@@ -61,8 +62,31 @@ import { TIENDA } from './help-content-tienda';
 import { EQUIPO } from './help-content-equipo';
 import { PLATAFORMA } from './help-content-plataforma';
 
+/**
+ * Reemplaza el nombre del producto por el de la instalación en TODOS los textos
+ * de la ayuda, de una sola vez.
+ *
+ * Los manuales están escritos con el nombre del producto ("Tiendafy lo hace
+ * solo por vos"), pero quien los lee ve el panel con la marca de su empresa: el
+ * texto tiene que hablarle de lo que él ve. Se hace acá, sobre los datos, y no
+ * en cada lugar que renderiza — así la búsqueda, la paleta de comandos y las
+ * tarjetas del índice quedan en la misma marca sin tocar nada.
+ *
+ * Sensible a mayúsculas a propósito: la forma en minúscula aparece en rutas,
+ * nombres de paquetes (`@tiendafy/ui`) y contenedores (`tiendafy-postgres`) de
+ * los artículos técnicos, y esos NO se renombran.
+ */
+function withBrand<T>(value: T): T {
+  if (typeof value === 'string') return value.replaceAll('Tiendafy', BRAND) as T;
+  if (Array.isArray(value)) return value.map(withBrand) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withBrand(v)])) as T;
+  }
+  return value;
+}
+
 /** Manuales reales de cada parte del sistema. Se muestran en /ayuda/:topic. */
-export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
+export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = withBrand({
   ...EMPEZAR,
   ...VENTAS,
   ...LEGAL,
@@ -73,4 +97,4 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = {
   ...TIENDA,
   ...EQUIPO,
   ...PLATAFORMA,
-};
+});

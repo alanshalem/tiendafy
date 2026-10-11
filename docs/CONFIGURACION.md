@@ -98,7 +98,7 @@ Hay **tres** plantillas en `infra/docker/`, una por pieza (copiarlas sin el `.ex
 - **`.env.prod.example`** → el stack de producción.
 - **`.env.staging.example`** → el mismo stack, con credenciales de prueba y sin backup.
 
-Los dos stacks usan el MISMO `docker-compose.stack.yml`: lo único distinto es el archivo de variables. Claves de cada stack: `COMPOSE_PROJECT_NAME`, `APP_ENV`, `STACK_DOMAIN`, `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_*`, `MEDIA_*` (storage), `SENTRY_DSN_*`, `WORKERS_ENABLED` y los techos de memoria `*_MEM_LIMIT`. El resto (Mercado Libre, Captcha, Google, CORS) va como variables de entorno manuales del servicio `api`.
+Los dos stacks usan el MISMO `docker-compose.stack.yml`: lo único distinto es el archivo de variables. Claves de cada stack: `COMPOSE_PROJECT_NAME`, `APP_ENV`, `STACK_DOMAIN`, `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_*`, `MEDIA_*` (storage), `SENTRY_DSN_*`, `BRAND_NAME` (la marca del panel; vacío = Tiendafy), `WORKERS_ENABLED` y los techos de memoria `*_MEM_LIMIT`. El resto (Mercado Libre, Captcha, Google, CORS) va como variables de entorno manuales del servicio `api`.
 
 > **Crítico**: el volumen `dpkeys` (DataProtection) guarda las claves con las que están cifrados TODOS los secretos por-tienda (tokens de MP, credenciales de Payway, WhatsApp, MiCorreo, Zipnova, Andreani, certificados ARCA). Si se pierde, cada tienda tiene que reconectar todo. Está incluido en el backup diario del compose — verificar que siga así.
 

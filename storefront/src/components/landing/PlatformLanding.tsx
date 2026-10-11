@@ -1,5 +1,6 @@
 import { Reveal } from './Reveal';
 import { ADMIN_ORIGIN } from '@/lib/admin';
+import { PLATFORM_BRAND } from '@/lib/brand';
 import { LandingThemeToggle } from './LandingThemeToggle';
 
 function LogoMark({ className }: { className?: string }) {
@@ -145,7 +146,7 @@ const testimonials = [
 const faqs = [
   {
     q: '¿Necesito saber programar?',
-    a: 'No. Creás la tienda, cargás productos y elegís cómo se ve desde un panel visual. Si sabés usar Instagram, sabés usar Tiendafy.',
+    a: `No. Creás la tienda, cargás productos y elegís cómo se ve desde un panel visual. Si sabés usar Instagram, sabés usar ${PLATFORM_BRAND}.`,
   },
   {
     q: '¿Cómo cobro mis ventas?',
@@ -570,7 +571,7 @@ export function PlatformLanding() {
           className="border-t py-6 text-center text-xs"
           style={{ borderColor: 'var(--ld-obsidian-line)', color: '#8d8170' }}
         >
-          © 2026 Tiendafy · Hecho con ☀ en América Latina
+          © 2026 {PLATFORM_BRAND} · Hecho con ☀ en América Latina
         </div>
       </footer>
     </div>

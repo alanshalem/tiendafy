@@ -22,6 +22,7 @@ import { formatDate } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { Helper } from './Helper';
+import { BRAND } from '../../lib/runtime';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -94,7 +95,7 @@ export function IntroBanner() {
             llamaba AFIP), que la aprueba y le pone un número de autorización (el CAE).
           </p>
           <p>
-            La buena noticia: <strong>Tiendafy lo hace solo por vos</strong>. Vos configurás esto una vez, y
+            La buena noticia: <strong>{BRAND} lo hace solo por vos</strong>. Vos configurás esto una vez, y
             después cada venta se factura sin que muevas un dedo.
           </p>
           <p>
@@ -439,7 +440,7 @@ export function CertificateStep({
         <p className="text-sm leading-relaxed text-fg-muted">
           El certificado es como el <strong>documento de identidad de tu tienda</strong> para hablar con ARCA:
           sin él, ARCA no te contesta. Va de la mano de una <strong>clave privada</strong> (su secreto).
-          Tiendafy la genera y la guarda <strong>cifrada</strong>: no se muestra por pantalla ni se comparte
+          {BRAND} la genera y la guarda <strong>cifrada</strong>: no se muestra por pantalla ni se comparte
           jamás, ni siquiera con ARCA.
         </p>
 
@@ -567,7 +568,7 @@ export function CertificateStep({
         {showCsrFlow && (
           <Helper title="¿Qué es el CSR y por qué este ida y vuelta?">
             El CSR es un “formulario de pedido” del certificado. Vos no lo fabricás: se lo pedís a ARCA.
-            Tiendafy lo arma solo (con tu CUIT y razón social adentro), vos lo subís a la web de ARCA, ARCA te
+            {BRAND} lo arma solo (con tu CUIT y razón social adentro), vos lo subís a la web de ARCA, ARCA te
             devuelve el certificado ya fabricado, y lo pegás de vuelta acá. Es un trámite que se hace una sola
             vez.
           </Helper>
@@ -763,7 +764,7 @@ export function EmissionStep({
             checked={autoInvoice}
             onChange={setAutoInvoice}
             label="Facturar automáticamente cada venta"
-            description="Si lo activás, Tiendafy emite la factura sola por cada venta, sin que hagas nada."
+            description={`Si lo activás, ${BRAND} emite la factura sola por cada venta, sin que hagas nada.`}
           />
         </div>
 
