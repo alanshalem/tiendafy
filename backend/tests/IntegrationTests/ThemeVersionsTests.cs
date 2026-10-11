@@ -1,4 +1,6 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 
 namespace IntegrationTests;
@@ -89,5 +91,28 @@ public sealed class ThemeVersionsTests
         await merchant.ExpectOkAsync(HttpMethod.Delete, "/api/v1/theme/schedule");
         var cleared = await merchant.GetAsync("/api/v1/theme/schedule");
         Assert.Equal(JsonValueKind.Null, cleared.GetProperty("scheduledAtUtc").ValueKind);
+    }
+
+    [Fact]
+    public async Task A_la_hora_programada_el_worker_publica_y_guarda_la_anterior()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "thw");
+        await merchant.ExpectOkAsync(HttpMethod.Post, "/api/v1/theme/publish", Config("1 1 1"));
+        await merchant.ExpectOkAsync(HttpMethod.Post, "/api/v1/theme/schedule",
+            new { config = Config("5 5 5"), atUtc = DateTime.UtcNow.AddDays(1) });
+
+        // Llega la hora.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Themes.Infrastructure.ThemesDbContext>();
+            await db.Themes.IgnoreQueryFilters().Where(t => t.TenantId == merchant.TenantId)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.ScheduledAtUtc, DateTime.UtcNow.AddMinutes(-1)));
+        }
+        await Workers.RunOnceAsync<Api.Workers.ThemeScheduleWorker>(_factory);
+
+        var published = await merchant.GetAsync("/api/v1/theme/");
+        Assert.Equal("5 5 5", published.GetProperty("colors").GetProperty("primary").GetString());
+        Assert.Equal(JsonValueKind.Null, (await merchant.GetAsync("/api/v1/theme/schedule")).GetProperty("scheduledAtUtc").ValueKind);
+        Assert.NotEmpty((await merchant.GetAsync("/api/v1/theme/history")).GetProperty("items").EnumerateArray());
     }
 }

@@ -74,6 +74,17 @@ public sealed class CatalogFlowTests
         Assert.Equal(imageIds[1], reordered.GetProperty("images")[0].GetProperty("id").GetGuid());
         await merchant.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/products/{id}/images/{imageIds[0]}");
 
+        // SVG (logos): se guarda saneado, sin scripts ni manejadores de eventos.
+        var svg = """<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)"><rect width="1" height="1"/></a><foreignObject><div/></foreignObject></svg>"""u8.ToArray();
+        await UploadAsync(merchant, svg, "image/svg+xml", "logo.svg");
+        var uploadedSvg = _factory.ExternalHttp.SentTo($"{ApiFactory.Storage}/tiendafy-media/").Last(r => r.Method == HttpMethod.Put).Body!;
+        Assert.Contains("<rect", uploadedSvg);
+        Assert.DoesNotContain("<script", uploadedSvg);
+        Assert.DoesNotContain("onload", uploadedSvg);
+        Assert.DoesNotContain("javascript:", uploadedSvg);
+        Assert.DoesNotContain("foreignObject", uploadedSvg);
+        Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, "no es svg"u8.ToArray(), "image/svg+xml", "x.svg")).StatusCode);
+
         // El storage rechaza lo que no es una imagen de verdad.
         Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, "no soy un png"u8.ToArray(), "image/png", "x.png")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await UploadRawAsync(merchant, TestImages.Png, "application/pdf", "x.pdf")).StatusCode);
