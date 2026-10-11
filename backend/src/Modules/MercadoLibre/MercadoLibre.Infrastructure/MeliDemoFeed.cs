@@ -1,6 +1,4 @@
-using MercadoLibre.Infrastructure;
-
-namespace Api.Meli;
+namespace MercadoLibre.Infrastructure;
 
 /// <summary>
 /// Respuestas de ejemplo para una conexión de Mercado Libre marcada como demo.

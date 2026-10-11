@@ -611,7 +611,7 @@ public static class StatsEndpoints
 
         var links = await meliDb.ItemLinks.AsNoTracking()
             .Where(l => l.TenantId == tid.Value).ToListAsync(ct);
-        var resolver = Api.Meli.MeliLinkResolver.From(links);
+        var resolver = MercadoLibre.Infrastructure.MeliLinkResolver.From(links);
         var variantIds = links.Select(l => l.VariantId).Distinct().ToList();
         var costByVariant = variantIds.Count == 0
             ? []

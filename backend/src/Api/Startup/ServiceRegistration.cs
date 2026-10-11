@@ -129,8 +129,7 @@ public static class ServiceRegistration
         services.AddScoped<DemoDataSeeder>();   // datos de ejemplo; solo se usa desde /dev
         services.AddScoped<Api.Orders.PaidOrderSideEffects>();
         services.AddScoped<Api.Orders.ManualOrderService>();
-        services.Configure<Api.Meli.MeliOptions>(configuration.GetSection(Api.Meli.MeliOptions.SectionName));
-        services.AddHttpClient<Api.Meli.MeliClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
         services.AddScoped<Api.Meli.MeliTokenService>();
         services.AddScoped<Api.Meli.MeliSyncService>();
         if (runPollingWorkers) services.AddHostedService<Api.Meli.MeliNotificationWorker>();

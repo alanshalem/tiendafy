@@ -1,4 +1,4 @@
-namespace Api.Meli;
+namespace MercadoLibre.Infrastructure;
 
 /// <summary>
 /// Config de la app de PLATAFORMA (Tiendafy) en Mercado Libre. NO es por

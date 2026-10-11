@@ -2,10 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedKernel.Common;
 
-namespace Api.Meli;
+namespace MercadoLibre.Infrastructure;
 
 /// <summary>Error controlado de la API de Mercado Libre, con el mensaje del server.</summary>
 public sealed class MeliException(string message, HttpStatusCode? status = null)
@@ -81,7 +82,7 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (payload is not null)
-            request.Content = new StringContent(JsonSerializer.Serialize(payload, ApiJson.Web), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonDefaults.Web), Encoding.UTF8, "application/json");
 
         using var response = await http.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);

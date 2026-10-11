@@ -1,6 +1,4 @@
-using MercadoLibre.Infrastructure;
-
-namespace Api.Meli;
+namespace MercadoLibre.Infrastructure;
 
 /// <summary>
 /// Resuelve "ítem vendido en ML" → variante local. La regla tiene un fallback

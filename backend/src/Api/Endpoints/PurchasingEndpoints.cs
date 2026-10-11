@@ -372,7 +372,7 @@ public static class PurchasingEndpoints
             var links = await meliDb.ItemLinks.AsNoTracking().ToListAsync(ct);
             if (links.Count > 0)
             {
-                var resolver = Api.Meli.MeliLinkResolver.From(links);
+                var resolver = MercadoLibre.Infrastructure.MeliLinkResolver.From(links);
                 var meliOrders = await meliDb.Orders.AsNoTracking()
                     .Where(o => o.Status == "paid" && o.DateCreatedUtc >= since)
                     .ToListAsync(ct);
