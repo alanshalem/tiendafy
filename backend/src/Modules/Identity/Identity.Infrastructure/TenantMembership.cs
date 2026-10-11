@@ -30,5 +30,17 @@ public sealed class TenantMembership
 
     public bool IsOwner => Role == RoleOwner;
 
-    private static string Normalize(string role) => role == RoleStaff ? RoleStaff : RoleOwner;
+    /// <summary>
+    /// El rol tal cual, en minúsculas, si es uno de los que existen. Antes
+    /// guardaba "staff" y convertía CUALQUIER otro en "owner": quedó de cuando
+    /// había dos roles, y con la matriz de seis cada vendedor, persona de
+    /// catálogo o de soporte que se sumaba al equipo entraba como dueño.
+    /// </summary>
+    private static string Normalize(string role)
+    {
+        var normalized = (role ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized == RoleStaff || RolePermissions.AssignableRoles.Contains(normalized)
+            ? normalized
+            : throw new ArgumentOutOfRangeException(nameof(role), role, "Rol inexistente.");
+    }
 }
