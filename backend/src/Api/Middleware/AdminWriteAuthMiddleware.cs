@@ -34,6 +34,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         // que además exige SettingsWrite por RequirePermission).
         "/api/v1/shipping/correo/quote",
         "/api/v1/shipping/zipnova/quote",
+        // Faltaba: Andreani se sumó después y su cotización le daba 401 al
+        // comprador, así que el checkout nunca la ofrecía.
+        "/api/v1/shipping/andreani/quote",
         // Baja de campañas: el destinatario no tiene sesión (el token firmado
         // es la autorización).
         "/api/v1/marketing/unsubscribe",
