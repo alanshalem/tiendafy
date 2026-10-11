@@ -31,8 +31,8 @@ param(
     # en vez del modo nativo con hot-reload. Ideal para demo/smoke/onboarding.
     [switch]$Docker,
     # Puerto del storefront. Se puede mover cuando otra app de la máquina ya
-    # usa el 3000 (Next escala solo y después nada sabe dónde quedó). Si lo
-    # cambiás, actualizá VITE_STOREFRONT_ORIGIN en admin/.env.local.
+    # usa el 3000 (Next escala solo y después nada sabe dónde quedó). El panel
+    # se entera solo: Sync-StorefrontOrigin le actualiza admin/.env.local.
     [int]$StorefrontPort = 3000
 )
 
@@ -76,6 +76,40 @@ function Show-Stores {
     }
     Write-Host '    (el dominio pelado muestra la landing de la plataforma,' -ForegroundColor DarkGray
     Write-Host '     salvo que una tienda lo reclame como dominio propio)' -ForegroundColor DarkGray
+}
+
+# ---- Que el panel sepa en qué puerto quedó el storefront ----
+# El admin arma los links a las tiendas y el preview del editor con la
+# plantilla de VITE_STOREFRONT_ORIGIN. Vivía en admin/.env.local y había que
+# acordarse de tocarla a mano: cuando el puerto se movía, el panel seguía
+# linkeando al viejo y el editor mostraba un recuadro roto, sin un error que
+# dijera por qué. El puerto lo decide este script, así que lo escribe él.
+function Sync-StorefrontOrigin([int]$port) {
+    $envFile = Join-Path $adminDir '.env.local'
+    $deseado = "http://{sub}.localhost:$port"
+
+    $lineas = if (Test-Path $envFile) { @(Get-Content $envFile) } else { @() }
+    $actual = ($lineas | Where-Object { $_ -match '^\s*VITE_STOREFRONT_ORIGIN\s*=' } |
+               Select-Object -First 1) -replace '^\s*VITE_STOREFRONT_ORIGIN\s*=\s*', ''
+
+    if ($actual -eq $deseado) { return }
+
+    # Si apunta a otro lado a propósito (un túnel, un dominio real), no se pisa.
+    if ($actual -and $actual -notmatch '^http://\{sub\}\.localhost(:\d+)?/?$') {
+        Warn "  VITE_STOREFRONT_ORIGIN apunta a $actual y el storefront va en :$port. No lo toco."
+        return
+    }
+
+    $nueva = "VITE_STOREFRONT_ORIGIN=$deseado"
+    $salida = if ($actual) {
+        $lineas | ForEach-Object {
+            if ($_ -match '^\s*VITE_STOREFRONT_ORIGIN\s*=') { $nueva } else { $_ }
+        }
+    } else {
+        @($lineas) + $nueva
+    }
+    Set-Content -Path $envFile -Value $salida -Encoding utf8
+    Write-Host "  admin/.env.local -> storefront en :$port" -ForegroundColor DarkGray
 }
 
 # ---- Mapa de puertos (única fuente de verdad para el script) ----
@@ -274,6 +308,8 @@ if ($BackendOnly) {
     Info "`n[4/4] Frontends omitidos (-BackendOnly)"
 } else {
     Info "`n[4/4] Frontends"
+    # Antes de levantar el admin: vite lee .env.local una sola vez, al arrancar.
+    Sync-StorefrontOrigin $PORTS.Storefront
     foreach ($f in @(
         @{ Name = 'Admin';      Dir = $adminDir; Port = $PORTS.Admin },
         @{ Name = 'Storefront'; Dir = $storeDir; Port = $PORTS.Storefront }
