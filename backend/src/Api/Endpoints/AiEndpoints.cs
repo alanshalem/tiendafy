@@ -22,9 +22,8 @@ public static class AiEndpoints
 
         // Respuesta sugerida para una pregunta prevente de Mercado Libre.
         ai.MapPost("/ml-answer", async (
-            AiMlAnswerRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
+            AiMlAnswerRequest request, AiClient client, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.OrdersFulfill) is { } denied) return denied;
             if (string.IsNullOrWhiteSpace(request.Question))
                 return Error.Validation("Ai.NoQuestion", "Falta la pregunta.").ToProblem();
 
@@ -36,13 +35,12 @@ public static class AiEndpoints
                 $"Publicación: {Text.Clip(request.ItemTitle ?? "(sin título)", 200)}\nPregunta del comprador: {Text.Clip(request.Question, 500)}",
                 300, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.OrdersFulfill);
 
         // Respuesta sugerida para el chat posventa (con el contexto del pedido).
         ai.MapPost("/support-reply", async (
-            AiSupportReplyRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
+            AiSupportReplyRequest request, AiClient client, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.SupportChat) is { } denied) return denied;
             if (string.IsNullOrWhiteSpace(request.Message))
                 return Error.Validation("Ai.NoMessage", "Falta el mensaje del cliente.").ToProblem();
 
@@ -57,13 +55,12 @@ public static class AiEndpoints
                 $"Mensaje del cliente: {Text.Clip(request.Message, 800)}{context}",
                 400, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.SupportChat);
 
         // Borrador (o mejora) de un post para redes sociales.
         ai.MapPost("/social-post", async (
-            AiSocialPostRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
+            AiSocialPostRequest request, AiClient client, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.Social) is { } denied) return denied;
             var brief = Text.Clip(request.Draft ?? request.ProductName ?? "", 1500);
             if (string.IsNullOrWhiteSpace(brief))
                 return Error.Validation("Ai.NoBrief", "Escribí un borrador o elegí un producto primero.").ToProblem();
@@ -78,13 +75,12 @@ public static class AiEndpoints
                     : $"Escribí un post para promocionar este producto: {brief}",
                 600, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.Social);
 
         // Descripción de producto para la tienda.
         ai.MapPost("/product-description", async (
-            AiProductDescriptionRequest request, HttpContext http, AiClient client, CancellationToken ct) =>
+            AiProductDescriptionRequest request, AiClient client, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             if (string.IsNullOrWhiteSpace(request.Name))
                 return Error.Validation("Ai.NoName", "Falta el nombre del producto.").ToProblem();
 
@@ -95,7 +91,7 @@ public static class AiEndpoints
                 $"Producto: {Text.Clip(request.Name, 200)}{(string.IsNullOrWhiteSpace(request.Notes) ? "" : $"\nDatos: {Text.Clip(request.Notes!, 800)}")}",
                 500, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.CatalogWrite);
 
         return group;
     }

@@ -147,10 +147,9 @@ public static partial class ProductEndpoints
         // Salud del catálogo: qué falta completar antes de que un producto pueda
         // venderse bien (foto, costo) y cuánto margen deja lo que sí está cargado.
         products.MapGet("/health", async (
-            HttpContext http, ITenantContext tenant,
+            ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
 
             var mine = catalogDb.Products.AsNoTracking().Where(p => p.TenantId == tenant.TenantId);
 
@@ -189,7 +188,7 @@ public static partial class ProductEndpoints
                 averageMarginPct = margins.Count > 0 ? Math.Round(margins.Average(), 1) : 0m,
                 lowMarginVariants = margins.Count(m => m < 15),
             });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.CatalogWrite).RequireTenantMembership();
 
         // Storefront: búsqueda con filtros, orden y paginado (estilo marketplace).
         products.MapGet("/search", async (

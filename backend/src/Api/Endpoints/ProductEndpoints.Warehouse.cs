@@ -24,11 +24,10 @@ public static partial class ProductEndpoints
 
         // ---- Kits (BOM liviano): componentes que se descuentan al vender ----
         products.MapGet("/kits", async (
-            HttpContext http, ITenantContext tenant,
+            ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var components = await catalogDb.KitComponents.AsNoTracking().ToListAsync(ct);
             var allIds = components.SelectMany(c => new[] { c.KitVariantId, c.ComponentVariantId }).Distinct().ToList();
             var names = allIds.Count == 0
@@ -55,14 +54,13 @@ public static partial class ProductEndpoints
                     }),
                 }),
             });
-        });
+        }).RequirePermission(Permission.CatalogWrite);
 
         products.MapPut("/variants/{variantId:guid}/kit", async (
-            Guid variantId, SetKitRequest request, HttpContext http, ITenantContext tenant,
+            Guid variantId, SetKitRequest request, ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var entries = request.Components ?? [];
             if (entries.Any(e => e.Quantity is < 1 or > 999))
                 return Error.Validation("Kit.InvalidQuantity", "Cantidades entre 1 y 999.").ToProblem();
@@ -95,11 +93,10 @@ public static partial class ProductEndpoints
         // Lo usa el depósito (buscar/ajustar/picking); permiso de inventario
         // explícito porque los GET del grupo son públicos.
         products.MapGet("/by-code/{code}", async (
-            string code, HttpContext http, ITenantContext tenant,
+            string code, ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
             Inventory.Core.Domain.IStockRepository stock, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.InventoryRead) is { } denied) return denied;
             var needle = code.Trim();
             if (needle.Length == 0) return Results.NotFound();
 
@@ -125,7 +122,7 @@ public static partial class ProductEndpoints
                 reserved = stockItem?.Reserved ?? 0,
                 location = stockItem?.Location,
             });
-        });
+        }).RequirePermission(Permission.InventoryRead);
 
         // ---- Etiquetas QR imprimibles (plancha A4) ----
         products.MapGet("/labels", async (
@@ -161,10 +158,9 @@ public static partial class ProductEndpoints
         // Asignar el código escaneado a una variante (flujo del Escáner:
         // "EAN desconocido → buscá por SKU → asignar").
         products.MapPut("/{id:guid}/variants/{variantId:guid}/barcode", async (
-            Guid id, Guid variantId, SetBarcodeRequest request, HttpContext http, ITenantContext tenant,
+            Guid id, Guid variantId, SetBarcodeRequest request, ITenantContext tenant,
             UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var result = await handler.SetVariantBarcodeAsync(tenant.TenantId, id, variantId, request.Barcode, ct);
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
@@ -173,11 +169,9 @@ public static partial class ProductEndpoints
         // cantidad. Sin esto, el costo del combo era un número a mano y la
         // rentabilidad de los kits dependía de que alguien hiciera la cuenta.
         products.MapGet("/kits/suggested-costs", async (
-            HttpContext http, ITenantContext tenant,
+            ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
-
             var components = await catalogDb.KitComponents.AsNoTracking().ToListAsync(ct);
             if (components.Count == 0) return Results.Ok(new { items = Array.Empty<object>() });
 
@@ -201,6 +195,6 @@ public static partial class ProductEndpoints
                 })
                 .ToList();
             return Results.Ok(new { items });
-        });
+        }).RequirePermission(Permission.CatalogWrite);
     }
 }

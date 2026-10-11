@@ -26,10 +26,9 @@ public static partial class ProductEndpoints
         // Llegó el contenedor con dólar nuevo: +X% a todo (o a una categoría)
         // con redondeo comercial, en un click — no variante por variante.
         products.MapPost("/reprice", async (
-            RepriceRequest request, HttpContext http, ITenantContext tenant,
+            RepriceRequest request, ITenantContext tenant,
             IProductRepository repository, UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var all = await ProductImportEndpointHelpers.LoadAllProductsAsync(repository, tenant.TenantId, ct);
             var targets = all
                 .Where(p => p.Status != ProductStatus.Archived)
@@ -51,9 +50,8 @@ public static partial class ProductEndpoints
         // Lectura y escritura exigen permiso de catálogo explícito (no ForWrites:
         // los GET del grupo son públicos para el storefront y este no puede serlo).
         products.MapGet("/{id:guid}/costs", async (
-            Guid id, HttpContext http, ITenantContext tenant, IProductRepository repository, CancellationToken ct) =>
+            Guid id, ITenantContext tenant, IProductRepository repository, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
             if (product is null) return Results.NotFound();
             return Results.Ok(new
@@ -68,15 +66,14 @@ public static partial class ProductEndpoints
                     currency = v.Price.Currency,
                 }),
             });
-        });
+        }).RequirePermission(Permission.CatalogWrite);
 
         // Bulk para la pantalla de Costos: los costos de una página entera de
         // productos en UN request (antes: un GET por producto visible).
         products.MapGet("/costs", async (
-            string? ids, HttpContext http, ITenantContext tenant,
+            string? ids, ITenantContext tenant,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var parsed = (ids ?? "")
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
@@ -93,13 +90,12 @@ public static partial class ProductEndpoints
             {
                 items = withCosts.SelectMany(p => p.Variants.Select(VariantCostDto)),
             });
-        });
+        }).RequirePermission(Permission.CatalogWrite);
 
         products.MapPut("/{id:guid}/costs", async (
-            Guid id, SetVariantCostsRequest request, HttpContext http, ITenantContext tenant,
+            Guid id, SetVariantCostsRequest request, ITenantContext tenant,
             UpdateProductHandler handler, CancellationToken ct) =>
         {
-            if (await AuthExtensions.CheckPermissionAsync(http, Permission.CatalogWrite) is { } denied) return denied;
             var costs = (request.Costs ?? []).Select(c => (c.VariantId, c.CostAmount)).ToList();
             var result = await handler.SetVariantCostsAsync(
                 new SetVariantCostsCommand(tenant.TenantId, id, costs, request.Currency ?? Money.DefaultCurrency), ct);
