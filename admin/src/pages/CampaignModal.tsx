@@ -539,8 +539,10 @@ function ProductFilterRow({
   const products = data?.items ?? [];
 
   // Los elegidos se resuelven por id: pueden no estar en la búsqueda actual.
+  // Se filtra por `selected` porque la respuesta puede ser la de la selección
+  // anterior mientras llega la nueva (ver useProductsByIds).
   const { data: chosenData } = useProductsByIds<ProductDto>(selected);
-  const chosen = chosenData?.items ?? [];
+  const chosen = (chosenData?.items ?? []).filter((p) => selected.includes(p.id));
 
   return (
     <div>

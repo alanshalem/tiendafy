@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { GripVertical, X, Plus } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { api } from '../lib/api';
+import { moveItem } from '../lib/arrays';
+import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
 import { Field, TextInput, Select, INPUT_BASE } from './theme-editor-inputs';
 
 interface PickProduct {
@@ -10,40 +11,64 @@ interface PickProduct {
   image: string | null;
 }
 
+/** Lo que devuelve /products: alcanza con el nombre y la primera foto. */
+interface ProductDto {
+  id: string;
+  name: string;
+  images: { url: string }[];
+}
+
+const toPick = (p: ProductDto): PickProduct => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null });
+
+/** Cuántos resultados se muestran por búsqueda: el panel lateral no da para más. */
+const MAX_RESULTS = 8;
+
 /**
  * Selector de productos para Destacados/Nuevos/Ofertas. Los resultados sólo
  * aparecen al buscar (no se listan todos). Los elegidos se reordenan por
  * drag-and-drop (el orden es el que se muestra en la tienda).
+ *
+ * Busca en la base, como los demás selectores del panel. Antes traía los
+ * primeros cien productos y filtraba en el navegador: en una tienda con miles
+ * —CKING tiene casi tres mil publicados— el producto ciento uno no se podía
+ * elegir, y uno elegido fuera de esos cien aparecía sin nombre.
  */
 export function ProductPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
-  const [all, setAll] = useState<PickProduct[] | null>(null);
   const [q, setQ] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
-  useEffect(() => {
-    api
-      .get<{ items: { id: string; name: string; images: { url: string }[] }[] }>('/api/v1/products?limit=100')
-      .then((r) => setAll(r.items.map((p) => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null }))))
-      .catch(() => setAll([]));
-  }, []);
-  const byId = (id: string) => all?.find((p) => p.id === id);
-  const add = (id: string) => {
-    if (!value.includes(id)) onChange([...value, id]);
+  // Lo recién agregado se conoce desde el resultado que se clickeó: así el
+  // chip tiene nombre antes de que vuelva la consulta por ids.
+  const [picked, setPicked] = useState<Record<string, PickProduct>>({});
+
+  const query = q.trim();
+  const search = useProductSearch<ProductDto>(query);
+  const chosen = useProductsByIds<ProductDto>(value);
+
+  const known = useMemo(() => {
+    const map = new Map<string, PickProduct>(Object.entries(picked));
+    for (const p of chosen.data?.items ?? []) map.set(p.id, toPick(p));
+    return map;
+  }, [picked, chosen.data]);
+
+  const byId = (id: string) => known.get(id);
+  const add = (p: PickProduct) => {
+    if (value.includes(p.id)) return;
+    setPicked((m) => ({ ...m, [p.id]: p }));
+    onChange([...value, p.id]);
   };
   const removeId = (id: string) => onChange(value.filter((x) => x !== id));
   const reorder = (fromId: string, toId: string) => {
-    if (fromId === toId) return;
     const from = value.indexOf(fromId);
     const to = value.indexOf(toId);
-    if (from < 0 || to < 0) return;
-    const next = [...value];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved!);
-    onChange(next);
+    if (from < 0 || to < 0 || from === to) return;
+    onChange(moveItem(value, from, to));
   };
 
-  const query = q.trim().toLowerCase();
   const results = query
-    ? (all ?? []).filter((p) => !value.includes(p.id) && p.name.toLowerCase().includes(query)).slice(0, 8)
+    ? (search.data?.items ?? [])
+        .filter((p) => !value.includes(p.id))
+        .slice(0, MAX_RESULTS)
+        .map(toPick)
     : [];
 
   return (
@@ -104,15 +129,15 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
       />
       {query && (
         <div className="mt-1 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-          {all === null && <p className="p-3 text-center text-xs text-fg-muted">Cargando…</p>}
-          {all !== null && results.length === 0 && (
+          {!search.data && <p className="p-3 text-center text-xs text-fg-muted">Cargando…</p>}
+          {search.data && results.length === 0 && (
             <p className="p-3 text-center text-xs text-fg-muted">Sin resultados.</p>
           )}
           {results.map((p) => (
             <button
               key={p.id}
               onClick={() => {
-                add(p.id);
+                add(p);
                 setQ('');
               }}
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-bg-muted"

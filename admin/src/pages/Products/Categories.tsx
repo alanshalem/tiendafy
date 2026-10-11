@@ -19,6 +19,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
 import { TABLE_CARD } from '../../lib/styles';
+import { moveItem } from '../../lib/arrays';
 
 interface CategoryDto {
   id: string;
@@ -135,11 +136,7 @@ export function CategoriesPage() {
     }
     const scope = scopeOf(target);
     const siblings = (scope === 'root' ? tree : (findNode(tree, scope)?.children ?? [])).map((n) => n.id);
-    const from = siblings.indexOf(dragId);
-    const to = siblings.indexOf(target.id);
-    const reordered = [...siblings];
-    reordered.splice(from, 1);
-    reordered.splice(to, 0, dragId);
+    const reordered = moveItem(siblings, siblings.indexOf(dragId), siblings.indexOf(target.id));
     setOrder((prev) => ({ ...prev, [scope]: reordered }));
     setDirty(true);
     setDragId(null);

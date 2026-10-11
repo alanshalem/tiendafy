@@ -6,6 +6,7 @@ import { useFlipList } from '../lib/useFlip';
 import { Field, Check, TextInput, TextArea, Select, BackHeader } from './theme-editor-inputs';
 import { ImageUploader, VideoUploader, MultiImageUploader } from './theme-editor-uploaders';
 import { InfoBarEditor, ProductPicker, type InfoItem } from './theme-editor-pickers';
+import { moveItem } from '../lib/arrays';
 
 /** Cast defensivo: la data del theme puede venir sin el array (drafts viejos). */
 const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -225,10 +226,7 @@ export function HomePanel({
       const from = t.sections.findIndex((s) => s.id === fromId);
       const to = t.sections.findIndex((s) => s.id === toId);
       if (from < 0 || to < 0 || from === to) return t;
-      const next = [...t.sections];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved!);
-      return { ...t, sections: next };
+      return { ...t, sections: moveItem(t.sections, from, to) };
     });
 
   const remove = (id: string) =>
