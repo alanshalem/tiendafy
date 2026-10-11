@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SECTIONS } from '@tiendafy/types';
+import { DEFAULT_SECTIONS, contrastRatio } from '@tiendafy/types';
 import { defaultTheme, mergeTheme, themeToStyle, colClass } from '../theme';
 import { defaultPrivacy, defaultTerms } from '../legal';
 
@@ -21,6 +21,24 @@ describe('themeToStyle', () => {
     const claro = themeToStyle(mergeTheme({ colors: { ...defaultTheme.colors, primary: '250 250 250' } }));
     const oscuro = themeToStyle(mergeTheme({ colors: { ...defaultTheme.colors, primary: '10 10 10' } }));
     expect(claro['--color-primary-fg']).not.toBe(oscuro['--color-primary-fg']);
+  });
+
+  it('con un primario de luminancia media elige el texto que de verdad se lee', () => {
+    // El naranja de marca de una importadora real: con blanco encima da 2.9:1
+    // —abajo del minimo de WCAG AA— y con el oscuro, 6.2:1. Antes se elegia
+    // blanco por un umbral de luminancia aproximado y el boton de comprar de
+    // esa tienda no se leia.
+    const naranja = themeToStyle(mergeTheme({ colors: { ...defaultTheme.colors, primary: '255 106 26' } }));
+    const fg = naranja['--color-primary-fg'];
+
+    expect(contrastRatio(fg, '255 106 26')).toBeGreaterThanOrEqual(4.5);
+    expect(fg).toBe('17 24 39');
+  });
+
+  it('sobre un primario oscuro sigue eligiendo blanco', () => {
+    const verde = themeToStyle(mergeTheme({ colors: { ...defaultTheme.colors, primary: '25 90 58' } }));
+    expect(verde['--color-primary-fg']).toBe('255 255 255');
+    expect(contrastRatio(verde['--color-primary-fg'], '25 90 58')).toBeGreaterThanOrEqual(4.5);
   });
 
   it('usa el acento solo si useAccent está activo', () => {

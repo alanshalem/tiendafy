@@ -6,14 +6,23 @@
  * y `lib/theme` (contrastFg) con la misma fórmula de luminancia.
  */
 
+const TEXTO_OSCURO = '17 24 39';
+const TEXTO_CLARO = '255 255 255';
+
 /**
- * Texto legible (oscuro o blanco) según la luminancia de un color de fondo "R G B".
- * Devuelve "17 24 39" (gris oscuro) sobre fondos claros, "255 255 255" (blanco) si no.
+ * Texto legible (oscuro o blanco) sobre un color de fondo "R G B": se queda con
+ * el que MÁS contrasta, medido con la fórmula de WCAG.
+ *
+ * Antes comparaba una luminancia aproximada contra un umbral fijo, y con los
+ * colores de luminancia media —naranjas, ámbar, teal, lima— elegía blanco
+ * cuando el oscuro contrastaba el doble. Un naranja de marca (#FF6A1A) daba
+ * blanco a 2.9:1, abajo del mínimo de 4.5:1 que pide WCAG AA, mientras que el
+ * oscuro llegaba a 6.2:1. El botón de comprar de esa tienda no se leía.
  */
 export function contrastText(rgbRaw: string): string {
-  const [r, g, b] = rgbRaw.trim().split(/\s+/).map(Number);
-  const lum = (0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0)) / 255;
-  return lum > 0.6 ? '17 24 39' : '255 255 255';
+  return contrastRatio(TEXTO_OSCURO, rgbRaw) >= contrastRatio(TEXTO_CLARO, rgbRaw)
+    ? TEXTO_OSCURO
+    : TEXTO_CLARO;
 }
 
 /** "R G B" → [r,g,b] con 0 por defecto para lo que no parsee. */
