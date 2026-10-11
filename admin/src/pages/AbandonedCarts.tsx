@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
-import { formatMoney, formatDateTime } from '../lib/format';
+import { formatMoney, formatDateTime, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
 import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
@@ -55,7 +55,7 @@ export function AbandonedCartsPage() {
       <div className="mb-5 grid gap-4 sm:grid-cols-2">
         <div className={SETTINGS_CARD}>
           <div className="text-sm font-semibold text-fg">Carritos abandonados</div>
-          <div className="mt-2 text-3xl font-bold text-fg">{(data?.count ?? 0).toLocaleString('es-AR')}</div>
+          <div className="mt-2 text-3xl font-bold text-fg">{formatNumber(data?.count ?? 0)}</div>
         </div>
         <div className={SETTINGS_CARD}>
           <div className="text-sm font-semibold text-fg">Valor recuperable</div>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button, Input, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
-import { formatDateTime } from '../../lib/format';
+import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
@@ -136,7 +136,7 @@ export function RedirectsPage() {
                       <span className="text-fg-subtle">Nunca</span>
                     ) : (
                       <span className="text-fg" title={r.lastHitAtUtc ? formatDateTime(r.lastHitAtUtc) : ''}>
-                        {r.hits.toLocaleString('es-AR')} {r.hits === 1 ? 'vez' : 'veces'}
+                        {formatNumber(r.hits)} {r.hits === 1 ? 'vez' : 'veces'}
                       </span>
                     )}
                   </td>

@@ -10,7 +10,7 @@ import {
 } from '../../components/stats/StatsToolbar';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
-import { formatDayShort } from '../../lib/format';
+import { formatDayShort, formatNumber } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -52,7 +52,7 @@ export function StatsVisitsPage() {
             <KpiCard
               title="Visitas"
               hint="Páginas vistas totales del período."
-              value={data.totalViews.toLocaleString('es-AR')}
+              value={formatNumber(data.totalViews)}
             >
               <Sparkline data={data.series.map((s) => s.views)} />
               <div className="mt-1">
@@ -62,7 +62,7 @@ export function StatsVisitsPage() {
             <KpiCard
               title="Visitantes únicos"
               hint="Personas distintas (por dispositivo) que entraron a la tienda."
-              value={data.uniqueVisitors.toLocaleString('es-AR')}
+              value={formatNumber(data.uniqueVisitors)}
             >
               <Sparkline data={data.series.map((s) => s.visitors)} />
               <div className="mt-1">
@@ -72,14 +72,14 @@ export function StatsVisitsPage() {
             <KpiCard
               title="Conversión"
               hint="De cada 100 visitantes distintos, cuántos terminaron comprando. Es la métrica que convierte «tuve mucha visita» en «sirvió»."
-              value={`${data.conversionPct.toLocaleString('es-AR')}%`}
+              value={`${formatNumber(data.conversionPct)}%`}
             >
               <Delta current={data.conversionPct} previous={data.previous.conversionPct} />
             </KpiCard>
             <KpiCard
               title="Ventas del período"
               hint="Ventas cobradas en el mismo período, para poner las visitas en contexto."
-              value={data.orders.toLocaleString('es-AR')}
+              value={formatNumber(data.orders)}
             >
               <Delta current={data.orders} previous={data.previous.orders} />
             </KpiCard>
@@ -106,7 +106,7 @@ export function StatsVisitsPage() {
               rows={data.topSources.map((src) => ({
                 label: src.source,
                 value: src.views,
-                display: src.views.toLocaleString('es-AR'),
+                display: formatNumber(src.views),
               }))}
               emptyLabel="Sin visitas en el período."
             />
@@ -120,7 +120,7 @@ export function StatsVisitsPage() {
               rows={data.topPaths.map((p) => ({
                 label: p.path,
                 value: p.views,
-                display: p.views.toLocaleString('es-AR'),
+                display: formatNumber(p.views),
               }))}
               emptyLabel="Todavía no hay visitas registradas."
             />

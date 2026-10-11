@@ -6,7 +6,7 @@ import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiend
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatNumber } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
@@ -135,7 +135,7 @@ export function CostsPage() {
           <span>
             Mostrando solo los productos con alguna variante{' '}
             <span className="font-medium text-fg">sin costo cargado</span>
-            {data && ` · ${data.total.toLocaleString('es-AR')}`}
+            {data && ` · ${formatNumber(data.total)}`}
           </span>
           <button
             type="button"
@@ -166,13 +166,13 @@ export function CostsPage() {
             },
             {
               label: 'Margen bajo (< 15 %)',
-              value: health.lowMarginVariants.toLocaleString('es-AR'),
+              value: formatNumber(health.lowMarginVariants),
               hint: 'Variantes donde el costo se come casi todo el precio. Candidatas a repreciar.',
               tone: health.lowMarginVariants > 0 ? 'danger' : 'success',
             },
             {
               label: 'Falta cargar',
-              value: health.variantsWithoutCost.toLocaleString('es-AR'),
+              value: formatNumber(health.variantsWithoutCost),
               hint: 'Variantes sin costo. Cargalas acá o con la columna «Costo» del CSV.',
               onClick: () => {
                 setSearchParams(onlyMissing ? {} : { sinCosto: '1' });

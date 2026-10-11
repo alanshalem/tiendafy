@@ -8,7 +8,7 @@ import { useVariantStock } from './queries';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatNumber } from '../../lib/format';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
@@ -164,8 +164,8 @@ export function InventoryPage() {
           items={[
             {
               label: 'Unidades en depósito',
-              value: summary.units.toLocaleString('es-AR'),
-              hint: `Suma del disponible de las ${summary.variants.toLocaleString('es-AR')} variantes del catálogo. No incluye lo reservado por checkouts en curso (${summary.reserved}).`,
+              value: formatNumber(summary.units),
+              hint: `Suma del disponible de las ${formatNumber(summary.variants)} variantes del catálogo. No incluye lo reservado por checkouts en curso (${summary.reserved}).`,
             },
             {
               label: 'Valorizado a costo',
@@ -180,7 +180,7 @@ export function InventoryPage() {
             },
             {
               label: 'Sin stock',
-              value: summary.outOfStock.toLocaleString('es-AR'),
+              value: formatNumber(summary.outOfStock),
               hint: 'Variantes en cero: siguen publicadas pero no se pueden vender. Tocá para ver los productos que las tienen.',
               tone: summary.outOfStock > 0 ? 'danger' : 'success',
               onClick: () => toggleStock('out'),
@@ -188,7 +188,7 @@ export function InventoryPage() {
             },
             {
               label: `Quedan ${LOW_STOCK} o menos`,
-              value: summary.lowStock.toLocaleString('es-AR'),
+              value: formatNumber(summary.lowStock),
               hint: 'Variantes por agotarse: son las candidatas a la próxima orden de compra. Tocá para ver los productos que las tienen.',
               tone: summary.lowStock > 0 ? 'warning' : 'default',
               onClick: () => toggleStock('low'),
@@ -202,8 +202,7 @@ export function InventoryPage() {
         <div className="flex items-center gap-2 text-sm text-fg-muted">
           <span>
             Mostrando solo <span className="font-medium text-fg">{STOCK_LABEL[stockFilter]}</span>
-            {data &&
-              ` · ${data.total.toLocaleString('es-AR')} ${data.total === 1 ? 'producto' : 'productos'}`}
+            {data && ` · ${formatNumber(data.total)} ${data.total === 1 ? 'producto' : 'productos'}`}
           </span>
           <button
             type="button"

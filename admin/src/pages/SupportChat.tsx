@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
+import { formatNumber } from '../lib/format';
 
 interface Conversation {
   id: string;
@@ -196,7 +197,7 @@ export function SupportChatPage() {
             items={[
               {
                 label: 'Esperando respuesta',
-                value: waiting.toLocaleString('es-AR'),
+                value: formatNumber(waiting),
                 hint: 'Conversaciones con mensajes del cliente sin leer. Es la cola real de trabajo.',
                 tone: waiting > 0 ? 'danger' : 'success',
                 onClick: () => toggleInbox('waiting'),
@@ -204,14 +205,14 @@ export function SupportChatPage() {
               },
               {
                 label: 'Abiertas',
-                value: openCount.toLocaleString('es-AR'),
+                value: formatNumber(openCount),
                 hint: 'Consultas todavía sin cerrar, hayas respondido o no.',
                 onClick: () => toggleInbox('open'),
                 active: inbox === 'open',
               },
               {
                 label: 'Total de consultas',
-                value: convs.length.toLocaleString('es-AR'),
+                value: formatNumber(convs.length),
                 onClick: inbox === 'all' ? undefined : () => setInbox('all'),
               },
             ]}

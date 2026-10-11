@@ -12,7 +12,7 @@ import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, DonutChart, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatDayShort, formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
 import { orderStatusLabel } from '../../lib/orderStatus';
 
 interface Sales {
@@ -59,7 +59,7 @@ export function StatsSalesPage() {
             <KpiCard
               title="Ventas pagadas"
               hint="Pedidos efectivamente cobrados: los cancelados no cuentan."
-              value={data.orders.toLocaleString('es-AR')}
+              value={formatNumber(data.orders)}
             />
             <KpiCard
               title="Ticket promedio"
@@ -69,7 +69,7 @@ export function StatsSalesPage() {
             <KpiCard
               title="Clientes nuevos"
               hint="Compradores que hicieron su primera compra en el período."
-              value={data.newCustomers.toLocaleString('es-AR')}
+              value={formatNumber(data.newCustomers)}
             />
           </div>
 

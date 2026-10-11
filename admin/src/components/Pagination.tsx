@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn, buildPageWindow } from '@tiendafy/ui';
+import { formatNumber } from '../lib/format';
 
 /**
  * Paginado client-side de una lista ya filtrada (antes copiado entre Costos e
@@ -93,5 +94,5 @@ export function pageRangeLabel(page: number, pageSize: number, total: number, no
   const first = (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
   const range = first === last ? `${first}` : `${first}–${last}`;
-  return `${range} de ${total.toLocaleString('es-AR')} ${noun}`;
+  return `${range} de ${formatNumber(total)} ${noun}`;
 }

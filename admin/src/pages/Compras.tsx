@@ -27,7 +27,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
@@ -168,26 +168,26 @@ function ComprasList({
           items={[
             {
               label: 'Órdenes abiertas',
-              value: summary.open.toLocaleString('es-AR'),
-              hint: `Todo lo que todavía no se recibió ni se canceló, de ${summary.total.toLocaleString('es-AR')} órdenes en total.`,
+              value: formatNumber(summary.open),
+              hint: `Todo lo que todavía no se recibió ni se canceló, de ${formatNumber(summary.total)} órdenes en total.`,
               onClick: () => toggleGroup('open'),
               active: group === 'open',
             },
             {
               label: 'En camino',
-              value: summary.inTransit.toLocaleString('es-AR'),
+              value: formatNumber(summary.inTransit),
               hint: 'Órdenes en tránsito o en aduana: mercadería embarcada que aún no entró al depósito.',
               onClick: () => toggleGroup('inTransit'),
               active: group === 'inTransit',
             },
             {
               label: 'Plata comprometida',
-              value: `${summary.currency} ${summary.committedFob.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`,
+              value: `${summary.currency} ${formatNumber(summary.committedFob, { maximumFractionDigits: 0 })}`,
               hint: 'FOB de las órdenes abiertas: lo pactado con proveedores por mercadería que todavía no llegó. No incluye flete ni impuestos.',
             },
             {
               label: 'Recibidas sin factura',
-              value: summary.withoutInvoice.toLocaleString('es-AR'),
+              value: formatNumber(summary.withoutInvoice),
               hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA.',
               tone: summary.withoutInvoice > 0 ? 'warning' : 'default',
               onClick: () => toggleGroup('invoiceMissing'),
@@ -279,7 +279,7 @@ function ComprasList({
                       </Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                      {po.currency} {po.totalFob.toLocaleString('es-AR')}
+                      {po.currency} {formatNumber(po.totalFob)}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
                     <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
@@ -633,7 +633,7 @@ function PoEditor({
 
           {po && (
             <p className="text-xs text-fg-muted">
-              FOB {po.currency} {po.totalFob.toLocaleString('es-AR')} · Gastos{' '}
+              FOB {po.currency} {formatNumber(po.totalFob)} · Gastos{' '}
               {formatMoney(Math.round(po.totalExpensesArs * 100))} · El «landed» por unidad ya prorratea los
               gastos del embarque por valor.
             </p>

@@ -11,7 +11,7 @@ import { ChartCard } from '../../components/charts';
 import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatDayShort, formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 
 interface Overview {
@@ -35,7 +35,7 @@ interface Overview {
   topProducts: { product: string; units: number; revenue: number }[];
 }
 
-const fmt = (n: number) => n.toLocaleString('es-AR');
+const fmt = (n: number) => formatNumber(n);
 
 const SOURCE_LABEL: Record<string, string> = {
   directo: 'Directo / sin origen',

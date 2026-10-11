@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, Loader2, Plus, Search, Send, X, XCircle } from 'lucide-react';
 import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
@@ -218,9 +218,9 @@ export function CampaignModal({
     const ok = await confirm({
       title: schedule ? 'Programar campaña' : 'Enviar campaña',
       message: schedule
-        ? `"${subject}" se va a enviar el ${when!.toLocaleString('es-AR')} a la audiencia que haya en ese momento (hoy: ${count.toLocaleString('es-AR')}).`
-        : `Se va a enviar "${subject}" a ${count.toLocaleString('es-AR')} destinatario${count === 1 ? '' : 's'} (${(AUDIENCE_LABEL[audience] ?? audience).toLowerCase()}). Una vez enviada no se puede deshacer.`,
-      confirmLabel: schedule ? 'Programar' : `Enviar a ${count.toLocaleString('es-AR')}`,
+        ? `"${subject}" se va a enviar el ${when!.toLocaleString('es-AR')} a la audiencia que haya en ese momento (hoy: ${formatNumber(count)}).`
+        : `Se va a enviar "${subject}" a ${formatNumber(count)} destinatario${count === 1 ? '' : 's'} (${(AUDIENCE_LABEL[audience] ?? audience).toLowerCase()}). Una vez enviada no se puede deshacer.`,
+      confirmLabel: schedule ? 'Programar' : `Enviar a ${formatNumber(count)}`,
     });
     if (!ok) return;
     try {
@@ -503,7 +503,7 @@ function AudienceBuilder(props: {
       <p className="mt-2 text-xs font-medium text-fg-subtle">
         {audienceCount === null
           ? 'Contando destinatarios…'
-          : `${audienceCount.toLocaleString('es-AR')} destinatario${audienceCount === 1 ? '' : 's'} (sin contar dados de baja y rebotados)`}
+          : `${formatNumber(audienceCount)} destinatario${audienceCount === 1 ? '' : 's'} (sin contar dados de baja y rebotados)`}
       </p>
 
       {pickerOpen && (

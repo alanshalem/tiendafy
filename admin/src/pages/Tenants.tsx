@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import {
   Badge,
   Button,
@@ -205,7 +205,7 @@ export function TenantsPage() {
         if (!m) return <span className="text-fg-subtle">—</span>;
         return (
           <span className={m.publishedProducts === 0 ? 'text-warning' : 'tabular-nums text-fg'}>
-            {m.publishedProducts === 0 ? 'Sin catálogo' : m.publishedProducts.toLocaleString('es-AR')}
+            {m.publishedProducts === 0 ? 'Sin catálogo' : formatNumber(m.publishedProducts)}
           </span>
         );
       },
@@ -279,7 +279,7 @@ export function TenantsPage() {
         items={[
           {
             label: 'Tiendas activas',
-            value: activeStores.toLocaleString('es-AR'),
+            value: formatNumber(activeStores),
             hint: 'Tiendas publicadas y visibles. Las archivadas no cuentan.',
           },
           {
@@ -289,7 +289,7 @@ export function TenantsPage() {
           },
           {
             label: 'Ventas del grupo',
-            value: all.reduce((sum, m) => sum + m.orders, 0).toLocaleString('es-AR'),
+            value: formatNumber(all.reduce((sum, m) => sum + m.orders, 0)),
           },
           {
             label: 'Tiendas que vendieron',

@@ -12,7 +12,7 @@ import { ChartCard } from '../../components/charts';
 import { RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 
 interface TopProducts {
@@ -25,7 +25,7 @@ interface TopProducts {
   idleSample: string[];
 }
 
-const fmt = (n: number) => n.toLocaleString('es-AR');
+const fmt = (n: number) => formatNumber(n);
 
 /**
  * Qué se vende y qué no. La pantalla mostraba una sola tabla de top por

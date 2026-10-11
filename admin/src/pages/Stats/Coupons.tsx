@@ -13,7 +13,7 @@ import { Delta, RankBars } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
@@ -92,14 +92,14 @@ export function StatsCouponsPage() {
         <KpiCard
           title="Usos"
           hint="Veces que se aplicó un cupón en una venta del período."
-          value={(data?.totalUses ?? 0).toLocaleString('es-AR')}
+          value={formatNumber(data?.totalUses ?? 0)}
         >
           <Delta current={data?.totalUses ?? 0} previous={data?.previous.totalUses ?? 0} />
         </KpiCard>
         <KpiCard
           title="Cupones activos"
           hint="Vigentes hoy: dentro de fecha y con usos disponibles, sobre el total creado."
-          value={`${(data?.activeCoupons ?? 0).toLocaleString('es-AR')} de ${(data?.totalCoupons ?? 0).toLocaleString('es-AR')}`}
+          value={`${formatNumber(data?.activeCoupons ?? 0)} de ${formatNumber(data?.totalCoupons ?? 0)}`}
         />
       </div>
 

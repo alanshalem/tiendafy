@@ -11,6 +11,15 @@ export function formatMoney(amountInMinorUnits: number, currency?: string): stri
   }).format(amountInMinorUnits / 100);
 }
 
+/**
+ * Número (es-AR): `1234567` → "1.234.567". Centraliza el locale como las de al
+ * lado; antes la misma decisión estaba repetida ochenta veces en el panel, una
+ * por cada contador. `opts` para variar el formato.
+ */
+export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string {
+  return n.toLocaleString('es-AR', opts);
+}
+
 /** Fecha (es-AR). Centraliza el locale; `opts` para variar el formato. */
 export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): string {
   return new Date(iso).toLocaleDateString('es-AR', opts);

@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { CalendarioTab } from './redes-calendario';
 import { PublicacionesTab } from './redes-publicaciones';
 import { CuentasTab } from './redes-cuentas';
@@ -126,17 +126,17 @@ export function RedesPage() {
             items={[
               {
                 label: 'Programados',
-                value: scheduled.toLocaleString('es-AR'),
+                value: formatNumber(scheduled),
                 hint: 'Posts de este mes esperando su turno de publicación.',
               },
               {
                 label: 'Publicados',
-                value: published.toLocaleString('es-AR'),
+                value: formatNumber(published),
                 hint: 'Posts que ya salieron en al menos una red.',
               },
               {
                 label: 'Fallidos',
-                value: failed.toLocaleString('es-AR'),
+                value: formatNumber(failed),
                 hint: 'No se pudieron publicar (token vencido, red caída). Revisá el detalle del post.',
                 tone: failed > 0 ? 'danger' : 'success',
               },

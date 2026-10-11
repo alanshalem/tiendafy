@@ -3,6 +3,7 @@ import { Mail, MessageCircle } from 'lucide-react';
 import { Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
+import { formatNumber } from '../lib/format';
 
 interface ChannelUsage {
   month: number;
@@ -45,19 +46,19 @@ export function NotificationUsage({ channel }: { channel: 'email' | 'whatsapp' }
           <Icon className="h-4 w-4 text-fg-muted" /> Uso del mes
         </div>
         <div>
-          <div className="text-2xl font-bold tabular-nums text-fg">{u.month.toLocaleString('es-AR')}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg">{formatNumber(u.month)}</div>
           <div className="text-xs text-fg-subtle">enviados este mes</div>
         </div>
         <div>
           <div className="text-2xl font-bold tabular-nums text-fg">
             {u.estimatedMonthUsd < 0.01 && u.month > 0
               ? '< US$ 0,01'
-              : `US$ ${u.estimatedMonthUsd.toLocaleString('es-AR')}`}
+              : `US$ ${formatNumber(u.estimatedMonthUsd)}`}
           </div>
           <div className="text-xs text-fg-subtle">costo estimado del mes</div>
         </div>
         <div>
-          <div className="text-2xl font-bold tabular-nums text-fg">{u.total.toLocaleString('es-AR')}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg">{formatNumber(u.total)}</div>
           <div className="text-xs text-fg-subtle">total histórico</div>
         </div>
       </div>

@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { ApiRequestError, errMsg } from '../lib/api';
 
 describe('formato compartido', () => {
   it('formatMoney convierte unidades menores a pesos es-AR', () => {
     expect(formatMoney(129900)).toContain('1.299');
     expect(formatMoney(0)).toBeTruthy();
+  });
+
+  it('formatNumber agrupa miles al estilo argentino', () => {
+    expect(formatNumber(1234567)).toBe('1.234.567');
+    expect(formatNumber(0)).toBe('0');
+    expect(formatNumber(1234.5, { maximumFractionDigits: 0 })).toBe('1.235');
+  });
+
+  it('formatNumber da exactamente lo que daba toLocaleString(es-AR)', () => {
+    // Reemplazó ochenta llamadas sueltas: la salida tiene que ser idéntica.
+    for (const n of [0, 7, 999, 1000, 54321, 1234567.89, -42]) {
+      expect(formatNumber(n)).toBe(n.toLocaleString('es-AR'));
+    }
   });
 
   it('formatDate produce fecha legible', () => {

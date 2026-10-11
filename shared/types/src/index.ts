@@ -30,7 +30,7 @@ export type {
   ThemeConfig,
 } from './theme';
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS } from './theme';
-export { formatMoney, formatDate, formatDateTime } from './format';
+export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText, contrastRatio } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';

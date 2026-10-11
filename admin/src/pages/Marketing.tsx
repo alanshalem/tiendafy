@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
 import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { NotificationUsage } from '../components/NotificationUsage';
@@ -290,7 +290,7 @@ function DetailModal({ campaignId, onClose }: { campaignId: string; onClose: () 
             <Stat label="Bajas de esta campaña" value={`${data.stats.unsubs}`} sub="" />
             <Stat
               label="Costo estimado"
-              value={`US$ ${data.stats.estimatedCostUsd.toLocaleString('es-AR')}`}
+              value={`US$ ${formatNumber(data.stats.estimatedCostUsd)}`}
               sub="tarifa de referencia Resend"
             />
           </div>

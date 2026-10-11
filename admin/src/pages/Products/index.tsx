@@ -17,6 +17,7 @@ import { type Category } from './types';
 import { ProductRows } from './ProductRows';
 import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR } from '../../lib/styles';
 import { ListStats } from '../../components/stats/ListStats';
+import { formatNumber } from '../../lib/format';
 
 export interface VariantDto {
   id: string;
@@ -264,14 +265,14 @@ export function ProductsPage() {
           items={[
             {
               label: 'Publicados',
-              value: health.published.toLocaleString('es-AR'),
-              hint: `De ${health.total.toLocaleString('es-AR')} productos cargados. Solo los publicados se ven en la tienda.`,
+              value: formatNumber(health.published),
+              hint: `De ${formatNumber(health.total)} productos cargados. Solo los publicados se ven en la tienda.`,
               onClick: () => toggleFilter('status', 'active'),
               active: filters.status === 'active',
             },
             {
               label: 'En borrador',
-              value: health.draft.toLocaleString('es-AR'),
+              value: formatNumber(health.draft),
               hint: 'Cargados pero invisibles para el público. Publicalos cuando estén listos.',
               tone: health.draft > 0 ? 'warning' : 'default',
               onClick: () => toggleFilter('status', 'draft'),
@@ -279,7 +280,7 @@ export function ProductsPage() {
             },
             {
               label: 'Sin foto',
-              value: health.withoutImage.toLocaleString('es-AR'),
+              value: formatNumber(health.withoutImage),
               hint: 'Un producto sin foto casi no se vende. Es lo primero que conviene completar.',
               tone: health.withoutImage > 0 ? 'danger' : 'success',
               onClick: () => toggleFilter('missing', 'image'),
@@ -289,7 +290,7 @@ export function ProductsPage() {
               // El costo no se carga desde acá: esta métrica lleva a la pantalla
               // donde sí se puede hacer algo con ella, ya filtrada.
               label: 'Sin costo cargado',
-              value: health.variantsWithoutCost.toLocaleString('es-AR'),
+              value: formatNumber(health.variantsWithoutCost),
               hint: `Variantes sin costo: quedan afuera del cálculo de rentabilidad. Van ${health.variantsWithCost} de ${health.variants}. Tocá para cargarlos.`,
               tone: health.variantsWithoutCost > 0 ? 'warning' : 'success',
               onClick: () => navigate('/productos/costos?sinCosto=1'),
@@ -303,7 +304,7 @@ export function ProductsPage() {
           <span>
             Mostrando solo{' '}
             <span className="font-medium text-fg">{filterChips.map((c) => c.label).join(' · ')}</span> ·{' '}
-            {total.toLocaleString('es-AR')} {total === 1 ? 'producto' : 'productos'}
+            {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
           </span>
           {filterChips.map((chip) => (
             <button
@@ -377,7 +378,7 @@ export function ProductsPage() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm text-fg-muted">
-              {total.toLocaleString('es-AR')} {total === 1 ? 'producto' : 'productos'}
+              {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
             </div>
             {total > 0 && (
               <button

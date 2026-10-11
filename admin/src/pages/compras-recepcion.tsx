@@ -5,7 +5,7 @@ import { Loader2, Package } from 'lucide-react';
 import { Button, FormField, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { CameraBox, useScanner } from './Products/Scanner';
 import type { PoDetail } from './compras-tipos';
@@ -122,7 +122,7 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
                 <span
                   className={`shrink-0 tabular-nums font-semibold ${m.marginPct < 0 ? 'text-danger' : 'text-warning'}`}
                 >
-                  {m.marginPct.toLocaleString('es-AR')}%
+                  {formatNumber(m.marginPct)}%
                 </span>
               </li>
             ))}

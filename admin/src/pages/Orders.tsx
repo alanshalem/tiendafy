@@ -7,7 +7,7 @@ import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { formatDate, formatDateTime, formatMoney } from '../lib/format';
+import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { HelpLink } from '../components/HelpLink';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
@@ -247,7 +247,7 @@ export function OrdersPage() {
               },
               {
                 label: 'Ventas cobradas',
-                value: stats.orders.toLocaleString('es-AR'),
+                value: formatNumber(stats.orders),
                 hint: `Ventas con el pago acreditado en los últimos ${STATS_DAYS} días.`,
               },
               {
@@ -257,7 +257,7 @@ export function OrdersPage() {
               },
               {
                 label: 'Por despachar',
-                value: (pending?.total ?? 0).toLocaleString('es-AR'),
+                value: formatNumber(pending?.total ?? 0),
                 hint: 'Ventas cobradas que todavía no se marcaron como enviadas. Es la cola del depósito, de toda la historia. Tocá para verlas.',
                 tone: (pending?.total ?? 0) > 0 ? 'warning' : 'success',
                 onClick: () => {

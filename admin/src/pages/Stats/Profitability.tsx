@@ -15,7 +15,7 @@ import { BarChart, Delta } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatDayShort, formatMoney } from '../../lib/format';
+import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
@@ -148,7 +148,7 @@ export function StatsProfitabilityPage() {
                 <KpiCard
                   title="Margen"
                   hint="Ganancia ÷ ventas, contando solo las órdenes con costo cargado."
-                  value={`${data.marginPct.toLocaleString('es-AR')}%`}
+                  value={`${formatNumber(data.marginPct)}%`}
                 >
                   <Delta current={data.marginPct} previous={data.previous.marginPct} />
                 </KpiCard>
@@ -234,7 +234,7 @@ export function StatsProfitabilityPage() {
                             <td
                               className={`py-2 text-right tabular-nums ${p.marginPct < 15 ? 'text-danger' : 'text-fg'}`}
                             >
-                              {p.marginPct.toLocaleString('es-AR')}%
+                              {formatNumber(p.marginPct)}%
                             </td>
                           </tr>
                         ))}

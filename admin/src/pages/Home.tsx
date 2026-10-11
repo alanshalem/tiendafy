@@ -5,7 +5,7 @@ import { Badge, Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { canAny, usePermissions } from '../context/PermissionsContext';
 import { api } from '../lib/api';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
@@ -122,7 +122,7 @@ export function HomePage() {
         <Card>
           <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Productos</div>
           <div className="mt-1 text-2xl font-bold text-fg">
-            {overview ? overview.products.total.toLocaleString('es-AR') : '—'}
+            {overview ? formatNumber(overview.products.total) : '—'}
           </div>
           <div className="mt-1 text-xs text-fg-subtle">
             {overview

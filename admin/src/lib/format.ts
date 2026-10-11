@@ -1,5 +1,5 @@
-/** Formato de plata: re-export del único `formatMoney` compartido (@tiendafy/types). */
-export { formatMoney, formatDate, formatDateTime } from '@tiendafy/types';
+/** Formatos compartidos (@tiendafy/types): plata, números y fechas, con el locale en un solo lugar. */
+export { formatMoney, formatNumber, formatDate, formatDateTime } from '@tiendafy/types';
 
 /**
  * "12-ago" para los ejes de los gráficos. Tolera las dos formas en que los

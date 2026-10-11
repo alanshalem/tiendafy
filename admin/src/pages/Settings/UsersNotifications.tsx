@@ -7,7 +7,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { usePermissions } from '../../context/PermissionsContext';
 import { useAuth } from '../../context/AuthContext';
 import { SettingsHeader } from './SettingsLayout';
-import { formatDate } from '../../lib/format';
+import { formatDate, formatNumber } from '../../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
@@ -207,24 +207,24 @@ export function UsersNotificationsPage() {
               items={[
                 {
                   label: 'Personas con acceso',
-                  value: total.toLocaleString('es-AR'),
+                  value: formatNumber(total),
                   hint: 'Cuánta gente puede entrar al panel de esta tienda.',
                 },
                 {
                   label: 'Dueños',
-                  value: owners.length.toLocaleString('es-AR'),
+                  value: formatNumber(owners.length),
                   hint: 'Control total: pueden cambiar cualquier cosa, incluido borrar la tienda.',
                   tone: owners.length === 1 ? 'warning' : 'default',
                 },
                 {
                   label: 'Pueden devolver plata',
-                  value: canRefund.length.toLocaleString('es-AR'),
+                  value: formatNumber(canRefund.length),
                   hint: 'Un reembolso mueve dinero real y no se puede deshacer.',
                   tone: canRefund.length > 0 ? 'warning' : 'default',
                 },
                 {
                   label: 'Pueden invitar gente',
-                  value: canInvite.length.toLocaleString('es-AR'),
+                  value: formatNumber(canInvite.length),
                   hint: 'Quien puede sumar gente al equipo puede darle accesos a alguien más.',
                 },
               ]}

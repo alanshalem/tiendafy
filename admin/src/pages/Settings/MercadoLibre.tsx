@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
-import { formatDateTime } from '../../lib/format';
+import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
 import { ListStats } from '../../components/stats/ListStats';
@@ -262,13 +262,13 @@ export function MeliSettingsPage() {
             items={[
               {
                 label: 'Publicaciones vinculadas',
-                value: c.linkedItems.toLocaleString('es-AR'),
+                value: formatNumber(c.linkedItems),
                 hint: 'Publicaciones de Mercado Libre atadas a una variante de tu catálogo. Es lo único que la sincronización de stock y precios puede tocar.',
                 tone: c.linkedItems === 0 ? 'warning' : 'default',
               },
               {
                 label: 'Ventas importadas',
-                value: c.ordersImported.toLocaleString('es-AR'),
+                value: formatNumber(c.ordersImported),
                 hint: 'Ventas de Mercado Libre que ya están en el panel.',
               },
               {

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { ChartCard } from '../../components/charts';
 import { BarChart, Delta } from '../../components/charts/viz';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatNumber } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -34,17 +34,17 @@ export function StatsRealTimePage() {
         <KpiCard
           title="Visitantes activos"
           hint="Personas navegando tu tienda en los últimos 5 minutos."
-          value={(data?.activeVisitors ?? 0).toLocaleString('es-AR')}
+          value={formatNumber(data?.activeVisitors ?? 0)}
         />
         <KpiCard
           title="Vistas (5 min)"
           hint="Páginas vistas en los últimos 5 minutos."
-          value={(data?.views ?? 0).toLocaleString('es-AR')}
+          value={formatNumber(data?.views ?? 0)}
         />
         <KpiCard
           title="Ventas de hoy"
           hint="Ventas cobradas desde las 00:00, comparadas con las que llevabas ayer a esta misma hora."
-          value={(data?.today.orders ?? 0).toLocaleString('es-AR')}
+          value={formatNumber(data?.today.orders ?? 0)}
         >
           <Delta current={data?.today.orders ?? 0} previous={data?.yesterdaySoFar.orders ?? 0} />
         </KpiCard>

@@ -3,6 +3,7 @@ import { Truck } from 'lucide-react';
 import { Button, FormField, Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
+import { formatNumber } from '../../lib/format';
 
 interface AndreaniConfig {
   configured: boolean;
@@ -342,7 +343,7 @@ function ConfigModal({
           </div>
 
           <p className="text-xs text-fg-subtle">
-            Volumen por unidad: {volume.toLocaleString('es-AR')} cm³
+            Volumen por unidad: {formatNumber(volume)} cm³
             {volume > 999999 && (
               <span className="ml-1 font-medium text-danger">
                 — supera el máximo que acepta Andreani (aprox. 1 m³).

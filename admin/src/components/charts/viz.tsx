@@ -9,6 +9,7 @@
  */
 import { useId } from 'react';
 import { cn } from '@tiendafy/ui';
+import { formatNumber } from '../../lib/format';
 
 const PRIMARY = 'rgb(var(--color-primary))';
 
@@ -30,7 +31,7 @@ export interface BarPoint {
 export function BarChart({
   data,
   height = 160,
-  format = (v) => v.toLocaleString('es-AR'),
+  format = (v) => formatNumber(v),
   className,
 }: {
   data: BarPoint[];
@@ -116,7 +117,7 @@ export function RankBars({
               {r.label}
             </span>
             <span className="shrink-0 font-semibold tabular-nums text-fg">
-              {r.display ?? r.value.toLocaleString('es-AR')}
+              {r.display ?? formatNumber(r.value)}
             </span>
           </div>
           <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-bg-muted">
