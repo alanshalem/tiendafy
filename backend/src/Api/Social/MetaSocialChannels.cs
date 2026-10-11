@@ -2,6 +2,7 @@ using System.Text.Json;
 using Api.MetaAds;
 using Microsoft.Extensions.Options;
 using SharedKernel.Common;
+using Social.Contracts;
 
 namespace Api.Social;
 

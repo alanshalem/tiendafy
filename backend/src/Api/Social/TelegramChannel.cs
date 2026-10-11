@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SharedKernel.Common;
+using Social.Contracts;
 
 namespace Api.Social;
 

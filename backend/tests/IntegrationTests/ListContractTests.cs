@@ -29,7 +29,7 @@ public sealed class ListContractTests
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     /// <summary>Los listados que comparten la mecánica de paginado.</summary>
-    public static TheoryData<string> Listados() =>
+    private static readonly string[] Paths =
     [
         "/api/v1/coupons",
         "/api/v1/customers",
@@ -39,6 +39,8 @@ public sealed class ListContractTests
         "/api/v1/finance/movements",
         "/api/v1/finance/receipts",
     ];
+
+    public static TheoryData<string> Listados() => new(Paths);
 
     [Theory]
     [MemberData(nameof(Listados))]

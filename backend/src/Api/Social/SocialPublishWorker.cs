@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Api.Workers;
 using Microsoft.EntityFrameworkCore;
 using Social.Infrastructure;
+using Social.Contracts;
 
 namespace Api.Social;
 

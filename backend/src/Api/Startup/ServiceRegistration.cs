@@ -29,6 +29,7 @@ using Support.Infrastructure;
 using Tenancy.Infrastructure;
 using Tenancy.Infrastructure.Persistence;
 using Themes.Infrastructure;
+using Social.Contracts;
 
 namespace Api.Startup;
 
@@ -148,16 +149,16 @@ public static class ServiceRegistration
         services.Configure<Api.Social.SocialOptions>(configuration.GetSection(Api.Social.SocialOptions.SectionName));
         services.AddScoped<Api.Social.SocialTokenService>();
         services.AddHttpClient<Api.Social.MetaSocialConnector>(c => c.Timeout = TimeSpan.FromSeconds(20));
-        services.AddScoped<Api.Social.ISocialConnector>(sp => sp.GetRequiredService<Api.Social.MetaSocialConnector>());
+        services.AddScoped<ISocialConnector>(sp => sp.GetRequiredService<Api.Social.MetaSocialConnector>());
         services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<Api.Social.MetaInstagramChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<Api.Social.XSocialChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
-        services.AddScoped<Api.Social.ISocialConnector>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
+        services.AddScoped<ISocialConnector>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
         services.AddHttpClient<Api.Social.TelegramChannel>(c => c.Timeout = TimeSpan.FromSeconds(20));
-        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaFacebookChannel>());
-        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaInstagramChannel>());
-        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
-        services.AddScoped<Api.Social.ISocialChannel>(sp => sp.GetRequiredService<Api.Social.TelegramChannel>());
+        services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaFacebookChannel>());
+        services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.MetaInstagramChannel>());
+        services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.XSocialChannel>());
+        services.AddScoped<ISocialChannel>(sp => sp.GetRequiredService<Api.Social.TelegramChannel>());
         if (runPollingWorkers) services.AddHostedService<Api.Social.SocialPublishWorker>();
 
         // Sugerencias con IA (Claude API). Vacío = apagado, botones ocultos.
