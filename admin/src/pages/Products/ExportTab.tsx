@@ -5,6 +5,7 @@ import { Button, Card, Checkbox, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
+import { formatNumber } from '../../lib/format';
 
 export function ExportTab() {
   const { store } = useStore();
@@ -13,13 +14,15 @@ export function ExportTab() {
   const { toast } = useToast();
 
   // Solo para mostrar el contador (el export real recorre TODO en el backend).
+  // Una fila alcanza: el modo página devuelve el total. Antes traía cien
+  // productos enteros para contarlos, y pasados los cien mostraba "100+".
   const { data } = useQuery({
     queryKey: ['products', store?.id, 'export-count'],
-    queryFn: () => api.get<{ items: unknown[]; hasMore: boolean }>('/api/v1/products?limit=100'),
+    queryFn: () => api.get<{ total: number }>('/api/v1/products?limit=1&offset=0'),
     enabled: !!store,
   });
-  const count = data?.items.length ?? 0;
-  const countLabel = data?.hasMore ? `${count}+` : `${count}`;
+  const count = data?.total ?? 0;
+  const countLabel = formatNumber(count);
 
   const download = async () => {
     setBusy(true);

@@ -39,6 +39,42 @@ export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[
   return page?.items ?? [];
 }
 
+/** Lo máximo que admite un sitemap (protocolo sitemaps.org). */
+export const SITEMAP_MAX_URLS = 50_000;
+
+/** Lo que devuelve el listado en modo cursor: lo que hace falta para seguir. */
+interface CursorPage {
+  items: { slug: string }[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+/**
+ * Los slugs de TODOS los productos activos, recorriendo el cursor de a cien
+ * (el tope por página del backend). Lo usa el sitemap: antes pedía una sola
+ * página, y una tienda con miles de productos le mostraba a Google los
+ * primeros cien. Si una página falla a mitad de camino, devuelve lo que juntó:
+ * un sitemap incompleto es mejor que uno vacío.
+ */
+export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_URLS): Promise<string[]> {
+  const slugs: string[] = [];
+  let after: string | null = null;
+
+  do {
+    const qs = new URLSearchParams({ status: 'ACTIVE', limit: '100' });
+    if (after) qs.set('after', after);
+    const page: CursorPage | null = await apiGetTenant<CursorPage>(`/api/v1/products?${qs}`, tenantId, {
+      cache: 'no-store',
+    }).catch(() => null);
+    if (!page) break;
+
+    for (const p of page.items) slugs.push(p.slug);
+    after = page.hasMore ? page.nextCursor : null;
+  } while (after && slugs.length < max);
+
+  return slugs.slice(0, max);
+}
+
 /** Un producto por id. Lo usan las secciones que referencian productos
  *  puntuales (destacados/ofertas) que pueden quedar fuera del set inicial. */
 export async function fetchProductById(tenantId: string, id: string): Promise<ProductDto | null> {

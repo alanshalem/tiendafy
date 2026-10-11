@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
+import { fetchAllActiveSlugs, SITEMAP_MAX_URLS } from '@/lib/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,15 +16,12 @@ export async function GET() {
 
   const tenant = await resolveTenant();
   if (tenant) {
+    // Todo el catálogo activo, no la primera página: ver fetchAllActiveSlugs.
+    const slugs = await fetchAllActiveSlugs(tenant.id, SITEMAP_MAX_URLS - locs.length);
+    slugs.forEach((slug) => locs.push(`${base}/productos/${slug}`));
+
     // apiGetTenant y no apiGet: todo fetch server-side pasa por el guardrail
     // que evita cachear respuestas de un tenant para otro.
-    const products = await apiGetTenant<{ items: { slug: string }[] }>(
-      '/api/v1/products?status=ACTIVE&limit=100',
-      tenant.id,
-      { cache: 'no-store' },
-    ).catch(() => null);
-    products?.items.forEach((p) => locs.push(`${base}/productos/${p.slug}`));
-
     const pages = await apiGetTenant<{ items: { slug: string }[] }>('/api/v1/pages/published', tenant.id, {
       cache: 'no-store',
     }).catch(() => null);
