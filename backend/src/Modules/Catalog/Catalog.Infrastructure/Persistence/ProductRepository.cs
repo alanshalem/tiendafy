@@ -15,6 +15,19 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
     public Task<Product?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
         context.Products.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == id, ct);
 
+    public async Task<IReadOnlyList<Product>> ListByIdsAsync(
+        TenantId tenantId, IReadOnlyList<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return [];
+
+        var found = await context.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId && ids.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        // La base devuelve en cualquier orden; quien pidió los ids eligió uno.
+        return [.. ids.Where(found.ContainsKey).Select(id => found[id])];
+    }
+
     public Task<Product?> GetBySlugAsync(TenantId tenantId, string slug, CancellationToken ct = default)
     {
         var parsed = Slug.Create(slug);

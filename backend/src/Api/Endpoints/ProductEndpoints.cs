@@ -75,13 +75,8 @@ public static partial class ProductEndpoints
 
                 if (wanted.Count == 0) return Results.Ok(new { items = Array.Empty<object>(), total = 0 });
 
-                var found = new List<Product>();
-                foreach (var id in wanted)
-                {
-                    var product = await repository.GetByIdAsync(tenant.TenantId, id, ct);
-                    if (product is not null) found.Add(product);
-                }
-
+                // Una consulta, no una por id: eran hasta cien idas a la base.
+                var found = await repository.ListByIdsAsync(tenant.TenantId, wanted, ct);
                 return Results.Ok(new { items = found.Select(p => p.ToDto()).ToList(), total = found.Count });
             }
 

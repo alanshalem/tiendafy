@@ -90,6 +90,12 @@ public sealed record ProductFacets(
 public interface IProductRepository
 {
     Task<Product?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Varios productos por id, en una sola consulta y en el orden pedido. Los
+    /// que no existen —o son de otra tienda— no vuelven. Solo lectura.
+    /// </summary>
+    Task<IReadOnlyList<Product>> ListByIdsAsync(TenantId tenantId, IReadOnlyList<Guid> ids, CancellationToken ct = default);
     Task<Product?> GetBySlugAsync(TenantId tenantId, string slug, CancellationToken ct = default);
     Task<bool> SlugExistsAsync(TenantId tenantId, string slug, CancellationToken ct = default);
     Task AddAsync(Product product, CancellationToken ct = default);
