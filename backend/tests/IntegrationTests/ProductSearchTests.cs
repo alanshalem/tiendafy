@@ -1,10 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Identity.Infrastructure;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.Testing.Handlers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -26,8 +19,6 @@ public sealed class ProductSearchTests
 
     public ProductSearchTests(ApiFactory factory) => _factory = factory;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private const string Camion = "Camión de juguete Rojo";
     private const string Remera = "Remera Azul Lisa";
 
@@ -39,9 +30,9 @@ public sealed class ProductSearchTests
     [InlineData("Camión de juguete", Camion)] // lo que ya andaba: el texto contiguo
     public async Task El_panel_encuentra_lo_que_escribe_una_persona(string q, string esperado)
     {
-        var (client, tenantId) = await StoreWithProductsAsync();
+        var merchant = await StoreWithProductsAsync();
 
-        var nombres = await NamesAsync(client, tenantId, $"/api/v1/products?offset=0&limit=50&q={Uri.EscapeDataString(q)}");
+        var nombres = await NamesAsync(merchant, $"/api/v1/products?offset=0&limit=50&q={Uri.EscapeDataString(q)}");
 
         Assert.Contains(esperado, nombres);
     }
@@ -49,9 +40,9 @@ public sealed class ProductSearchTests
     [Fact]
     public async Task Todas_las_palabras_tienen_que_estar()
     {
-        var (client, tenantId) = await StoreWithProductsAsync();
+        var merchant = await StoreWithProductsAsync();
 
-        var nombres = await NamesAsync(client, tenantId, "/api/v1/products?offset=0&limit=50&q=camion%20azul");
+        var nombres = await NamesAsync(merchant, "/api/v1/products?offset=0&limit=50&q=camion%20azul");
 
         Assert.DoesNotContain(Camion, nombres);
         Assert.DoesNotContain(Remera, nombres);
@@ -60,9 +51,9 @@ public sealed class ProductSearchTests
     [Fact]
     public async Task El_panel_tambien_encuentra_por_SKU()
     {
-        var (client, tenantId) = await StoreWithProductsAsync();
+        var merchant = await StoreWithProductsAsync();
 
-        var nombres = await NamesAsync(client, tenantId, "/api/v1/products?offset=0&limit=50&q=REM-AZ");
+        var nombres = await NamesAsync(merchant, "/api/v1/products?offset=0&limit=50&q=REM-AZ");
 
         Assert.Contains(Remera, nombres);
     }
@@ -70,10 +61,10 @@ public sealed class ProductSearchTests
     [Fact]
     public async Task La_tienda_busca_sin_tildes_y_no_por_SKU()
     {
-        var (client, tenantId) = await StoreWithProductsAsync();
+        var merchant = await StoreWithProductsAsync();
 
-        var porNombre = await NamesAsync(client, tenantId, "/api/v1/products/search?q=rojo%20camion");
-        var porSku = await NamesAsync(client, tenantId, "/api/v1/products/search?q=REM-AZ");
+        var porNombre = await NamesAsync(merchant, "/api/v1/products/search?q=rojo%20camion");
+        var porSku = await NamesAsync(merchant, "/api/v1/products/search?q=REM-AZ");
 
         Assert.Contains(Camion, porNombre);
         Assert.Empty(porSku);
@@ -81,65 +72,17 @@ public sealed class ProductSearchTests
 
     // ---------------------------------------------------------------- helpers
 
-    private async Task<(HttpClient Client, Guid TenantId)> StoreWithProductsAsync()
+    private async Task<Merchant> StoreWithProductsAsync()
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"src{Guid.NewGuid():N}"[..12]);
-        await CreateProductAsync(client, tenantId, Camion, "CAM-RJ-01");
-        await CreateProductAsync(client, tenantId, Remera, "REM-AZ-01");
-        return (client, tenantId);
+        var merchant = await Merchant.CreateAsync(_factory, "src");
+        await merchant.CreateProductAsync(Camion, sku: "CAM-RJ-01", stock: 0);
+        await merchant.CreateProductAsync(Remera, sku: "REM-AZ-01", stock: 0);
+        return merchant;
     }
 
-    private static async Task<List<string>> NamesAsync(HttpClient client, Guid tenantId, string path)
+    private static async Task<List<string>> NamesAsync(Merchant merchant, string path)
     {
-        var req = new HttpRequestMessage(HttpMethod.Get, path);
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        var res = await client.SendAsync(req);
-        Assert.True(res.IsSuccessStatusCode, $"GET {path} → {res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-        var body = await res.Content.ReadFromJsonAsync<JsonElement>(Json);
+        var body = await merchant.GetAsync(path);
         return [.. body.GetProperty("items").EnumerateArray().Select(p => p.GetProperty("name").GetString()!)];
-    }
-
-    private static async Task CreateProductAsync(HttpClient client, Guid tenantId, string name, string sku)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/products")
-        {
-            Content = JsonContent.Create(new
-            {
-                name,
-                description = "producto de test",
-                publish = true,
-                variants = new[] { new { sku, optionValues = Array.Empty<string>(), priceAmount = 100_000L, currency = "ARS" } },
-            }),
-        };
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        var res = await client.SendAsync(req);
-        Assert.True(res.IsSuccessStatusCode, $"crear {name} → {res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-    }
-
-    /// <summary>Igual que en los demás tests: el usuario se crea por dentro y entra por la API.</summary>
-    private async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
-    {
-        var email = $"it-{tag}@test.local";
-        const string password = "password-larga-123";
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            if (await users.FindByEmailAsync(email) is null)
-            {
-                var user = new AppUser { UserName = email, Email = email, DisplayName = $"Test {tag}", EmailConfirmed = true };
-                var created = await users.CreateAsync(user, password);
-                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
-            }
-        }
-
-        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-
-        var create = await client.PostAsJsonAsync("/api/v1/tenants", new { name = $"Tienda {tag}", subdomain = tag });
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var tenant = await create.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return tenant.GetProperty("id").GetGuid();
     }
 }

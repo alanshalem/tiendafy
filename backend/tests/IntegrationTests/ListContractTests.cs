@@ -1,10 +1,4 @@
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using Identity.Infrastructure;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.Testing.Handlers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -26,8 +20,6 @@ public sealed class ListContractTests
 
     public ListContractTests(ApiFactory factory) => _factory = factory;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     /// <summary>Los listados que comparten la mecánica de paginado.</summary>
     private static readonly string[] Paths =
     [
@@ -46,10 +38,9 @@ public sealed class ListContractTests
     [MemberData(nameof(Listados))]
     public async Task Un_listado_devuelve_items_y_total(string path)
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"lst{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "lst");
 
-        var body = await GetAsync(client, tenantId, path);
+        var body = await merchant.GetAsync(path);
 
         Assert.True(body.TryGetProperty("items", out var items), $"{path} no devolvió 'items'");
         Assert.Equal(JsonValueKind.Array, items.ValueKind);
@@ -61,57 +52,15 @@ public sealed class ListContractTests
     [MemberData(nameof(Listados))]
     public async Task Pedir_cien_mil_filas_no_las_trae(string path)
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"cap{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "cap");
 
         var sep = path.Contains('?') ? '&' : '?';
-        var body = await GetAsync(client, tenantId, $"{path}{sep}limit=100000&offset=-5");
+        var body = await merchant.GetAsync($"{path}{sep}limit=100000&offset=-5");
 
         // La tienda está vacía, así que lo que se prueba es que no explote ni
         // rechace: el clamp pasa a ser el techo real y el offset negativo es
         // el principio. (El límite en sí lo cubre PagingTests, sin base.)
         Assert.Equal(JsonValueKind.Array, body.GetProperty("items").ValueKind);
         Assert.Equal(0, body.GetProperty("total").GetInt32());
-    }
-
-    private static async Task<JsonElement> GetAsync(HttpClient client, Guid tenantId, string path)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Get, path);
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        var res = await client.SendAsync(req);
-        Assert.True(res.IsSuccessStatusCode, $"GET {path} → {res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-        return await res.Content.ReadFromJsonAsync<JsonElement>(Json);
-    }
-
-    /// <summary>Igual que en los demás tests: el usuario se crea por dentro y entra por la API.</summary>
-    private async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
-    {
-        var email = $"it-{tag}@test.local";
-        const string password = "password-larga-123";
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            if (await users.FindByEmailAsync(email) is null)
-            {
-                var user = new AppUser
-                {
-                    UserName = email,
-                    Email = email,
-                    DisplayName = $"Test {tag}",
-                    EmailConfirmed = true,
-                };
-                var created = await users.CreateAsync(user, password);
-                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
-            }
-        }
-
-        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-
-        var create = await client.PostAsJsonAsync("/api/v1/tenants", new { name = $"Tienda {tag}", subdomain = tag });
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var tenant = await create.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return tenant.GetProperty("id").GetGuid();
     }
 }

@@ -1,10 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Identity.Infrastructure;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.Testing.Handlers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -24,8 +18,6 @@ public sealed class PrivateCatalogReadsTests
 
     public PrivateCatalogReadsTests(ApiFactory factory) => _factory = factory;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private static readonly string[] Privadas =
     [
         "/api/v1/products/health",
@@ -42,11 +34,9 @@ public sealed class PrivateCatalogReadsTests
     [MemberData(nameof(Rutas))]
     public async Task Sin_sesion_no_se_lee(string path)
     {
-        var owner = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(owner, $"prv{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "prv");
 
-        var anonimo = _factory.CreateClient();
-        var res = await SendAsync(anonimo, tenantId, path);
+        var res = await merchant.SendAsync(merchant.Anonymous(), HttpMethod.Get, path);
 
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -55,10 +45,9 @@ public sealed class PrivateCatalogReadsTests
     [MemberData(nameof(Rutas))]
     public async Task El_duenio_si_las_lee(string path)
     {
-        var owner = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(owner, $"own{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "own");
 
-        var res = await SendAsync(owner, tenantId, path);
+        var res = await merchant.SendAsync(HttpMethod.Get, path);
 
         // 404 es válido para las que buscan algo puntual (un id o un código
         // que no existe): lo que no puede ser es 401 ni 403.
@@ -71,44 +60,10 @@ public sealed class PrivateCatalogReadsTests
     {
         // El otro lado: la tienda lista productos sin sesión. Si declarar
         // permisos en la ruta se hubiera filtrado al grupo, esto daría 401.
-        var owner = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(owner, $"pub{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "pub");
 
-        var res = await SendAsync(_factory.CreateClient(), tenantId, "/api/v1/products?status=ACTIVE&limit=5");
+        var res = await merchant.SendAsync(merchant.Anonymous(), HttpMethod.Get, "/api/v1/products?status=ACTIVE&limit=5");
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-    }
-
-    private static Task<HttpResponseMessage> SendAsync(HttpClient client, Guid tenantId, string path)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Get, path);
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        return client.SendAsync(req);
-    }
-
-    /// <summary>Igual que en los demás tests: el usuario se crea por dentro y entra por la API.</summary>
-    private async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
-    {
-        var email = $"it-{tag}@test.local";
-        const string password = "password-larga-123";
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            if (await users.FindByEmailAsync(email) is null)
-            {
-                var user = new AppUser { UserName = email, Email = email, DisplayName = $"Test {tag}", EmailConfirmed = true };
-                var created = await users.CreateAsync(user, password);
-                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
-            }
-        }
-
-        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-
-        var create = await client.PostAsJsonAsync("/api/v1/tenants", new { name = $"Tienda {tag}", subdomain = tag });
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var tenant = await create.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return tenant.GetProperty("id").GetGuid();
     }
 }

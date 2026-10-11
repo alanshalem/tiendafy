@@ -1,10 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Identity.Infrastructure;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.Testing.Handlers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -23,45 +19,42 @@ public sealed class FinanceFlowTests
 
     public FinanceFlowTests(ApiFactory factory) => _factory = factory;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     [Fact]
     public async Task El_circuito_de_cobranza_deja_la_caja_y_el_saldo_del_cliente_coherentes()
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"fin{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "fin");
         var customerId = Guid.NewGuid();
 
         // 1. Dos cuentas: la caja del local y el banco.
-        var caja = await PostAsync(client, tenantId, "/api/v1/finance/accounts",
+        var caja = await merchant.PostAsync("/api/v1/finance/accounts",
             new { name = "Caja local", kind = "cash", currency = "ARS", openingBalanceMinor = 100_000L });
-        var banco = await PostAsync(client, tenantId, "/api/v1/finance/accounts",
+        var banco = await merchant.PostAsync("/api/v1/finance/accounts",
             new { name = "Banco Galicia", kind = "bank", currency = "ARS", openingBalanceMinor = 0L });
 
         var cajaId = caja.GetProperty("id").GetGuid();
         var bancoId = banco.GetProperty("id").GetGuid();
 
         // 2. Un gasto sale de la caja.
-        await PostAsync(client, tenantId, "/api/v1/finance/movements",
+        await merchant.PostAsync("/api/v1/finance/movements",
             new { accountId = cajaId, kind = "out", amountMinor = 30_000L, concept = "Flete" });
 
         // 3. Una transferencia no cambia el total, sólo dónde está la plata.
-        await PostAsync(client, tenantId, "/api/v1/finance/transfers",
+        await merchant.PostAsync("/api/v1/finance/transfers",
             new { fromAccountId = cajaId, toAccountId = bancoId, amountMinor = 50_000L });
 
-        var accounts = await GetAsync(client, tenantId, "/api/v1/finance/accounts");
+        var accounts = await merchant.GetAsync("/api/v1/finance/accounts");
         Assert.Equal(20_000, BalanceOf(accounts, cajaId));
         Assert.Equal(50_000, BalanceOf(accounts, bancoId));
         Assert.Equal(70_000, accounts.GetProperty("totals").EnumerateArray()
             .Single(t => t.GetProperty("currency").GetString() == "ARS").GetProperty("balanceMinor").GetInt64());
 
         // Transferir a la misma cuenta no es una transferencia.
-        var misma = await RawPostAsync(client, tenantId, "/api/v1/finance/transfers",
+        var misma = await merchant.SendAsync(HttpMethod.Post, "/api/v1/finance/transfers",
             new { fromAccountId = cajaId, toAccountId = cajaId, amountMinor = 1_000L });
         Assert.Equal(HttpStatusCode.BadRequest, misma.StatusCode);
 
         // 4. Le vendimos 200.000 en cuenta corriente: nos debe.
-        await PostAsync(client, tenantId, "/api/v1/finance/ledger/adjustments",
+        await merchant.PostAsync("/api/v1/finance/ledger/adjustments",
             new
             {
                 partyKind = "customer",
@@ -72,14 +65,13 @@ public sealed class FinanceFlowTests
                 label = "Factura A 0001-00000001",
             });
 
-        var pending = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
+        var pending = await merchant.GetAsync($"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
         var factura = pending.GetProperty("items").EnumerateArray().Single();
         Assert.Equal(200_000, factura.GetProperty("pendingMinor").GetInt64());
 
         // 5. Nos paga 120.000: 80.000 en efectivo y 40.000 por banco, todo
         //    imputado a esa factura.
-        var recibo = await PostAsync(client, tenantId, "/api/v1/finance/receipts",
+        var recibo = await merchant.PostAsync("/api/v1/finance/receipts",
             new
             {
                 kind = "collection",
@@ -100,12 +92,11 @@ public sealed class FinanceFlowTests
         Assert.Equal("REC-0001", recibo.GetProperty("number").GetString());
 
         // La plata entró a las dos cuentas y el cliente pasó a deber 80.000.
-        accounts = await GetAsync(client, tenantId, "/api/v1/finance/accounts");
+        accounts = await merchant.GetAsync("/api/v1/finance/accounts");
         Assert.Equal(100_000, BalanceOf(accounts, cajaId));
         Assert.Equal(90_000, BalanceOf(accounts, bancoId));
 
-        var ledger = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
+        var ledger = await merchant.GetAsync($"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
         Assert.Equal(80_000, ledger.GetProperty("balanceMinor").GetInt64());
 
         // El saldo acumulado del estado de cuenta tiene que cerrar con el total.
@@ -113,45 +104,42 @@ public sealed class FinanceFlowTests
         Assert.Equal(80_000, ultimo.GetProperty("balanceMinor").GetInt64());
 
         // Y la factura quedó con 80.000 pendientes, no con 200.000.
-        pending = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
+        pending = await merchant.GetAsync($"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
         Assert.Equal(80_000, pending.GetProperty("items").EnumerateArray().Single().GetProperty("pendingMinor").GetInt64());
 
         // 6. Anular el recibo devuelve las tres cosas: plata, saldo e imputación.
-        var anulado = await RawPostAsync(client, tenantId, $"/api/v1/finance/receipts/{reciboId}/void",
+        var anulado = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/finance/receipts/{reciboId}/void",
             new { reason = "Cheque rechazado" });
         Assert.Equal(HttpStatusCode.NoContent, anulado.StatusCode);
 
-        accounts = await GetAsync(client, tenantId, "/api/v1/finance/accounts");
+        accounts = await merchant.GetAsync("/api/v1/finance/accounts");
         Assert.Equal(20_000, BalanceOf(accounts, cajaId));
         Assert.Equal(50_000, BalanceOf(accounts, bancoId));
 
-        ledger = await GetAsync(client, tenantId, $"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
+        ledger = await merchant.GetAsync($"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
         Assert.Equal(200_000, ledger.GetProperty("balanceMinor").GetInt64());
 
-        pending = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
+        pending = await merchant.GetAsync($"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
         Assert.Equal(200_000, pending.GetProperty("items").EnumerateArray()
             .Single(i => i.GetProperty("id").GetGuid() == factura.GetProperty("id").GetGuid())
             .GetProperty("pendingMinor").GetInt64());
 
         // Anular dos veces no vuelve a mover nada.
-        var otraVez = await RawPostAsync(client, tenantId, $"/api/v1/finance/receipts/{reciboId}/void", new { reason = "x" });
+        var otraVez = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/finance/receipts/{reciboId}/void", new { reason = "x" });
         Assert.Equal(HttpStatusCode.BadRequest, otraVez.StatusCode);
     }
 
     [Fact]
     public async Task La_ficha_del_proveedor_trae_su_saldo_de_otro_modulo()
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"sup{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "sup");
 
-        var supplier = await PostAsync(client, tenantId, "/api/v1/suppliers",
+        var supplier = await merchant.PostAsync("/api/v1/suppliers",
             new { name = "Importadora del Sur", taxId = "30712345678", email = "ventas@sur.test" });
         var supplierId = supplier.GetProperty("id").GetGuid();
 
         // Su factura: le debemos. En un proveedor eso es un Haber.
-        await PostAsync(client, tenantId, "/api/v1/finance/ledger/adjustments",
+        await merchant.PostAsync("/api/v1/finance/ledger/adjustments",
             new
             {
                 partyKind = "supplier",
@@ -163,15 +151,14 @@ public sealed class FinanceFlowTests
             });
 
         // Le pagamos la mitad, desde una caja.
-        var caja = await PostAsync(client, tenantId, "/api/v1/finance/accounts",
+        var caja = await merchant.PostAsync("/api/v1/finance/accounts",
             new { name = "Caja", kind = "cash", currency = "ARS", openingBalanceMinor = 1_000_000L });
         var cajaId = caja.GetProperty("id").GetGuid();
 
-        var pending = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger/pending?partyKind=supplier&partyId={supplierId}");
+        var pending = await merchant.GetAsync($"/api/v1/finance/ledger/pending?partyKind=supplier&partyId={supplierId}");
         var facturaId = pending.GetProperty("items").EnumerateArray().Single().GetProperty("id").GetGuid();
 
-        var orden = await PostAsync(client, tenantId, "/api/v1/finance/receipts",
+        var orden = await merchant.PostAsync("/api/v1/finance/receipts",
             new
             {
                 kind = "payment",
@@ -184,16 +171,16 @@ public sealed class FinanceFlowTests
         Assert.Equal("OP-0001", orden.GetProperty("number").GetString());
 
         // La plata salió de la caja.
-        var accounts = await GetAsync(client, tenantId, "/api/v1/finance/accounts");
+        var accounts = await merchant.GetAsync("/api/v1/finance/accounts");
         Assert.Equal(750_000, BalanceOf(accounts, cajaId));
 
         // Y la ficha del proveedor muestra lo que le queda debiéndose: negativo,
         // porque el signo se lee siempre desde nuestro lado.
-        var ficha = await GetAsync(client, tenantId, $"/api/v1/suppliers/{supplierId}");
+        var ficha = await merchant.GetAsync($"/api/v1/suppliers/{supplierId}");
         Assert.Equal(-250_000, ficha.GetProperty("balanceMinor").GetInt64());
         Assert.Equal("Importadora del Sur", ficha.GetProperty("name").GetString());
 
-        var listado = await GetAsync(client, tenantId, "/api/v1/suppliers");
+        var listado = await merchant.GetAsync("/api/v1/suppliers");
         var fila = listado.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("id").GetGuid() == supplierId);
         Assert.Equal(-250_000, fila.GetProperty("balanceMinor").GetInt64());
     }
@@ -201,24 +188,22 @@ public sealed class FinanceFlowTests
     [Fact]
     public async Task Un_recibo_no_puede_imputar_mas_de_lo_que_el_comprobante_debe()
     {
-        var client = _factory.CreateDefaultClient(new CookieContainerHandler());
-        var tenantId = await RegisterWithStoreAsync(client, $"ovr{Guid.NewGuid():N}"[..12]);
+        var merchant = await Merchant.CreateAsync(_factory, "ovr");
         var customerId = Guid.NewGuid();
 
-        var caja = await PostAsync(client, tenantId, "/api/v1/finance/accounts",
+        var caja = await merchant.PostAsync("/api/v1/finance/accounts",
             new { name = "Caja", kind = "cash", currency = "ARS", openingBalanceMinor = 0L });
         var cajaId = caja.GetProperty("id").GetGuid();
 
-        await PostAsync(client, tenantId, "/api/v1/finance/ledger/adjustments",
+        await merchant.PostAsync("/api/v1/finance/ledger/adjustments",
             new { partyKind = "customer", partyId = customerId, kind = "debit", amountMinor = 10_000L, currency = "ARS", label = "Venta" });
 
-        var pending = await GetAsync(client, tenantId,
-            $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
+        var pending = await merchant.GetAsync($"/api/v1/finance/ledger/pending?partyKind=customer&partyId={customerId}");
         var facturaId = pending.GetProperty("items").EnumerateArray().Single().GetProperty("id").GetGuid();
 
         // Cobrar 25.000 e imputarlos todos a una factura de 10.000 dejaría el
         // comprobante sobrepagado y el excedente invisible.
-        var res = await RawPostAsync(client, tenantId, "/api/v1/finance/receipts",
+        var res = await merchant.SendAsync(HttpMethod.Post, "/api/v1/finance/receipts",
             new
             {
                 kind = "collection",
@@ -231,7 +216,7 @@ public sealed class FinanceFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
 
         // Y el rechazo no dejó plata a medio entrar en la caja.
-        var accounts = await GetAsync(client, tenantId, "/api/v1/finance/accounts");
+        var accounts = await merchant.GetAsync("/api/v1/finance/accounts");
         Assert.Equal(0, BalanceOf(accounts, cajaId));
     }
 
@@ -241,62 +226,4 @@ public sealed class FinanceFlowTests
         accounts.GetProperty("items").EnumerateArray()
             .Single(a => a.GetProperty("id").GetGuid() == accountId)
             .GetProperty("balanceMinor").GetInt64();
-
-    private static async Task<HttpResponseMessage> RawPostAsync(HttpClient client, Guid tenantId, string path, object body)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        return await client.SendAsync(req);
-    }
-
-    private static async Task<JsonElement> PostAsync(HttpClient client, Guid tenantId, string path, object body)
-    {
-        var res = await RawPostAsync(client, tenantId, path, body);
-        Assert.True(res.IsSuccessStatusCode, $"POST {path} → {res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-        return await res.Content.ReadFromJsonAsync<JsonElement>(Json);
-    }
-
-    private static async Task<JsonElement> GetAsync(HttpClient client, Guid tenantId, string path)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Get, path);
-        req.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        var res = await client.SendAsync(req);
-        Assert.True(res.IsSuccessStatusCode, $"GET {path} → {res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-        return await res.Content.ReadFromJsonAsync<JsonElement>(Json);
-    }
-
-    /// <summary>
-    /// Mismo camino que TenantIsolationTests: el usuario se crea por dentro
-    /// (el panel no tiene registro público) y después entra por la API.
-    /// </summary>
-    private async Task<Guid> RegisterWithStoreAsync(HttpClient client, string tag)
-    {
-        var email = $"it-{tag}@test.local";
-        const string password = "password-larga-123";
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            if (await users.FindByEmailAsync(email) is null)
-            {
-                var user = new AppUser
-                {
-                    UserName = email,
-                    Email = email,
-                    DisplayName = $"Test {tag}",
-                    EmailConfirmed = true,
-                };
-                var created = await users.CreateAsync(user, password);
-                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
-            }
-        }
-
-        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-
-        var create = await client.PostAsJsonAsync("/api/v1/tenants", new { name = $"Tienda {tag}", subdomain = tag });
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var tenant = await create.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return tenant.GetProperty("id").GetGuid();
-    }
 }
