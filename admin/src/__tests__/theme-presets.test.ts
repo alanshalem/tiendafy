@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, normalizeTheme } from '@tiendafy/types';
-import { themePresets } from '../lib/themePresets';
+import { presetToConfig, themePresets } from '../lib/themePresets';
 
 /** Carpeta publica de la vitrina, que es quien sirve los assets de marca. */
 const PUBLICO = resolve(import.meta.dirname, '../../../storefront/public');
@@ -133,6 +133,44 @@ describe('presets de marca', () => {
 
       const bloque = preset.sections.find((s) => s.type === 'image-text');
       expect((bloque?.data?.description as string)?.length ?? 0).toBeGreaterThan(80);
+    }
+  });
+
+  it('aplicar un preset de marca no se come el contenido en el camino', () => {
+    // presetToConfig traduce el DSL de la galería al ThemeConfig real. Es el
+    // paso donde el contenido se puede perder en silencio: el preset queda
+    // impecable, el test de arriba pasa, y la tienda se publica con los
+    // encabezados puestos y el texto en ninguna parte.
+    const cfg = presetToConfig(byId('puente-oriente'));
+
+    expect(cfg.logo).toBe('/marca/puente-oriente/logo-horizontal.svg');
+    expect(cfg.favicon).toBe('/marca/puente-oriente/favicon.ico');
+    expect(cfg.seoTitle).toBeTruthy();
+    expect(cfg.announcement.show).toBe(true);
+    expect(cfg.announcement.items[0]?.text).toContain('China');
+
+    // La barra que pide la guía, no la calculada por contraste.
+    expect(cfg.header.bg).toBe('255 255 255');
+    expect(cfg.header.textColor).toBe('30 34 48');
+    expect(cfg.header.showSearch).toBe(true);
+
+    const faq = cfg.sections.find((s) => s.type === 'faq');
+    expect((faq?.data as { items?: unknown[] })?.items).toHaveLength(4);
+
+    const barra = cfg.sections.find((s) => s.type === 'info-bar');
+    expect((barra?.data as { items?: unknown[] })?.items).toHaveLength(3);
+  });
+
+  it('un preset sin barra propia recibe una que contrasta', () => {
+    // Los presets genéricos no eligen header: se les calcula uno legible.
+    // Si eso se rompiera, el menú quedaría del color del fondo.
+    for (const preset of themePresets) {
+      if (preset.header?.bg) continue;
+      const { header } = presetToConfig(preset);
+      expect(
+        contrastRatio(header.textColor, header.bg),
+        `${preset.id}: el menú no se lee sobre la barra calculada`,
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 

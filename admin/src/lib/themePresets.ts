@@ -640,3 +640,75 @@ export const themePresets: ThemePreset[] = [
     },
   },
 ];
+
+/** Luminancia relativa aproximada (0 oscuro → 1 claro) de un color "R G B". */
+function luminance(rgbRaw: string): number {
+  const [r, g, b] = rgbRaw.trim().split(/\s+/).map(Number);
+  return (0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0)) / 255;
+}
+
+/**
+ * Header del preset con contraste garantizado en cualquier paleta:
+ * - tema claro → barra "tinta" (colorFg) con texto claro (colorBg).
+ * - tema oscuro → barra de superficie oscura (colorBgSubtle) con texto claro (colorFg).
+ */
+export function presetHeader(t: ThemePreset['tokens']): { bg: string; textColor: string } {
+  const dark = luminance(t.colorBg) < 0.5;
+  return dark ? { bg: t.colorBgSubtle, textColor: t.colorFg } : { bg: t.colorFg, textColor: t.colorBg };
+}
+
+/**
+ * Convierte un preset (DSL compacto de la galería) al ThemeConfig actual.
+ *
+ * Lo que el preset no trae queda como estaba: los presets genéricos siguen
+ * dando el mismo resultado de siempre. Los de marca sí traen tipografía, forma
+ * de los bordes, kit de íconos y hasta la página de espera, porque una guía de
+ * marca no es una paleta: con los colores bien y los bordes redondeados, una
+ * identidad de bloques rectos ya no es esa identidad.
+ */
+export function presetToConfig(preset: ThemePreset) {
+  const typeMap: Record<string, string> = {
+    hero: 'carousel',
+    'featured-products': 'featured',
+    'info-bar': 'info-bar',
+    newsletter: 'newsletter',
+  };
+  const hdr = presetHeader(preset.tokens);
+  return {
+    colors: {
+      primary: preset.tokens.colorPrimary,
+      accent: preset.tokens.colorAccent ?? '27 21 16',
+      useAccent: !!preset.tokens.colorAccent,
+      bg: preset.tokens.colorBg,
+      text: preset.tokens.colorFg,
+    },
+    fonts: preset.fonts ?? { heading: 'sans', body: 'sans' },
+    ...(preset.borderRadius ? { borderRadius: preset.borderRadius } : {}),
+    ...(preset.density ? { density: preset.density } : {}),
+    ...(preset.motion ? { motion: preset.motion } : {}),
+    ...(preset.iconKit ? { iconKit: preset.iconKit } : {}),
+    ...(preset.seo ? { seoTitle: preset.seo.title, seoDescription: preset.seo.description } : {}),
+    ...(preset.logo ? { logo: preset.logo } : {}),
+    ...(preset.favicon ? { favicon: preset.favicon } : {}),
+    ...(preset.comingSoon ? { comingSoon: preset.comingSoon } : {}),
+    header: {
+      bg: hdr.bg,
+      textColor: hdr.textColor,
+      sticky: true,
+      logoSize: 'md',
+      showTabsMobile: false,
+      ...preset.header,
+    },
+    announcement: preset.announcement
+      ? { show: true, animation: 'static', items: [{ text: preset.announcement, link: '' }] }
+      : { show: false, animation: 'static', items: [] },
+    sections: preset.sections.map((s, i) => ({
+      id: `${typeMap[s.type] ?? s.type}-${i}`,
+      type: typeMap[s.type] ?? s.type,
+      visible: s.visible,
+      // El contenido del preset manda sobre los defaults: una sección de marca
+      // trae sus preguntas, sus items y su texto ya escritos.
+      data: { title: s.title ?? '', images: [], carousel: true, ...s.data },
+    })),
+  };
+}
