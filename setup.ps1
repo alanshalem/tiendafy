@@ -127,6 +127,7 @@ Write-Host @"
   Infraestructura (Docker):
     PostgreSQL   localhost:5432  (tiendafy / tiendafy)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
+    pgAdmin      http://localhost:8081  (entra sin login, con la base ya cargada)
 
   Levantar TODO con un comando:
     Nativo (hot-reload, recomendado en dev):   .\dev-up.ps1
@@ -135,8 +136,15 @@ Write-Host @"
 
   URLs:
     API             http://localhost:5080   (Swagger: /scalar, Health: /health)
-    Storefront      http://localhost:3000   (probá petify.localhost:3000)
-    Admin           http://localhost:5173
+    Storefront      http://localhost:3000   (la plataforma)
+    Admin           http://localhost:5173   (el panel de todas las tiendas)
+
+  Cada tienda vive en su propio subdominio del storefront:
+    http://<subdominio>.localhost:3000
+  dev-up.ps1 lista al final las que haya en la base. Para verlas a mano:
+    docker exec tiendafy-postgres psql -U tiendafy -d tiendafy -c "select subdomain, name from tenants"
+  Si no hay ninguna, se crean desde el panel o con el seed de demo:
+    curl -X POST http://localhost:5080/dev/demo-seed
 
   O a mano (nativo):
     Backend API     cd backend/src/Api; dotnet run

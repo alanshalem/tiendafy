@@ -86,11 +86,19 @@ cat <<'EOF'
   Infraestructura (Docker):
     PostgreSQL   localhost:5432  (tiendafy / tiendafy)
     MinIO (S3)   localhost:9000  | UI: http://localhost:9001 (minioadmin/minioadmin)
+    pgAdmin      http://localhost:8081  (entra sin login, con la base ya cargada)
 
   Para desarrollar (Windows: usar dev-up.ps1; Linux/WSL: a mano):
     Backend API     cd backend/src/Api && dotnet run   -> http://localhost:5080  (Swagger: /scalar)
     Storefront      cd storefront && pnpm dev          -> http://localhost:3000
     Admin           cd admin && pnpm dev               -> http://localhost:5173
+
+  Cada tienda vive en su propio subdominio del storefront:
+    http://<subdominio>.localhost:3000
+  Las que haya en la base:
+    docker exec tiendafy-postgres psql -U tiendafy -d tiendafy -c "select subdomain, name from tenants"
+  Si no hay ninguna, se crean desde el panel o con el seed de demo:
+    curl -X POST http://localhost:5080/dev/demo-seed
 
   Tests backend:    dotnet test backend/backend.slnx
   Type-check FE:    pnpm --filter "./shared/**" run type-check

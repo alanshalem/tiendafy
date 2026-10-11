@@ -57,6 +57,27 @@ if (-not $cloudflared) {
     $cloudflared = if ($found) { $found.FullName } else { 'cloudflared' }
 }
 
+# ---- Las tiendas que hay, leídas de la base ----
+# Un ejemplo fijo en el resumen envejece mal: la tienda que nombraba podía no
+# existir, y quien recién llega probaba una URL que daba "tienda no encontrada".
+# Esto imprime las que hay de verdad, con la dirección que les corresponde.
+function Show-Stores {
+    $rows = docker exec tiendafy-postgres psql -U tiendafy -d tiendafy -Atc `
+        "select subdomain, name, status from tenants order by created_at_utc" 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $rows) { return }
+
+    Write-Host ''
+    Write-Host '  Tiendas:' -ForegroundColor Cyan
+    foreach ($row in $rows) {
+        $cols = $row -split '\|'
+        if ($cols.Count -lt 3) { continue }
+        $suspendida = if ($cols[2] -ne 'Active') { "  [$($cols[2])]" } else { '' }
+        Write-Host ("    {0,-34} {1}{2}" -f "http://$($cols[0]).localhost:$($PORTS.Storefront)", $cols[1], $suspendida)
+    }
+    Write-Host '    (el dominio pelado muestra la landing de la plataforma,' -ForegroundColor DarkGray
+    Write-Host '     salvo que una tienda lo reclame como dominio propio)' -ForegroundColor DarkGray
+}
+
 # ---- Mapa de puertos (única fuente de verdad para el script) ----
 $PORTS = [ordered]@{
     'API'        = 5080   # backend .NET (launchSettings perfil http)
@@ -186,8 +207,11 @@ if ($Docker) {
     Ok '== Todo arriba (Docker) =='
     Write-Host "  API        http://localhost:$($PORTS.API)"
     Write-Host "  Swagger    http://localhost:$($PORTS.API)/scalar"
-    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (probá  petify.localhost:$($PORTS.Storefront))"
+    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (la plataforma; cada tienda va en su subdominio)"
     Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
+    Write-Host "  pgAdmin    http://localhost:8081   (entra sin login, con la base ya cargada)"
+    Write-Host "  MinIO      http://localhost:9001   (minioadmin / minioadmin)"
+    Show-Stores
     Write-Host "`n  Parar todo: ./dev-down.ps1 -Docker`n"
     exit 0
 }
@@ -282,6 +306,9 @@ if ($tunnelUrl) {
 }
 if (-not $BackendOnly) {
     Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
-    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)"
+    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (la plataforma; cada tienda va en su subdominio)"
 }
+Write-Host "  MinIO      http://localhost:9001   (minioadmin / minioadmin)"
+Write-Host "  pgAdmin    http://localhost:8081   (entra sin login, con la base ya cargada)"
+if (-not $BackendOnly) { Show-Stores }
 Write-Host "`n  Parar todo: ./dev-down.ps1`n"
