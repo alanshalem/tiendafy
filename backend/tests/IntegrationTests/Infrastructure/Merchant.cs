@@ -168,4 +168,21 @@ public sealed class Merchant
 
         return (productId, variantId);
     }
+
+    /// <summary>
+    /// Una venta de mostrador pagada en efectivo, con un producto propio: la
+    /// orden sobre la que se despacha, se factura o se devuelve.
+    /// </summary>
+    public async Task<Guid> CreateSaleAsync(long priceMinor = 50_000_00, int quantity = 1, string buyerEmail = "comprador@test.local")
+    {
+        var (_, variantId) = await CreateProductAsync($"Producto {Guid.NewGuid():N}"[..20], priceMinor);
+        var order = await PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId, quantity } },
+            paymentMethod = "cash",
+            buyerEmail,
+            buyerName = "Comprador de Test",
+        });
+        return order.GetProperty("id").GetGuid();
+    }
 }

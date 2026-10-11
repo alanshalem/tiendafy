@@ -1,0 +1,51 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+
+namespace IntegrationTests;
+
+/// <summary>
+/// Un comprador de la tienda: sin sesión, con el header de la tienda, como el
+/// storefront. Arma el carrito, completa el checkout y queda listo para pagar.
+/// </summary>
+public sealed class Shopper(Merchant store)
+{
+    private readonly HttpClient _client = store.Anonymous();
+
+    /// <summary>La URL de vuelta que manda el storefront: un subdominio propio.</summary>
+    public string ReturnUrl => $"http://{store.Subdomain}.localhost:3000";
+
+    public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null) =>
+        store.SendAsync(_client, method, path, body);
+
+    public async Task<JsonElement> ExpectJsonAsync(HttpMethod method, string path, object? body = null)
+    {
+        var res = await SendAsync(method, path, body);
+        Assert.True(res.IsSuccessStatusCode, $"{method} {path} → {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
+        return await res.Content.ReadFromJsonAsync<JsonElement>(Merchant.Json);
+    }
+
+    /// <summary>
+    /// Carrito con esa variante, checkout completo con retiro en el local (sin
+    /// costo de envío) y stock reservado. Devuelve el id de la sesión.
+    /// </summary>
+    public async Task<Guid> CheckoutAsync(Guid variantId, int quantity = 1, Guid? shippingMethodId = null,
+        string? quoteToken = null, string? address = null, string email = "comprador@test.local")
+    {
+        var session = await ExpectJsonAsync(HttpMethod.Post, "/api/v1/checkout",
+            new { lines = new[] { new { variantId, quantity } } });
+        var id = session.GetProperty("id").GetGuid();
+
+        await ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{id}/submit", new
+        {
+            email,
+            name = "Ana",
+            lastName = "Pérez",
+            phone = "1155556666",
+            docNumber = "30111222",
+            shippingMethodId,
+            address,
+            shippingQuoteToken = quoteToken,
+        });
+        return id;
+    }
+}

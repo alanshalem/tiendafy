@@ -140,7 +140,7 @@ public static class CheckoutEndpoints
                 zipnova = new { enabled = zipnova?.Active == true },
                 andreani = new { enabled = andreani?.Active == true },
             });
-        });
+        }).RequireTenant();
 
         return group;
     }
@@ -226,7 +226,7 @@ public static class CheckoutEndpoints
         {
             var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(ct);
             return Results.Ok(SettingsDto(s, tenant.TenantId));
-        });
+        }).RequireTenant();
 
         var admin = group.MapGroup("/admin/checkout").RequirePermission(Permission.SettingsWrite);
 
