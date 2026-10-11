@@ -238,6 +238,7 @@ export function VentasTab() {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </>
       )}
 

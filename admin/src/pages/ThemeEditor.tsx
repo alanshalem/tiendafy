@@ -839,6 +839,25 @@ export function ThemeEditorPage() {
 
       {searchOpen && <OptionSearch onPick={(v) => setView(v)} onClose={() => setSearchOpen(false)} />}
 
+      {/* Historial, copiar de otra tienda y programar: los botones existían y
+          abrían estado que nadie leía, así que hacer click no hacía nada. Lo
+          restaurado o copiado entra por applyIncoming, que lo suma al deshacer. */}
+      <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} onRestored={applyIncoming} />
+      <CopyFromStoreModal
+        open={copyOpen}
+        onClose={() => setCopyOpen(false)}
+        stores={stores}
+        currentId={store.id}
+        onCopied={applyIncoming}
+      />
+      <ScheduleModal
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        theme={theme}
+        scheduledAtUtc={scheduledAt}
+        onChanged={setScheduledAt}
+      />
+
       <Modal
         open={showChanges}
         onClose={() => setShowChanges(false)}
