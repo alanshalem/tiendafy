@@ -26,6 +26,7 @@ import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
+import { parseMoneyInput } from '../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -87,12 +88,6 @@ const STATUS: Record<QuoteStatus, { label: string; variant: BadgeVariant }> = {
 };
 
 const PAGE_SIZE = 25;
-
-/** Pesos escritos a mano → centavos. */
-function toMinor(value: string): number {
-  const n = Number(value.replace(/\./g, '').replace(',', '.'));
-  return Number.isFinite(n) ? Math.round(n * 100) : NaN;
-}
 
 /** Hoy + n días, en el formato que quiere un <input type="date">. */
 function inDays(days: number): string {
@@ -354,11 +349,11 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
   const editable = !quote || quote.editable;
 
   const subtotalMinor = lines.reduce((sum, l) => {
-    const price = toMinor(l.price || '0');
+    const price = parseMoneyInput(l.price || '0');
     const qty = Number(l.quantity) || 0;
     return sum + (Number.isFinite(price) ? price * qty : 0);
   }, 0);
-  const discountMinor = discount ? toMinor(discount) : 0;
+  const discountMinor = discount ? parseMoneyInput(discount) : 0;
   const totalMinor = Math.max(0, subtotalMinor - (Number.isFinite(discountMinor) ? discountMinor : 0));
 
   // Los precios que le tocan al cliente elegido: si tiene lista, salen de ahí.
@@ -385,7 +380,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
         items: lines.map((l) => ({
           variantId: l.variantId,
           quantity: Number(l.quantity) || 1,
-          unitPriceMinor: toMinor(l.price || '0'),
+          unitPriceMinor: parseMoneyInput(l.price || '0'),
         })),
         discountMinor: discountMinor > 0 ? discountMinor : null,
         notes: notes.trim() || null,
@@ -424,7 +419,8 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
   const problem = useMemo(() => {
     if (!customer?.name?.trim()) return 'Poné a nombre de quién va el presupuesto.';
     if (lines.length === 0) return 'Agregá al menos un producto.';
-    if (lines.some((l) => !Number.isFinite(toMinor(l.price || '0')))) return 'Algún precio no es un número.';
+    if (lines.some((l) => !Number.isFinite(parseMoneyInput(l.price || '0'))))
+      return 'Algún precio no es un número.';
     if (lines.some((l) => (Number(l.quantity) || 0) <= 0)) return 'Las cantidades tienen que ser positivas.';
     if (discountMinor > subtotalMinor) return 'El descuento no puede superar el total.';
     if (new Date(`${validUntil}T00:00:00Z`) <= new Date(new Date().toISOString().slice(0, 10)))

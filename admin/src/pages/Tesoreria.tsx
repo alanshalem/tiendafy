@@ -10,6 +10,7 @@ import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
+import { parseMoneyInput } from '../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -43,12 +44,6 @@ interface Movement {
 }
 
 const MOVEMENTS_PAGE_SIZE = 25;
-
-/** Pesos que escribe una persona → centavos que guarda el backend. */
-export function toMinor(value: string): number {
-  const n = Number(value.replace(/\./g, '').replace(',', '.'));
-  return Number.isFinite(n) ? Math.round(n * 100) : NaN;
-}
 
 export function TesoreriaPage() {
   const { store } = useStore();
@@ -192,7 +187,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
             name,
             kind,
             currency,
-            openingBalanceMinor: toMinor(opening || '0'),
+            openingBalanceMinor: parseMoneyInput(opening || '0'),
             detail: detail || null,
           }),
     onSuccess: () => {
@@ -203,7 +198,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
     onError: (e) => toast(errMsg(e, 'No se pudo guardar'), { variant: 'error' }),
   });
 
-  const openingInvalid = !editing && Number.isNaN(toMinor(opening || '0'));
+  const openingInvalid = !editing && Number.isNaN(parseMoneyInput(opening || '0'));
 
   return (
     <Modal open onClose={onClose} title={editing ? 'Editar cuenta' : 'Nueva cuenta'}>
@@ -390,7 +385,7 @@ function MovementModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
   const [concept, setConcept] = useState('');
   const [reference, setReference] = useState('');
 
-  const amountMinor = toMinor(amount);
+  const amountMinor = parseMoneyInput(amount);
   const invalid = !accountId || !concept.trim() || !Number.isFinite(amountMinor) || amountMinor <= 0;
 
   const save = useMutation({
@@ -475,7 +470,7 @@ function TransferModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
 
   const from = accounts.find((a) => a.id === fromAccountId);
   const to = accounts.find((a) => a.id === toAccountId);
-  const amountMinor = toMinor(amount);
+  const amountMinor = parseMoneyInput(amount);
 
   // Los dos motivos por los que el backend rechaza, dichos antes de mandar.
   const problem = useMemo(() => {

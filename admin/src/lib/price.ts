@@ -38,10 +38,68 @@ export function toDomainPrice(regular: number, promo: number | null): DomainPric
   return { priceAmount: Math.min(regular, promo), compareAtAmount: Math.max(regular, promo) };
 }
 
-/* ---- Helpers de conversión texto ↔ centavos (compartidos por los forms de producto/cupón). ---- */
+/* ---- Texto que escribe una persona ↔ centavos ---------------------------------------------- */
 
-/** Centavos a partir del texto de un campo de precio (acepta coma o punto decimal). */
-export const toCents = (s: string): number => Math.round(parseFloat(s.replace(',', '.')) * 100);
+/** Miles al estilo argentino: hasta tres dígitos (sin cero adelante), punto, y tres más. */
+const AR_THOUSANDS = /^[1-9]\d{0,2}\.\d{3}$/;
+
+/**
+ * Centavos a partir de un importe escrito a mano. NaN si no es un número.
+ *
+ * Es el único lector de importes del panel. Antes había seis, y no coincidían:
+ * el de Tesorería leía `1500.50` como $150.050 —y el autocompletado del precio
+ * sugerido en Presupuestos generaba justamente ese formato—, mientras el de
+ * cupones leía `1.500` como $1,50. Cada uno acertaba donde el otro fallaba.
+ *
+ * Las reglas resuelven lo que el texto permite resolver, y nada más:
+ * - Con punto y coma, el que aparece último es el decimal y el otro es miles:
+ *   `1.234,56` y `1,234.56` son el mismo número.
+ * - Solo comas: una sola es decimal (`1500,5`); varias son miles (`1,234,567`).
+ * - Solo puntos: varios son miles (`1.234.567`). Uno solo es miles únicamente
+ *   con la forma exacta de un grupo argentino —`1.500`, `12.345`—; cualquier
+ *   otra cosa es decimal (`1500.50`, `1.5`, `0.500`).
+ *
+ * Para `<input type="number">` no hace falta: el navegador entrega siempre
+ * punto decimal y nunca miles, y ahí alcanza con `Number(value)`.
+ */
+export function parseMoneyInput(text: string): number {
+  const cleaned = text.trim().replace(/[\s$]/g, '');
+  // El signo pasa tal cual, como en los lectores anteriores: si un negativo
+  // vale o no lo decide cada pantalla con su propia validación.
+  const negative = cleaned.startsWith('-');
+  const raw = negative ? cleaned.slice(1) : cleaned;
+  if (raw === '') return NaN;
+
+  const dot = raw.lastIndexOf('.');
+  const comma = raw.lastIndexOf(',');
+  let plain: string;
+
+  if (dot >= 0 && comma >= 0) {
+    const decimalSep = dot > comma ? '.' : ',';
+    const thousandsSep = decimalSep === '.' ? ',' : '.';
+    plain = raw.split(thousandsSep).join('').replace(decimalSep, '.');
+  } else if (comma >= 0) {
+    plain = raw.indexOf(',') === comma ? raw.replace(',', '.') : raw.split(',').join('');
+  } else if (dot >= 0) {
+    const several = raw.indexOf('.') !== dot;
+    plain = several || AR_THOUSANDS.test(raw) ? raw.split('.').join('') : raw;
+  } else {
+    plain = raw;
+  }
+
+  // Separador colgado (`1500.`, `1500,` a mitad de tipeo) o decimal sin entero
+  // (`.5`): los lectores anteriores los aceptaban, y este también.
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(plain)) return NaN;
+  const minor = Math.round(Number(plain) * 100);
+  return negative ? -minor : minor;
+}
+
+/**
+ * Centavos a partir del texto de un campo de precio. Mismo lector que
+ * `parseMoneyInput`: los forms de producto validan antes con `isValidPrice`,
+ * así que acá solo llega `1500`, `1500,5` o `1500.50`, y eso no cambió.
+ */
+export const toCents = (s: string): number => parseMoneyInput(s);
 
 /** Centavos → texto en pesos (para poblar los inputs). */
 export const toPesos = (cents: number): string => (cents / 100).toString();

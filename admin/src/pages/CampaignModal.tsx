@@ -8,6 +8,7 @@ import { RichTextEditor } from '../components/RichTextEditor';
 import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
 import { EmailPreviewPanel } from '../components/EmailPreview';
 import type { MoneyDto } from '@tiendafy/types';
+import { parseMoneyInput } from '../lib/price';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -125,7 +126,7 @@ export function CampaignModal({
     subject,
     bodyHtml: body,
     audience,
-    minSpentMinor: audience !== 'custom' && minSpent ? Math.round(Number(minSpent) * 100) : null,
+    minSpentMinor: audience !== 'custom' && minSpent ? parseMoneyInput(minSpent) : null,
     minOrders: audience !== 'custom' && minOrders ? Number(minOrders) : null,
     purchasedWithinDays: audience !== 'custom' && withinDays ? Number(withinDays) : null,
     inactiveForDays: audience !== 'custom' && inactiveDays ? Number(inactiveDays) : null,
@@ -144,7 +145,7 @@ export function CampaignModal({
       api
         .post<AudiencePreview>('/api/v1/admin/campaigns/audience/preview', {
           type: audience,
-          minSpentMinor: audience !== 'custom' && minSpent ? Math.round(Number(minSpent) * 100) : null,
+          minSpentMinor: audience !== 'custom' && minSpent ? parseMoneyInput(minSpent) : null,
           minOrders: audience !== 'custom' && minOrders ? Number(minOrders) : null,
           purchasedWithinDays: audience !== 'custom' && withinDays ? Number(withinDays) : null,
           inactiveForDays: audience !== 'custom' && inactiveDays ? Number(inactiveDays) : null,

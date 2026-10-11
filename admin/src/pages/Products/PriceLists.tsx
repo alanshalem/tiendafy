@@ -10,6 +10,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../../lib/styles';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { parseMoneyInput } from '../../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -47,12 +48,6 @@ const ROUNDING_LABEL: Record<string, string> = {
 };
 
 const PRICES_PAGE_SIZE = 50;
-
-/** Pesos escritos a mano → centavos. */
-function toMinor(value: string): number {
-  const n = Number(value.replace(/\./g, '').replace(',', '.'));
-  return Number.isFinite(n) ? Math.round(n * 100) : NaN;
-}
 
 export function PriceListsPage() {
   const { store } = useStore();
@@ -398,7 +393,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
       if (row.isManual) savePrice.mutate({ variantId: row.variantId, priceMinor: null });
       return;
     }
-    const minor = toMinor(raw);
+    const minor = parseMoneyInput(raw);
     if (!Number.isFinite(minor) || minor <= 0) {
       toast('Ese precio no es un número válido.', { variant: 'error' });
       return;

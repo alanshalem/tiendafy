@@ -22,7 +22,8 @@ import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
-import { toMinor, type FinanceAccount } from './Tesoreria';
+import type { FinanceAccount } from './Tesoreria';
+import { parseMoneyInput } from '../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -543,9 +544,9 @@ function ReceiptModal({
   // significaba renderizar dos veces para mostrar lo mismo.
   const accountId = pickedAccountId || activeAccounts[0]?.id || '';
 
-  const amountMinor = toMinor(amount);
+  const amountMinor = parseMoneyInput(amount);
   const allocated = Object.values(allocations).reduce((s, v) => {
-    const n = toMinor(v || '0');
+    const n = parseMoneyInput(v || '0');
     return s + (Number.isFinite(n) ? n : 0);
   }, 0);
 
@@ -567,7 +568,7 @@ function ReceiptModal({
         notes: notes.trim() || null,
         payments: [{ accountId, amountMinor }],
         allocations: Object.entries(allocations)
-          .map(([ledgerEntryId, v]) => ({ ledgerEntryId, amountMinor: toMinor(v || '0') }))
+          .map(([ledgerEntryId, v]) => ({ ledgerEntryId, amountMinor: parseMoneyInput(v || '0') }))
           .filter((a) => Number.isFinite(a.amountMinor) && a.amountMinor > 0),
       }),
     onSuccess: (res) => {
@@ -767,7 +768,7 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
     enabled: !!store && !party,
   });
 
-  const amountMinor = toMinor(amount);
+  const amountMinor = parseMoneyInput(amount);
   const invalid = !party || !Number.isFinite(amountMinor) || amountMinor <= 0 || !reason.trim();
 
   const save = useMutation({
