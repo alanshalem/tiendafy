@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Paperclip, Send, X } from 'lucide-react';
 
 import { API_URL, clientJson, tenantHeaders } from '@/lib/api-client';
@@ -50,7 +50,7 @@ export function SupportChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const headers = tenantHeaders(tenantId);
+  const headers = useMemo(() => tenantHeaders(tenantId), [tenantId]);
 
   const loadMessages = useCallback(
     async (convId: string) => {
@@ -63,7 +63,7 @@ export function SupportChat({
         setMessages(d.items);
       }
     },
-    [tenantId],
+    [headers],
   );
 
   // Abrir conversación + polling.

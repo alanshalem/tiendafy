@@ -629,7 +629,7 @@ function RecipientPicker({
     queryFn: () =>
       api.post<AudiencePreview>('/api/v1/admin/campaigns/audience/preview', { type: 'customers' }),
   });
-  const all = data?.sample ?? [];
+  const all = useMemo(() => data?.sample ?? [], [data]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? all.filter((m) => m.email.includes(q) || (m.name ?? '').toLowerCase().includes(q)) : all;

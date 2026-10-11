@@ -91,7 +91,7 @@ export function SpecFieldsPage() {
     queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
     enabled: !!store,
   });
-  const categories = categoriesQ.data?.items ?? [];
+  const categories = useMemo(() => categoriesQ.data?.items ?? [], [categoriesQ.data]);
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
   const remove = async (field: SpecDefinition) => {

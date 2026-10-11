@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Tenant } from '@tiendafy/types';
 import { api, setActiveTenant } from '../lib/api';
@@ -29,7 +29,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     queryFn: () => api.get<{ items: Tenant[] }>('/api/v1/tenants?limit=50'),
   });
 
-  const stores = data?.items ?? [];
+  // Memoizado: con `?? []` suelto, mientras carga era un array nuevo en cada
+  // render y el efecto de abajo corría en cada uno. No entraba en loop solo
+  // porque setStore recibía el mismo null y React lo ignoraba.
+  const stores = useMemo(() => data?.items ?? [], [data]);
 
   // Restaurar selección previa; si no hay, auto-seleccionar la primera.
   // El header X-Tenant-Id se setea ACÁ (sync) para que las queries que

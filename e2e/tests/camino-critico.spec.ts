@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { ADMIN, API, STORE_BASE, fillLogin } from './_helpers';
+import { ADMIN, API, SEED_ADMIN, STORE_BASE, fillLogin } from './_helpers';
 
 /**
  * EL camino que factura, de punta a punta y auto-contenido:
@@ -73,14 +73,40 @@ test('camino crítico: registro → tienda → producto → carrito → checkout
 });
 
 test('storefront: links legales y botón de arrepentimiento presentes', async ({ page }) => {
-  // Usa la tienda que el test anterior dejó… no: auto-contenido — cualquier
-  // tienda activa sirve; resolvemos una vía la API pública.
-  const res = await page.request.get(`${API}/health`);
-  expect(res.ok()).toBeTruthy();
+  // Antes este test solo miraba que la API respondiera y el título de la
+  // landing de la plataforma: los links que nombra no los buscaba. El botón
+  // de arrepentimiento es obligatorio (Res. 424/2020) en toda tienda que
+  // vende, así que se busca en una de verdad.
+  //
+  // Auto-contenido: el admin del seed ve todas las tiendas. Sirve la primera
+  // que muestre su pie; una "en construcción" no lo tiene, y está bien —no
+  // vende—.
+  const login = await page.request.post(`${API}/api/v1/auth/login`, { data: SEED_ADMIN });
+  expect(login.ok()).toBeTruthy();
+  const { items } = (await (await page.request.get(`${API}/api/v1/tenants/`)).json()) as {
+    items: { subdomain: string; status: string }[];
+  };
 
-  // La home de la plataforma (sin subdominio) también debe responder.
-  await page.goto(`http://${STORE_BASE}`);
-  await expect(page).toHaveTitle(/tiendafy/i);
+  const terminos = page.getByRole('link', { name: 'Términos y condiciones' });
+  let encontrada: string | null = null;
+  for (const t of items.filter((x) => x.status === 'ACTIVE')) {
+    await page.goto(`http://${t.subdomain}.${STORE_BASE}`);
+    if (await terminos.isVisible()) {
+      encontrada = t.subdomain;
+      break;
+    }
+  }
+  test.skip(
+    encontrada === null,
+    'No hay ninguna tienda activa vendiendo (todas en construcción o ninguna creada).',
+  );
+
+  await expect(terminos).toHaveAttribute('href', '/terminos');
+  await expect(page.getByRole('link', { name: 'Privacidad' })).toHaveAttribute('href', '/privacidad');
+  await expect(page.getByRole('link', { name: 'Botón de arrepentimiento' })).toHaveAttribute(
+    'href',
+    '/arrepentimiento',
+  );
 });
 
 test('admin: login del seed de dev y command palette', async ({ page }) => {

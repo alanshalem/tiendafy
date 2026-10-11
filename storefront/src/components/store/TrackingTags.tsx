@@ -84,7 +84,6 @@ interface StashedPurchase {
 /* ningún lugar donde algo escrito por una persona pueda convertirse en código. */
 /* -------------------------------------------------------------------------- */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const w = () => window as any;
 
 function appendScript(src: string, id: string) {
@@ -105,7 +104,9 @@ function loadGtag(ga4: string | null, ads: string | null) {
   win.dataLayer = win.dataLayer || [];
   if (!win.gtag) {
     win.gtag = function gtag() {
-      // eslint-disable-next-line prefer-rest-params
+      // `arguments` y no `...args`, a propósito: gtag.js espera el objeto
+      // Arguments en el dataLayer. Con un array, Google Analytics deja de
+      // registrar sin dar ningún error.
       win.dataLayer.push(arguments);
     };
     win.gtag('js', new Date());
