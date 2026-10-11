@@ -119,6 +119,14 @@ public static class FiscalEndpoints
             if (info.IsFailure) return info.Error.ToProblem();
 
             cert.Activate(protector.Protect(req.CertificatePem), info.Value.SubjectCn, info.Value.NotBeforeUtc, info.Value.NotAfterUtc);
+
+            // Con un certificado activo para su ambiente la tienda ya puede
+            // emitir: se habilita la facturación. Nadie más lo hacía, y la cola
+            // exige Enabled: la factura y la nota de crédito automáticas no se
+            // encolaban nunca aunque el comercio las activara.
+            var cfg = await db.Configs.FirstOrDefaultAsync(c => c.TenantId == tenant.TenantId.Value, ct);
+            if (cfg is not null && cfg.Environment == cert.Environment) cfg.Enable();
+
             await db.SaveChangesAsync(ct);
             return Results.Ok(CertDto(cert));
         });

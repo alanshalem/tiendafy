@@ -46,6 +46,22 @@ public sealed class FakeHttp
     public List<Recorded> SentTo(string urlPrefix) =>
         [.. _requests.Where(r => r.Uri.ToString().StartsWith(urlPrefix, StringComparison.OrdinalIgnoreCase))];
 
+    /// <summary>Un email que la API mandó por Resend.</summary>
+    public sealed record Email(string To, string Subject, string Html, string? TenantTag);
+
+    /// <summary>Los emails mandados a esa dirección, en orden.</summary>
+    public List<Email> EmailsTo(string address) =>
+        [.. SentTo(ApiFactory.ResendEmails)
+            .Select(r => JsonDocument.Parse(r.Body!).RootElement)
+            .Where(e => e.GetProperty("to")[0].GetString()!.Equals(address, StringComparison.OrdinalIgnoreCase))
+            .Select(e => new Email(
+                e.GetProperty("to")[0].GetString()!,
+                e.GetProperty("subject").GetString()!,
+                e.GetProperty("html").GetString()!,
+                e.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Array
+                    ? tags[0].GetProperty("value").GetString()
+                    : null))];
+
     public static HttpResponseMessage Json(object body, HttpStatusCode status = HttpStatusCode.OK) => new(status)
     {
         Content = new StringContent(

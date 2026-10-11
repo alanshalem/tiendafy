@@ -17,6 +17,22 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Con este secreto los tests firman los webhooks de Mercado Pago.</summary>
     public const string MercadoPagoWebhookSecret = "test-webhook-secret";
 
+    /// <summary>Y con este, los de Resend (formato svix: whsec_ + base64).</summary>
+    public static readonly string ResendWebhookSecret =
+        "whsec_" + Convert.ToBase64String("tiendafy-resend-webhook-secret!!"u8.ToArray());
+
+    public const string ResendEmails = "https://api.resend.com/emails";
+
+    public ApiFactory()
+    {
+        // Los emails salen por Resend de verdad (el camino de producción, con
+        // su payload y sus reintentos) y Resend "acepta" todo. Un test que
+        // quiera probar un rechazo pisa esta respuesta y la restaura.
+        AcceptAllEmails();
+    }
+
+    public void AcceptAllEmails() => ExternalHttp.OnJson(HttpMethod.Post, ResendEmails, new { id = "re_test" });
+
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Default",
@@ -41,6 +57,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MercadoLibre:ClientId", "test-meli-client");
         builder.UseSetting("MercadoLibre:ClientSecret", "test-meli-secret");
         builder.UseSetting("MercadoLibre:RedirectUri", "http://localhost:5080/api/v1/meli/oauth/callback");
+        builder.UseSetting("Email:ResendApiKey", "re_test_key");
+        builder.UseSetting("Email:WebhookSecret", ResendWebhookSecret);
 
         // Ningún test sale a internet: todos los HttpClient de la API (los
         // tipados de cada integración incluidos) terminan en el fake. La
