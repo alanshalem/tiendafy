@@ -1,6 +1,7 @@
 using Api.Auth;
 using Api.Shipping;
 using Checkout.Core.Domain;
+using Checkout.Infrastructure.Carriers;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Orders.Core.Domain;

@@ -18,5 +18,5 @@ internal static class ApiJson
     /// las mismas opciones, la deserialización devuelve defaults en silencio (ya
     /// pasó con las cantidades de items de ML en 0). Un único singleton evita el drift.
     /// </summary>
-    public static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+    public static JsonSerializerOptions Web => JsonDefaults.Web; // la misma instancia: ver JsonDefaults
 }

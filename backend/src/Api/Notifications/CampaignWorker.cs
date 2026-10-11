@@ -125,7 +125,7 @@ public sealed class CampaignWorker(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Campaña {CampaignId}: fallo enviando a {Email}.",
-                    campaign.Id, Logging.LogValue.MaskEmail(recipient.Email));
+                    campaign.Id, LogValue.MaskEmail(recipient.Email));
                 recipient.MarkFailed();
                 failed++;
             }

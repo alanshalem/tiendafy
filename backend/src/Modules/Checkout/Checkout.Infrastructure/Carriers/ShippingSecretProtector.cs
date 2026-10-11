@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 /// <summary>
 /// Cifra/descifra los secretos de TODOS los carriers (MiCorreo, Zipnova) y del

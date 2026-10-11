@@ -1,4 +1,4 @@
-namespace Api.Logging;
+namespace SharedKernel.Common;
 
 /// <summary>
 /// Sanitizado de valores de origen externo antes de loguearlos:

@@ -4,8 +4,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Checkout.Core.Domain;
+using Microsoft.Extensions.Logging;
+using SharedKernel.Common;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 /// <summary>Error controlado de la API de Zipnova, con el mensaje del server.</summary>
 public sealed class ZipnovaException(string message, HttpStatusCode? status = null)
@@ -88,7 +90,7 @@ public sealed record ZipnovaTrackingEvent(
 /// </summary>
 public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger)
 {
-    private static readonly JsonSerializerOptions Json = ApiJson.Web;
+    private static readonly JsonSerializerOptions Json = JsonDefaults.Web;
 
     private HttpRequestMessage Build(ZipnovaCredentials creds, HttpMethod method, string path, object? payload)
     {
@@ -109,7 +111,7 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
         if (!response.IsSuccessStatusCode)
         {
             logger.LogWarning("Zipnova {Path} devolvió {Status}: {Body}",
-                Logging.LogValue.Safe(path), (int)response.StatusCode, Logging.LogValue.Safe(body, 300));
+                LogValue.Safe(path), (int)response.StatusCode, LogValue.Safe(body, 300));
             throw new ZipnovaException(ExtractMessage(body, response.StatusCode), response.StatusCode);
         }
         return body;

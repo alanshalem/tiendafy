@@ -4,8 +4,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using SharedKernel.Common;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 /// <summary>Error controlado de la API de MiCorreo, con el mensaje del server.</summary>
 public sealed class MiCorreoException(string message, HttpStatusCode? status = null)
@@ -71,7 +73,7 @@ public sealed record MiCorreoTracking(
 /// </summary>
 public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<MiCorreoClient> logger)
 {
-    private static readonly JsonSerializerOptions Json = ApiJson.Web;
+    private static readonly JsonSerializerOptions Json = JsonDefaults.Web;
 
     // -------------------------------------------------------------- Auth
 
@@ -127,7 +129,7 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("MiCorreo {Path} devolvió {Status}: {Body}",
-                    Logging.LogValue.Safe(path), (int)response.StatusCode, Logging.LogValue.Safe(body, 300));
+                    LogValue.Safe(path), (int)response.StatusCode, LogValue.Safe(body, 300));
                 throw new MiCorreoException(ExtractMessage(body, $"MiCorreo devolvió {(int)response.StatusCode}."), response.StatusCode);
             }
 

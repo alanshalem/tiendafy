@@ -1,6 +1,6 @@
 using Checkout.Core.Domain;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 /// <summary>
 /// Paquete agregado a cotizar: valores enteros en gramos/cm, como exige MiCorreo.

@@ -4,9 +4,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Checkout.Core.Domain;
+using Microsoft.Extensions.Logging;
 using SharedKernel.Common;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 public sealed class AndreaniException(string message, HttpStatusCode? status = null)
     : CarrierException(message, status);
@@ -97,7 +98,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Andreani /v1/tarifas devolvió {Status} para el contrato {Contract}: {Body}",
-                    (int)response.StatusCode, Logging.LogValue.Safe(contract), Logging.LogValue.Safe(body, 200));
+                    (int)response.StatusCode, LogValue.Safe(contract), LogValue.Safe(body, 200));
                 return null;
             }
 
@@ -114,7 +115,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         {
             // El checkout nunca se cae por el cotizador: sin tarifa, no se
             // ofrece la opción y se sigue con los demás medios de envío.
-            logger.LogWarning(ex, "Andreani no pudo cotizar el contrato {Contract}.", Logging.LogValue.Safe(contract));
+            logger.LogWarning(ex, "Andreani no pudo cotizar el contrato {Contract}.", LogValue.Safe(contract));
             return null;
         }
     }
@@ -164,7 +165,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{config.BaseUrl}/ordenes-de-envio")
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload, ApiJson.Web), Encoding.UTF8, "application/json"),
+            Content = new StringContent(JsonSerializer.Serialize(payload, JsonDefaults.Web), Encoding.UTF8, "application/json"),
         };
         request.Headers.TryAddWithoutValidation("x-authorization-token", token);
 
@@ -174,7 +175,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
         if (!response.IsSuccessStatusCode)
         {
             logger.LogError("Andreani rechazó la orden de envío con {Status}: {Body}",
-                (int)response.StatusCode, Logging.LogValue.Safe(body, 400));
+                (int)response.StatusCode, LogValue.Safe(body, 400));
             throw new AndreaniException(DescribeError(body, response.StatusCode), response.StatusCode);
         }
 

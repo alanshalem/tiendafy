@@ -3,6 +3,7 @@ using Api.Shipping;
 using Checkout.Core.Domain;
 using Checkout.Core.Features.StartCheckout;
 using Checkout.Core.Features.SubmitCheckout;
+using Checkout.Infrastructure.Carriers;
 using Checkout.Infrastructure.Persistence;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;

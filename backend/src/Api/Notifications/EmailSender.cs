@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Api.Logging;
 using Microsoft.Extensions.Options;
+using SharedKernel.Common;
 
 namespace Api.Notifications;
 

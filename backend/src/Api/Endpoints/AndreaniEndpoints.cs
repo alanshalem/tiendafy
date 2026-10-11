@@ -1,6 +1,7 @@
 using Api.Auth;
 using Api.Shipping;
 using Checkout.Core.Domain;
+using Checkout.Infrastructure.Carriers;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Orders.Core.Domain;
@@ -334,7 +335,7 @@ public static class AndreaniEndpoints
                         // que no reconocemos se loguea para poder agregarlo.
                         loggers.CreateLogger("Andreani").LogWarning(
                             "Estado de Andreani sin mapear: {StateId} '{State}' en el envío {Tracking}.",
-                            last.StateId, Logging.LogValue.Safe(last.State), Logging.LogValue.Safe(shipment.TrackingNumber));
+                            last.StateId, LogValue.Safe(last.State), LogValue.Safe(shipment.TrackingNumber));
                     }
 
                     shipment.ApplyTracking(status, last.State, last.StateId);

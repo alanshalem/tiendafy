@@ -1,5 +1,5 @@
-using Api.Shipping;
 using Checkout.Core.Domain;
+using Checkout.Infrastructure.Carriers;
 using SharedKernel.Common;
 
 namespace UnitTests.Checkout;

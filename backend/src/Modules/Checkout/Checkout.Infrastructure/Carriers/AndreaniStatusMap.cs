@@ -1,6 +1,6 @@
 using Checkout.Core.Domain;
 
-namespace Api.Shipping;
+namespace Checkout.Infrastructure.Carriers;
 
 /// <summary>
 /// Traduce los estados de Andreani a los de Tiendafy.

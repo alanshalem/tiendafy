@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Api.Shipping;
 using Checkout.Core.Domain;
+using Checkout.Infrastructure.Carriers;
 using Microsoft.AspNetCore.DataProtection;
 using SharedKernel.Common;
 

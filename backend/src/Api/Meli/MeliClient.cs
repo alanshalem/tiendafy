@@ -51,7 +51,7 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         if (!ok)
         {
             logger.LogWarning("Mercado Libre OAuth devolvió {Status}: {Body}",
-                (int)status, Logging.LogValue.Safe(body, 300));
+                (int)status, LogValue.Safe(body, 300));
             throw new MeliException(ExtractMessage(body, status), status);
         }
 
@@ -88,7 +88,7 @@ public sealed class MeliClient(HttpClient http, IOptions<MeliOptions> options, I
         if (!response.IsSuccessStatusCode)
         {
             logger.LogWarning("Mercado Libre {Method} {Path} devolvió {Status}: {Body}",
-                method.Method, Logging.LogValue.Safe(path, 120), (int)response.StatusCode, Logging.LogValue.Safe(body, 300));
+                method.Method, LogValue.Safe(path, 120), (int)response.StatusCode, LogValue.Safe(body, 300));
             throw new MeliException(ExtractMessage(body, response.StatusCode), response.StatusCode);
         }
         return JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);

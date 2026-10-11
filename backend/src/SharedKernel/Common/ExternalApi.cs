@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-namespace Api;
+namespace SharedKernel.Common;
 
 /// <summary>
 /// Error controlado de una API externa (carriers, Mercado Libre), con el
@@ -14,7 +14,7 @@ public abstract class ExternalApiException(string message, HttpStatusCode? statu
 }
 
 /// <summary>Lectura del cuerpo de error JSON que devuelven las APIs externas.</summary>
-internal static class ExternalErrorBody
+public static class ExternalErrorBody
 {
     /// <summary>Primer string no vacío entre las propiedades dadas, o null si no hay.</summary>
     public static string? Message(string body, params string[] properties)
