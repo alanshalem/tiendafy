@@ -190,6 +190,24 @@ public static class ServiceRegistration
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+            // Sin esto el 429 salía sin cuerpo, y el panel le mostraba a quien se
+            // equivocó de contraseña "Request failed with status 429". Se
+            // responde como todo error de la API (RFC 7807), en castellano y
+            // diciendo cuándo volver a probar.
+            options.OnRejected = async (context, ct) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                await Results.Problem(
+                    title: "RateLimit.Exceeded",
+                    detail: "Demasiados intentos seguidos. Esperá unos minutos y probá de nuevo.",
+                    statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(context.HttpContext);
+            };
+
             // Global: techo amplio contra agotamiento de recursos (DoS L7).
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(
