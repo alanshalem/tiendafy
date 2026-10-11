@@ -83,6 +83,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Social:X:ClientId", "test-x-client");
         builder.UseSetting("Social:X:ClientSecret", "test-x-secret");
         builder.UseSetting("Social:X:RedirectUri", "http://localhost:5080/api/v1/social/oauth/callback/x");
+        // IA (Claude API) con una clave de mentira: las sugerencias y la lectura
+        // de facturas van al fake.
+        builder.UseSetting("Ai:ApiKey", "sk-ant-test");
         builder.UseSetting("Email:ResendApiKey", "re_test_key");
         builder.UseSetting("Email:WebhookSecret", ResendWebhookSecret);
 
