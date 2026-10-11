@@ -48,6 +48,16 @@ if (typeof window !== 'undefined') {
     this.open = false;
     this.dispatchEvent(new Event('close'));
   };
+  // Escape sobre un <dialog> modal: el navegador dispara "cancel" y, si nadie
+  // lo previene, lo cierra. jsdom no lo hace.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = Array.from(document.querySelectorAll<HTMLDialogElement>('dialog[open]'));
+    const top = open[open.length - 1];
+    if (!top) return;
+    const cancel = new Event('cancel', { cancelable: true });
+    if (top.dispatchEvent(cancel)) top.close();
+  });
   URL.createObjectURL ??= () => 'blob:test';
   URL.revokeObjectURL ??= () => {};
 }
