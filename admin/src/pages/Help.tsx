@@ -54,6 +54,7 @@ import {
 } from '../config/helpContent';
 import type { HelpLinkId } from '../config/features';
 import { HelpDemo } from '../components/HelpDemos';
+import { foldText } from '../lib/text';
 
 // Ícono por tema (con fallback genérico).
 const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
@@ -120,12 +121,7 @@ const CATEGORY_ICONS: Record<HelpCategory, typeof BookOpen> = {
 /** Artículos destacados en el índice cuando no hay búsqueda. */
 const POPULAR: HelpLinkId[] = ['primerosPasos', 'payments', 'shipping', 'fiscal'];
 
-const slug = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-');
+const slug = (s: string) => foldText(s).replace(/[^a-z0-9]+/g, '-');
 
 function TopicIcon({ id, className }: { id: HelpLinkId; className?: string }) {
   const Icon = ICONS[id] ?? BookOpen;

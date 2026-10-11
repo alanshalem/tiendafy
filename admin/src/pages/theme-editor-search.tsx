@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
+import { foldText } from '../lib/text';
 
 /**
  * Buscador de opciones del editor de diseño.
@@ -236,15 +237,14 @@ export const OPTION_INDEX: OptionEntry[] = [
 ];
 
 /** Sin acentos y en minúscula: "diseño" tiene que encontrarse escribiendo "diseno". */
-const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export function searchOptions(query: string, index = OPTION_INDEX): OptionEntry[] {
-  const q = fold(query.trim());
+  const q = foldText(query.trim());
   if (!q) return [];
   const terms = q.split(/\s+/);
   return index
     .filter((e) => {
-      const hay = fold(`${e.label} ${e.panel} ${e.keywords ?? ''}`);
+      const hay = foldText(`${e.label} ${e.panel} ${e.keywords ?? ''}`);
       return terms.every((t) => hay.includes(t));
     })
     .slice(0, 12);

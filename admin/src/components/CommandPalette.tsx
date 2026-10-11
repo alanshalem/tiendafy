@@ -5,6 +5,7 @@ import { cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { foldText } from '../lib/text';
 
 /* ============================================================
    Command palette (Ctrl/Cmd+K): saltar a cualquier pantalla del
@@ -149,10 +150,9 @@ interface ProductHit {
 }
 
 /** Match laxo: todas las palabras de la query aparecen en el texto (sin acentos). */
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function matches(query: string, text: string): boolean {
-  const words = fold(query).split(/\s+/).filter(Boolean);
-  const hay = fold(text);
+  const words = foldText(query).split(/\s+/).filter(Boolean);
+  const hay = foldText(text);
   return words.every((w) => hay.includes(w));
 }
 
