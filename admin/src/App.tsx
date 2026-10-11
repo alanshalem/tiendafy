@@ -54,7 +54,7 @@ import { StatsProfitabilityPage } from './pages/Stats/Profitability';
 import { StatsVisitsPage } from './pages/Stats/Visits';
 import { StatsRealTimePage } from './pages/Stats/RealTime';
 import { StatsCouponsPage } from './pages/Stats/Coupons';
-import { StubPage, stubs } from './pages/Stub';
+import { NotFoundPage } from './pages/NotFound';
 import { RequirePerm } from './context/PermissionsContext';
 
 /** Tabla de rutas: path + permiso + elemento (el boilerplate de <RequirePerm> se arma al render). */
@@ -162,12 +162,7 @@ export default function App() {
       {/* Ctrl/Cmd+K en cualquier pantalla del admin. */}
       <CommandPalette />
       <Routes>
-        <Route element={<AdminLayout />}>
-          {MAIN_ROUTES.map(renderRoute)}
-          {Object.keys(stubs).map((id) => (
-            <Route key={id} path={`/${id}`} element={<StubPage id={id} />} />
-          ))}
-        </Route>
+        <Route element={<AdminLayout />}>{MAIN_ROUTES.map(renderRoute)}</Route>
 
         {/* Configuración: layout propio con su nav lateral */}
         <Route path="/configuracion" element={<SettingsLayout />}>
@@ -180,7 +175,7 @@ export default function App() {
         <Route path="/ayuda/:topic" element={<HelpArticlePage />} />
 
         <Route element={<AdminLayout />}>
-          <Route path="*" element={<StubPage id="aplicaciones" />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </>

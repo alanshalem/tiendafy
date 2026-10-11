@@ -35,10 +35,7 @@ const NAV_VISIBILITY: Record<string, boolean> = {
   '/mercadolibre': true,
   '/paginas': true,
   '/redes': true,
-  '/canales/google': false,
-  '/canales/marketplaces': false,
   '/tenants': true,
-  '/aplicaciones': false,
 
   // Configuración
   '/configuracion/medios-de-pago': true,
