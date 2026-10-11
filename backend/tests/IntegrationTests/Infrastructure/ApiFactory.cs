@@ -1,6 +1,9 @@
+using Amazon.Runtime;
+using Amazon.S3;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 
 namespace IntegrationTests;
@@ -29,9 +32,25 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // su payload y sus reintentos) y Resend "acepta" todo. Un test que
         // quiera probar un rechazo pisa esta respuesta y la restaura.
         AcceptAllEmails();
+        AcceptAllUploads();
     }
 
     public void AcceptAllEmails() => ExternalHttp.OnJson(HttpMethod.Post, ResendEmails, new { id = "re_test" });
+
+    /// <summary>El "MinIO" de los tests: el endpoint por defecto de Media, servido por el fake.</summary>
+    public const string Storage = "http://localhost:9000";
+
+    /// <summary>S3 acepta todo lo que se sube y se borra.</summary>
+    public void AcceptAllUploads()
+    {
+        ExternalHttp.On(HttpMethod.Put, $"{Storage}/", (_, _) =>
+        {
+            var res = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+            res.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"etag\"");
+            return res;
+        });
+        ExternalHttp.On(HttpMethod.Delete, $"{Storage}/", (_, _) => new HttpResponseMessage(System.Net.HttpStatusCode.NoContent));
+    }
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
@@ -65,8 +84,18 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // acción se agrega al final, así que pisa el handler propio que
         // configure cada cliente (el de ARCA, por ejemplo).
         builder.ConfigureTestServices(services =>
+        {
             services.ConfigureAll<HttpClientFactoryOptions>(o =>
-                o.HttpMessageHandlerBuilderActions.Add(b => b.PrimaryHandler = ExternalHttp.CreateHandler())));
+                o.HttpMessageHandlerBuilderActions.Add(b => b.PrimaryHandler = ExternalHttp.CreateHandler()));
+
+            // El cliente S3 del SDK de AWS no usa IHttpClientFactory: se le da
+            // uno propio que también termina en el fake. El resto (firmas,
+            // armado del pedido, S3MediaStorage entero) es el de producción.
+            services.RemoveAll<IAmazonS3>();
+            services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
+                new BasicAWSCredentials("test", "test"),
+                new AmazonS3Config { ServiceURL = Storage, ForcePathStyle = true, HttpClientFactory = new S3ToFake(ExternalHttp) }));
+        });
     }
 }
 
@@ -76,3 +105,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 /// </summary>
 [CollectionDefinition("api")]
 public sealed class ApiCollection : ICollectionFixture<ApiFactory>;
+
+/// <summary>El SDK de AWS pide sus HttpClient acá; todos van al fake.</summary>
+internal sealed class S3ToFake(FakeHttp fake) : HttpClientFactory
+{
+    public override HttpClient CreateHttpClient(IClientConfig clientConfig) => new(fake.CreateHandler());
+
+    public override bool UseSDKHttpClientCaching(IClientConfig clientConfig) => false;
+}
