@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 using Orders.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
-using Social.Infrastructure;
 using Social.Contracts;
+using Social.Infrastructure;
 
 namespace Api.Endpoints;
 

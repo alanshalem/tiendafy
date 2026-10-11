@@ -2,8 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Api.Workers;
 using Microsoft.EntityFrameworkCore;
-using Social.Infrastructure;
 using Social.Contracts;
+using Social.Infrastructure;
 
 namespace Api.Social;
 

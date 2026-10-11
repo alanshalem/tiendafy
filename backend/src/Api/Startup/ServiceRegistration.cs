@@ -24,12 +24,12 @@ using Payments.Infrastructure;
 using Purchasing.Infrastructure;
 using Serilog;
 using SharedKernel.Abstractions;
+using Social.Contracts;
 using Social.Infrastructure;
 using Support.Infrastructure;
 using Tenancy.Infrastructure;
 using Tenancy.Infrastructure.Persistence;
 using Themes.Infrastructure;
-using Social.Contracts;
 
 namespace Api.Startup;
 
