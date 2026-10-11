@@ -17,7 +17,7 @@ export default defineConfig({
       exclude: ['src/**/*.test.*', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
       reporter: ['text-summary', 'lcov'],
       // Ratchet: piso actual de TODO el panel — solo puede subir.
-      thresholds: { lines: 33 },
+      thresholds: { lines: 55 },
     },
   },
 });
