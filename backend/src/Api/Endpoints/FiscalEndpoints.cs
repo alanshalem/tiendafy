@@ -1,4 +1,5 @@
 using Api.Auth;
+using Api.Fiscal;
 using Fiscal.Contracts;
 using Fiscal.Core.Abstractions;
 using Fiscal.Core.Domain;
@@ -290,6 +291,30 @@ public static class FiscalEndpoints
         // Gateado con FiscalEmit (más restrictivo que FiscalConfig). Emite un
         // comprobante puntual desde el admin (sin orden asociada).
         var emit = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalEmit);
+
+        // Quién es un CUIT y cuál es su condición frente al IVA, según ARCA
+        // (padrón A5). Es lo que permite facturar A a un Responsable Inscripto
+        // persona física sin adivinar: el número solo no lo dice.
+        emit.MapGet("/padron/{cuit}", async (
+            string cuit, ITenantContext tenant, ITaxpayerRegistry registry, CancellationToken ct) =>
+        {
+            var parsed = Cuit.Create(new string([.. cuit.Where(char.IsDigit)]));
+            if (parsed.IsFailure)
+                return Error.Validation("Padron.BadCuit", "Ese CUIT no es válido (revisá el dígito verificador).").ToProblem();
+
+            var result = await registry.LookupAsync(tenant.TenantId.Value, parsed.Value, ct);
+            if (result.IsFailure) return result.Error.ToProblem();
+
+            var t = result.Value;
+            return Results.Ok(new
+            {
+                cuit = t.Cuit,
+                name = t.Name,
+                isCompany = t.IsCompany,
+                condicion = IvaConditionWire.Write(t.Condicion),
+                address = t.Address,
+            });
+        });
 
         // Reintento manual de un job en dead-letter (o pendiente): vuelve a la cola.
         emit.MapPost("/jobs/{jobId:guid}/retry", async (

@@ -92,7 +92,7 @@ public class ReceptorResolverTests
     {
         // Prefijo 30: persona jurídica. Una sociedad es Responsable Inscripto
         // salvo rareza, y eso sí se puede deducir del número.
-        var r = ReceptorResolver.Resolve("30-71234567-1", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve("30-71234567-1");
         Assert.Equal(DocTipo.Cuit, r.DocTipo);
         Assert.Equal(30712345671, r.DocNro);
         Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
@@ -105,7 +105,7 @@ public class ReceptorResolverTests
         // que el comprador escribía el suyo y se le emitía una Factura A con
         // IVA discriminado que no le corresponde. El número se conserva —es su
         // documento— pero la condición no se inventa.
-        var r = ReceptorResolver.Resolve("20-12345678-6", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve("20-12345678-6");
         Assert.Equal(DocTipo.Cuit, r.DocTipo);
         Assert.Equal(20123456786, r.DocNro);
         Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
@@ -116,7 +116,7 @@ public class ReceptorResolverTests
     [InlineData("23-12345678-9")] // persona física
     public void NingunPrefijoDePersonaFisica_TerminaEnFacturaA(string doc)
     {
-        var r = ReceptorResolver.Resolve(doc, grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve(doc);
         Assert.NotEqual(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
     }
 
@@ -125,19 +125,17 @@ public class ReceptorResolverTests
     {
         // Un monotributista con CUIT de sociedad, o un RI persona física: el
         // dato cargado tiene que poder corregir lo que el número sugiere.
-        var monotributista = ReceptorResolver.Resolve(
-            "30-71234567-1", 100, 1000, CondicionIvaReceptor.Monotributo);
+        var monotributista = ReceptorResolver.Resolve("30-71234567-1", CondicionIvaReceptor.Monotributo);
         Assert.Equal(CondicionIvaReceptor.Monotributo, monotributista.Condicion);
 
-        var inscripto = ReceptorResolver.Resolve(
-            "20-12345678-6", 100, 1000, CondicionIvaReceptor.ResponsableInscripto);
+        var inscripto = ReceptorResolver.Resolve("20-12345678-6", CondicionIvaReceptor.ResponsableInscripto);
         Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, inscripto.Condicion);
     }
 
     [Fact]
     public void Dni_ResolvesConsumidorIdentificado()
     {
-        var r = ReceptorResolver.Resolve("30111222", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve("30111222");
         Assert.Equal(DocTipo.Dni, r.DocTipo);
         Assert.Equal(30111222, r.DocNro);
         Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
@@ -146,7 +144,7 @@ public class ReceptorResolverTests
     [Fact]
     public void NoDoc_UnderThreshold_ConsumidorFinalAnonimo()
     {
-        var r = ReceptorResolver.Resolve(null, grossMinorUnits: 500, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve(null);
         Assert.Equal(DocTipo.ConsumidorFinal, r.DocTipo);
         Assert.Equal(0, r.DocNro);
         Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
@@ -156,7 +154,7 @@ public class ReceptorResolverTests
     public void InvalidCuit_FallsBackToConsumidorFinal()
     {
         // 11 dígitos pero dígito verificador malo → no es CUIT.
-        var r = ReceptorResolver.Resolve("20123456780", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        var r = ReceptorResolver.Resolve("20123456780");
         Assert.Equal(DocTipo.ConsumidorFinal, r.DocTipo);
     }
 }

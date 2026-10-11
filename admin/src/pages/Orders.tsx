@@ -425,7 +425,12 @@ export function OrdersPage() {
                                 o.status === 'REFUNDED' ||
                                 o.status === 'PARTIALLYREFUNDED') && (
                                 <div onClick={(e) => e.stopPropagation()}>
-                                  <FiscalPanel orderId={o.id} orderStatus={o.status} canEmit={canEmit} />
+                                  <FiscalPanel
+                                    orderId={o.id}
+                                    orderStatus={o.status}
+                                    buyerDoc={o.docNumber}
+                                    canEmit={canEmit}
+                                  />
                                 </div>
                               )}
                               {(o.status === 'PAID' ||

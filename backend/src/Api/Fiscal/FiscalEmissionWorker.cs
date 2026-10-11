@@ -70,6 +70,13 @@ public sealed class FiscalEmissionWorker(
                     if (existing != Guid.Empty) job.MarkDone(existing);
                     else RescheduleOrFail(job, $"{result.Error.Code}: {result.Error.Message}");
                 }
+                else if (result.IsFailure && result.Error.Code == EmissionErrors.BuyerIdRequired)
+                {
+                    // Falta el documento del comprador: es un dato de la venta, y
+                    // reintentar no lo agrega. Antes esto mismo iba a ARCA y volvía
+                    // rechazado, y un rechazo tampoco se reintenta.
+                    job.MarkFailed(result.Error.Message);
+                }
                 else if (result.IsFailure)
                 {
                     RescheduleOrFail(job, $"{result.Error.Code}: {result.Error.Message}");

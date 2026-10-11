@@ -416,17 +416,37 @@ public static class OrderEndpoints
 
         // Facturar la orden manualmente ahora (síncrono, feedback inmediato). Gateado
         // con FiscalEmit. La guarda anti-duplicado vive en el emisor.
+        //
+        // El cuerpo es opcional. Sin él se factura con el documento que dejó el
+        // comprador y la condición de IVA que se deduce de él, como siempre. Con
+        // él, el comercio puede completar el documento que faltaba (una venta
+        // grande sin DNI no se puede facturar anónima) y declarar la condición
+        // que sabe o que le devolvió el padrón.
         group.MapPost("/orders/{id:guid}/invoice", async (
-            Guid id, ITenantContext tenant, IOrderRepository orders,
+            Guid id, HttpRequest http, ITenantContext tenant, IOrderRepository orders,
             global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
         {
+            // Se lee a mano y no como parámetro: con un parámetro de cuerpo, un
+            // POST sin Content-Type —que antes andaba— pasaba a dar 415.
+            InvoiceOrderRequest? request = null;
+            if (http.HasJsonContentType() && http.ContentLength is not 0)
+            {
+                try { request = await http.ReadFromJsonAsync<InvoiceOrderRequest>(ct); }
+                catch (System.Text.Json.JsonException)
+                {
+                    return Error.Validation("Order.BadInvoiceRequest", "El cuerpo no es un JSON válido.").ToProblem();
+                }
+            }
+
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
             if (order.Status is OrderStatus.PendingPayment or OrderStatus.Failed or OrderStatus.Cancelled)
                 return Error.Conflict("Order.NotPayable", "Solo se puede facturar una orden pagada.").ToProblem();
 
+            var buyerDoc = string.IsNullOrWhiteSpace(request?.BuyerDoc) ? order.DocNumber : request.BuyerDoc.Trim();
             var cmd = new global::Fiscal.Core.Abstractions.EmitInvoiceCommand(
-                tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits, order.DocNumber);
+                tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits, buyerDoc,
+                BuyerIvaCondition: Api.Fiscal.IvaConditionWire.Read(request?.BuyerIvaCondition));
             var result = await emitter.EmitAsync(cmd, ct);
             if (result.IsFailure) return result.Error.ToProblem();
             var r = result.Value;
@@ -672,3 +692,6 @@ public sealed record ManualOrderRequest(
     string? ShippingAddress = null,
     // Cliente de la ficha, cuando la venta va a su cuenta corriente.
     Guid? CustomerId = null);
+
+/// <summary>Datos del comprador para facturar una venta; todo opcional.</summary>
+public sealed record InvoiceOrderRequest(string? BuyerDoc, string? BuyerIvaCondition);

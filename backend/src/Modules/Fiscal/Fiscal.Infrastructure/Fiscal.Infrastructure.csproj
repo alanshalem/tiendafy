@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Fiscal.Core\Fiscal.Core.csproj" />
@@ -23,5 +23,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Los parsers de respuestas de ARCA son internos; los tests los prueban sin red. -->
+    <InternalsVisibleTo Include="UnitTests" />
+  </ItemGroup>
 
 </Project>

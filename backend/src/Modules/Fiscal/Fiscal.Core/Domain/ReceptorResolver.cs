@@ -1,9 +1,10 @@
 namespace Fiscal.Core.Domain;
 
 /// <summary>
-/// Decide el receptor del comprobante a partir del documento del comprador y el
-/// umbral de consumidor final (H12): por debajo del umbral se puede facturar a
-/// Consumidor Final (DocTipo=99, DocNro=0); por encima hay que identificarlo.
+/// Decide el receptor del comprobante a partir del documento del comprador: qué
+/// tipo de documento es y cuál es su condición frente al IVA. Si el monto exige
+/// identificar al comprador (umbral de consumidor final, H12) lo decide quien
+/// emite, que tiene el monto y la configuración; acá solo se clasifica.
 ///
 /// <para>
 /// <b>La condición frente al IVA no se adivina.</b> Antes cualquier número de
@@ -35,18 +36,12 @@ public static class ReceptorResolver
     private static readonly string[] PersonaJuridica = ["30", "33", "34"];
 
     /// <param name="buyerDoc">DNI/CUIT que dejó el comprador (o null).</param>
-    /// <param name="grossMinorUnits">Total a facturar, en centavos.</param>
-    /// <param name="thresholdMinorUnits">Umbral de consumidor final (configurable).</param>
     /// <param name="declared">
     /// Condición frente al IVA cuando se la conoce de verdad —la cargó el
     /// comercio, la declaró el comprador, la devolvió el padrón—. Gana sobre
     /// cualquier inferencia: el número nunca va a saber más que el dato.
     /// </param>
-    public static Receptor Resolve(
-        string? buyerDoc,
-        long grossMinorUnits,
-        long thresholdMinorUnits,
-        CondicionIvaReceptor? declared = null)
+    public static Receptor Resolve(string? buyerDoc, CondicionIvaReceptor? declared = null)
     {
         var digits = new string([.. (buyerDoc ?? string.Empty).Where(char.IsDigit)]);
 
@@ -58,9 +53,8 @@ public static class ReceptorResolver
         if (digits.Length is 7 or 8)
             return new Receptor(DocTipo.Dni, long.Parse(digits), declared ?? CondicionIvaReceptor.ConsumidorFinal);
 
-        // Sin documento usable: por debajo del umbral, Consumidor Final anónimo.
-        // (Por encima del umbral ARCA exige identificación; el caller debería
-        // haber pedido el doc — igual emitimos como CF y ARCA decide.)
+        // Sin documento usable: Consumidor Final anónimo. Si el monto lo
+        // permite lo decide quien emite (ver EmitInvoiceHandler).
         return new Receptor(DocTipo.ConsumidorFinal, 0, CondicionIvaReceptor.ConsumidorFinal);
     }
 

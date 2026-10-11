@@ -174,6 +174,75 @@ public sealed class FiscalEmissionTests
 
     // ---- infraestructura del test --------------------------------------------------
 
+    // ------------------------------------------------- umbral y condición de IVA
+
+    /// <summary>El umbral por defecto (RG 5.700/2025): $10.000.000, en centavos.</summary>
+    private const long Umbral = 10_000_000_00;
+
+    [Fact]
+    public async Task Una_venta_anonima_sobre_el_umbral_no_se_manda_a_ARCA()
+    {
+        // El umbral se guardaba y nadie lo leía: la factura salía anónima y
+        // volvía rechazada. Ahora se corta antes, con un mensaje que dice qué
+        // falta, y sin gastar una llamada.
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+
+        var r = await EmitAsync(tenant, arca, Guid.NewGuid(), grossMinor: Umbral);
+
+        Assert.True(r.IsFailure);
+        Assert.Equal(EmissionErrors.BuyerIdRequired, r.Error.Code);
+        Assert.Contains("10.000.000", r.Error.Message);
+        Assert.Equal(0, arca.CaeRequests);
+    }
+
+    [Fact]
+    public async Task Con_documento_la_misma_venta_se_factura()
+    {
+        var arca = new FakeArca();
+        arca.Next(ArcaBehavior.Authorize);
+        var tenant = await SeedTenantAsync();
+
+        var r = await EmitAsync(tenant, arca, Guid.NewGuid(), grossMinor: Umbral, buyerDoc: "30111222");
+
+        Assert.True(r.Value.Authorized);
+    }
+
+    [Fact]
+    public async Task Por_debajo_del_umbral_sigue_saliendo_anonima()
+    {
+        var arca = new FakeArca();
+        arca.Next(ArcaBehavior.Authorize);
+        var tenant = await SeedTenantAsync();
+
+        var r = await EmitAsync(tenant, arca, Guid.NewGuid(), grossMinor: Umbral - 1);
+
+        Assert.True(r.Value.Authorized);
+        Assert.Equal(DocTipo.ConsumidorFinal, arca.LastDraft!.Receptor.DocTipo);
+    }
+
+    [Fact]
+    public async Task La_condicion_declarada_llega_al_comprobante()
+    {
+        // Una persona física Responsable Inscripto: el CUIT solo dice "persona
+        // física", y sin declararlo sale B. Declarado (por el comercio o el
+        // padrón), sale A.
+        var tenant = await SeedTenantAsync();
+
+        var sinDeclarar = new FakeArca();
+        sinDeclarar.Next(ArcaBehavior.Authorize);
+        await EmitAsync(tenant, sinDeclarar, Guid.NewGuid(), buyerDoc: "20-12345678-6");
+        Assert.Equal(CbteTipo.FacturaB, sinDeclarar.LastDraft!.CbteTipo);
+
+        var otraTienda = await SeedTenantAsync();
+        var declarada = new FakeArca();
+        declarada.Next(ArcaBehavior.Authorize);
+        await EmitAsync(otraTienda, declarada, Guid.NewGuid(), buyerDoc: "20-12345678-6",
+            declared: CondicionIvaReceptor.ResponsableInscripto);
+        Assert.Equal(CbteTipo.FacturaA, declarada.LastDraft!.CbteTipo);
+        Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, declarada.LastDraft.Receptor.Condicion);
+    }
+
     private async Task<Guid> SeedTenantAsync()
     {
         var tenantId = Guid.NewGuid();
@@ -190,12 +259,14 @@ public sealed class FiscalEmissionTests
 
     /// <summary>Cada intento con su propio scope, como cada vuelta del worker.</summary>
     private async Task<Result<EmitInvoiceResult>> EmitAsync(
-        Guid tenantId, FakeArca arca, Guid orderId, long grossMinor = 12_100, string? buyerDoc = null)
+        Guid tenantId, FakeArca arca, Guid orderId, long grossMinor = 12_100, string? buyerDoc = null,
+        CondicionIvaReceptor? declared = null)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
         var handler = new EmitInvoiceHandler(db, arca, new FakeAuthenticator(), NullLogger<EmitInvoiceHandler>.Instance);
-        return await handler.EmitAsync(new EmitInvoiceCommand(tenantId, orderId, grossMinor, buyerDoc));
+        return await handler.EmitAsync(new EmitInvoiceCommand(
+            tenantId, orderId, grossMinor, buyerDoc, BuyerIvaCondition: declared));
     }
 
     private sealed class FakeAuthenticator : IFiscalAuthenticator
@@ -226,6 +297,9 @@ public sealed class FiscalEmissionTests
 
         public long Last { get; private set; }
         public int CaeRequests { get; private set; }
+
+        /// <summary>El último comprobante que se le pidió autorizar.</summary>
+        public InvoiceDraft? LastDraft { get; private set; }
         public List<string> CuitsSeen { get; } = [];
 
         public void Next(ArcaBehavior behavior) => _behaviors.Enqueue(behavior);
@@ -248,6 +322,7 @@ public sealed class FiscalEmissionTests
         {
             CuitsSeen.Add(cuit.Value);
             CaeRequests++;
+            LastDraft = draft;
             var behavior = _behaviors.Count > 0 ? _behaviors.Dequeue() : ArcaBehavior.Authorize;
 
             if (behavior == ArcaBehavior.TimeoutBeforeReaching)

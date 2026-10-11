@@ -3,6 +3,7 @@ import { Loader2, RefreshCw, FileText, Download } from 'lucide-react';
 import { useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
+import { InvoiceDialog, type InvoiceBuyer } from './orders-invoice-dialog';
 
 interface FiscalDoc {
   id: string;
@@ -41,16 +42,20 @@ const isNc = (t: string) => t.startsWith('NotaCredito');
 export function FiscalPanel({
   orderId,
   orderStatus,
+  buyerDoc,
   canEmit,
 }: {
   orderId: string;
   orderStatus: string;
+  /** El DNI/CUIT que dejó el comprador: el diálogo de facturación arranca con él. */
+  buyerDoc: string | null;
   canEmit: boolean;
 }) {
   const { toast } = useToast();
   const [data, setData] = useState<FiscalStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [invoicing, setInvoicing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,14 +81,15 @@ export function FiscalPanel({
   const activeJob = data?.jobs.find((j) => j.status === 'Pending' || j.status === 'Processing');
   const payable = orderStatus === 'PAID' || orderStatus === 'FULFILLED';
 
-  const emit = async () => {
+  const emit = async (buyer: InvoiceBuyer) => {
     setBusy(true);
     try {
       const r = await api.post<{
         authorized: boolean;
         cae: string | null;
         errors?: { code: string; message: string }[];
-      }>(`/api/v1/orders/${orderId}/invoice`, {});
+      }>(`/api/v1/orders/${orderId}/invoice`, buyer);
+      setInvoicing(false);
       toast(
         r.authorized
           ? `Factura autorizada · CAE ${r.cae}`
@@ -180,7 +186,7 @@ export function FiscalPanel({
           )}
           {canEmit && !invoice && !awaiting && payable && (
             <button
-              onClick={emit}
+              onClick={() => setInvoicing(true)}
               disabled={busy}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
             >
@@ -203,6 +209,16 @@ export function FiscalPanel({
             </button>
           )}
         </div>
+      )}
+
+      {invoicing && (
+        <InvoiceDialog
+          open
+          initialDoc={buyerDoc}
+          busy={busy}
+          onClose={() => setInvoicing(false)}
+          onConfirm={emit}
+        />
       )}
     </div>
   );

@@ -32,6 +32,8 @@ public sealed class EmitInvoiceHandler(
     IFiscalAuthenticator authenticator,
     ILogger<EmitInvoiceHandler> logger) : IInvoiceEmitter
 {
+    private static readonly System.Globalization.CultureInfo ArCulture = System.Globalization.CultureInfo.GetCultureInfo("es-AR");
+
     // Zona horaria de Argentina (UTC-3, sin DST) para la fecha del comprobante.
     private static readonly TimeSpan ArOffset = TimeSpan.FromHours(-3);
 
@@ -77,7 +79,22 @@ public sealed class EmitInvoiceHandler(
         var ptoVta = ptoVtaResult.Value;
 
         // Receptor + clase de comprobante (según emisor y comprador).
-        var receptor = ReceptorResolver.Resolve(cmd.BuyerDoc, cmd.GrossMinorUnits, cfg.ConsumerFinalThresholdMinorUnits);
+        var receptor = ReceptorResolver.Resolve(cmd.BuyerDoc, cmd.BuyerIvaCondition);
+
+        // Umbral de consumidor final (RG 5.700/2025, configurable): por encima,
+        // ARCA exige identificar al comprador. El umbral se guardaba y nadie lo
+        // leía: la factura salía anónima y volvía rechazada. Acá se corta antes,
+        // con un mensaje que dice qué falta y sin gastar una llamada a ARCA. No
+        // aplica a notas de crédito: acreditan una factura que ya pasó.
+        if (!cmd.CreditNote
+            && receptor.DocTipo == DocTipo.ConsumidorFinal
+            && cfg.ConsumerFinalThresholdMinorUnits > 0
+            && cmd.GrossMinorUnits >= cfg.ConsumerFinalThresholdMinorUnits)
+        {
+            return Result.Failure<EmitInvoiceResult>(Error.Validation(EmissionErrors.BuyerIdRequired,
+                $"Por encima de ${(cfg.ConsumerFinalThresholdMinorUnits / 100).ToString("N0", ArCulture)} ARCA exige identificar al comprador: "
+                + "cargá su DNI o CUIT al facturar."));
+        }
         var draftResult = ComprobanteBuilder.Build(cfg.Condition, receptor, cmd.GrossMinorUnits, cmd.CreditNote);
         if (draftResult.IsFailure) return Result.Failure<EmitInvoiceResult>(draftResult.Error);
         var draft = draftResult.Value;
