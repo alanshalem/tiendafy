@@ -13,6 +13,7 @@ import {
   QuickStyles,
   type QuickStyle,
 } from './theme-editor-inputs';
+import { ImageUploader } from './theme-editor-uploaders';
 
 export type PanelProps = {
   theme: ThemeConfig;
@@ -359,6 +360,66 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
             placeholder="Volvemos muy pronto con la tienda."
           />
         </Field>
+        <Field label="Etiqueta de arriba">
+          <TextInput
+            value={theme.comingSoon.eyebrow}
+            onChange={(v) => set({ eyebrow: v })}
+            placeholder="Próximamente"
+          />
+        </Field>
+        <p className="-mt-2 text-xs text-fg-muted">El cartelito sobre el título. Vacío, no se muestra.</p>
+
+        <Field label="Diseño">
+          <Select
+            value={theme.comingSoon.layout}
+            onChange={(v) => set({ layout: v === 'split' ? 'split' : 'centered' })}
+            options={[
+              { value: 'centered', label: 'Centrado' },
+              { value: 'dividido', label: 'Dividido (imagen al costado)' },
+            ].map((o) => ({ value: o.value === 'dividido' ? 'split' : o.value, label: o.label }))}
+          />
+        </Field>
+
+        <Field label="Imagen">
+          <ImageUploader value={theme.comingSoon.image} onChange={(url) => set({ image: url })} />
+        </Field>
+        <p className="-mt-2 text-xs text-fg-muted">
+          Centrado la usa de fondo; dividido, en la mitad de la pantalla. Sin imagen queda el color de tu
+          marca.
+        </p>
+
+        <Field label="Fecha de apertura">
+          <TextInput
+            value={theme.comingSoon.launchDate}
+            onChange={(v) => set({ launchDate: v })}
+            placeholder="2026-11-15"
+            type="date"
+          />
+        </Field>
+        <p className="-mt-2 text-xs text-fg-muted">
+          Si la ponés, se anuncia en la página. Una fecha que después se corre hace más daño que no poner
+          ninguna.
+        </p>
+
+        <Field label="WhatsApp para consultas">
+          <TextInput
+            value={theme.comingSoon.whatsapp}
+            onChange={(v) => set({ whatsapp: v })}
+            placeholder="5491122334455"
+          />
+        </Field>
+        <p className="-mt-2 text-xs text-fg-muted">Vacío, usa el del pie de página si cargaste alguno.</p>
+
+        <Check
+          label="Mostrar mis redes"
+          checked={theme.comingSoon.showSocial}
+          onChange={(v) => set({ showSocial: v })}
+        />
+        <p className="-mt-2 text-xs text-fg-muted">
+          Las de Información de contacto. Mientras la tienda no abre, son el único lugar a donde mandar a
+          quien llegó.
+        </p>
+
         <Check
           label="Pedir el email para avisar cuando abras"
           checked={theme.comingSoon.collectEmails}

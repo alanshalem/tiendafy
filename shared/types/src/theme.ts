@@ -80,6 +80,21 @@ export interface ComingSoonConfig {
   enabled: boolean;
   title: string;
   message: string;
+  /**
+   * Texto de la etiqueta de arriba. Vacío = sin etiqueta. Una marca de motos no
+   * dice lo mismo que una de mascotas, y "Próximamente" fijo las aplana a todas.
+   */
+  eyebrow: string;
+  /** Imagen de fondo (centrado) o del panel lateral (dividido). Vacío = sin imagen. */
+  image: string;
+  /** Centrado sobre el color de marca, o dividido con la imagen al costado. */
+  layout: 'centered' | 'split';
+  /** Mostrar las redes del pie: mientras la tienda no abre, es el único lugar a donde ir. */
+  showSocial: boolean;
+  /** WhatsApp para consultar antes de la apertura. Vacío = usa el del pie. */
+  whatsapp: string;
+  /** Fecha de apertura (AAAA-MM-DD). Vacía = no se anuncia ninguna. */
+  launchDate: string;
 }
 
 export type SectionType =
@@ -312,6 +327,12 @@ export const baseTheme: ThemeConfig = {
     collectEmails: false,
     title: 'Estamos en construcción',
     message: 'Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!',
+    eyebrow: 'Próximamente',
+    image: '',
+    layout: 'centered',
+    showSocial: true,
+    whatsapp: '',
+    launchDate: '',
   },
   sections: [],
   productList: {
@@ -457,7 +478,11 @@ export function normalizeTheme(
         : [],
     },
     announcement: normalizeAnnouncement(raw.announcement),
-    comingSoon: { ...baseTheme.comingSoon, ...raw.comingSoon },
+    comingSoon: {
+      ...baseTheme.comingSoon,
+      ...raw.comingSoon,
+      layout: raw.comingSoon?.layout === 'split' ? 'split' : 'centered',
+    },
     sections: Array.isArray(raw.sections) && raw.sections.length > 0 ? raw.sections : fallbackSections,
     productList: { ...baseTheme.productList, ...raw.productList },
     productDetail: { ...baseTheme.productDetail, ...raw.productDetail },

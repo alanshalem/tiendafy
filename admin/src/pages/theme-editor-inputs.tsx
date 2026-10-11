@@ -240,15 +240,19 @@ export function TextInput({
   onChange,
   placeholder,
   id,
+  type = 'text',
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   id?: string;
+  /** 'date' para fechas: el navegador pone su propio selector. */
+  type?: 'text' | 'date' | 'number' | 'url';
 }) {
   return (
     <input
       id={id}
+      type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
