@@ -51,6 +51,9 @@ services:
     environment:
       # SSR (server components) pega a la API por nombre de servicio dentro de la red docker.
       API_URL: 'http://api:8080'
+      PLATFORM_BASE_DOMAIN: localhost
+      # El dominio pelado es la tienda de la empresa, no un catálogo de tiendas.
+      PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-puenteoriente}
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:

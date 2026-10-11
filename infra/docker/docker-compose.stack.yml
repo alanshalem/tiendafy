@@ -168,6 +168,10 @@ services:
       APP_ENV: ${APP_ENV}
       # Server-side: la API por la red interna, sin salir a internet.
       API_URL: http://api:5080
+      PLATFORM_BASE_DOMAIN: ${STACK_DOMAIN}
+      # Qué tienda atiende el dominio pelado (${STACK_DOMAIN} a secas). Sin
+      # esto, la dirección más visitada contesta "tienda no encontrada".
+      PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-}
       # Config que el servidor le pasa al navegador en cada request. Sin el
       # prefijo NEXT_PUBLIC_ a propósito: esas Next las hornea al compilar y
       # entonces la imagen tendría ambiente propio (ver storefront/src/lib/runtime.ts).

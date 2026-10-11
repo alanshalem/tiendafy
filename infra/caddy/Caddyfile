@@ -53,9 +53,9 @@ admin.{$PLATFORM_DOMAIN} {
 	reverse_proxy admin-prod:8080
 }
 
-# www va al dominio pelado, no a una copia del sitio. "www" es un subdominio
-# reservado, asi que sin esto resolveria a "ninguna tienda" y mostraria la
-# landing de la plataforma en vez del sitio de la empresa.
+# www va al dominio pelado, no a una copia del sitio: el mismo contenido en dos
+# direcciones es lo que Google penaliza. El storefront igual resuelve el www al
+# apex, pero que el redirect pase en el borde ahorra el render.
 www.{$PLATFORM_DOMAIN} {
 	import security_headers
 	tls {
