@@ -167,6 +167,7 @@ public sealed class PaywayFlowTests
             validation_errors = new[] { new { code = "repeated", param = "token" } },
         }, HttpStatusCode.BadRequest);
         var repeated = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{repeatedCheckout}/pay-payway", Card());
+        Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode); // culpa del pedido, no del servidor
         Assert.Contains("ya se usaron", await repeated.Content.ReadAsStringAsync());
 
         // Credenciales malas y Payway caído.

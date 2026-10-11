@@ -75,7 +75,7 @@ public sealed class TelegramChannel(HttpClient http, IOptions<SocialOptions> opt
     {
         var result = await CallAsync(botToken, "getChat", new { chat_id = chatId }, ct);
         if (result.Error is not null)
-            return Result.Failure<SocialAccountCandidate>(new Error(
+            return Result.Failure<SocialAccountCandidate>(Error.Validation(
                 "Social.TelegramChat", result.Error.Message ?? "Telegram rechazó el bot o el chat."));
 
         var chat = result.Root;

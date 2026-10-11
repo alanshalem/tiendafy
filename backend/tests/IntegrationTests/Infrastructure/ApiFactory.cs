@@ -76,6 +76,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MercadoLibre:ClientId", "test-meli-client");
         builder.UseSetting("MercadoLibre:ClientSecret", "test-meli-secret");
         builder.UseSetting("MercadoLibre:RedirectUri", "http://localhost:5080/api/v1/meli/oauth/callback");
+        // Apps de redes "configuradas" (Meta y X): se puede recorrer su OAuth.
+        builder.UseSetting("Social:Meta:AppId", "test-meta-app");
+        builder.UseSetting("Social:Meta:AppSecret", "test-meta-secret");
+        builder.UseSetting("Social:Meta:RedirectUri", "http://localhost:5080/api/v1/social/oauth/callback/meta");
+        builder.UseSetting("Social:X:ClientId", "test-x-client");
+        builder.UseSetting("Social:X:ClientSecret", "test-x-secret");
+        builder.UseSetting("Social:X:RedirectUri", "http://localhost:5080/api/v1/social/oauth/callback/x");
         builder.UseSetting("Email:ResendApiKey", "re_test_key");
         builder.UseSetting("Email:WebhookSecret", ResendWebhookSecret);
 

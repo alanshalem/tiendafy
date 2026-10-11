@@ -138,7 +138,7 @@ public sealed class PaywayClient(
             // diga qué pasó en vez de un "datos inválidos".
             if (response.StatusCode == HttpStatusCode.BadRequest && PaywayMaps.IsRepeatedToken(json))
             {
-                return Result.Failure<PaywayChargeResult>(new Error("Payway.TokenAlreadyUsed",
+                return Result.Failure<PaywayChargeResult>(Error.Conflict("Payway.TokenAlreadyUsed",
                     "Los datos de la tarjeta ya se usaron para un intento anterior. Volvé a cargarlos."));
             }
 
@@ -146,7 +146,7 @@ public sealed class PaywayClient(
             {
                 HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => new Error("Payway.BadCredentials",
                     "Las credenciales de Payway de la tienda no son válidas."),
-                HttpStatusCode.BadRequest => new Error("Payway.BadRequest",
+                HttpStatusCode.BadRequest => Error.Validation("Payway.BadRequest",
                     "Payway rechazó los datos del pago."),
                 _ => new Error("Payway.Unavailable",
                     "Payway no está disponible en este momento. Probá de nuevo en unos minutos."),
@@ -262,7 +262,7 @@ public sealed class PaywayClient(
         // Una orden ya cobrada no se vuelve a cobrar, aunque el navegador
         // reenvíe el formulario.
         if (previous is { Status: PaywayPaymentStatus.Approved })
-            return Result.Failure<PaywayPaymentAttempt>(new Error("Payway.AlreadyPaid", "Esta orden ya está pagada."));
+            return Result.Failure<PaywayPaymentAttempt>(Error.Conflict("Payway.AlreadyPaid", "Esta orden ya está pagada."));
 
         var brand = request.CardBrand ?? PaywayMaps.BrandFromBin(request.Bin);
         var number = (previous?.AttemptNumber ?? 0) + 1;
@@ -285,7 +285,7 @@ public sealed class PaywayClient(
             // Es exactamente lo que tiene que pasar: sin idempotencia del lado
             // de Payway, la base es la última línea contra el doble cobro.
             db.ChangeTracker.Clear();
-            return Result.Failure<PaywayPaymentAttempt>(new Error("Payway.InProgress",
+            return Result.Failure<PaywayPaymentAttempt>(Error.Conflict("Payway.InProgress",
                 "Ya hay un pago en curso para esta orden. Esperá unos segundos."));
         }
 
