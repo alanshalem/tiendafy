@@ -97,13 +97,23 @@ export function FilterPanel({
         onClick={onClose}
       />
       <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-filters-title"
+        // Cerrado queda fuera de pantalla pero en el DOM (para la animación):
+        // sin esto sus botones se alcanzaban con Tab y un lector de pantalla
+        // los leía como parte del listado.
+        inert={!open}
+        aria-hidden={!open}
         className={cn(
           'fixed right-0 top-0 z-50 flex h-full w-96 max-w-[90vw] flex-col bg-surface shadow-overlay transition-transform',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-fg">Filtrar productos</h2>
+          <h2 id="product-filters-title" className="text-base font-semibold text-fg">
+            Filtrar productos
+          </h2>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="text-fg-muted hover:text-fg">
             <X className="h-5 w-5" />
           </button>

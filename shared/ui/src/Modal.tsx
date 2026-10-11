@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from './cn';
 
@@ -27,6 +27,9 @@ const sizeClasses = {
  */
 export function Modal({ open, onClose, title, footer, size = 'md', children }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // El título nombra al diálogo: sin esto un lector de pantalla anuncia
+  // "diálogo" a secas, sin decir cuál.
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -50,6 +53,7 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
   return createPortal(
     <dialog
       ref={dialogRef}
+      aria-labelledby={title ? titleId : undefined}
       onClose={onClose}
       onClick={(e) => {
         // Click en el backdrop (el dialog mismo, no su contenido) cierra.
@@ -73,7 +77,9 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
       <div className="flex max-h-[85dvh] flex-col" onClick={(e) => e.stopPropagation()}>
         {title && (
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-            <h2 className="text-base font-semibold text-fg">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold text-fg">
+              {title}
+            </h2>
             <button
               type="button"
               onClick={onClose}

@@ -27,6 +27,9 @@ export function Tabs<T extends string>({ items, value, onChange, className }: Ta
         <button
           key={t.id}
           type="button"
+          // La activa se distinguía solo por el color: un lector de pantalla no
+          // decía cuál estaba elegida.
+          aria-pressed={value === t.id}
           onClick={() => onChange(t.id)}
           className={cn(
             'shrink-0 whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors',
