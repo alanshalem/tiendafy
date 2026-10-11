@@ -17,6 +17,8 @@ namespace IntegrationTests;
 /// (lo hace <c>pnpm fixtures:api</c>). Sin la variable no hace nada. Las claves
 /// van normalizadas: un GUID es <c>:id</c>, un id numérico largo <c>:n</c> y
 /// un slug <c>:slug</c>; los tests buscan la ruta pedida con la misma regla.
+/// Si un listado cambia de forma con <c>?offset</c> (paginado con total), esa
+/// variante va además con la clave <c>ruta#paged</c>.
 /// </para>
 /// </summary>
 [Collection("api")]
@@ -45,7 +47,21 @@ public sealed partial class ApiFixturesExport
             if (!res.IsSuccessStatusCode) continue;
             if (res.Content.Headers.ContentType?.MediaType != "application/json") continue;
 
-            routes[Normalize(path)] = JsonNode.Parse(await res.Content.ReadAsStringAsync());
+            var body = JsonNode.Parse(await res.Content.ReadAsStringAsync());
+            routes[Normalize(path)] = body;
+
+            // Algunos listados cambian de forma con ?offset (paginado con total)
+            // respecto del modo cursor: se exporta también esa variante.
+            if (body is JsonObject plain && !path.Contains('?'))
+            {
+                var paged = await store.SendAsync(HttpMethod.Get, path + "?offset=0&limit=25");
+                if (paged.IsSuccessStatusCode && paged.Content.Headers.ContentType?.MediaType == "application/json"
+                    && JsonNode.Parse(await paged.Content.ReadAsStringAsync()) is JsonObject pagedBody
+                    && !pagedBody.Select(p => p.Key).Order().SequenceEqual(plain.Select(p => p.Key).Order()))
+                {
+                    routes[Normalize(path) + "#paged"] = pagedBody;
+                }
+            }
         }
 
         var document = new JsonObject

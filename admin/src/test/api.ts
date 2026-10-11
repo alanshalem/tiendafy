@@ -9,7 +9,8 @@
  * pasando contra una API que ya no existe.
  *
  * Las rutas se buscan normalizadas igual que las exporta el backend (GUID →
- * `:id`, id numérico largo → `:n`, slug → `:slug`). Lo que no está en las
+ * `:id`, id numérico largo → `:n`, slug → `:slug`); con `?offset`, si existe,
+ * la variante paginada (`ruta#paged`). Lo que no está en las
  * fixtures responde 404, como respondería la API con un id inexistente.
  */
 import { vi } from 'vitest';
@@ -87,6 +88,9 @@ export function mockApi(): MockApi {
     }
 
     if (method !== 'GET') return response(200, {});
+    // Listados que con ?offset devuelven otra forma (paginado con total).
+    if (url.searchParams.has('offset') && `${key}#paged` in routes)
+      return response(200, routes[`${key}#paged`]);
     return key in routes
       ? response(200, routes[key])
       : response(404, { title: 'NotFound', detail: 'No encontrado.' });

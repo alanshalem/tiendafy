@@ -1,11 +1,11 @@
 {
   "_comment": "Generado por ApiFixturesExport (pnpm fixtures:api). No editar a mano.",
-  "tenantId": "78086566-4a06-4bc3-afa6-955ddd1479a1",
+  "tenantId": "68aa7712-24ec-4d9c-bcde-af64d0f8a03b",
   "routes": {
     "/api/v1/admin/campaigns": {
       "items": [
         {
-          "id": "d80bd688-83e2-4bfc-89cf-b61078c38dde",
+          "id": "ff6a43da-6c43-483c-8ad6-33b4f190222e",
           "subject": "Newsletter de agosto",
           "bodyHtml": "\u003Cp\u003ELo m\u00E1s vendido del mes y lo que se viene.\u003C/p\u003E",
           "audience": "customers",
@@ -26,11 +26,11 @@
           "recipientCount": 0,
           "sentCount": 0,
           "failedCount": 0,
-          "createdAtUtc": "2026-10-08T22:10:07.626222Z",
+          "createdAtUtc": "2026-10-08T22:19:25.008524Z",
           "sentAtUtc": null
         },
         {
-          "id": "e82e2d32-b51b-45c1-96a5-2695b38def10",
+          "id": "1a272a25-91ab-4da3-9154-3cd03f0ddfec",
           "subject": "Volv\u00E9 a tu carrito",
           "bodyHtml": "\u003Cp\u003EDejaste cosas sin comprar. Te las guardamos.\u003C/p\u003E",
           "audience": "buyers",
@@ -47,15 +47,15 @@
           "couponCode": null,
           "products": [],
           "status": "scheduled",
-          "scheduledAtUtc": "2026-10-13T22:10:07.625722Z",
+          "scheduledAtUtc": "2026-10-13T22:19:25.007991Z",
           "recipientCount": 0,
           "sentCount": 0,
           "failedCount": 0,
-          "createdAtUtc": "2026-10-08T22:10:07.625722Z",
+          "createdAtUtc": "2026-10-08T22:19:25.00799Z",
           "sentAtUtc": null
         },
         {
-          "id": "8d4cb428-179a-4998-a56c-1e950b8d2456",
+          "id": "fd3a9447-664d-4e74-bab2-9f63b6df7dca",
           "subject": "25 % OFF por 48 horas",
           "bodyHtml": "\u003Cp\u003ESolo hasta el domingo, con el c\u00F3digo VERANO25.\u003C/p\u003E",
           "audience": "buyers",
@@ -76,11 +76,11 @@
           "recipientCount": 88,
           "sentCount": 85,
           "failedCount": 3,
-          "createdAtUtc": "2026-10-02T22:10:07.625032Z",
-          "sentAtUtc": "2026-10-04T22:10:07.625046Z"
+          "createdAtUtc": "2026-10-02T22:19:25.007376Z",
+          "sentAtUtc": "2026-10-04T22:19:25.00739Z"
         },
         {
-          "id": "a530e513-16f4-4af7-a520-a51077c7c80e",
+          "id": "fa03eabd-05d5-4116-8811-3f8cb69cb271",
           "subject": "Lleg\u00F3 la nueva temporada \uD83C\uDF1E",
           "bodyHtml": "\u003Cp\u003ENovedades reci\u00E9n desembarcadas, con env\u00EDo gratis desde $50.000.\u003C/p\u003E",
           "audience": "customers",
@@ -101,15 +101,15 @@
           "recipientCount": 88,
           "sentCount": 85,
           "failedCount": 3,
-          "createdAtUtc": "2026-09-18T22:10:07.596605Z",
-          "sentAtUtc": "2026-09-20T22:10:07.597119Z"
+          "createdAtUtc": "2026-09-18T22:19:24.980674Z",
+          "sentAtUtc": "2026-09-20T22:19:24.981145Z"
         }
       ],
       "total": 4
     },
     "/api/v1/admin/campaigns/:id": {
       "campaign": {
-        "id": "d80bd688-83e2-4bfc-89cf-b61078c38dde",
+        "id": "ff6a43da-6c43-483c-8ad6-33b4f190222e",
         "subject": "Newsletter de agosto",
         "bodyHtml": "\u003Cp\u003ELo m\u00E1s vendido del mes y lo que se viene.\u003C/p\u003E",
         "audience": "customers",
@@ -130,7 +130,7 @@
         "recipientCount": 0,
         "sentCount": 0,
         "failedCount": 0,
-        "createdAtUtc": "2026-10-08T22:10:07.626222Z",
+        "createdAtUtc": "2026-10-08T22:19:25.008524Z",
         "sentAtUtc": null
       },
       "stats": {
@@ -162,7 +162,7 @@
           "stage": "claim",
           "reasonId": "PDD_PRODUCT_NOT_RECEIVED",
           "resourceId": "2000009812345678",
-          "dateCreated": "2026-10-10T16:10:08.434\u002B00:00"
+          "dateCreated": "2026-10-10T16:19:25.860\u002B00:00"
         },
         {
           "id": "5001235410",
@@ -170,7 +170,7 @@
           "stage": "dispute",
           "reasonId": "PNR_DIFFERENT_PRODUCT",
           "resourceId": "2000009811223344",
-          "dateCreated": "2026-10-01T22:10:08.434\u002B00:00"
+          "dateCreated": "2026-10-01T22:19:25.860\u002B00:00"
         }
       ]
     },
@@ -178,7 +178,7 @@
       "available": true,
       "connected": true,
       "isDemo": true,
-      "nickname": "SEED01B9BC57.DEMO",
+      "nickname": "SEED00A78FCB.DEMO",
       "meliUserId": 2100400355,
       "siteId": "MLA",
       "stockSyncEnabled": false,
@@ -186,12 +186,12 @@
       "priceSyncEnabled": false,
       "priceMarkupPct": 0,
       "autoInvoiceEnabled": false,
-      "connectedAtUtc": "2026-10-11T22:10:07.706865Z",
+      "connectedAtUtc": "2026-10-11T22:19:25.084826Z",
       "linkedItems": 5,
       "linkedStock": 5,
       "linkedPrice": 5,
       "ordersImported": 38,
-      "lastOrderAtUtc": "2026-10-09T03:10:07.748769Z",
+      "lastOrderAtUtc": "2026-10-09T03:19:25.127686Z",
       "lastNotificationAtUtc": "2026-10-11T21:56:02.609316Z",
       "stuckNotifications": 0
     },
@@ -206,8 +206,8 @@
           "price": 48900,
           "availableQuantity": 12,
           "link": {
-            "productId": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
-            "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+            "productId": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
+            "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
             "meliVariationId": null,
             "syncStock": true,
             "lastPushedQty": 12,
@@ -224,8 +224,8 @@
           "price": 27400,
           "availableQuantity": 34,
           "link": {
-            "productId": "0cf50196-3d1e-4441-ad35-d220737affce",
-            "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+            "productId": "fad7bb72-2ff1-4812-8590-5a1ff836cda3",
+            "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
             "meliVariationId": null,
             "syncStock": true,
             "lastPushedQty": 34,
@@ -242,8 +242,8 @@
           "price": 15800,
           "availableQuantity": 7,
           "link": {
-            "productId": "c2fe49bd-61d1-4e2f-aa26-02e013b137ca",
-            "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+            "productId": "18b88c4e-2814-4e06-94bd-ac04dd325b5c",
+            "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
             "meliVariationId": null,
             "syncStock": true,
             "lastPushedQty": 7,
@@ -260,8 +260,8 @@
           "price": 31200,
           "availableQuantity": 0,
           "link": {
-            "productId": "82c35711-9060-47d4-9a10-f084d28eed05",
-            "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+            "productId": "2bb6d395-4638-4722-a1b6-f37e0535e366",
+            "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
             "meliVariationId": null,
             "syncStock": true,
             "lastPushedQty": 0,
@@ -278,8 +278,8 @@
           "price": 9900,
           "availableQuantity": 18,
           "link": {
-            "productId": "fa5b5c94-5953-44e1-ab90-bd3279c426f6",
-            "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+            "productId": "592a8150-8e5f-4597-946f-43ceffa39e62",
+            "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
             "meliVariationId": null,
             "syncStock": true,
             "lastPushedQty": 18,
@@ -316,7 +316,7 @@
           "meliOrderId": 2000009800000017,
           "packId": 2100000000017,
           "status": "paid",
-          "dateCreatedUtc": "2026-10-09T03:10:07.748769Z",
+          "dateCreatedUtc": "2026-10-09T03:19:25.127686Z",
           "totalAmount": 29700,
           "paidAmount": 29700,
           "currencyId": "ARS",
@@ -341,7 +341,7 @@
           "meliOrderId": 2000009800000026,
           "packId": 2100000000026,
           "status": "paid",
-          "dateCreatedUtc": "2026-10-07T21:10:07.748769Z",
+          "dateCreatedUtc": "2026-10-07T21:19:25.127686Z",
           "totalAmount": 62400,
           "paidAmount": 62400,
           "currencyId": "ARS",
@@ -366,7 +366,7 @@
           "meliOrderId": 2000009800000028,
           "packId": 2100000000028,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-30T21:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-30T21:19:25.127686Z",
           "totalAmount": 48900,
           "paidAmount": 48900,
           "currencyId": "ARS",
@@ -391,7 +391,7 @@
           "meliOrderId": 2000009800000019,
           "packId": 2100000000019,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-29T10:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-29T10:19:25.127686Z",
           "totalAmount": 336000,
           "paidAmount": 336000,
           "currencyId": "ARS",
@@ -416,7 +416,7 @@
           "meliOrderId": 2000009800000032,
           "packId": 2100000000032,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-29T06:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-29T06:19:25.127686Z",
           "totalAmount": 15800,
           "paidAmount": 15800,
           "currencyId": "ARS",
@@ -441,7 +441,7 @@
           "meliOrderId": 2000009800000030,
           "packId": 2100000000030,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-28T06:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-28T06:19:25.127686Z",
           "totalAmount": 54800,
           "paidAmount": 54800,
           "currencyId": "ARS",
@@ -466,7 +466,7 @@
           "meliOrderId": 2000009800000007,
           "packId": 2100000000007,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-27T17:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-27T17:19:25.127686Z",
           "totalAmount": 54800,
           "paidAmount": 54800,
           "currencyId": "ARS",
@@ -491,7 +491,7 @@
           "meliOrderId": 2000009800000014,
           "packId": 2100000000014,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-26T07:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-26T07:19:25.127686Z",
           "totalAmount": 48900,
           "paidAmount": 48900,
           "currencyId": "ARS",
@@ -516,7 +516,7 @@
           "meliOrderId": 2000009800000036,
           "packId": 2100000000036,
           "status": "payment_required",
-          "dateCreatedUtc": "2026-09-25T06:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-25T06:19:25.127686Z",
           "totalAmount": 112000,
           "paidAmount": 0,
           "currencyId": "ARS",
@@ -541,7 +541,7 @@
           "meliOrderId": 2000009800000025,
           "packId": 2100000000025,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-23T10:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-23T10:19:25.127686Z",
           "totalAmount": 31200,
           "paidAmount": 31200,
           "currencyId": "ARS",
@@ -566,7 +566,7 @@
           "meliOrderId": 2000009800000012,
           "packId": 2100000000012,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-23T06:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-23T06:19:25.127686Z",
           "totalAmount": 31200,
           "paidAmount": 31200,
           "currencyId": "ARS",
@@ -591,7 +591,7 @@
           "meliOrderId": 2000009800000018,
           "packId": 2100000000018,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-22T10:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-22T10:19:25.127686Z",
           "totalAmount": 19800,
           "paidAmount": 19800,
           "currencyId": "ARS",
@@ -616,7 +616,7 @@
           "meliOrderId": 2000009800000035,
           "packId": 2100000000035,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-21T01:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-21T01:19:25.127686Z",
           "totalAmount": 19800,
           "paidAmount": 19800,
           "currencyId": "ARS",
@@ -641,7 +641,7 @@
           "meliOrderId": 2000009800000029,
           "packId": 2100000000029,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-19T11:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-19T11:19:25.127686Z",
           "totalAmount": 12900,
           "paidAmount": 12900,
           "currencyId": "ARS",
@@ -666,7 +666,7 @@
           "meliOrderId": 2000009800000016,
           "packId": 2100000000016,
           "status": "payment_required",
-          "dateCreatedUtc": "2026-09-16T07:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-16T07:19:25.127686Z",
           "totalAmount": 54800,
           "paidAmount": 0,
           "currencyId": "ARS",
@@ -691,7 +691,7 @@
           "meliOrderId": 2000009800000005,
           "packId": 2100000000005,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-15T18:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-15T18:19:25.127686Z",
           "totalAmount": 47400,
           "paidAmount": 47400,
           "currencyId": "ARS",
@@ -716,7 +716,7 @@
           "meliOrderId": 2000009800000002,
           "packId": 2100000000002,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-15T11:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-15T11:19:25.127686Z",
           "totalAmount": 15800,
           "paidAmount": 15800,
           "currencyId": "ARS",
@@ -741,7 +741,7 @@
           "meliOrderId": 2000009800000011,
           "packId": 2100000000011,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-15T05:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-15T05:19:25.127686Z",
           "totalAmount": 6450,
           "paidAmount": 6450,
           "currencyId": "ARS",
@@ -766,7 +766,7 @@
           "meliOrderId": 2000009800000022,
           "packId": 2100000000022,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-14T05:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-14T05:19:25.127686Z",
           "totalAmount": 97800,
           "paidAmount": 97800,
           "currencyId": "ARS",
@@ -791,7 +791,7 @@
           "meliOrderId": 2000009800000004,
           "packId": 2100000000004,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-12T01:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-12T01:19:25.127686Z",
           "totalAmount": 224000,
           "paidAmount": 224000,
           "currencyId": "ARS",
@@ -816,7 +816,7 @@
           "meliOrderId": 2000009800000008,
           "packId": 2100000000008,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-12T00:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-12T00:19:25.127686Z",
           "totalAmount": 29700,
           "paidAmount": 29700,
           "currencyId": "ARS",
@@ -841,7 +841,7 @@
           "meliOrderId": 2000009800000021,
           "packId": 2100000000021,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-10T17:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-10T17:19:25.127686Z",
           "totalAmount": 48900,
           "paidAmount": 48900,
           "currencyId": "ARS",
@@ -866,7 +866,7 @@
           "meliOrderId": 2000009800000033,
           "packId": 2100000000033,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-09T07:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-09T07:19:25.127686Z",
           "totalAmount": 62400,
           "paidAmount": 62400,
           "currencyId": "ARS",
@@ -891,7 +891,7 @@
           "meliOrderId": 2000009800000023,
           "packId": 2100000000023,
           "status": "payment_required",
-          "dateCreatedUtc": "2026-09-08T19:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-08T19:19:25.127686Z",
           "totalAmount": 112000,
           "paidAmount": 0,
           "currencyId": "ARS",
@@ -916,7 +916,7 @@
           "meliOrderId": 2000009800000003,
           "packId": 2100000000003,
           "status": "paid",
-          "dateCreatedUtc": "2026-09-05T11:10:07.748769Z",
+          "dateCreatedUtc": "2026-09-05T11:19:25.127686Z",
           "totalAmount": 62400,
           "paidAmount": 62400,
           "currencyId": "ARS",
@@ -943,17 +943,17 @@
       "messages": [
         {
           "text": "Buenas! Ya sali\u00F3 el env\u00EDo?",
-          "dateCreated": "2026-10-10T20:10:08.497\u002B00:00",
+          "dateCreated": "2026-10-10T20:19:25.943\u002B00:00",
           "fromSeller": false
         },
         {
           "text": "Hola! S\u00ED, despachado esta ma\u00F1ana. El seguimiento ya figura en tu compra.",
-          "dateCreated": "2026-10-10T21:10:08.497\u002B00:00",
+          "dateCreated": "2026-10-10T21:19:25.943\u002B00:00",
           "fromSeller": true
         },
         {
           "text": "Genial, gracias!",
-          "dateCreated": "2026-10-10T22:10:08.497\u002B00:00",
+          "dateCreated": "2026-10-10T22:19:25.943\u002B00:00",
           "fromSeller": false
         }
       ]
@@ -966,7 +966,7 @@
           "text": "Hola! Sirve para una Rouser 200 NS 2019?",
           "status": "UNANSWERED",
           "itemId": "MLA1472093551",
-          "dateCreated": "2026-10-11T20:10:08.503\u002B00:00",
+          "dateCreated": "2026-10-11T20:19:25.953\u002B00:00",
           "answer": null
         },
         {
@@ -974,7 +974,7 @@
           "text": "Hacen env\u00EDo a C\u00F3rdoba capital? Cu\u00E1nto sale?",
           "status": "UNANSWERED",
           "itemId": "MLA1472093552",
-          "dateCreated": "2026-10-11T16:10:08.503\u002B00:00",
+          "dateCreated": "2026-10-11T16:19:25.954\u002B00:00",
           "answer": null
         },
         {
@@ -982,10 +982,10 @@
           "text": "Ten\u00E9s factura A?",
           "status": "ANSWERED",
           "itemId": "MLA1472093556",
-          "dateCreated": "2026-10-10T18:10:08.503\u002B00:00",
+          "dateCreated": "2026-10-10T18:19:25.954\u002B00:00",
           "answer": {
             "text": "S\u00ED, emitimos factura A. Escribinos el CUIT despu\u00E9s de comprar y te la mandamos.",
-            "dateCreated": "2026-10-10T21:10:08.503\u002B00:00"
+            "dateCreated": "2026-10-10T21:19:25.954\u002B00:00"
           }
         },
         {
@@ -993,10 +993,10 @@
           "text": "Es original o alternativo?",
           "status": "ANSWERED",
           "itemId": "MLA1472093551",
-          "dateCreated": "2026-10-09T20:10:08.503\u002B00:00",
+          "dateCreated": "2026-10-09T20:19:25.954\u002B00:00",
           "answer": {
             "text": "Es original, viene con el sello del fabricante en la caja.",
-            "dateCreated": "2026-10-09T23:10:08.503\u002B00:00"
+            "dateCreated": "2026-10-09T23:19:25.954\u002B00:00"
           }
         }
       ]
@@ -1010,7 +1010,7 @@
     },
     "/api/v1/admin/meli/status": {
       "connected": true,
-      "nickname": "SEED01B9BC57.DEMO"
+      "nickname": "SEED00A78FCB.DEMO"
     },
     "/api/v1/admin/orders/:id/andreani-shipment": {
       "exists": false
@@ -1027,7 +1027,7 @@
     "/api/v1/admin/shipping/methods": {
       "items": [
         {
-          "id": "ec460fe1-3f4f-4ee9-966c-2736422c30e9",
+          "id": "d79574e9-df96-4fd1-b900-6972361f9d9f",
           "name": "Retiro en el local",
           "kind": "PICKUP",
           "price": {
@@ -1115,15 +1115,15 @@
       "metaPixelId": null,
       "clarityId": null,
       "updatedByUserId": null,
-      "updatedAtUtc": "2026-10-11T22:10:08.7083735Z"
+      "updatedAtUtc": "2026-10-11T22:19:26.2165132Z"
     },
     "/api/v1/ai/status": {
       "enabled": true
     },
     "/api/v1/auth/me": {
-      "id": "01a12d04-0f03-7074-8b4e-15eac4c9498b",
-      "email": "it-seed01b9bc57@test.local",
-      "name": "Test seed01b9bc57",
+      "id": "01a12d0c-9002-71e4-a532-24309dbf9ad4",
+      "email": "it-seed00a78fcb@test.local",
+      "name": "Test seed00a78fcb",
       "emailVerified": true
     },
     "/api/v1/auth/registration-open": {
@@ -1136,7 +1136,7 @@
     "/api/v1/categories": {
       "items": [
         {
-          "id": "c90426e1-b04e-49f5-b794-9f053a75de81",
+          "id": "eb5a617a-4e32-4697-bb31-e69d7ed6cd11",
           "name": "Musculaci\u00F3n",
           "slug": "musculacion",
           "parentId": null,
@@ -1157,7 +1157,7 @@
     "/api/v1/contact/messages": {
       "items": [
         {
-          "id": "b76245b4-c6ca-4ffd-9027-cfca18053488",
+          "id": "cbb46132-2b1b-4ae2-869f-9eaeca8ef829",
           "name": "Luc\u00EDa Fern\u00E1ndez",
           "email": "lucia.fernandez@example.com",
           "body": "Hola, quer\u00EDa saber si hacen env\u00EDos a Neuqu\u00E9n y cu\u00E1nto demora.",
@@ -1165,11 +1165,11 @@
           "reference": null,
           "orderRef": null,
           "read": false,
-          "createdAtUtc": "2026-10-11T07:10:07.482181Z",
+          "createdAtUtc": "2026-10-11T07:19:24.799451Z",
           "orderId": null
         },
         {
-          "id": "8d48522e-9b2c-409a-b0c1-807d6f92fbab",
+          "id": "696a4281-d7e8-4367-aab2-0138ab2f2535",
           "name": "Mart\u00EDn G\u00F3mez",
           "email": "martin.gomez@example.com",
           "body": "\u00BFTienen stock del modelo negro? En la web me figura agotado.",
@@ -1177,11 +1177,11 @@
           "reference": null,
           "orderRef": null,
           "read": false,
-          "createdAtUtc": "2026-10-09T04:10:07.493113Z",
+          "createdAtUtc": "2026-10-09T04:19:24.81019Z",
           "orderId": null
         },
         {
-          "id": "e9acac0d-72db-4a2b-9914-89422f85df83",
+          "id": "854b23b8-94dd-499d-b536-acc3cd1b011f",
           "name": "Sof\u00EDa Ram\u00EDrez",
           "email": "sofia.ramirez@example.com",
           "body": "Compr\u00E9 ayer y necesito cambiar la direcci\u00F3n de entrega, \u00BFes posible?",
@@ -1189,11 +1189,11 @@
           "reference": null,
           "orderRef": null,
           "read": false,
-          "createdAtUtc": "2026-10-07T11:10:07.493167Z",
+          "createdAtUtc": "2026-10-07T11:19:24.810241Z",
           "orderId": null
         },
         {
-          "id": "1fe7c6d6-fb94-4fd7-9bb0-f0dd2db5f51b",
+          "id": "c1555961-9e7d-4f79-addc-b0510ff1a9a7",
           "name": "Diego Sosa",
           "email": "diego.sosa@example.com",
           "body": "\u00BFEmiten factura A? Necesito el comprobante para la empresa.",
@@ -1201,11 +1201,11 @@
           "reference": null,
           "orderRef": null,
           "read": true,
-          "createdAtUtc": "2026-10-05T19:10:07.493271Z",
+          "createdAtUtc": "2026-10-05T19:19:24.810347Z",
           "orderId": null
         },
         {
-          "id": "8957d29a-1080-42de-abb2-b885cf05a718",
+          "id": "536c19dd-8ef6-4f91-af22-df3a1b2b3865",
           "name": "Valentina Ruiz",
           "email": "valentina.ruiz@example.com",
           "body": "Buenas, consulta por compra mayorista: \u00BFmanejan lista para revendedores?",
@@ -1213,11 +1213,11 @@
           "reference": null,
           "orderRef": null,
           "read": true,
-          "createdAtUtc": "2026-10-03T10:10:07.493291Z",
+          "createdAtUtc": "2026-10-03T10:19:24.810365Z",
           "orderId": null
         },
         {
-          "id": "9b095ae8-4572-43b2-aa7f-80a00520eb37",
+          "id": "3858e748-63ea-424e-800d-784f23ac08df",
           "name": "Joaqu\u00EDn Medina",
           "email": "joaquin.medina@example.com",
           "body": "Recib\u00ED el pedido y quiero devolverlo, no era lo que esperaba.",
@@ -1225,7 +1225,7 @@
           "reference": "ARR-6867",
           "orderRef": "#9062",
           "read": true,
-          "createdAtUtc": "2026-10-01T03:10:07.493306Z",
+          "createdAtUtc": "2026-10-01T03:19:24.810379Z",
           "orderId": null
         }
       ],
@@ -1235,59 +1235,59 @@
     "/api/v1/coupons": {
       "items": [
         {
-          "id": "7a68f389-d6cc-4c72-9ff1-11ec076a9ce3",
+          "id": "2be68e7c-d7cd-4d16-8274-a20027f8819d",
           "code": "BLACKFRIDAY",
           "type": "Percentage",
           "value": 30,
           "minPurchase": 0,
           "startsAtUtc": null,
-          "endsAtUtc": "2026-09-26T22:10:05.419714Z",
+          "endsAtUtc": "2026-09-26T22:19:22.835823Z",
           "maxUses": 500,
           "usedCount": 0,
           "active": false,
-          "createdAtUtc": "2026-10-11T22:10:05.446639Z"
+          "createdAtUtc": "2026-10-11T22:19:22.858538Z"
         },
         {
-          "id": "fb76f7f8-b813-4dfd-b1e0-88b63eec67d7",
+          "id": "4af55c28-d9ad-484d-9e02-5e01d1a24737",
           "code": "PRIMERACOMPRA",
           "type": "FixedAmount",
           "value": 800000,
           "minPurchase": 3000000,
           "startsAtUtc": null,
-          "endsAtUtc": "2026-12-10T22:10:05.419714Z",
+          "endsAtUtc": "2026-12-10T22:19:22.835823Z",
           "maxUses": 100,
           "usedCount": 13,
           "active": true,
-          "createdAtUtc": "2026-10-11T22:10:05.446605Z"
+          "createdAtUtc": "2026-10-11T22:19:22.858492Z"
         },
         {
-          "id": "1d1714bf-f283-45c4-b6c1-08057a7b73e2",
+          "id": "4cc892aa-280e-4b66-9a81-2a8b49bbc348",
           "code": "VERANO25",
           "type": "Percentage",
           "value": 25,
           "minPurchase": 2000000,
           "startsAtUtc": null,
-          "endsAtUtc": "2026-10-31T22:10:05.419714Z",
+          "endsAtUtc": "2026-10-31T22:19:22.835823Z",
           "maxUses": 200,
-          "usedCount": 7,
+          "usedCount": 3,
           "active": true,
-          "createdAtUtc": "2026-10-11T22:10:05.445901Z"
+          "createdAtUtc": "2026-10-11T22:19:22.857818Z"
         },
         {
-          "id": "40a4b973-0c8a-41f9-8b41-67f758bfed70",
+          "id": "14ef3c03-f90b-4b59-84c6-89ad32f2c8bc",
           "code": "ENVIOGRATIS",
           "type": "FreeShipping",
           "value": 0,
           "minPurchase": 500000,
           "startsAtUtc": null,
-          "endsAtUtc": "2026-11-25T22:10:05.419714Z",
+          "endsAtUtc": "2026-11-25T22:19:22.835823Z",
           "maxUses": null,
-          "usedCount": 13,
+          "usedCount": 7,
           "active": true,
-          "createdAtUtc": "2026-10-11T22:10:05.445143Z"
+          "createdAtUtc": "2026-10-11T22:19:22.857004Z"
         },
         {
-          "id": "ab8c927e-ca6c-49df-8b46-1f79e133d07a",
+          "id": "f3ce3cc0-14b8-4215-a866-cd65ba627ad8",
           "code": "BIENVENIDO10",
           "type": "Percentage",
           "value": 10,
@@ -1295,9 +1295,9 @@
           "startsAtUtc": null,
           "endsAtUtc": null,
           "maxUses": null,
-          "usedCount": 3,
+          "usedCount": 13,
           "active": true,
-          "createdAtUtc": "2026-10-11T22:10:05.420703Z"
+          "createdAtUtc": "2026-10-11T22:19:22.836816Z"
         }
       ],
       "total": 5
@@ -1305,504 +1305,504 @@
     "/api/v1/customers": {
       "items": [
         {
-          "id": "0d03decd-d72c-46c9-a2f8-1a8cbc4c6cb9",
+          "id": "fe6f0f70-52e9-4ead-8c2f-d0b0220203d7",
           "name": "Julieta Castro (6)",
           "email": "julieta.castro6@example.com",
           "phone": "1140522937",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-10T23:13:05.535811Z"
+          "createdAtUtc": "2026-10-10T23:22:22.942553Z"
         },
         {
-          "id": "e8666725-4d9a-4d15-8318-893b81557c9c",
+          "id": "43320c28-9ccf-45fa-8a54-949bf2ffb5d9",
           "name": "Agustina Vega (9)",
           "email": "agustina.vega9@example.com",
           "phone": "1162362887",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-10T22:23:05.535811Z"
+          "createdAtUtc": "2026-10-10T22:32:22.942553Z"
         },
         {
-          "id": "52a958b2-1c4a-4de0-91fa-a1c4e683f343",
+          "id": "28aff811-57cb-4121-9e38-db6a320b4c92",
           "name": "Valentina Ruiz (3)",
           "email": "valentina.ruiz3@example.com",
           "phone": "1148695089",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-09T22:35:05.535811Z"
+          "createdAtUtc": "2026-10-09T22:44:22.942553Z"
         },
         {
-          "id": "2bea2206-359f-4975-82ad-a042c2655224",
+          "id": "0e6abb1f-d790-4410-8705-13e7b5ea2e35",
           "name": "Tom\u00E1s Aguirre (4)",
           "email": "tomas.aguirre4@example.com",
           "phone": "1140460372",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-08T22:45:05.535811Z"
+          "createdAtUtc": "2026-10-08T22:54:22.942553Z"
         },
         {
-          "id": "2e31be5d-2763-4282-95fc-05dae3bb1596",
+          "id": "3d1ff0c8-2d97-4206-b46d-3931e67016e8",
           "name": "Mart\u00EDn G\u00F3mez (3)",
           "email": "martin.gomez3@example.com",
           "phone": "1161751679",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-06T23:32:05.535811Z"
+          "createdAtUtc": "2026-10-06T23:41:22.942553Z"
         },
         {
-          "id": "2dda4f27-2c62-4680-bc07-a7317c2e2176",
+          "id": "8e39745b-b212-45aa-b96a-bac4f2a9d497",
           "name": "Florencia Cabrera (12)",
           "email": "florencia.cabrera12@example.com",
           "phone": "1154735783",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-06T23:05:05.535811Z"
+          "createdAtUtc": "2026-10-06T23:14:22.942553Z"
         },
         {
-          "id": "def9f241-22a7-42b9-ab44-5d3fd4393e20",
+          "id": "f3aa3acb-a8ac-46ed-8fd1-a0da87a93433",
           "name": "Santiago Peralta (12)",
           "email": "santiago.peralta12@example.com",
           "phone": "1131738652",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-03T22:44:05.535811Z"
+          "createdAtUtc": "2026-10-03T22:53:22.942553Z"
         },
         {
-          "id": "f4f2e513-51df-43fa-b162-02e0b6b3ef82",
+          "id": "c915241c-e523-4401-b058-06b83cb0a09d",
           "name": "Santiago Peralta (3)",
           "email": "santiago.peralta3@example.com",
           "phone": "1162630351",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-01T22:44:05.535811Z"
+          "createdAtUtc": "2026-10-01T22:53:22.942553Z"
         },
         {
-          "id": "06b4adba-a99e-4e87-b534-6048f4f8bdf8",
+          "id": "2bcd6dac-e96b-4bb9-83e1-3a47ab462843",
           "name": "Nicol\u00E1s Herrera (6)",
           "email": "nicolas.herrera6@example.com",
           "phone": "1143705072",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-01T22:30:05.535811Z"
+          "createdAtUtc": "2026-10-01T22:39:22.942553Z"
         },
         {
-          "id": "2d2fb381-8643-44a6-9971-07057bcfae7d",
+          "id": "b348adcb-6cb8-4031-b476-49beaa7edf9c",
           "name": "Federico Molina (12)",
           "email": "federico.molina12@example.com",
           "phone": "1135827467",
           "address": "San Mart\u00EDn 450, Rosario",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-10-01T22:22:05.535811Z"
+          "createdAtUtc": "2026-10-01T22:31:22.942553Z"
         },
         {
-          "id": "29c281c8-c3c1-49d9-9a88-5a8949c3e222",
+          "id": "6f36426f-da88-4b81-a9b1-2b98cd384102",
           "name": "Micaela Rojas (4)",
           "email": "micaela.rojas4@example.com",
           "phone": "1133924231",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-30T23:28:05.535811Z"
+          "createdAtUtc": "2026-09-30T23:37:22.942553Z"
         },
         {
-          "id": "13295ee8-3d09-43c6-9c99-560e516f5488",
+          "id": "e2dbc656-5cee-431d-9c0f-274fe06c6a5f",
           "name": "Camila Ortiz (6)",
           "email": "camila.ortiz6@example.com",
           "phone": "1169731901",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-28T22:44:05.535811Z"
+          "createdAtUtc": "2026-09-28T22:53:22.942553Z"
         },
         {
-          "id": "1ac42ba0-bb1d-4c26-813c-c2c6652d6aa2",
+          "id": "1887c6ff-5fba-4efe-8c26-46ddef4e18de",
           "name": "Micaela Rojas (8)",
           "email": "micaela.rojas8@example.com",
           "phone": "1146915561",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-27T22:29:05.535811Z"
+          "createdAtUtc": "2026-09-27T22:38:22.942553Z"
         },
         {
-          "id": "9b4db5c7-3364-48e4-969b-82d46400afc9",
+          "id": "cc752282-f310-41cb-83d7-af04de57cb99",
           "name": "Joaqu\u00EDn Medina (11)",
           "email": "joaquin.medina11@example.com",
           "phone": "1168372356",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-27T22:17:05.535811Z"
+          "createdAtUtc": "2026-09-27T22:26:22.942553Z"
         },
         {
-          "id": "32d82704-d81d-46a9-8e5d-d216ac017e69",
+          "id": "c32a82f1-d967-44b3-8795-a82fee372f81",
           "name": "Mart\u00EDn G\u00F3mez (7)",
           "email": "martin.gomez7@example.com",
           "phone": "1164453847",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-26T22:25:05.535811Z"
+          "createdAtUtc": "2026-09-26T22:34:22.942553Z"
         },
         {
-          "id": "56a442f9-21f4-427c-85a7-34bba36f96ba",
+          "id": "b5dc3925-3e04-4637-9c11-aa6bd819aade",
           "name": "Sof\u00EDa Ram\u00EDrez (13)",
           "email": "sofia.ramirez13@example.com",
           "phone": "1167354621",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-25T23:22:05.535811Z"
+          "createdAtUtc": "2026-09-25T23:31:22.942553Z"
         },
         {
-          "id": "63cb43e6-dd1d-4942-9a21-8b70fbaf7a41",
+          "id": "7bc924b0-c06a-47de-818b-890e6be654dd",
           "name": "Camila Ortiz (14)",
           "email": "camila.ortiz14@example.com",
           "phone": "1137074966",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-23T23:12:05.535811Z"
+          "createdAtUtc": "2026-09-23T23:21:22.942553Z"
         },
         {
-          "id": "4e8ebe69-2dad-4747-a05d-3426783aae0b",
+          "id": "f6aa6e32-ce54-4e39-8c68-6faf940ead84",
           "name": "Federico Molina (10)",
           "email": "federico.molina10@example.com",
           "phone": "1146039194",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-22T22:56:05.535811Z"
+          "createdAtUtc": "2026-09-22T23:05:22.942553Z"
         },
         {
-          "id": "ad058531-c64b-4a90-b1bb-5b6ee68060fd",
+          "id": "4f2138c0-d855-45de-aac4-161b882c8f86",
           "name": "Tom\u00E1s Aguirre (7)",
           "email": "tomas.aguirre7@example.com",
           "phone": "1130140419",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-19T22:47:05.535811Z"
+          "createdAtUtc": "2026-09-19T22:56:22.942553Z"
         },
         {
-          "id": "eb81aa88-b998-4c88-bae7-b9bf34a61f61",
+          "id": "5b53fe68-9f89-4562-91df-6e3e72bd4525",
           "name": "Joaqu\u00EDn Medina (9)",
           "email": "joaquin.medina9@example.com",
           "phone": "1140656222",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-18T23:15:05.535811Z"
+          "createdAtUtc": "2026-09-18T23:24:22.942553Z"
         },
         {
-          "id": "2e6e2f0a-1419-4a5b-95fd-1e57a53252c6",
-          "name": "Camila Ortiz (16)",
-          "email": "camila.ortiz16@example.com",
-          "phone": "1154921460",
-          "address": "Belgrano 890, C\u00F3rdoba",
-          "notes": null,
-          "priceListId": null,
-          "createdAtUtc": "2026-09-17T23:18:05.535811Z"
-        },
-        {
-          "id": "2e17e540-8de6-43d3-883b-db2c59d1af18",
+          "id": "b33a8b8f-74be-47e6-a6a1-d1f8dc77f851",
           "name": "Diego Sosa (12)",
           "email": "diego.sosa12@example.com",
           "phone": "1141902588",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-17T23:18:05.535811Z"
+          "createdAtUtc": "2026-09-17T23:27:22.942553Z"
         },
         {
-          "id": "85598b2b-1746-49a2-ba1c-bdc1b214b7f4",
+          "id": "7edfc672-006d-4fbd-9cd1-39f5ba487c7a",
+          "name": "Camila Ortiz (16)",
+          "email": "camila.ortiz16@example.com",
+          "phone": "1154921460",
+          "address": "Belgrano 890, C\u00F3rdoba",
+          "notes": null,
+          "priceListId": null,
+          "createdAtUtc": "2026-09-17T23:27:22.942553Z"
+        },
+        {
+          "id": "231038bf-b974-4f1b-aba8-716faba1e2a4",
           "name": "Camila Ortiz (3)",
           "email": "camila.ortiz3@example.com",
           "phone": "1148463756",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-17T23:01:05.535811Z"
+          "createdAtUtc": "2026-09-17T23:10:22.942553Z"
         },
         {
-          "id": "76db2b12-0508-421a-a989-e7f1021802f6",
+          "id": "41b8aef3-55bd-4338-a3cb-48a33efffe49",
           "name": "Mart\u00EDn G\u00F3mez (14)",
           "email": "martin.gomez14@example.com",
           "phone": "1153467054",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-14T22:27:05.535811Z"
+          "createdAtUtc": "2026-09-14T22:36:22.942553Z"
         },
         {
-          "id": "0a167b2d-e4b3-4b25-a444-2e7178db40ea",
+          "id": "256650d1-7554-4d86-b390-0eb775acfb36",
           "name": "Federico Molina (13)",
           "email": "federico.molina13@example.com",
           "phone": "1131772726",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-12T23:16:05.535811Z"
+          "createdAtUtc": "2026-09-12T23:25:22.942553Z"
         },
         {
-          "id": "80488548-e083-4da0-a305-d26dfe4d93f7",
+          "id": "ff97d04a-9208-4cdc-ada7-92ba0c713221",
           "name": "Tom\u00E1s Aguirre (8)",
           "email": "tomas.aguirre8@example.com",
           "phone": "1163393773",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-12T22:27:05.535811Z"
+          "createdAtUtc": "2026-09-12T22:36:22.942553Z"
         },
         {
-          "id": "dc71a4c1-9225-4141-8df4-33fc379836e8",
+          "id": "ced04b6e-7cc8-478d-b6e5-ab8dd5d60c1a",
           "name": "Santiago Peralta (2)",
           "email": "santiago.peralta2@example.com",
           "phone": "1149813803",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-12T22:26:05.535811Z"
+          "createdAtUtc": "2026-09-12T22:35:22.942553Z"
         },
         {
-          "id": "cd6c1055-0e5c-4651-9dfd-8459508b7d92",
+          "id": "1ad1a0b2-dc12-4745-a4ed-6eec0f1b2a2d",
           "name": "Diego Sosa (6)",
           "email": "diego.sosa6@example.com",
           "phone": "1154782030",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-10T23:10:05.535811Z"
+          "createdAtUtc": "2026-09-10T23:19:22.942553Z"
         },
         {
-          "id": "0f664372-6dd2-4a98-aa8b-3eab45459188",
+          "id": "4640d5b2-c1e8-4e60-93a5-d3e335d6c679",
           "name": "Agustina Vega",
           "email": "agustina.vega@example.com",
           "phone": "1143319597",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-09T22:55:05.535811Z"
+          "createdAtUtc": "2026-09-09T23:04:22.942553Z"
         },
         {
-          "id": "cd65ae48-6383-472e-b1a6-0a8670604220",
+          "id": "52836703-1334-481d-8ff6-0adade18382d",
           "name": "Joaqu\u00EDn Medina (2)",
           "email": "joaquin.medina2@example.com",
           "phone": "1130764149",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-07T23:21:05.535811Z"
+          "createdAtUtc": "2026-09-07T23:30:22.942553Z"
         },
         {
-          "id": "1c924b3b-6328-4976-b156-3fdc4f72e291",
+          "id": "e89c493b-cc21-4750-8d77-7d1eee861a0e",
           "name": "Luc\u00EDa Fern\u00E1ndez (3)",
           "email": "lucia.fernandez3@example.com",
           "phone": "1150462469",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-07T22:51:05.535811Z"
+          "createdAtUtc": "2026-09-07T23:00:22.942553Z"
         },
         {
-          "id": "a189813d-81c3-47ea-a9ad-0a0ed546049f",
+          "id": "8633262a-fa44-4d11-a3b6-34ffd0e21b83",
           "name": "Valentina Ruiz (10)",
           "email": "valentina.ruiz10@example.com",
           "phone": "1136305871",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-06T23:01:05.535811Z"
+          "createdAtUtc": "2026-09-06T23:10:22.942553Z"
         },
         {
-          "id": "a80d4705-05a7-4e1c-a353-c777b9dafffd",
+          "id": "c9c1b04b-9cb2-4cc5-b538-ebe753db06de",
           "name": "Mart\u00EDn G\u00F3mez (5)",
           "email": "martin.gomez5@example.com",
           "phone": "1157224578",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-06T22:28:05.535811Z"
+          "createdAtUtc": "2026-09-06T22:37:22.942553Z"
         },
         {
-          "id": "b44f4f7e-0491-428e-ae92-93b73f0164ec",
+          "id": "41095358-23b7-4988-b22a-1a42dc1ef4d3",
           "name": "Joaqu\u00EDn Medina (13)",
           "email": "joaquin.medina13@example.com",
           "phone": "1160992764",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-05T22:45:05.535811Z"
+          "createdAtUtc": "2026-09-05T22:54:22.942553Z"
         },
         {
-          "id": "19608a08-a460-4c4b-8d3c-7a96d918acfb",
+          "id": "380774cd-a37d-4387-a3b4-dfe9bbd47032",
           "name": "Sof\u00EDa Ram\u00EDrez (14)",
           "email": "sofia.ramirez14@example.com",
           "phone": "1151138325",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-05T22:13:05.535811Z"
+          "createdAtUtc": "2026-09-05T22:22:22.942553Z"
         },
         {
-          "id": "7d3988aa-fe7d-4d90-b2e1-e5df37360e36",
+          "id": "5b0d260d-9a98-4cf1-99d8-f04623596409",
           "name": "Tom\u00E1s Aguirre (3)",
           "email": "tomas.aguirre3@example.com",
           "phone": "1155556818",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-04T22:30:05.535811Z"
+          "createdAtUtc": "2026-09-04T22:39:22.942553Z"
         },
         {
-          "id": "4ab6b51b-ea05-45d9-98b2-a2a126d7222d",
+          "id": "7f2b0489-83d5-4c79-8b68-043832022508",
           "name": "Julieta Castro (4)",
           "email": "julieta.castro4@example.com",
           "phone": "1163624673",
           "address": "San Mart\u00EDn 450, Rosario",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-02T22:53:05.535811Z"
+          "createdAtUtc": "2026-09-02T23:02:22.942553Z"
         },
         {
-          "id": "71a1f473-c154-4648-9d9e-77eb82fc84da",
+          "id": "c0fa9a8d-3d20-4f13-a3ed-edf5ebda3f94",
           "name": "Emiliano Ledesma (2)",
           "email": "emiliano.ledesma2@example.com",
           "phone": "1131471133",
           "address": "San Mart\u00EDn 450, Rosario",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-02T22:17:05.535811Z"
+          "createdAtUtc": "2026-09-02T22:26:22.942553Z"
         },
         {
-          "id": "da4a28cc-d136-47dd-9016-aa5f2c4535b7",
+          "id": "b7a8cbfd-33bf-4c51-bafb-77b884d7638b",
           "name": "Nicol\u00E1s Herrera",
           "email": "nicolas.herrera@example.com",
           "phone": "1145976521",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-09-01T22:24:05.535811Z"
+          "createdAtUtc": "2026-09-01T22:33:22.942553Z"
         },
         {
-          "id": "13866115-956f-4ae6-b564-097b26d50df0",
+          "id": "eada5a2f-cc97-4367-8111-11fd8e8c0b21",
           "name": "Valentina Ruiz (2)",
           "email": "valentina.ruiz2@example.com",
           "phone": "1135713848",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-30T23:02:05.535811Z"
+          "createdAtUtc": "2026-08-30T23:11:22.942553Z"
         },
         {
-          "id": "9634db66-f4e8-4217-a823-f7750133db11",
+          "id": "6ecc9502-a34e-4fb0-96af-00358f0453f1",
           "name": "Agustina Vega (13)",
           "email": "agustina.vega13@example.com",
           "phone": "1138669774",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-29T22:13:05.535811Z"
+          "createdAtUtc": "2026-08-29T22:22:22.942553Z"
         },
         {
-          "id": "6bcaec15-8476-41a7-ba10-9d322d1a2ea4",
+          "id": "0173626f-7503-4a48-b692-2eac7aafac25",
           "name": "Camila Ortiz (9)",
           "email": "camila.ortiz9@example.com",
           "phone": "1147375198",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-28T23:29:05.535811Z"
+          "createdAtUtc": "2026-08-28T23:38:22.942553Z"
         },
         {
-          "id": "45d3dffa-e0b2-454d-912b-beb6041a3852",
+          "id": "4dabc08d-3b14-4f7f-8f16-d76caf44d352",
           "name": "Micaela Rojas (5)",
           "email": "micaela.rojas5@example.com",
           "phone": "1158939929",
           "address": "Av. Corrientes 1234, CABA",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-28T23:08:05.535811Z"
+          "createdAtUtc": "2026-08-28T23:17:22.942553Z"
         },
         {
-          "id": "913a4e4c-edca-431b-9cfb-b0dfa05c3d5a",
+          "id": "a626c28a-bce4-4694-acd2-fe58485e9b39",
           "name": "Emiliano Ledesma (6)",
           "email": "emiliano.ledesma6@example.com",
           "phone": "1165647766",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-28T23:01:05.535811Z"
+          "createdAtUtc": "2026-08-28T23:10:22.942553Z"
         },
         {
-          "id": "24795041-d2d6-4791-bf18-d3d6b636cbd2",
+          "id": "3c298247-a4fd-4f0c-b0f8-989c9809c94e",
           "name": "Mart\u00EDn G\u00F3mez (16)",
           "email": "martin.gomez16@example.com",
           "phone": "1150481912",
           "address": "San Mart\u00EDn 450, Rosario",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-26T23:09:05.535811Z"
+          "createdAtUtc": "2026-08-26T23:18:22.942553Z"
         },
         {
-          "id": "d25a044e-77d6-407e-8ed9-f299847b29c1",
+          "id": "f62ad97f-a886-4072-b7cf-88a44648135e",
           "name": "Emiliano Ledesma",
           "email": "emiliano.ledesma@example.com",
           "phone": "1144530693",
           "address": "Sarmiento 620, Mendoza",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-23T23:33:05.535811Z"
+          "createdAtUtc": "2026-08-23T23:42:22.942553Z"
         },
         {
-          "id": "f370cfb8-8c29-41ce-8aae-31a55c0732cf",
+          "id": "023b619b-1e88-406a-b5a3-434dc813a8b9",
           "name": "Tom\u00E1s Aguirre (14)",
           "email": "tomas.aguirre14@example.com",
           "phone": "1156496348",
           "address": "Rivadavia 1500, Mar del Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-21T23:32:05.535811Z"
+          "createdAtUtc": "2026-08-21T23:41:22.942553Z"
         },
         {
-          "id": "887f2ac8-d368-4401-9027-3aa80764e4b1",
+          "id": "2144dc7d-9add-41db-9e5e-21d48f106f4e",
           "name": "Julieta Castro (3)",
           "email": "julieta.castro3@example.com",
           "phone": "1134086403",
           "address": "Mitre 275, La Plata",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-20T23:11:05.535811Z"
+          "createdAtUtc": "2026-08-20T23:20:22.942553Z"
         },
         {
-          "id": "a998eb91-f44f-4ce5-a4c3-73c159a00205",
+          "id": "f9908908-d26c-40b1-a828-6d019ead8135",
           "name": "Florencia Cabrera (9)",
           "email": "florencia.cabrera9@example.com",
           "phone": "1136644930",
           "address": "San Mart\u00EDn 450, Rosario",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-20T22:36:05.535811Z"
+          "createdAtUtc": "2026-08-20T22:45:22.942553Z"
         },
         {
-          "id": "40b42491-c49c-4f69-8d36-2a21bf0ea8f5",
+          "id": "dc3b26e0-6610-4e38-9891-ac0d00e32a5e",
           "name": "Santiago Peralta (7)",
           "email": "santiago.peralta7@example.com",
           "phone": "1131220888",
           "address": "Belgrano 890, C\u00F3rdoba",
           "notes": null,
           "priceListId": null,
-          "createdAtUtc": "2026-08-17T23:32:05.535811Z"
+          "createdAtUtc": "2026-08-17T23:41:22.942553Z"
         }
       ],
       "total": 88
@@ -1922,7 +1922,7 @@
     "/api/v1/finance/accounts": {
       "items": [
         {
-          "id": "c8527b87-65c8-4900-af7f-36505cd30e68",
+          "id": "9d16a870-7893-4105-a84c-b0ae9f97b444",
           "name": "Caja",
           "kind": "cash",
           "currency": "ARS",
@@ -1949,252 +1949,252 @@
     "/api/v1/finance/parties": {
       "items": [
         {
-          "id": "0f664372-6dd2-4a98-aa8b-3eab45459188",
+          "id": "4640d5b2-c1e8-4e60-93a5-d3e335d6c679",
           "name": "Agustina Vega",
           "detail": "agustina.vega@example.com"
         },
         {
-          "id": "9634db66-f4e8-4217-a823-f7750133db11",
+          "id": "6ecc9502-a34e-4fb0-96af-00358f0453f1",
           "name": "Agustina Vega (13)",
           "detail": "agustina.vega13@example.com"
         },
         {
-          "id": "e8666725-4d9a-4d15-8318-893b81557c9c",
+          "id": "43320c28-9ccf-45fa-8a54-949bf2ffb5d9",
           "name": "Agustina Vega (9)",
           "detail": "agustina.vega9@example.com"
         },
         {
-          "id": "54a55d6f-8a5c-443c-81a7-9eede7806afd",
+          "id": "80ec94ef-6c71-4976-a698-aefa8eaabbb5",
           "name": "Camila Ortiz",
           "detail": "camila.ortiz@example.com"
         },
         {
-          "id": "63cb43e6-dd1d-4942-9a21-8b70fbaf7a41",
+          "id": "7bc924b0-c06a-47de-818b-890e6be654dd",
           "name": "Camila Ortiz (14)",
           "detail": "camila.ortiz14@example.com"
         },
         {
-          "id": "2e6e2f0a-1419-4a5b-95fd-1e57a53252c6",
+          "id": "7edfc672-006d-4fbd-9cd1-39f5ba487c7a",
           "name": "Camila Ortiz (16)",
           "detail": "camila.ortiz16@example.com"
         },
         {
-          "id": "0fe68e04-d88d-47e0-bc67-1305ed2e94de",
+          "id": "5ce30b5d-1475-46e4-962f-0dc7d2247b52",
           "name": "Camila Ortiz (2)",
           "detail": "camila.ortiz2@example.com"
         },
         {
-          "id": "85598b2b-1746-49a2-ba1c-bdc1b214b7f4",
+          "id": "231038bf-b974-4f1b-aba8-716faba1e2a4",
           "name": "Camila Ortiz (3)",
           "detail": "camila.ortiz3@example.com"
         },
         {
-          "id": "13295ee8-3d09-43c6-9c99-560e516f5488",
+          "id": "e2dbc656-5cee-431d-9c0f-274fe06c6a5f",
           "name": "Camila Ortiz (6)",
           "detail": "camila.ortiz6@example.com"
         },
         {
-          "id": "11517a01-c935-4681-90b7-553f66fb19de",
+          "id": "6938a721-59ca-4289-9011-8d9761047fc5",
           "name": "Camila Ortiz (8)",
           "detail": "camila.ortiz8@example.com"
         },
         {
-          "id": "6bcaec15-8476-41a7-ba10-9d322d1a2ea4",
+          "id": "0173626f-7503-4a48-b692-2eac7aafac25",
           "name": "Camila Ortiz (9)",
           "detail": "camila.ortiz9@example.com"
         },
         {
-          "id": "c392416d-bc1c-476d-b7ba-ff25fa854266",
+          "id": "a99d4b9a-91ef-4eb4-bff5-cfb5f571e2df",
           "name": "Diego Sosa",
           "detail": "diego.sosa@example.com"
         },
         {
-          "id": "2e17e540-8de6-43d3-883b-db2c59d1af18",
+          "id": "b33a8b8f-74be-47e6-a6a1-d1f8dc77f851",
           "name": "Diego Sosa (12)",
           "detail": "diego.sosa12@example.com"
         },
         {
-          "id": "f149c275-fe70-45ce-a2f8-fa9c56b340de",
+          "id": "2d2e8635-789b-4d33-8d60-75de94690bc5",
           "name": "Diego Sosa (2)",
           "detail": "diego.sosa2@example.com"
         },
         {
-          "id": "cd6c1055-0e5c-4651-9dfd-8459508b7d92",
+          "id": "1ad1a0b2-dc12-4745-a4ed-6eec0f1b2a2d",
           "name": "Diego Sosa (6)",
           "detail": "diego.sosa6@example.com"
         },
         {
-          "id": "d25a044e-77d6-407e-8ed9-f299847b29c1",
+          "id": "f62ad97f-a886-4072-b7cf-88a44648135e",
           "name": "Emiliano Ledesma",
           "detail": "emiliano.ledesma@example.com"
         },
         {
-          "id": "71a1f473-c154-4648-9d9e-77eb82fc84da",
+          "id": "c0fa9a8d-3d20-4f13-a3ed-edf5ebda3f94",
           "name": "Emiliano Ledesma (2)",
           "detail": "emiliano.ledesma2@example.com"
         },
         {
-          "id": "913a4e4c-edca-431b-9cfb-b0dfa05c3d5a",
+          "id": "a626c28a-bce4-4694-acd2-fe58485e9b39",
           "name": "Emiliano Ledesma (6)",
           "detail": "emiliano.ledesma6@example.com"
         },
         {
-          "id": "e8bbd41f-3e64-44e1-9872-cbeae6d69b34",
+          "id": "29aa52ed-2847-4719-a1f3-8dbbb1e2eeeb",
           "name": "Emiliano Ledesma (8)",
           "detail": "emiliano.ledesma8@example.com"
         },
         {
-          "id": "cdf48d8a-ec17-407d-a2d1-20fc47368ef9",
+          "id": "06f58274-4ea0-443b-bb28-7afab9009d57",
           "name": "Emiliano Ledesma (9)",
           "detail": "emiliano.ledesma9@example.com"
         },
         {
-          "id": "d3341ee9-6382-4e76-ba3b-ad85f50c1bdf",
+          "id": "c7627f7d-a0b2-4349-aa17-9e159c83aa25",
           "name": "Federico Molina",
           "detail": "federico.molina@example.com"
         },
         {
-          "id": "4e8ebe69-2dad-4747-a05d-3426783aae0b",
+          "id": "f6aa6e32-ce54-4e39-8c68-6faf940ead84",
           "name": "Federico Molina (10)",
           "detail": "federico.molina10@example.com"
         },
         {
-          "id": "2d2fb381-8643-44a6-9971-07057bcfae7d",
+          "id": "b348adcb-6cb8-4031-b476-49beaa7edf9c",
           "name": "Federico Molina (12)",
           "detail": "federico.molina12@example.com"
         },
         {
-          "id": "0a167b2d-e4b3-4b25-a444-2e7178db40ea",
+          "id": "256650d1-7554-4d86-b390-0eb775acfb36",
           "name": "Federico Molina (13)",
           "detail": "federico.molina13@example.com"
         },
         {
-          "id": "10dcfcbc-cfcf-4a88-979b-ad943625231d",
+          "id": "ac625007-cf3a-4569-ac2b-2a4e015bad49",
           "name": "Federico Molina (6)",
           "detail": "federico.molina6@example.com"
         },
         {
-          "id": "7432e329-97a2-4222-a8e1-79e03a86eed2",
+          "id": "d848de20-7d48-4965-8de9-40f21ecaba12",
           "name": "Federico Molina (8)",
           "detail": "federico.molina8@example.com"
         },
         {
-          "id": "aeeda95b-42c0-4bb2-9149-f5d65aea9dcc",
+          "id": "babd82a9-5c44-4a16-b399-6c38a1a6057e",
           "name": "Florencia Cabrera",
           "detail": "florencia.cabrera@example.com"
         },
         {
-          "id": "e842ed33-c5cd-47b3-a739-14507c0312d8",
+          "id": "1663b375-8de9-436a-9487-36c1d1f66e0b",
           "name": "Florencia Cabrera (11)",
           "detail": "florencia.cabrera11@example.com"
         },
         {
-          "id": "2dda4f27-2c62-4680-bc07-a7317c2e2176",
+          "id": "8e39745b-b212-45aa-b96a-bac4f2a9d497",
           "name": "Florencia Cabrera (12)",
           "detail": "florencia.cabrera12@example.com"
         },
         {
-          "id": "a26041ef-27b0-4d88-98d2-37deb19ab865",
+          "id": "8fc4e442-0309-4558-ac59-88e709824bea",
           "name": "Florencia Cabrera (15)",
           "detail": "florencia.cabrera15@example.com"
         },
         {
-          "id": "a998eb91-f44f-4ce5-a4c3-73c159a00205",
+          "id": "f9908908-d26c-40b1-a828-6d019ead8135",
           "name": "Florencia Cabrera (9)",
           "detail": "florencia.cabrera9@example.com"
         },
         {
-          "id": "fba6c402-48d9-4571-bd7c-61b08b63b404",
+          "id": "ed168458-ffcb-4d6b-99cc-157585c22702",
           "name": "Joaqu\u00EDn Medina",
           "detail": "joaquin.medina@example.com"
         },
         {
-          "id": "9b4db5c7-3364-48e4-969b-82d46400afc9",
+          "id": "cc752282-f310-41cb-83d7-af04de57cb99",
           "name": "Joaqu\u00EDn Medina (11)",
           "detail": "joaquin.medina11@example.com"
         },
         {
-          "id": "b44f4f7e-0491-428e-ae92-93b73f0164ec",
+          "id": "41095358-23b7-4988-b22a-1a42dc1ef4d3",
           "name": "Joaqu\u00EDn Medina (13)",
           "detail": "joaquin.medina13@example.com"
         },
         {
-          "id": "cd65ae48-6383-472e-b1a6-0a8670604220",
+          "id": "52836703-1334-481d-8ff6-0adade18382d",
           "name": "Joaqu\u00EDn Medina (2)",
           "detail": "joaquin.medina2@example.com"
         },
         {
-          "id": "b19fcfd5-d751-432e-90eb-f5a1708b6683",
+          "id": "d5635629-ca4a-4b0e-b363-85168306b6e6",
           "name": "Joaqu\u00EDn Medina (6)",
           "detail": "joaquin.medina6@example.com"
         },
         {
-          "id": "a72f57c5-6ef1-4eac-a5a1-e8e7e08326eb",
+          "id": "e60fc366-2f1a-43f8-8bf0-0e7c66f9885e",
           "name": "Joaqu\u00EDn Medina (7)",
           "detail": "joaquin.medina7@example.com"
         },
         {
-          "id": "eb81aa88-b998-4c88-bae7-b9bf34a61f61",
+          "id": "5b53fe68-9f89-4562-91df-6e3e72bd4525",
           "name": "Joaqu\u00EDn Medina (9)",
           "detail": "joaquin.medina9@example.com"
         },
         {
-          "id": "5881362d-c8dd-4291-be8d-b96e55179420",
+          "id": "c67d7ac9-7983-4c30-a5a8-150e8e5e77eb",
           "name": "Julieta Castro",
           "detail": "julieta.castro@example.com"
         },
         {
-          "id": "e8c09a74-7ae6-4239-be44-52aa4d02c12c",
+          "id": "50480c49-9541-4d42-9d38-48ed14f4a9e4",
           "name": "Julieta Castro (11)",
           "detail": "julieta.castro11@example.com"
         },
         {
-          "id": "f7ae7908-fc49-463a-932a-8b9e2021c22e",
+          "id": "35085ee7-8f44-453b-abe1-9fdf5959fec5",
           "name": "Julieta Castro (12)",
           "detail": "julieta.castro12@example.com"
         },
         {
-          "id": "887f2ac8-d368-4401-9027-3aa80764e4b1",
+          "id": "2144dc7d-9add-41db-9e5e-21d48f106f4e",
           "name": "Julieta Castro (3)",
           "detail": "julieta.castro3@example.com"
         },
         {
-          "id": "4ab6b51b-ea05-45d9-98b2-a2a126d7222d",
+          "id": "7f2b0489-83d5-4c79-8b68-043832022508",
           "name": "Julieta Castro (4)",
           "detail": "julieta.castro4@example.com"
         },
         {
-          "id": "2c0bf9be-7d85-4e10-8102-02a21f3031ce",
+          "id": "e26ca0b4-a85d-4990-9e39-b77e1b97d9ac",
           "name": "Julieta Castro (5)",
           "detail": "julieta.castro5@example.com"
         },
         {
-          "id": "0d03decd-d72c-46c9-a2f8-1a8cbc4c6cb9",
+          "id": "fe6f0f70-52e9-4ead-8c2f-d0b0220203d7",
           "name": "Julieta Castro (6)",
           "detail": "julieta.castro6@example.com"
         },
         {
-          "id": "6a68cc34-664a-4310-bae4-5393fa4284b4",
+          "id": "6c607467-9d18-4ca0-9d9b-8d0aca8cbf27",
           "name": "Luc\u00EDa Fern\u00E1ndez",
           "detail": "lucia.fernandez@example.com"
         },
         {
-          "id": "5775f088-f889-4b3a-bb4f-bbd9fd22e1dc",
+          "id": "8ab820a7-f235-48ce-b72d-7defbe1a4e1d",
           "name": "Luc\u00EDa Fern\u00E1ndez (2)",
           "detail": "lucia.fernandez2@example.com"
         },
         {
-          "id": "1c924b3b-6328-4976-b156-3fdc4f72e291",
+          "id": "e89c493b-cc21-4750-8d77-7d1eee861a0e",
           "name": "Luc\u00EDa Fern\u00E1ndez (3)",
           "detail": "lucia.fernandez3@example.com"
         },
         {
-          "id": "9440590d-aeff-48ec-ba27-c60a4cc4451e",
+          "id": "20bbe7e2-4305-4a6a-bbb7-4bc8fa3455d5",
           "name": "Luc\u00EDa Fern\u00E1ndez (5)",
           "detail": "lucia.fernandez5@example.com"
         },
         {
-          "id": "1aa79f1f-747d-4ea9-aabb-36b8e503786f",
+          "id": "cb43ad64-a94b-42d8-80de-67e1b25db1e4",
           "name": "Luc\u00EDa Fern\u00E1ndez (6)",
           "detail": "lucia.fernandez6@example.com"
         }
@@ -2226,7 +2226,7 @@
           "type": "Initial",
           "quantity": 50,
           "reason": "carga inicial de test",
-          "occurredAtUtc": "2026-10-11T22:10:05.174746Z"
+          "occurredAtUtc": "2026-10-11T22:19:22.575548Z"
         }
       ]
     },
@@ -2236,7 +2236,7 @@
       "outOfStock": 0,
       "lowStock": 0,
       "reserved": 0,
-      "stockValueMinor": 1052060000,
+      "stockValueMinor": 1091210000,
       "currency": "ARS",
       "withoutCost": 0
     },
@@ -2273,11 +2273,11 @@
     "/api/v1/members": {
       "items": [
         {
-          "userId": "01a12d04-0f03-7074-8b4e-15eac4c9498b",
+          "userId": "01a12d0c-9002-71e4-a532-24309dbf9ad4",
           "role": "owner",
-          "email": "it-seed01b9bc57@test.local",
-          "name": "Test seed01b9bc57",
-          "createdAtUtc": "2026-10-11T22:10:04.743731Z"
+          "email": "it-seed00a78fcb@test.local",
+          "name": "Test seed00a78fcb",
+          "createdAtUtc": "2026-10-11T22:19:22.101763Z"
         }
       ],
       "total": 1
@@ -2443,7 +2443,7 @@
     "/api/v1/orders": {
       "items": [
         {
-          "id": "749e3a42-dcb0-4396-be95-3ead988e5de2",
+          "id": "03a20a50-2a4b-49ee-9304-03ee9a488222",
           "status": "REFUNDED",
           "buyerEmail": "sofia.ramirez2@example.com",
           "currency": "ARS",
@@ -2451,8 +2451,8 @@
           "preferenceId": null,
           "paymentId": "demo-655435331",
           "couponCode": null,
-          "createdAtUtc": "2026-10-11T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-11T22:38:05.535811Z",
+          "createdAtUtc": "2026-10-11T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-11T22:47:22.942553Z",
           "tracking": null,
           "fulfilledAtUtc": null,
           "subtotal": {
@@ -2487,7 +2487,7 @@
           },
           "items": [
             {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "productName": "Disco de goma 5kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-03",
@@ -2500,15 +2500,15 @@
           ]
         },
         {
-          "id": "fa73ca1c-8568-4b6b-aaaa-f0dd92109187",
+          "id": "c32af5cc-7c27-4709-a0be-146ebe6c7189",
           "status": "FAILED",
           "buyerEmail": "martin.gomez2@example.com",
           "currency": "ARS",
           "paymentProvider": "mercadopago",
           "preferenceId": null,
-          "paymentId": "demo-df664f8c9b4",
+          "paymentId": "demo-89534b81349",
           "couponCode": null,
-          "createdAtUtc": "2026-10-11T22:10:05.535811Z",
+          "createdAtUtc": "2026-10-11T22:19:22.942553Z",
           "paidAtUtc": null,
           "tracking": null,
           "fulfilledAtUtc": null,
@@ -2544,18 +2544,7 @@
           },
           "items": [
             {
-              "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
-              "productName": "Mancuerna hexagonal 10kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-01",
-              "quantity": 2,
-              "unitPrice": {
-                "amount": 2500000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
               "productName": "Barra ol\u00EDmpica 20kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-02",
@@ -2564,11 +2553,22 @@
                 "amount": 5000000,
                 "currency": "ARS"
               }
+            },
+            {
+              "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
+              "productName": "Mancuerna hexagonal 10kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-01",
+              "quantity": 2,
+              "unitPrice": {
+                "amount": 2500000,
+                "currency": "ARS"
+              }
             }
           ]
         },
         {
-          "id": "155d681c-6b20-4563-b6ef-e43b4bfac34f",
+          "id": "052ef55e-9401-486b-91e1-8547b1b742a2",
           "status": "FULFILLED",
           "buyerEmail": "santiago.peralta2@example.com",
           "currency": "ARS",
@@ -2576,10 +2576,10 @@
           "preferenceId": null,
           "paymentId": "demo-837292500",
           "couponCode": null,
-          "createdAtUtc": "2026-10-10T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-10T23:09:05.535811Z",
+          "createdAtUtc": "2026-10-10T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-10T23:18:22.942553Z",
           "tracking": "CA764054113AR",
-          "fulfilledAtUtc": "2026-10-13T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-13T22:19:22.942553Z",
           "subtotal": {
             "amount": 55000000,
             "currency": "ARS"
@@ -2612,7 +2612,18 @@
           },
           "items": [
             {
-              "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
+              "productName": "Soga de saltar con rulemanes",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-05",
+              "quantity": 3,
+              "unitPrice": {
+                "amount": 12500000,
+                "currency": "ARS"
+              }
+            },
+            {
+              "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
               "productName": "Mancuerna hexagonal 10kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-01",
@@ -2623,7 +2634,7 @@
               }
             },
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
               "productName": "Barra ol\u00EDmpica 20kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-02",
@@ -2632,9 +2643,55 @@
                 "amount": 5000000,
                 "currency": "ARS"
               }
-            },
+            }
+          ]
+        },
+        {
+          "id": "325d5c9b-b14f-4a0e-9823-dc4454f3e4db",
+          "status": "PAID",
+          "buyerEmail": "lucia.fernandez5@example.com",
+          "currency": "ARS",
+          "paymentProvider": "mercadopago",
+          "preferenceId": null,
+          "paymentId": "demo-393109617",
+          "couponCode": "PRIMERACOMPRA",
+          "createdAtUtc": "2026-10-10T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-10T23:31:22.942553Z",
+          "tracking": null,
+          "fulfilledAtUtc": null,
+          "subtotal": {
+            "amount": 75000000,
+            "currency": "ARS"
+          },
+          "discount": {
+            "amount": 7500000,
+            "currency": "ARS"
+          },
+          "shipping": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Correo Argentino - Cl\u00E1sico",
+          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
+          "buyerName": "Luc\u00EDa Fern\u00E1ndez (5)",
+          "buyerPhone": "1135542879",
+          "docNumber": null,
+          "notes": null,
+          "total": {
+            "amount": 67500000,
+            "currency": "ARS"
+          },
+          "refunded": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "refundable": {
+            "amount": 67500000,
+            "currency": "ARS"
+          },
+          "items": [
             {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
@@ -2643,125 +2700,33 @@
                 "amount": 12500000,
                 "currency": "ARS"
               }
-            }
-          ]
-        },
-        {
-          "id": "2098162f-c527-4788-a107-2b1a40635405",
-          "status": "FULFILLED",
-          "buyerEmail": "julieta.castro6@example.com",
-          "currency": "ARS",
-          "paymentProvider": "mercadopago",
-          "preferenceId": null,
-          "paymentId": "demo-951847590",
-          "couponCode": null,
-          "createdAtUtc": "2026-10-10T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-10T23:13:05.535811Z",
-          "tracking": "CA952037655AR",
-          "fulfilledAtUtc": "2026-10-13T22:10:05.535811Z",
-          "subtotal": {
-            "amount": 10000000,
-            "currency": "ARS"
-          },
-          "discount": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "shipping": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "shippingMethod": "Retiro en sucursal",
-          "shippingAddress": "Av. Corrientes 1234, CABA",
-          "buyerName": "Julieta Castro (6)",
-          "buyerPhone": "1140522937",
-          "docNumber": null,
-          "notes": null,
-          "total": {
-            "amount": 10000000,
-            "currency": "ARS"
-          },
-          "refunded": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "refundable": {
-            "amount": 10000000,
-            "currency": "ARS"
-          },
-          "items": [
+            },
             {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-              "productName": "Banco plano regulable",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-04",
-              "quantity": 1,
-              "unitPrice": {
-                "amount": 10000000,
-                "currency": "ARS"
-              }
-            }
-          ]
-        },
-        {
-          "id": "88060b4a-ea5e-45cf-86a6-a5476c40b184",
-          "status": "FULFILLED",
-          "buyerEmail": "agustina.vega9@example.com",
-          "currency": "ARS",
-          "paymentProvider": "mercadopago",
-          "preferenceId": null,
-          "paymentId": "demo-504404234",
-          "couponCode": "PRIMERACOMPRA",
-          "createdAtUtc": "2026-10-10T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-10T22:23:05.535811Z",
-          "tracking": "CA282306760AR",
-          "fulfilledAtUtc": "2026-10-12T22:10:05.535811Z",
-          "subtotal": {
-            "amount": 7500000,
-            "currency": "ARS"
-          },
-          "discount": {
-            "amount": 750000,
-            "currency": "ARS"
-          },
-          "shipping": {
-            "amount": 450000,
-            "currency": "ARS"
-          },
-          "shippingMethod": "Retiro en sucursal",
-          "shippingAddress": "Sarmiento 620, Mendoza",
-          "buyerName": "Agustina Vega (9)",
-          "buyerPhone": "1162362887",
-          "docNumber": null,
-          "notes": null,
-          "total": {
-            "amount": 7200000,
-            "currency": "ARS"
-          },
-          "refunded": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "refundable": {
-            "amount": 7200000,
-            "currency": "ARS"
-          },
-          "items": [
-            {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "productName": "Disco de goma 5kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-03",
-              "quantity": 1,
+              "quantity": 3,
               "unitPrice": {
                 "amount": 7500000,
                 "currency": "ARS"
               }
+            },
+            {
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "productName": "Barra ol\u00EDmpica 20kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-02",
+              "quantity": 3,
+              "unitPrice": {
+                "amount": 5000000,
+                "currency": "ARS"
+              }
             }
           ]
         },
         {
-          "id": "b1147a37-57ec-4c83-8392-38acf0f5120f",
+          "id": "7e4eb002-f5f3-4cdf-a507-ad373923c43e",
           "status": "PENDINGPAYMENT",
           "buyerEmail": "joaquin.medina4@example.com",
           "currency": "ARS",
@@ -2769,7 +2734,7 @@
           "preferenceId": null,
           "paymentId": null,
           "couponCode": null,
-          "createdAtUtc": "2026-10-10T22:10:05.535811Z",
+          "createdAtUtc": "2026-10-10T22:19:22.942553Z",
           "paidAtUtc": null,
           "tracking": null,
           "fulfilledAtUtc": null,
@@ -2805,7 +2770,7 @@
           },
           "items": [
             {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "productName": "Disco de goma 5kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-03",
@@ -2816,7 +2781,7 @@
               }
             },
             {
-              "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+              "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
               "productName": "Mancuerna hexagonal 10kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-01",
@@ -2829,38 +2794,38 @@
           ]
         },
         {
-          "id": "d4da38d4-77fb-42ed-a52d-f66f3904a4ec",
-          "status": "PAID",
-          "buyerEmail": "lucia.fernandez5@example.com",
+          "id": "d4494ec6-317f-41cd-9435-640a0d2bb6cf",
+          "status": "FULFILLED",
+          "buyerEmail": "agustina.vega9@example.com",
           "currency": "ARS",
           "paymentProvider": "mercadopago",
           "preferenceId": null,
-          "paymentId": "demo-393109617",
-          "couponCode": "ENVIOGRATIS",
-          "createdAtUtc": "2026-10-10T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-10T23:22:05.535811Z",
-          "tracking": null,
-          "fulfilledAtUtc": null,
+          "paymentId": "demo-504404234",
+          "couponCode": "BIENVENIDO10",
+          "createdAtUtc": "2026-10-10T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-10T22:32:22.942553Z",
+          "tracking": "CA282306760AR",
+          "fulfilledAtUtc": "2026-10-12T22:19:22.942553Z",
           "subtotal": {
-            "amount": 75000000,
-            "currency": "ARS"
-          },
-          "discount": {
             "amount": 7500000,
             "currency": "ARS"
           },
-          "shipping": {
-            "amount": 0,
+          "discount": {
+            "amount": 750000,
             "currency": "ARS"
           },
-          "shippingMethod": "Correo Argentino - Cl\u00E1sico",
-          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
-          "buyerName": "Luc\u00EDa Fern\u00E1ndez (5)",
-          "buyerPhone": "1135542879",
+          "shipping": {
+            "amount": 450000,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Retiro en sucursal",
+          "shippingAddress": "Sarmiento 620, Mendoza",
+          "buyerName": "Agustina Vega (9)",
+          "buyerPhone": "1162362887",
           "docNumber": null,
           "notes": null,
           "total": {
-            "amount": 67500000,
+            "amount": 7200000,
             "currency": "ARS"
           },
           "refunded": {
@@ -2868,56 +2833,91 @@
             "currency": "ARS"
           },
           "refundable": {
-            "amount": 67500000,
+            "amount": 7200000,
             "currency": "ARS"
           },
           "items": [
             {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "productName": "Disco de goma 5kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-03",
-              "quantity": 3,
+              "quantity": 1,
               "unitPrice": {
                 "amount": 7500000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
-              "productName": "Soga de saltar con rulemanes",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-05",
-              "quantity": 3,
-              "unitPrice": {
-                "amount": 12500000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "productName": "Barra ol\u00EDmpica 20kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-02",
-              "quantity": 3,
-              "unitPrice": {
-                "amount": 5000000,
                 "currency": "ARS"
               }
             }
           ]
         },
         {
-          "id": "0a21a5e5-2b18-4cc4-8234-2fc601e8d137",
+          "id": "d7b6384b-7fa7-44d1-be71-eb6f09509776",
+          "status": "FULFILLED",
+          "buyerEmail": "julieta.castro6@example.com",
+          "currency": "ARS",
+          "paymentProvider": "mercadopago",
+          "preferenceId": null,
+          "paymentId": "demo-951847590",
+          "couponCode": null,
+          "createdAtUtc": "2026-10-10T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-10T23:22:22.942553Z",
+          "tracking": "CA952037655AR",
+          "fulfilledAtUtc": "2026-10-13T22:19:22.942553Z",
+          "subtotal": {
+            "amount": 10000000,
+            "currency": "ARS"
+          },
+          "discount": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "shipping": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Retiro en sucursal",
+          "shippingAddress": "Av. Corrientes 1234, CABA",
+          "buyerName": "Julieta Castro (6)",
+          "buyerPhone": "1140522937",
+          "docNumber": null,
+          "notes": null,
+          "total": {
+            "amount": 10000000,
+            "currency": "ARS"
+          },
+          "refunded": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "refundable": {
+            "amount": 10000000,
+            "currency": "ARS"
+          },
+          "items": [
+            {
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "productName": "Banco plano regulable",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-04",
+              "quantity": 1,
+              "unitPrice": {
+                "amount": 10000000,
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "id": "1c2703ee-f452-4f39-8178-24c41d525d72",
           "status": "REFUNDED",
           "buyerEmail": "julieta.castro@example.com",
           "currency": "ARS",
           "paymentProvider": "mercadopago",
           "preferenceId": null,
           "paymentId": "demo-569481514",
-          "couponCode": "ENVIOGRATIS",
-          "createdAtUtc": "2026-10-09T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-09T22:30:05.535811Z",
+          "couponCode": "PRIMERACOMPRA",
+          "createdAtUtc": "2026-10-09T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-09T22:39:22.942553Z",
           "tracking": null,
           "fulfilledAtUtc": null,
           "subtotal": {
@@ -2952,18 +2952,7 @@
           },
           "items": [
             {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-              "productName": "Banco plano regulable",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-04",
-              "quantity": 3,
-              "unitPrice": {
-                "amount": 10000000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
@@ -2972,68 +2961,22 @@
                 "amount": 12500000,
                 "currency": "ARS"
               }
-            }
-          ]
-        },
-        {
-          "id": "8827b6a5-68e3-46db-a1d4-2719f45d8ead",
-          "status": "FULFILLED",
-          "buyerEmail": "valentina.ruiz3@example.com",
-          "currency": "ARS",
-          "paymentProvider": "mercadopago",
-          "preferenceId": null,
-          "paymentId": "demo-715860385",
-          "couponCode": null,
-          "createdAtUtc": "2026-10-09T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-09T22:35:05.535811Z",
-          "tracking": "CA551474731AR",
-          "fulfilledAtUtc": "2026-10-12T22:10:05.535811Z",
-          "subtotal": {
-            "amount": 25000000,
-            "currency": "ARS"
-          },
-          "discount": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "shipping": {
-            "amount": 450000,
-            "currency": "ARS"
-          },
-          "shippingMethod": "Retiro en sucursal",
-          "shippingAddress": "Sarmiento 620, Mendoza",
-          "buyerName": "Valentina Ruiz (3)",
-          "buyerPhone": "1148695089",
-          "docNumber": null,
-          "notes": null,
-          "total": {
-            "amount": 25450000,
-            "currency": "ARS"
-          },
-          "refunded": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "refundable": {
-            "amount": 25450000,
-            "currency": "ARS"
-          },
-          "items": [
+            },
             {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
-              "productName": "Soga de saltar con rulemanes",
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "productName": "Banco plano regulable",
               "variantDescription": "\u00DAnica",
-              "sku": "SEED-05",
-              "quantity": 2,
+              "sku": "SEED-04",
+              "quantity": 3,
               "unitPrice": {
-                "amount": 12500000,
+                "amount": 10000000,
                 "currency": "ARS"
               }
             }
           ]
         },
         {
-          "id": "c7858902-af04-44bd-aa80-6d35297f3044",
+          "id": "5a57ad74-e36d-42f7-861e-db56c94f5a7f",
           "status": "FULFILLED",
           "buyerEmail": "camila.ortiz2@example.com",
           "currency": "ARS",
@@ -3041,10 +2984,10 @@
           "preferenceId": null,
           "paymentId": "demo-989628872",
           "couponCode": null,
-          "createdAtUtc": "2026-10-09T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-09T23:27:05.535811Z",
+          "createdAtUtc": "2026-10-09T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-09T23:36:22.942553Z",
           "tracking": "CA790415414AR",
-          "fulfilledAtUtc": "2026-10-12T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-12T22:19:22.942553Z",
           "subtotal": {
             "amount": 5000000,
             "currency": "ARS"
@@ -3077,7 +3020,7 @@
           },
           "items": [
             {
-              "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+              "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
               "productName": "Mancuerna hexagonal 10kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-01",
@@ -3090,106 +3033,38 @@
           ]
         },
         {
-          "id": "1575f40a-82d6-4f84-b478-8b2b1114fd3c",
+          "id": "7201a5d9-7746-4f87-8867-95e85ab5f7aa",
           "status": "FULFILLED",
-          "buyerEmail": "emiliano.ledesma2@example.com",
+          "buyerEmail": "valentina.ruiz3@example.com",
           "currency": "ARS",
           "paymentProvider": "mercadopago",
           "preferenceId": null,
-          "paymentId": "demo-902797666",
-          "couponCode": "PRIMERACOMPRA",
-          "createdAtUtc": "2026-10-08T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-08T22:57:05.535811Z",
-          "tracking": "CA343921463AR",
-          "fulfilledAtUtc": "2026-10-09T22:10:05.535811Z",
+          "paymentId": "demo-715860385",
+          "couponCode": null,
+          "createdAtUtc": "2026-10-09T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-09T22:44:22.942553Z",
+          "tracking": "CA551474731AR",
+          "fulfilledAtUtc": "2026-10-12T22:19:22.942553Z",
           "subtotal": {
             "amount": 25000000,
             "currency": "ARS"
           },
           "discount": {
-            "amount": 2500000,
-            "currency": "ARS"
-          },
-          "shipping": {
             "amount": 0,
-            "currency": "ARS"
-          },
-          "shippingMethod": "Retiro en sucursal",
-          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
-          "buyerName": "Emiliano Ledesma (2)",
-          "buyerPhone": "1148595111",
-          "docNumber": null,
-          "notes": null,
-          "total": {
-            "amount": 22500000,
-            "currency": "ARS"
-          },
-          "refunded": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "refundable": {
-            "amount": 22500000,
-            "currency": "ARS"
-          },
-          "items": [
-            {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-              "productName": "Banco plano regulable",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-04",
-              "quantity": 1,
-              "unitPrice": {
-                "amount": 10000000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
-              "productName": "Disco de goma 5kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-03",
-              "quantity": 2,
-              "unitPrice": {
-                "amount": 7500000,
-                "currency": "ARS"
-              }
-            }
-          ]
-        },
-        {
-          "id": "576c2b58-133b-4985-8397-6b01e2add234",
-          "status": "FULFILLED",
-          "buyerEmail": "tomas.aguirre4@example.com",
-          "currency": "ARS",
-          "paymentProvider": "mercadopago",
-          "preferenceId": null,
-          "paymentId": "demo-813402978",
-          "couponCode": "ENVIOGRATIS",
-          "createdAtUtc": "2026-10-08T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-08T22:45:05.535811Z",
-          "tracking": "CA414076397AR",
-          "fulfilledAtUtc": "2026-10-10T22:10:05.535811Z",
-          "subtotal": {
-            "amount": 22500000,
-            "currency": "ARS"
-          },
-          "discount": {
-            "amount": 2250000,
             "currency": "ARS"
           },
           "shipping": {
             "amount": 450000,
             "currency": "ARS"
           },
-          "shippingMethod": "Correo Argentino - Cl\u00E1sico",
-          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
-          "buyerName": "Tom\u00E1s Aguirre (4)",
-          "buyerPhone": "1140460372",
+          "shippingMethod": "Retiro en sucursal",
+          "shippingAddress": "Sarmiento 620, Mendoza",
+          "buyerName": "Valentina Ruiz (3)",
+          "buyerPhone": "1148695089",
           "docNumber": null,
           "notes": null,
           "total": {
-            "amount": 20700000,
+            "amount": 25450000,
             "currency": "ARS"
           },
           "refunded": {
@@ -3197,27 +3072,16 @@
             "currency": "ARS"
           },
           "refundable": {
-            "amount": 20700000,
+            "amount": 25450000,
             "currency": "ARS"
           },
           "items": [
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "productName": "Barra ol\u00EDmpica 20kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-02",
-              "quantity": 2,
-              "unitPrice": {
-                "amount": 5000000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
-              "quantity": 1,
+              "quantity": 2,
               "unitPrice": {
                 "amount": 12500000,
                 "currency": "ARS"
@@ -3226,7 +3090,7 @@
           ]
         },
         {
-          "id": "64bbec11-cd78-4e70-9e04-88f1a0164e05",
+          "id": "70cabe4a-a49d-4cef-a0f0-645c315b922b",
           "status": "FULFILLED",
           "buyerEmail": "agustina.vega@example.com",
           "currency": "ARS",
@@ -3234,10 +3098,10 @@
           "preferenceId": null,
           "paymentId": "demo-477909273",
           "couponCode": null,
-          "createdAtUtc": "2026-10-08T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-08T22:28:05.535811Z",
+          "createdAtUtc": "2026-10-08T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-08T22:37:22.942553Z",
           "tracking": "CA325635387AR",
-          "fulfilledAtUtc": "2026-10-09T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-09T22:19:22.942553Z",
           "subtotal": {
             "amount": 25000000,
             "currency": "ARS"
@@ -3270,7 +3134,7 @@
           },
           "items": [
             {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
@@ -3283,7 +3147,7 @@
           ]
         },
         {
-          "id": "c4985402-6baa-4a76-8776-24424e7602d2",
+          "id": "713d71de-70aa-40d0-b3da-1af784417a3a",
           "status": "PAID",
           "buyerEmail": "federico.molina@example.com",
           "currency": "ARS",
@@ -3291,8 +3155,8 @@
           "preferenceId": null,
           "paymentId": "demo-748299454",
           "couponCode": null,
-          "createdAtUtc": "2026-10-08T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-08T22:14:05.535811Z",
+          "createdAtUtc": "2026-10-08T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-08T22:23:22.942553Z",
           "tracking": null,
           "fulfilledAtUtc": null,
           "subtotal": {
@@ -3327,7 +3191,7 @@
           },
           "items": [
             {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
@@ -3340,7 +3204,143 @@
           ]
         },
         {
-          "id": "5d709cde-1d78-46c7-a332-6f3570c9ec18",
+          "id": "ba388eed-f5b2-4613-9902-52b9b0362595",
+          "status": "FULFILLED",
+          "buyerEmail": "emiliano.ledesma2@example.com",
+          "currency": "ARS",
+          "paymentProvider": "mercadopago",
+          "preferenceId": null,
+          "paymentId": "demo-902797666",
+          "couponCode": "BIENVENIDO10",
+          "createdAtUtc": "2026-10-08T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-08T23:06:22.942553Z",
+          "tracking": "CA343921463AR",
+          "fulfilledAtUtc": "2026-10-09T22:19:22.942553Z",
+          "subtotal": {
+            "amount": 25000000,
+            "currency": "ARS"
+          },
+          "discount": {
+            "amount": 2500000,
+            "currency": "ARS"
+          },
+          "shipping": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Retiro en sucursal",
+          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
+          "buyerName": "Emiliano Ledesma (2)",
+          "buyerPhone": "1148595111",
+          "docNumber": null,
+          "notes": null,
+          "total": {
+            "amount": 22500000,
+            "currency": "ARS"
+          },
+          "refunded": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "refundable": {
+            "amount": 22500000,
+            "currency": "ARS"
+          },
+          "items": [
+            {
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
+              "productName": "Disco de goma 5kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-03",
+              "quantity": 2,
+              "unitPrice": {
+                "amount": 7500000,
+                "currency": "ARS"
+              }
+            },
+            {
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "productName": "Banco plano regulable",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-04",
+              "quantity": 1,
+              "unitPrice": {
+                "amount": 10000000,
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f2706eb9-ccc3-4505-b0fd-98d925c876b6",
+          "status": "FULFILLED",
+          "buyerEmail": "tomas.aguirre4@example.com",
+          "currency": "ARS",
+          "paymentProvider": "mercadopago",
+          "preferenceId": null,
+          "paymentId": "demo-813402978",
+          "couponCode": "PRIMERACOMPRA",
+          "createdAtUtc": "2026-10-08T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-08T22:54:22.942553Z",
+          "tracking": "CA414076397AR",
+          "fulfilledAtUtc": "2026-10-10T22:19:22.942553Z",
+          "subtotal": {
+            "amount": 22500000,
+            "currency": "ARS"
+          },
+          "discount": {
+            "amount": 2250000,
+            "currency": "ARS"
+          },
+          "shipping": {
+            "amount": 450000,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Correo Argentino - Cl\u00E1sico",
+          "shippingAddress": "Belgrano 890, C\u00F3rdoba",
+          "buyerName": "Tom\u00E1s Aguirre (4)",
+          "buyerPhone": "1140460372",
+          "docNumber": null,
+          "notes": null,
+          "total": {
+            "amount": 20700000,
+            "currency": "ARS"
+          },
+          "refunded": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "refundable": {
+            "amount": 20700000,
+            "currency": "ARS"
+          },
+          "items": [
+            {
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "productName": "Barra ol\u00EDmpica 20kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-02",
+              "quantity": 2,
+              "unitPrice": {
+                "amount": 5000000,
+                "currency": "ARS"
+              }
+            },
+            {
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
+              "productName": "Soga de saltar con rulemanes",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-05",
+              "quantity": 1,
+              "unitPrice": {
+                "amount": 12500000,
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "id": "8d75e942-5180-4a9f-9753-ae970a7ec1fa",
           "status": "FULFILLED",
           "buyerEmail": "tomas.aguirre8@example.com",
           "currency": "ARS",
@@ -3348,10 +3348,10 @@
           "preferenceId": null,
           "paymentId": "demo-101000222",
           "couponCode": null,
-          "createdAtUtc": "2026-10-07T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-07T22:35:05.535811Z",
+          "createdAtUtc": "2026-10-07T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-07T22:44:22.942553Z",
           "tracking": "CA172266320AR",
-          "fulfilledAtUtc": "2026-10-10T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-10T22:19:22.942553Z",
           "subtotal": {
             "amount": 20000000,
             "currency": "ARS"
@@ -3384,7 +3384,7 @@
           },
           "items": [
             {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
               "productName": "Banco plano regulable",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-04",
@@ -3395,7 +3395,7 @@
               }
             },
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
               "productName": "Barra ol\u00EDmpica 20kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-02",
@@ -3408,75 +3408,7 @@
           ]
         },
         {
-          "id": "22ad1f15-d6bd-49d6-80df-ecf3057056e4",
-          "status": "FULFILLED",
-          "buyerEmail": "martin.gomez@example.com",
-          "currency": "ARS",
-          "paymentProvider": "mercadopago",
-          "preferenceId": null,
-          "paymentId": "demo-546909641",
-          "couponCode": null,
-          "createdAtUtc": "2026-10-06T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-06T23:14:05.535811Z",
-          "tracking": "CA568097397AR",
-          "fulfilledAtUtc": "2026-10-08T22:10:05.535811Z",
-          "subtotal": {
-            "amount": 35000000,
-            "currency": "ARS"
-          },
-          "discount": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "shipping": {
-            "amount": 450000,
-            "currency": "ARS"
-          },
-          "shippingMethod": "Retiro en sucursal",
-          "shippingAddress": "Mitre 275, La Plata",
-          "buyerName": "Mart\u00EDn G\u00F3mez",
-          "buyerPhone": "1132138628",
-          "docNumber": null,
-          "notes": null,
-          "total": {
-            "amount": 35450000,
-            "currency": "ARS"
-          },
-          "refunded": {
-            "amount": 0,
-            "currency": "ARS"
-          },
-          "refundable": {
-            "amount": 35450000,
-            "currency": "ARS"
-          },
-          "items": [
-            {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "productName": "Barra ol\u00EDmpica 20kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-02",
-              "quantity": 1,
-              "unitPrice": {
-                "amount": 5000000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-              "productName": "Banco plano regulable",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-04",
-              "quantity": 3,
-              "unitPrice": {
-                "amount": 10000000,
-                "currency": "ARS"
-              }
-            }
-          ]
-        },
-        {
-          "id": "3296ef76-ea38-45d5-ada8-ac60bb52c242",
+          "id": "52d63976-3fa9-48a9-be1a-ac7d37202924",
           "status": "FULFILLED",
           "buyerEmail": "valentina.ruiz@example.com",
           "currency": "ARS",
@@ -3484,10 +3416,10 @@
           "preferenceId": null,
           "paymentId": "demo-789116495",
           "couponCode": null,
-          "createdAtUtc": "2026-10-06T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-06T23:36:05.535811Z",
+          "createdAtUtc": "2026-10-06T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-06T23:45:22.942553Z",
           "tracking": "CA820633278AR",
-          "fulfilledAtUtc": "2026-10-07T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-07T22:19:22.942553Z",
           "subtotal": {
             "amount": 35000000,
             "currency": "ARS"
@@ -3520,18 +3452,18 @@
           },
           "items": [
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "productName": "Barra ol\u00EDmpica 20kg",
+              "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
+              "productName": "Disco de goma 5kg",
               "variantDescription": "\u00DAnica",
-              "sku": "SEED-02",
-              "quantity": 3,
+              "sku": "SEED-03",
+              "quantity": 1,
               "unitPrice": {
-                "amount": 5000000,
+                "amount": 7500000,
                 "currency": "ARS"
               }
             },
             {
-              "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "productName": "Soga de saltar con rulemanes",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-05",
@@ -3542,20 +3474,88 @@
               }
             },
             {
-              "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
-              "productName": "Disco de goma 5kg",
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "productName": "Barra ol\u00EDmpica 20kg",
               "variantDescription": "\u00DAnica",
-              "sku": "SEED-03",
-              "quantity": 1,
+              "sku": "SEED-02",
+              "quantity": 3,
               "unitPrice": {
-                "amount": 7500000,
+                "amount": 5000000,
                 "currency": "ARS"
               }
             }
           ]
         },
         {
-          "id": "7d05133e-2b03-443e-8b37-551fe77ce2a1",
+          "id": "810082a7-a4bb-4a0e-8969-30900b112e45",
+          "status": "FULFILLED",
+          "buyerEmail": "martin.gomez@example.com",
+          "currency": "ARS",
+          "paymentProvider": "mercadopago",
+          "preferenceId": null,
+          "paymentId": "demo-546909641",
+          "couponCode": null,
+          "createdAtUtc": "2026-10-06T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-06T23:23:22.942553Z",
+          "tracking": "CA568097397AR",
+          "fulfilledAtUtc": "2026-10-08T22:19:22.942553Z",
+          "subtotal": {
+            "amount": 35000000,
+            "currency": "ARS"
+          },
+          "discount": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "shipping": {
+            "amount": 450000,
+            "currency": "ARS"
+          },
+          "shippingMethod": "Retiro en sucursal",
+          "shippingAddress": "Mitre 275, La Plata",
+          "buyerName": "Mart\u00EDn G\u00F3mez",
+          "buyerPhone": "1132138628",
+          "docNumber": null,
+          "notes": null,
+          "total": {
+            "amount": 35450000,
+            "currency": "ARS"
+          },
+          "refunded": {
+            "amount": 0,
+            "currency": "ARS"
+          },
+          "refundable": {
+            "amount": 35450000,
+            "currency": "ARS"
+          },
+          "items": [
+            {
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "productName": "Banco plano regulable",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-04",
+              "quantity": 3,
+              "unitPrice": {
+                "amount": 10000000,
+                "currency": "ARS"
+              }
+            },
+            {
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "productName": "Barra ol\u00EDmpica 20kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-02",
+              "quantity": 1,
+              "unitPrice": {
+                "amount": 5000000,
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "id": "afad7238-728d-4f8a-9da8-e5ddecf7d06f",
           "status": "FULFILLED",
           "buyerEmail": "florencia.cabrera12@example.com",
           "currency": "ARS",
@@ -3563,10 +3563,10 @@
           "preferenceId": null,
           "paymentId": "demo-495694131",
           "couponCode": null,
-          "createdAtUtc": "2026-10-06T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-06T23:05:05.535811Z",
+          "createdAtUtc": "2026-10-06T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-06T23:14:22.942553Z",
           "tracking": "CA712283262AR",
-          "fulfilledAtUtc": "2026-10-07T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-07T22:19:22.942553Z",
           "subtotal": {
             "amount": 2500000,
             "currency": "ARS"
@@ -3599,7 +3599,7 @@
           },
           "items": [
             {
-              "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+              "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
               "productName": "Mancuerna hexagonal 10kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-01",
@@ -3612,7 +3612,7 @@
           ]
         },
         {
-          "id": "8bb90aa1-dfb4-4b9c-b5c2-d5d58844a8c1",
+          "id": "e4d9c4d3-4db8-4c60-83f4-230ff9db963f",
           "status": "FULFILLED",
           "buyerEmail": "martin.gomez3@example.com",
           "currency": "ARS",
@@ -3620,10 +3620,10 @@
           "preferenceId": null,
           "paymentId": "demo-367915610",
           "couponCode": null,
-          "createdAtUtc": "2026-10-06T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-06T23:32:05.535811Z",
+          "createdAtUtc": "2026-10-06T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-06T23:41:22.942553Z",
           "tracking": "CA194396764AR",
-          "fulfilledAtUtc": "2026-10-07T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-07T22:19:22.942553Z",
           "subtotal": {
             "amount": 25000000,
             "currency": "ARS"
@@ -3656,18 +3656,7 @@
           },
           "items": [
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "productName": "Barra ol\u00EDmpica 20kg",
-              "variantDescription": "\u00DAnica",
-              "sku": "SEED-02",
-              "quantity": 1,
-              "unitPrice": {
-                "amount": 5000000,
-                "currency": "ARS"
-              }
-            },
-            {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
               "productName": "Banco plano regulable",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-04",
@@ -3676,22 +3665,33 @@
                 "amount": 10000000,
                 "currency": "ARS"
               }
+            },
+            {
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "productName": "Barra ol\u00EDmpica 20kg",
+              "variantDescription": "\u00DAnica",
+              "sku": "SEED-02",
+              "quantity": 1,
+              "unitPrice": {
+                "amount": 5000000,
+                "currency": "ARS"
+              }
             }
           ]
         },
         {
-          "id": "58555fd6-1c77-487b-9876-177d7e1451b6",
+          "id": "0209aa45-5080-4fe4-b0e5-43ff80b5639b",
           "status": "FULFILLED",
           "buyerEmail": "joaquin.medina@example.com",
           "currency": "ARS",
           "paymentProvider": "mercadopago",
           "preferenceId": null,
           "paymentId": "demo-357213893",
-          "couponCode": "PRIMERACOMPRA",
-          "createdAtUtc": "2026-10-05T22:10:05.535811Z",
-          "paidAtUtc": "2026-10-05T22:44:05.535811Z",
+          "couponCode": "BIENVENIDO10",
+          "createdAtUtc": "2026-10-05T22:19:22.942553Z",
+          "paidAtUtc": "2026-10-05T22:53:22.942553Z",
           "tracking": "CA583675141AR",
-          "fulfilledAtUtc": "2026-10-08T22:10:05.535811Z",
+          "fulfilledAtUtc": "2026-10-08T22:19:22.942553Z",
           "subtotal": {
             "amount": 35000000,
             "currency": "ARS"
@@ -3724,7 +3724,7 @@
           },
           "items": [
             {
-              "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+              "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
               "productName": "Banco plano regulable",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-04",
@@ -3735,7 +3735,7 @@
               }
             },
             {
-              "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+              "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
               "productName": "Barra ol\u00EDmpica 20kg",
               "variantDescription": "\u00DAnica",
               "sku": "SEED-02",
@@ -3751,7 +3751,7 @@
       "total": 196
     },
     "/api/v1/orders/:id": {
-      "id": "749e3a42-dcb0-4396-be95-3ead988e5de2",
+      "id": "03a20a50-2a4b-49ee-9304-03ee9a488222",
       "status": "REFUNDED",
       "buyerEmail": "sofia.ramirez2@example.com",
       "currency": "ARS",
@@ -3759,8 +3759,8 @@
       "preferenceId": null,
       "paymentId": "demo-655435331",
       "couponCode": null,
-      "createdAtUtc": "2026-10-11T22:10:05.535811Z",
-      "paidAtUtc": "2026-10-11T22:38:05.535811Z",
+      "createdAtUtc": "2026-10-11T22:19:22.942553Z",
+      "paidAtUtc": "2026-10-11T22:47:22.942553Z",
       "tracking": null,
       "fulfilledAtUtc": null,
       "subtotal": {
@@ -3795,7 +3795,7 @@
       },
       "items": [
         {
-          "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+          "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
           "productName": "Disco de goma 5kg",
           "variantDescription": "\u00DAnica",
           "sku": "SEED-03",
@@ -3820,71 +3820,71 @@
     "/api/v1/pages": {
       "items": [
         {
-          "id": "97a3be77-8154-4915-877f-dbcc7e28210d",
+          "id": "444e1cc5-0e83-4b6a-a38c-b2ad7cff7885",
           "title": "T\u00E9rminos y condiciones",
           "slug": "terminos-y-condiciones",
           "body": "\u003Cp\u003ECondiciones de compra, cambios y devoluciones.\u003C/p\u003E",
           "published": true,
-          "createdAtUtc": "2026-10-11T22:10:07.680782Z",
-          "updatedAtUtc": "2026-10-11T22:10:07.680782Z"
+          "createdAtUtc": "2026-10-11T22:19:25.057468Z",
+          "updatedAtUtc": "2026-10-11T22:19:25.057468Z"
         },
         {
-          "id": "70c59822-4210-49e6-bcdf-c15ddfd1d210",
+          "id": "bba3e4db-8082-4910-87f7-35bf70668936",
           "title": "C\u00F3mo comprar",
           "slug": "como-comprar",
           "body": "\u003Cp\u003EEleg\u00ED tus productos, pag\u00E1 con tarjeta o transferencia y segu\u00ED el env\u00EDo desde tu cuenta.\u003C/p\u003E",
           "published": true,
-          "createdAtUtc": "2026-10-11T22:10:07.680767Z",
-          "updatedAtUtc": "2026-10-11T22:10:07.680767Z"
+          "createdAtUtc": "2026-10-11T22:19:25.057449Z",
+          "updatedAtUtc": "2026-10-11T22:19:25.057449Z"
         },
         {
-          "id": "32f98637-49ca-4ff3-b5c2-9bc359cfd545",
+          "id": "212035fc-b08c-44a0-9e44-204e3e8f00cf",
           "title": "Preguntas frecuentes",
           "slug": "preguntas-frecuentes",
           "body": "\u003Cp\u003E\u003Cstrong\u003E\u00BFCu\u00E1nto demora el env\u00EDo?\u003C/strong\u003E Entre 3 y 7 d\u00EDas h\u00E1biles a todo el pa\u00EDs.\u003C/p\u003E",
           "published": true,
-          "createdAtUtc": "2026-10-11T22:10:07.680724Z",
-          "updatedAtUtc": "2026-10-11T22:10:07.680724Z"
+          "createdAtUtc": "2026-10-11T22:19:25.057399Z",
+          "updatedAtUtc": "2026-10-11T22:19:25.057399Z"
         },
         {
-          "id": "2b44d939-d31a-4db3-b1ab-3f8711187ea6",
+          "id": "9c0a5d0e-e48c-4479-8086-d75417ab9799",
           "title": "Qui\u00E9nes somos",
           "slug": "quienes-somos",
           "body": "\u003Cp\u003EImportamos y distribuimos desde 2015, con dep\u00F3sito propio y stock real.\u003C/p\u003E",
           "published": true,
-          "createdAtUtc": "2026-10-11T22:10:07.670749Z",
-          "updatedAtUtc": "2026-10-11T22:10:07.670749Z"
+          "createdAtUtc": "2026-10-11T22:19:25.048023Z",
+          "updatedAtUtc": "2026-10-11T22:19:25.048023Z"
         }
       ]
     },
     "/api/v1/pages/by-slug/:slug": {
-      "id": "97a3be77-8154-4915-877f-dbcc7e28210d",
+      "id": "444e1cc5-0e83-4b6a-a38c-b2ad7cff7885",
       "title": "T\u00E9rminos y condiciones",
       "slug": "terminos-y-condiciones",
       "body": "\u003Cp\u003ECondiciones de compra, cambios y devoluciones.\u003C/p\u003E",
       "published": true,
-      "createdAtUtc": "2026-10-11T22:10:07.680782Z",
-      "updatedAtUtc": "2026-10-11T22:10:07.680782Z"
+      "createdAtUtc": "2026-10-11T22:19:25.057468Z",
+      "updatedAtUtc": "2026-10-11T22:19:25.057468Z"
     },
     "/api/v1/pages/published": {
       "items": [
         {
-          "id": "70c59822-4210-49e6-bcdf-c15ddfd1d210",
+          "id": "bba3e4db-8082-4910-87f7-35bf70668936",
           "title": "C\u00F3mo comprar",
           "slug": "como-comprar"
         },
         {
-          "id": "32f98637-49ca-4ff3-b5c2-9bc359cfd545",
+          "id": "212035fc-b08c-44a0-9e44-204e3e8f00cf",
           "title": "Preguntas frecuentes",
           "slug": "preguntas-frecuentes"
         },
         {
-          "id": "2b44d939-d31a-4db3-b1ab-3f8711187ea6",
+          "id": "9c0a5d0e-e48c-4479-8086-d75417ab9799",
           "title": "Qui\u00E9nes somos",
           "slug": "quienes-somos"
         },
         {
-          "id": "97a3be77-8154-4915-877f-dbcc7e28210d",
+          "id": "444e1cc5-0e83-4b6a-a38c-b2ad7cff7885",
           "title": "T\u00E9rminos y condiciones",
           "slug": "terminos-y-condiciones"
         }
@@ -3924,7 +3924,7 @@
     "/api/v1/price-lists": {
       "items": [
         {
-          "id": "38f8a2a2-18e8-49c0-97eb-a3037fad48a1",
+          "id": "720ffa9c-b606-47a5-b9e1-a537224a52af",
           "name": "Mayorista",
           "currency": "ARS",
           "basedOnPriceListId": null,
@@ -3942,8 +3942,8 @@
       "total": 5,
       "items": [
         {
-          "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-          "productId": "82c35711-9060-47d4-9a10-f084d28eed05",
+          "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+          "productId": "2bb6d395-4638-4722-a1b6-f37e0535e366",
           "productName": "Banco plano regulable",
           "sku": "SEED-04",
           "variantDescription": "",
@@ -3953,8 +3953,8 @@
           "currency": "ARS"
         },
         {
-          "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-          "productId": "0cf50196-3d1e-4441-ad35-d220737affce",
+          "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+          "productId": "fad7bb72-2ff1-4812-8590-5a1ff836cda3",
           "productName": "Barra ol\u00EDmpica 20kg",
           "sku": "SEED-02",
           "variantDescription": "",
@@ -3964,8 +3964,8 @@
           "currency": "ARS"
         },
         {
-          "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
-          "productId": "c2fe49bd-61d1-4e2f-aa26-02e013b137ca",
+          "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
+          "productId": "18b88c4e-2814-4e06-94bd-ac04dd325b5c",
           "productName": "Disco de goma 5kg",
           "sku": "SEED-03",
           "variantDescription": "",
@@ -3975,8 +3975,8 @@
           "currency": "ARS"
         },
         {
-          "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
-          "productId": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
+          "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
+          "productId": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
           "productName": "Mancuerna hexagonal 10kg",
           "sku": "SEED-01",
           "variantDescription": "",
@@ -3986,8 +3986,8 @@
           "currency": "ARS"
         },
         {
-          "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
-          "productId": "fa5b5c94-5953-44e1-ab90-bd3279c426f6",
+          "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
+          "productId": "592a8150-8e5f-4597-946f-43ceffa39e62",
           "productName": "Soga de saltar con rulemanes",
           "sku": "SEED-05",
           "variantDescription": "",
@@ -4001,91 +4001,7 @@
     "/api/v1/products": {
       "items": [
         {
-          "id": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
-          "name": "Mancuerna hexagonal 10kg",
-          "slug": "mancuerna-hexagonal-10kg",
-          "description": "producto de test",
-          "seoTitle": null,
-          "seoDescription": null,
-          "brand": null,
-          "status": "ACTIVE",
-          "options": [],
-          "variants": [
-            {
-              "id": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
-              "sku": "SEED-01",
-              "optionValues": [],
-              "price": {
-                "amount": 2500000,
-                "currency": "ARS"
-              },
-              "compareAtPrice": null
-            }
-          ],
-          "images": [],
-          "categoryIds": [],
-          "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:04.846948Z",
-          "stock": null
-        },
-        {
-          "id": "0cf50196-3d1e-4441-ad35-d220737affce",
-          "name": "Barra ol\u00EDmpica 20kg",
-          "slug": "barra-olimpica-20kg",
-          "description": "producto de test",
-          "seoTitle": null,
-          "seoDescription": null,
-          "brand": null,
-          "status": "ACTIVE",
-          "options": [],
-          "variants": [
-            {
-              "id": "5ef066c1-c327-4c33-a714-bae0d6536532",
-              "sku": "SEED-02",
-              "optionValues": [],
-              "price": {
-                "amount": 5000000,
-                "currency": "ARS"
-              },
-              "compareAtPrice": null
-            }
-          ],
-          "images": [],
-          "categoryIds": [],
-          "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.246723Z",
-          "stock": null
-        },
-        {
-          "id": "82c35711-9060-47d4-9a10-f084d28eed05",
-          "name": "Banco plano regulable",
-          "slug": "banco-plano-regulable",
-          "description": "producto de test",
-          "seoTitle": null,
-          "seoDescription": null,
-          "brand": null,
-          "status": "ACTIVE",
-          "options": [],
-          "variants": [
-            {
-              "id": "2eb492b2-23c8-4486-aa6a-3d2154840899",
-              "sku": "SEED-04",
-              "optionValues": [],
-              "price": {
-                "amount": 10000000,
-                "currency": "ARS"
-              },
-              "compareAtPrice": null
-            }
-          ],
-          "images": [],
-          "categoryIds": [],
-          "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.298433Z",
-          "stock": null
-        },
-        {
-          "id": "c2fe49bd-61d1-4e2f-aa26-02e013b137ca",
+          "id": "18b88c4e-2814-4e06-94bd-ac04dd325b5c",
           "name": "Disco de goma 5kg",
           "slug": "disco-de-goma-5kg",
           "description": "producto de test",
@@ -4096,7 +4012,7 @@
           "options": [],
           "variants": [
             {
-              "id": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "id": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "sku": "SEED-03",
               "optionValues": [],
               "price": {
@@ -4109,11 +4025,39 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.271809Z",
+          "createdAtUtc": "2026-10-11T22:19:22.675421Z",
           "stock": null
         },
         {
-          "id": "fa5b5c94-5953-44e1-ab90-bd3279c426f6",
+          "id": "2bb6d395-4638-4722-a1b6-f37e0535e366",
+          "name": "Banco plano regulable",
+          "slug": "banco-plano-regulable",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "sku": "SEED-04",
+              "optionValues": [],
+              "price": {
+                "amount": 10000000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.703331Z",
+          "stock": null
+        },
+        {
+          "id": "592a8150-8e5f-4597-946f-43ceffa39e62",
           "name": "Soga de saltar con rulemanes",
           "slug": "soga-de-saltar-con-rulemanes",
           "description": "producto de test",
@@ -4124,7 +4068,7 @@
           "options": [],
           "variants": [
             {
-              "id": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "id": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "sku": "SEED-05",
               "optionValues": [],
               "price": {
@@ -4137,15 +4081,217 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.31696Z",
+          "createdAtUtc": "2026-10-11T22:19:22.723402Z",
+          "stock": null
+        },
+        {
+          "id": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
+          "name": "Mancuerna hexagonal 10kg",
+          "slug": "mancuerna-hexagonal-10kg",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
+              "sku": "SEED-01",
+              "optionValues": [],
+              "price": {
+                "amount": 2500000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.230187Z",
+          "stock": null
+        },
+        {
+          "id": "fad7bb72-2ff1-4812-8590-5a1ff836cda3",
+          "name": "Barra ol\u00EDmpica 20kg",
+          "slug": "barra-olimpica-20kg",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "sku": "SEED-02",
+              "optionValues": [],
+              "price": {
+                "amount": 5000000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.649314Z",
           "stock": null
         }
       ],
       "nextCursor": null,
       "hasMore": false
     },
+    "/api/v1/products#paged": {
+      "items": [
+        {
+          "id": "592a8150-8e5f-4597-946f-43ceffa39e62",
+          "name": "Soga de saltar con rulemanes",
+          "slug": "soga-de-saltar-con-rulemanes",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
+              "sku": "SEED-05",
+              "optionValues": [],
+              "price": {
+                "amount": 12500000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.723402Z",
+          "stock": null
+        },
+        {
+          "id": "2bb6d395-4638-4722-a1b6-f37e0535e366",
+          "name": "Banco plano regulable",
+          "slug": "banco-plano-regulable",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "a184e99e-6381-44e9-9dd2-80510ab5503a",
+              "sku": "SEED-04",
+              "optionValues": [],
+              "price": {
+                "amount": 10000000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.703331Z",
+          "stock": null
+        },
+        {
+          "id": "18b88c4e-2814-4e06-94bd-ac04dd325b5c",
+          "name": "Disco de goma 5kg",
+          "slug": "disco-de-goma-5kg",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
+              "sku": "SEED-03",
+              "optionValues": [],
+              "price": {
+                "amount": 7500000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.675421Z",
+          "stock": null
+        },
+        {
+          "id": "fad7bb72-2ff1-4812-8590-5a1ff836cda3",
+          "name": "Barra ol\u00EDmpica 20kg",
+          "slug": "barra-olimpica-20kg",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+              "sku": "SEED-02",
+              "optionValues": [],
+              "price": {
+                "amount": 5000000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.649314Z",
+          "stock": null
+        },
+        {
+          "id": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
+          "name": "Mancuerna hexagonal 10kg",
+          "slug": "mancuerna-hexagonal-10kg",
+          "description": "producto de test",
+          "seoTitle": null,
+          "seoDescription": null,
+          "brand": null,
+          "status": "ACTIVE",
+          "options": [],
+          "variants": [
+            {
+              "id": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
+              "sku": "SEED-01",
+              "optionValues": [],
+              "price": {
+                "amount": 2500000,
+                "currency": "ARS"
+              },
+              "compareAtPrice": null
+            }
+          ],
+          "images": [],
+          "categoryIds": [],
+          "specs": [],
+          "createdAtUtc": "2026-10-11T22:19:22.230187Z",
+          "stock": null
+        }
+      ],
+      "total": 5,
+      "hasMore": false
+    },
     "/api/v1/products/:id": {
-      "id": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
+      "id": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
       "name": "Mancuerna hexagonal 10kg",
       "slug": "mancuerna-hexagonal-10kg",
       "description": "producto de test",
@@ -4156,7 +4302,7 @@
       "options": [],
       "variants": [
         {
-          "id": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+          "id": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
           "sku": "SEED-01",
           "optionValues": [],
           "price": {
@@ -4169,26 +4315,26 @@
       "images": [],
       "categoryIds": [],
       "specs": [],
-      "createdAtUtc": "2026-10-11T22:10:04.846948Z",
+      "createdAtUtc": "2026-10-11T22:19:22.230187Z",
       "stock": null
     },
     "/api/v1/products/:id/costs": {
       "items": [
         {
-          "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+          "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
           "sku": "SEED-01",
           "description": "\u00DAnica",
           "priceAmount": 2500000,
-          "costAmount": 1615200,
+          "costAmount": 1302500,
           "currency": "ARS"
         }
       ]
     },
     "/api/v1/products/by-code/SEED-01": {
-      "productId": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
+      "productId": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
       "productName": "Mancuerna hexagonal 10kg",
       "imageUrl": null,
-      "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+      "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
       "sku": "SEED-01",
       "barcode": null,
       "description": "\u00DAnica",
@@ -4198,7 +4344,7 @@
       "location": null
     },
     "/api/v1/products/by-slug/:slug": {
-      "id": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
+      "id": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
       "name": "Mancuerna hexagonal 10kg",
       "slug": "mancuerna-hexagonal-10kg",
       "description": "producto de test",
@@ -4209,7 +4355,7 @@
       "options": [],
       "variants": [
         {
-          "id": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+          "id": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
           "sku": "SEED-01",
           "optionValues": [],
           "price": {
@@ -4222,7 +4368,7 @@
       "images": [],
       "categoryIds": [],
       "specs": [],
-      "createdAtUtc": "2026-10-11T22:10:04.846948Z",
+      "createdAtUtc": "2026-10-11T22:19:22.230187Z",
       "stock": 50
     },
     "/api/v1/products/costs": {
@@ -4249,7 +4395,7 @@
     "/api/v1/products/search": {
       "items": [
         {
-          "id": "fa5b5c94-5953-44e1-ab90-bd3279c426f6",
+          "id": "592a8150-8e5f-4597-946f-43ceffa39e62",
           "name": "Soga de saltar con rulemanes",
           "slug": "soga-de-saltar-con-rulemanes",
           "description": "producto de test",
@@ -4260,7 +4406,7 @@
           "options": [],
           "variants": [
             {
-              "id": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+              "id": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
               "sku": "SEED-05",
               "optionValues": [],
               "price": {
@@ -4273,11 +4419,11 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.31696Z",
+          "createdAtUtc": "2026-10-11T22:19:22.723402Z",
           "stock": 50
         },
         {
-          "id": "82c35711-9060-47d4-9a10-f084d28eed05",
+          "id": "2bb6d395-4638-4722-a1b6-f37e0535e366",
           "name": "Banco plano regulable",
           "slug": "banco-plano-regulable",
           "description": "producto de test",
@@ -4288,7 +4434,7 @@
           "options": [],
           "variants": [
             {
-              "id": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+              "id": "a184e99e-6381-44e9-9dd2-80510ab5503a",
               "sku": "SEED-04",
               "optionValues": [],
               "price": {
@@ -4301,11 +4447,11 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.298433Z",
+          "createdAtUtc": "2026-10-11T22:19:22.703331Z",
           "stock": 50
         },
         {
-          "id": "c2fe49bd-61d1-4e2f-aa26-02e013b137ca",
+          "id": "18b88c4e-2814-4e06-94bd-ac04dd325b5c",
           "name": "Disco de goma 5kg",
           "slug": "disco-de-goma-5kg",
           "description": "producto de test",
@@ -4316,7 +4462,7 @@
           "options": [],
           "variants": [
             {
-              "id": "1b77581a-1fa5-49e0-b988-211da75fee05",
+              "id": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
               "sku": "SEED-03",
               "optionValues": [],
               "price": {
@@ -4329,11 +4475,11 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.271809Z",
+          "createdAtUtc": "2026-10-11T22:19:22.675421Z",
           "stock": 50
         },
         {
-          "id": "0cf50196-3d1e-4441-ad35-d220737affce",
+          "id": "fad7bb72-2ff1-4812-8590-5a1ff836cda3",
           "name": "Barra ol\u00EDmpica 20kg",
           "slug": "barra-olimpica-20kg",
           "description": "producto de test",
@@ -4344,7 +4490,7 @@
           "options": [],
           "variants": [
             {
-              "id": "5ef066c1-c327-4c33-a714-bae0d6536532",
+              "id": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
               "sku": "SEED-02",
               "optionValues": [],
               "price": {
@@ -4357,11 +4503,11 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:05.246723Z",
+          "createdAtUtc": "2026-10-11T22:19:22.649314Z",
           "stock": 50
         },
         {
-          "id": "0945451c-c573-4442-a09c-3b0a4f4cbf6a",
+          "id": "df934dc5-1f03-486e-8d6f-34cb5c855d3d",
           "name": "Mancuerna hexagonal 10kg",
           "slug": "mancuerna-hexagonal-10kg",
           "description": "producto de test",
@@ -4372,7 +4518,7 @@
           "options": [],
           "variants": [
             {
-              "id": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+              "id": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
               "sku": "SEED-01",
               "optionValues": [],
               "price": {
@@ -4385,7 +4531,7 @@
           "images": [],
           "categoryIds": [],
           "specs": [],
-          "createdAtUtc": "2026-10-11T22:10:04.846948Z",
+          "createdAtUtc": "2026-10-11T22:19:22.230187Z",
           "stock": 50
         }
       ],
@@ -4404,75 +4550,75 @@
     "/api/v1/purchasing/purchase-orders": {
       "items": [
         {
-          "id": "371b9d05-2154-4e5e-8d7d-50617017352e",
+          "id": "c93081d4-1a0c-4295-9c19-9470eb5f3601",
           "supplierName": "Shenzhen Trading Co.",
           "reference": "PO-2026-014",
           "status": "DRAFT",
           "currency": "USD",
-          "totalFob": 11533.08,
+          "totalFob": 11553.21,
           "items": 3,
           "units": 446,
-          "createdAtUtc": "2026-10-08T22:10:07.366903Z",
+          "createdAtUtc": "2026-10-08T22:19:24.68296Z",
           "receivedAtUtc": null,
           "leadTimeDays": 50
         },
         {
-          "id": "a196e2e1-89ee-463e-bd1a-56465781a068",
+          "id": "27e5b154-fb32-463b-8fee-b59bea7ec8bb",
           "supplierName": "Guangzhou Electronics",
           "reference": "PO-2026-013",
           "status": "CONFIRMED",
           "currency": "USD",
-          "totalFob": 7734.05,
+          "totalFob": 7838.4,
           "items": 4,
           "units": 451,
-          "createdAtUtc": "2026-09-29T22:10:07.417724Z",
+          "createdAtUtc": "2026-09-29T22:19:24.732386Z",
           "receivedAtUtc": null,
           "leadTimeDays": 43
         },
         {
-          "id": "c795df04-8854-47d9-95dd-1479a12a4540",
+          "id": "b6397574-de5a-4bd7-8aaa-d41fcc5f1e0c",
           "supplierName": "Ningbo Home Ltd.",
           "reference": "PO-2026-012",
           "status": "INTRANSIT",
           "currency": "USD",
-          "totalFob": 5511.04,
+          "totalFob": 5373.99,
           "items": 2,
           "units": 202,
-          "createdAtUtc": "2026-09-07T22:10:07.41827Z",
+          "createdAtUtc": "2026-09-07T22:19:24.733048Z",
           "receivedAtUtc": null,
           "leadTimeDays": 32
         },
         {
-          "id": "af37ccfc-1735-4ea2-9127-b1d464e83c58",
+          "id": "415bba4f-6a02-46d8-8d2e-d311ffdf7eb3",
           "supplierName": "Shenzhen Trading Co.",
           "reference": "PO-2026-011",
           "status": "INCUSTOMS",
           "currency": "USD",
-          "totalFob": 5761.44,
+          "totalFob": 6669.57,
           "items": 2,
           "units": 309,
-          "createdAtUtc": "2026-08-20T22:10:07.418364Z",
+          "createdAtUtc": "2026-08-20T22:19:24.733153Z",
           "receivedAtUtc": null,
           "leadTimeDays": 38
         },
         {
-          "id": "056c281e-e837-4246-b96a-cef8a63a8f73",
+          "id": "89a00fb6-62d3-43a3-ab08-4cadd0c2c31f",
           "supplierName": "Yiwu Market Group",
           "reference": "PO-2026-010",
           "status": "RECEIVED",
           "currency": "USD",
-          "totalFob": 13933.3,
+          "totalFob": 14951.64,
           "items": 4,
           "units": 564,
-          "createdAtUtc": "2026-07-25T22:10:07.421958Z",
-          "receivedAtUtc": "2026-10-11T22:10:07.421464Z",
+          "createdAtUtc": "2026-07-25T22:19:24.73665Z",
+          "receivedAtUtc": "2026-10-11T22:19:24.736234Z",
           "leadTimeDays": 53
         }
       ],
       "total": 5
     },
     "/api/v1/purchasing/purchase-orders/:id": {
-      "id": "371b9d05-2154-4e5e-8d7d-50617017352e",
+      "id": "c93081d4-1a0c-4295-9c19-9470eb5f3601",
       "supplierId": null,
       "supplierName": "Shenzhen Trading Co.",
       "reference": "PO-2026-014",
@@ -4481,10 +4627,10 @@
       "currency": "USD",
       "exchangeRate": 1320.0,
       "leadTimeDays": 50,
-      "createdAtUtc": "2026-10-08T22:10:07.366903Z",
+      "createdAtUtc": "2026-10-08T22:19:24.68296Z",
       "confirmedAtUtc": null,
       "receivedAtUtc": null,
-      "totalFob": 11533.08,
+      "totalFob": 11553.21,
       "totalExpensesArs": 2645440.0,
       "supplierTaxId": null,
       "invoiceType": null,
@@ -4494,34 +4640,34 @@
       "invoiceVatArs": null,
       "items": [
         {
-          "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
-          "productName": "Barra ol\u00EDmpica 20kg",
-          "variantDescription": "\u00DAnica",
-          "sku": "SEED-02",
-          "quantity": 138,
-          "unitCost": 17.35,
-          "receivedQuantity": null,
-          "landedUnitCostArsMinor": 2688172
-        },
-        {
-          "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
-          "productName": "Mancuerna hexagonal 10kg",
-          "variantDescription": "\u00DAnica",
-          "sku": "SEED-01",
-          "quantity": 117,
-          "unitCost": 9.79,
-          "receivedQuantity": null,
-          "landedUnitCostArsMinor": 1516842
-        },
-        {
-          "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+          "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
           "productName": "Soga de saltar con rulemanes",
           "variantDescription": "\u00DAnica",
           "sku": "SEED-05",
           "quantity": 191,
-          "unitCost": 41.85,
+          "unitCost": 43.56,
           "receivedQuantity": null,
-          "landedUnitCostArsMinor": 6484149
+          "landedUnitCostArsMinor": 6747352
+        },
+        {
+          "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
+          "productName": "Barra ol\u00EDmpica 20kg",
+          "variantDescription": "\u00DAnica",
+          "sku": "SEED-02",
+          "quantity": 138,
+          "unitCost": 16.74,
+          "receivedQuantity": null,
+          "landedUnitCostArsMinor": 2592990
+        },
+        {
+          "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
+          "productName": "Mancuerna hexagonal 10kg",
+          "variantDescription": "\u00DAnica",
+          "sku": "SEED-01",
+          "quantity": 117,
+          "unitCost": 7.89,
+          "receivedQuantity": null,
+          "landedUnitCostArsMinor": 1222144
         }
       ],
       "expenses": [
@@ -4543,7 +4689,7 @@
       "bufferDays": 30,
       "items": [
         {
-          "variantId": "54e03de4-1920-45c8-86fb-c5db21e9f638",
+          "variantId": "47795dc1-7cba-4c53-923f-dcbc2f07da2f",
           "product": "Soga de saltar con rulemanes",
           "variant": "\u00DAnica",
           "sku": "SEED-05",
@@ -4553,7 +4699,7 @@
           "suggestedQty": 104
         },
         {
-          "variantId": "2eb492b2-23c8-4486-aa6a-3d2154840899",
+          "variantId": "a184e99e-6381-44e9-9dd2-80510ab5503a",
           "product": "Banco plano regulable",
           "variant": "\u00DAnica",
           "sku": "SEED-04",
@@ -4563,7 +4709,7 @@
           "suggestedQty": 90
         },
         {
-          "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+          "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
           "product": "Mancuerna hexagonal 10kg",
           "variant": "\u00DAnica",
           "sku": "SEED-01",
@@ -4573,7 +4719,7 @@
           "suggestedQty": 74
         },
         {
-          "variantId": "1b77581a-1fa5-49e0-b988-211da75fee05",
+          "variantId": "e2e611d9-eece-44e3-bfef-3c00ecf02de4",
           "product": "Disco de goma 5kg",
           "variant": "\u00DAnica",
           "sku": "SEED-03",
@@ -4583,7 +4729,7 @@
           "suggestedQty": 71
         },
         {
-          "variantId": "5ef066c1-c327-4c33-a714-bae0d6536532",
+          "variantId": "fab1b1b9-5089-4193-b332-20ffc01b9c72",
           "product": "Barra ol\u00EDmpica 20kg",
           "variant": "\u00DAnica",
           "sku": "SEED-02",
@@ -4599,7 +4745,7 @@
       "open": 4,
       "inTransit": 2,
       "received": 1,
-      "committedFob": 30539.61,
+      "committedFob": 31435.17,
       "currency": "USD",
       "withoutInvoice": 0
     },
@@ -4607,7 +4753,7 @@
       "total": 1,
       "items": [
         {
-          "id": "0e2f9230-14b7-4644-898a-cea0c2a19cc5",
+          "id": "1d45c056-1a1e-4f21-9a34-31fdece95794",
           "number": "PRE-0001",
           "status": "draft",
           "expired": false,
@@ -4617,13 +4763,13 @@
           "totalMinor": 5000000,
           "currency": "ARS",
           "items": 1,
-          "createdAtUtc": "2026-10-11T22:10:07.987777Z",
+          "createdAtUtc": "2026-10-11T22:19:25.389432Z",
           "convertedOrderId": null
         }
       ]
     },
     "/api/v1/quotes/:id": {
-      "id": "0e2f9230-14b7-4644-898a-cea0c2a19cc5",
+      "id": "1d45c056-1a1e-4f21-9a34-31fdece95794",
       "number": "PRE-0001",
       "status": "draft",
       "expired": false,
@@ -4636,7 +4782,7 @@
       "notes": null,
       "rejectionReason": null,
       "convertedOrderId": null,
-      "createdAtUtc": "2026-10-11T22:10:07.987777Z",
+      "createdAtUtc": "2026-10-11T22:19:25.389432Z",
       "sentAtUtc": null,
       "decidedAtUtc": null,
       "subtotalMinor": 5000000,
@@ -4644,7 +4790,7 @@
       "totalMinor": 5000000,
       "items": [
         {
-          "variantId": "7cf20c3f-346c-4677-a0c3-c13b8d7c9686",
+          "variantId": "a3dc0ac9-13a6-47de-8863-29fcfa49e0a7",
           "productName": "Mancuerna hexagonal 10kg",
           "variantDescription": "\u00DAnica",
           "sku": "SEED-01",
@@ -4673,7 +4819,7 @@
     "/api/v1/shipping/methods": {
       "items": [
         {
-          "id": "ec460fe1-3f4f-4ee9-966c-2736422c30e9",
+          "id": "d79574e9-df96-4fd1-b900-6972361f9d9f",
           "name": "Retiro en el local",
           "kind": "PICKUP",
           "price": {
@@ -4709,9 +4855,9 @@
       "recoverableValue": 367500000,
       "items": [
         {
-          "id": "749c81cb-92e2-47c0-b8f6-e25c98d3cf9e",
+          "id": "372f284b-df05-4a9a-b3e5-47ad6e5c1062",
           "email": null,
-          "createdAtUtc": "2026-10-11T01:10:06.36013Z",
+          "createdAtUtc": "2026-10-11T01:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 12500000,
@@ -4720,9 +4866,9 @@
           "recoverable": false
         },
         {
-          "id": "a14642c6-3643-4ef5-84b7-e1072ef2d019",
+          "id": "1a5c32a5-410e-4d4c-bf7b-1bdf06e0438d",
           "email": "lucia.fernandez2@example.com",
-          "createdAtUtc": "2026-10-10T07:10:06.36013Z",
+          "createdAtUtc": "2026-10-10T07:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 10000000,
@@ -4731,9 +4877,9 @@
           "recoverable": true
         },
         {
-          "id": "aad52b74-047d-4f6c-bd33-642cb42de56c",
+          "id": "4d2e77f7-e3a1-431d-97ab-97b0906ad3c8",
           "email": "valentina.ruiz4@example.com",
-          "createdAtUtc": "2026-10-09T03:10:06.36013Z",
+          "createdAtUtc": "2026-10-09T03:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 12500000,
@@ -4742,9 +4888,9 @@
           "recoverable": true
         },
         {
-          "id": "ba3f60f3-9cec-4993-9af8-16af5669330a",
+          "id": "be0a4920-0fad-46ca-b869-364e45cad07a",
           "email": "sofia.ramirez@example.com",
-          "createdAtUtc": "2026-10-07T22:10:06.36013Z",
+          "createdAtUtc": "2026-10-07T22:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 45000000,
@@ -4753,9 +4899,9 @@
           "recoverable": true
         },
         {
-          "id": "233cb86d-69b2-4c0e-b02f-584d16f0611b",
+          "id": "cb052e32-09ac-440a-9469-e0207f8f312e",
           "email": null,
-          "createdAtUtc": "2026-10-06T08:10:06.36013Z",
+          "createdAtUtc": "2026-10-06T08:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 25000000,
@@ -4764,9 +4910,9 @@
           "recoverable": false
         },
         {
-          "id": "43e3e740-efed-495d-9acd-a3e9b50a1cce",
+          "id": "327d591e-2885-4ef2-9d28-a49861a9ddf8",
           "email": null,
-          "createdAtUtc": "2026-10-06T04:10:06.36013Z",
+          "createdAtUtc": "2026-10-06T04:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 22500000,
@@ -4775,9 +4921,9 @@
           "recoverable": false
         },
         {
-          "id": "359c8b10-840e-4936-8089-a41fa15c4264",
+          "id": "f090e7c7-fe32-4f00-aa05-d2da71c98ad1",
           "email": "camila.ortiz11@example.com",
-          "createdAtUtc": "2026-10-05T15:10:06.36013Z",
+          "createdAtUtc": "2026-10-05T15:19:23.720406Z",
           "items": 1,
           "total": {
             "amount": 10000000,
@@ -4786,9 +4932,9 @@
           "recoverable": true
         },
         {
-          "id": "09f9b82c-f833-4afe-8484-9fb62025e5f0",
+          "id": "f54824ce-3605-4f38-a623-864b87a9198a",
           "email": "micaela.rojas3@example.com",
-          "createdAtUtc": "2026-10-05T01:10:06.36013Z",
+          "createdAtUtc": "2026-10-05T01:19:23.720406Z",
           "items": 1,
           "total": {
             "amount": 5000000,
@@ -4797,9 +4943,9 @@
           "recoverable": true
         },
         {
-          "id": "3d9344f4-7302-462b-bdbd-b43cbf7c3015",
+          "id": "608b12ee-8720-454c-86bb-9a5e462f908a",
           "email": null,
-          "createdAtUtc": "2026-10-04T16:10:06.36013Z",
+          "createdAtUtc": "2026-10-04T16:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 17500000,
@@ -4808,9 +4954,9 @@
           "recoverable": false
         },
         {
-          "id": "dbf6e525-3582-44a8-98e9-10315eb1a555",
+          "id": "df774807-3712-4f98-8568-eaf022087d8f",
           "email": "valentina.ruiz2@example.com",
-          "createdAtUtc": "2026-10-03T01:10:06.36013Z",
+          "createdAtUtc": "2026-10-03T01:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 20000000,
@@ -4819,9 +4965,9 @@
           "recoverable": true
         },
         {
-          "id": "626f9de5-6247-4e8d-8f75-e50896c69311",
+          "id": "e67bec1e-5b5d-4109-93cd-9131d3a02335",
           "email": "agustina.vega@example.com",
-          "createdAtUtc": "2026-09-30T20:10:06.36013Z",
+          "createdAtUtc": "2026-09-30T20:19:23.720406Z",
           "items": 3,
           "total": {
             "amount": 27500000,
@@ -4830,9 +4976,9 @@
           "recoverable": true
         },
         {
-          "id": "5c8316fa-c44a-4fe9-9c8b-85ad1e11d836",
+          "id": "3ecb931b-f680-482f-96ed-b827e637b617",
           "email": "micaela.rojas14@example.com",
-          "createdAtUtc": "2026-09-29T00:10:06.36013Z",
+          "createdAtUtc": "2026-09-29T00:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 25000000,
@@ -4841,9 +4987,9 @@
           "recoverable": true
         },
         {
-          "id": "e37058a8-2d8e-434b-9f85-8ad199ff656b",
+          "id": "475a4c29-2a32-4e35-836e-af0a3c3b8b28",
           "email": "martin.gomez2@example.com",
-          "createdAtUtc": "2026-09-26T02:10:06.36013Z",
+          "createdAtUtc": "2026-09-26T02:19:23.720406Z",
           "items": 3,
           "total": {
             "amount": 37500000,
@@ -4852,9 +4998,9 @@
           "recoverable": true
         },
         {
-          "id": "64c9ff08-5436-412e-b915-838b972a47d5",
+          "id": "34a745e9-e6ce-47ab-ba2b-13d73d61924a",
           "email": null,
-          "createdAtUtc": "2026-09-26T01:10:06.36013Z",
+          "createdAtUtc": "2026-09-26T01:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 30000000,
@@ -4863,9 +5009,9 @@
           "recoverable": false
         },
         {
-          "id": "c0a0f347-954f-4d98-a905-12f7094b0c13",
+          "id": "660d459b-6d88-4b99-80d8-8e22533eacfa",
           "email": "camila.ortiz@example.com",
-          "createdAtUtc": "2026-09-24T16:10:06.36013Z",
+          "createdAtUtc": "2026-09-24T16:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 15000000,
@@ -4874,9 +5020,9 @@
           "recoverable": true
         },
         {
-          "id": "ba287c13-3737-4a92-a230-a286aaec5e24",
+          "id": "06b86179-d614-47ad-9e5f-2aa8f6af39a6",
           "email": null,
-          "createdAtUtc": "2026-09-24T07:10:06.36013Z",
+          "createdAtUtc": "2026-09-24T07:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 35000000,
@@ -4885,9 +5031,9 @@
           "recoverable": false
         },
         {
-          "id": "5f4d83c9-8b19-471a-850d-7f8c7a0d0174",
+          "id": "a81c2720-b4d7-4e48-87d0-5085417f70dc",
           "email": "nicolas.herrera10@example.com",
-          "createdAtUtc": "2026-09-21T03:10:06.36013Z",
+          "createdAtUtc": "2026-09-21T03:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 10000000,
@@ -4896,9 +5042,9 @@
           "recoverable": true
         },
         {
-          "id": "01830726-dc13-4483-b572-0b2e5a010159",
+          "id": "6754231f-daab-4d8a-a199-135be4e138ab",
           "email": "emiliano.ledesma@example.com",
-          "createdAtUtc": "2026-09-19T20:10:06.36013Z",
+          "createdAtUtc": "2026-09-19T20:19:23.720406Z",
           "items": 1,
           "total": {
             "amount": 20000000,
@@ -4907,9 +5053,9 @@
           "recoverable": true
         },
         {
-          "id": "b57e1372-ec0b-49b4-8bde-daaf50c58312",
+          "id": "2e25fe42-3591-4212-bcf6-c449d1158d2d",
           "email": "nicolas.herrera2@example.com",
-          "createdAtUtc": "2026-09-19T11:10:06.36013Z",
+          "createdAtUtc": "2026-09-19T11:19:23.720406Z",
           "items": 1,
           "total": {
             "amount": 25000000,
@@ -4918,9 +5064,9 @@
           "recoverable": true
         },
         {
-          "id": "eb6e92d3-bda6-4e3c-9ea5-60280de37573",
+          "id": "c29654e5-8331-4349-b931-67e2d674abbd",
           "email": "florencia.cabrera@example.com",
-          "createdAtUtc": "2026-09-19T00:10:06.36013Z",
+          "createdAtUtc": "2026-09-19T00:19:23.720406Z",
           "items": 3,
           "total": {
             "amount": 42500000,
@@ -4929,9 +5075,9 @@
           "recoverable": true
         },
         {
-          "id": "c88cbf63-ac83-403f-8f24-96c46832963c",
+          "id": "95b0ec67-1cf8-4a3f-a7de-630e092f731c",
           "email": "diego.sosa4@example.com",
-          "createdAtUtc": "2026-09-18T21:10:06.36013Z",
+          "createdAtUtc": "2026-09-18T21:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 32500000,
@@ -4940,9 +5086,9 @@
           "recoverable": true
         },
         {
-          "id": "d0b9b4b8-69b4-4556-851a-aaceb9bcab52",
+          "id": "73cdce74-63a3-4f77-b579-a41f4fa27a43",
           "email": "agustina.vega13@example.com",
-          "createdAtUtc": "2026-09-17T21:10:06.36013Z",
+          "createdAtUtc": "2026-09-17T21:19:23.720406Z",
           "items": 2,
           "total": {
             "amount": 30000000,
@@ -4966,7 +5112,7 @@
       "total": 4,
       "items": [
         {
-          "code": "ENVIOGRATIS",
+          "code": "PRIMERACOMPRA",
           "uses": 14,
           "paidUses": 13,
           "discountGiven": 47250000,
@@ -4974,7 +5120,7 @@
           "netRevenue": 382500000
         },
         {
-          "code": "PRIMERACOMPRA",
+          "code": "BIENVENIDO10",
           "uses": 13,
           "paidUses": 13,
           "discountGiven": 36500000,
@@ -4982,7 +5128,7 @@
           "netRevenue": 295600000
         },
         {
-          "code": "VERANO25",
+          "code": "ENVIOGRATIS",
           "uses": 7,
           "paidUses": 7,
           "discountGiven": 19000000,
@@ -4990,7 +5136,7 @@
           "netRevenue": 154250000
         },
         {
-          "code": "BIENVENIDO10",
+          "code": "VERANO25",
           "uses": 4,
           "paidUses": 3,
           "discountGiven": 12500000,
@@ -5315,16 +5461,16 @@
     "/api/v1/stats/profitability": {
       "currency": "ARS",
       "revenue": 2082500000,
-      "productCost": 1197873000,
+      "productCost": 1247624600,
       "mpFees": 132376700,
       "discounts": 60000000,
       "shippingCharged": 22050000,
-      "profit": 752250300,
-      "marginPct": 36.1,
+      "profit": 702498700,
+      "marginPct": 33.7,
       "previous": {
         "revenue": 1251250000,
-        "profit": 448410700,
-        "marginPct": 35.8
+        "profit": 435523800,
+        "marginPct": 34.8
       },
       "coverage": {
         "ordersWithCost": 71,
@@ -5333,127 +5479,127 @@
       "series": [
         {
           "date": "2026-09-12T00:00:00Z",
-          "profit": 39249300,
+          "profit": 32751000,
           "revenue": 100000000
         },
         {
           "date": "2026-09-13T00:00:00Z",
-          "profit": 50149800,
+          "profit": 47259300,
           "revenue": 132500000
         },
         {
           "date": "2026-09-14T00:00:00Z",
-          "profit": 11044300,
+          "profit": 11103500,
           "revenue": 30000000
         },
         {
           "date": "2026-09-16T00:00:00Z",
-          "profit": 13125800,
+          "profit": 13598700,
           "revenue": 37000000
         },
         {
           "date": "2026-09-17T00:00:00Z",
-          "profit": 23495700,
+          "profit": 21668700,
           "revenue": 68500000
         },
         {
           "date": "2026-09-18T00:00:00Z",
-          "profit": 39288700,
+          "profit": 35087600,
           "revenue": 110500000
         },
         {
           "date": "2026-09-19T00:00:00Z",
-          "profit": 62004600,
+          "profit": 56277300,
           "revenue": 176000000
         },
         {
           "date": "2026-09-20T00:00:00Z",
-          "profit": 51418400,
+          "profit": 46631500,
           "revenue": 135000000
         },
         {
           "date": "2026-09-22T00:00:00Z",
-          "profit": 60045800,
+          "profit": 58157700,
           "revenue": 160000000
         },
         {
           "date": "2026-09-23T00:00:00Z",
-          "profit": 12781500,
+          "profit": 10651600,
           "revenue": 38500000
         },
         {
           "date": "2026-09-25T00:00:00Z",
-          "profit": 15881400,
+          "profit": 15657500,
           "revenue": 42500000
         },
         {
           "date": "2026-09-26T00:00:00Z",
-          "profit": 18431600,
+          "profit": 16705700,
           "revenue": 56750000
         },
         {
           "date": "2026-09-27T00:00:00Z",
-          "profit": 48432100,
+          "profit": 44029300,
           "revenue": 127500000
         },
         {
           "date": "2026-09-28T00:00:00Z",
-          "profit": 25564100,
+          "profit": 27615400,
           "revenue": 72500000
         },
         {
           "date": "2026-09-30T00:00:00Z",
-          "profit": 29074300,
+          "profit": 27436900,
           "revenue": 82000000
         },
         {
           "date": "2026-10-01T00:00:00Z",
-          "profit": 32949100,
+          "profit": 32319200,
           "revenue": 96750000
         },
         {
           "date": "2026-10-02T00:00:00Z",
-          "profit": 31745500,
+          "profit": 27808000,
           "revenue": 82500000
         },
         {
           "date": "2026-10-03T00:00:00Z",
-          "profit": 30906200,
+          "profit": 30982700,
           "revenue": 89250000
         },
         {
           "date": "2026-10-04T00:00:00Z",
-          "profit": 11315600,
+          "profit": 8804000,
           "revenue": 33750000
         },
         {
           "date": "2026-10-05T00:00:00Z",
-          "profit": 9404100,
+          "profit": 9578900,
           "revenue": 31500000
         },
         {
           "date": "2026-10-06T00:00:00Z",
-          "profit": 35758800,
+          "profit": 35478200,
           "revenue": 97500000
         },
         {
           "date": "2026-10-07T00:00:00Z",
-          "profit": 7265500,
+          "profit": 7492100,
           "revenue": 20000000
         },
         {
           "date": "2026-10-08T00:00:00Z",
-          "profit": 33043000,
+          "profit": 29977700,
           "revenue": 92750000
         },
         {
           "date": "2026-10-09T00:00:00Z",
-          "profit": 11016000,
+          "profit": 11075200,
           "revenue": 30000000
         },
         {
           "date": "2026-10-10T00:00:00Z",
-          "profit": 48859100,
+          "profit": 44351000,
           "revenue": 139250000
         }
       ],
@@ -5463,41 +5609,41 @@
           "product": "Soga de saltar con rulemanes",
           "units": 71,
           "revenue": 887500000,
-          "cost": 490255000,
-          "profit": 397245000,
-          "marginPct": 44.8
+          "cost": 510355100,
+          "profit": 377144900,
+          "marginPct": 42.5
         },
         {
           "product": "Banco plano regulable",
           "units": 51,
           "revenue": 510000000,
-          "cost": 293275500,
-          "profit": 216724500,
-          "marginPct": 42.5
+          "cost": 292020900,
+          "profit": 217979100,
+          "marginPct": 42.7
         },
         {
           "product": "Disco de goma 5kg",
           "units": 53,
           "revenue": 397500000,
-          "cost": 207097500,
-          "profit": 190402500,
-          "marginPct": 47.9
+          "cost": 256822100,
+          "profit": 140677900,
+          "marginPct": 35.4
         },
         {
           "product": "Barra ol\u00EDmpica 20kg",
           "units": 47,
           "revenue": 235000000,
-          "cost": 134561000,
-          "profit": 100439000,
-          "marginPct": 42.7
+          "cost": 129814000,
+          "profit": 105186000,
+          "marginPct": 44.8
         },
         {
           "product": "Mancuerna hexagonal 10kg",
           "units": 45,
           "revenue": 112500000,
-          "cost": 72684000,
-          "profit": 39816000,
-          "marginPct": 35.4
+          "cost": 58612500,
+          "profit": 53887500,
+          "marginPct": 47.9
         }
       ],
       "byChannel": [
@@ -5505,60 +5651,60 @@
           "source": "directo",
           "orders": 23,
           "revenue": 737750000,
-          "profit": 264740900,
+          "profit": 243777400,
           "ordersWithCost": 23
         },
         {
           "source": "instagram",
           "orders": 16,
           "revenue": 472750000,
-          "profit": 170268600,
+          "profit": 162170700,
           "ordersWithCost": 16
         },
         {
           "source": "google",
           "orders": 12,
           "revenue": 370250000,
-          "profit": 134955700,
+          "profit": 124456600,
           "ordersWithCost": 12
         },
         {
           "source": "email",
           "orders": 10,
           "revenue": 258000000,
-          "profit": 91833900,
+          "profit": 85478700,
           "ordersWithCost": 10
         },
         {
           "source": "whatsapp",
           "orders": 6,
           "revenue": 190000000,
-          "profit": 72035900,
+          "profit": 67192800,
           "ordersWithCost": 6
         },
         {
           "source": "facebook",
           "orders": 4,
           "revenue": 53750000,
-          "profit": 18415300,
+          "profit": 19422500,
           "ordersWithCost": 4
         }
       ],
       "meli": {
         "orders": 19,
         "revenue": 118735000,
-        "productCost": 129502300,
+        "productCost": 135271100,
         "mlFees": 0,
-        "grossProfit": -10767300,
-        "netProfit": -10767300,
+        "grossProfit": -16536100,
+        "netProfit": -16536100,
         "unitsLinked": 27,
         "unitsTotal": 35,
         "unitsWithFee": 0
       }
     },
     "/api/v1/stats/realtime": {
-      "activeVisitors": 39,
-      "views": 43,
+      "activeVisitors": 35,
+      "views": 39,
       "recent": [
         {
           "path": "/productos",
@@ -5593,19 +5739,19 @@
           "occurredAtUtc": "2026-10-11T23:30:00Z"
         },
         {
+          "path": "/productos",
+          "occurredAtUtc": "2026-10-11T23:27:00Z"
+        },
+        {
           "path": "/",
           "occurredAtUtc": "2026-10-11T23:27:00Z"
         },
         {
-          "path": "/productos",
-          "occurredAtUtc": "2026-10-11T23:27:00Z"
-        },
-        {
-          "path": "/productos",
+          "path": "/",
           "occurredAtUtc": "2026-10-11T23:22:00Z"
         },
         {
-          "path": "/",
+          "path": "/productos",
           "occurredAtUtc": "2026-10-11T23:22:00Z"
         },
         {
@@ -5644,7 +5790,7 @@
       "activePaths": [
         {
           "path": "/productos",
-          "visitors": 18
+          "visitors": 14
         },
         {
           "path": "/carrito",
@@ -5665,52 +5811,16 @@
       ],
       "pulse": [
         {
-          "minute": "21:10",
-          "views": 0
-        },
-        {
-          "minute": "21:11",
-          "views": 0
-        },
-        {
-          "minute": "21:12",
-          "views": 0
-        },
-        {
-          "minute": "21:13",
-          "views": 0
-        },
-        {
-          "minute": "21:14",
-          "views": 2
-        },
-        {
-          "minute": "21:15",
-          "views": 1
-        },
-        {
-          "minute": "21:16",
-          "views": 0
-        },
-        {
-          "minute": "21:17",
-          "views": 0
-        },
-        {
-          "minute": "21:18",
-          "views": 1
-        },
-        {
           "minute": "21:19",
           "views": 0
         },
         {
           "minute": "21:20",
-          "views": 2
+          "views": 0
         },
         {
           "minute": "21:21",
-          "views": 1
+          "views": 0
         },
         {
           "minute": "21:22",
@@ -5726,23 +5836,23 @@
         },
         {
           "minute": "21:25",
-          "views": 1
+          "views": 0
         },
         {
           "minute": "21:26",
-          "views": 1
+          "views": 0
         },
         {
           "minute": "21:27",
-          "views": 1
+          "views": 2
         },
         {
           "minute": "21:28",
-          "views": 5
+          "views": 3
         },
         {
           "minute": "21:29",
-          "views": 0
+          "views": 2
         },
         {
           "minute": "21:30",
@@ -5750,11 +5860,11 @@
         },
         {
           "minute": "21:31",
-          "views": 1
+          "views": 0
         },
         {
           "minute": "21:32",
-          "views": 1
+          "views": 2
         },
         {
           "minute": "21:33",
@@ -5762,19 +5872,19 @@
         },
         {
           "minute": "21:34",
-          "views": 2
+          "views": 1
         },
         {
           "minute": "21:35",
-          "views": 3
-        },
-        {
-          "minute": "21:36",
           "views": 2
         },
         {
+          "minute": "21:36",
+          "views": 1
+        },
+        {
           "minute": "21:37",
-          "views": 0
+          "views": 2
         },
         {
           "minute": "21:38",
@@ -5782,11 +5892,11 @@
         },
         {
           "minute": "21:39",
-          "views": 2
+          "views": 3
         },
         {
           "minute": "21:40",
-          "views": 1
+          "views": 2
         },
         {
           "minute": "21:41",
@@ -5794,23 +5904,23 @@
         },
         {
           "minute": "21:42",
-          "views": 1
+          "views": 0
         },
         {
           "minute": "21:43",
-          "views": 1
+          "views": 2
         },
         {
           "minute": "21:44",
-          "views": 0
+          "views": 2
         },
         {
           "minute": "21:45",
-          "views": 0
+          "views": 1
         },
         {
           "minute": "21:46",
-          "views": 2
+          "views": 0
         },
         {
           "minute": "21:47",
@@ -5822,7 +5932,7 @@
         },
         {
           "minute": "21:49",
-          "views": 2
+          "views": 0
         },
         {
           "minute": "21:50",
@@ -5830,15 +5940,15 @@
         },
         {
           "minute": "21:51",
-          "views": 0
-        },
-        {
-          "minute": "21:52",
           "views": 1
         },
         {
+          "minute": "21:52",
+          "views": 2
+        },
+        {
           "minute": "21:53",
-          "views": 7
+          "views": 4
         },
         {
           "minute": "21:54",
@@ -5846,7 +5956,7 @@
         },
         {
           "minute": "21:55",
-          "views": 0
+          "views": 2
         },
         {
           "minute": "21:56",
@@ -5858,7 +5968,7 @@
         },
         {
           "minute": "21:58",
-          "views": 0
+          "views": 2
         },
         {
           "minute": "21:59",
@@ -5874,7 +5984,7 @@
         },
         {
           "minute": "22:02",
-          "views": 2
+          "views": 3
         },
         {
           "minute": "22:03",
@@ -5882,7 +5992,7 @@
         },
         {
           "minute": "22:04",
-          "views": 2
+          "views": 1
         },
         {
           "minute": "22:05",
@@ -5894,7 +6004,7 @@
         },
         {
           "minute": "22:07",
-          "views": 2
+          "views": 1
         },
         {
           "minute": "22:08",
@@ -5902,6 +6012,42 @@
         },
         {
           "minute": "22:09",
+          "views": 0
+        },
+        {
+          "minute": "22:10",
+          "views": 1
+        },
+        {
+          "minute": "22:11",
+          "views": 2
+        },
+        {
+          "minute": "22:12",
+          "views": 0
+        },
+        {
+          "minute": "22:13",
+          "views": 2
+        },
+        {
+          "minute": "22:14",
+          "views": 1
+        },
+        {
+          "minute": "22:15",
+          "views": 1
+        },
+        {
+          "minute": "22:16",
+          "views": 1
+        },
+        {
+          "minute": "22:17",
+          "views": 1
+        },
+        {
+          "minute": "22:18",
           "views": 0
         }
       ],
@@ -6062,12 +6208,12 @@
           "count": 8
         },
         {
-          "status": "FAILED",
-          "count": 3
-        },
-        {
           "status": "CANCELLED",
           "count": 5
+        },
+        {
+          "status": "FAILED",
+          "count": 3
         },
         {
           "status": "PENDINGPAYMENT",
@@ -6076,12 +6222,12 @@
       ]
     },
     "/api/v1/stats/visits": {
-      "totalViews": 2930,
-      "uniqueVisitors": 839,
+      "totalViews": 2927,
+      "uniqueVisitors": 838,
       "orders": 36,
-      "conversionPct": 4.29,
+      "conversionPct": 4.3,
       "previous": {
-        "totalViews": 2521,
+        "totalViews": 2524,
         "uniqueVisitors": 693,
         "orders": 35,
         "conversionPct": 5.05
@@ -6089,8 +6235,8 @@
       "series": [
         {
           "date": "2026-09-27T00:00:00Z",
-          "views": 43,
-          "visitors": 34
+          "views": 40,
+          "visitors": 33
         },
         {
           "date": "2026-09-28T00:00:00Z",
@@ -6166,7 +6312,7 @@
       "topPaths": [
         {
           "path": "/productos",
-          "views": 1242
+          "views": 1241
         },
         {
           "path": "/",
@@ -6174,7 +6320,7 @@
         },
         {
           "path": "/carrito",
-          "views": 429
+          "views": 427
         },
         {
           "path": "/checkout",
@@ -6192,11 +6338,11 @@
         },
         {
           "source": "instagram",
-          "views": 645
+          "views": 644
         },
         {
           "source": "google",
-          "views": 532
+          "views": 530
         },
         {
           "source": "whatsapp",
@@ -6215,7 +6361,7 @@
     "/api/v1/suppliers": {
       "items": [
         {
-          "id": "6d6dac9c-698b-4420-9298-b9fc2786f4ba",
+          "id": "193cbab2-6d64-48c7-b101-9db1ec97f714",
           "name": "Importadora del Sur",
           "taxId": "30712345678",
           "email": "ventas@sur.test",
@@ -6229,7 +6375,7 @@
       ]
     },
     "/api/v1/suppliers/:id": {
-      "id": "6d6dac9c-698b-4420-9298-b9fc2786f4ba",
+      "id": "193cbab2-6d64-48c7-b101-9db1ec97f714",
       "name": "Importadora del Sur",
       "taxId": "30712345678",
       "email": "ventas@sur.test",
@@ -6238,108 +6384,108 @@
       "country": null,
       "notes": null,
       "active": true,
-      "createdAtUtc": "2026-10-11T22:10:07.847872Z",
+      "createdAtUtc": "2026-10-11T22:19:25.239495Z",
       "balanceMinor": 0,
       "purchases": []
     },
     "/api/v1/support/conversations": {
       "items": [
         {
-          "id": "404a0604-aaeb-4b45-97a7-7ebec005bf0f",
-          "orderId": "88060b4a-ea5e-45cf-86a6-a5476c40b184",
-          "customerEmail": "agustina.vega9@example.com",
+          "id": "dca8ed15-88d7-41cc-a328-ec1e505b4077",
+          "orderId": "d7b6384b-7fa7-44d1-be71-eb6f09509776",
+          "customerEmail": "julieta.castro6@example.com",
           "status": "OPEN",
           "unreadForCustomer": 0,
           "unreadForStaff": 1,
-          "createdAtUtc": "2026-10-09T19:10:07.565647Z",
-          "lastMessageAtUtc": "2026-10-09T19:40:07.565647Z"
+          "createdAtUtc": "2026-10-09T19:19:24.941636Z",
+          "lastMessageAtUtc": "2026-10-09T19:49:24.941636Z"
         },
         {
-          "id": "2bb68e89-16ac-4f89-9243-4885c01b17c5",
-          "orderId": "c7858902-af04-44bd-aa80-6d35297f3044",
-          "customerEmail": "camila.ortiz2@example.com",
+          "id": "52d323fe-f004-4886-9d9c-621126b5a607",
+          "orderId": "7201a5d9-7746-4f87-8867-95e85ab5f7aa",
+          "customerEmail": "valentina.ruiz3@example.com",
           "status": "OPEN",
           "unreadForCustomer": 0,
           "unreadForStaff": 1,
-          "createdAtUtc": "2026-10-07T17:10:07.567468Z",
-          "lastMessageAtUtc": "2026-10-07T17:40:07.567468Z"
+          "createdAtUtc": "2026-10-07T17:19:24.943648Z",
+          "lastMessageAtUtc": "2026-10-07T17:49:24.943648Z"
         },
         {
-          "id": "5d770adc-0d72-4444-b027-00102a270c85",
-          "orderId": "155d681c-6b20-4563-b6ef-e43b4bfac34f",
+          "id": "ce80d3a4-b2a7-463f-8d9b-096bc79fbcfa",
+          "orderId": "052ef55e-9401-486b-91e1-8547b1b742a2",
           "customerEmail": "santiago.peralta2@example.com",
           "status": "OPEN",
           "unreadForCustomer": 1,
           "unreadForStaff": 0,
-          "createdAtUtc": "2026-10-11T11:10:07.539342Z",
-          "lastMessageAtUtc": "2026-10-11T11:40:07.539342Z"
+          "createdAtUtc": "2026-10-11T11:19:24.900366Z",
+          "lastMessageAtUtc": "2026-10-11T11:49:24.900366Z"
         },
         {
-          "id": "d68a9d2e-fef6-4aeb-9957-3a64eeed1684",
-          "orderId": "2098162f-c527-4788-a107-2b1a40635405",
-          "customerEmail": "julieta.castro6@example.com",
+          "id": "1858a781-acf7-4362-a3f1-ddb85fa3edac",
+          "orderId": "d4494ec6-317f-41cd-9435-640a0d2bb6cf",
+          "customerEmail": "agustina.vega9@example.com",
           "status": "OPEN",
           "unreadForCustomer": 1,
           "unreadForStaff": 0,
-          "createdAtUtc": "2026-10-10T18:10:07.564734Z",
-          "lastMessageAtUtc": "2026-10-10T18:40:07.564734Z"
+          "createdAtUtc": "2026-10-10T18:19:24.936712Z",
+          "lastMessageAtUtc": "2026-10-10T18:49:24.936712Z"
         },
         {
-          "id": "3acc161c-ab1b-48c7-bb1d-abf93572c98f",
-          "orderId": "8827b6a5-68e3-46db-a1d4-2719f45d8ead",
-          "customerEmail": "valentina.ruiz3@example.com",
+          "id": "f5036dd4-dbaa-460e-a52a-59c20aaa4e30",
+          "orderId": "5a57ad74-e36d-42f7-861e-db56c94f5a7f",
+          "customerEmail": "camila.ortiz2@example.com",
           "status": "CLOSED",
           "unreadForCustomer": 1,
           "unreadForStaff": 0,
-          "createdAtUtc": "2026-10-08T07:10:07.566571Z",
-          "lastMessageAtUtc": "2026-10-08T07:40:07.566571Z"
+          "createdAtUtc": "2026-10-08T07:19:24.94264Z",
+          "lastMessageAtUtc": "2026-10-08T07:49:24.94264Z"
         }
       ],
       "unreadTotal": 2
     },
     "/api/v1/support/conversations/:id/messages": {
       "conversation": {
-        "id": "404a0604-aaeb-4b45-97a7-7ebec005bf0f",
-        "orderId": "88060b4a-ea5e-45cf-86a6-a5476c40b184",
-        "customerEmail": "agustina.vega9@example.com",
+        "id": "dca8ed15-88d7-41cc-a328-ec1e505b4077",
+        "orderId": "d7b6384b-7fa7-44d1-be71-eb6f09509776",
+        "customerEmail": "julieta.castro6@example.com",
         "status": "OPEN",
         "unreadForCustomer": 0,
         "unreadForStaff": 0,
-        "createdAtUtc": "2026-10-09T19:10:07.565647Z",
-        "lastMessageAtUtc": "2026-10-09T19:40:07.565647Z"
+        "createdAtUtc": "2026-10-09T19:19:24.941636Z",
+        "lastMessageAtUtc": "2026-10-09T19:49:24.941636Z"
       },
       "items": [
         {
-          "id": "dd8b6a45-0314-412f-8cc6-6f7d1b397b7d",
+          "id": "573607a2-aa5a-475a-851b-ca5b66009de4",
           "isFromStaff": false,
-          "authorName": "agustina.vega9@example.com",
+          "authorName": "julieta.castro6@example.com",
           "body": "\u00BFPuedo cambiar el color por el azul?",
           "attachment": null,
-          "createdAtUtc": "2026-10-09T19:10:07.565647Z"
+          "createdAtUtc": "2026-10-09T19:19:24.941636Z"
         }
       ]
     },
     "/api/v1/tenants": {
       "items": [
         {
-          "id": "78086566-4a06-4bc3-afa6-955ddd1479a1",
-          "name": "Tienda seed01b9bc57",
-          "subdomain": "seed01b9bc57",
+          "id": "68aa7712-24ec-4d9c-bcde-af64d0f8a03b",
+          "name": "Tienda seed00a78fcb",
+          "subdomain": "seed00a78fcb",
           "customDomain": null,
           "status": "ACTIVE",
-          "createdAtUtc": "2026-10-11T22:10:04.687429Z"
+          "createdAtUtc": "2026-10-11T22:19:22.042607Z"
         }
       ],
       "nextCursor": null,
       "hasMore": false
     },
     "/api/v1/tenants/:id": {
-      "id": "78086566-4a06-4bc3-afa6-955ddd1479a1",
-      "name": "Tienda seed01b9bc57",
-      "subdomain": "seed01b9bc57",
+      "id": "68aa7712-24ec-4d9c-bcde-af64d0f8a03b",
+      "name": "Tienda seed00a78fcb",
+      "subdomain": "seed00a78fcb",
       "customDomain": null,
       "status": "ACTIVE",
-      "createdAtUtc": "2026-10-11T22:10:04.687429Z"
+      "createdAtUtc": "2026-10-11T22:19:22.042607Z"
     },
     "/api/v1/tenants/check": {
       "subdomainValid": true,
@@ -6347,7 +6493,7 @@
       "nameAvailable": true
     },
     "/api/v1/tenants/domain-status": {
-      "subdomain": "seed01b9bc57.localhost",
+      "subdomain": "seed00a78fcb.localhost",
       "customDomain": null,
       "platformTarget": "localhost"
     },
@@ -6355,13 +6501,13 @@
       "days": 30,
       "items": [
         {
-          "tenantId": "78086566-4a06-4bc3-afa6-955ddd1479a1",
+          "tenantId": "68aa7712-24ec-4d9c-bcde-af64d0f8a03b",
           "orders": 71,
           "revenueMinor": 2104550000,
           "previousRevenueMinor": 1267000000,
           "currency": "ARS",
           "publishedProducts": 5,
-          "lastOrderAtUtc": "2026-10-10T23:22:05.535811Z"
+          "lastOrderAtUtc": "2026-10-10T23:31:22.942553Z"
         }
       ]
     },

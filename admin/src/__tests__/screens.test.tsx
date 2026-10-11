@@ -38,10 +38,13 @@ afterEach(() => {
 
 /** Lo que React reporta cuando un componente revienta al renderizar. */
 function renderCrashes() {
-  return errors.filter((args) =>
-    args.some(
-      (a) => a instanceof Error || (typeof a === 'string' && /The above error occurred|Uncaught/.test(a)),
-    ),
+  return errors.filter(
+    (args) =>
+      // jsdom avisa que no navega (descargas, links externos): no es un error del panel.
+      !args.some((a) => String(a).includes('Not implemented: navigation')) &&
+      args.some(
+        (a) => a instanceof Error || (typeof a === 'string' && /The above error occurred|Uncaught/.test(a)),
+      ),
   );
 }
 

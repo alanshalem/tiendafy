@@ -4,7 +4,7 @@
 // Postgres de desarrollo levantado) y deja el archivo formateado.
 //
 //   pnpm fixtures:api
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -16,5 +16,5 @@ execFileSync(
   ['test', 'backend/tests/IntegrationTests', '--filter', 'FullyQualifiedName~ApiFixturesExport'],
   { cwd: root, stdio: 'inherit', env: { ...process.env, TIENDAFY_EXPORT_FIXTURES: target } },
 );
-execFileSync('pnpm', ['exec', 'prettier', '--write', target], { cwd: root, stdio: 'inherit', shell: true });
+execSync(`pnpm exec prettier --write "${target}"`, { cwd: root, stdio: 'inherit' });
 console.log(`Fixtures actualizadas: ${path.relative(root, target)}`);

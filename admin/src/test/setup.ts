@@ -37,6 +37,17 @@ if (typeof window !== 'undefined') {
   window.IntersectionObserver ??= NoopObserver as unknown as typeof IntersectionObserver;
   window.scrollTo = () => {};
   Element.prototype.scrollIntoView ??= () => {};
+  // <dialog> nativo: jsdom tiene el elemento pero no su comportamiento modal.
+  HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.show ??= function (this: HTMLDialogElement) {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+    this.open = false;
+    this.dispatchEvent(new Event('close'));
+  };
   URL.createObjectURL ??= () => 'blob:test';
   URL.revokeObjectURL ??= () => {};
 }
