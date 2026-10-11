@@ -113,6 +113,29 @@ describe('presets de marca', () => {
     }
   });
 
+  it('las marcas traen el texto escrito, no títulos vacíos', () => {
+    // Una home de marca con las secciones puestas pero sin contenido es peor
+    // que no tener esas secciones: se publica con encabezados huérfanos.
+    for (const id of ['puente-oriente', 'smartfox']) {
+      const preset = byId(id);
+
+      const faq = preset.sections.find((s) => s.type === 'faq');
+      const preguntas = (faq?.data?.items ?? []) as { question?: string; answer?: string }[];
+      expect(preguntas.length, `${id}: el FAQ viene vacío`).toBeGreaterThanOrEqual(3);
+      for (const p of preguntas) {
+        expect(p.question).toBeTruthy();
+        expect(p.answer).toBeTruthy();
+      }
+
+      const barra = preset.sections.find((s) => s.type === 'info-bar');
+      const items = (barra?.data?.items ?? []) as { title?: string }[];
+      expect(items.length, `${id}: la barra de información viene vacía`).toBe(3);
+
+      const bloque = preset.sections.find((s) => s.type === 'image-text');
+      expect((bloque?.data?.description as string)?.length ?? 0).toBeGreaterThan(80);
+    }
+  });
+
   it('ningún preset repite id', () => {
     const ids = themePresets.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);

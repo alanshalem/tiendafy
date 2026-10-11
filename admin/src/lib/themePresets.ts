@@ -24,6 +24,13 @@ interface ThemeSectionPreset {
   visible: boolean;
   title?: string;
   variant?: 'centered' | 'banner' | 'minimal';
+  /**
+   * Contenido de la sección (el `data` del tema: items de la barra, preguntas
+   * del FAQ, texto del bloque con imagen…). Un preset de marca sin texto deja
+   * una home con títulos vacíos, que es peor que no tener la sección: lo que
+   * se escribe acá ya está en la voz de esa marca y el comercio lo edita.
+   */
+  data?: Record<string, unknown>;
 }
 
 export interface ThemePreset {
@@ -377,14 +384,73 @@ export const themePresets: ThemePreset[] = [
         'Buscamos el proveedor, negociamos en origen y te entregamos la mercadería nacionalizada en tu depósito.',
     },
     announcement: 'Importamos de China: desde una caja hasta un contenedor.',
+    // Voz de la guía: números antes que adjetivos, y la jerga explicada la
+    // primera vez que aparece. Nada de "envíos rapidísimos".
     sections: [
       { type: 'carousel', visible: true },
       { type: 'category-banners', visible: true, title: 'Qué traemos' },
       { type: 'featured', visible: true, title: 'Destacados' },
-      { type: 'image-text', visible: true, title: 'Cómo trabajamos' },
+      {
+        type: 'image-text',
+        visible: true,
+        title: 'Cómo trabajamos',
+        data: {
+          title: 'Cómo trabajamos',
+          description:
+            'Buscamos el proveedor, negociamos el precio en origen y te entregamos la mercadería nacionalizada en tu depósito. Estamos en China: vemos la fábrica, revisamos la muestra y seguimos el contenedor hasta que llega.',
+          buttonText: 'Pedí tu cotización',
+        },
+      },
       { type: 'brands', visible: true, title: 'Marcas que importamos' },
-      { type: 'info-bar', visible: true },
-      { type: 'faq', visible: true, title: 'Preguntas sobre importar' },
+      {
+        type: 'info-bar',
+        visible: true,
+        data: {
+          items: [
+            {
+              icon: 'shipping',
+              title: 'Presencia en origen',
+              description: 'Negociamos y revisamos en China',
+            },
+            { icon: 'security', title: 'Nacionalizado', description: 'Despacho de aduana incluido' },
+            {
+              icon: 'support',
+              title: 'Te acompañamos',
+              description: 'Hasta que la mercadería está en tu depósito',
+            },
+          ],
+        },
+      },
+      {
+        type: 'faq',
+        visible: true,
+        title: 'Preguntas sobre importar',
+        data: {
+          title: 'Preguntas sobre importar',
+          items: [
+            {
+              question: '¿Cuál es el pedido mínimo?',
+              answer:
+                'Depende de la fábrica. El MOQ (pedido mínimo, la cantidad más chica que acepta producir un proveedor) suele arrancar en 500 unidades por modelo, pero hay productos que salen desde mucho menos. Te lo decimos antes de que pongas un peso.',
+            },
+            {
+              question: '¿Cuánto tarda en llegar?',
+              answer:
+                'Un contenedor de Shenzhen a Buenos Aires son unos 35 días de tránsito marítimo, más la producción y el despacho. Si se demora, te avisamos ese mismo día.',
+            },
+            {
+              question: '¿Qué significan FOB y CIF?',
+              answer:
+                'FOB es el precio de la mercadería puesta en el puerto de origen: de ahí en adelante el flete y el seguro corren por tu cuenta. CIF ya los incluye hasta el puerto de destino. Nosotros te cotizamos las dos formas para que compares.',
+            },
+            {
+              question: '¿Puedo traer poca cantidad?',
+              answer:
+                'Sí. Consolidamos carga de varios clientes en un mismo contenedor, así podés traer desde una caja sin pagar un contenedor entero.',
+            },
+          ],
+        },
+      },
     ],
   },
   {
@@ -429,12 +495,58 @@ export const themePresets: ThemePreset[] = [
         'Motos para moverse todos los días: al laburo, a la facu, a repartir. Astuta por naturaleza.',
     },
     announcement: 'Repuestos en todo el país. La garantía la responde el importador, acá.',
+    // Voz de la guía: datos antes que adjetivos, picardía sin chiste, y nunca
+    // invitar a correr. Los valores entre corchetes se reemplazan por los
+    // reales de cada modelo cuando se cargue la línea.
     sections: [
       { type: 'carousel', visible: true },
       { type: 'featured', visible: true, title: 'Modelos' },
-      { type: 'image-text', visible: true, title: 'Para el que labura arriba de la moto' },
-      { type: 'info-bar', visible: true },
-      { type: 'faq', visible: true, title: 'Service, garantía y repuestos' },
+      {
+        type: 'image-text',
+        visible: true,
+        title: 'Para el que labura arriba de la moto',
+        data: {
+          title: 'Para el que labura arriba de la moto',
+          description:
+            'Poco consumo, service simple y repuestos en todo el país. Motos urbanas para moverse todos los días: al laburo, a la facu, a repartir. Hacé la cuenta.',
+          buttonText: 'Ver modelos',
+        },
+      },
+      {
+        type: 'info-bar',
+        visible: true,
+        data: {
+          items: [
+            { icon: 'support', title: 'Service simple', description: 'Repuestos en todo el país' },
+            { icon: 'security', title: 'Garantía local', description: 'La responde el importador, acá' },
+            { icon: 'card', title: 'Precio claro', description: 'Precio final, cuotas y vigencia' },
+          ],
+        },
+      },
+      {
+        type: 'faq',
+        visible: true,
+        title: 'Service, garantía y repuestos',
+        data: {
+          title: 'Service, garantía y repuestos',
+          items: [
+            {
+              question: '¿Dónde hago el service?',
+              answer:
+                'En cualquier taller de la red. El service es simple y las piezas son estándar, así que no dependés de un único lugar.',
+            },
+            {
+              question: '¿Quién responde la garantía?',
+              answer:
+                'El importador, acá en Argentina. No hay que mandar nada al exterior ni esperar una respuesta de otro país.',
+            },
+            {
+              question: '¿Consigo repuestos?',
+              answer: 'Sí, en todo el país. Es parte de por qué elegimos esta línea y no otra.',
+            },
+          ],
+        },
+      },
     ],
   },
   {
@@ -460,7 +572,17 @@ export const themePresets: ThemePreset[] = [
       { type: 'carousel', visible: true },
       { type: 'category-banners', visible: true, title: 'Por disciplina' },
       { type: 'featured', visible: true, title: 'Lo más pedido' },
-      { type: 'info-bar', visible: true },
+      {
+        type: 'info-bar',
+        visible: true,
+        data: {
+          items: [
+            { icon: 'shipping', title: 'Envíos a todo el país' },
+            { icon: 'security', title: 'Garantía escrita' },
+            { icon: 'support', title: 'Asesoramiento para armar tu gimnasio' },
+          ],
+        },
+      },
     ],
     comingSoon: {
       enabled: true,
@@ -492,8 +614,23 @@ export const themePresets: ThemePreset[] = [
       { type: 'carousel', visible: true },
       { type: 'category-banners', visible: true, title: 'Perros, gatos y más' },
       { type: 'featured', visible: true, title: 'Destacados' },
-      { type: 'info-bar', visible: true },
-      { type: 'newsletter', visible: true, title: 'Novedades y ofertas' },
+      {
+        type: 'info-bar',
+        visible: true,
+        data: {
+          items: [
+            { icon: 'shipping', title: 'Envío a domicilio' },
+            { icon: 'returns', title: 'Cambios sin vueltas' },
+            { icon: 'support', title: 'Te ayudamos a elegir' },
+          ],
+        },
+      },
+      {
+        type: 'newsletter',
+        visible: true,
+        title: 'Novedades y ofertas',
+        data: { title: 'Novedades y ofertas', text: 'Dejanos tu email y te avisamos de las promos.' },
+      },
     ],
     comingSoon: {
       enabled: true,

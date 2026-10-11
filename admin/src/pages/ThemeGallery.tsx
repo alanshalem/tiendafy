@@ -73,7 +73,9 @@ function presetToConfig(preset: ThemePreset) {
       id: `${typeMap[s.type] ?? s.type}-${i}`,
       type: typeMap[s.type] ?? s.type,
       visible: s.visible,
-      data: { title: s.title ?? '', images: [], carousel: true },
+      // El contenido del preset manda sobre los defaults: una sección de marca
+      // trae sus preguntas, sus items y su texto ya escritos.
+      data: { title: s.title ?? '', images: [], carousel: true, ...s.data },
     })),
   };
 }
