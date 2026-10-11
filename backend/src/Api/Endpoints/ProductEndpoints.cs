@@ -1,11 +1,9 @@
 using Api.Auth;
-using Api.Import;
 using Catalog.Core;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateProduct;
 using Catalog.Core.Features.UpdateProduct;
 using Identity.Infrastructure;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;

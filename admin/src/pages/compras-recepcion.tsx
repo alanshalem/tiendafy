@@ -1,12 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Package } from 'lucide-react';
-import { Button, FormField, Input, Modal, Select, useToast } from '@tiendafy/ui';
+import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatMoney, formatNumber } from '../lib/format';
-import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
+import { formatNumber } from '../lib/format';
 import { CameraBox, useScanner } from './Products/Scanner';
 import type { PoDetail } from './compras-tipos';
 

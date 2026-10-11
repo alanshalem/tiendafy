@@ -23,10 +23,6 @@ export interface CatalogProduct {
 export const variantLabel = (p: { name: string }, v: { optionValues: string[] }): string =>
   `${p.name}${v.optionValues.length ? ` · ${v.optionValues.join(' / ')}` : ''}`;
 
-/** Filtro de búsqueda por nombre de producto o SKU (q ya en minúsculas). */
-export const matchesProduct = (p: { name: string; variants: { sku: string }[] }, q: string): boolean =>
-  q === '' || p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q));
-
 /** Stock de muchas variantes, partido en chunks para no pasarse del largo de URL. */
 export async function fetchStockChunked(variantIds: string[]): Promise<StockItem[]> {
   if (variantIds.length === 0) return [];

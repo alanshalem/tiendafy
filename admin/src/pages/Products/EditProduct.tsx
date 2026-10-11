@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Trash2, GripVertical, Loader2, Sparkles } from 'lucide-react';
+import { Trash2, GripVertical, Loader2, Sparkles } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, Textarea, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';

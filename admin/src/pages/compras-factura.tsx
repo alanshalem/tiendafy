@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, Loader2, Sparkles, Upload } from 'lucide-react';
-import { Badge, Button, Card, FormField, Input, Modal, Select, useToast } from '@tiendafy/ui';
+import { Badge, Button, Card, FormField, Input, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { formatDate, formatNumber } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { useAiEnabled } from '../lib/useAi';
 import { CONFIDENCE_TONE, SCAN_ACCEPT, SCAN_MAX_BYTES } from './compras-tipos';
@@ -157,13 +157,7 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
 
 // ------------------------------------------------ Lectura de la factura
 
-export function InvoiceScanButton({
-  poId,
-  onScanned,
-}: {
-  poId: string;
-  onScanned: (scan: ScannedInvoice) => void;
-}) {
+function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan: ScannedInvoice) => void }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -213,7 +207,7 @@ export function InvoiceScanButton({
  * leer— porque el valor está en revisar: un número de factura mal leído entra
  * derecho al libro de IVA y a la cuenta corriente del proveedor.
  */
-export function ScanReview({
+function ScanReview({
   scan,
   onApply,
   onDismiss,

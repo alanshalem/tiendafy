@@ -1,55 +1,20 @@
-import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  FileSpreadsheet,
-  Loader2,
-  Package,
-  Plus,
-  Ship,
-  Sparkles,
-  Trash2,
-  Upload,
-} from 'lucide-react';
-import {
-  Badge,
-  Button,
-  Card,
-  FormField,
-  Input,
-  Modal,
-  Select,
-  Tabs,
-  useConfirm,
-  useToast,
-  type BadgeVariant,
-} from '@tiendafy/ui';
+import { ArrowLeft, Package, Plus, Ship } from 'lucide-react';
+import { Badge, Button, Card, Input, Select, Tabs, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { VariantPicker } from '../components/VariantPicker';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_HEAD_STICKY_SUBTLE } from '../lib/styles';
-import { downloadBlob } from '../lib/download';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
-import { CameraBox, useScanner } from './Products/Scanner';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
-import { useAiEnabled } from '../lib/useAi';
 import { PO_PAGE_SIZE, PO_STATUS, NEXT_STEPS } from './compras-tipos';
-import type {
-  PoListItem,
-  PoDetail,
-  Suggestion,
-  FormItem,
-  FormExpense,
-  PoForm,
-  PurchasingSummary,
-} from './compras-tipos';
+import type { PoListItem, PoDetail, Suggestion, FormItem, PoForm, PurchasingSummary } from './compras-tipos';
 import { VatBookDownload, SupplierInvoiceCard } from './compras-factura';
 import { ItemsEditor } from './compras-items';
 import { ExpensesEditor } from './compras-gastos';

@@ -17,5 +17,3 @@ export const EDITOR_MSG = {
   /** iframe → admin: el preview terminó de montar y escucha mensajes. */
   previewReady: 'tiendafy:preview-ready',
 } as const;
-
-export type EditorMsgType = (typeof EDITOR_MSG)[keyof typeof EDITOR_MSG];

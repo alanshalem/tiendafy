@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Payments.Contracts;
-using Payments.Core.Domain;
 using SharedKernel.Common;
 
 namespace Payments.Infrastructure.Payway;

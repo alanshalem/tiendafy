@@ -32,7 +32,7 @@ public static class ShopAuthEndpoints
             var customer = created.Value;
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             db.Customers.Add(customer);
-            var token = await IssueSessionAsync(db, customer.Id, tid, ct);
+            var token = IssueSession(db, customer.Id, tid);
             var verifyTok = ShopAuth.NewToken();
             db.CustomerTokens.Add(CustomerToken.Issue(tid, customer.Id, CustomerToken.PurposeVerify, verifyTok, TimeSpan.FromDays(3)));
             await db.SaveChangesAsync(ct);
@@ -79,7 +79,7 @@ public static class ShopAuthEndpoints
             customer.SetPasswordHash(ShopAuth.HashPassword(customer, req.Password));
             customer.MarkEmailVerified(); // resetear prueba acceso al email
             row.Consume();
-            var session = await IssueSessionAsync(db, customer.Id, tid, ct);
+            var session = IssueSession(db, customer.Id, tid);
             await db.SaveChangesAsync(ct);
             ShopAuth.SetSessionCookie(http, tid, session);
             return Results.Ok(new { customer = ToDto(customer) });
@@ -115,7 +115,7 @@ public static class ShopAuthEndpoints
             }
             if (!ShopAuth.VerifyPassword(customer, req.Password ?? string.Empty))
                 return Problem("ShopAuth.InvalidCredentials", "Email o contraseña incorrectos.", 401);
-            var token = await IssueSessionAsync(db, customer.Id, tid, ct);
+            var token = IssueSession(db, customer.Id, tid);
             await db.SaveChangesAsync(ct);
             ShopAuth.SetSessionCookie(http, tid, token);
             return Results.Ok(new { customer = ToDto(customer) });
@@ -221,7 +221,7 @@ public static class ShopAuthEndpoints
             {
                 customer.LinkGoogle(sub);
             }
-            var token = await IssueSessionAsync(db, customer.Id, tid, ct);
+            var token = IssueSession(db, customer.Id, tid);
             await db.SaveChangesAsync(ct);
 
             // Sesión en cookie HttpOnly (ya no viaja el token por la URL). El storefront
@@ -234,11 +234,14 @@ public static class ShopAuthEndpoints
         return group;
     }
 
-    private static async Task<string> IssueSessionAsync(CustomersDbContext db, Guid customerId, Guid tid, CancellationToken ct)
+    /// <summary>
+    /// Agrega una sesión nueva al contexto y devuelve su token. No guarda: lo
+    /// hace quien la pidió, junto con el resto de lo que cambió en el request.
+    /// </summary>
+    private static string IssueSession(CustomersDbContext db, Guid customerId, Guid tid)
     {
         var token = ShopAuth.NewToken();
         db.CustomerSessions.Add(CustomerSession.Issue(customerId, tid, token, ShopAuth.SessionLifetime));
-        await Task.CompletedTask;
         return token;
     }
 

@@ -1,4 +1,3 @@
-using Catalog.Infrastructure;
 using Catalog.Infrastructure.Persistence;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;

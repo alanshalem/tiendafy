@@ -1,10 +1,10 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
-import { Button, Card, FormField, Input } from '@tiendafy/ui';
-import { Plus, Trash2 } from 'lucide-react';
+import { Card, Input } from '@tiendafy/ui';
+import { Trash2 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { VariantPicker } from '../components/VariantPicker';
 import { InfoDot } from '../components/charts';
-import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_HEAD_STICKY_SUBTLE } from '../lib/styles';
+import { TABLE_HEAD_STICKY } from '../lib/styles';
 import type { FormItem, PoDetail, PoForm } from './compras-tipos';
 
 /** Que se compra y a cuanto: las lineas de la orden. */

@@ -1,7 +1,6 @@
-import { Button, Card, FormField, Input, Select } from '@tiendafy/ui';
+import { Button, Card, Input, Select } from '@tiendafy/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
-import { formatMoney } from '../lib/format';
 import type { FormExpense, PoForm } from './compras-tipos';
 
 /**

@@ -1,5 +1,4 @@
 using Catalog.Core.Domain;
-using SharedKernel.Common;
 using static UnitTests.TestData;
 
 namespace UnitTests.Catalog;

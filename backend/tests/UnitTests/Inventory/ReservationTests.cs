@@ -1,5 +1,4 @@
 using Inventory.Core.Domain;
-using SharedKernel.Common;
 using static UnitTests.TestData;
 
 namespace UnitTests.Inventory;
