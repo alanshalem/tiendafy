@@ -74,13 +74,7 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
 
         if (filter.Status is { } status) query = query.Where(p => p.Status == status);
 
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var term = $"%{filter.Search.Trim()}%";
-            query = query.Where(p =>
-                EF.Functions.ILike(p.Name, term)
-                || p.Variants.Any(v => EF.Functions.ILike(v.Sku, term)));
-        }
+        query = ProductTextSearch.Matching(query, filter.Search, includeSku: true);
 
         if (filter.CategoryId is { } categoryId)
             query = await FilterBySubtreeAsync(query, tenantId, categoryId, ct);
@@ -150,8 +144,7 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         var baseQuery = context.Products.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active);
 
-        if (!string.IsNullOrWhiteSpace(filter.Query))
-            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Name, $"%{filter.Query.Trim()}%"));
+        baseQuery = ProductTextSearch.Matching(baseQuery, filter.Query, includeSku: false);
 
         if (filter.CategoryId is { } categoryId)
         {

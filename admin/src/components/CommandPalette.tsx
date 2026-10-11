@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, CornerDownLeft, Package } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { api } from '../lib/api';
-import { useStore } from '../context/StoreContext';
+import { useProductSearch } from '../lib/useProductSearch';
 import { usePermissions } from '../context/PermissionsContext';
 import { foldText } from '../lib/text';
 
@@ -149,6 +148,13 @@ interface ProductHit {
   image: string | null;
 }
 
+/** Lo que devuelve /products: alcanza con el nombre y la primera foto. */
+interface ProductDto {
+  id: string;
+  name: string;
+  images: { url: string }[];
+}
+
 /** Match laxo: todas las palabras de la query aparecen en el texto (sin acentos). */
 function matches(query: string, text: string): boolean {
   const words = foldText(query).split(/\s+/).filter(Boolean);
@@ -160,12 +166,10 @@ type Item = { kind: 'nav'; cmd: NavCommand } | { kind: 'product'; product: Produ
 
 export function CommandPalette() {
   const navigate = useNavigate();
-  const { store } = useStore();
   const { can } = usePermissions();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
-  const [products, setProducts] = useState<ProductHit[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -184,8 +188,8 @@ export function CommandPalette() {
   }, []);
 
   // Al abrir: limpiar búsqueda y foco al input. SOLO depende de `open`: si
-  // dependiera de `products`, al resolver la carga re-ejecutaría y BORRARÍA
-  // lo que el usuario ya tipeó (bug real cazado por el E2E).
+  // dependiera de los resultados, al llegar re-ejecutaría y BORRARÍA lo que
+  // el usuario ya tipeó (bug real cazado por el E2E).
   useEffect(() => {
     if (!open) return;
     setQ('');
@@ -193,38 +197,27 @@ export function CommandPalette() {
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
-  // Carga (una vez por tienda) de productos para buscar por nombre.
-  useEffect(() => {
-    if (open && products === null && store && can('catalog.write')) {
-      api
-        .get<{ items: { id: string; name: string; images: { url: string }[] }[] }>(
-          '/api/v1/products?limit=100',
-        )
-        .then((r) =>
-          setProducts(r.items.map((p) => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null }))),
-        )
-        .catch(() => setProducts([]));
-    }
-  }, [open, products, store, can]);
-
-  // Cache de productos por tienda: al cambiar de tienda se re-carga.
-  useEffect(() => {
-    setProducts(null);
-  }, [store?.id]);
+  // Productos: los busca la base, sin tildes y con las palabras en cualquier
+  // orden, igual que el filtro de abajo. Antes se traían los primeros cien y
+  // se filtraba acá: en una tienda con miles, el producto ciento uno no
+  // aparecía nunca en la paleta.
+  const productQuery = open && q.trim().length >= 2 && can('catalog.write') ? q : '';
+  const search = useProductSearch<ProductDto>(productQuery, { enabled: productQuery !== '' });
+  const products = useMemo<ProductHit[]>(
+    () =>
+      (search.data?.items ?? []).map((p) => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null })),
+    [search.data],
+  );
 
   const items = useMemo<Item[]>(() => {
     const nav = NAV.filter((c) => !c.perm || (Array.isArray(c.perm) ? c.perm.some(can) : can(c.perm)))
       .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''}`))
       .map((cmd): Item => ({ kind: 'nav', cmd }));
-    const prods =
-      q.trim().length >= 2
-        ? (products ?? [])
-            .filter((p) => matches(q, p.name))
-            .slice(0, 6)
-            .map((product): Item => ({ kind: 'product', product }))
-        : [];
+    const prods = productQuery
+      ? products.slice(0, 6).map((product): Item => ({ kind: 'product', product }))
+      : [];
     return [...prods, ...nav].slice(0, 14);
-  }, [q, products, can]);
+  }, [q, productQuery, products, can]);
 
   useEffect(() => {
     setActive(0);

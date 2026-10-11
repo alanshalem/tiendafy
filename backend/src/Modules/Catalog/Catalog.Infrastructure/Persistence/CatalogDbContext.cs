@@ -25,6 +25,10 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Búsqueda sin tildes (ver ProductTextSearch). La extensión es de la base
+        // entera; la declara el catálogo porque es quien la usa.
+        modelBuilder.HasPostgresExtension("unaccent");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
         // Filtro multi-tenant global (las configs viven en clases aparte sin acceso
         // al contexto, así que se agrega acá tras aplicarlas).

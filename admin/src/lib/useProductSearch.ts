@@ -14,7 +14,7 @@ const RESULTS = 20;
  * antes de poder escribir la primera letra, y el resultado igual entra por una
  * lista de veinte. Acá busca la base y vuelven solo los que se van a mostrar.
  */
-export function useProductSearch<T>(query: string, options?: { activeOnly?: boolean }) {
+export function useProductSearch<T>(query: string, options?: { activeOnly?: boolean; enabled?: boolean }) {
   const { store } = useStore();
   const q = useDebouncedValue(query, 300).trim();
   const activeOnly = options?.activeOnly ?? false;
@@ -27,7 +27,8 @@ export function useProductSearch<T>(query: string, options?: { activeOnly?: bool
       if (activeOnly) params.set('status', 'ACTIVE');
       return api.get<{ items: T[]; total: number }>(`/api/v1/products?${params}`);
     },
-    enabled: !!store,
+    // `enabled: false` para quien solo busca a veces (la paleta, cerrada, no).
+    enabled: !!store && (options?.enabled ?? true),
     // Mantener lo anterior en pantalla mientras se teclea evita que la lista
     // parpadee a vacío entre letra y letra.
     placeholderData: (previous) => previous,

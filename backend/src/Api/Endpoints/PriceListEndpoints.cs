@@ -132,13 +132,8 @@ public static class PriceListEndpoints
             if (!await db.PriceLists.AsNoTracking().AnyAsync(l => l.Id == id && l.TenantId == tid, ct))
                 return Results.NotFound();
 
-            var query = db.Products.AsNoTracking().Where(p => p.TenantId == tid);
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = $"%{q.Trim()}%";
-                query = query.Where(p => EF.Functions.ILike(p.Name, term)
-                                         || p.Variants.Any(v => EF.Functions.ILike(v.Sku, term)));
-            }
+            var query = ProductTextSearch.Matching(
+                db.Products.AsNoTracking().Where(p => p.TenantId == tid), q, includeSku: true);
 
             var (products, total) = await query
                 .OrderBy(p => p.Name)
