@@ -13,8 +13,28 @@ public sealed class Shopper(Merchant store)
     /// <summary>La URL de vuelta que manda el storefront: un subdominio propio.</summary>
     public string ReturnUrl => $"http://{store.Subdomain}.localhost:3000";
 
+    /// <summary>
+    /// Como el storefront: header de la tienda y Origin propio (las escrituras
+    /// del chat exigen mismo origen). La sesión, si hay, viaja en la cookie.
+    /// </summary>
     public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null) =>
-        store.SendAsync(_client, method, path, body);
+        SendAsync(method, path, body is null ? null : JsonContent.Create(body, options: Merchant.Json));
+
+    public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content)
+    {
+        var req = new HttpRequestMessage(method, path) { Content = content };
+        req.Headers.Add("X-Tenant-Id", store.TenantId.ToString());
+        req.Headers.Add("Origin", ReturnUrl);
+        return _client.SendAsync(req);
+    }
+
+    /// <summary>Un pedido que tiene que salir bien (2xx), sin leer el cuerpo.</summary>
+    public async Task<HttpResponseMessage> ExpectOkAsync(HttpMethod method, string path, object? body = null)
+    {
+        var res = await SendAsync(method, path, body);
+        Assert.True(res.IsSuccessStatusCode, $"{method} {path} → {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
+        return res;
+    }
 
     public async Task<JsonElement> ExpectJsonAsync(HttpMethod method, string path, object? body = null)
     {

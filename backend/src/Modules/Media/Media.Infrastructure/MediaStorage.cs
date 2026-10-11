@@ -215,6 +215,11 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
             Key = key,
             Expires = DateTime.UtcNow.Add(validFor),
             Verb = HttpVerb.GET,
+            // El SDK firma https por defecto aunque el endpoint sea http: con
+            // MinIO de desarrollo los adjuntos del chat salían con un link roto.
+            Protocol = options.Endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                ? Protocol.HTTP
+                : Protocol.HTTPS,
         });
 
     public async Task DeleteAsync(string url, CancellationToken ct = default)
