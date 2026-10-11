@@ -38,8 +38,22 @@ public sealed partial class ApiFixturesExport
         var store = seeded.Store;
         var routes = new SortedDictionary<string, JsonNode?>(StringComparer.Ordinal);
 
+        // Primero el comprador (su compra mueve el stock sembrado): así todo lo
+        // que exporta el dueño después ya refleja esa venta.
+        var (shopper, conversationId) = await ShopperWithHistoryAsync(store, seeded.Ids);
+
         foreach (var pattern in Patterns())
         {
+            // Lo del comprador (/shop/…) se pide con su sesión.
+            if (pattern.StartsWith("/api/v1/shop/", StringComparison.Ordinal))
+            {
+                var shopPath = Parameter().Replace(pattern, conversationId.ToString());
+                var shopRes = await shopper.SendAsync(HttpMethod.Get, shopPath);
+                if (shopRes.IsSuccessStatusCode && shopRes.Content.Headers.ContentType?.MediaType == "application/json")
+                    routes[Normalize(shopPath)] = JsonNode.Parse(await shopRes.Content.ReadAsStringAsync());
+                continue;
+            }
+
             var path = Concrete(pattern, seeded.Ids);
             if (path is null) continue;
 
@@ -73,6 +87,35 @@ public sealed partial class ApiFixturesExport
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
         await File.WriteAllTextAsync(target, document.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Assert.True(routes.Count > 80, $"solo {routes.Count} rutas exportadas");
+    }
+
+    /// <summary>
+    /// Un comprador con cuenta, una compra pagada de un producto sembrado, un
+    /// favorito y el chat posventa de esa compra con un mensaje.
+    /// </summary>
+    private static async Task<(Shopper Shopper, Guid ConversationId)> ShopperWithHistoryAsync(
+        Merchant store, IReadOnlyDictionary<string, string> ids)
+    {
+        const string email = "comprador@demo.local";
+        var shopper = new Shopper(store);
+        await shopper.ExpectOkAsync(HttpMethod.Post, "/api/v1/shop/auth/register",
+            new { name = "Comprador Demo", email, password = "una-clave-larga" });
+
+        var order = await store.PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId = ids["variant"], quantity = 1 } },
+            paymentMethod = "cash",
+            buyerEmail = email,
+            buyerName = "Comprador Demo",
+        });
+        await shopper.ExpectOkAsync(HttpMethod.Put, $"/api/v1/shop/favorites/{ids["product"]}");
+
+        var conversation = await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/shop/support/conversations",
+            new { orderId = order.GetProperty("id").GetGuid() });
+        var conversationId = conversation.GetProperty("id").GetGuid();
+        await shopper.ExpectOkAsync(HttpMethod.Post, $"/api/v1/shop/support/conversations/{conversationId}/messages",
+            new { body = "¿Cuándo llega mi pedido?" });
+        return (shopper, conversationId);
     }
 
     /// <summary>La misma normalización que hacen los tests del frontend.</summary>

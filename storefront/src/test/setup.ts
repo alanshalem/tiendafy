@@ -32,6 +32,9 @@ vi.mock('next/navigation', () => ({
   redirect: (to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
   },
+  permanentRedirect: (to: string) => {
+    throw new Error(`NEXT_REDIRECT ${to}`);
+  },
 }));
 
 vi.mock('next/link', () => ({
@@ -60,6 +63,6 @@ vi.mock('next/image', () => ({
 vi.mock('next/script', () => ({ default: () => null }));
 
 vi.mock('next/headers', () => ({
-  headers: async () => new Headers({ host: nav.host }),
+  headers: async () => new Headers({ ...nav.headers, host: nav.host }),
   cookies: async () => ({ get: () => undefined, getAll: () => [], has: () => false }),
 }));

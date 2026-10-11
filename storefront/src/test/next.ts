@@ -20,6 +20,8 @@ export const nav = {
   pathname: '/',
   search: '',
   host: 'seed.localhost:3000',
+  /** Otros headers del request (x-pathname del proxy, x-forwarded-proto…). */
+  headers: {} as Record<string, string>,
   router: freshRouter(),
   /** Para el próximo render: path (con query opcional) y host. */
   at(path: string, host = 'seed.localhost:3000') {
@@ -30,6 +32,7 @@ export const nav = {
   },
   reset() {
     this.at('/');
+    this.headers = {};
     this.router = freshRouter();
   },
 };
