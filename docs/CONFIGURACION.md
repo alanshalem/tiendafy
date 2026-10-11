@@ -80,7 +80,6 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `API_URL` (SSR) | `http://localhost:5080` | `https://api.TUDOMINIO` |
 | `NEXT_PUBLIC_API_URL` (browser) | `http://localhost:5080` | `https://api.TUDOMINIO` |
 | `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:5173` | **REQUERIDA**: `https://admin.TUDOMINIO` (link al panel + seguridad del editor de temas) |
-| `PLATFORM_BASE_DOMAIN` (server-side) | `localhost` | `TUDOMINIO` |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront |
 
 **Admin** (`admin/.env.local` en dev; build arg en prod):

@@ -4,18 +4,10 @@ import type { StoreProduct } from '@/components/store/sections';
 import { resolveTenant } from './tenancy';
 import type { Tenant, ThemeConfig } from '@tiendafy/types';
 
-const PLATFORM_BASE_DOMAIN = process.env.PLATFORM_BASE_DOMAIN ?? 'localhost';
-
 /** Base absoluta del sitio a partir del Host (http en localhost, https afuera). */
 export async function siteBase(): Promise<string> {
   const host = (await headers()).get('host') ?? '';
   return host ? `http${host.includes('localhost') ? '' : 's'}://${host}` : '';
-}
-
-export async function isPlatformHost(): Promise<boolean> {
-  const headerList = await headers();
-  const hostname = (headerList.get('host') ?? '').split(':')[0];
-  return hostname === PLATFORM_BASE_DOMAIN || hostname === `www.${PLATFORM_BASE_DOMAIN}`;
 }
 
 export interface StorefrontData {

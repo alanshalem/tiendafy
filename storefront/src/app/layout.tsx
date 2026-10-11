@@ -1,25 +1,22 @@
 import type { Metadata } from 'next';
-import { PLATFORM_BRAND } from '@/lib/brand';
 import type { ReactNode } from 'react';
-import { Archivo, Fraunces } from 'next/font/google';
+import { Fraunces } from 'next/font/google';
 import './globals.css';
 import { serverRuntimeConfig } from '@/lib/runtime';
 
-// Fuentes de la landing de plataforma. Los storefronts de tenants usan
-// los tokens del design system; estas variables solo las consume .ld-root.
+// Fraunces es la opción "display" del editor de diseño (ver FONT_FAMILIES en
+// lib/theme): se sirve self-hosted por next/font, así que no depende de una
+// request a Google en el render de la tienda.
 const fraunces = Fraunces({
   subsets: ['latin'],
   style: ['normal', 'italic'],
   variable: '--font-fraunces',
 });
 
-const archivo = Archivo({
-  subsets: ['latin'],
-  variable: '--font-archivo',
-});
-
+// Título de respaldo: cada tienda define el suyo en generateMetadata. Este se
+// ve solo si una ruta no genera metadata propia.
 export const metadata: Metadata = {
-  title: PLATFORM_BRAND,
+  title: 'Tienda online',
   description: 'Tu tienda online',
 };
 
@@ -61,7 +58,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={STORE_FONTS_HREF} />
       </head>
-      <body className={`${fraunces.variable} ${archivo.variable} min-h-screen antialiased`}>{children}</body>
+      <body className={`${fraunces.variable} min-h-screen antialiased`}>{children}</body>
     </html>
   );
 }

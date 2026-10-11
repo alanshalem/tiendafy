@@ -1,35 +1,16 @@
-import { headers } from 'next/headers';
-import { PlatformLanding } from '@/components/landing/PlatformLanding';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
-import { isPlatformHost, loadStorefront, siteBase, withReferencedProducts } from '@/lib/storefront';
-import { PLATFORM_BRAND } from '@/lib/brand';
-import './landing.css';
-
-/** URL de la plataforma (sin el subdominio de la tienda) para el CTA de registro. */
-async function platformUrl(): Promise<string> {
-  const host = (await headers()).get('host') ?? 'localhost:3000';
-  const parts = host.split('.');
-  const base = parts.length > 1 ? parts.slice(1).join('.') : host;
-  return `http://${base}`;
-}
+import { loadStorefront, siteBase, withReferencedProducts } from '@/lib/storefront';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<import('next').Metadata> {
-  // La tienda primero, SIEMPRE: el dominio raíz de la plataforma puede ser la
-  // tienda de una empresa (la importadora que opera la instalación vende desde
-  // ahí). Recién si ningún comercio reclama ese host se muestra la landing.
+  // Todo host es el de una tienda, el dominio raíz incluido: la importadora
+  // que opera la instalación vende desde ahí. Un host que no resuelve a
+  // ninguna tienda es un error de configuración, no otra cosa que mostrar.
   const data = await loadStorefront();
-  if (!data) {
-    return (await isPlatformHost())
-      ? {
-          title: `${PLATFORM_BRAND} — Abrí tu tienda online`,
-          description: 'Catálogo, checkout y cobros con tu propia cuenta de Mercado Pago.',
-        }
-      : { title: 'Tienda' };
-  }
+  if (!data) return { title: 'Tienda no encontrada' };
   const theme = await fetchPublishedTheme(data.tenant.id).catch(() => null);
   // El merchant define su título/descripción SEO en el editor (Identidad);
   // sin eso, un default con la marca — nunca el nombre pelado compitiendo
@@ -53,8 +34,8 @@ export default async function HomePage({
   searchParams: Promise<{ preview?: string; pt?: string }>;
 }) {
   const data = await loadStorefront();
-  if (!data) return (await isPlatformHost()) ? <PlatformLanding /> : <StoreNotFound />;
-  if (data.tenant.status === 'CANCELED') return <StoreDeleted registerUrl={await platformUrl()} />;
+  if (!data) return <StoreNotFound />;
+  if (data.tenant.status === 'CANCELED') return <StoreDeleted />;
   if (data.tenant.status === 'SUSPENDED') return <StoreSuspended name={data.tenant.name} />;
 
   const sp = await searchParams;
@@ -122,22 +103,16 @@ function StoreNotFound() {
   );
 }
 
-function StoreDeleted({ registerUrl }: { registerUrl: string }) {
+function StoreDeleted() {
+  // Sin CTA de registro: acá las tiendas las abre el grupo desde el panel, no
+  // se registra cualquiera. Invitar a reclamar el nombre no tendría a dónde ir.
   return (
     <StatusScreen wide>
       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-fg/5 text-2xl">
         🏷️
       </div>
-      <h1 className="text-2xl font-bold">Esta tienda ha sido eliminada</h1>
-      <p className="mt-2 text-fg-muted">
-        El nombre quedó libre. Si querés reclamarlo, registrate y creá tu tienda.
-      </p>
-      <a
-        href={registerUrl}
-        className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-fg hover:opacity-90"
-      >
-        Registrate y reclamá el nombre
-      </a>
+      <h1 className="text-2xl font-bold">Esta tienda ya no está disponible</h1>
+      <p className="mt-2 text-fg-muted">La dirección quedó sin una tienda detrás.</p>
     </StatusScreen>
   );
 }

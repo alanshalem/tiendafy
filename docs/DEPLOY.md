@@ -142,7 +142,7 @@ de cada una — qué conseguir y dónde — está en
 
 ### Storefront (Next.js)
 En el servidor, todo en runtime: `API_URL` (la API por la red interna),
-`PLATFORM_BASE_DOMAIN`, `APP_ENV`, y las que viajan al navegador —
+`APP_ENV`, y las que viajan al navegador —
 `PUBLIC_API_URL`, `PUBLIC_ADMIN_ORIGIN` (link al panel y validación del origin
 del editor de temas), `PUBLIC_SENTRY_DSN`.
 

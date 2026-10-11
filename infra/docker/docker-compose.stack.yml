@@ -168,16 +168,12 @@ services:
       APP_ENV: ${APP_ENV}
       # Server-side: la API por la red interna, sin salir a internet.
       API_URL: http://api:5080
-      PLATFORM_BASE_DOMAIN: ${STACK_DOMAIN}
       # Config que el servidor le pasa al navegador en cada request. Sin el
       # prefijo NEXT_PUBLIC_ a propósito: esas Next las hornea al compilar y
       # entonces la imagen tendría ambiente propio (ver storefront/src/lib/runtime.ts).
       PUBLIC_API_URL: https://api.${STACK_DOMAIN}
       PUBLIC_ADMIN_ORIGIN: https://admin.${STACK_DOMAIN}
       PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
-      # Solo para la landing de la plataforma y los títulos por defecto: la
-      # tienda de cada comercio muestra su propia marca.
-      PLATFORM_BRAND_NAME: ${BRAND_NAME:-}
 
   admin:
     image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-admin:${TAG:-latest}

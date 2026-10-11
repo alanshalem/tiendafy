@@ -60,7 +60,10 @@ sistema de iconos en UI de producto · hero h1 enteramente en itálica serif.
 
 ## Workflow
 
-1. Componente nuevo de marketing → modo BRAND, clases `ld-*` en `landing.css`.
+1. Componente nuevo de marketing → modo BRAND. Esta instalación ya no tiene
+   landing de plataforma (el dominio raíz es la tienda de la importadora),
+   así que el modo BRAND hoy aplica a emails comerciales y a las secciones
+   de marca del editor de diseño, no a `landing.css`, que se borró.
 2. Componente nuevo de producto → modo PRODUCT, `@tiendafy/ui` + tokens.
 3. Ante la duda de intensidad: **restrained**. Distintivo = intencional, no raro.
 4. Auditoría al cerrar una página: ¿qué sigue siendo genérico? ¿qué rompe este archivo?
