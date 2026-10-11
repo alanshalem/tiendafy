@@ -88,12 +88,50 @@ public class ComprobanteBuilderTests
 public class ReceptorResolverTests
 {
     [Fact]
-    public void Cuit_ResolvesResponsableInscripto()
+    public void CuitDeSociedad_ResuelveResponsableInscripto()
     {
+        // Prefijo 30: persona jurídica. Una sociedad es Responsable Inscripto
+        // salvo rareza, y eso sí se puede deducir del número.
+        var r = ReceptorResolver.Resolve("30-71234567-1", grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        Assert.Equal(DocTipo.Cuit, r.DocTipo);
+        Assert.Equal(30712345671, r.DocNro);
+        Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
+    }
+
+    [Fact]
+    public void CuilDePersona_NoSeFacturaComoResponsableInscripto()
+    {
+        // El bug que esto cierra: un CUIL tiene la misma forma que un CUIT, así
+        // que el comprador escribía el suyo y se le emitía una Factura A con
+        // IVA discriminado que no le corresponde. El número se conserva —es su
+        // documento— pero la condición no se inventa.
         var r = ReceptorResolver.Resolve("20-12345678-6", grossMinorUnits: 100, thresholdMinorUnits: 1000);
         Assert.Equal(DocTipo.Cuit, r.DocTipo);
         Assert.Equal(20123456786, r.DocNro);
-        Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
+        Assert.Equal(CondicionIvaReceptor.ConsumidorFinal, r.Condicion);
+    }
+
+    [Theory]
+    [InlineData("27-12345678-4")] // persona física
+    [InlineData("23-12345678-9")] // persona física
+    public void NingunPrefijoDePersonaFisica_TerminaEnFacturaA(string doc)
+    {
+        var r = ReceptorResolver.Resolve(doc, grossMinorUnits: 100, thresholdMinorUnits: 1000);
+        Assert.NotEqual(CondicionIvaReceptor.ResponsableInscripto, r.Condicion);
+    }
+
+    [Fact]
+    public void La_condicion_declarada_le_gana_a_la_inferencia()
+    {
+        // Un monotributista con CUIT de sociedad, o un RI persona física: el
+        // dato cargado tiene que poder corregir lo que el número sugiere.
+        var monotributista = ReceptorResolver.Resolve(
+            "30-71234567-1", 100, 1000, CondicionIvaReceptor.Monotributo);
+        Assert.Equal(CondicionIvaReceptor.Monotributo, monotributista.Condicion);
+
+        var inscripto = ReceptorResolver.Resolve(
+            "20-12345678-6", 100, 1000, CondicionIvaReceptor.ResponsableInscripto);
+        Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, inscripto.Condicion);
     }
 
     [Fact]

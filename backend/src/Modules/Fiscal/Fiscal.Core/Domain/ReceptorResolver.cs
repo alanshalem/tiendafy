@@ -4,28 +4,69 @@ namespace Fiscal.Core.Domain;
 /// Decide el receptor del comprobante a partir del documento del comprador y el
 /// umbral de consumidor final (H12): por debajo del umbral se puede facturar a
 /// Consumidor Final (DocTipo=99, DocNro=0); por encima hay que identificarlo.
-/// Un CUIT identifica a un Responsable Inscripto; un DNI, a un consumidor.
+///
+/// <para>
+/// <b>La condición frente al IVA no se adivina.</b> Antes cualquier número de
+/// once dígitos con verificador válido salía Responsable Inscripto, y eso es
+/// Factura A. Pero un CUIL tiene exactamente la misma forma que un CUIT, y un
+/// monotributista también: el comprador escribía su CUIL y se le emitía una A
+/// con IVA discriminado que no le corresponde. Emitir A de más es un
+/// comprobante mal emitido; emitir B de más es un crédito fiscal que el
+/// comprador no puede computar y se arregla con una nota de crédito. Entre los
+/// dos errores, el segundo es el barato.
+/// </para>
+///
+/// <para>
+/// Lo único que se infiere es lo que el número realmente dice: el prefijo
+/// distingue persona jurídica de persona física. Una sociedad es Responsable
+/// Inscripto salvo rareza; una persona física puede ser cualquier cosa, así
+/// que se la trata como consumidor final mientras nadie diga lo contrario.
+/// Para saberlo de verdad hay que preguntarle al padrón A5 de ARCA; mientras
+/// tanto, quien conoce la condición la pasa en <paramref name="declared"/>.
+/// </para>
 /// </summary>
 public static class ReceptorResolver
 {
+    /// <summary>
+    /// Prefijos de CUIT de persona jurídica (sociedades, asociaciones, el
+    /// Estado). Todo lo demás con forma de CUIT es una persona física, y de
+    /// esas el número no dice nada sobre el IVA.
+    /// </summary>
+    private static readonly string[] PersonaJuridica = ["30", "33", "34"];
+
     /// <param name="buyerDoc">DNI/CUIT que dejó el comprador (o null).</param>
     /// <param name="grossMinorUnits">Total a facturar, en centavos.</param>
     /// <param name="thresholdMinorUnits">Umbral de consumidor final (configurable).</param>
-    public static Receptor Resolve(string? buyerDoc, long grossMinorUnits, long thresholdMinorUnits)
+    /// <param name="declared">
+    /// Condición frente al IVA cuando se la conoce de verdad —la cargó el
+    /// comercio, la declaró el comprador, la devolvió el padrón—. Gana sobre
+    /// cualquier inferencia: el número nunca va a saber más que el dato.
+    /// </param>
+    public static Receptor Resolve(
+        string? buyerDoc,
+        long grossMinorUnits,
+        long thresholdMinorUnits,
+        CondicionIvaReceptor? declared = null)
     {
         var digits = new string([.. (buyerDoc ?? string.Empty).Where(char.IsDigit)]);
 
-        // 11 dígitos con dígito verificador válido → CUIT → Responsable Inscripto.
+        // Once dígitos con verificador válido: es un CUIT/CUIL bien formado.
         if (digits.Length == 11 && Cuit.Create(digits).IsSuccess)
-            return new Receptor(DocTipo.Cuit, long.Parse(digits), CondicionIvaReceptor.ResponsableInscripto);
+            return new Receptor(DocTipo.Cuit, long.Parse(digits), declared ?? InferirCondicion(digits));
 
         // DNI (7-8 dígitos) → consumidor identificado.
         if (digits.Length is 7 or 8)
-            return new Receptor(DocTipo.Dni, long.Parse(digits), CondicionIvaReceptor.ConsumidorFinal);
+            return new Receptor(DocTipo.Dni, long.Parse(digits), declared ?? CondicionIvaReceptor.ConsumidorFinal);
 
         // Sin documento usable: por debajo del umbral, Consumidor Final anónimo.
         // (Por encima del umbral ARCA exige identificación; el caller debería
         // haber pedido el doc — igual emitimos como CF y ARCA decide.)
         return new Receptor(DocTipo.ConsumidorFinal, 0, CondicionIvaReceptor.ConsumidorFinal);
     }
+
+    /// <summary>Lo único que el número permite deducir, y nada más que eso.</summary>
+    private static CondicionIvaReceptor InferirCondicion(string cuit) =>
+        PersonaJuridica.Contains(cuit[..2])
+            ? CondicionIvaReceptor.ResponsableInscripto
+            : CondicionIvaReceptor.ConsumidorFinal;
 }
