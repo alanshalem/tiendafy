@@ -235,6 +235,7 @@ function ShipmentModal({
           <div className="sm:col-span-2">
             <label className={shipmentLabelCls}>Provincia</label>
             <Input
+              aria-label="Provincia"
               value={stateName}
               onChange={(e) => setStateName(e.target.value)}
               placeholder="Ej: Santa Fe"

@@ -373,6 +373,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
           <label className="mb-1 block text-sm font-medium text-fg">Porcentaje (+ sube / - baja)</label>
           <div className="w-40">
             <Input
+              aria-label="Porcentaje (+ sube / - baja)"
               type="number"
               step="0.5"
               placeholder="Ej: 12"

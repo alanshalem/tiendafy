@@ -184,6 +184,7 @@ export function CheckoutOptionsPage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-fg">Qué dice el campo</label>
               <Input
+                aria-label="Qué dice el campo"
                 value={value.customerNoteLabel}
                 maxLength={NOTE_MAX}
                 onChange={(e) => update({ customerNoteLabel: e.target.value })}

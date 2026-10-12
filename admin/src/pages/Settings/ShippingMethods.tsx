@@ -342,6 +342,7 @@ function MethodDialog({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Nombre</label>
           <input
+            aria-label="Nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej.: Envío express CABA"
@@ -367,6 +368,7 @@ function MethodDialog({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Precio</label>
           <input
+            aria-label="Precio"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             inputMode="decimal"
@@ -383,6 +385,7 @@ function MethodDialog({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Plazo o descripción (opcional)</label>
           <input
+            aria-label="Plazo o descripción (opcional)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Llega en 3 a 5 días hábiles"
@@ -394,6 +397,7 @@ function MethodDialog({
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Dirección y horarios de retiro</label>
             <textarea
+              aria-label="Dirección y horarios de retiro"
               value={pickupAddress}
               onChange={(e) => setPickupAddress(e.target.value)}
               rows={2}

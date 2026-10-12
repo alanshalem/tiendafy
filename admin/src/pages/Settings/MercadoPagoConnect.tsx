@@ -341,6 +341,7 @@ function ConnectedView({
         <label className="mb-1.5 block text-sm font-medium text-fg">Nombre en el resumen de la tarjeta</label>
         <div className="flex gap-2">
           <input
+            aria-label="Nombre en el resumen de la tarjeta"
             value={descriptor}
             maxLength={22}
             disabled={readOnly}

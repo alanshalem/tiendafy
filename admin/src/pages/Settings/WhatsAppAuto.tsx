@@ -298,6 +298,7 @@ function ConnectionForm({
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Phone Number ID</label>
           <Input
+            aria-label="Phone Number ID"
             value={phoneNumberId}
             onChange={(e) => setPhoneNumberId(e.target.value)}
             placeholder="Ej: 123456789012345"
@@ -307,6 +308,7 @@ function ConnectionForm({
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Access token permanente</label>
           <Input
+            aria-label="Access token permanente"
             type="password"
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
@@ -319,6 +321,7 @@ function ConnectionForm({
             Número visible <span className="font-normal text-fg-muted">(opcional)</span>
           </label>
           <Input
+            aria-label="Número visible"
             value={displayPhoneNumber}
             onChange={(e) => setDisplayPhoneNumber(e.target.value)}
             placeholder="+54 9 11 1234-5678"
@@ -399,6 +402,7 @@ function TestModal({ onClose }: { onClose: () => void }) {
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Número de destino</label>
           <Input
+            aria-label="Número de destino"
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder="+54 9 11 1234-5678"
@@ -455,14 +459,24 @@ function TemplateModal({
       <div className="max-h-[70vh] space-y-4 overflow-y-auto">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Nombre de la plantilla en Meta</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="confirmacion_compra" />
+          <Input
+            aria-label="Nombre de la plantilla en Meta"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="confirmacion_compra"
+          />
           <p className="mt-1 text-xs text-fg-muted">
             El nombre exacto con el que la aprobaste, ej: <code>confirmacion_compra</code>.
           </p>
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-fg">Idioma</label>
-          <Input value={lang} onChange={(e) => setLang(e.target.value)} placeholder="es_AR" />
+          <Input
+            aria-label="Idioma"
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            placeholder="es_AR"
+          />
         </div>
 
         <div className="rounded-md border border-border bg-bg-muted/40 p-3">

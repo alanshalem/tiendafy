@@ -97,6 +97,7 @@ export function RefundDialog({
         <div className="mt-3">
           <label className="mb-1 block text-sm font-medium text-fg">Monto a reembolsar</label>
           <input
+            aria-label="Monto a reembolsar"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
@@ -114,6 +115,7 @@ export function RefundDialog({
       <div className="mt-3">
         <label className="mb-1 block text-sm font-medium text-fg">Motivo (opcional)</label>
         <input
+          aria-label="Motivo (opcional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           maxLength={500}

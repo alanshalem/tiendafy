@@ -165,6 +165,7 @@ function EditModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
             <Input
+              aria-label="Asunto"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Asunto del email"

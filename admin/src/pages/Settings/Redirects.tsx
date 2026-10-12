@@ -93,11 +93,21 @@ export function RedirectsPage() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[12rem] flex-1">
             <label className="mb-1.5 block text-sm font-medium text-fg">Dirección vieja</label>
-            <Input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="/producto-viejo" />
+            <Input
+              aria-label="Dirección vieja"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              placeholder="/producto-viejo"
+            />
           </div>
           <div className="min-w-[12rem] flex-1">
             <label className="mb-1.5 block text-sm font-medium text-fg">Dirección nueva</label>
-            <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="/productos/nuevo-slug" />
+            <Input
+              aria-label="Dirección nueva"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="/productos/nuevo-slug"
+            />
           </div>
           <Button onClick={add} disabled={!from.trim() || !to.trim() || busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Agregar

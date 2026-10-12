@@ -226,7 +226,12 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Cliente</label>
-            <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Nombre" />
+            <Input
+              aria-label="Cliente"
+              value={buyerName}
+              onChange={(e) => setBuyerName(e.target.value)}
+              placeholder="Nombre"
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">
@@ -241,7 +246,12 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Teléfono (opcional)</label>
-            <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="+54 9…" />
+            <Input
+              aria-label="Teléfono (opcional)"
+              value={buyerPhone}
+              onChange={(e) => setBuyerPhone(e.target.value)}
+              placeholder="+54 9…"
+            />
           </div>
         </div>
 
@@ -271,6 +281,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Notas (opcional)</label>
             <Input
+              aria-label="Notas (opcional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Ej: vendido por Instagram, retira el sábado"

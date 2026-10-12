@@ -287,6 +287,7 @@ export function CampaignModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
             <Input
+              aria-label="Asunto"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Ej: ¡Llegó la nueva colección! 🎉"
@@ -444,6 +445,7 @@ function AudienceBuilder(props: {
           <div>
             <label className="mb-1 block text-xs text-fg-muted">Gastó al menos ($)</label>
             <Input
+              aria-label="Gastó al menos ($)"
               value={props.minSpent}
               onChange={(e) => props.setMinSpent(e.target.value)}
               inputMode="numeric"
@@ -453,6 +455,7 @@ function AudienceBuilder(props: {
           <div>
             <label className="mb-1 block text-xs text-fg-muted">Compras mínimas</label>
             <Input
+              aria-label="Compras mínimas"
               value={props.minOrders}
               onChange={(e) => props.setMinOrders(e.target.value)}
               inputMode="numeric"
@@ -462,6 +465,7 @@ function AudienceBuilder(props: {
           <div>
             <label className="mb-1 block text-xs text-fg-muted">Compró en los últimos (días)</label>
             <Input
+              aria-label="Compró en los últimos (días)"
               value={props.withinDays}
               onChange={(e) => props.setWithinDays(e.target.value)}
               inputMode="numeric"
@@ -471,6 +475,7 @@ function AudienceBuilder(props: {
           <div>
             <label className="mb-1 block text-xs text-fg-muted">Sin comprar hace (días)</label>
             <Input
+              aria-label="Sin comprar hace (días)"
               value={props.inactiveDays}
               onChange={(e) => props.setInactiveDays(e.target.value)}
               inputMode="numeric"

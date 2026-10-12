@@ -175,6 +175,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">API Token</label>
             <Input
+              aria-label="API Token"
               type="password"
               value={apiToken}
               onChange={(e) => setApiToken(e.target.value)}
@@ -184,6 +185,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">API Secret</label>
             <Input
+              aria-label="API Secret"
               type="password"
               value={apiSecret}
               onChange={(e) => setApiSecret(e.target.value)}
@@ -206,6 +208,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">ID de cuenta</label>
             <Input
+              aria-label="ID de cuenta"
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               inputMode="numeric"
@@ -217,6 +220,7 @@ function ConfigModal({
               Origen (ID del address book) — opcional
             </label>
             <Input
+              aria-label="Origen (ID del address book) — opcional"
               value={originId}
               onChange={(e) => setOriginId(e.target.value)}
               placeholder="Vacío = origen por defecto de la cuenta"

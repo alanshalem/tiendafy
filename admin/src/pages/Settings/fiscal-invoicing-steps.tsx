@@ -262,6 +262,7 @@ export function IssuerStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">CUIT</label>
           <Input
+            aria-label="CUIT"
             value={cuit}
             onChange={(e) => setCuit(e.target.value)}
             placeholder="20-12345678-6"
@@ -276,6 +277,7 @@ export function IssuerStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Razón social</label>
           <Input
+            aria-label="Razón social"
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
             placeholder="Mi Negocio S.R.L."
@@ -539,6 +541,7 @@ export function CertificateStep({
                 Pegá acá el certificado firmado por ARCA
               </label>
               <Textarea
+                aria-label="Pegá acá el certificado firmado por ARCA"
                 rows={5}
                 value={certPem}
                 onChange={(e) => setCertPem(e.target.value)}
@@ -698,6 +701,7 @@ export function PointsOfSaleStep({
         <div className="w-24">
           <label className="mb-1 block text-sm font-medium text-fg">Número</label>
           <Input
+            aria-label="Número"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
             inputMode="numeric"
@@ -706,7 +710,12 @@ export function PointsOfSaleStep({
         </div>
         <div className="min-w-[10rem] flex-1">
           <label className="mb-1 block text-sm font-medium text-fg">Etiqueta (opcional)</label>
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Web" />
+          <Input
+            aria-label="Etiqueta (opcional)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Web"
+          />
         </div>
         <Button onClick={add} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Agregar

@@ -195,6 +195,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">userToken</label>
             <Input
+              aria-label="userToken"
               type="password"
               value={userToken}
               onChange={(e) => setUserToken(e.target.value)}
@@ -204,6 +205,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">passwordToken</label>
             <Input
+              aria-label="passwordToken"
               type="password"
               value={passwordToken}
               onChange={(e) => setPasswordToken(e.target.value)}
@@ -224,7 +226,12 @@ function ConfigModal({
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">CP de origen (despacho)</label>
-            <Input value={originCp} onChange={(e) => setOriginCp(e.target.value)} placeholder="1704" />
+            <Input
+              aria-label="CP de origen (despacho)"
+              value={originCp}
+              onChange={(e) => setOriginCp(e.target.value)}
+              placeholder="1704"
+            />
           </div>
         </div>
 
