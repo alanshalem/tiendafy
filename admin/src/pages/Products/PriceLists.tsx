@@ -142,13 +142,18 @@ function ListsOverview({ onOpen }: { onOpen: (list: PriceListRow) => void }) {
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(l)} aria-label="Editar">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditing(l)}
+                    aria-label={`Editar ${l.name}`}
+                  >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label="Borrar"
+                    aria-label={`Borrar ${l.name}`}
                     onClick={async () => {
                       const ok = await confirm({
                         title: `Borrar ${l.name}`,

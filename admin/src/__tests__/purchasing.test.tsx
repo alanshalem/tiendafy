@@ -5,9 +5,9 @@
  * márgenes), cargar la factura del proveedor (a mano o leída por la IA) y
  * bajar el libro de IVA compras. También la reposición sugerida.
  */
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
@@ -224,5 +224,49 @@ describe('compras: reposición sugerida', () => {
     expect(
       (last(api, 'POST', '/api/v1/purchasing/purchase-orders').items as unknown[]).length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe('compras: recibir con el escáner', () => {
+  it('cada lectura suma uno al ítem (hasta lo pedido); lo ajeno o desconocido se avisa', async () => {
+    const item = po.items[0]!;
+    // La cámara lee, en orden: el ítem dos veces, un producto que no está en
+    // la compra y un código que no existe.
+    const reads = ['ITEM-A', 'ITEM-B', 'AJENO', 'NO-EXISTE'];
+    const detect = vi.fn().mockImplementation(async () => {
+      const code = reads.shift();
+      return code ? [{ rawValue: code }] : [];
+    });
+    (window as { BarcodeDetector?: unknown }).BarcodeDetector = class {
+      detect = detect;
+    };
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
+      configurable: true,
+    });
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(4);
+
+    const { api, user } = await openPo({ status: 'INCUSTOMS', items: [{ ...item, quantity: 1 }] });
+    api.on('GET', '/api/v1/products/by-code/ITEM-A', { variantId: item.variantId });
+    api.on('GET', '/api/v1/products/by-code/ITEM-B', { variantId: item.variantId });
+    api.on('GET', '/api/v1/products/by-code/AJENO', { variantId: 'otra-variante' });
+    api.on('GET', '/api/v1/products/by-code/NO-EXISTE', { detail: 'No encontrado.' }, 404);
+
+    await user.click(screen.getByRole('button', { name: 'Recibir' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Recibir mercadería' }));
+    const qty = dialog.getAllByRole('spinbutton')[1]!;
+    await user.clear(qty);
+    await user.click(dialog.getByRole('button', { name: /Escanear con la cámara/ }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1600));
+    });
+    // Pedido 1: la segunda lectura del mismo ítem no pasa de lo pedido.
+    expect(qty).toHaveValue(1);
+    expect(await screen.findByText('Ese producto no está en esta compra')).toBeInTheDocument();
+    expect(await screen.findByText('Código desconocido')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: /Apagar cámara/ }));
+    delete (window as { BarcodeDetector?: unknown }).BarcodeDetector;
+    vi.restoreAllMocks();
   });
 });
