@@ -106,7 +106,10 @@ services:
       ForwardedHeaders__KnownNetworks__0: ${TRUSTED_PROXY_CIDR_0:-172.16.0.0/12}
       ForwardedHeaders__KnownNetworks__1: ${TRUSTED_PROXY_CIDR_1:-192.168.0.0/16}
       ForwardedHeaders__KnownNetworks__2: ${TRUSTED_PROXY_CIDR_2:-10.0.0.0/8}
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=${POSTGRES_PASSWORD}
+      # Minimum Pool Size: conexiones abiertas aunque no haya tráfico. Sin esto,
+      # la primera ráfaga después de un rato ocioso paga abrir cada conexión
+      # (cientos de ms cada una) y el p95 de ese momento se dispara.
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=${POSTGRES_PASSWORD};Minimum Pool Size=${DB_MIN_POOL_SIZE:-5}
       # DataProtection: SIN esta ruta la API no arranca (fail-fast). El volumen
       # 'dpkeys' es CRÍTICO: si se pierde, se pierden todos los secretos
       # cifrados (certificados ARCA, tokens MP). Backupear junto a la DB.
