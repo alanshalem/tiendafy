@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Plus, RefreshCw, Package, Truck, Undo2 } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Package, PackageCheck, Truck, Undo2 } from 'lucide-react';
 import { cn, Input, Select, useToast, useConfirm, usePrompt } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -40,6 +40,8 @@ export interface Order {
   notes: string | null;
   shipping: Money | null;
   shippingMethod: string | null;
+  /** Retiro en el local: "despachar" es tenerlo listo para que lo pasen a buscar. */
+  isPickup?: boolean;
   shippingAddress: string | null;
   currency: string;
   paymentId: string | null;
@@ -145,6 +147,25 @@ export function OrdersPage() {
 
   const fulfill = useCallback(
     async (o: Order) => {
+      // Retiro en el local: no hay seguimiento; se avisa "listo para retirar".
+      if (o.isPickup) {
+        const ok = await confirm({
+          title: 'Listo para retirar',
+          message: 'Le avisamos al cliente que su pedido está listo para pasar a buscarlo.',
+          confirmLabel: 'Avisar',
+        });
+        if (!ok) return;
+        setBusy(o.id);
+        try {
+          await api.post(`/api/v1/orders/${o.id}/fulfill`, { tracking: null });
+          await load();
+        } catch (e) {
+          toast(errMsg(e, 'No se pudo marcar como lista para retirar.'), { variant: 'error' });
+        } finally {
+          setBusy(null);
+        }
+        return;
+      }
       const tracking = await prompt({
         title: 'Marcar como enviada',
         message: 'Código de seguimiento (opcional):',
@@ -163,7 +184,7 @@ export function OrdersPage() {
         setBusy(null);
       }
     },
-    [load, prompt, toast],
+    [confirm, load, prompt, toast],
   );
 
   const [refunding, setRefunding] = useState<Order | null>(null);
@@ -336,10 +357,14 @@ export function OrdersPage() {
               </thead>
               <tbody>
                 {orders.map((o) => {
-                  const st = ORDER_STATUS[o.status] ?? {
+                  const known = ORDER_STATUS[o.status] ?? {
                     label: o.status,
                     cls: 'bg-gray-100 text-gray-600',
                   };
+                  const st =
+                    o.isPickup && o.status === 'FULFILLED'
+                      ? { ...known, label: 'Lista para retirar' }
+                      : known;
                   const open = expanded === o.id;
                   return (
                     <Fragment key={o.id}>
@@ -450,20 +475,27 @@ export function OrdersPage() {
                                       >
                                         {busy === o.id ? (
                                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : o.isPickup ? (
+                                          <PackageCheck className="h-3.5 w-3.5" />
                                         ) : (
                                           <Truck className="h-3.5 w-3.5" />
                                         )}{' '}
-                                        Marcar enviada
+                                        {o.isPickup ? 'Lista para retirar' : 'Marcar enviada'}
                                       </button>
                                     )}
-                                    {o.status === 'PAID' && canFulfill && <CorreoShipmentButton order={o} />}
-                                    {(o.status === 'PAID' || o.status === 'FULFILLED') && canFulfill && (
-                                      <>
-                                        <ZipnovaShipmentButton order={o} />
-                                        <AndreaniShipmentButton order={o} />
-                                      </>
+                                    {/* Los carriers no aplican a un pedido que se retira en el local. */}
+                                    {o.status === 'PAID' && canFulfill && !o.isPickup && (
+                                      <CorreoShipmentButton order={o} />
                                     )}
-                                    {o.status === 'FULFILLED' && canFulfill && (
+                                    {(o.status === 'PAID' || o.status === 'FULFILLED') &&
+                                      canFulfill &&
+                                      !o.isPickup && (
+                                        <>
+                                          <ZipnovaShipmentButton order={o} />
+                                          <AndreaniShipmentButton order={o} />
+                                        </>
+                                      )}
+                                    {o.status === 'FULFILLED' && canFulfill && !o.isPickup && (
                                       <button
                                         onClick={() => fulfill(o)}
                                         disabled={busy === o.id}

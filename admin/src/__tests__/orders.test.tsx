@@ -27,12 +27,12 @@ const orders = fixture<{ items: Order[]; total: number }>('/api/v1/orders');
 const paid = { ...orders.items.find((o) => o.status === 'PAID')!, paymentId: 'mp-123' };
 const product = fixture<{ items: { name: string }[] }>('/api/v1/products').items[0]!;
 
-async function openOrder() {
+async function openOrder(order: Order & { isPickup?: boolean } = paid) {
   const api = mockApi();
-  api.on('GET', '/api/v1/orders', { items: [paid], total: 1 });
+  api.on('GET', '/api/v1/orders', { items: [order], total: 1 });
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp('/ventas');
-  await user.click(await screen.findByText(paid.buyerEmail));
+  await user.click(await screen.findByText(order.buyerEmail));
   await settle(3);
   return { api, user };
 }
@@ -49,6 +49,32 @@ describe('ventas: una venta pagada', () => {
     await user.click(dialog.getByRole('button', { name: 'Marcar enviada' }));
     await settle(2);
     expect(body(api, 'POST', `/api/v1/orders/${paid.id}/fulfill`)).toEqual({ tracking: 'TRK-77' });
+  });
+
+  it('de retiro en el local: se avisa "lista para retirar", sin seguimiento ni carriers', async () => {
+    const { api, user } = await openOrder({ ...paid, isPickup: true });
+    expect(screen.queryByRole('button', { name: /Marcar enviada/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Correo/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Lista para retirar/ }));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.queryByRole('textbox')).toBeNull();
+    await user.click(dialog.getByRole('button', { name: 'Avisar' }));
+    await settle(2);
+    expect(body(api, 'POST', `/api/v1/orders/${paid.id}/fulfill`)).toEqual({ tracking: null });
+  });
+
+  it('de retiro ya avisada: el estado dice "Lista para retirar" y no ofrece editar seguimiento', async () => {
+    await openOrder({ ...paid, status: 'FULFILLED', isPickup: true });
+    expect(screen.getAllByText('Lista para retirar').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /seguimiento/i })).toBeNull();
+  });
+
+  it('de retiro: si falla el aviso, lo dice', async () => {
+    const { api, user } = await openOrder({ ...paid, isPickup: true });
+    api.on('POST', `/api/v1/orders/${paid.id}/fulfill`, {}, 500);
+    await user.click(screen.getByRole('button', { name: /Lista para retirar/ }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Avisar' }));
+    expect(await screen.findByText(/No se pudo marcar como lista para retirar/)).toBeTruthy();
   });
 
   it('reembolso parcial validado, con historial', async () => {

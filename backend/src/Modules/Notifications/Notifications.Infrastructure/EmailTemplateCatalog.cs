@@ -64,10 +64,11 @@ public static class EmailTemplateCatalog
             "Confirmamos tu pago — pedido #{{order_id}}",
             Wrap("¡Pago aprobado! 🎉", "<p>Recibimos tu pago. Estamos preparando tu pedido.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
 
+        // Encendida por defecto: en un pedido de retiro reemplaza a la confirmación de envío.
         new("lista-para-retirar", "Ventas", "Lista para retirar",
-            "Avisa a tu cliente que su pedido está listo.", false,
+            "Avisa a tu cliente que su pedido de retiro en el local está listo.", true,
             "Tu pedido #{{order_id}} está listo para retirar",
-            Wrap("Listo para retirar", "<p>Tu pedido ya está listo. Pasá a retirarlo cuando quieras.</p>")),
+            Wrap("Listo para retirar", "<p>Tu pedido ya está listo. Pasá a retirarlo cuando quieras.</p>{{items}}")),
 
         new("confirmacion-envio", "Ventas", "Confirmación de envío",
             "Notifica a tu cliente cuando el pedido fue despachado.", true,

@@ -78,6 +78,12 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fulfilled_at_utc");
 
+                    b.Property<bool>("IsPickup")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_pickup");
+
                     b.Property<string>("MpFeeAmount")
                         .HasMaxLength(24)
                         .HasColumnType("character varying(24)")

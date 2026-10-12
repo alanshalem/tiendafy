@@ -62,6 +62,12 @@ public sealed class Order : AggregateRoot
     public Money RefundedAmount { get; private set; }
     public Money ShippingCost { get; private set; }
     public string? ShippingMethodName { get; private set; }
+
+    /// <summary>
+    /// Retiro en el local: "despachar" la orden es tenerla lista para que la
+    /// pasen a buscar, y el aviso al comprador es "listo para retirar", no "en camino".
+    /// </summary>
+    public bool IsPickup { get; private set; }
     public string? ShippingAddress { get; private set; }
     public string? BuyerName { get; private set; }
     public string? BuyerPhone { get; private set; }
@@ -160,8 +166,9 @@ public sealed class Order : AggregateRoot
 
     public void SetShippingAndBuyer(
         Money shippingCost, string? shippingMethodName, string? shippingAddress,
-        string? buyerName, string? buyerPhone, string? docNumber, string? notes)
+        string? buyerName, string? buyerPhone, string? docNumber, string? notes, bool isPickup = false)
     {
+        IsPickup = isPickup;
         if (shippingCost.Currency == Currency && !shippingCost.IsNegative)
             ShippingCost = shippingCost;
         ShippingMethodName = shippingMethodName;

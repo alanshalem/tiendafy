@@ -25,6 +25,8 @@ interface Order {
   currency: string;
   createdAtUtc: string;
   tracking: string | null;
+  /** Retiro en el local: "despachado" quiere decir que ya se puede pasar a buscar. */
+  isPickup?: boolean;
   total: MoneyDto;
   items: OrderItem[];
 }
@@ -108,7 +110,9 @@ export function AccountDashboard() {
       ) : (
         <div className="space-y-3">
           {orders.map((o) => {
-            const st = STATUS[o.status] ?? { label: o.status, cls: 'bg-gray-200 text-gray-700' };
+            const known = STATUS[o.status] ?? { label: o.status, cls: 'bg-gray-200 text-gray-700' };
+            const st =
+              o.isPickup && o.status === 'FULFILLED' ? { ...known, label: 'Listo para retirar' } : known;
             return (
               <div key={o.id} className="rounded-2xl border border-black/10 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">

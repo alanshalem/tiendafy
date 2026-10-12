@@ -64,6 +64,7 @@ public sealed class OrdersDbContext : DbContext
             .HasColumnName("mp_fee_amount")
             .HasMaxLength(24);
         order.Property(o => o.ShippingMethodName).HasMaxLength(120);
+        order.Property(o => o.IsPickup).HasDefaultValue(false);
         order.Property(o => o.ShippingAddress).HasMaxLength(300);
         order.Property(o => o.BuyerName).HasMaxLength(170);
         order.Property(o => o.BuyerPhone).HasMaxLength(40);

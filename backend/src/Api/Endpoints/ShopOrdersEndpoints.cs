@@ -28,6 +28,7 @@ public static class ShopOrdersEndpoints
                     o.CreatedAtUtc,
                     o.PaidAtUtc,
                     o.Tracking,
+                    o.IsPickup,
                     total = ApiJson.MoneyJson(o.Total),
                     items = o.Items.Select(i => new
                     {

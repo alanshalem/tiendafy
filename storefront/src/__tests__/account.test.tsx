@@ -204,6 +204,15 @@ describe('con la sesión iniciada', () => {
     expect(screen.getByText('TRK-1')).toBeInTheDocument();
   });
 
+  it('un pedido de retiro ya avisado dice "Listo para retirar", no "Enviado"', async () => {
+    api.on('GET', '/api/v1/shop/orders', {
+      items: [{ ...orders.items[0], status: 'FULFILLED', isPickup: true }],
+    });
+    await show(<AccountDashboard />);
+    expect(screen.getByText('Listo para retirar')).toBeInTheDocument();
+    expect(screen.queryByText('Enviado')).toBeNull();
+  });
+
   it('sin pedidos lo dice', async () => {
     api.on('GET', '/api/v1/shop/orders', { items: [] });
     await show(<AccountDashboard />);

@@ -31,6 +31,7 @@ public static class OrderEndpoints
             DiscountsDbContext discountsDb,
             CreateOrderHandler createOrder,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
+            IShippingMethodRepository shippingMethods,
             IOrderRepository orders,
             IMercadoPagoPaymentService mp,
             IConfiguration cfg,
@@ -45,7 +46,7 @@ public static class OrderEndpoints
                 return Error.Validation("Checkout.BadReturnUrl",
                     "La URL de retorno no es válida.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -82,6 +83,7 @@ public static class OrderEndpoints
             DiscountsDbContext discountsDb,
             CreateOrderHandler createOrder,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
+            IShippingMethodRepository shippingMethods,
             SettlePaymentHandler settle,
             IMercadoPagoPaymentService mp,
             Api.Orders.PaidOrderSideEffects paidEffects,
@@ -90,7 +92,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.PaymentMethodId))
                 return Error.Validation("Payment.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -122,6 +124,7 @@ public static class OrderEndpoints
             DiscountsDbContext discountsDb,
             CreateOrderHandler createOrder,
             Catalog.Contracts.ICatalogCheckoutQuery catalogQuery,
+            IShippingMethodRepository shippingMethods,
             SettlePaymentHandler settle,
             IPaywayPaymentService payway,
             Api.Orders.PaidOrderSideEffects paidEffects,
@@ -130,7 +133,7 @@ public static class OrderEndpoints
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.Bin))
                 return Error.Validation("Payway.MissingToken", "Falta el token de la tarjeta.").ToProblem();
 
-            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, ct);
+            var orderResult = await BuildOrderAsync(tenant.TenantId, id, request.CouponCode, request.UtmSource, checkouts, discountsDb, createOrder, catalogQuery, shippingMethods, ct);
             if (orderResult.IsFailure) return orderResult.Error.ToProblem();
             var order = orderResult.Value;
 
@@ -237,8 +240,10 @@ public static class OrderEndpoints
             var r = order.MarkFulfilled(req.Tracking);
             if (r.IsFailure) return r.Error.ToProblem();
             await orders.SaveChangesAsync(ct);
-            await notifier.NotifyAsync(order, "confirmacion-envio", ct);
-            await whatsapp.NotifyAsync(order, "confirmacion-envio", ct);
+            // Retiro en el local: el aviso es "listo para retirar", no "en camino".
+            var notice = order.IsPickup ? "lista-para-retirar" : "confirmacion-envio";
+            await notifier.NotifyAsync(order, notice, ct);
+            await whatsapp.NotifyAsync(order, notice, ct);
             // Factura automática si el trigger configurado es "al despachar".
             await fiscalQueue.EnqueueInvoiceAsync(tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
                 order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnFulfillment, ct);
@@ -543,7 +548,8 @@ public static class OrderEndpoints
     private static async Task<Result<Order>> BuildOrderAsync(
         TenantId tenantId, Guid sessionId, string? couponCode, string? utmSource,
         ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder,
-        Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, CancellationToken ct)
+        Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, IShippingMethodRepository shippingMethods,
+        CancellationToken ct)
     {
         var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
         if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
@@ -588,6 +594,11 @@ public static class OrderEndpoints
             i.VariantId, i.ProductName, i.VariantDescription, i.Sku, i.UnitPrice, i.Quantity, i.ReservationId,
             variantCosts.TryGetValue(i.VariantId, out var cost) ? cost : null)).ToList();
 
+        // Retiro en el local: lo dice el medio que eligió (los de carrier, aunque sean
+        // "a sucursal", se despachan y siguen con su seguimiento).
+        var isPickup = session.ShippingMethodId is { } methodId
+            && (await shippingMethods.GetByIdAsync(tenantId, methodId, ct))?.Kind == ShippingKind.Pickup;
+
         var buyerFullName = string.Join(' ', new[] { session.BuyerName, session.BuyerLastName }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
@@ -601,7 +612,8 @@ public static class OrderEndpoints
             BuyerPhone: session.Phone,
             DocNumber: session.DocNumber,
             Notes: session.Notes,
-            UtmSource: utmSource), ct);
+            UtmSource: utmSource,
+            IsPickup: isPickup), ct);
     }
 
     private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
@@ -626,6 +638,7 @@ public static class OrderEndpoints
         discount = ApiJson.MoneyJson(order.DiscountAmount),
         shipping = ApiJson.MoneyJson(order.ShippingCost),
         shippingMethod = order.ShippingMethodName,
+        isPickup = order.IsPickup,
         shippingAddress = order.ShippingAddress,
         buyerName = order.BuyerName,
         buyerPhone = order.BuyerPhone,

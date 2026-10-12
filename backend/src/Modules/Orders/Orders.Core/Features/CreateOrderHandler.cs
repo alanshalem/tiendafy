@@ -12,7 +12,7 @@ public sealed record CreateOrderCommand(
     IReadOnlyList<CreateOrderLine> Lines, Money? Discount = null, string? CouponCode = null,
     Money? ShippingCost = null, string? ShippingMethodName = null, string? ShippingAddress = null,
     string? BuyerName = null, string? BuyerPhone = null, string? DocNumber = null, string? Notes = null,
-    string? UtmSource = null);
+    string? UtmSource = null, bool IsPickup = false);
 
 public sealed class CreateOrderHandler(IOrderRepository repository)
 {
@@ -29,7 +29,7 @@ public sealed class CreateOrderHandler(IOrderRepository repository)
         result.Value.SetShippingAndBuyer(
             command.ShippingCost ?? Money.Zero(command.Currency),
             command.ShippingMethodName, command.ShippingAddress,
-            command.BuyerName, command.BuyerPhone, command.DocNumber, command.Notes);
+            command.BuyerName, command.BuyerPhone, command.DocNumber, command.Notes, command.IsPickup);
 
         await repository.AddAsync(result.Value, ct);
         await repository.SaveChangesAsync(ct);
