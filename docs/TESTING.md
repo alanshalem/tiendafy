@@ -25,15 +25,18 @@ un solo lugar para cada cosa compartida (fixtures, explorador, accesibilidad).
 | **Carga y protección** | Usuarios virtuales recorriendo la tienda (p50/p95/p99); el rate limit corta el abuso con 429 | `scripts/load-test.mjs` | `pnpm test:load` / `pnpm test:load -- --mode protection` | — |
 
 Los e2e, el smoke y la carga necesitan el stack levantado (`.\dev-up.ps1`):
-no corren en CI.
+no corren en CI. En desarrollo todo llega desde 127.0.0.1 (navegador,
+storefront, panel, e2e), así que el techo global de pedidos es 5000/min en
+`appsettings.Development.json`; con el de producción (300/min) una corrida
+completa del e2e lo agotaba y fallaba al azar.
 
 ## Cobertura
 
 | Proyecto | Medido | Piso en CI |
 |---|---|---|
-| Backend (unit + integración, unidos por archivo y línea) | 92,5 % | 90 % (`tools/coverage.py --min 90`) |
+| Backend (unit + integración, unidos por archivo y línea) | 94,8 % | 93 % (`tools/coverage.py --min 93`) |
 | Backend, solo dominio (`*.Core` + SharedKernel, unit) | — | 60 % |
-| Panel (`admin/src` + `@tiendafy/ui` + `@tiendafy/types`) | 71,7 % | 70 % |
+| Panel (`admin/src` + `@tiendafy/ui` + `@tiendafy/types`) | 93 % | 90 % |
 | Tienda (`storefront/src`) | 97 % | 95 % |
 
 Los pisos son un *ratchet*: cuando la cobertura sube, se sube el piso; nunca se
@@ -69,12 +72,15 @@ En los frontends, `vitest run --coverage` deja `coverage/lcov-report/index.html`
   jsdom. Una regla que no puede correr hace fallar el test (así fue como, un
   tiempo, los diálogos quedaban sin revisar).
 - **`test-fixtures/dom-setup.ts`** — lo que jsdom no trae: `<dialog>`,
-  observers, `elementFromPoint`, Escape que cierra diálogos.
+  observers, `elementFromPoint`, Escape que cierra diálogos, `Blob.text()`
+  (vista previa de un CSV) y rectángulos de `Range` (el editor de texto).
 - **Backend**: `Merchant` (un comercio con sesión y su tienda), `Shopper` (un
   comprador con su cookie), `SeededStore`, `FakeHttp` (todo HTTP saliente
   —Mercado Pago, ARCA, carriers, Resend, S3— pasa por acá; lo que no está
   simulado responde 503), `Workers.RunOnceAsync<T>` (una pasada de un worker),
-  `SqlCommands` (cuenta las consultas de EF).
+  `SqlCommands` (cuenta las consultas de EF), `FakeArca` + `TestCa` +
+  `merchant.ConfigureFiscalAsync()` (facturación electrónica lista para emitir)
+  y `merchant.ConnectMercadoPagoAsync()` (el OAuth de Mercado Pago).
 
 ## Convenciones
 
@@ -98,7 +104,31 @@ equivocado, la cotización de Andreani bloqueada para el comprador, el sitemap
 que publicaba el catálogo de una tienda en construcción, y el panel/la tienda
 que mostraban "sesión cerrada" ante un 429 o un corte de la API.
 
-Accesibilidad: el carrito y el panel de filtros cerrados seguían alcanzables
+Segunda tanda (octubre):
+
+- **Límites por IP compartidos por toda la plataforma.** El stack no
+  configuraba `ForwardedHeaders:KnownNetworks`: detrás de Caddy todo el
+  tráfico parecía venir de Caddy, así que 10 logins cada 5 minutos y el techo
+  de 300 pedidos/min eran para todos los usuarios juntos. Y el storefront, que
+  arma cada página llamando a la API por la red interna, consumía un único
+  cupo por todos los compradores de todas las tiendas (`TrustedNetworks`).
+- **SSRF en la importación de imágenes del CSV**: una IPv4 escrita como IPv6
+  (`::ffff:169.254.169.254`) o `::` pasaban como públicas, el `HttpClient`
+  seguía redirecciones a la red interna y el DNS podía cambiar entre el chequeo
+  y la conexión (`PublicUrlGuard`: valida al conectar y no redirige).
+- Facturar una venta de Mercado Libre rechazada por ARCA no decía por qué
+  (el motivo viene en las observaciones, no en los errores).
+- Un error del servidor sin explicación (500 vacío, 502 del proxy) mostraba
+  "Request failed with status 502" en vez del mensaje de cada pantalla.
+- La barra del editor de texto (Páginas, e-mails) nunca marcaba el formato
+  activo: Tiptap 3 dejó de re-renderizar en cada cambio.
+- El buscador del centro de ayuda no ignoraba tildes ("envios" no encontraba
+  "envíos"); conectar Meta Ads fallaba en silencio; textos sin tilde en la
+  repreciación masiva y "2 ordenes de compra".
+- Accesibilidad: ~50 campos con etiqueta visible pero sin nombre accesible, y
+  botones de opción/plegables/tabs sin `aria-pressed`/`aria-expanded`.
+
+Primera tanda: accesibilidad: el carrito y el panel de filtros cerrados seguían alcanzables
 con Tab; los menús "Más" y "Categorías" no abrían con un tap en tablets; los
 menús ⋮ y varios botones de ícono, selects, switches y campos sin nombre
 accesible; el `Modal` y los `Tabs` compartidos sin nombre/estado accesible.
@@ -110,9 +140,13 @@ accesible; el `Modal` y los `Tabs` compartidos sin nombre/estado accesible.
   2,42:1; azul `#007aff` con texto blanco 4,01:1); en la tienda, colores que
   elige cada comercio. Corregirlo cambia la identidad visual: es una decisión
   de diseño.
-- **128 `<label>` del panel sin `htmlFor`**: los campos se encuentran por su
-  placeholder (axe lo acepta), pero hacer clic en la etiqueta no enfoca el
-  campo. `FormField` ya lo hace bien; migrar a `FormField` es lo recomendado.
+- **`<label>` del panel sin `htmlFor`**: los campos ya tienen nombre accesible
+  (`aria-label`), pero hacer clic en la etiqueta no enfoca el campo.
+  `FormField` lo hace bien; migrar a `FormField` es lo recomendado.
+- **"Lista para retirar" nunca se envía**: las plantillas de email y de
+  WhatsApp existen y se ofrecen en el panel, pero nada las dispara; al
+  despachar un pedido de retiro en el local se manda "confirmación de envío".
+  Arreglarlo pide decidir cuándo se avisa y guardar en la orden si es retiro.
 - **Pool de conexiones en frío**: la primera ráfaga concurrente paga abrir las
   conexiones a Postgres (en Docker Desktop, ~380 ms cada una). Si en producción
   hay picos después de períodos ociosos, conviene `Minimum Pool Size` en la
