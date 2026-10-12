@@ -6,12 +6,13 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AndreaniShipmentButton } from '../components/AndreaniShipment';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 import type { ShippingOrderLike } from '../lib/shipping';
-import { mockApi } from '../test/api';
+import { mockApi, type MockApi } from '../test/api';
+import { fill } from '../test/explore';
 import { renderWithProviders } from '../test/render';
 
 const order: ShippingOrderLike = {
@@ -26,6 +27,9 @@ const order: ShippingOrderLike = {
 };
 
 const base = `/api/v1/admin/orders/${order.id}`;
+
+const download = vi.hoisted(() => vi.fn());
+vi.mock('../lib/download', () => ({ downloadBlob: download }));
 
 /** El modal abierto (el del carrier). */
 async function dialog() {
@@ -206,5 +210,171 @@ describe('Correo Argentino', () => {
     renderWithProviders(<CorreoShipmentButton order={order} />);
     await waitFor(() => expect(api.calls.length).toBeGreaterThan(0));
     expect(screen.queryByText(/Crear envío en Correo/)).not.toBeInTheDocument();
+  });
+});
+
+describe('casos borde de los despachos', () => {
+  const lastPost = (api: MockApi, path: string) =>
+    api.calls.filter((c) => c.method === 'POST' && c.path === path).at(-1)?.body;
+
+  it('Andreani a sucursal pide el ID (no la dirección); si ya existía, lo dice', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/andreani', { configured: true, canCreateShipments: true });
+    api.on('GET', `${base}/andreani-shipment`, { exists: false });
+    api.on('POST', `${base}/andreani-shipment`, { detail: 'Código postal inexistente.' }, 400);
+    const user = userEvent.setup();
+    renderWithProviders(<AndreaniShipmentButton order={order} />);
+
+    await user.click(await screen.findByRole('button', { name: /Crear envío en Andreani/ }));
+    const modal = await dialog();
+    await user.type(modal.getByLabelText('Piso, depto. u observaciones'), '2B');
+    await user.click(modal.getByRole('button', { name: /Crear envío/ }));
+    expect(await screen.findByText('Código postal inexistente.')).toBeInTheDocument();
+    expect(lastPost(api, `${base}/andreani-shipment`)).toMatchObject({
+      extras: '2B',
+      toBranch: false,
+      branchId: null,
+    });
+
+    await user.click(modal.getByRole('switch', { name: /Retiro en sucursal de Andreani/ }));
+    expect(modal.queryByLabelText('Calle')).not.toBeInTheDocument();
+    await user.type(modal.getByLabelText('ID de la sucursal de retiro'), ' PRC ');
+    api.on('POST', `${base}/andreani-shipment`, {
+      exists: true,
+      alreadyExisted: true,
+      trackingNumber: '360000123',
+      allTrackingNumbers: ['360000123', '360000124'],
+      label: 'Ingresado',
+      hasLabel: true,
+    });
+    await user.click(modal.getByRole('button', { name: /Crear envío/ }));
+    expect(await screen.findByText('Esta venta ya tenía un envío en Andreani')).toBeInTheDocument();
+    expect(lastPost(api, `${base}/andreani-shipment`)).toMatchObject({ toBranch: true, branchId: 'PRC' });
+    // Un envío con varios bultos los cuenta.
+    expect(screen.getByText(/2 bultos/)).toBeInTheDocument();
+  });
+
+  it('Andreani: la etiqueta se baja con el número de seguimiento; los errores se muestran', async () => {
+    download.mockReset();
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/andreani', { configured: true, canCreateShipments: true });
+    api.on('GET', `${base}/andreani-shipment`, { exists: true, trackingNumber: '360000123', hasLabel: true });
+    api.on('GET', `${base}/andreani-label`, {});
+    api.on('GET', `${base}/andreani-tracking`, { status: 'EN_CAMINO', label: 'En camino' });
+    const user = userEvent.setup();
+    renderWithProviders(<AndreaniShipmentButton order={order} />);
+
+    await user.click(await screen.findByRole('button', { name: /Etiqueta PDF/ }));
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(expect.anything(), 'etiqueta-andreani-360000123.pdf'),
+    );
+    await user.click(screen.getByRole('button', { name: /Seguimiento/ }));
+    expect(await screen.findByText('Andreani: En camino')).toBeInTheDocument();
+
+    api.on('GET', `${base}/andreani-label`, { detail: 'La etiqueta todavía no está lista.' }, 409);
+    await user.click(screen.getByRole('button', { name: /Etiqueta PDF/ }));
+    expect(await screen.findByText('La etiqueta todavía no está lista.')).toBeInTheDocument();
+    api.on('GET', `${base}/andreani-tracking`, { detail: 'Andreani no responde.' }, 502);
+    await user.click(screen.getByRole('button', { name: /Seguimiento/ }));
+    expect(await screen.findByText('Andreani no responde.')).toBeInTheDocument();
+  });
+
+  it('Zipnova: con envío muestra transporte y seguimiento; si ya existía, lo dice', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/zipnova', { configured: true });
+    api.on('GET', `${base}/zipnova-shipment`, { exists: false });
+    api.on('POST', `${base}/zipnova-shipment`, {
+      exists: true,
+      alreadyExisted: true,
+      carrier: 'OCA',
+      carrierTrackingId: 'OCA-99',
+      trackingUrl: 'https://tracking.example/ZN-1',
+    });
+    api.on('GET', `${base}/zipnova-label`, { detail: 'Etiqueta no disponible.' }, 404);
+    const user = userEvent.setup();
+    renderWithProviders(<ZipnovaShipmentButton order={order} />);
+
+    await user.click(await screen.findByRole('button', { name: /Crear envío en Zipnova/ }));
+    const modal = await dialog();
+    await user.type(modal.getByLabelText('Piso / depto (opcional)'), '2B');
+    await user.click(modal.getByRole('button', { name: /Crear envío/ }));
+    expect(await screen.findByText('Esta venta ya tenía un envío en Zipnova')).toBeInTheDocument();
+    expect(screen.getByText(/OCA-99/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Seguimiento/ })).toHaveAttribute(
+      'href',
+      'https://tracking.example/ZN-1',
+    );
+    await user.click(screen.getByRole('button', { name: /Etiqueta/ }));
+    expect(await screen.findByText('Etiqueta no disponible.')).toBeInTheDocument();
+  });
+
+  it('Correo: a domicilio con piso, depto y provincia; si MiCorreo rechaza, lo dice', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/correo', { configured: true, active: true });
+    api.on('POST', `${base}/correo-shipment`, { detail: 'Provincia inválida.' }, 400);
+    const user = userEvent.setup();
+    renderWithProviders(<CorreoShipmentButton order={order} />);
+
+    await user.click(await screen.findByRole('button', { name: /Crear envío en Correo Argentino/ }));
+    const modal = await dialog();
+    expect(modal.getByLabelText('Tipo de entrega')).toHaveValue('D');
+    await user.type(modal.getByLabelText('Piso'), '2');
+    await user.type(modal.getByLabelText('Depto'), 'B');
+    await user.selectOptions(modal.getByLabelText('Provincia'), 'X');
+    await user.click(modal.getByRole('button', { name: /Crear envío/ }));
+    expect(await screen.findByText('Provincia inválida.')).toBeInTheDocument();
+    expect(lastPost(api, `${base}/correo-shipment`)).toMatchObject({
+      deliveryType: 'D',
+      floor: '2',
+      apartment: 'B',
+      provinceCode: 'X',
+      agency: null,
+    });
+
+    // Cambiar a sucursal esconde la dirección; volver la muestra.
+    await user.selectOptions(modal.getByLabelText('Tipo de entrega'), 'S');
+    expect(modal.queryByLabelText('Calle')).not.toBeInTheDocument();
+    await user.selectOptions(modal.getByLabelText('Tipo de entrega'), 'D');
+    expect(modal.getByLabelText('Calle')).toBeInTheDocument();
+
+    api.on('POST', `${base}/correo-shipment`, { ok: true, createdAt: null });
+    await user.click(modal.getByRole('button', { name: /Crear envío/ }));
+    await user.click(await screen.findByRole('button', { name: 'Listo' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+describe('cada campo del formulario de envío viaja a la API', () => {
+  const CASES = [
+    { name: 'Andreani', ui: <AndreaniShipmentButton order={order} />, key: 'andreani', ship: true },
+    { name: 'Zipnova', ui: <ZipnovaShipmentButton order={order} />, key: 'zipnova', ship: true },
+    { name: 'Correo Argentino', ui: <CorreoShipmentButton order={order} />, key: 'correo', ship: false },
+  ];
+
+  it.each(CASES)('$name', async ({ name, ui, key, ship }) => {
+    const api = mockApi();
+    api.on('GET', `/api/v1/admin/shipping/${key}`, {
+      configured: true,
+      active: true,
+      canCreateShipments: true,
+    });
+    if (ship) api.on('GET', `${base}/${key}-shipment`, { exists: false });
+    api.on('POST', `${base}/${key}-shipment`, {
+      exists: true,
+      ok: true,
+      createdAt: null,
+      trackingNumber: 'T-1',
+    });
+    const user = userEvent.setup();
+    renderWithProviders(ui);
+
+    await user.click(await screen.findByRole('button', { name: new RegExp(`Crear envío en ${name}`) }));
+    const modal = screen.getByRole('dialog');
+    // Todo se edita (los campos de texto con un valor nuevo, los selects con otra opción).
+    await fill(user, modal, 100);
+    await user.click(within(modal).getByRole('button', { name: /Crear envío/ }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'POST')).toBe(true));
+    const sent = JSON.stringify(api.calls.find((c) => c.method === 'POST')!.body);
+    expect(sent).toContain('Prueba 12');
   });
 });

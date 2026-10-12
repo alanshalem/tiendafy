@@ -5,8 +5,9 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, type MockApi } from '../test/api';
+import { fill, settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
 
 const PAGE = '/configuracion/medios-de-envio';
@@ -149,5 +150,295 @@ describe('Correo Argentino', () => {
     await user.click(modal.getByRole('button', { name: /Guardar/ }));
     await waitFor(() => expect(sent(api, 'PUT', '/api/v1/admin/shipping/correo')).toBeDefined());
     expect(sent(api, 'PUT', '/api/v1/admin/shipping/correo')).toMatchObject({ userToken: 'user-token' });
+  });
+});
+
+/* ---- Los tres carriers con el mismo recorrido, y lo propio de cada uno ---- */
+
+const BASE = '/api/v1/admin/shipping';
+
+interface Carrier {
+  title: string;
+  key: string;
+  saved: string;
+  disconnected: string;
+  configured: Record<string, unknown>;
+  /** Abre la prueba (cotización o conexión) dentro del modal y devuelve el botón. */
+  testButton: RegExp;
+}
+
+const CARRIERS: Carrier[] = [
+  {
+    title: 'Zipnova',
+    key: 'zipnova',
+    saved: 'Zipnova configurado',
+    disconnected: 'Zipnova desconectado',
+    configured: {
+      configured: true,
+      country: 'AR',
+      accountId: 1234,
+      originId: '55',
+      defaultWeightGrams: 1000,
+      defaultLengthCm: 30,
+      defaultWidthCm: 20,
+      defaultHeightCm: 15,
+      active: false,
+    },
+    testButton: /^Cotizar$/,
+  },
+  {
+    title: 'Correo Argentino',
+    key: 'correo',
+    saved: 'Correo Argentino configurado',
+    disconnected: 'Correo Argentino desconectado',
+    configured: {
+      configured: true,
+      customerId: '0001234567',
+      environment: 'TEST',
+      originPostalCode: '1406',
+      defaultWeightGrams: 1000,
+      defaultLengthCm: 30,
+      defaultWidthCm: 20,
+      defaultHeightCm: 15,
+      offerHomeDelivery: true,
+      offerAgencyDelivery: true,
+      active: true,
+    },
+    testButton: /Probar cotización/,
+  },
+  {
+    title: 'Andreani',
+    key: 'andreani',
+    saved: 'Andreani configurado',
+    disconnected: 'Andreani desconectado',
+    configured: {
+      configured: true,
+      username: 'tienda',
+      hasPassword: true,
+      clientCode: '0012345678',
+      homeDeliveryContract: '400006709',
+      branchPickupContract: null,
+      originBranch: 'PRC',
+      useQa: true,
+      senderName: null,
+      active: true,
+      canCreateShipments: false,
+      defaultWeightGrams: 1000,
+      defaultLengthCm: 30,
+      defaultWidthCm: 20,
+      defaultHeightCm: 15,
+    },
+    testButton: /Probar conexión/,
+  },
+];
+
+let crashes: () => unknown[][];
+
+beforeEach(() => {
+  crashes = watchCrashes();
+});
+
+afterEach(() => {
+  expect(crashes()).toEqual([]);
+  vi.restoreAllMocks();
+});
+
+async function openShipping(setup?: (api: MockApi) => void) {
+  const api = mockApi();
+  setup?.(api);
+  const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+  renderApp('/configuracion/medios-de-envio');
+  await waitFor(() => expect(screen.getByText('Zipnova')).toBeInTheDocument(), { timeout: 5000 });
+  await settle(4);
+  return { api, user };
+}
+
+const modal = async () => within(await screen.findByRole('dialog'));
+
+describe.each(CARRIERS)('$title', (carrier) => {
+  const url = `${BASE}/${carrier.key}`;
+
+  it('configurar: se completa todo y se guarda (si falla, lo dice)', { timeout: 60_000 }, async () => {
+    const { api, user } = await openShipping((a) =>
+      a.on('PUT', url, { detail: 'Credenciales inválidas.' }, 400),
+    );
+    await user.click((await card(carrier.title)).getByRole('button', { name: 'Configurar' }));
+    const d = await modal();
+    await fill(user, screen.getByRole('dialog'), 100);
+    await user.click(d.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Credenciales inválidas.')).toBeInTheDocument();
+
+    api.on('PUT', url, {});
+    api.on('GET', url, carrier.configured);
+    await user.click(d.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText(carrier.saved)).toBeInTheDocument();
+    expect(api.calls.filter((c) => c.method === 'PUT' && c.path === url).at(-1)!.body).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect((await card(carrier.title)).getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+  });
+
+  it('configurado: editar, probar y cancelar', { timeout: 60_000 }, async () => {
+    const { api, user } = await openShipping((a) => {
+      a.on('GET', url, carrier.configured);
+      a.on('POST', `${url}/test`, { detail: 'El servicio no responde.' }, 502);
+    });
+    await user.click((await card(carrier.title)).getByRole('button', { name: 'Editar' }));
+    const d = await modal();
+    await user.click(d.getByRole('button', { name: carrier.testButton }));
+    expect(await screen.findByText('El servicio no responde.')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path === `${url}/test`)).toBe(true);
+
+    await user.click(d.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('desconectar pide confirmación; si falla, lo dice', async () => {
+    const { api, user } = await openShipping((a) => {
+      a.on('GET', url, carrier.configured);
+      a.on('DELETE', url, { detail: 'No se pudo borrar.' }, 500);
+    });
+    const disconnect = async () => (await card(carrier.title)).getByRole('button', { name: 'Desconectar' });
+    await user.click(await disconnect());
+    await user.click((await modal()).getByRole('button', { name: 'Cancelar' }));
+    expect(api.calls.some((c) => c.method === 'DELETE')).toBe(false);
+
+    await user.click(await disconnect());
+    await user.click((await modal()).getByRole('button', { name: 'Desconectar' }));
+    expect(await screen.findByText('No se pudo borrar.')).toBeInTheDocument();
+
+    api.on('DELETE', url, {});
+    api.on('GET', url, { configured: false });
+    await user.click(await disconnect());
+    await user.click((await modal()).getByRole('button', { name: 'Desconectar' }));
+    expect(await screen.findByText(carrier.disconnected)).toBeInTheDocument();
+    expect(
+      await (await card(carrier.title)).findByRole('button', { name: 'Configurar' }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('lo propio de cada carrier', () => {
+  it('Zipnova: la cotización de prueba lista transportes (o dice que no hay)', async () => {
+    const zipnova = CARRIERS[0]!;
+    const url = `${BASE}/zipnova`;
+    const { api, user } = await openShipping((a) => {
+      a.on('GET', url, zipnova.configured);
+      a.on('POST', `${url}/test`, {
+        options: [
+          {
+            carrier: 'Andreani',
+            service: 'Estándar',
+            logisticType: 'home',
+            price: 5400,
+            estimatedDelivery: '3 días',
+          },
+        ],
+      });
+    });
+    // Pausado: se ve en la tarjeta.
+    expect((await card('Zipnova')).getByText('Pausado')).toBeInTheDocument();
+    await user.click((await card('Zipnova')).getByRole('button', { name: 'Editar' }));
+    const d = await modal();
+    // Vienen con una ciudad de ejemplo: se reemplaza.
+    for (const [field, value] of [
+      ['Ciudad', ' Córdoba '],
+      ['Provincia', 'Córdoba'],
+      ['CP', '5000'],
+    ] as const) {
+      await user.clear(d.getByPlaceholderText(field));
+      await user.type(d.getByPlaceholderText(field), value);
+    }
+    await user.click(d.getByRole('button', { name: /^Cotizar$/ }));
+    expect(await d.findByText(/Andreani — Estándar/)).toBeInTheDocument();
+    expect(api.calls.find((c) => c.path === `${url}/test`)!.body).toEqual({
+      city: 'Córdoba',
+      state: 'Córdoba',
+      zipcode: '5000',
+    });
+
+    api.on('POST', `${url}/test`, { options: [] });
+    await user.click(d.getByRole('button', { name: /^Cotizar$/ }));
+    await waitFor(() => expect(d.queryByText(/Andreani — Estándar/)).not.toBeInTheDocument());
+  });
+
+  it('Correo: la prueba muestra tarifas por domicilio y sucursal (o que no hay)', async () => {
+    const correo = CARRIERS[1]!;
+    const url = `${BASE}/correo`;
+    const { api, user } = await openShipping((a) => {
+      a.on('GET', url, correo.configured);
+      a.on('POST', `${url}/test`, {
+        rates: [
+          {
+            deliveredType: 'D',
+            productName: 'Clásico',
+            price: 4200,
+            deliveryTimeMin: '2',
+            deliveryTimeMax: '5',
+          },
+          {
+            deliveredType: 'S',
+            productName: 'Clásico',
+            price: 3100,
+            deliveryTimeMin: null,
+            deliveryTimeMax: null,
+          },
+        ],
+      });
+    });
+    expect((await card('Correo Argentino')).getByText('Modo prueba')).toBeInTheDocument();
+    await user.click((await card('Correo Argentino')).getByRole('button', { name: 'Editar' }));
+    const d = await modal();
+    await user.click(d.getByRole('button', { name: /Probar cotización/ }));
+    expect(await d.findByText('Cotización de prueba OK ✓')).toBeInTheDocument();
+    expect(d.getByText(/Clásico — domicilio \(2-5 días\)/)).toBeInTheDocument();
+    expect(d.getByText(/Clásico — sucursal/)).toBeInTheDocument();
+
+    // Los switches de lo que se ofrece en el checkout.
+    for (const name of [/Ofrecer envío a domicilio/, /Ofrecer retiro en sucursal/, /Activo/]) {
+      await user.click(d.getByRole('switch', { name }));
+    }
+    api.on('PUT', url, {});
+    await user.click(d.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Correo Argentino configurado')).toBeInTheDocument();
+    expect(api.calls.find((c) => c.method === 'PUT')!.body).toMatchObject({
+      offerHomeDelivery: false,
+      offerAgencyDelivery: false,
+      active: false,
+    });
+
+    api.on('POST', `${url}/test`, { rates: [] });
+    await user.click((await card('Correo Argentino')).getByRole('button', { name: 'Editar' }));
+    const again = await modal();
+    await user.click(again.getByRole('button', { name: /Probar cotización/ }));
+    expect(await again.findByText('Conectó, pero sin tarifas para ese CP.')).toBeInTheDocument();
+  });
+
+  it('Andreani: avisa si faltan datos del remitente; la prueba informa ok o error', async () => {
+    const andreani = CARRIERS[2]!;
+    const url = `${BASE}/andreani`;
+    const { api, user } = await openShipping((a) => {
+      a.on('GET', url, andreani.configured);
+      a.on('POST', `${url}/test`, { ok: true, message: 'Credenciales válidas.' });
+    });
+    expect((await card('Andreani')).getByText('Faltan datos del remitente')).toBeInTheDocument();
+    await user.click((await card('Andreani')).getByRole('button', { name: 'Editar' }));
+    const d = await modal();
+    await user.click(d.getByRole('button', { name: /Probar conexión/ }));
+    expect(await screen.findByText('Credenciales válidas.')).toBeInTheDocument();
+    api.on('POST', `${url}/test`, { ok: false, message: 'Usuario o contraseña incorrectos.' });
+    await user.click(d.getByRole('button', { name: /Probar conexión/ }));
+    expect(await screen.findByText('Usuario o contraseña incorrectos.')).toBeInTheDocument();
+
+    await user.click(d.getByRole('switch', { name: /Usar el ambiente de pruebas/ }));
+    await user.click(d.getByRole('switch', { name: /Ofrecer Andreani en el checkout/ }));
+    api.on('PUT', url, {});
+    await user.click(d.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Andreani configurado')).toBeInTheDocument();
+    // La contraseña vacía conserva la guardada.
+    expect(api.calls.find((c) => c.method === 'PUT')!.body).toMatchObject({
+      password: null,
+      useQa: false,
+      active: false,
+    });
   });
 });
