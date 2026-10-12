@@ -36,8 +36,8 @@ completa del e2e lo agotaba y fallaba al azar.
 |---|---|---|
 | Backend (unit + integración, unidos por archivo y línea) | 94,8 % | 93 % (`tools/coverage.py --min 93`) |
 | Backend, solo dominio (`*.Core` + SharedKernel, unit) | — | 60 % |
-| Panel (`admin/src` + `@tiendafy/ui` + `@tiendafy/types`) | 93 % | 90 % |
-| Tienda (`storefront/src`) | 97 % | 95 % |
+| Panel (`admin/src` + `@tiendafy/ui` + `@tiendafy/types`) | 94 % | 92 % |
+| Tienda (`storefront/src`) | 97,6 % | 96 % |
 
 Los pisos son un *ratchet*: cuando la cobertura sube, se sube el piso; nunca se
 baja. Para ver qué falta en el backend:

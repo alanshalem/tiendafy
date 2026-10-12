@@ -31,7 +31,7 @@ export default defineConfig({
       allowExternal: true,
       reporter: ['text-summary', 'lcov'],
       // Ratchet: piso actual de TODO el panel — solo puede subir.
-      thresholds: { lines: 90 },
+      thresholds: { lines: 92 },
     },
   },
 });
