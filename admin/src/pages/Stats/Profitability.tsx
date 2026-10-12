@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Select } from '@tiendafy/ui';
+import { Button, Select, useToast } from '@tiendafy/ui';
 import {
   KpiCard,
   StatsPageHeader,
@@ -13,7 +13,7 @@ import {
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
-import { api } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
@@ -337,6 +337,7 @@ function MetaAdsSection({
 }) {
   const { store } = useStore();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: status } = useQuery({
     queryKey: ['meta-status', store?.id],
@@ -361,12 +362,15 @@ function MetaAdsSection({
     onSuccess: (r) => {
       window.location.href = r.authUrl;
     },
+    // Sin esto, si Meta o la API rechazaban, el botón no hacía nada y nadie se enteraba.
+    onError: (e) => toast(errMsg(e, 'No se pudo conectar con Meta.'), { variant: 'error' }),
   });
 
   const selectAccount = useMutation({
     mutationFn: (acc: { id: string; name: string }) =>
       api.post('/api/v1/meta-ads/ad-account', { adAccountId: acc.id, name: acc.name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['meta-status', store?.id] }),
+    onError: (e) => toast(errMsg(e, 'No se pudo elegir la cuenta publicitaria.'), { variant: 'error' }),
   });
 
   if (!status) return null;

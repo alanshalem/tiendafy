@@ -262,3 +262,49 @@ describe('medios de pago: rol que solo mira', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('avisos de Mercado Pago trabados', () => {
+  const stuck = (id: string, lastError: string | null) => ({
+    id,
+    dataId: `pay-${id}`,
+    attempts: 8,
+    lastError,
+    createdAtUtc: '2026-10-10T12:00:00Z',
+  });
+
+  it('todo bien no muestra nada', async () => {
+    await openPayments((a) => a.on('GET', `${MP}/connection`, mpConnected));
+    expect(screen.queryByText(/no se pud(o|ieron) procesar/)).not.toBeInTheDocument();
+  });
+
+  it('lista los trabados y deja reintentarlos', async () => {
+    const { api, user } = await openPayments((a) => {
+      a.on('GET', `${MP}/connection`, mpConnected);
+      a.on('GET', `${MP}/webhooks/health`, {
+        connected: true,
+        pending: 0,
+        stuck: 2,
+        last: null,
+        stuckEvents: [stuck('ev-1', 'Timeout'), stuck('ev-2', null)],
+      });
+      a.on('POST', `${MP}/webhooks/ev-1/retry`, { detail: 'Mercado Pago no responde.' }, 502);
+    });
+    expect(screen.getByText('Hay 2 avisos de pago que no se pudieron procesar')).toBeInTheDocument();
+    expect(screen.getByText(/8 intentos · Timeout/)).toBeInTheDocument();
+    const retry = () => screen.getAllByRole('button', { name: /Reintentar/ })[0]!;
+    await user.click(retry());
+    expect(await screen.findByText('Mercado Pago no responde.')).toBeInTheDocument();
+
+    api.on('POST', `${MP}/webhooks/ev-1/retry`, {});
+    api.on('GET', `${MP}/webhooks/health`, {
+      connected: true,
+      pending: 1,
+      stuck: 1,
+      last: null,
+      stuckEvents: [stuck('ev-2', null)],
+    });
+    await user.click(retry());
+    expect(await screen.findByText('Lo volvimos a poner en cola')).toBeInTheDocument();
+    expect(await screen.findByText('Hay un aviso de pago que no se pudo procesar')).toBeInTheDocument();
+  });
+});
