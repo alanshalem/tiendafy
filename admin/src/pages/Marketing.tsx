@@ -90,7 +90,8 @@ export function MarketingPage() {
         c.status === 'scheduled'
           ? 'La campaña vuelve a quedar sin programar (no se borra).'
           : 'Los emails que ya salieron no se pueden deshacer; se frena lo que falta.',
-      confirmLabel: 'Cancelar',
+      // No "Cancelar": es el texto del botón que cierra el diálogo sin hacer nada.
+      confirmLabel: c.status === 'scheduled' ? 'Desprogramar' : 'Frenar el envío',
       variant: 'danger',
     });
     if (!ok) return;

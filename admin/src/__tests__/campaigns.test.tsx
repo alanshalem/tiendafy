@@ -170,3 +170,90 @@ describe('campañas', () => {
     expect(await screen.findByText('Sin dominio verificado.')).toBeInTheDocument();
   });
 });
+
+describe('campañas: la lista', () => {
+  type Row = { id: string; subject: string; status: string };
+  const rows = fixture<{ items: Row[] }>('/api/v1/admin/campaigns').items;
+  const draft = rows.find((c) => c.status === 'draft')!;
+  const scheduled = rows.find((c) => c.status === 'scheduled')!;
+  const sent = rows.find((c) => c.status === 'sent')!;
+  const CAMPAIGNS = '/api/v1/admin/campaigns';
+
+  async function openList(setup?: (api: MockApi) => void) {
+    const api = mockApi();
+    setup?.(api);
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/marketing');
+    await screen.findByRole('heading', { name: 'Email marketing' }, { timeout: 5000 });
+    await settle(2);
+    return { api, user };
+  }
+
+  const row = (subject: string) =>
+    screen.getByText(subject).closest('li, tr, div.rounded-lg, div.rounded-xl') as HTMLElement;
+  const confirm = async (name: string) =>
+    within(await screen.findByRole('dialog')).getByRole('button', { name });
+
+  it('borrar un borrador (con confirmación) y sus errores', async () => {
+    const { api, user } = await openList((a) =>
+      a.on('DELETE', `${CAMPAIGNS}/${draft.id}`, { detail: 'Ya se está enviando.' }, 409),
+    );
+    const del = () => within(row(draft.subject)).getByTitle('Borrar');
+    await user.click(del());
+    await user.click(await confirm('Cancelar'));
+    expect(api.calls.some((c) => c.method === 'DELETE')).toBe(false);
+    await user.click(del());
+    await user.click(await confirm('Borrar'));
+    expect(await screen.findByText('Ya se está enviando.')).toBeInTheDocument();
+    api.on('DELETE', `${CAMPAIGNS}/${draft.id}`, {});
+    await user.click(del());
+    await user.click(await confirm('Borrar'));
+    expect(await screen.findByText('Campaña borrada')).toBeInTheDocument();
+  });
+
+  it('cancelar una programada y duplicar una enviada', async () => {
+    const { api, user } = await openList((a) => {
+      a.on('POST', `${CAMPAIGNS}/${scheduled.id}/cancel`, { detail: 'Ya salió.' }, 409);
+      a.on('POST', `${CAMPAIGNS}/${sent.id}/duplicate`, { detail: 'No se pudo.' }, 500);
+    });
+    await user.click(within(row(scheduled.subject)).getByTitle('Cancelar'));
+    expect(await screen.findByText(/vuelve a quedar sin programar/)).toBeInTheDocument();
+    // Regresión: el botón de confirmar también decía "Cancelar", igual que el de cerrar.
+    await user.click(await confirm('Desprogramar'));
+    expect(await screen.findByText('Ya salió.')).toBeInTheDocument();
+    api.on('POST', `${CAMPAIGNS}/${scheduled.id}/cancel`, {});
+    await user.click(within(row(scheduled.subject)).getByTitle('Cancelar'));
+    await user.click(await confirm('Desprogramar'));
+    expect(api.calls.filter((c) => c.path === `${CAMPAIGNS}/${scheduled.id}/cancel`)).toHaveLength(2);
+
+    await user.click(within(row(sent.subject)).getByTitle('Duplicar'));
+    expect(await screen.findByText('No se pudo.')).toBeInTheDocument();
+    api.on('POST', `${CAMPAIGNS}/${sent.id}/duplicate`, {});
+    await user.click(within(row(sent.subject)).getByTitle('Duplicar'));
+    expect(await screen.findByText('Campaña duplicada como borrador')).toBeInTheDocument();
+  });
+
+  it('una campaña enviándose muestra el avance y se puede frenar', async () => {
+    const { api, user } = await openList((a) =>
+      a.on('GET', CAMPAIGNS, {
+        ...fixture<object>(CAMPAIGNS),
+        items: [
+          {
+            ...fixture<{ items: object[] }>(CAMPAIGNS).items[2],
+            status: 'sending',
+            sentCount: 30,
+            failedCount: 2,
+            recipientCount: 100,
+          },
+        ],
+        total: 1,
+      }),
+    );
+    expect(await screen.findByText(/30\/100 enviados · 2 fallidos/)).toBeInTheDocument();
+    api.on('POST', `${CAMPAIGNS}/${sent.id}/cancel`, {});
+    await user.click(screen.getByTitle('Cancelar'));
+    expect(await screen.findByText(/Los emails que ya salieron no se pueden deshacer/)).toBeInTheDocument();
+    await user.click(await confirm('Frenar el envío'));
+    expect(api.calls.some((c) => c.path === `${CAMPAIGNS}/${sent.id}/cancel`)).toBe(true);
+  });
+});
