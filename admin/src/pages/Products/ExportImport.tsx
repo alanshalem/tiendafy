@@ -34,6 +34,7 @@ export function ExportImportPage() {
           <button
             key={t}
             type="button"
+            aria-pressed={tab === t}
             onClick={() => setTab(t)}
             className={cn(
               '-mb-px flex-1 border-b-2 pb-3 font-medium',

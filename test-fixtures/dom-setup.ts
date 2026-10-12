@@ -69,4 +69,15 @@ export function installDomPolyfills() {
 
   URL.createObjectURL ??= () => 'blob:test';
   URL.revokeObjectURL ??= () => {};
+
+  // Leer un archivo elegido (la vista previa de un CSV) usa Blob.text(), que
+  // jsdom no implementa: se lee con FileReader, que sí tiene.
+  Blob.prototype.text ??= function (this: Blob) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(this);
+    });
+  };
 }
