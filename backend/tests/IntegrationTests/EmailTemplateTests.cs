@@ -65,4 +65,21 @@ public sealed class EmailTemplateTests(ApiFactory factory)
         var empty = await merchant.PostAsync("/api/v1/email-templates/preview", new { });
         Assert.Equal("", empty.GetProperty("subject").GetString());
     }
+
+    [Fact]
+    public async Task Los_emails_llevan_el_logo_y_el_color_del_tema_publicado()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "etb");
+        await merchant.ExpectOkAsync(HttpMethod.Post, "/api/v1/theme/publish", new
+        {
+            logo = "https://cdn.example/logo-tienda.png",
+            colors = new { primary = "232 80 30", accent = "0 0 0", useAccent = false, bg = "255 255 255", text = "17 24 39" },
+            sections = Array.Empty<object>(),
+        });
+
+        var html = (await merchant.PostAsync("/api/v1/email-templates/preview", new { subject = "x", bodyHtml = "<p>x</p>" }))
+            .GetProperty("html").GetString()!;
+        Assert.Contains("https://cdn.example/logo-tienda.png", html, StringComparison.Ordinal);
+        Assert.Contains("#e8501e", html, StringComparison.OrdinalIgnoreCase); // "232 80 30" en hex
+    }
 }
