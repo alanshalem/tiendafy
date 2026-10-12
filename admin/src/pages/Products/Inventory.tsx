@@ -273,6 +273,9 @@ export function InventoryPage() {
                     <td className="px-4 py-2.5">
                       <div className="mx-auto w-20 shrink-0">
                         <Input
+                          aria-label={`Stock disponible de ${product.name}${
+                            variant.optionValues.length > 0 ? ` (${variant.optionValues.join(' / ')})` : ''
+                          }`}
                           compact
                           inputMode="numeric"
                           className="text-center"
