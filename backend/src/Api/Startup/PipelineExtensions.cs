@@ -26,9 +26,8 @@ public static class PipelineExtensions
         // en el deploy en vez de aceptar un forwarded spoofeable.
         fwd.KnownProxies.Clear();
         fwd.KnownIPNetworks.Clear();
-        foreach (var cidr in app.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
-            if (System.Net.IPNetwork.TryParse(cidr, out var net))
-                fwd.KnownIPNetworks.Add(net);
+        foreach (var network in TrustedNetworks.From(app.Configuration))
+            fwd.KnownIPNetworks.Add(network);
         app.UseForwardedHeaders(fwd);
         app.UseHsts();
         return app;

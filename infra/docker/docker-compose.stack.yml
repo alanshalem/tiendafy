@@ -99,6 +99,13 @@ services:
       # Lo que lo distingue es a qué servicios apunta, no cómo se comporta.
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:5080
+      # Caddy y los demás contenedores hablan con la API por la red de Docker
+      # (rangos privados; la API no publica puertos). Sin esto, todo el tráfico
+      # parece venir de Caddy y los límites por IP —10 logins cada 5 minutos, el
+      # techo global— se comparten entre TODOS los usuarios de la plataforma.
+      ForwardedHeaders__KnownNetworks__0: ${TRUSTED_PROXY_CIDR_0:-172.16.0.0/12}
+      ForwardedHeaders__KnownNetworks__1: ${TRUSTED_PROXY_CIDR_1:-192.168.0.0/16}
+      ForwardedHeaders__KnownNetworks__2: ${TRUSTED_PROXY_CIDR_2:-10.0.0.0/8}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=tiendafy;Username=tiendafy;Password=${POSTGRES_PASSWORD}
       # DataProtection: SIN esta ruta la API no arranca (fail-fast). El volumen
       # 'dpkeys' es CRÍTICO: si se pierde, se pierden todos los secretos

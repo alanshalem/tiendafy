@@ -173,10 +173,10 @@ public static class ServiceRegistration
     public static IServiceCollection AddAppRateLimiting(
         this IServiceCollection services, IConfiguration? configuration = null)
     {
-        // Los cupos son configurables SOLO para poder subirlos en el host de
-        // tests: veinte casos de integración logueando desde la misma IP agotan
-        // los 10 intentos legítimos y la suite falla por algo que en producción
-        // es exactamente lo que se quiere. Los defaults son los valores de prod.
+        // Los cupos son configurables para poder subirlos donde todo llega desde
+        // la misma IP: el host de tests (veinte casos logueando agotan los 10
+        // intentos legítimos) y desarrollo (navegador, storefront y e2e desde
+        // 127.0.0.1). Los defaults son los valores de prod.
         var auth = configuration?.GetValue("RateLimiting:AuthPermitLimit", 10) ?? 10;
         var payments = configuration?.GetValue("RateLimiting:PaymentsPermitLimit", 15) ?? 15;
         var global = configuration?.GetValue("RateLimiting:GlobalPermitLimit", 300) ?? 300;
@@ -209,11 +209,12 @@ public static class ServiceRegistration
                     statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(context.HttpContext);
             };
 
-            // Global: techo amplio contra agotamiento de recursos (DoS L7).
+            // Global: techo amplio contra agotamiento de recursos (DoS L7), por
+            // cliente real. Nuestros servidores en la red interna (el storefront
+            // armando páginas) no tienen techo: son todos los compradores juntos.
+            var internalNetworks = TrustedNetworks.From(configuration);
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions { PermitLimit = global, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+                TrustedNetworks.GlobalPartition(ctx, internalNetworks, global));
 
             // Estricto para login/registro/contacto: 10 intentos cada 5 min, por IP Y por
             // endpoint (login no consume el cupo de coupon).
