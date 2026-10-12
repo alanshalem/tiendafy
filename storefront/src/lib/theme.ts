@@ -5,6 +5,8 @@ import {
   DEFAULT_SECTIONS,
   normalizeTheme,
   contrastText,
+  mixRgb,
+  readableOn,
   FONT_FAMILY_CSS,
 } from '@tiendafy/types';
 
@@ -90,6 +92,23 @@ export const colClass: Record<number, string> = {
   4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
 };
 
+/** El color de la marca para texto: se lee a 4,5:1 sobre el fondo y sobre un tinte de hasta 15%. */
+export function primaryInk(theme: ThemeConfig): string {
+  const { primary, bg } = theme.colors;
+  return readableOn(primary, [bg, mixRgb(bg, primary, 0.15)]);
+}
+
+/**
+ * Texto secundario (descripciones, pies, títulos de filtro): el color del texto
+ * aclarado hacia el fondo, pero nunca por debajo de 4,5:1 —ni sobre el fondo
+ * ni sobre las superficies apenas sombreadas (`bg-black/5`)—. Antes era
+ * `opacity-60` sobre el texto, y con los grises de algunas marcas no se leía.
+ */
+export function mutedText(theme: ThemeConfig): string {
+  const { text, bg } = theme.colors;
+  return readableOn(mixRgb(text, bg, 0.4), [bg, mixRgb(bg, '0 0 0', 0.05)]);
+}
+
 /** Config de tema → CSS custom properties para el wrapper del storefront. */
 export function themeToStyle(theme: ThemeConfig): Record<string, string> {
   const c = theme.colors;
@@ -98,11 +117,13 @@ export function themeToStyle(theme: ThemeConfig): Record<string, string> {
     '--color-primary-hover': c.primary,
     // Texto sobre el color primario: oscuro si el primario es claro (lima, cian…), blanco si no.
     '--color-primary-fg': contrastFg(c.primary),
+    // El primary como texto: legible sobre el fondo y sobre su propio tinte (chips, badges).
+    '--color-primary-ink': primaryInk(theme),
     '--color-accent': c.useAccent ? c.accent : c.primary,
     '--color-bg': c.bg,
     '--color-surface': c.bg,
     '--color-fg': c.text,
-    '--color-fg-muted': c.text,
+    '--color-fg-muted': mutedText(theme),
     '--store-header-bg': theme.header.bg,
     '--font-heading': FONT_FAMILIES[theme.fonts.heading] ?? FONT_FAMILIES.sans!,
     '--font-body': FONT_FAMILIES[theme.fonts.body] ?? FONT_FAMILIES.sans!,

@@ -240,22 +240,22 @@ export function ProductDetail({
           {name}
         </h1>
         {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
-        {cfg.showSku && <div className="text-xs opacity-50">SKU: {variant.sku}</div>}
+        {cfg.showSku && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
           {formatMoney(variant.price.amount, variant.price.currency)}
           {variant.compareAtPrice && (
-            <span className="ml-3 text-lg font-normal line-through opacity-50">
+            <span className="ml-3 text-lg font-normal line-through text-fg-muted">
               {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
             </span>
           )}
         </div>
         {cashPrice !== null && (
           <div className="mt-1">
-            <span className="text-xl font-bold text-primary">
+            <span className="text-xl font-bold text-primary-ink">
               {formatMoney(cashPrice, variant.price.currency)}
             </span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
-            <div className="text-xs opacity-60">
+            <div className="text-xs text-fg-muted">
               {cashPct}% de descuento pagando con transferencia o efectivo
             </div>
           </div>
@@ -282,7 +282,7 @@ export function ProductDetail({
                   i % 2 === 1 ? 'bg-[rgb(var(--color-fg)/0.04)]' : ''
                 }`}
               >
-                <dt className="w-40 shrink-0 opacity-60">{row.name}</dt>
+                <dt className="w-40 shrink-0 text-fg-muted">{row.name}</dt>
                 <dd className="font-medium">{row.value}</dd>
               </div>
             ))}
@@ -370,7 +370,7 @@ export function ProductDetail({
                 addToCart();
                 setOpen(true);
               }}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary"
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary-ink"
             >
               Agregar al carrito
             </button>
@@ -424,7 +424,7 @@ export function ProductDetail({
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 opacity-70" />
             <div>
               <div className="font-semibold">Compra protegida</div>
-              <div className="text-xs opacity-60">Tus datos cuidados durante toda la compra.</div>
+              <div className="text-xs text-fg-muted">Tus datos cuidados durante toda la compra.</div>
             </div>
           </div>
         </div>
@@ -433,13 +433,13 @@ export function ProductDetail({
       {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden">
         <div className="min-w-0">
-          <div className="truncate text-xs opacity-60">{name}</div>
+          <div className="truncate text-xs text-fg-muted">{name}</div>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold">
               {formatMoney(variant.price.amount, variant.price.currency)}
             </span>
             {variant.compareAtPrice && (
-              <span className="text-xs line-through opacity-50">
+              <span className="text-xs line-through text-fg-muted">
                 {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
               </span>
             )}

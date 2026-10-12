@@ -81,7 +81,7 @@ export function AccountDashboard() {
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             Hola, {user?.name?.split(' ')[0]}
           </h1>
-          <p className="text-sm opacity-60">{user?.email}</p>
+          <p className="text-sm text-fg-muted">{user?.email}</p>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <Link
@@ -101,7 +101,7 @@ export function AccountDashboard() {
 
       <h2 className="mt-6 mb-3 text-lg font-bold">Mis pedidos</h2>
       {orders === null ? (
-        <p className="py-10 text-center text-sm opacity-60">Cargando…</p>
+        <p className="py-10 text-center text-sm text-fg-muted">Cargando…</p>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-black/10 py-16 text-center opacity-70">
           <Package className="h-8 w-8 opacity-50" />
@@ -120,7 +120,7 @@ export function AccountDashboard() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>
                       {st.label}
                     </span>
-                    <span className="text-xs opacity-50">
+                    <span className="text-xs text-fg-muted">
                       {formatDate(o.createdAtUtc, { day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
@@ -137,7 +137,7 @@ export function AccountDashboard() {
                   ))}
                 </ul>
                 {o.tracking && (
-                  <p className="mt-2 text-xs opacity-60">
+                  <p className="mt-2 text-xs text-fg-muted">
                     Seguimiento: <span className="font-medium">{o.tracking}</span>
                   </p>
                 )}

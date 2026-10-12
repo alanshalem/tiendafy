@@ -21,11 +21,18 @@ option {
    Overridean los defaults de tokens.css SOLO en el build del admin
    (este archivo no lo importa el storefront). Las tiendas de clientes
    siguen usando tokens.css sin tocar. Acento: azul de sistema iOS.
+
+   Contraste WCAG AA (4,5:1) en todo texto: los valores son las variantes
+   de "alto contraste" de Apple en vez de las de sistema (el #007AFF con
+   texto blanco da 4,0:1; el gris #8E8E93 sobre blanco, 3,3:1). En oscuro,
+   el azul es claro y el texto encima, azul noche (el blanco no llega).
+   Lo verifica e2e/tests/accesibilidad.spec.ts.
    ============================================================ */
 :root {
-  --color-primary: 0 122 255; /* #007AFF — system blue (light) */
-  --color-primary-hover: 0 105 224;
+  --color-primary: 0 102 204; /* #0066CC — 5,6:1 con blanco */
+  --color-primary-hover: 0 85 179;
   --color-primary-fg: 255 255 255;
+  --color-primary-ink: 0 102 204;
 
   /* `accent` = material del sidebar (sigue el tema, estilo macOS). */
   --color-accent: 245 245 247; /* #F5F5F7 */
@@ -39,13 +46,13 @@ option {
   --color-border-strong: 198 198 204;
 
   --color-fg: 29 29 31; /* #1D1D1F */
-  --color-fg-muted: 110 110 115; /* #6E6E73 */
-  --color-fg-subtle: 142 142 147; /* #8E8E93 */
+  --color-fg-muted: 99 99 102; /* #636366 */
+  --color-fg-subtle: 108 108 112; /* #6C6C70 */
 
-  --color-success: 52 199 89; /* #34C759 */
-  --color-warning: 255 149 0; /* #FF9500 */
-  --color-danger: 255 59 48; /* #FF3B30 */
-  --color-info: 0 122 255;
+  --color-success: 31 122 53; /* #1F7A35 */
+  --color-warning: 178 80 0; /* #B25000 */
+  --color-danger: 215 0 21; /* #D70015 */
+  --color-info: 0 102 204;
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Segoe UI', Roboto,
@@ -62,9 +69,10 @@ option {
 }
 
 [data-theme='dark'] {
-  --color-primary: 10 132 255; /* #0A84FF — system blue (dark) */
-  --color-primary-hover: 50 150 255;
-  --color-primary-fg: 255 255 255;
+  --color-primary: 64 156 255; /* #409CFF */
+  --color-primary-hover: 102 176 255;
+  --color-primary-fg: 0 29 61; /* azul noche: 6:1 sobre el primary */
+  --color-primary-ink: 64 156 255;
 
   --color-accent: 28 28 30; /* #1C1C1E — sidebar dark material */
   --color-accent-fg: 245 245 247;
@@ -78,7 +86,12 @@ option {
 
   --color-fg: 245 245 247; /* #F5F5F7 */
   --color-fg-muted: 152 152 157; /* #98989D */
-  --color-fg-subtle: 110 110 115;
+  --color-fg-subtle: 142 142 147; /* #8E8E93 */
+
+  --color-success: 48 209 88; /* #30D158 */
+  --color-warning: 255 159 10; /* #FF9F0A */
+  --color-danger: 255 69 58; /* #FF453A */
+  --color-info: 64 156 255;
 
   --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 28px -10px rgb(0 0 0 / 0.5);
   --shadow-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.7), 0 4px 12px -6px rgb(0 0 0 / 0.5);

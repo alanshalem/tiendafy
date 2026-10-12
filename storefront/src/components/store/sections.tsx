@@ -324,7 +324,7 @@ function InfoBarSection({ section }: SectionRenderProps) {
               <Icon name={iconName} className="h-6 w-6 shrink-0 opacity-70" />
               <div className="text-left">
                 {it.title && <div className="font-semibold">{it.title}</div>}
-                {it.description && <div className="text-xs opacity-60">{it.description}</div>}
+                {it.description && <div className="text-xs text-fg-muted">{it.description}</div>}
               </div>
             </div>
           );
@@ -411,7 +411,7 @@ function InstagramSection({ section }: SectionRenderProps) {
             <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
           </svg>
           <div className="text-lg font-bold">@{user}</div>
-          <div className="text-sm opacity-60">Seguinos en Instagram</div>
+          <div className="text-sm text-fg-muted">Seguinos en Instagram</div>
           <span className="mt-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg">
             Ver perfil
           </span>
@@ -453,20 +453,20 @@ function TestimonialsSection({ section }: SectionRenderProps) {
             className="tf-in flex flex-col rounded-lg border border-black/10 bg-black/[0.02] p-6"
             style={{ animationDelay: `${Math.min(i, 6) * 60}ms` }}
           >
-            <Icon name="quote" className="mb-3 h-6 w-6 text-primary opacity-70" />
+            <Icon name="quote" className="mb-3 h-6 w-6 text-primary-ink opacity-70" />
             <blockquote className="flex-1 text-sm leading-relaxed opacity-85">{t.quote}</blockquote>
             {/* mt-auto: el pie queda abajo aunque las cards tengan alturas parejas */}
             <figcaption className="mt-5 flex items-center gap-3">
               {t.photo ? (
                 <img src={t.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
               ) : (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary-ink">
                   {(t.name || '·').trim().charAt(0).toUpperCase()}
                 </span>
               )}
               <span>
                 {t.name && <span className="block text-sm font-semibold">{t.name}</span>}
-                {t.detail && <span className="block text-xs opacity-60">{t.detail}</span>}
+                {t.detail && <span className="block text-xs text-fg-muted">{t.detail}</span>}
               </span>
             </figcaption>
           </figure>
@@ -533,7 +533,7 @@ function BrandsSection({ section }: SectionRenderProps) {
     <section className="store-section overflow-hidden border-y border-black/5 py-8">
       {data.title && (
         <h3
-          className="mb-6 text-center text-sm font-bold uppercase tracking-widest opacity-60"
+          className="mb-6 text-center text-sm font-bold uppercase tracking-widest text-fg-muted"
           style={{ fontFamily: 'var(--font-heading)' }}
         >
           {data.title}

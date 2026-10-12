@@ -53,7 +53,7 @@ function CatRow({ node, depth, onNavigate }: { node: CatNode; depth: number; onN
         <Link
           href={href(`/productos?category=${node.id}`)}
           onClick={onNavigate}
-          className={`flex-1 py-1.5 text-sm hover:text-primary ${depth === 0 ? 'font-semibold' : 'opacity-80 hover:opacity-100'}`}
+          className={`flex-1 py-1.5 text-sm hover:text-primary-ink ${depth === 0 ? 'font-semibold' : 'opacity-80 hover:opacity-100'}`}
         >
           {node.name}
         </Link>
@@ -126,7 +126,7 @@ export function CategoryMenuMobile({ onNavigate }: { onNavigate: () => void }) {
   if (tree.length === 0) return null;
   return (
     <div className="py-1">
-      <div className="px-0 py-1.5 text-xs font-bold uppercase tracking-wide opacity-50">Categorías</div>
+      <div className="px-0 py-1.5 text-xs font-bold uppercase tracking-wide text-fg-muted">Categorías</div>
       <CategoryTree nodes={tree} onNavigate={onNavigate} />
     </div>
   );

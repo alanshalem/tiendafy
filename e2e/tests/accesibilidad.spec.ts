@@ -8,11 +8,9 @@ import { ADMIN, ADMIN_STATE, STORE_BASE } from './_helpers';
  * que se mide también el contraste. Se revisan las pantallas por las que
  * pasa todo comprador y las más usadas del panel.
  *
- * El contraste va aparte y por ahora como pendiente (test.fixme): lo que falla
- * son tokens de diseño — en el panel, los textos del menú lateral (4,34:1 y
- * 2,42:1) y el azul primario #007aff con texto blanco (4,01:1); en la tienda,
- * colores que elige cada comercio — y corregirlo cambia la identidad visual.
- * WCAG AA pide 4,5:1. Cuando se decida la paleta, se saca el fixme.
+ * El contraste (WCAG AA, 4,5:1) va aparte: en el panel, con los dos temas;
+ * en la tienda, con los colores que eligió el comercio (el texto sobre su
+ * color se elige solo para que se lea).
  */
 const STORE = process.env.E2E_SMOKE_STORE ?? 'canicari';
 const storeUrl = (path = '/') => `http://${STORE}.${STORE_BASE}${path}`;
@@ -90,22 +88,34 @@ test.describe('accesibilidad del panel', () => {
   });
 });
 
-test.describe('contraste de color (pendiente de decisión de diseño)', () => {
+test.describe('contraste de color', () => {
   test.use({ storageState: ADMIN_STATE });
-  test.fixme(
-    true,
-    'Tokens del panel y colores del comercio por debajo de 4,5:1: ver el comentario de arriba.',
-  );
 
-  test('panel: inicio', async ({ page }) => {
-    await page.goto(ADMIN);
-    await expect(page.getByText(/Hola|Elegí una tienda/i).first()).toBeVisible({ timeout: 20_000 });
-    expect(await violations(page, { contrast: true })).toEqual([]);
-  });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const [name, path] of [
+      ['inicio', '/'],
+      ['productos', '/productos'],
+      ['ventas', '/ventas'],
+    ] as const) {
+      test(`panel (${theme === 'light' ? 'claro' : 'oscuro'}): ${name}`, async ({ page }) => {
+        await page.addInitScript((mode) => localStorage.setItem('tiendafy.themeMode', mode), theme);
+        await page.goto(`${ADMIN}${path}`);
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 20_000 });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await page.waitForLoadState('networkidle');
+        expect(await violations(page, { contrast: true })).toEqual([]);
+      });
+    }
+  }
 
-  test('tienda: portada', async ({ page }) => {
-    await page.goto(storeUrl('/'));
-    await page.waitForLoadState('networkidle');
-    expect(await violations(page, { contrast: true })).toEqual([]);
-  });
+  for (const [name, path] of [
+    ['portada', '/'],
+    ['catálogo', '/productos'],
+  ] as const) {
+    test(`tienda: ${name}`, async ({ page }) => {
+      await page.goto(storeUrl(path));
+      await page.waitForLoadState('networkidle');
+      expect(await violations(page, { contrast: true })).toEqual([]);
+    });
+  }
 });

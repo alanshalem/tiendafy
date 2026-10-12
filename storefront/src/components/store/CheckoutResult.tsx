@@ -123,7 +123,7 @@ export function CheckoutResult({
           {ownMessage}
         </p>
       )}
-      {orderId && <p className="text-xs opacity-40">Orden {orderId}</p>}
+      {orderId && <p className="text-xs text-fg-muted">Orden {orderId}</p>}
       <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">
         Volver a la tienda
       </a>

@@ -58,7 +58,7 @@ export function LegalPage({
                     <p className="mt-2 text-sm leading-relaxed opacity-75">{s.body}</p>
                   </section>
                 ))}
-                <p className="mt-10 text-xs opacity-50">
+                <p className="mt-10 text-xs text-fg-muted">
                   Texto modelo provisto por la plataforma. La tienda puede reemplazarlo creando una página
                   propia con el mismo nombre.
                 </p>

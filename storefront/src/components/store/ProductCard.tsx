@@ -112,7 +112,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         ) : (
           <InitialFallback
             name={product.name}
-            className="flex h-full w-full items-center justify-center text-5xl font-bold opacity-40"
+            className="flex h-full w-full items-center justify-center text-5xl font-bold text-fg-muted"
           />
         )}
         {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. */}
@@ -157,7 +157,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             {formatMoney(product.priceAmount, product.currency)}
           </span>
           {list.showCompareAt && product.compareAtAmount && (
-            <span className="ml-2 line-through opacity-50">
+            <span className="ml-2 line-through text-fg-muted">
               {formatMoney(product.compareAtAmount, product.currency)}
             </span>
           )}

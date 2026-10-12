@@ -32,7 +32,7 @@ export type {
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS } from './theme';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
-export { contrastText, contrastRatio } from './color';
+export { contrastText, contrastRatio, mixRgb, readableOn } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
 export type { FontOptionValue } from './fonts';
 export type { MoneyDto } from './wire';

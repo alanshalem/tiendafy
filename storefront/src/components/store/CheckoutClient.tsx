@@ -616,7 +616,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     return (
       <main className="mx-auto max-w-md px-4 py-20 text-center">
         <p className="opacity-70">Tu carrito está vacío.</p>
-        <a href="/" className="mt-4 inline-block text-primary underline">
+        <a href="/" className="mt-4 inline-block text-primary-ink underline">
           Volver a la tienda
         </a>
       </main>
@@ -626,7 +626,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     return (
       <main className="mx-auto max-w-md px-4 py-20 text-center">
         <p className="opacity-70">Esta tienda todavía no tiene los pagos habilitados.</p>
-        <a href="/" className="mt-4 inline-block text-primary underline">
+        <a href="/" className="mt-4 inline-block text-primary-ink underline">
           Volver
         </a>
       </main>
@@ -690,10 +690,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                             {o.name}
                           </span>
                           {o.description && (
-                            <span className="mt-0.5 block text-xs opacity-60">{o.description}</span>
+                            <span className="mt-0.5 block text-xs text-fg-muted">{o.description}</span>
                           )}
                           {o.kind === 'PICKUP' && o.pickupAddress && (
-                            <span className="mt-0.5 block text-xs opacity-60">{o.pickupAddress}</span>
+                            <span className="mt-0.5 block text-xs text-fg-muted">{o.pickupAddress}</span>
                           )}
                         </span>
                         <span className="font-semibold">
@@ -712,7 +712,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     <div className="flex items-center gap-1.5 text-sm font-semibold">
                       <Truck className="h-4 w-4" /> Calculá tu envío
                     </div>
-                    <p className="mt-0.5 text-xs opacity-60">
+                    <p className="mt-0.5 text-xs text-fg-muted">
                       {[correoEnabled && 'Correo Argentino', zipnovaEnabled && 'Zipnova']
                         .filter(Boolean)
                         .join(' y ')}{' '}
@@ -782,7 +782,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                   {o.name}
                                 </span>
                                 {o.toBranch && (
-                                  <span className="mt-0.5 block text-xs opacity-60">
+                                  <span className="mt-0.5 block text-xs text-fg-muted">
                                     Lo retirás en una sucursal de Andreani
                                   </span>
                                 )}
@@ -821,7 +821,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                   {o.name}
                                 </span>
                                 {eta && (
-                                  <span className="mt-0.5 block text-xs opacity-60">
+                                  <span className="mt-0.5 block text-xs text-fg-muted">
                                     Llega aprox. el {eta}
                                   </span>
                                 )}
@@ -864,7 +864,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                   {o.name}
                                 </span>
                                 {o.etaMin && (
-                                  <span className="mt-0.5 block text-xs opacity-60">
+                                  <span className="mt-0.5 block text-xs text-fg-muted">
                                     Llega en {o.etaMin}
                                     {o.etaMax && o.etaMax !== o.etaMin ? ` a ${o.etaMax}` : ''} días hábiles
                                   </span>
@@ -1030,10 +1030,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       <strong>{shippingLabel}</strong> ·{' '}
                       {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
                       {selected?.description && (
-                        <span className="block text-xs opacity-60">{selected.description}</span>
+                        <span className="block text-xs text-fg-muted">{selected.description}</span>
                       )}
                       {selectedCorreo?.kind === 'S' && agencyCode && (
-                        <span className="block text-xs opacity-60">
+                        <span className="block text-xs text-fg-muted">
                           Sucursal: {agencies?.find((a) => a.code === agencyCode)?.name ?? agencyCode}
                         </span>
                       )}
@@ -1048,7 +1048,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     <MapPin className="mt-0.5 h-4 w-4 opacity-50" />
                     <span className="flex-1">
                       {formattedAddress()}
-                      <span className="block text-xs opacity-60">
+                      <span className="block text-xs text-fg-muted">
                         {name} {lastName} · {phone}
                       </span>
                     </span>
@@ -1234,7 +1234,7 @@ function StepDot({
   const body = (
     <span className="flex flex-col items-center gap-1">
       {dot}
-      <span className={`text-xs ${state === 'current' ? 'font-semibold' : 'opacity-60'}`}>{label}</span>
+      <span className={`text-xs ${state === 'current' ? 'font-semibold' : 'text-fg-muted'}`}>{label}</span>
     </span>
   );
   if (href) return <a href={href}>{body}</a>;

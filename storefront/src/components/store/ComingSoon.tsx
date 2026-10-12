@@ -1,4 +1,4 @@
-import type { ThemeConfig } from '@/lib/theme';
+import { primaryInk, type ThemeConfig } from '@/lib/theme';
 import { NewsletterForm } from './NewsletterForm';
 
 /** "2026-11-15" → "15 de noviembre". Sin año: una apertura nunca es a un año vista. */
@@ -48,6 +48,8 @@ export function ComingSoon({
   const { title, message, collectEmails, eyebrow, image, layout, showSocial, whatsapp, launchDate } =
     theme.comingSoon;
   const primary = `rgb(${theme.colors.primary})`;
+  // Como texto, el mismo tono lo bastante profundo para leerse (WCAG AA).
+  const ink = `rgb(${primaryInk(theme)})`;
   const fecha = launchDate ? apertura(launchDate) : null;
   const dividido = layout === 'split' && !!image;
 
@@ -75,7 +77,7 @@ export function ComingSoon({
       {eyebrow && (
         <div
           className={`mx-auto mb-6 inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider ${pill}`}
-          style={{ background: `rgb(${theme.colors.primary} / 0.12)`, color: primary }}
+          style={{ background: `rgb(${theme.colors.primary} / 0.12)`, color: ink }}
         >
           <span className="relative flex h-2 w-2">
             <span
@@ -94,7 +96,7 @@ export function ComingSoon({
       {message && <p className="mt-4 text-base opacity-70">{message}</p>}
 
       {fecha && (
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide" style={{ color: primary }}>
+        <p className="mt-5 text-sm font-semibold uppercase tracking-wide" style={{ color: ink }}>
           Abrimos el {fecha}
         </p>
       )}

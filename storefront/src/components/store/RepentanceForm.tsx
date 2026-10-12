@@ -28,7 +28,7 @@ export function RepentanceForm() {
     return (
       <div className="mt-6 rounded-md border border-black/10 bg-black/[0.03] p-5 text-sm">
         <div className="flex items-center gap-2 font-semibold">
-          <CheckCircle2 className="h-5 w-5 text-primary" /> Solicitud de arrepentimiento enviada
+          <CheckCircle2 className="h-5 w-5 text-primary-ink" /> Solicitud de arrepentimiento enviada
         </div>
         <p className="mt-2 opacity-75">
           Número de solicitud: <strong>{receipt.ref}</strong> · Fecha: {receipt.date}. Te enviamos la

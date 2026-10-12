@@ -43,7 +43,7 @@ export function ProductGrid({
     <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
       {title && (
         <h3
-          className="mb-6 text-sm font-bold uppercase tracking-widest opacity-60"
+          className="mb-6 text-sm font-bold uppercase tracking-widest text-fg-muted"
           style={{ fontFamily: 'var(--font-heading)' }}
         >
           {title}

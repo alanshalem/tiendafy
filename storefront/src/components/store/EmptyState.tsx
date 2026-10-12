@@ -16,7 +16,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgb(var(--color-primary)/0.1)] text-primary">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgb(var(--color-primary)/0.1)] text-primary-ink">
         {icon ?? <PackageOpen className="h-8 w-8" />}
       </div>
       <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>

@@ -130,12 +130,12 @@ export function CatalogBrowser({
     <div className="mx-auto max-w-container px-4 pb-16">
       {/* Barra superior: total + orden */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-4">
-        <p className="text-sm opacity-60">
+        <p className="text-sm text-fg-muted">
           {total} {total === 1 ? 'resultado' : 'resultados'}
           {current.q && <> para «{current.q}»</>}
         </p>
         <div className="flex items-center gap-2 text-sm">
-          <span className="opacity-60">Ordenar por</span>
+          <span className="text-fg-muted">Ordenar por</span>
           {/* El orden por defecto lo elige el comercio; sigue en la URL solo
               cuando el visitante elige otro, así el link se puede compartir. */}
           <SortDropdown
@@ -173,7 +173,7 @@ export function CatalogBrowser({
                     setSearch('');
                     navigate({ q: null, page: null });
                   }}
-                  className="mt-2 text-xs text-primary hover:underline"
+                  className="mt-2 text-xs text-primary-ink hover:underline"
                 >
                   Limpiar búsqueda
                 </button>
@@ -191,7 +191,7 @@ export function CatalogBrowser({
             {/* Precio (Desde / Hasta) */}
             {list.filterPrice && (
               <div>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">Precio</h3>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-muted">Precio</h3>
                 <div className="flex items-center gap-2">
                   <input
                     inputMode="numeric"
@@ -203,7 +203,7 @@ export function CatalogBrowser({
                     aria-label="Precio desde"
                     className="h-9 w-full min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm text-black"
                   />
-                  <span className="opacity-40">–</span>
+                  <span className="text-fg-muted">–</span>
                   <input
                     inputMode="numeric"
                     value={priceMax}
@@ -250,7 +250,11 @@ export function CatalogBrowser({
             ))}
 
             {hasFilters && (
-              <button type="button" onClick={clearFilters} className="text-xs text-primary hover:underline">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs text-primary-ink hover:underline"
+              >
                 Limpiar filtros
               </button>
             )}
@@ -285,7 +289,7 @@ export function CatalogBrowser({
               </PageBtn>
               {pageWindow.map((n, i) =>
                 n === null ? (
-                  <span key={`gap-${i}`} className="px-1 opacity-40">
+                  <span key={`gap-${i}`} className="px-1 text-fg-muted">
                     …
                   </span>
                 ) : (
@@ -325,7 +329,7 @@ function useCollapsibleFacet(values: string[]) {
 }
 
 function FacetTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">{children}</h3>;
+  return <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-muted">{children}</h3>;
 }
 
 function FacetSearch({
@@ -360,7 +364,7 @@ function ShowMore({
     <button
       type="button"
       onClick={onToggle}
-      className="mt-2 text-xs font-semibold text-primary hover:underline"
+      className="mt-2 text-xs font-semibold text-primary-ink hover:underline"
     >
       {expanded ? 'Ver menos' : `Ver ${hidden} más`}
     </button>
@@ -393,7 +397,7 @@ function OptionFacetChips({
               type="button"
               onClick={() => onToggle(v)}
               aria-pressed={on}
-              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-black/15 hover:bg-black/5'}`}
+              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary-ink' : 'border-black/15 hover:bg-black/5'}`}
             >
               {v}
             </button>
@@ -403,7 +407,9 @@ function OptionFacetChips({
       {filtered.length > FACET_VISIBLE && (
         <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={toggle} />
       )}
-      {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
+      {searchable && filtered.length === 0 && (
+        <p className="mt-1 text-xs text-fg-muted">Sin coincidencias.</p>
+      )}
     </div>
   );
 }
@@ -501,7 +507,7 @@ function CategoryFacet({
           <button
             onClick={() => onSelect(node.id)}
             aria-current={current === node.id || undefined}
-            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary' : 'opacity-80'}`}
+            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
           >
             {node.name}
           </button>
@@ -518,8 +524,8 @@ function CategoryFacet({
         onClick={() => setCatsOpen((o) => !o)}
         className="mb-2 flex w-full items-center justify-between lg:pointer-events-none"
       >
-        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-          Categorías{activeCat ? <span className="text-primary">: {activeCat.name}</span> : ''}
+        <h3 className="text-xs font-bold uppercase tracking-widest text-fg-muted">
+          Categorías{activeCat ? <span className="text-primary-ink">: {activeCat.name}</span> : ''}
         </h3>
         <ChevronDown
           className={`h-4 w-4 opacity-60 transition-transform lg:hidden ${catsOpen ? 'rotate-180' : ''}`}
@@ -532,7 +538,7 @@ function CategoryFacet({
             <button
               onClick={() => onSelect(null)}
               aria-current={!current || undefined}
-              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary' : 'opacity-80'}`}
+              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               Todas
             </button>
@@ -542,7 +548,7 @@ function CategoryFacet({
                 <li key={c.id}>
                   <button
                     onClick={() => onSelect(c.id)}
-                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${current === c.id ? 'font-semibold text-primary' : 'opacity-80'}`}
+                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
                   >
                     {c.name}
                   </button>
@@ -557,7 +563,7 @@ function CategoryFacet({
             onToggle={() => setShowAllRoots((v) => !v)}
           />
         )}
-        {q && searchMatches.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
+        {q && searchMatches.length === 0 && <p className="mt-1 text-xs text-fg-muted">Sin coincidencias.</p>}
       </div>
     </div>
   );
@@ -584,7 +590,7 @@ function BrandFacet({
             <button
               onClick={() => onSelect(b)}
               aria-pressed={current === b}
-              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current === b ? 'font-semibold text-primary' : 'opacity-80'}`}
+              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current === b ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               {b}
             </button>
@@ -594,7 +600,9 @@ function BrandFacet({
       {filtered.length > FACET_VISIBLE && (
         <ShowMore hidden={filtered.length - FACET_VISIBLE} expanded={expanded} onToggle={toggle} />
       )}
-      {searchable && filtered.length === 0 && <p className="mt-1 text-xs opacity-50">Sin coincidencias.</p>}
+      {searchable && filtered.length === 0 && (
+        <p className="mt-1 text-xs text-fg-muted">Sin coincidencias.</p>
+      )}
     </div>
   );
 }
@@ -636,7 +644,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
                   onChange(s.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)] ${active ? 'font-semibold text-primary' : ''}`}
+                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)] ${active ? 'font-semibold text-primary-ink' : ''}`}
               >
                 {s.label}
                 {active && <Check className="h-4 w-4" />}
@@ -695,7 +703,7 @@ function SpecFacetChips({
   if (facet.values.length === 0) return null;
   return (
     <div>
-      <h3 className="mb-2 text-xs font-bold uppercase tracking-widest opacity-60">{facet.name}</h3>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-muted">{facet.name}</h3>
       <div className="flex flex-wrap gap-1.5">
         {facet.values.map((v) => {
           const active = selected.includes(`${facet.definitionId}:${v}`);

@@ -310,7 +310,7 @@ function SidebarItem({ item }: { item: NavItem }) {
   const linkClass = (isActive: boolean) =>
     cn(
       'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-      isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+      isActive ? 'bg-primary text-primary-fg' : 'text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg',
     );
 
   if (!item.children) {
@@ -365,7 +365,7 @@ function SidebarItem({ item }: { item: NavItem }) {
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-2 rounded-md px-3 py-1.5 text-[0.82rem] transition-colors',
-                    isActive ? 'font-semibold text-primary' : 'text-accent-fg/50 hover:text-accent-fg',
+                    isActive ? 'font-semibold text-primary' : 'text-accent-fg/70 hover:text-accent-fg',
                   )
                 }
               >
@@ -416,7 +416,7 @@ export function AdminLayout() {
           {visibleSections.map((section) => (
             <div key={section.heading ?? 'top'}>
               {section.heading && (
-                <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/40">
+                <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
                   {section.heading}
                 </div>
               )}
@@ -434,7 +434,7 @@ export function AdminLayout() {
             href="/ayuda"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg"
           >
             <LifeBuoy className="h-4 w-4" />
             Centro de ayuda
@@ -447,7 +447,7 @@ export function AdminLayout() {
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
                   isActive
                     ? 'bg-primary text-primary-fg'
-                    : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+                    : 'text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg',
                 )
               }
             >

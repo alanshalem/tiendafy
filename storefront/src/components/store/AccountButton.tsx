@@ -64,7 +64,7 @@ export function AccountButton() {
         <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-[rgb(var(--color-fg)/0.12)] bg-bg shadow-xl">
           <div className="border-b border-[rgb(var(--color-fg)/0.1)] px-4 py-3">
             <div className="truncate text-sm font-semibold">{user.name}</div>
-            <div className="truncate text-xs opacity-60">{user.email}</div>
+            <div className="truncate text-xs text-fg-muted">{user.email}</div>
           </div>
           <Link
             href={href('/cuenta')}
@@ -183,7 +183,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                 ? 'Iniciá sesión'
                 : 'Creá tu cuenta'}
           </h2>
-          <p className="mt-1 text-sm opacity-60">
+          <p className="mt-1 text-sm text-fg-muted">
             {mode === 'forgot'
               ? 'Te enviamos un link para crear una nueva.'
               : mode === 'login'
@@ -287,7 +287,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                   setSent(false);
                   setMode('login');
                 }}
-                className="font-semibold text-primary hover:underline"
+                className="font-semibold text-primary-ink hover:underline"
               >
                 Volver a iniciar sesión
               </button>
@@ -300,7 +300,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                     setError(null);
                     setMode(mode === 'login' ? 'register' : 'login');
                   }}
-                  className="font-semibold text-primary hover:underline"
+                  className="font-semibold text-primary-ink hover:underline"
                 >
                   {mode === 'login' ? 'Registrate' : 'Iniciá sesión'}
                 </button>

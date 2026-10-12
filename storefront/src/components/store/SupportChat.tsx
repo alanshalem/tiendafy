@@ -168,9 +168,9 @@ export function SupportChat({
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-          {!conv && !error && <p className="py-8 text-center text-sm opacity-60">Abriendo chat…</p>}
+          {!conv && !error && <p className="py-8 text-center text-sm text-fg-muted">Abriendo chat…</p>}
           {messages.length === 0 && conv && (
-            <p className="py-8 text-center text-sm opacity-60">
+            <p className="py-8 text-center text-sm text-fg-muted">
               Contanos en qué te podemos ayudar con este pedido. Podés adjuntar fotos (JPG/PNG) o PDF.
             </p>
           )}

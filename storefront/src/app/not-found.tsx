@@ -48,7 +48,7 @@ export default async function NotFound() {
         </span>
       </div>
       <h1 className="-mt-4 text-2xl font-bold">Esta página no existe</h1>
-      <p className="mt-2 max-w-sm text-sm opacity-60">
+      <p className="mt-2 max-w-sm text-sm text-fg-muted">
         El enlace puede estar roto o la página fue movida. Volvé al inicio y seguí comprando.
       </p>
       <Link

@@ -4,7 +4,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
       <h1 className="text-2xl font-bold">Algo salió mal</h1>
-      <p className="mt-2 max-w-sm text-sm opacity-60">
+      <p className="mt-2 max-w-sm text-sm text-fg-muted">
         Tuvimos un problema cargando esta página. Probá de nuevo en un momento.
       </p>
       <button

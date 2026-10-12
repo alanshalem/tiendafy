@@ -67,7 +67,7 @@ export function ResetPassword() {
       <h1 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
         Nueva contraseña
       </h1>
-      <p className="mt-1 text-sm opacity-60">Elegí una contraseña de al menos 8 caracteres.</p>
+      <p className="mt-1 text-sm text-fg-muted">Elegí una contraseña de al menos 8 caracteres.</p>
       <input
         type="password"
         value={password}

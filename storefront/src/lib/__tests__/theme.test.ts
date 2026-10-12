@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SECTIONS, contrastRatio } from '@tiendafy/types';
-import { defaultTheme, mergeTheme, themeToStyle, colClass } from '../theme';
+import { DEFAULT_SECTIONS, contrastRatio, mixRgb, readableOn } from '@tiendafy/types';
+import { defaultTheme, mergeTheme, themeToStyle, colClass, mutedText, primaryInk } from '../theme';
 import { defaultPrivacy, defaultTerms } from '../legal';
 
 describe('mergeTheme (storefront)', () => {
@@ -74,5 +74,51 @@ describe('plantillas legales', () => {
     const text = doc.intro + doc.sections.map((s) => s.body).join(' ');
     expect(text).toContain('25.326');
     expect(text.toLowerCase()).toContain('supresión');
+  });
+});
+
+describe('el color de la marca como texto (primary-ink)', () => {
+  const conPrimario = (primary: string, bg = '255 255 255') =>
+    mergeTheme({ colors: { ...defaultTheme.colors, primary, bg } });
+
+  it('un teal de marca sobre su tinte no llegaba a 4,5:1: se profundiza lo justo', () => {
+    // El "MUY PRONTO" de una tienda real: #0d9488 sobre su tinte daba 3,2:1.
+    const theme = conPrimario('13 148 136', '253 252 248');
+    const ink = primaryInk(theme);
+    expect(ink).not.toBe('13 148 136');
+    expect(contrastRatio(ink, '253 252 248')).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(ink, mixRgb('253 252 248', '13 148 136', 0.15))).toBeGreaterThanOrEqual(4.5);
+    // Sigue siendo teal: más verde-azul que rojo.
+    const [r, g, b] = ink.split(' ').map(Number);
+    expect(g!).toBeGreaterThan(r!);
+    expect(b!).toBeGreaterThan(r!);
+    expect(themeToStyle(theme)['--color-primary-ink']).toBe(ink);
+  });
+
+  it('si ya se lee, queda igual', () => {
+    expect(primaryInk(conPrimario('20 40 120'))).toBe('20 40 120');
+  });
+
+  it('sobre un fondo oscuro, se aclara', () => {
+    const ink = readableOn('40 60 140', ['16 18 22']);
+    expect(contrastRatio(ink, '16 18 22')).toBeGreaterThanOrEqual(4.5);
+    expect(Number(ink.split(' ')[0])).toBeGreaterThan(40);
+  });
+
+  it('con un fondo imposible, cae al extremo', () => {
+    // Contra gris medio nada llega a 21:1: termina en el extremo.
+    expect(readableOn('128 128 128', ['128 128 128'], 21)).toBe('0 0 0');
+  });
+});
+
+describe('el texto secundario (fg-muted)', () => {
+  it('es más claro que el texto pero se lee sobre el fondo y sobre bg-black/5', () => {
+    // Un gris de marca que con opacity-60 daba 4,27:1.
+    const theme = mergeTheme({ colors: { ...defaultTheme.colors, text: '43 46 59', bg: '255 255 255' } });
+    const muted = mutedText(theme);
+    expect(muted).not.toBe('43 46 59');
+    expect(contrastRatio(muted, '255 255 255')).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(muted, mixRgb('255 255 255', '0 0 0', 0.05))).toBeGreaterThanOrEqual(4.5);
+    expect(themeToStyle(theme)['--color-fg-muted']).toBe(muted);
   });
 });

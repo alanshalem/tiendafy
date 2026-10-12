@@ -17,6 +17,9 @@
   --color-primary: 232 80 30; /* bermellón Tiendafy */
   --color-primary-hover: 196 61 18; /* bermellón profundo */
   --color-primary-fg: 250 245 237; /* papel sobre primary */
+  /* El primary COMO TEXTO: el mismo tono, lo bastante profundo para 4,5:1
+     sobre el fondo (la tienda lo calcula con el color del comercio). */
+  --color-primary-ink: 186 64 24;
 
   --color-accent: 27 21 16; /* obsidiana (tinta cálida) */
   --color-accent-fg: 250 245 237;

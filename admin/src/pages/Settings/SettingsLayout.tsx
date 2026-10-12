@@ -173,7 +173,7 @@ export function SettingsLayout() {
           onClick={() => navigate('/')}
           className="flex h-header items-center gap-2 border-b border-border px-4 text-left hover:bg-fg/5"
         >
-          <ChevronLeft className="h-5 w-5 text-accent-fg/60" />
+          <ChevronLeft className="h-5 w-5 text-accent-fg/75" />
           <LogoMark className="h-6 w-6" />
           <span className="text-sm font-bold">Configuración</span>
         </button>
@@ -181,7 +181,7 @@ export function SettingsLayout() {
         <nav className="flex-1 space-y-5 overflow-y-auto p-3">
           {visibleGroups.map((group) => (
             <div key={group.heading}>
-              <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/40">
+              <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
                 {group.heading}
               </div>
               <div className="space-y-0.5">
@@ -194,7 +194,7 @@ export function SettingsLayout() {
                           'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                           isActive
                             ? 'bg-primary text-primary-fg'
-                            : 'text-accent-fg/60 hover:bg-fg/5 hover:text-accent-fg',
+                            : 'text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg',
                         )
                       }
                     >

@@ -53,3 +53,31 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = la > lb ? [la, lb] : [lb, la];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/** Mezcla "R G B": `t` = 0 deja `a`, 1 llega a `b`. */
+export function mixRgb(a: string, b: string, t: number): string {
+  const ca = channels(a);
+  const cb = channels(b);
+  return ca.map((v, i) => Math.round(v + (cb[i]! - v) * t)).join(' ');
+}
+
+/**
+ * El color de la marca usado COMO TEXTO, ajustado para que se lea sobre cada
+ * uno de los fondos dados: si no llega a `min` (4.5, WCAG AA), se lo va
+ * oscureciendo —o aclarando, si el fondo es oscuro— lo justo. Un teal o un
+ * naranja de marca siguen siendo ese color, un poco más profundos.
+ */
+export function readableOn(fg: string, backgrounds: string[], min = 4.5): string {
+  const worst = (c: string) => Math.min(...backgrounds.map((bg) => contrastRatio(c, bg)));
+  if (worst(fg) >= min) return channels(fg).join(' ');
+  // Hacia el extremo que más se aleja del fondo (el primero manda).
+  const towards =
+    contrastRatio(TEXTO_OSCURO, backgrounds[0]!) >= contrastRatio(TEXTO_CLARO, backgrounds[0]!)
+      ? '0 0 0'
+      : '255 255 255';
+  for (let step = 1; step <= 20; step++) {
+    const candidate = mixRgb(fg, towards, step / 20);
+    if (worst(candidate) >= min) return candidate;
+  }
+  return towards;
+}

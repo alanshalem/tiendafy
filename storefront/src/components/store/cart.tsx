@@ -261,12 +261,12 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                   ) : (
                     <InitialFallback
                       name={l.productName}
-                      className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold opacity-50"
+                      className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold text-fg-muted"
                     />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.productName}</div>
-                    <div className="text-xs opacity-60">{l.variantLabel}</div>
+                    <div className="text-xs text-fg-muted">{l.variantLabel}</div>
                     <div className="mt-1 flex items-center gap-2">
                       <button
                         onClick={() => setQty(l.variantId, l.quantity - 1)}
@@ -300,7 +300,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
             <div className="border-t border-black/10 px-5 py-4">
               {suggested.length > 0 && (
                 <div className="mb-4">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
                     También te puede gustar
                   </div>
                   <div className="flex gap-2 overflow-x-auto">
@@ -324,7 +324,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                         ) : (
                           <InitialFallback
                             name={s.name}
-                            className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold opacity-40"
+                            className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
                           />
                         )}
                         <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
