@@ -36,4 +36,14 @@ describe('errMsg', () => {
     expect(errMsg(new Error('x'), 'Falló')).toBe('Falló');
     expect(errMsg(undefined)).toBe('Error');
   });
+
+  // Regresión: un 500 vacío o un 502 del proxy mostraban "Request failed with status 502".
+  it('si el servidor no explicó el error, usa el mensaje de la pantalla', () => {
+    const e = new ApiRequestError(
+      502,
+      { code: 'HTTP.502', message: 'Request failed with status 502' },
+      false,
+    );
+    expect(errMsg(e, 'No se pudieron traer los compradores.')).toBe('No se pudieron traer los compradores.');
+  });
 });

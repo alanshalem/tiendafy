@@ -8,24 +8,35 @@ export class ApiRequestError extends Error {
   constructor(
     public readonly status: number,
     public readonly error: ApiError,
+    /** El servidor explicó el error (el `detail` de RFC 7807), o es el genérico de acá. */
+    public readonly explained = true,
   ) {
     super(error.message);
   }
 }
 
-/** Mensaje de error legible: el del API si es un ApiRequestError, si no un fallback. */
+/**
+ * Mensaje de error legible: el que explicó la API; si no lo explicó (un 500
+ * vacío, un 502 del proxy) o no es un error de la API, el de la pantalla.
+ * Antes el "Request failed with status 502" técnico le ganaba al mensaje
+ * pensado para el comercio.
+ */
 export function errMsg(e: unknown, fallback = 'Error'): string {
-  return e instanceof ApiRequestError ? e.message : fallback;
+  return e instanceof ApiRequestError && e.explained ? e.message : fallback;
 }
 
 /** Construye el ApiRequestError a partir de una respuesta no-ok (RFC 7807). */
 async function toApiError(res: Response, fallbackMessage: string): Promise<ApiRequestError> {
   // La API devuelve RFC 7807: { title: código, detail: mensaje }.
   const problem = await res.json().catch(() => null);
-  return new ApiRequestError(res.status, {
-    code: problem?.title ?? `HTTP.${res.status}`,
-    message: problem?.detail ?? fallbackMessage,
-  });
+  return new ApiRequestError(
+    res.status,
+    {
+      code: problem?.title ?? `HTTP.${res.status}`,
+      message: problem?.detail ?? fallbackMessage,
+    },
+    typeof problem?.detail === 'string',
+  );
 }
 
 /** Tienda activa — la setea StoreContext; viaja como X-Tenant-Id. */
