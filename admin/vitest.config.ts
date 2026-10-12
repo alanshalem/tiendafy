@@ -5,6 +5,9 @@ export default defineConfig({
   // en los tests cada paquete resolvía la suya ("reading 'useState' of null").
   resolve: { dedupe: ['react', 'react-dom'] },
   test: {
+    // Tests de componentes con el panel/la tienda enteros renderizados: con la
+    // instrumentación de cobertura y la CPU compartida, 5 s quedaba justo.
+    testTimeout: 15_000,
     include: ['src/**/*.test.{ts,tsx}'],
     // Componentes con DOM: jsdom para todos (los tests de lógica pura no lo
     // necesitan, pero tampoco les molesta y evita dos configuraciones).
@@ -17,7 +20,7 @@ export default defineConfig({
       exclude: ['src/**/*.test.*', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
       reporter: ['text-summary', 'lcov'],
       // Ratchet: piso actual de TODO el panel — solo puede subir.
-      thresholds: { lines: 55 },
+      thresholds: { lines: 70 },
     },
   },
 });

@@ -59,8 +59,8 @@ jobs:
       - name: Tests unitarios (con cobertura)
         run: dotnet test tests/UnitTests --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results/unit
 
-      - name: Tests de integración (aislamiento multi-tenant)
-        run: dotnet test tests/IntegrationTests --no-build --configuration Release --logger "trx" --results-directory ./test-results/integration
+      - name: Tests de integración (flujos, contratos, smoke de la API, performance)
+        run: dotnet test tests/IntegrationTests --no-build --configuration Release --logger "trx" --collect:"XPlat Code Coverage" --results-directory ./test-results/integration
 
       # Ratchet de cobertura del DOMINIO (asambleas *.Core + SharedKernel):
       # piso 60 (medido local: 71.5% en unit) — al subir la cobertura, subir
@@ -79,6 +79,12 @@ jobs:
           pct = lh * 100 / lf if lf else 0
           print(f'Dominio (Core+SharedKernel): {pct:.1f}% ({lh}/{lf} lineas)')
           sys.exit(0 if pct >= 60 else 1)
+
+      # Ratchet de cobertura TOTAL (unit + integración unidos por archivo y
+      # línea con tools/coverage.py, que no cuenta dos veces la misma línea):
+      # piso 90 (medido: 92.5%). Al subir la cobertura, subir el piso.
+      - name: Cobertura total >= 90%
+        run: python tools/coverage.py test-results --min 90 --top 15
 
       - name: Upload test results
         if: always()

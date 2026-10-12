@@ -138,13 +138,25 @@ describe('cuentas corrientes', () => {
   });
 
   it('cobro desde la lista: se busca el cliente y se puede cambiar', async () => {
-    const { user } = await open('/cuentas-corrientes');
+    const { api, user } = await open('/cuentas-corrientes');
     await user.click(screen.getByRole('button', { name: /Registrar cobro/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Registrar un cobro' }));
     expect(dialog.getByRole('button', { name: /Registrar/ })).toBeDisabled();
     await user.type(dialog.getByPlaceholderText('Buscar por nombre...'), balance.partyName.slice(0, 5));
+    // La búsqueda va con debounce: hasta que no sale el pedido con el texto, la
+    // lista se vuelve a dibujar y un clic puede caer en una opción que ya no está.
+    await waitFor(() =>
+      expect(
+        api.calls.some(
+          (c) =>
+            c.path.includes('/finance/parties') &&
+            c.path.includes(`q=${encodeURIComponent(balance.partyName.slice(0, 5))}`),
+        ),
+      ).toBe(true),
+    );
+    await settle(2);
     await user.click(await dialog.findByRole('button', { name: rx(balance.partyName) }));
-    await user.click(dialog.getByRole('button', { name: 'Cambiar' }));
+    await user.click(await dialog.findByRole('button', { name: 'Cambiar' }));
     expect(dialog.getByPlaceholderText('Buscar por nombre...')).toBeInTheDocument();
   });
 

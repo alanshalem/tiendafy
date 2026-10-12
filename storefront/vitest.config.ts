@@ -11,6 +11,9 @@ export default defineConfig({
   // JSX automático: los componentes no importan React.
   oxc: { jsx: { runtime: 'automatic' } },
   test: {
+    // Tests de componentes con el panel/la tienda enteros renderizados: con la
+    // instrumentación de cobertura y la CPU compartida, 5 s quedaba justo.
+    testTimeout: 15_000,
     include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['src/test/setup.ts'],
