@@ -40,6 +40,15 @@ const body = (api: MockApi, method: string, path: string) =>
 const debounce = () => new Promise((r) => setTimeout(r, 450));
 
 describe('campañas', () => {
+  it('regresión: una vista previa de audiencia sin número no rompe el modal', async () => {
+    const { api, dialog } = await openCampaign();
+    api.on('POST', '/api/v1/admin/campaigns/audience/preview', {});
+    await userEvent.setup().type(dialog.getAllByPlaceholderText('Sin mínimo')[0]!, '1');
+    await debounce();
+    await settle(2);
+    expect(dialog.getByText('Contando destinatarios…')).toBeInTheDocument();
+  });
+
   it('el modal es accesible', async () => {
     const { root } = await openCampaign();
     expect(await a11yViolations(axe, root)).toEqual([]);

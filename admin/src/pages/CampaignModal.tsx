@@ -153,7 +153,9 @@ export function CampaignModal({
           boughtProductIds: audience !== 'custom' && boughtIds.length ? boughtIds : null,
           favoritedProductIds: audience !== 'custom' && favoritedIds.length ? favoritedIds : null,
         })
-        .then((r) => setAudienceCount(r.count))
+        // Sin un número (respuesta distinta a la esperada) se queda en "contando":
+        // formatear undefined rompía el modal entero.
+        .then((r) => setAudienceCount(typeof r.count === 'number' ? r.count : null))
         .catch(() => setAudienceCount(null));
     }, 400);
     return () => clearTimeout(t);

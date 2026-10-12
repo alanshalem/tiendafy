@@ -23,6 +23,10 @@ export default defineConfig({
         'src/main.tsx',
         'src/vite-env.d.ts',
         '../shared/types/src/generated/**',
+        // Solo tipos (o reexportaciones): no corren, y la cobertura intentaba
+        // parsearlos como JS y llenaba el log de errores.
+        '../shared/types/src/{common,tenancy,wire,index}.ts',
+        '../shared/ui/src/index.ts',
       ],
       allowExternal: true,
       reporter: ['text-summary', 'lcov'],
