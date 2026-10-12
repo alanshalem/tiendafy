@@ -7170,7 +7170,7 @@
           "role": "owner",
           "email": "it-seed93bec2bb@test.local",
           "name": "Test seed93bec2bb",
-          "createdAtUtc": "2026-10-12T17:26:46.901227Z",
+          "createdAtUtc": "2026-10-12T18:29:10.407942Z",
           "permissions": [
             "ads.manage",
             "campaigns.manage",
@@ -7318,7 +7318,7 @@
           "key": "meli.config",
           "group": "Mercado Libre",
           "label": "Conectar Mercado Libre",
-          "description": "Vincular la cuenta y elegir c\u00F3mo se sincroniza y se factura.",
+          "description": "Vincular la cuenta, elegir c\u00F3mo se sincroniza y se factura, y forzar una actualizaci\u00F3n.",
           "sensitive": true,
           "ownerOnly": false,
           "requires": null
@@ -7363,7 +7363,7 @@
           "key": "purchasing.manage",
           "group": "Cat\u00E1logo",
           "label": "Compras e importaciones",
-          "description": "\u00D3rdenes de compra, proveedores, recepci\u00F3n y costo de importaci\u00F3n.",
+          "description": "\u00D3rdenes de compra, proveedores, recepci\u00F3n, costo de importaci\u00F3n, libro de IVA compras y lectura de facturas.",
           "sensitive": false,
           "ownerOnly": false,
           "requires": null
@@ -7381,7 +7381,7 @@
           "key": "customers.write",
           "group": "Clientes",
           "label": "Editar clientes",
-          "description": "Crear, editar y borrar clientes de la agenda.",
+          "description": "Crear, editar y borrar clientes, y traerlos desde las ventas.",
           "sensitive": false,
           "ownerOnly": false,
           "requires": "customers.read"
@@ -7399,7 +7399,7 @@
           "key": "messages.read",
           "group": "Clientes",
           "label": "Leer mensajes de contacto",
-          "description": "Lo que llega por el formulario de contacto de la tienda.",
+          "description": "Lo que llega por el formulario de contacto, y cu\u00E1nta gente se suscribi\u00F3 al newsletter.",
           "sensitive": false,
           "ownerOnly": false,
           "requires": null
@@ -7471,7 +7471,7 @@
           "key": "fiscal.emit",
           "group": "Finanzas y facturaci\u00F3n",
           "label": "Emitir y anular facturas",
-          "description": "Facturas y notas de cr\u00E9dito electr\u00F3nicas ante ARCA.",
+          "description": "Facturas y notas de cr\u00E9dito electr\u00F3nicas ante ARCA, y la consulta del padr\u00F3n.",
           "sensitive": true,
           "ownerOnly": false,
           "requires": null
@@ -7480,7 +7480,7 @@
           "key": "fiscal.config",
           "group": "Finanzas y facturaci\u00F3n",
           "label": "Configurar la facturaci\u00F3n (ARCA)",
-          "description": "Certificado, CUIT, puntos de venta y cu\u00E1ndo se factura.",
+          "description": "Certificado, CUIT, puntos de venta, cu\u00E1ndo se factura y exportar los comprobantes.",
           "sensitive": true,
           "ownerOnly": false,
           "requires": null
@@ -7498,7 +7498,7 @@
           "key": "payments.write",
           "group": "Configuraci\u00F3n",
           "label": "Conectar y desconectar cobros",
-          "description": "Mercado Pago, Payway y el modo de cobro del checkout.",
+          "description": "Mercado Pago, Payway, el modo de cobro del checkout y reintentar avisos de pago.",
           "sensitive": true,
           "ownerOnly": false,
           "requires": "payments.read"
@@ -7516,7 +7516,7 @@
           "key": "notifications.config",
           "group": "Configuraci\u00F3n",
           "label": "E-mails y WhatsApp autom\u00E1ticos",
-          "description": "Qu\u00E9 avisos le llegan al cliente y con qu\u00E9 texto.",
+          "description": "Qu\u00E9 avisos le llegan al cliente, con qu\u00E9 texto, y cu\u00E1nto se us\u00F3 en el mes.",
           "sensitive": false,
           "ownerOnly": false,
           "requires": null

@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Startup;
+using Identity.Infrastructure;
 using SharedKernel.Abstractions;
 
 namespace Api.Endpoints;
@@ -24,7 +25,7 @@ public static class DevEndpoints
             var removed = reset == true ? await seeder.ResetAsync(tenant.TenantId, ct) : 0;
             var report = await seeder.SeedAsync(tenant.TenantId, ct);
             return Results.Ok(new { removed, created = report.Created, skipped = report.Skipped });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.TenantAdmin); // con reset borra datos de la tienda: solo el dueño
 
         return group;
     }

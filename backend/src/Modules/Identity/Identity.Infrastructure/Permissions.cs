@@ -115,7 +115,7 @@ public static class PermissionCatalog
             "Crear y editar publicaciones, su precio y su stock.",
             [Admin, Catalogo]),
         new(Permission.MeliConfig, "meli.config", "Mercado Libre", "Conectar Mercado Libre",
-            "Vincular la cuenta y elegir cómo se sincroniza y se factura.",
+            "Vincular la cuenta, elegir cómo se sincroniza y se factura, y forzar una actualización.",
             [Admin], Sensitive: true),
 
         // Catálogo
@@ -132,7 +132,7 @@ public static class PermissionCatalog
             "Cargar conteos y corregir el stock a mano.",
             [Admin, Catalogo], Requires: Permission.InventoryRead),
         new(Permission.PurchasingManage, "purchasing.manage", "Catálogo", "Compras e importaciones",
-            "Órdenes de compra, proveedores, recepción y costo de importación.",
+            "Órdenes de compra, proveedores, recepción, costo de importación, libro de IVA compras y lectura de facturas.",
             [Admin, Finanzas]),
 
         // Clientes
@@ -140,13 +140,13 @@ public static class PermissionCatalog
             "La agenda de clientes y su historial de compras.",
             [Admin, Vendedor, Finanzas, Soporte]),
         new(Permission.CustomersWrite, "customers.write", "Clientes", "Editar clientes",
-            "Crear, editar y borrar clientes de la agenda.",
+            "Crear, editar y borrar clientes, y traerlos desde las ventas.",
             [Admin], Requires: Permission.CustomersRead),
         new(Permission.SupportChat, "support.chat", "Clientes", "Responder el chat posventa",
             "Conversaciones con compradores después de la venta.",
             [Admin, Vendedor, Soporte]),
         new(Permission.MessagesRead, "messages.read", "Clientes", "Leer mensajes de contacto",
-            "Lo que llega por el formulario de contacto de la tienda.",
+            "Lo que llega por el formulario de contacto, y cuánta gente se suscribió al newsletter.",
             [Admin, Vendedor, Soporte]),
 
         // Marketing
@@ -176,10 +176,10 @@ public static class PermissionCatalog
             "Cajas, bancos, cobros y pagos, y las cuentas corrientes de clientes y proveedores.",
             [Admin, Finanzas], Sensitive: true),
         new(Permission.FiscalEmit, "fiscal.emit", "Finanzas y facturación", "Emitir y anular facturas",
-            "Facturas y notas de crédito electrónicas ante ARCA.",
+            "Facturas y notas de crédito electrónicas ante ARCA, y la consulta del padrón.",
             [Admin, Finanzas], Sensitive: true),
         new(Permission.FiscalConfig, "fiscal.config", "Finanzas y facturación", "Configurar la facturación (ARCA)",
-            "Certificado, CUIT, puntos de venta y cuándo se factura.",
+            "Certificado, CUIT, puntos de venta, cuándo se factura y exportar los comprobantes.",
             [Admin, Finanzas], Sensitive: true),
 
         // Configuración
@@ -187,13 +187,13 @@ public static class PermissionCatalog
             "Qué medios de cobro están conectados y en qué modo.",
             [Admin, Finanzas]),
         new(Permission.PaymentsWrite, "payments.write", "Configuración", "Conectar y desconectar cobros",
-            "Mercado Pago, Payway y el modo de cobro del checkout.",
+            "Mercado Pago, Payway, el modo de cobro del checkout y reintentar avisos de pago.",
             [Admin], Sensitive: true, Requires: Permission.PaymentsRead),
         new(Permission.ShippingConfig, "shipping.config", "Configuración", "Medios de envío",
             "Envíos y retiros propios, y las cuentas de Correo Argentino, Andreani y Zipnova.",
             [Admin]),
         new(Permission.NotificationsConfig, "notifications.config", "Configuración", "E-mails y WhatsApp automáticos",
-            "Qué avisos le llegan al cliente y con qué texto.",
+            "Qué avisos le llegan al cliente, con qué texto, y cuánto se usó en el mes.",
             [Admin]),
         new(Permission.StoreConfig, "store.config", "Configuración", "Checkout, redirecciones y medición",
             "Opciones del checkout, redirecciones de direcciones viejas y píxeles de medición.",

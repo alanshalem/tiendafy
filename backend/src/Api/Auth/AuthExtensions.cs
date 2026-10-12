@@ -44,7 +44,8 @@ public static class AuthExtensions
     /// Deny by default. Loguea denegaciones (detección de intentos de escalación).
     /// </summary>
     public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder builder, Permission permission) =>
-        builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+        builder.RequireAuthorization().WithMetadata(new PermissionMetadata([permission]))
+            .AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
 
     /// <summary>
     /// Para lo que comparten dos funcionalidades (el estado de la conexión con
@@ -52,13 +53,14 @@ public static class AuthExtensions
     /// tener ALGUNO de los permisos.
     /// </summary>
     public static RouteHandlerBuilder RequireAnyPermission(this RouteHandlerBuilder builder, params Permission[] anyOf) =>
-        builder.RequireAuthorization().AddEndpointFilter(async (ctx, next) =>
+        builder.RequireAuthorization().WithMetadata(new PermissionMetadata(anyOf)).AddEndpointFilter(async (ctx, next) =>
             await CheckPermissionAsync(ctx.HttpContext, anyOf) is { } denied ? denied : await next(ctx));
 
     /// <summary>Igual que el anterior pero a nivel grupo.</summary>
     public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder builder, Permission permission)
     {
-        builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+        builder.RequireAuthorization().WithMetadata(new PermissionMetadata([permission]))
+            .AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
         return builder;
     }
 
@@ -97,6 +99,7 @@ public static class AuthExtensions
     /// </summary>
     public static RouteGroupBuilder RequirePermissionForWrites(this RouteGroupBuilder builder, Permission permission)
     {
+        builder.WithMetadata(new PermissionMetadata([permission], WritesOnly: true));
         builder.AddEndpointFilter(async (ctx, next) =>
         {
             var method = ctx.HttpContext.Request.Method;
@@ -200,3 +203,12 @@ public static class AuthExtensions
         return await next(ctx);
     }
 }
+
+/// <summary>
+/// Qué permiso exige un endpoint, como metadato (el filtro es el que lo hace
+/// cumplir). Sirve para recorrer la API entera y verificar que ninguna
+/// funcionalidad del panel quede fuera de la matriz de permisos.
+/// </summary>
+/// <param name="AnyOf">Alcanza con tener alguno.</param>
+/// <param name="WritesOnly">Solo las escrituras lo exigen; las lecturas son del storefront.</param>
+public sealed record PermissionMetadata(IReadOnlyList<Permission> AnyOf, bool WritesOnly = false);

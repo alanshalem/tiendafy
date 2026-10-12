@@ -55,6 +55,11 @@ describe('qué pide cada pantalla', () => {
     expect(routePerm('/configuracion/dominios')).toBe('tenant.admin');
   });
 
+  it('toda pantalla pide un permiso, salvo las que son de todos', () => {
+    const deTodos = ['/', '/tenants', '/ayuda'];
+    expect(ALL_PATHS.filter((p) => routePerm(p) === undefined)).toEqual(deTodos);
+  });
+
   it('Inicio, Mis tiendas y la ayuda son de todos', () => {
     for (const path of ['/', '/tenants', '/ayuda']) expect(routePerm(path)).toBeUndefined();
   });

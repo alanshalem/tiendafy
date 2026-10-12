@@ -24,9 +24,11 @@ public static class PriceListEndpoints
 {
     public static RouteGroupBuilder MapPriceListEndpoints(this RouteGroupBuilder group)
     {
-        var lists = group.MapGroup("/price-lists").RequireTenant().RequirePermission(Permission.CatalogWrite);
+        var lists = group.MapGroup("/price-lists").RequireTenant().RequirePermission(Permission.PricesManage);
 
-        lists.MapGet("/", async (ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
+        // Los nombres de las listas también los necesitan la venta manual y la
+        // ficha del cliente (para elegir con qué lista se le cobra).
+        group.MapGet("/price-lists", async (ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
         {
             var tid = tenant.TenantId;
             var rows = await db.PriceLists.AsNoTracking().Where(l => l.TenantId == tid)
@@ -59,7 +61,8 @@ public static class PriceListEndpoints
                     manualPrices = manual.GetValueOrDefault(l.Id),
                 }),
             });
-        });
+        }).RequireTenant()
+            .RequireAnyPermission(Permission.PricesManage, Permission.OrdersCreate, Permission.CustomersWrite);
 
         lists.MapPost("/", async (
             PriceListRequest req, ITenantContext tenant, CatalogDbContext db, CancellationToken ct) =>
