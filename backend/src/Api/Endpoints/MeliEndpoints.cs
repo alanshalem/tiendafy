@@ -355,8 +355,11 @@ public static class MeliEndpoints
             var r = result.Value;
             if (!r.Authorized)
             {
-                var detail = r.Errors.Count > 0
-                    ? string.Join("; ", r.Errors.Select(e => $"{e.Code} {e.Message}"))
+                // El motivo suele venir en las observaciones (10015 "DocNro inválido"…),
+                // no en los errores: sin ellas el comercio veía un rechazo sin explicación.
+                var reasons = r.Errors.Concat(r.Observations).ToList();
+                var detail = reasons.Count > 0
+                    ? string.Join("; ", reasons.Select(e => $"{e.Code} {e.Message}"))
                     : "ARCA rechazó el comprobante.";
                 return Error.Validation("Meli.InvoiceRejected", detail).ToProblem();
             }

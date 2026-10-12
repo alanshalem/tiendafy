@@ -298,6 +298,45 @@ public sealed class MercadoLibreFlowTests
 
     // ---------------------------------------------------------------- helpers
 
+    [Fact]
+    public async Task Facturar_una_venta_de_Mercado_Libre()
+    {
+        var (merchant, userId) = await ConnectedAsync("mlf");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        async Task<long> SaleAsync(long id, string status, int quantity)
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{id}", Order(id, status, itemId, quantity));
+            await NotifyAsync(userId, $"/orders/{id}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+            return id;
+        }
+        var paid = await SaleAsync(userId * 10 + 5, "paid", 2);
+        var unpaid = await SaleAsync(userId * 10 + 6, "payment_required", 1);
+        var free = await SaleAsync(userId * 10 + 7, "paid", 0);
+        Task<HttpResponseMessage> Invoice(long id) => merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/meli/orders/{id}/invoice");
+
+        Assert.Equal(HttpStatusCode.NotFound, (await Invoice(1)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Invoice(unpaid)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Invoice(free)).StatusCode);
+        // Sin la facturación configurada, ARCA ni se llama.
+        Assert.False((await Invoice(paid)).IsSuccessStatusCode);
+
+        var arca = new FakeArca(_factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+
+        // ARCA rechaza: el motivo llega explicado y la venta queda sin facturar.
+        arca.RejectNext = true;
+        var rejected = await Invoice(paid);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.Contains("10015", await rejected.Content.ReadAsStringAsync());
+
+        // Autoriza: vuelve el CAE, y la misma venta no se factura dos veces.
+        var invoice = await merchant.PostAsync($"/api/v1/admin/meli/orders/{paid}/invoice", new { });
+        Assert.False(string.IsNullOrEmpty(invoice.GetProperty("cae").GetString()));
+        Assert.Equal(3, invoice.GetProperty("ptoVta").GetInt32());
+        Assert.Equal(HttpStatusCode.Conflict, (await Invoice(paid)).StatusCode);
+    }
+
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>
     private async Task<(Merchant Merchant, long UserId)> ConnectedAsync(string tag)
     {
