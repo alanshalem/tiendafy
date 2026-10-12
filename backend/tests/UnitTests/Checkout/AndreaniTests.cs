@@ -125,9 +125,42 @@ public class AndreaniStatusMapTests
     [Theory]
     [InlineData("Entregado", AndreaniShipmentStatus.Delivered)]
     [InlineData("Disponible para retiro", AndreaniShipmentStatus.AvailableForPickup)]
+    [InlineData("En sucursal destino", AndreaniShipmentStatus.AvailableForPickup)]
     [InlineData("Devolución al remitente", AndreaniShipmentStatus.ReturnedToSender)]
+    [InlineData("devolucion en curso", AndreaniShipmentStatus.ReturnedToSender)]
+    [InlineData("En distribución", AndreaniShipmentStatus.OutForDelivery)]
+    [InlineData("En reparto", AndreaniShipmentStatus.OutForDelivery)]
+    [InlineData("Visita sin éxito", AndreaniShipmentStatus.DeliveryAttemptFailed)]
+    [InlineData("En tránsito a sucursal", AndreaniShipmentStatus.InTransit)]
+    [InlineData("En transito", AndreaniShipmentStatus.InTransit)]
+    [InlineData("  ", AndreaniShipmentStatus.Unknown)]
+    [InlineData("Algo nuevo de Andreani", AndreaniShipmentStatus.Unknown)]
     public void ConUnIdDesconocidoIntentaPorElNombre(string name, string expected) =>
         Assert.Equal(expected, AndreaniStatusMap.FromTrace(999, name));
+
+    [Theory]
+    [InlineData(AndreaniShipmentStatus.Created, "Generado")]
+    [InlineData(AndreaniShipmentStatus.Dispatched, "Despachado")]
+    [InlineData(AndreaniShipmentStatus.InTransit, "En tránsito")]
+    [InlineData(AndreaniShipmentStatus.OutForDelivery, "En reparto")]
+    [InlineData(AndreaniShipmentStatus.DeliveryAttemptFailed, "Visita fallida")]
+    [InlineData(AndreaniShipmentStatus.AvailableForPickup, "En sucursal")]
+    [InlineData(AndreaniShipmentStatus.Delivered, "Entregado")]
+    [InlineData(AndreaniShipmentStatus.ReturnedToSender, "Devuelto")]
+    [InlineData(AndreaniShipmentStatus.Unknown, "Sin novedades")]
+    public void CadaEstadoTieneSuEtiquetaEnElPanel(string status, string label) =>
+        Assert.Equal(label, AndreaniStatusMap.AdminLabel(status));
+
+    [Theory]
+    [InlineData(AndreaniShipmentStatus.DeliveryAttemptFailed)]
+    [InlineData(AndreaniShipmentStatus.AvailableForPickup)]
+    [InlineData(AndreaniShipmentStatus.ReturnedToSender)]
+    public void LasNovedadesQueRequierenAlgoDelCompradorTambienSeAvisan(string status) =>
+        Assert.False(string.IsNullOrWhiteSpace(AndreaniStatusMap.BuyerMessage(status)));
+
+    [Fact]
+    public void QueSeGenereLaEtiquetaNoEsNovedadParaElComprador() =>
+        Assert.Null(AndreaniStatusMap.BuyerMessage(AndreaniShipmentStatus.Created));
 
     [Fact]
     public void NuncaSeLeAvisaAlCompradorSobreUnEstadoQueNoEntendemos() =>

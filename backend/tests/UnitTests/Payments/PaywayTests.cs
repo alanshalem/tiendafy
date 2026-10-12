@@ -48,10 +48,22 @@ public class PaywayDeclineMapTests
 {
     [Theory]
     [InlineData(51, PaywayDeclineCategory.InsufficientFunds, true)]
+    [InlineData(61, PaywayDeclineCategory.InsufficientFunds, true)]
     [InlineData(54, PaywayDeclineCategory.CardExpired, true)]
     [InlineData(14, PaywayDeclineCategory.InvalidCardNumber, true)]
+    [InlineData(39, PaywayDeclineCategory.InvalidCardNumber, true)]
+    [InlineData(49, PaywayDeclineCategory.InvalidExpiryDate, true)]
+    [InlineData(38, PaywayDeclineCategory.IncorrectPin, true)]
+    [InlineData(55, PaywayDeclineCategory.IncorrectPin, true)]
     [InlineData(48, PaywayDeclineCategory.InstallmentsNotAllowed, true)]
+    [InlineData(77, PaywayDeclineCategory.InstallmentsNotAllowed, true)]
     [InlineData(96, PaywayDeclineCategory.ProcessingError, true)]
+    [InlineData(-1, PaywayDeclineCategory.ProcessingError, true)]
+    [InlineData(10003, PaywayDeclineCategory.ProcessingError, true)]
+    [InlineData(1, PaywayDeclineCategory.CallIssuer, false)]
+    [InlineData(91, PaywayDeclineCategory.CallIssuer, false)]
+    [InlineData(57, PaywayDeclineCategory.NotAllowed, false)]
+    [InlineData(8, PaywayDeclineCategory.Duplicate, false)]
     public void ClasificaLosRechazosReintentables(int code, PaywayDeclineCategory category, bool retryable)
     {
         var decline = PaywayMaps.Decline(code, "x");
@@ -103,6 +115,11 @@ public class PaywayBrandTests
     [InlineData("450799", "visa", true, 31)]
     [InlineData("529991", "mastercard", false, 15)]
     [InlineData("373953", "amex", false, 65)]
+    [InlineData("222100", "mastercard", true, 66)]   // rango 2-series de Mastercard
+    [InlineData("361234", "diners", false, 8)]
+    [InlineData("589657", "cabal", false, 27)]
+    [InlineData("589657", "cabal", true, 67)]
+    [InlineData("589562", "naranja", false, 24)]
     public void ResuelveMarcaYMedioDePagoDesdeElBin(string bin, string brand, bool debit, int methodId)
     {
         Assert.Equal(brand, PaywayMaps.BrandFromBin(bin));
@@ -114,7 +131,19 @@ public class PaywayBrandTests
     [InlineData("")]
     [InlineData("abcdef")]
     [InlineData(null)]
+    [InlineData("601100")] // Discover: no se opera en Argentina
     public void UnBinInvalidoNoRevienta(string? bin) => Assert.Null(PaywayMaps.BrandFromBin(bin));
+
+    [Theory]
+    [InlineData("Master", false, 15)]
+    [InlineData(" MAESTRO ", true, 99)]
+    [InlineData("american_express", false, 65)]
+    [InlineData("diners_club", false, 8)]
+    [InlineData("argencard", false, 30)]
+    [InlineData("shopping", false, 23)]
+    [InlineData("nativa", false, 42)]
+    public void LasMarcasLocalesTienenSuMedioDePago(string brand, bool debit, int methodId) =>
+        Assert.Equal(methodId, PaywayMaps.PaymentMethodId(brand, debit));
 
     [Fact]
     public void UnaMarcaDesconocidaNoInventaMedioDePago() =>
@@ -226,6 +255,7 @@ public class PaywayRepeatedTokenTests
     [InlineData("""{"error_type":"invalid_request_error","validation_errors":[{"code":"invalid","param":"bin"}]}""")]
     [InlineData("""{"error_type":"invalid_request_error"}""")]
     [InlineData("no es json")]
+    [InlineData("""{"validation_errors":"token repetido"}""")]
     public void OtrosErroresNoSeConfundenConUnTokenRepetido(string json) =>
         Assert.False(PaywayMaps.IsRepeatedToken(json));
 }
