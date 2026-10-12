@@ -4,20 +4,24 @@
 //   pnpm test:load                         # capacidad: 20 usuarios, 30 s
 //   pnpm test:load -- --vus 50 --duration 60
 //   pnpm test:load -- --mode protection    # el rate limit corta el abuso
+//   pnpm test:load -- --mode protection --cap 300   # contra producción/staging
 //
 // Modos:
 //   capacity    Usuarios virtuales recorriendo la tienda (portada, búsqueda,
 //               ficha, checkout) sin pausa. Falla si el p95 o la tasa de error
-//               superan los umbrales. Desde una sola IP el límite global de la
-//               API (300/min por IP) corta enseguida: para medir capacidad hay
-//               que levantar la API con RateLimiting__GlobalPermitLimit alto.
-//               Si aparecen 429, el reporte lo dice y no los cuenta como error.
-//   protection  Lo contrario: dispara más pedidos que el cupo y verifica que la
-//               API responda 429 con Retry-After y el error en formato RFC 7807,
-//               en vez de caerse o dejar pasar todo.
+//               superan los umbrales. Desde una sola IP corta el límite global
+//               de la API (5000/min en dev, 300/min en producción): para medir
+//               más que eso hay que levantar la API con
+//               RateLimiting__GlobalPermitLimit alto. Si aparecen 429, el
+//               reporte lo dice y no los cuenta como error.
+//   protection  Lo contrario: dispara más pedidos que el cupo (--cap, por
+//               defecto el de dev) y verifica que la API responda 429 con
+//               Retry-After y el error en formato RFC 7807, en vez de caerse o
+//               dejar pasar todo.
 //
 // Opciones: --api http://localhost:5080  --store <subdominio>  --vus 20
 //           --duration 30 (s)  --p95 500 (ms)  --max-errors 1 (%)
+//           --cap 5000 (pedidos/min por IP)  --burst cap + 100
 import { performance } from 'node:perf_hooks';
 
 const args = parseArgs(process.argv.slice(2));
@@ -157,7 +161,7 @@ async function capacity() {
   );
   if (throttled > 0)
     console.log(
-      'ℹ Respondió 429: el límite global por IP cortó la prueba. Para medir capacidad, levantá la API con RateLimiting__GlobalPermitLimit=100000.',
+      'ℹ Respondió 429: el límite global por IP cortó la prueba. Para medir más capacidad, levantá la API con RateLimiting__GlobalPermitLimit=100000.',
     );
   const failures = [];
   if (p95 > P95_BUDGET_MS) failures.push(`p95 ${p95.toFixed(0)} ms > ${P95_BUDGET_MS} ms`);
@@ -167,9 +171,12 @@ async function capacity() {
 
 async function protection() {
   const store = await resolveStore();
-  const burst = Number(args.burst ?? 400);
+  // El cupo global por IP: 5000/min en dev (appsettings.Development.json),
+  // 300/min en producción y staging.
+  const cap = Number(args.cap ?? 5000);
+  const burst = Number(args.burst ?? cap + 100);
   console.log(
-    `Protección: ${burst} pedidos seguidos desde una IP contra ${store.name} (cupo global: 300/min)`,
+    `Protección: ${burst} pedidos seguidos desde una IP contra ${store.name} (cupo global: ${cap}/min)`,
   );
   const results = [];
   for (let i = 0; i < burst; i += 20) {

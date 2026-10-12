@@ -156,5 +156,6 @@ accesible; el `Modal` y los `Tabs` compartidos sin nombre/estado accesible.
 
 Contra una tienda con 1.032 productos, 20 usuarios virtuales, 30 s:
 **631 pedidos/s, p95 88 ms, 0 errores** (la búsqueda del catálogo, ~100 ms de
-p95 por las facetas, es lo más pesado). Con 400 pedidos seguidos desde una IP,
-el límite global (300/min) corta el resto con 429 + `Retry-After`, sin 5xx.
+p95 por las facetas, es lo más pesado). En modo protección (`--cap` = el cupo
+global: 5000/min en dev, 300 en producción), de 5.100 pedidos seguidos desde
+una IP se atienden 5.000 y el resto se corta con 429 + `Retry-After`, sin 5xx.
