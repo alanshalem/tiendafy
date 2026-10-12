@@ -188,3 +188,96 @@ describe('editor de diseño: carga', () => {
     await waitFor(() => expect(panel()).toBeTruthy(), { timeout: 5000 });
   });
 });
+
+describe('editor de diseño: historial, copiar de otra tienda y programar', () => {
+  const version = { id: 'v-1', publishedAtUtc: '2026-10-01T15:00:00Z' };
+  const restored = { customCss: '/* version vieja */' };
+
+  it('volver a una versión la carga en el borrador; si falla, lo dice', async () => {
+    const { api, user } = await openEditor((a) => {
+      a.on('GET', '/api/v1/theme/history', { items: [version] });
+      a.on('POST', `/api/v1/theme/history/${version.id}/restore`, { detail: 'Versión vencida.' }, 400);
+    });
+    await user.click(within(panel()).getByText('Historial de publicaciones'));
+    let dialog = await screen.findByRole('dialog', { name: 'Historial de publicaciones' });
+    await user.click(await within(dialog).findByRole('button', { name: 'Volver a esta' }));
+    expect(await screen.findByText('Versión vencida.')).toBeInTheDocument();
+
+    api.on('POST', `/api/v1/theme/history/${version.id}/restore`, restored);
+    await user.click(within(dialog).getByRole('button', { name: 'Volver a esta' }));
+    expect(
+      await screen.findByText('Versión cargada en el borrador. Revisala y publicá.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Historial de publicaciones' })).not.toBeInTheDocument();
+    await waitFor(() => expect(JSON.stringify(drafts(api).at(-1)?.body)).toContain('version vieja'), {
+      timeout: 3000,
+    });
+
+    // Sin versiones (o si el historial no carga): lo explica.
+    api.on('GET', '/api/v1/theme/history', {}, 500);
+    await user.click(within(panel()).getByText('Historial de publicaciones'));
+    dialog = await screen.findByRole('dialog', { name: 'Historial de publicaciones' });
+    expect(await within(dialog).findByText(/Todavía no hay versiones anteriores/)).toBeInTheDocument();
+  });
+
+  it('copiar el diseño publicado de otra tienda del mismo dueño', async () => {
+    const tenants = fixture<{ items: { id: string; name: string; subdomain: string }[] }>('/api/v1/tenants');
+    const other = { ...tenants.items[0]!, id: 'otra-tienda', name: 'Tienda Hogar', subdomain: 'hogar' };
+    const { api, user } = await openEditor((a) => {
+      a.on('GET', '/api/v1/tenants', { ...tenants, items: [...tenants.items, other] });
+      a.on('POST', `/api/v1/theme/copy-from/${other.id}`, { detail: 'Esa tienda no publicó nada.' }, 400);
+    });
+    await user.click(within(panel()).getByText('Copiar el diseño de otra tienda'));
+    const dialog = await screen.findByRole('dialog', { name: 'Copiar el diseño de otra tienda' });
+    // La tienda actual no se ofrece: solo las otras.
+    expect(within(dialog).queryByText(tenant.subdomain)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Copiar' }));
+    expect(await screen.findByText('Esa tienda no publicó nada.')).toBeInTheDocument();
+
+    api.on('POST', `/api/v1/theme/copy-from/${other.id}`, { customCss: '/* de hogar */' });
+    await user.click(within(dialog).getByRole('button', { name: 'Copiar' }));
+    expect(await screen.findByText('Diseño de Tienda Hogar copiado al borrador.')).toBeInTheDocument();
+    await waitFor(() => expect(JSON.stringify(drafts(api).at(-1)?.body)).toContain('de hogar'), {
+      timeout: 3000,
+    });
+  });
+
+  it('programar congela el diseño de ahora (en UTC) y se puede cancelar', async () => {
+    const at = '2026-11-27T03:00:00.000Z';
+    const { api, user } = await openEditor((a) => {
+      a.on('POST', '/api/v1/theme/schedule', { detail: 'La fecha tiene que ser futura.' }, 400);
+    });
+    await user.click(screen.getByRole('button', { name: 'Programar' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Programar la publicación' });
+    const program = within(dialog).getByRole('button', { name: 'Programar' });
+    expect(program).toBeDisabled(); // sin fecha no se puede
+    await user.type(within(dialog).getByLabelText('Fecha y hora'), '2026-11-27T00:00');
+    await user.click(program);
+    expect(await screen.findByText('La fecha tiene que ser futura.')).toBeInTheDocument();
+
+    api.on('POST', '/api/v1/theme/schedule', { scheduledAtUtc: at });
+    await user.click(program);
+    expect(await screen.findByText('Publicación programada.')).toBeInTheDocument();
+    const body = api.calls.filter((c) => c.path === '/api/v1/theme/schedule' && c.method === 'POST').at(-1)!
+      .body as { atUtc: string; config: object };
+    expect(body.atUtc).toBe(new Date('2026-11-27T00:00').toISOString());
+    expect(body.config).toMatchObject({ sections: expect.any(Array) });
+
+    // Ya programado: el botón lo muestra y el diálogo ofrece cancelar.
+    api.on('DELETE', '/api/v1/theme/schedule', { detail: 'Ya se publicó.' }, 409);
+    await user.click(screen.getByRole('button', { name: 'Programado' }));
+    dialog = await screen.findByRole('dialog', { name: 'Programar la publicación' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByText('Ya se publicó.')).toBeInTheDocument();
+    api.on('DELETE', '/api/v1/theme/schedule', {});
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByText('Programación cancelada.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Programar' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Programar' }));
+    dialog = await screen.findByRole('dialog', { name: 'Programar la publicación' });
+    // El "Cerrar" del pie (el del encabezado del modal es la X).
+    await user.click(within(dialog).getAllByRole('button', { name: 'Cerrar' }).at(-1)!);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});

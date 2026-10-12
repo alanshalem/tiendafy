@@ -12,7 +12,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../test/api';
-import { explore, settle, watchCrashes, type User } from '../test/explore';
+import { explore, fill, settle, watchCrashes, type User } from '../test/explore';
 import { renderApp } from '../test/render';
 
 let crashes: () => unknown[][];
@@ -69,6 +69,9 @@ describe('editor de diseño', () => {
       await user.click(button);
       await settle(2);
       if (panel()) await explore(user, panel, 40);
+      // Cada control del panel, sin tope: los paneles largos (listado, ficha)
+      // tienen más selects y casillas que los que toca la exploración.
+      if (panel()) await fill(user, panel(), 100);
       await user.keyboard('{Escape}');
       await backToRoot(user);
     }

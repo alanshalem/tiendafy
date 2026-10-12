@@ -33,6 +33,7 @@ function Collapsible({
     <div className="border-t border-border pt-4">
       <button
         type="button"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between text-sm font-semibold text-fg"
       >

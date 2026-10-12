@@ -76,25 +76,28 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
     }
   }
 
-  /** Completa un formulario como lo haría alguien: campos, selects y casillas. */
-  async function fill(user: User, root: HTMLElement) {
+  /**
+   * Completa un formulario como lo haría alguien: campos, selects y casillas.
+   * `max` acota cuántos de cada tipo (los paneles largos piden más).
+   */
+  async function fill(user: User, root: HTMLElement, max = 10) {
     const scope = within(root);
-    for (const field of scope.queryAllByRole('textbox').slice(0, 20)) {
+    for (const field of scope.queryAllByRole('textbox').slice(0, max * 2)) {
       if (usable(field)) await user.type(field, plausible(field));
     }
-    for (const field of scope.queryAllByRole('spinbutton').slice(0, 10)) {
+    for (const field of scope.queryAllByRole('spinbutton').slice(0, max)) {
       if (usable(field)) await user.type(field, '3');
     }
     // Fechas y meses no tienen rol: se completan por tipo.
-    for (const field of Array.from(root.querySelectorAll<HTMLInputElement>(DATE_LIKE)).slice(0, 6)) {
+    for (const field of Array.from(root.querySelectorAll<HTMLInputElement>(DATE_LIKE)).slice(0, max)) {
       if (usable(field)) await user.type(field, DATE_VALUES[field.type] ?? '');
     }
-    for (const select of scope.queryAllByRole('combobox').slice(0, 10)) {
+    for (const select of scope.queryAllByRole('combobox').slice(0, max)) {
       if (!usable(select) || select.tagName !== 'SELECT') continue;
       const options = Array.from((select as HTMLSelectElement).options).filter((o) => !o.disabled);
       if (options.length > 1) await user.selectOptions(select, options[options.length - 1]!);
     }
-    for (const box of scope.queryAllByRole('checkbox').slice(0, 10)) {
+    for (const box of scope.queryAllByRole('checkbox').slice(0, max)) {
       if (usable(box)) await user.click(box);
     }
     await settle(1);
