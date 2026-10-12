@@ -343,6 +343,92 @@ public sealed class CatalogFlowTests
             (await merchant.Client.SendAsync(WithTenant(merchant, HttpMethod.Post, "/api/v1/products/images/import", noImages))).StatusCode);
     }
 
+    [Fact]
+    public async Task Importar_con_filas_con_problemas_no_frena_el_resto()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "ime");
+        var tag = merchant.Subdomain;
+        // Ya cargado: una fila sin identificador con el mismo nombre es el mismo producto.
+        await merchant.CreateProductAsync($"Taza {tag}", sku: $"TAZ-{tag}");
+
+        // Imágenes: una que el servidor de origen rechaza, otra que corta la conexión.
+        _factory.ExternalHttp.On(HttpMethod.Get, "https://203.0.113.20/caida.png",
+            (_, _) => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        _factory.ExternalHttp.On(HttpMethod.Get, "https://203.0.113.20/corta.png",
+            (_, _) => throw new HttpRequestException("conexión cortada"));
+
+        static string Row(params string[] cells) => string.Join(";", cells);
+        var csv = string.Join("\n",
+            Row("Identificador de URL", "Nombre", "Nombre de propiedad 1", "Valor de propiedad 1", "Precio", "Stock", "SKU", "Imágenes"),
+            // Sin identificador: se reconoce por el nombre y, sin "actualizar", se saltea.
+            Row("", $"Taza {tag}", "", "", "5000", "2", "", ""),
+            Row($"vaso-{tag}", "Vaso", "", "", "3000", "4", $"VAS-{tag}", "https://203.0.113.20/caida.png"),
+            // Sin nombre: el producto no se puede crear; queda como error de la fila.
+            Row($"sin-nombre-{tag}", "", "", "", "5000", "1", $"SN-{tag}", ""),
+            // Dos variantes con el mismo SKU: la segunda falla, la primera queda.
+            Row($"remera-{tag}", "Remera", "Talle", "S", "8000", "3", $"REM-{tag}", "https://203.0.113.20/corta.png"),
+            Row($"remera-{tag}", "", "Talle", "M", "8000", "3", $"REM-{tag}", ""));
+
+        var job = await ImportAsync(merchant, csv, updateExisting: false);
+        Assert.Equal("completed", job.GetProperty("status").GetString());
+        Assert.Equal(2, job.GetProperty("created").GetInt32());
+        Assert.Equal(1, job.GetProperty("skipped").GetInt32());
+        var errors = job.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("message").GetString()!).ToList();
+        Assert.Contains(errors, e => e.Contains($"REM-{tag}", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("Name", StringComparison.Ordinal));
+
+        // Si la imagen no se pudo bajar, se conserva la URL original en vez de perderla.
+        var vaso = await merchant.GetAsync($"/api/v1/products/by-slug/vaso-{tag}");
+        Assert.Equal("https://203.0.113.20/caida.png", vaso.GetProperty("images")[0].GetProperty("url").GetString());
+
+        var remera = await merchant.GetAsync($"/api/v1/products/by-slug/remera-{tag}");
+        Assert.Equal(1, remera.GetProperty("variants").GetArrayLength());
+        Assert.Equal("https://203.0.113.20/corta.png", remera.GetProperty("images")[0].GetProperty("url").GetString());
+    }
+
+    [Fact]
+    public async Task Importar_imagenes_con_un_csv_de_mapeo_y_por_SKU()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "imm");
+        var tag = merchant.Subdomain;
+        var (mate, _) = await merchant.CreateProductAsync($"Mate {tag}", sku: $"MATE-{tag}");
+        var mateSlug = (await merchant.GetAsync($"/api/v1/products/{mate}")).GetProperty("slug").GetString()!;
+        await merchant.CreateProductAsync($"Bombilla {tag}", sku: $"BOMB-{tag}");
+
+        // Con mapeo: identificador → archivos (en orden), lo que no existe queda sin asociar.
+        var mapping = $"Identificador de URL;Archivos\n{mateSlug};frente.png | perfil.webp | falta.png\notro-{tag};x.png\n";
+        using var withMapping = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(Encoding.UTF8.GetBytes(mapping)), "files", "mapeo.csv" },
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "files", "frente.png" },
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/webp") } }, "files", "perfil.webp" },
+        };
+        var res = await merchant.Client.SendAsync(WithTenant(merchant, HttpMethod.Post, "/api/v1/products/images/import", withMapping));
+        Assert.Equal(HttpStatusCode.Accepted, res.StatusCode);
+        var job = await PollAsync(merchant, $"/api/v1/products/images/import/{(await res.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("jobId")}");
+        Assert.Equal(1, job.GetProperty("matchedProducts").GetInt32());
+        Assert.Contains(job.GetProperty("unmatchedSample").EnumerateArray(), f => f.GetString() == "falta.png");
+
+        // Un mapeo sin las columnas esperadas no asocia nada (y no rompe).
+        using var badMapping = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(Encoding.UTF8.GetBytes("Producto;Fotos\nmate;frente.png\n")), "files", "mapeo.csv" },
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "files", "frente.png" },
+        };
+        var bad = await merchant.Client.SendAsync(WithTenant(merchant, HttpMethod.Post, "/api/v1/products/images/import", badMapping));
+        var badJob = await PollAsync(merchant, $"/api/v1/products/images/import/{(await bad.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("jobId")}");
+        Assert.Equal(0, badJob.GetProperty("matchedProducts").GetInt32());
+
+        // Sin mapeo, un archivo con el nombre del SKU va a ese producto.
+        using var bySku = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(TestImages.Png) { Headers = { ContentType = new MediaTypeHeaderValue("image/png") } }, "files", $"BOMB-{tag}.png" },
+        };
+        var sku = await merchant.Client.SendAsync(WithTenant(merchant, HttpMethod.Post, "/api/v1/products/images/import", bySku));
+        var skuJob = await PollAsync(merchant, $"/api/v1/products/images/import/{(await sku.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("jobId")}");
+        Assert.Equal(1, skuJob.GetProperty("matchedProducts").GetInt32());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static HttpRequestMessage WithTenant(Merchant merchant, HttpMethod method, string path, HttpContent content)
