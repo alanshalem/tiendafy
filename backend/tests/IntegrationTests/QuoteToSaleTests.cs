@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -154,5 +156,63 @@ public sealed class QuoteToSaleTests
         Assert.Equal(1, summary.GetProperty("total").GetInt32());
         Assert.Equal(1, summary.GetProperty("open").GetInt32());
         Assert.Equal(0, summary.GetProperty("accepted").GetInt32());
+    }
+
+    [Fact]
+    public async Task Editar_extender_buscar_y_lo_que_no_se_puede_aceptar()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "qed");
+        var variantId = (await merchant.CreateProductAsync("Barra olímpica", 150_000_00)).VariantId;
+        object Body(int quantity, string customer = "Gimnasio Sur") => new
+        {
+            customerName = customer,
+            currency = "ARS",
+            validUntilUtc = DateTime.UtcNow.Date.AddDays(10),
+            items = new[] { new { variantId, quantity, unitPriceMinor = 150_000_00L } },
+        };
+
+        // Lo que no se puede presupuestar.
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/quotes",
+            new { customerName = "x", currency = "ARS", items = Array.Empty<object>() })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/quotes",
+            new { customerName = "x", currency = "ARS", items = new[] { new { variantId = Guid.NewGuid(), quantity = 1 } } })).StatusCode);
+
+        var quote = await merchant.PostAsync("/api/v1/quotes", Body(1));
+        var quoteId = quote.GetProperty("id").GetGuid();
+        await merchant.PostAsync("/api/v1/quotes", Body(2, "Otro cliente"));
+
+        // Editar un borrador (y uno que no existe).
+        var edited = await merchant.PutAsync($"/api/v1/quotes/{quoteId}", Body(3));
+        Assert.Equal(450_000_00, edited.GetProperty("totalMinor").GetInt64());
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Put, $"/api/v1/quotes/{Guid.NewGuid()}", Body(1))).StatusCode);
+
+        // Buscar por cliente o número, y filtrar por estado.
+        var found = await merchant.GetAsync("/api/v1/quotes?q=sur");
+        Assert.Single(found.GetProperty("items").EnumerateArray());
+        var drafts = await merchant.GetAsync("/api/v1/quotes?status=draft");
+        Assert.Equal(2, drafts.GetProperty("items").GetArrayLength());
+
+        // Cerrarlo con un medio que no corresponde.
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post,
+            $"/api/v1/quotes/{quoteId}/accept", new { paymentMethod = "link" })).StatusCode);
+
+        // Vencido: no se acepta hasta extender la validez.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE quotes SET valid_until_utc = {DateTime.UtcNow.AddDays(-1)} WHERE id = {quoteId}");
+        }
+        var expired = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/quotes/{quoteId}/accept", new { paymentMethod = "cash" });
+        Assert.Equal(HttpStatusCode.BadRequest, expired.StatusCode);
+        Assert.Contains("vencido", await expired.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Post,
+            $"/api/v1/quotes/{Guid.NewGuid()}/extend", new { validUntilUtc = DateTime.UtcNow.AddDays(5) })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post,
+            $"/api/v1/quotes/{quoteId}/extend", new { validUntilUtc = DateTime.UtcNow.AddDays(-5) })).StatusCode);
+        await merchant.PostAsync($"/api/v1/quotes/{quoteId}/extend", new { validUntilUtc = DateTime.UtcNow.Date.AddDays(7) });
+        await merchant.PostAsync($"/api/v1/quotes/{quoteId}/accept", new { paymentMethod = "transfer" });
+        Assert.Equal("accepted", (await merchant.GetAsync($"/api/v1/quotes/{quoteId}")).GetProperty("status").GetString());
     }
 }
