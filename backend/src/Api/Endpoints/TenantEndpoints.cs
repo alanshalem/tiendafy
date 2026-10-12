@@ -37,12 +37,12 @@ public static class TenantEndpoints
         // Se consulta de a una tienda por vez: son un puñado, y una query por
         // tienda es imposible de confundir con una fuga entre tenants.
         tenants.MapGet("/overview", async (
-            ITenancyService service, ClaimsPrincipal user, IMembershipService memberships,
+            HttpContext http, IMembershipService memberships,
             global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
             Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
             int? days, CancellationToken ct) =>
         {
-            var userId = user.GetUserId();
+            var userId = http.User.GetUserId();
             if (userId is null) return Results.Unauthorized();
 
             var window = Math.Clamp(days ?? 30, 1, 365);
@@ -55,6 +55,14 @@ public static class TenantEndpoints
             foreach (var id in ids)
             {
                 var tenantId = TenantId.From(id);
+
+                // La facturación de una tienda la ve quien puede ver sus
+                // estadísticas; al resto del equipo le basta saber que existe.
+                if ((await http.GetAccessAsync(id))?.Can(Permission.StatsRead) != true)
+                {
+                    items.Add(new { tenantId = id, restricted = true });
+                    continue;
+                }
 
                 var paid = await ordersDb.Orders.AsNoTracking().IgnoreQueryFilters()
                     .Where(o => o.TenantId == tenantId
@@ -152,9 +160,9 @@ public static class TenantEndpoints
             });
         }).RequireTenant().RequirePermission(Permission.TenantAdmin);
 
-        tenants.MapGet("/{id:guid}", async (Guid id, ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        tenants.MapGet("/{id:guid}", async (Guid id, ITenancyService service, HttpContext http, CancellationToken ct) =>
         {
-            if (await NotMember(user, id, memberships, ct)) return Forbidden();
+            if (await NotMember(http, id)) return AuthExtensions.NotAMember();
             var tenant = await service.GetByIdAsync(id, ct);
             return tenant is null ? Results.NotFound() : Results.Ok(tenant);
         }).RequireAuthorization();
@@ -177,33 +185,33 @@ public static class TenantEndpoints
         }).RequireAuthorization();
 
         // Cambiar nombre/subdominio/dominio: acción sensible → solo el dueño.
-        tenants.MapPatch("/{id:guid}", async (Guid id, UpdateTenantRequest request, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        tenants.MapPatch("/{id:guid}", async (Guid id, UpdateTenantRequest request, UpdateTenantHandler handler, HttpContext http, CancellationToken ct) =>
         {
-            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+            if (await NotOwner(http, id)) return OwnerOnly();
             var result = await handler.UpdateAsync(
                 new UpdateTenantCommand(id, request.Name, request.Subdomain, request.CustomDomain), ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
-        tenants.MapPost("/{id:guid}/archive", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        tenants.MapPost("/{id:guid}/archive", async (Guid id, UpdateTenantHandler handler, HttpContext http, CancellationToken ct) =>
         {
-            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+            if (await NotOwner(http, id)) return OwnerOnly();
             var result = await handler.ArchiveAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
-        tenants.MapPost("/{id:guid}/activate", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        tenants.MapPost("/{id:guid}/activate", async (Guid id, UpdateTenantHandler handler, HttpContext http, CancellationToken ct) =>
         {
-            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+            if (await NotOwner(http, id)) return OwnerOnly();
             var result = await handler.ActivateAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
 
         // Soft-delete: marca CANCELED. No borra físico (productos/temas referencian el id).
         // Solo el dueño puede eliminar la tienda.
-        tenants.MapDelete("/{id:guid}", async (Guid id, UpdateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        tenants.MapDelete("/{id:guid}", async (Guid id, UpdateTenantHandler handler, HttpContext http, CancellationToken ct) =>
         {
-            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+            if (await NotOwner(http, id)) return OwnerOnly();
             var result = await handler.DeleteAsync(id, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
         }).RequireAuthorization();
@@ -212,11 +220,11 @@ public static class TenantEndpoints
         // (cada tabla con columna tenant_id) y la fila de la tienda. En producción
         // devuelve 404 (el borrado real es lógico, vía MapDelete de arriba).
         tenants.MapDelete("/{id:guid}/purge", async (
-            Guid id, IHostEnvironment env, ClaimsPrincipal user, IMembershipService memberships,
+            Guid id, IHostEnvironment env, HttpContext http,
             Tenancy.Infrastructure.Persistence.TenancyDbContext db, CancellationToken ct) =>
         {
             if (!env.IsDevelopment()) return Results.NotFound();
-            if (await NotOwner(user, id, memberships, ct)) return OwnerOnly();
+            if (await NotOwner(http, id)) return OwnerOnly();
 
             var conn = db.Database.GetDbConnection();
             await conn.OpenAsync(ct);
@@ -280,21 +288,12 @@ public static class TenantEndpoints
         catch when (swallow) { /* best-effort: seguir con las demás tablas */ }
     }
 
-    private static async Task<bool> NotMember(ClaimsPrincipal user, Guid tenantId, IMembershipService memberships, CancellationToken ct)
-    {
-        var userId = user.GetUserId();
-        return userId is null || !await memberships.IsMemberAsync(userId.Value, tenantId, ct);
-    }
+    private static async Task<bool> NotMember(HttpContext http, Guid tenantId) =>
+        await http.GetAccessAsync(tenantId) is null;
 
-    /// <summary>Gestión sensible de la tienda (dominio, borrado): exige rol dueño.</summary>
-    private static async Task<bool> NotOwner(ClaimsPrincipal user, Guid tenantId, IMembershipService memberships, CancellationToken ct)
-    {
-        var userId = user.GetUserId();
-        return userId is null || !await memberships.IsOwnerAsync(userId.Value, tenantId, ct);
-    }
-
-    private static IResult Forbidden() =>
-        Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
+    /// <summary>Gestión sensible de la tienda (dominio, borrado): solo el dueño.</summary>
+    private static async Task<bool> NotOwner(HttpContext http, Guid tenantId) =>
+        (await http.GetAccessAsync(tenantId))?.Can(Permission.TenantAdmin) != true;
 
     private static IResult OwnerOnly() =>
         Results.Problem(title: "Auth.Forbidden", detail: "Solo el dueño de la tienda puede hacer esto.", statusCode: StatusCodes.Status403Forbidden);

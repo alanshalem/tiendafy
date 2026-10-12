@@ -113,7 +113,7 @@ public static class ThemeEndpoints
         {
             var doc = await GetOrCreateAsync(tenant.TenantId.Value, db, ct);
             return Results.Ok(new { scheduledAtUtc = doc.ScheduledAtUtc });
-        });
+        }).RequirePermission(Permission.ContentWrite);
 
         // Cancelar lo programado.
         theme.MapDelete("/schedule", async (ITenantContext tenant, ThemesDbContext db, CancellationToken ct) =>
@@ -137,7 +137,7 @@ public static class ThemeEndpoints
                 .Select(v => new { id = v.Id, publishedAtUtc = v.PublishedAtUtc })
                 .ToListAsync(ct);
             return Results.Ok(new { items });
-        });
+        }).RequirePermission(Permission.ContentWrite);
 
         // Volver a una versión: se carga en el BORRADOR, no se publica sola. El
         // comercio la mira en la vista previa y publica si es lo que quería.
@@ -160,7 +160,7 @@ public static class ThemeEndpoints
         // esta. Es lo normal cuando una empresa tiene varias tiendas por rubro.
         theme.MapPost("/copy-from/{sourceTenantId:guid}", async (
             Guid sourceTenantId, ITenantContext tenant, ThemesDbContext db, HttpContext http,
-            IMembershipService memberships, CancellationToken ct) =>
+            CancellationToken ct) =>
         {
             var tid = tenant.TenantId.Value;
             if (sourceTenantId == tid) return Results.NoContent();
@@ -168,10 +168,7 @@ public static class ThemeEndpoints
             // El permiso del grupo cubre la tienda destino. La ORIGEN hay que
             // verificarla acá: sin esto, cualquiera con una tienda propia podría
             // leer el diseño de una ajena pasando su id.
-            var userId = http.User.GetUserId();
-            if (userId is null) return Results.Unauthorized();
-            var role = await memberships.RoleAsync(userId.Value, sourceTenantId, ct);
-            if (!RolePermissions.Has(role, Permission.ContentWrite)) return Results.Forbid();
+            if ((await http.GetAccessAsync(sourceTenantId))?.Can(Permission.ContentWrite) != true) return Results.Forbid();
 
             var source = await db.Themes.AsNoTracking().IgnoreQueryFilters()
                 .FirstOrDefaultAsync(t => t.TenantId == sourceTenantId, ct);

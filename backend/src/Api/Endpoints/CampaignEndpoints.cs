@@ -25,7 +25,7 @@ public static class CampaignEndpoints
 
     public static RouteGroupBuilder MapCampaignEndpoints(this RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/admin/campaigns").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/campaigns").RequirePermission(Permission.CampaignsManage);
 
         admin.MapGet("/", async (
             ITenantContext tenant, NotificationsDbContext db, CancellationToken ct,

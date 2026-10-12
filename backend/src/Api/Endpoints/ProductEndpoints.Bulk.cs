@@ -1,6 +1,7 @@
 using Api.Auth;
 using Api.Import;
 using Catalog.Core.Domain;
+using Identity.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 using SharedKernel.Abstractions;
 
@@ -68,7 +69,7 @@ public static partial class ProductEndpoints
                 errors = job.Errors.Take(100).Select(e => new { e.Line, e.Slug, e.Message }),
                 failureMessage = job.FailureMessage,
             });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.CatalogWrite);
 
         // ---- Importación masiva de imágenes ----
         // Sube muchas imágenes (o un .zip); se matchean por nombre = slug del
@@ -152,7 +153,7 @@ public static partial class ProductEndpoints
                 unmatchedSample = job.UnmatchedSample,
                 failureMessage = job.FailureMessage,
             });
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.CatalogWrite);
 
         // ---- Exportación masiva (CSV) ----
         // Recorre TODOS los productos del tenant (no el tope de 100 del listado).
@@ -172,6 +173,6 @@ public static partial class ProductEndpoints
             var csv = ProductCsv.BuildExport(all, includeDescriptions, paths);
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
             return Results.File(bytes, "text/csv; charset=utf-8", "productos.csv");
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.CatalogWrite);
     }
 }

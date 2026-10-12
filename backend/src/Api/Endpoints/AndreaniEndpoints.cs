@@ -60,7 +60,7 @@ public static class AndreaniEndpoints
 
     private static void MapAdmin(RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/admin/shipping/andreani").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/shipping/andreani").RequirePermission(Permission.ShippingConfig);
 
         admin.MapGet("/", async (ITenantContext tenant, IAndreaniRepository repo, CancellationToken ct) =>
         {

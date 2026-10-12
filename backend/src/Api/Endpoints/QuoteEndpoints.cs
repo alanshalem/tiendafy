@@ -27,11 +27,7 @@ public static class QuoteEndpoints
 {
     public static RouteGroupBuilder MapQuoteEndpoints(this RouteGroupBuilder group)
     {
-        // Ver presupuestos alcanza con ver ventas; crearlos y aceptarlos pide el
-        // permiso de despachar, que es el que ya tiene quien cierra una venta.
-        var quotes = group.MapGroup("/quotes").RequireTenant()
-            .RequirePermission(Permission.OrdersRead)
-            .RequirePermissionForWrites(Permission.OrdersFulfill);
+        var quotes = group.MapGroup("/quotes").RequireTenant().RequirePermission(Permission.QuotesManage);
 
         quotes.MapGet("/", async (
             ITenantContext tenant, OrdersDbContext db, CancellationToken ct,

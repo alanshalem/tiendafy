@@ -37,6 +37,15 @@ public sealed class TenantQueryFilterTests
         ["TenantMembership"] =
             "Mapea usuario → tienda: es lo que decide a qué tiendas entrás. "
             + "Filtrarla por la tienda activa haría imposible listar las demás.",
+
+        ["RolePermissionOverride"] =
+            "Lo que una tienda le cambió a un rol. Se evalúa para cada tienda del "
+            + "usuario (el tablero de Mis tiendas pregunta por varias en un request), "
+            + "así que se consulta siempre con el tenant explícito, como las membresías.",
+
+        ["AuditEvent"] =
+            "Registro del equipo, en el contexto de identidad (que no conoce la tienda "
+            + "activa). Se escribe y se lee siempre con el tenant explícito.",
     };
 
     private static IEnumerable<Type> ContextTypes()

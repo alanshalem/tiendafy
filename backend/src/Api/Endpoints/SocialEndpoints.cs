@@ -31,7 +31,7 @@ public static class SocialEndpoints
 
     private static void MapAccounts(RouteGroupBuilder group)
     {
-        var social = group.MapGroup("/admin/social").RequirePermission(Permission.Social);
+        var social = group.MapGroup("/admin/social").RequirePermission(Permission.SocialPublish);
 
         // Conectores disponibles + límites por red (el composer valida con esto).
         social.MapGet("/channels", (
@@ -189,7 +189,7 @@ public static class SocialEndpoints
 
     private static void MapPosts(RouteGroupBuilder group)
     {
-        var posts = group.MapGroup("/admin/social/posts").RequirePermission(Permission.Social);
+        var posts = group.MapGroup("/admin/social/posts").RequirePermission(Permission.SocialPublish);
 
         // Lista para calendario y bandeja: rango por fecha efectiva (programada o creada).
         posts.MapGet("", async (

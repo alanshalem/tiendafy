@@ -16,7 +16,7 @@ public static class WhatsAppEndpoints
 {
     public static RouteGroupBuilder MapWhatsAppEndpoints(this RouteGroupBuilder group)
     {
-        var wa = group.MapGroup("/whatsapp").RequirePermission(Permission.SettingsWrite);
+        var wa = group.MapGroup("/whatsapp").RequirePermission(Permission.NotificationsConfig);
 
         // Estado de la conexión (nunca devuelve el token).
         wa.MapGet("/connection", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>

@@ -19,7 +19,9 @@ public static class MetaAdsEndpoints
 {
     public static RouteGroupBuilder MapMetaAdsEndpoints(this RouteGroupBuilder group)
     {
-        var meta = group.MapGroup("/meta-ads").RequireTenant().RequirePermission(Permission.StatsRead);
+        // Ver el estado y el gasto es parte de las estadísticas; conectar la
+        // cuenta publicitaria es otra decisión, con su propio permiso.
+        var meta = group.MapGroup("/meta-ads").RequireTenant();
 
         meta.MapGet("/status", async (
             AnalyticsDbContext db, IOptions<MetaAdsOptions> options, CancellationToken ct) =>
@@ -34,7 +36,7 @@ public static class MetaAdsEndpoints
                 adAccountName = c?.AdAccountName,
                 connectedAtUtc = c?.ConnectedAtUtc,
             });
-        });
+        }).RequirePermission(Permission.StatsRead);
 
         meta.MapPost("/connect", (
             ITenantContext tenant, MetaAdsClient client, MetaAdsTokenService tokens, IOptions<MetaAdsOptions> options) =>
@@ -43,7 +45,7 @@ public static class MetaAdsEndpoints
                 return Error.Validation("MetaAds.NotConfigured",
                     "La integración con Meta Ads no está configurada en esta plataforma (MetaAds:AppId/AppSecret).").ToProblem();
             return Results.Ok(new { authUrl = client.BuildAuthorizationUrl(tokens.ProtectState(tenant.TenantId.Value)) });
-        });
+        }).RequirePermission(Permission.AdsManage);
 
         meta.MapDelete("/connection", async (AnalyticsDbContext db, CancellationToken ct) =>
         {
@@ -52,7 +54,7 @@ public static class MetaAdsEndpoints
             db.MetaAdsConnections.Remove(c);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequirePermission(Permission.AdsManage);
 
         meta.MapGet("/ad-accounts", async (
             ITenantContext tenant, MetaAdsClient client, MetaAdsTokenService tokens, CancellationToken ct) =>
@@ -64,7 +66,7 @@ public static class MetaAdsEndpoints
             return accounts.IsSuccess
                 ? Results.Ok(new { items = accounts.Value.Select(a => new { id = a.Id, name = a.Name }) })
                 : accounts.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.AdsManage);
 
         meta.MapPost("/ad-account", async (
             SelectAdAccountRequest request, AnalyticsDbContext db, CancellationToken ct) =>
@@ -77,7 +79,7 @@ public static class MetaAdsEndpoints
             c.SelectAdAccount(request.AdAccountId.Trim(), request.Name?.Trim());
             await db.SaveChangesAsync(ct);
             return Results.Ok(new { adAccountId = c.AdAccountId, adAccountName = c.AdAccountName });
-        });
+        }).RequirePermission(Permission.AdsManage);
 
         // Gasto por campaña del rango. El front cruza contra la ganancia del
         // dashboard: ROAS real = ganancia / gasto (no facturación / gasto).
@@ -108,7 +110,7 @@ public static class MetaAdsEndpoints
                     spend = (long)Math.Round(s.Spend * 100m),
                 }),
             });
-        });
+        }).RequirePermission(Permission.StatsRead);
 
         // Callback OAuth público: el tenant viaja firmado en el state.
         group.MapGet("/meta-ads/oauth/callback", async (

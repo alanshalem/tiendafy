@@ -40,7 +40,7 @@ public static partial class ProductEndpoints
             return result.IsSuccess
                 ? Results.Ok(new { products = result.Value.Products, variants = result.Value.Variants })
                 : result.Error.ToProblem();
-        });
+        }).RequirePermission(Permission.PricesManage);
 
         // ---- Costos por variante (rentabilidad) ----
         // Dato interno del merchant: NUNCA viaja en los DTOs públicos del catálogo.
@@ -63,7 +63,7 @@ public static partial class ProductEndpoints
                     currency = v.Price.Currency,
                 }),
             });
-        }).RequirePermission(Permission.CatalogWrite);
+        }).RequirePermission(Permission.CostsRead);
 
         // Bulk para la pantalla de Costos: los costos de una página entera de
         // productos en UN request (antes: un GET por producto visible).
@@ -87,7 +87,7 @@ public static partial class ProductEndpoints
             {
                 items = withCosts.SelectMany(p => p.Variants.Select(VariantCostDto)),
             });
-        }).RequirePermission(Permission.CatalogWrite);
+        }).RequirePermission(Permission.CostsRead);
 
         products.MapPut("/{id:guid}/costs", async (
             Guid id, SetVariantCostsRequest request, ITenantContext tenant,

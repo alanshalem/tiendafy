@@ -57,7 +57,7 @@ public static class PaywayEndpoints
                     connection.IsActive,
                     connection.UpdatedAtUtc,
                 });
-        }).RequirePermission(Permission.PaymentsConfigRead);
+        }).RequirePermission(Permission.PaymentsRead);
 
         payway.MapPut("/connection", async (
             SavePaywayRequest request, ITenantContext tenant, PaymentsDbContext db,
@@ -94,7 +94,7 @@ public static class PaywayEndpoints
 
             await db.SaveChangesAsync(ct);
             return Results.Ok(new { connected = true, baseUrl = connection.BaseUrl });
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         payway.MapDelete("/connection", async (
             ITenantContext tenant, PaymentsDbContext db, CancellationToken ct) =>
@@ -106,7 +106,7 @@ public static class PaywayEndpoints
             db.PaywayConnections.Remove(connection);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         // Prueba de credenciales contra el healthcheck de Payway. Sirve para
         // saber si el host responde antes de que falle un cobro real; no valida
@@ -131,7 +131,7 @@ public static class PaywayEndpoints
             {
                 return Results.Ok(new { ok = false, status = 0 });
             }
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         // Lo que el checkout del storefront necesita para tokenizar la tarjeta.
         // Público a propósito: la clave pública existe justamente para esto.

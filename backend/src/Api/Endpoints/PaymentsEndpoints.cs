@@ -26,7 +26,7 @@ public static class PaymentsEndpoints
 
             var connection = await repository.GetByTenantAsync(tenant.TenantId, ct);
             return Results.Ok(ToDto(connection));
-        }).RequirePermission(Permission.PaymentsConfigRead);
+        }).RequirePermission(Permission.PaymentsRead);
 
         // Config pública para el storefront: modo de cobro + public key (no secreto).
         mp.MapGet("/public-config", async (
@@ -46,7 +46,7 @@ public static class PaymentsEndpoints
         {
 
             return Results.Ok(new { authUrl = handler.Handle(tenant.TenantId) });
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         // Callback OAuth (lo invoca el navegador del merchant tras autorizar en MP).
         // Sin tenant header: el tenant viaja firmado en el `state`.
@@ -78,7 +78,7 @@ public static class PaymentsEndpoints
             await repository.RemoveAsync(connection, ct);
             await repository.SaveChangesAsync(ct);
             return Results.NoContent();
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         // Preferencias de cobro: modo Pro/API, comisión de plataforma, descriptor.
         mp.MapPut("/preferences", async (
@@ -104,7 +104,7 @@ public static class PaymentsEndpoints
 
             await repository.SaveChangesAsync(ct);
             return Results.Ok(ToDto(connection));
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         // Salud del inbox de webhooks.
         //
@@ -152,7 +152,7 @@ public static class PaymentsEndpoints
                 last = counts?.last,
                 stuckEvents,
             });
-        }).RequirePermission(Permission.PaymentsConfigRead);
+        }).RequirePermission(Permission.PaymentsRead);
 
         // Devolver a la cola un webhook que se dio por muerto. Es la salida
         // cuando lo que fallaba ya se arregló: sin esto, recuperar una venta
@@ -178,7 +178,7 @@ public static class PaymentsEndpoints
 
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        }).RequirePermission(Permission.PaymentsConfigWrite);
+        }).RequirePermission(Permission.PaymentsWrite);
 
         return group;
     }

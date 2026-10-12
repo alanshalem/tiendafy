@@ -18,7 +18,7 @@ public static class SupplierEndpoints
 {
     public static RouteGroupBuilder MapSupplierEndpoints(this RouteGroupBuilder group)
     {
-        var suppliers = group.MapGroup("/suppliers").RequireTenant().RequirePermission(Permission.Purchasing);
+        var suppliers = group.MapGroup("/suppliers").RequireTenant().RequirePermission(Permission.PurchasingManage);
 
         suppliers.MapGet("/", async (
             ITenantContext tenant, PurchasingDbContext db, FinanceDbContext finance, CancellationToken ct,

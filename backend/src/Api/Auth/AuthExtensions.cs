@@ -39,12 +39,21 @@ public static class AuthExtensions
     }
 
     /// <summary>
-    /// RBAC: exige auth + membresía + que el rol del usuario tenga el permiso.
-    /// Deny by default según la matriz de RolePermissions. Loguea denegaciones
-    /// (detección de intentos de escalación).
+    /// RBAC: exige auth + membresía + que la persona tenga el permiso en esta
+    /// tienda (su rol, lo que la tienda le cambió a ese rol y sus excepciones).
+    /// Deny by default. Loguea denegaciones (detección de intentos de escalación).
     /// </summary>
     public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder builder, Permission permission) =>
         builder.RequireAuthorization().AddEndpointFilter((ctx, next) => PermissionFilter(ctx, next, permission));
+
+    /// <summary>
+    /// Para lo que comparten dos funcionalidades (el estado de la conexión con
+    /// Mercado Libre lo necesitan quien atiende y quien publica): alcanza con
+    /// tener ALGUNO de los permisos.
+    /// </summary>
+    public static RouteHandlerBuilder RequireAnyPermission(this RouteHandlerBuilder builder, params Permission[] anyOf) =>
+        builder.RequireAuthorization().AddEndpointFilter(async (ctx, next) =>
+            await CheckPermissionAsync(ctx.HttpContext, anyOf) is { } denied ? denied : await next(ctx));
 
     /// <summary>Igual que el anterior pero a nivel grupo.</summary>
     public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder builder, Permission permission)
@@ -109,7 +118,7 @@ public static class AuthExtensions
     /// Chequeo RBAC reutilizable fuera del filtro (endpoints con auth alternativa,
     /// p.ej. token de preview del editor). Null = permitido; IResult = denegación.
     /// </summary>
-    public static async Task<IResult?> CheckPermissionAsync(HttpContext http, Permission permission)
+    public static async Task<IResult?> CheckPermissionAsync(HttpContext http, params Permission[] anyOf)
     {
         var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
         if (!tenant.HasTenant) return MissingTenant();
@@ -117,23 +126,41 @@ public static class AuthExtensions
         var userId = http.User.GetUserId();
         if (userId is null) return Results.Unauthorized();
 
-        var memberships = http.RequestServices.GetRequiredService<IMembershipService>();
-        var role = await memberships.RoleAsync(userId.Value, tenant.TenantId.Value, http.RequestAborted);
-        if (role is null)
-            return Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
+        var access = await http.RequestServices.GetRequiredService<IAccessService>()
+            .GetAsync(userId.Value, tenant.TenantId.Value, http.RequestAborted);
+        if (access is null) return NotAMember();
 
-        if (!RolePermissions.Has(role, permission))
+        if (!anyOf.Any(access.Can))
         {
             http.RequestServices.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("Rbac")
                 .LogWarning("Permiso denegado: user {UserId} rol {Role} pidió {Permission} en {Path} (tenant {TenantId}).",
-                    userId, role, permission, LogValue.Safe(http.Request.Path.ToString()), tenant.TenantId.Value);
+                    userId, access.Role, string.Join(" | ", anyOf), LogValue.Safe(http.Request.Path.ToString()), tenant.TenantId.Value);
             return Results.Problem(title: "Auth.Forbidden",
-                detail: "Tu rol no tiene permiso para esta acción.", statusCode: StatusCodes.Status403Forbidden);
+                detail: "No tenés permiso para esta acción.", statusCode: StatusCodes.Status403Forbidden);
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Lo que puede el usuario logueado en la tienda del header, o null (sin
+    /// sesión, sin tienda o sin ser del equipo). Para los endpoints que deciden
+    /// por su cuenta (lectura del comprador o del equipo, varias tiendas).
+    /// </summary>
+    public static async Task<MemberAccess?> GetAccessAsync(this HttpContext http, Guid? tenantId = null)
+    {
+        var tenant = http.RequestServices.GetRequiredService<ITenantContext>();
+        var tid = tenantId ?? (tenant.HasTenant ? tenant.TenantId.Value : null);
+        var userId = http.User.GetUserId();
+        if (tid is null || userId is null) return null;
+        return await http.RequestServices.GetRequiredService<IAccessService>()
+            .GetAsync(userId.Value, tid.Value, http.RequestAborted);
+    }
+
+    /// <summary>403 de "esta tienda no es tuya" (cuerpo compartido).</summary>
+    public static IResult NotAMember() =>
+        Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
 
 
     /// <summary>
@@ -167,12 +194,8 @@ public static class AuthExtensions
         if (!tenant.HasTenant)
             return MissingTenant();
 
-        var userId = http.User.GetUserId();
-        if (userId is null) return Results.Unauthorized();
-
-        var memberships = http.RequestServices.GetRequiredService<IMembershipService>();
-        if (!await memberships.IsMemberAsync(userId.Value, tenant.TenantId.Value, http.RequestAborted))
-            return Results.Problem(title: "Auth.Forbidden", detail: "No tenés acceso a esta tienda.", statusCode: StatusCodes.Status403Forbidden);
+        if (http.User.GetUserId() is null) return Results.Unauthorized();
+        if (await http.GetAccessAsync() is null) return NotAMember();
 
         return await next(ctx);
     }

@@ -35,7 +35,7 @@ public static class AiEndpoints
                 $"Publicación: {Text.Clip(request.ItemTitle ?? "(sin título)", 200)}\nPregunta del comprador: {Text.Clip(request.Question, 500)}",
                 300, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        }).RequirePermission(Permission.OrdersFulfill);
+        }).RequirePermission(Permission.MeliOperate);
 
         // Respuesta sugerida para el chat posventa (con el contexto del pedido).
         ai.MapPost("/support-reply", async (
@@ -75,7 +75,7 @@ public static class AiEndpoints
                     : $"Escribí un post para promocionar este producto: {brief}",
                 600, ct);
             return result.IsSuccess ? Results.Ok(new { text = result.Value }) : result.Error.ToProblem();
-        }).RequirePermission(Permission.Social);
+        }).RequirePermission(Permission.SocialPublish);
 
         // Descripción de producto para la tienda.
         ai.MapPost("/product-description", async (

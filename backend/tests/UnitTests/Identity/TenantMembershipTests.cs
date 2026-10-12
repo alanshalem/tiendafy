@@ -4,20 +4,20 @@ namespace UnitTests.Identity;
 
 /// <summary>
 /// El rol que se guarda es el que se pidió. Regresión: la normalización quedó
-/// de cuando había dos roles y convertía cualquier rol que no fuera "staff" en
-/// "owner" — cada persona sumada al equipo entraba como dueña de la tienda.
+/// de cuando había dos roles y convertía cualquier rol desconocido en "owner"
+/// — cada persona sumada al equipo entraba como dueña de la tienda.
 /// </summary>
 public class TenantMembershipTests
 {
-    public static TheoryData<string> Roles() => new(RolePermissions.AssignableRoles.Append(RolePermissions.LegacyStaff));
+    public static TheoryData<string> AllRoles() => new(Roles.All.Select(r => r.Key));
 
     [Theory]
-    [MemberData(nameof(Roles))]
+    [MemberData(nameof(AllRoles))]
     public void Guarda_el_rol_pedido(string role)
     {
         var membership = TenantMembership.Create(Guid.NewGuid(), Guid.NewGuid(), role);
         Assert.Equal(role, membership.Role);
-        Assert.Equal(role == RolePermissions.Owner, membership.IsOwner);
+        Assert.Equal(role == Roles.Owner, membership.IsOwner);
     }
 
     [Fact]
@@ -39,6 +39,7 @@ public class TenantMembershipTests
     [Theory]
     [InlineData("emperador")]
     [InlineData("")]
+    [InlineData("staff")] // el rol de cuando había dos: la migración lo pasó a admin
     public void Un_rol_inexistente_no_se_guarda(string role) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => TenantMembership.Create(Guid.NewGuid(), Guid.NewGuid(), role));
 }

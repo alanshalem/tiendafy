@@ -20,7 +20,7 @@ public static class FinanceEndpoints
 {
     public static RouteGroupBuilder MapFinanceEndpoints(this RouteGroupBuilder group)
     {
-        var finance = group.MapGroup("/finance").RequireTenant().RequirePermission(Permission.Finance);
+        var finance = group.MapGroup("/finance").RequireTenant().RequirePermission(Permission.FinanceManage);
 
         // ---- Cuentas (cajas y bancos) ---------------------------------------
 

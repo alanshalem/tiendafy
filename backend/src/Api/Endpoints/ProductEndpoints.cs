@@ -181,7 +181,7 @@ public static partial class ProductEndpoints
                 averageMarginPct = margins.Count > 0 ? Math.Round(margins.Average(), 1) : 0m,
                 lowMarginVariants = margins.Count(m => m < 15),
             });
-        }).RequirePermission(Permission.CatalogWrite).RequireTenantMembership();
+        }).RequireAnyPermission(Permission.CatalogWrite, Permission.CostsRead); // la usan Productos y Costos
 
         // Storefront: búsqueda con filtros, orden y paginado (estilo marketplace).
         products.MapGet("/search", async (

@@ -23,7 +23,7 @@ public static class ZipnovaEndpoints
     public static RouteGroupBuilder MapZipnovaEndpoints(this RouteGroupBuilder group)
     {
         // ------------------------------------------------ Admin: configuración
-        var admin = group.MapGroup("/admin/shipping/zipnova").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/shipping/zipnova").RequirePermission(Permission.ShippingConfig);
 
         admin.MapGet("/", async (ITenantContext tenant, IZipnovaRepository repo, CancellationToken ct) =>
         {

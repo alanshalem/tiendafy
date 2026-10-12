@@ -134,7 +134,7 @@ public static class PagesEndpoints
                 .Select(r => new { r.Id, from = r.FromPath, to = r.ToPath, r.Hits, r.LastHitAtUtc })
                 .ToListAsync(ct);
             return Results.Ok(new { items });
-        }).RequirePermission(Permission.SettingsWrite);
+        }).RequirePermission(Permission.StoreConfig);
 
         redirects.MapPost("/", async (
             RedirectRequest request, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
@@ -156,7 +156,7 @@ public static class PagesEndpoints
                 result.Value.Hits,
                 result.Value.LastHitAtUtc,
             });
-        }).RequirePermission(Permission.SettingsWrite);
+        }).RequirePermission(Permission.StoreConfig);
 
         redirects.MapDelete("/{id:guid}", async (
             Guid id, ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
@@ -166,7 +166,7 @@ public static class PagesEndpoints
             db.Redirects.Remove(rule);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        }).RequirePermission(Permission.SettingsWrite);
+        }).RequirePermission(Permission.StoreConfig);
     }
 
     // ------------------------------------------------ Medición y píxeles
@@ -200,7 +200,7 @@ public static class PagesEndpoints
 
         var admin = group.MapGroup("/admin/tracking")
             .RequireTenant()
-            .RequirePermission(Permission.SettingsWrite);
+            .RequirePermission(Permission.StoreConfig);
 
         admin.MapGet("/", async (ITenantContext tenant, ContentDbContext db, CancellationToken ct) =>
         {

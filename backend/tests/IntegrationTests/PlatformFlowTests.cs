@@ -79,7 +79,7 @@ public sealed partial class PlatformFlowTests
         var me = await owner.GetAsync("/api/v1/me/permissions");
         Assert.Equal("owner", me.GetProperty("role").GetString());
         var roles = await owner.GetAsync("/api/v1/members/roles");
-        Assert.Equal(6, roles.GetProperty("items").GetArrayLength());
+        Assert.Equal(6, roles.GetProperty("roles").GetArrayLength());
 
         // Validaciones del alta.
         Assert.Equal(HttpStatusCode.BadRequest, (await owner.SendAsync(HttpMethod.Post, "/api/v1/members", new { email = "x@test.local", role = "" })).StatusCode);

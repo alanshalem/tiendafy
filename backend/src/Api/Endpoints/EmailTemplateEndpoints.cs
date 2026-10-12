@@ -15,7 +15,7 @@ public static class EmailTemplateEndpoints
     public static RouteGroupBuilder MapEmailTemplateEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: plantillas de email del tenant. Exige membresía.
-        var templates = group.MapGroup("/email-templates").RequirePermission(Permission.SettingsWrite);
+        var templates = group.MapGroup("/email-templates").RequirePermission(Permission.NotificationsConfig);
 
         // Uso y costo estimado de notificaciones (emails + WhatsApp) del tenant.
         // Tarifas configurables (Notifications:*): son ESTIMACIONES — Resend
@@ -57,7 +57,7 @@ public static class EmailTemplateEndpoints
                     estimatedMonthUsd = Math.Round(Mes("whatsapp") * waPerMessage, 2),
                 },
             });
-        }).RequirePermission(Permission.SettingsWrite);
+        }).RequirePermission(Permission.NotificationsConfig);
 
         // Lista combinada: defaults del catálogo + overrides del tenant.
         templates.MapGet("/", async (ITenantContext tenant, NotificationsDbContext db, CancellationToken ct) =>

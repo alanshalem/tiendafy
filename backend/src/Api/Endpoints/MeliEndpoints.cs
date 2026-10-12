@@ -33,7 +33,7 @@ public static class MeliEndpoints
 
     private static void MapConnection(RouteGroupBuilder group)
     {
-        var config = group.MapGroup("/admin/meli").RequirePermission(Permission.SettingsWrite);
+        var config = group.MapGroup("/admin/meli").RequirePermission(Permission.MeliConfig);
 
         // Además de la configuración, lo que hace falta para saber si la
         // integración está haciendo algo: cuántas publicaciones hay vinculadas
@@ -220,14 +220,15 @@ public static class MeliEndpoints
 
     private static void MapSales(RouteGroupBuilder group)
     {
-        var sales = group.MapGroup("/admin/meli").RequirePermission(Permission.OrdersRead);
+        var sales = group.MapGroup("/admin/meli").RequirePermission(Permission.MeliOperate);
 
         // Estado liviano para la página del canal (sin exponer configuración).
-        sales.MapGet("/status", async (ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
+        // Si la cuenta está conectada: lo necesitan quien atiende y quien publica.
+        group.MapGet("/admin/meli/status", async (ITenantContext tenant, MeliDbContext db, CancellationToken ct) =>
         {
             var c = await db.Connections.AsNoTracking().FirstOrDefaultAsync(ct);
             return Results.Ok(new { connected = c is not null, nickname = c?.Nickname });
-        });
+        }).RequireAnyPermission(Permission.MeliOperate, Permission.MeliPublish);
 
         // Ventas del cache local (rápido; el webhook + refresh lo mantienen al día).
         sales.MapGet("/orders", async (
@@ -377,7 +378,7 @@ public static class MeliEndpoints
             });
         });
 
-        var actions = group.MapGroup("/admin/meli").RequirePermission(Permission.OrdersFulfill);
+        var actions = group.MapGroup("/admin/meli").RequirePermission(Permission.MeliOperate);
 
         actions.MapPost("/questions/{questionId:long}/answer", async (
             long questionId, MeliAnswerRequest request,
@@ -542,7 +543,7 @@ public static class MeliEndpoints
 
     private static void MapPublications(RouteGroupBuilder group)
     {
-        var items = group.MapGroup("/admin/meli").RequirePermission(Permission.CatalogWrite);
+        var items = group.MapGroup("/admin/meli").RequirePermission(Permission.MeliPublish);
 
         // Publicaciones del vendedor + estado de vínculo con el catálogo local.
         items.MapGet("/items", async (

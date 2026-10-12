@@ -20,7 +20,7 @@ public static class CorreoArgentinoEndpoints
     public static RouteGroupBuilder MapCorreoArgentinoEndpoints(this RouteGroupBuilder group)
     {
         // ------------------------------------------------ Admin: configuración
-        var admin = group.MapGroup("/admin/shipping/correo").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/shipping/correo").RequirePermission(Permission.ShippingConfig);
 
         admin.MapGet("/", async (ITenantContext tenant, ICorreoArgentinoConfigRepository repo, CancellationToken ct) =>
         {

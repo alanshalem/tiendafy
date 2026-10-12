@@ -22,7 +22,7 @@ public static class PurchasingEndpoints
 {
     public static RouteGroupBuilder MapPurchasingEndpoints(this RouteGroupBuilder group)
     {
-        var purchasing = group.MapGroup("/purchasing").RequireTenant().RequirePermission(Permission.Purchasing);
+        var purchasing = group.MapGroup("/purchasing").RequireTenant().RequirePermission(Permission.PurchasingManage);
 
         purchasing.MapGet("/purchase-orders", async (
             PurchasingDbContext db, CancellationToken ct,

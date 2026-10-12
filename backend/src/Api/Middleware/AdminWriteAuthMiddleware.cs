@@ -47,7 +47,7 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         "/api/v1/webhooks/meli",
     };
 
-    public async Task InvokeAsync(HttpContext ctx, IMembershipService memberships)
+    public async Task InvokeAsync(HttpContext ctx)
     {
         var method = ctx.Request.Method;
         var isWrite = HttpMethods.IsPost(method) || HttpMethods.IsPut(method)
@@ -74,7 +74,7 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
                 return;
             }
 
-            if (!await memberships.IsMemberAsync(userId.Value, tenant.TenantId.Value, ctx.RequestAborted))
+            if (await ctx.GetAccessAsync() is null)
             {
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 await ctx.Response.WriteAsJsonAsync(new { title = "Auth.Forbidden", detail = "No tenés acceso a esta tienda." });

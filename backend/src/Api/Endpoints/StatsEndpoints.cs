@@ -22,6 +22,10 @@ public static class StatsEndpoints
     {
         // Grupo 100% admin: métricas de ventas/clientes. Exige membresía.
         var stats = group.MapGroup("/stats").RequirePermission(Permission.StatsRead);
+        // La rentabilidad muestra costos y márgenes: tiene su propio permiso.
+        var costs = group.MapGroup("/stats").RequirePermission(Permission.CostsRead);
+        // Los carritos abandonados son parte de Ventas, no de las estadísticas.
+        var carts = group.MapGroup("/stats").RequirePermission(Permission.OrdersRead);
 
         // Resumen: catálogo + descuentos + clientes + páginas + ventas (de Orders).
         stats.MapGet("/overview", async (
@@ -218,7 +222,7 @@ public static class StatsEndpoints
         // (netas de cupón) − costo snapshot de los ítems − comisión real de MP.
         // El envío cobrado se muestra aparte (pass-through al carrier, no margen).
         // Órdenes sin costo cargado quedan fuera del margen: `coverage` lo expone.
-        stats.MapGet("/profitability", async (
+        costs.MapGet("/profitability", async (
             ITenantContext tenant, OrdersDbContext ordersDb, CatalogDbContext catalogDb,
             MercadoLibre.Infrastructure.MeliDbContext meliDb,
             int? days, DateOnly? from, DateOnly? to, int? limit, int? offset, CancellationToken ct) =>
@@ -539,7 +543,7 @@ public static class StatsEndpoints
         });
 
         // Carritos abandonados: checkouts no completados ni pagados.
-        stats.MapGet("/abandoned-carts", async (
+        carts.MapGet("/abandoned-carts", async (
             ITenantContext tenant, CheckoutDbContext checkoutDb, OrdersDbContext ordersDb,
             int? days, int? limit, int? offset, CancellationToken ct) =>
         {

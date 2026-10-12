@@ -12,7 +12,7 @@ public static class ShippingEndpoints
 {
     public static RouteGroupBuilder MapShippingEndpoints(this RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/admin/shipping/methods").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/shipping/methods").RequirePermission(Permission.ShippingConfig);
 
         admin.MapGet("/", async (ITenantContext tenant, IShippingMethodRepository repository, CancellationToken ct) =>
         {

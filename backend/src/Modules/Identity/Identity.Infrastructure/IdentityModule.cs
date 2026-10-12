@@ -63,6 +63,8 @@ public static class IdentityModule
         services.AddAuthorization();
 
         services.AddScoped<IMembershipService, MembershipService>();
+        services.AddScoped<IAccessService, AccessService>();
+        services.AddScoped<IAuditLog, AuditLog>();
 
         return services;
     }

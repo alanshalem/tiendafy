@@ -1,68 +1,88 @@
 # RBAC — roles y permisos por tienda
 
-**Estado: implementado** (2026-07-23). Fuente de verdad de la matriz:
-`backend/src/Modules/Identity/Identity.Infrastructure/Permissions.cs`
-(+ tests `RolePermissionsTests`). Este doc describe el sistema tal como
-funciona; el razonamiento de diseño previo quedó en el historial de git
-(`rbac-propuesta.md`).
+**Estado: implementado.** Matriz editable por tienda y excepciones por persona
+desde 2026-10-12 (antes era fija en código). Fuente de verdad:
+`backend/src/Modules/Identity/Identity.Infrastructure/` (`Permissions.cs`,
+`AccessPolicy.cs`, `TeamRules.cs`), con tests `AccessPolicyTests`,
+`TeamRulesTests` y `TeamPermissionsTests`.
 
 ## El modelo en una frase
 
-Cada miembro de una tienda tiene UN rol; cada rol mapea a un conjunto fijo de
-permisos (`Permission` enum, 23 permisos); cada endpoint del admin exige el
-permiso que corresponde. **Deny by default**: lo que la matriz no otorga, no se
-puede. La matriz es política de producto y vive en código, no en la DB.
+Cada miembro de una tienda tiene UN rol; lo que puede hacer se calcula en tres
+capas: **lo que el rol trae de fábrica** (en código) → **lo que la tienda le
+cambió a ese rol** (tabla `tenant_role_permissions`) → **las excepciones de esa
+persona** (tabla `member_permissions`). Cada endpoint del admin exige el
+permiso de su funcionalidad. **Deny by default.** El dueño tiene todo, siempre.
+
+## El catálogo de permisos
+
+Una entrada por funcionalidad del panel, en `PermissionCatalog.All`: clave
+estable (`orders.refund`), sección, texto, descripción, si es **sensible** (mueve
+plata, obligaciones fiscales o da más accesos), si es **solo del dueño**
+(`tenant.admin`: dominios, editar y borrar la tienda — no se delega) y su
+**requisito** (`orders.refund` necesita `orders.read`; sin el requisito, el
+permiso no cuenta). También dice qué roles lo traen de fábrica.
+
+Es la ÚNICA lista: el backend la sirve en `GET /api/v1/members/roles` y el
+panel la muestra tal cual. Agregar una funcionalidad es agregar una línea ahí y
+proteger sus endpoints con `RequirePermission(Permission.X)`; el panel la
+mapea en `admin/src/lib/access.ts` (un test verifica que las claves coincidan).
 
 ## Roles
 
-| Rol | Rank | Qué puede |
-| --- | --- | --- |
-| `owner` | 3 | Todo, incluido `TenantAdmin` (dominios, plan, borrar la tienda). |
-| `admin` | 2 | Todo menos `TenantAdmin`. |
-| `staff` (legacy) | 2 | Equivale a `admin` — los staff pre-RBAC operaban todo el panel. |
-| `vendedor` | 1 | Pedidos (ver + despachar), clientes, chat, mensajes, cupones (ver), stats, stock (ver). |
-| `catalogo` | 1 | Catálogo (escribir) + inventario (ver y escribir). |
-| `finanzas` | 1 | Pedidos (ver + **reembolsar**), config de pagos (ver), facturación ARCA (config + emitir), compras/importaciones, **tesorería y cuentas corrientes**, clientes/cupones/stats/stock (ver). |
-| `soporte` | 1 | Pedidos (ver), clientes (ver), chat posventa, mensajes de contacto. |
+Fijos (`Roles.All`): lo que se edita es qué puede cada uno.
 
-`Rank` gobierna la gestión de miembros: nadie asigna un rol por encima del
-propio (`MembersManage` + jerarquía).
+| Rol                     | Rank | De fábrica                                                                                                                              |
+| ----------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `owner` (Dueño)         | 3    | Todo, siempre. Su columna no se edita.                                                                                                  |
+| `admin` (Administrador) | 2    | Todo menos lo que es solo del dueño.                                                                                                    |
+| `vendedor`              | 1    | Ventas (ver, registrar, despachar), presupuestos, atender ML, clientes (ver), chat, mensajes, cupones (ver), estadísticas, stock (ver). |
+| `catalogo`              | 1    | Productos, precios y repreciación, stock, costos, publicar en ML.                                                                       |
+| `finanzas`              | 1    | Ventas (ver), devoluciones, facturación, tesorería, compras, cobros (ver), costos, estadísticas.                                        |
+| `soporte`               | 1    | Ventas (ver), clientes (ver), chat, mensajes, atender ML.                                                                               |
 
-## Permisos sensibles
+El rol `staff` (de cuando había dos) se migró a `admin`.
 
-Marcados en el enum con comentario: `OrdersRefund` (mueve plata),
-`PaymentsConfigWrite` (conectar/desconectar MP), `MembersManage` (vía de
-escalación), `FiscalConfig`/`FiscalEmit` (obligaciones fiscales),
-`Finance` (mueve saldos de caja y deuda de clientes y proveedores),
-`TenantAdmin` (solo owner).
+## Reglas anti-escalada (`TeamRules`)
+
+- Nadie da ni quita un permiso que no tiene (para roles y para personas).
+- Nadie toca a alguien de su rango o más; el dueño toca a todos.
+- Solo un dueño nombra o modifica dueños; la tienda nunca queda sin dueño.
+- Nadie edita sus propias excepciones.
+- Asignar un rol exige que ese rol (como está EN ESTA TIENDA) no pueda más que
+  quien lo asigna.
+- Cambiar el rol de alguien borra sus excepciones (eran para el rol anterior).
+
+Editar la matriz pide `roles.manage`; las excepciones y altas, `members.manage`.
 
 ## Enforcement (backend)
 
 En `backend/src/Api/Auth/AuthExtensions.cs`:
 
-- `RequirePermission(Permission.X)` — todo el grupo de endpoints exige X.
-- `RequirePermissionForWrites(Permission.X)` — los GET pasan con membership;
-  POST/PUT/PATCH/DELETE exigen X (patrón de catálogo: todos ven, `catalogo`
-  escribe).
+- `RequirePermission(Permission.X)` — endpoint o grupo.
+- `RequireAnyPermission(X, Y)` — lo que comparten dos funcionalidades (el
+  estado de la conexión con Mercado Libre).
+- `RequirePermissionForWrites(Permission.X)` — grupos mixtos con el
+  storefront: los GET son públicos, las escrituras exigen X.
 
-Las lecturas públicas del storefront (catálogo, tema publicado, CMS) **no**
-pasan por RBAC — esto gobierna exclusivamente la superficie admin.
+El acceso efectivo lo resuelve `IAccessService` contra la base **en cada
+request** (memorizado durante el request): un cambio de la matriz vale desde el
+próximo clic, sin volver a entrar. Las denegaciones se loguean (categoría
+`Rbac`).
 
-## El front
+## Registro de actividad
 
-`GET /api/v1/me/permissions` devuelve la lista efectiva del usuario para el
-tenant activo como claves wire estables (`orders.refund`, `catalog.write`, …
-— `WireKey` en Permissions.cs). El admin oculta secciones del menú según eso,
-pero la autoridad real siempre es la API.
+`audit_events`: quién sumó, sacó, cambió el rol, las excepciones o la matriz,
+con el texto armado al momento (nombres de ese momento). Se ve en
+Configuración → Usuarios; `GET /api/v1/members/activity` (`members.read`).
 
-## Auditoría
+## El panel
 
-Cada denegación se loggea estructurada (user, tenant, permiso, endpoint) para
-detectar intentos de escalación.
+- `GET /api/v1/me/permissions` → permisos efectivos en la tienda activa.
+- `admin/src/lib/access.ts`: qué permiso pide cada pantalla (rutas, menú
+  lateral, menú de Configuración y buscador salen de ahí).
+- Configuración → **Roles y permisos**: la matriz editable.
+- Configuración → **Usuarios**: roles, excepciones por persona (botón de
+  permisos de cada fila) y el registro.
 
-## Cómo agregar un permiso nuevo
-
-1. Sumarlo al enum `Permission` + su `WireKey`.
-2. Otorgarlo en la matriz a los roles que corresponda.
-3. Exigirlo en el endpoint (`RequirePermission[ForWrites]`).
-4. `RolePermissionsTests` valida la matriz; el front lo consume solo.
+La autoridad real siempre es la API: el panel solo evita ofrecer lo que va a fallar.

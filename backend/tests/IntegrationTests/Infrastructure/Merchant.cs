@@ -70,6 +70,20 @@ public sealed class Merchant
 
     private static string Unique(string tag) => $"{tag}{Guid.NewGuid():N}"[..12].ToLowerInvariant();
 
+    /// <summary>
+    /// Alguien más del equipo de esta tienda, con su propia sesión: la cuenta
+    /// se crea por dentro y el dueño la suma con el rol pedido.
+    /// </summary>
+    public async Task<Teammate> AddTeammateAsync(string role, string tag = "eq")
+    {
+        var client = Factory.CreateDefaultClient(new CookieContainerHandler());
+        var email = await LogInNewUserAsync(Factory, client, Unique(tag));
+        await ExpectOkAsync(HttpMethod.Post, "/api/v1/members", new { email, role });
+        var userId = (await GetAsync("/api/v1/members?limit=100")).GetProperty("items").EnumerateArray()
+            .Single(m => m.GetProperty("email").GetString() == email).GetProperty("userId").GetGuid();
+        return new Teammate(this, client, userId, email);
+    }
+
     private static async Task<Merchant> OpenStoreAsync(ApiFactory factory, HttpClient client, string subdomain, string email)
     {
         var create = await client.PostAsJsonAsync("/api/v1/tenants", new { name = $"Tienda {subdomain}", subdomain });
@@ -223,4 +237,18 @@ public sealed class Merchant
         var body = await GetAsync($"/api/v1/inventory?variantIds={variantId}");
         return body.GetProperty("items").EnumerateArray().Single().GetProperty("available").GetInt32();
     }
+}
+
+/// <summary>Una persona del equipo de la tienda de <see cref="Merchant"/>, con su sesión.</summary>
+public sealed record Teammate(Merchant Store, HttpClient Client, Guid UserId, string Email)
+{
+    public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null) =>
+        Store.SendAsync(Client, method, path, body);
+
+    public async Task<HttpStatusCode> StatusAsync(HttpMethod method, string path, object? body = null) =>
+        (await SendAsync(method, path, body)).StatusCode;
+
+    public async Task<string[]> PermissionsAsync() =>
+        [.. (await (await SendAsync(HttpMethod.Get, "/api/v1/me/permissions")).Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("permissions").EnumerateArray().Select(p => p.GetString()!)];
 }

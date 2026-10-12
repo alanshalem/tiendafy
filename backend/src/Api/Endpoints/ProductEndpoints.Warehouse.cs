@@ -149,7 +149,7 @@ public static partial class ProductEndpoints
 
             var pdf = VariantLabelsPdf.Render(labels);
             return Results.File(pdf, "application/pdf", "etiquetas.pdf");
-        }).RequireTenantMembership();
+        }).RequirePermission(Permission.InventoryRead);
 
         // Asignar el código escaneado a una variante (flujo del Escáner:
         // "EAN desconocido → buscá por SKU → asignar").
@@ -191,6 +191,6 @@ public static partial class ProductEndpoints
                 })
                 .ToList();
             return Results.Ok(new { items });
-        }).RequirePermission(Permission.CatalogWrite);
+        }).RequirePermission(Permission.CostsRead);
     }
 }

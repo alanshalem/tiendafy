@@ -228,7 +228,7 @@ public static class CheckoutEndpoints
             return Results.Ok(SettingsDto(s, tenant.TenantId));
         }).RequireTenant();
 
-        var admin = group.MapGroup("/admin/checkout").RequirePermission(Permission.SettingsWrite);
+        var admin = group.MapGroup("/admin/checkout").RequirePermission(Permission.StoreConfig);
 
         admin.MapGet("/settings", async (
             ITenantContext tenant, CheckoutDbContext db, CancellationToken ct) =>

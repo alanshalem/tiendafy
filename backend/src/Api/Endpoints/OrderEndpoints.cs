@@ -189,7 +189,7 @@ public static class OrderEndpoints
         // dirección/DNI a cualquiera con el id.
         group.MapGet("/orders/{id:guid}", async (
             Guid id, HttpContext http, ITenantContext tenant, IOrderRepository orders,
-            Customers.Infrastructure.CustomersDbContext customersDb, IMembershipService memberships, CancellationToken ct) =>
+            Customers.Infrastructure.CustomersDbContext customersDb, CancellationToken ct) =>
         {
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
             if (order is null) return Results.NotFound();
@@ -199,11 +199,8 @@ public static class OrderEndpoints
             var isOwnerShopper = customer is not null && !string.IsNullOrEmpty(customer.Email)
                 && string.Equals(order.BuyerEmail, customer.Email, StringComparison.OrdinalIgnoreCase);
 
-            // ¿Staff con permiso de lectura de órdenes?
-            var userId = http.User.GetUserId();
-            var isStaff = userId is not null
-                && await memberships.RoleAsync(userId.Value, tenant.TenantId.Value, ct) is { } role
-                && RolePermissions.Has(role, Permission.OrdersRead);
+            // ¿Alguien del equipo que puede ver las ventas?
+            var isStaff = (await http.GetAccessAsync())?.Can(Permission.OrdersRead) == true;
 
             if (!isOwnerShopper && !isStaff)
                 return Results.NotFound(); // no revelar existencia a terceros
@@ -515,7 +512,7 @@ public static class OrderEndpoints
                 status = order.Status.ToString().ToUpperInvariant(),
                 paymentLink = result.Value.PaymentLink,
             });
-        }).RequirePermission(Permission.OrdersFulfill);
+        }).RequirePermission(Permission.OrdersCreate);
 
         group.MapGet("/orders/{id:guid}/invoice.pdf", async (
             Guid id, string? type, ITenantContext tenant, IOrderRepository orders,
