@@ -30,11 +30,41 @@ export interface User {
   keyboard(text: string): Promise<void>;
 }
 
+/** Se llama con cada diálogo que se abre, recién abierto (antes de tocarlo). */
+export type OnDialog = (dialog: HTMLElement, opener: HTMLElement) => Promise<void> | void;
+
 /** Lo que no se aprieta: salir de la sesión dejaría el resto sin probar. */
 export const SKIP = /cerrar sesi[oó]n|salir/i;
 
 const usable = (el: HTMLElement) =>
   el.isConnected && !el.hasAttribute('disabled') && !el.hasAttribute('readonly');
+
+const DATE_LIKE = 'input[type=date], input[type=month], input[type=time], input[type=datetime-local]';
+const DATE_VALUES: Record<string, string> = {
+  date: '2026-10-20',
+  month: '2026-10',
+  time: '10:30',
+  'datetime-local': '2026-10-20T10:30',
+};
+
+/**
+ * Un valor que el campo acepta, por su tipo o lo que pide: así el formulario
+ * pasa la validación y lo que se prueba es el envío, no solo el error.
+ */
+function plausible(field: HTMLElement): string {
+  const input = field as HTMLInputElement;
+  const hint =
+    `${input.type} ${input.inputMode} ${input.name} ${input.placeholder} ${field.getAttribute('aria-label') ?? ''}`.toLowerCase();
+  if (input.type === 'email' || /e-?mail/.test(hint)) return 'ana@example.com';
+  if (input.type === 'url' || /https?:|url|link|web/.test(hint)) return 'https://example.com';
+  if (input.type === 'tel' || /tel[eé]fono|whatsapp|celular/.test(hint)) return '1155554444';
+  if (
+    /numeric|decimal/.test(input.inputMode ?? '') ||
+    /precio|monto|importe|cantidad|cuit|dni|cp|postal/.test(hint)
+  )
+    return '12';
+  return 'Prueba 12';
+}
 
 export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) {
   /** Deja correr las queries y efectos (varias rondas: unas disparan otras). */
@@ -50,10 +80,14 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
   async function fill(user: User, root: HTMLElement) {
     const scope = within(root);
     for (const field of scope.queryAllByRole('textbox').slice(0, 20)) {
-      if (usable(field)) await user.type(field, '12');
+      if (usable(field)) await user.type(field, plausible(field));
     }
     for (const field of scope.queryAllByRole('spinbutton').slice(0, 10)) {
       if (usable(field)) await user.type(field, '3');
+    }
+    // Fechas y meses no tienen rol: se completan por tipo.
+    for (const field of Array.from(root.querySelectorAll<HTMLInputElement>(DATE_LIKE)).slice(0, 6)) {
+      if (usable(field)) await user.type(field, DATE_VALUES[field.type] ?? '');
     }
     for (const select of scope.queryAllByRole('combobox').slice(0, 10)) {
       if (!usable(select) || select.tagName !== 'SELECT') continue;
@@ -70,13 +104,14 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
    * Aprieta un botón; si abre un diálogo, lo completa y aprieta sus botones
    * (guardar, confirmar…) antes de cerrarlo con Escape.
    */
-  async function press(user: User, button: HTMLElement) {
+  async function press(user: User, button: HTMLElement, onDialog?: OnDialog) {
     const before = screen.queryAllByRole('dialog').length;
     await user.click(button);
     await settle(2);
     const dialogs = screen.queryAllByRole('dialog');
     if (dialogs.length > before) {
       const dialog = dialogs[dialogs.length - 1]!;
+      await onDialog?.(dialog, button);
       await fill(user, dialog);
       for (const inner of within(dialog).queryAllByRole('button').slice(0, 8)) {
         if (!usable(inner) || SKIP.test(inner.textContent ?? '')) continue;
@@ -93,7 +128,7 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
    * ícono de una tabla comparten etiqueta y tres filas alcanzan) y después
    * completa sus campos.
    */
-  async function explore(user: User, root: () => HTMLElement, maxClicks: number) {
+  async function explore(user: User, root: () => HTMLElement, maxClicks: number, onDialog?: OnDialog) {
     const times = new Map<string, number>();
     let clicks = 0;
     for (let round = 0; round < 3 && clicks < maxClicks; round++) {
@@ -106,7 +141,7 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
         if (count >= 3 || SKIP.test(label) || !usable(button)) continue;
         times.set(label, count + 1);
         clicks++;
-        await press(user, button);
+        await press(user, button, onDialog);
       }
     }
     await fill(user, root());

@@ -87,6 +87,7 @@ export function ExpensesEditor({
             {editable && (
               <button
                 type="button"
+                aria-label={`Quitar el gasto ${e.label || idx + 1}`}
                 className="text-fg-subtle hover:text-danger"
                 onClick={() => update(form.expenses.filter((_, i) => i !== idx))}
               >

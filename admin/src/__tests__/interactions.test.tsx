@@ -7,10 +7,15 @@
  * formulario que revienta al tipear, no se ven si nadie los toca. Las
  * escrituras van al fetch simulado (responde 200), así que apretar "Guardar"
  * o "Eliminar" acá no tiene consecuencias.
+ *
+ * Cada diálogo que se abre pasa además por axe (accesibilidad): el barrido de
+ * a11y.test.tsx solo ve lo que está en pantalla al entrar.
  */
+import axe from 'axe-core';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALL_PATHS } from '../App';
+import { a11yViolations } from '../../../test-fixtures/a11y';
 import { fixture, mockApi } from '../test/api';
 import { explore, settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
@@ -40,9 +45,20 @@ describe('cada pantalla aguanta que la toquen', () => {
     renderApp(path);
     await settle(6);
 
-    await explore(user, () => document.body, MAX_CLICKS);
+    const inaccessible: { opener: string; violations: unknown[] }[] = [];
+    await explore(
+      user,
+      () => document.body,
+      MAX_CLICKS,
+      async (dialog, opener) => {
+        const violations = await a11yViolations(axe, dialog);
+        if (violations.length > 0)
+          inaccessible.push({ opener: opener.textContent?.trim() ?? '', violations });
+      },
+    );
     await settle(2);
 
     expect(crashes()).toEqual([]);
+    expect(inaccessible).toEqual([]);
   });
 });

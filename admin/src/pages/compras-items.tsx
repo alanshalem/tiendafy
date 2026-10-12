@@ -109,6 +109,7 @@ export function ItemsEditor({
                 <td className="py-2 text-right">
                   <button
                     type="button"
+                    aria-label={`Quitar ${item.label}`}
                     className="text-fg-subtle hover:text-danger"
                     onClick={() =>
                       update({ items: form.items.filter((_: FormItem, i: number) => i !== idx) })
