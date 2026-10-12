@@ -7,7 +7,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "fixtures:api": "node scripts/fixtures-api.mjs",
-    "test:load": "node scripts/load-test.mjs"
+    "test:load": "node scripts/load-test.mjs",
+    "test:smoke": "pnpm --filter tiendafy-e2e exec playwright test --grep @smoke",
+    "test:e2e": "pnpm --filter tiendafy-e2e test"
   },
   "devDependencies": {
     "husky": "^9.1.7",

@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountButton } from '../components/store/AccountButton';
 import { AccountDashboard } from '../components/store/AccountDashboard';
-import { fixture, mockApi, type MockApi } from '../test/api';
+import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
 
@@ -146,6 +146,23 @@ describe('entrar a la cuenta', () => {
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
     await user.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('si no se puede preguntar por la sesión', () => {
+  it.each([429, 500])('un %s no cierra la sesión del comprador cacheado', async (status) => {
+    localStorage.setItem(`tiendafy.shop.user.${fixtureTenantId}`, JSON.stringify(me));
+    api.on('GET', '/api/v1/shop/auth/me', { title: 'x' }, status);
+    await show(<AccountButton />);
+    expect(screen.getByRole('button', { name: 'Mi cuenta' })).toBeInTheDocument();
+  });
+
+  it('un 401 sí: borra el cacheado y muestra entrar', async () => {
+    localStorage.setItem(`tiendafy.shop.user.${fixtureTenantId}`, JSON.stringify(me));
+    anonymous();
+    await show(<AccountButton />);
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(localStorage.getItem(`tiendafy.shop.user.${fixtureTenantId}`)).toBeNull();
   });
 });
 

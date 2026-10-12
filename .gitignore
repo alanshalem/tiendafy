@@ -93,3 +93,6 @@ e2e/playwright-report/
 # Resultados de tests y cobertura
 **/TestResults/
 **/coverage/
+
+# Sesión del admin del seed que guarda el setup del e2e
+e2e/tests/.auth/

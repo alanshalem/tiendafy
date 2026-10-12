@@ -64,6 +64,14 @@ describe('sitemap y robots', () => {
     expect(xml).toContain(`/productos/${slug}</loc>`);
   });
 
+  it('en construcción solo lista la portada (el catálogo no se muestra)', async () => {
+    const theme = fixture<{ comingSoon: object }>('/api/v1/theme');
+    api.on('GET', '/api/v1/theme', { ...theme, comingSoon: { ...theme.comingSoon, enabled: true } });
+    const xml = await (await sitemap()).text();
+    expect(xml.match(/<url>/g)).toHaveLength(1);
+    expect(xml).toContain('<loc>http://seed.localhost:3000/</loc>');
+  });
+
   it('robots apunta al sitemap absoluto y deja afuera checkout y favoritos', async () => {
     expect(await robots()).toEqual({
       rules: { userAgent: '*', allow: '/', disallow: ['/checkout', '/favoritos'] },

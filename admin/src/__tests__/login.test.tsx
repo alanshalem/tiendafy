@@ -5,7 +5,7 @@
  */
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi } from '../test/api';
 import { renderApp } from '../test/render';
 
@@ -24,6 +24,40 @@ async function submitButton(name: string) {
   await waitFor(() => expect(button).toBeEnabled());
   return button;
 }
+
+describe('sesión: no poder preguntar no es estar deslogueado', () => {
+  it.each([
+    ['la API cortó por exceso de pedidos (429)', 429],
+    ['la API falló (500)', 500],
+  ])('%s: avisa y deja reintentar, sin mostrar el login', async (_, status) => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/auth/me', { title: 'RateLimit.Exceeded', detail: 'Demasiados intentos' }, status);
+    const user = userEvent.setup();
+    renderApp('/');
+    expect(await screen.findByText('No pudimos conectar con el servidor')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Contraseña')).not.toBeInTheDocument();
+
+    // Vuelve la API: reintentar entra con la sesión que nunca se cerró.
+    api.on('GET', '/api/v1/auth/me', fixture('/api/v1/auth/me'));
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await waitFor(() =>
+      expect(screen.queryByText('No pudimos conectar con el servidor')).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByPlaceholderText('Contraseña')).not.toBeInTheDocument();
+  });
+
+  it('sin red: también avisa en vez de pedir la clave', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    renderApp('/');
+    expect(await screen.findByText('No pudimos conectar con el servidor')).toBeInTheDocument();
+  });
+
+  it('un 401 sí es no tener sesión: muestra el login', async () => {
+    loggedOut();
+    renderApp('/');
+    expect(await screen.findByPlaceholderText('Contraseña')).toBeInTheDocument();
+  });
+});
 
 describe('login del panel', () => {
   it('entra con email y contraseña', async () => {

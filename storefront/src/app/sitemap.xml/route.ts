@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
 import { fetchAllActiveSlugs, SITEMAP_MAX_URLS } from '@/lib/catalog';
+import { fetchPublishedTheme } from '@/lib/theme';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,13 @@ export async function GET() {
   const locs: string[] = [`${base}/`, `${base}/productos`, `${base}/contacto`];
 
   const tenant = await resolveTenant();
-  if (tenant) {
+  // En construcción el catálogo no se muestra: listar sus productos le
+  // ofrecería a Google cientos de URLs que dicen todas "estamos en camino".
+  const comingSoon = tenant
+    ? ((await fetchPublishedTheme(tenant.id).catch(() => null))?.comingSoon.enabled ?? false)
+    : false;
+  if (comingSoon) locs.splice(1);
+  if (tenant && !comingSoon) {
     // Todo el catálogo activo, no la primera página: ver fetchAllActiveSlugs.
     const slugs = await fetchAllActiveSlugs(tenant.id, SITEMAP_MAX_URLS - locs.length);
     slugs.forEach((slug) => locs.push(`${base}/productos/${slug}`));

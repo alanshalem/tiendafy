@@ -1,15 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ADMIN, fillLogin } from './_helpers';
+import { ADMIN, ADMIN_STATE } from './_helpers';
 
 /**
  * Una spec por pantalla crítica del admin (la UI se cubre acá, no con unit
  * tests). Usa el admin seed de dev (membresía a todas las tiendas).
  */
 async function login(page: Page) {
-  await fillLogin(page);
+  // La sesión ya viene de auth.setup.ts: solo se entra al panel.
+  await page.goto(ADMIN);
   await expect(page.getByText(/Hola|Elegí una tienda/i).first()).toBeVisible({ timeout: 20_000 });
 }
+
+test.use({ storageState: ADMIN_STATE });
 
 test.describe('pantallas críticas del admin', () => {
   test.beforeEach(async ({ page }) => {

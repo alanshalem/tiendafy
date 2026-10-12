@@ -64,11 +64,14 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
     removeKey(`tiendafy.shop.token.${storeKey}`);
 
     fetch(`${API}/api/v1/shop/auth/me`, { headers, credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((u: ShopUser | null) => {
-        if (u) persistUser(u);
-        else persistUser(null);
+      .then((r) => {
+        if (r.ok) return r.json();
+        // Solo 401/403 dicen "no hay sesión". Un 429 o un 5xx es no haber podido
+        // preguntar: antes borraba al comprador cacheado y lo mostraba afuera.
+        if (r.status === 401 || r.status === 403) return null;
+        throw new Error(`auth/me ${r.status}`);
       })
+      .then((u: ShopUser | null) => persistUser(u))
       .catch(() => {})
       .finally(() => setReady(true));
   }, [storeKey, userKey, headers, persistUser]);

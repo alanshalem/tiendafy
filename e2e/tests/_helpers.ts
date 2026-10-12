@@ -1,9 +1,13 @@
+import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 /** URLs y credenciales compartidas por las specs (antes duplicadas en cada una). */
 export const ADMIN = process.env.E2E_ADMIN_URL ?? 'http://localhost:5173';
 export const API = process.env.E2E_API_URL ?? 'http://localhost:5080';
 export const STORE_BASE = process.env.E2E_STORE_DOMAIN ?? 'localhost:3000';
+
+/** La sesión del admin del seed que guarda auth.setup.ts (ignorada por git). */
+export const ADMIN_STATE = path.join(__dirname, '.auth', 'admin.json');
 
 /** Credenciales del seed de dev (fuente: backend DevAdminSeeder). */
 export const SEED_ADMIN = { email: 'admin@tiendafy.local', password: 'password123' };

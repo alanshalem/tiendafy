@@ -336,7 +336,7 @@ function VerifyEmailScreen() {
 
 /** Gate: muestra el login si no hay sesión; el resto de la app si la hay. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { user, ready } = useAuth();
+  const { user, ready, unreachable, retry } = useAuth();
   // Links del email (reset / verificación) llegan sin sesión: antes del gate.
   if (typeof window !== 'undefined' && window.location.pathname === '/restablecer') {
     return <ResetPasswordForm />;
@@ -348,6 +348,25 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg-subtle">
         <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
+      </div>
+    );
+  }
+  if (!user && unreachable) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+        <div role="alert" className="max-w-sm text-center">
+          <p className="text-base font-semibold text-fg">No pudimos conectar con el servidor</p>
+          <p className="mt-1 text-sm text-fg-muted">
+            Tu sesión no se cerró: es un corte momentáneo. Probá de nuevo en unos segundos.
+          </p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-4 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }
