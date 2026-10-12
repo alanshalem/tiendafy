@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -304,6 +304,7 @@ export function CostsPage() {
  * categoría) con redondeo comercial, en dos clicks.
  */
 function RepriceModal({ onClose }: { onClose: () => void }) {
+  const fid = useId();
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -373,9 +374,12 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
       </p>
       <div className="mt-4 space-y-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Porcentaje (+ sube / - baja)</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            Porcentaje (+ sube / - baja)
+          </label>
           <div className="w-40">
             <Input
+              id={`${fid}-1`}
               aria-label="Porcentaje (+ sube / - baja)"
               type="number"
               step="0.5"
@@ -387,8 +391,11 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Alcance</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Alcance
+          </label>
           <Select
+            id={`${fid}-2`}
             aria-label="Alcance"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
@@ -399,8 +406,11 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Redondeo</label>
+          <label htmlFor={`${fid}-3`} className="mb-1 block text-sm font-medium text-fg">
+            Redondeo
+          </label>
           <Select
+            id={`${fid}-3`}
             aria-label="Redondeo"
             value={rounding}
             onChange={(e) => setRounding(e.target.value)}

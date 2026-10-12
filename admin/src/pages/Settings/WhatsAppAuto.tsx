@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
@@ -256,6 +256,7 @@ function ConnectionForm({
   onCancel?: () => void;
   onSaved: () => void;
 }) {
+  const fid = useId();
   const { store } = useStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -296,8 +297,11 @@ function ConnectionForm({
         className="space-y-3"
       >
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">Phone Number ID</label>
+          <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+            Phone Number ID
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="Phone Number ID"
             value={phoneNumberId}
             onChange={(e) => setPhoneNumberId(e.target.value)}
@@ -306,8 +310,11 @@ function ConnectionForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">Access token permanente</label>
+          <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+            Access token permanente
+          </label>
           <Input
+            id={`${fid}-2`}
             aria-label="Access token permanente"
             type="password"
             value={accessToken}
@@ -317,10 +324,11 @@ function ConnectionForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">
+          <label htmlFor={`${fid}-3`} className="mb-1.5 block text-sm font-medium text-fg">
             Número visible <span className="font-normal text-fg-muted">(opcional)</span>
           </label>
           <Input
+            id={`${fid}-3`}
             aria-label="Número visible"
             value={displayPhoneNumber}
             onChange={(e) => setDisplayPhoneNumber(e.target.value)}
@@ -368,6 +376,7 @@ function ConnectionForm({
 // ---- Modal de mensaje de prueba ---------------------------------------------
 
 function TestModal({ onClose }: { onClose: () => void }) {
+  const fid = useId();
   const { toast } = useToast();
   const [to, setTo] = useState('');
 
@@ -400,8 +409,11 @@ function TestModal({ onClose }: { onClose: () => void }) {
     >
       <div className="space-y-3">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">Número de destino</label>
+          <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+            Número de destino
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="Número de destino"
             value={to}
             onChange={(e) => setTo(e.target.value)}
@@ -431,6 +443,7 @@ function TemplateModal({
   onClose: () => void;
   onSave: (metaTemplateName: string, languageCode: string) => void;
 }) {
+  const fid = useId();
   const [name, setName] = useState(template.metaTemplateName);
   const [lang, setLang] = useState(template.languageCode || 'es_AR');
 
@@ -458,8 +471,11 @@ function TemplateModal({
     >
       <div className="max-h-[70vh] space-y-4 overflow-y-auto">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">Nombre de la plantilla en Meta</label>
+          <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+            Nombre de la plantilla en Meta
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="Nombre de la plantilla en Meta"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -470,8 +486,11 @@ function TemplateModal({
           </p>
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-fg">Idioma</label>
+          <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+            Idioma
+          </label>
           <Input
+            id={`${fid}-2`}
             aria-label="Idioma"
             value={lang}
             onChange={(e) => setLang(e.target.value)}

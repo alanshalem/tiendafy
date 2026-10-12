@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Download, Loader2, Truck } from 'lucide-react';
 import { Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -156,6 +156,7 @@ function ShipmentModal({
   onClose: () => void;
   onCreated: (s: ShipmentState) => void;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const parsed = parseAddress(order.shippingAddress);
 
@@ -222,8 +223,11 @@ function ShipmentModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={shipmentLabelCls}>Nombre del destinatario</label>
+            <label htmlFor={`${fid}-1`} className={shipmentLabelCls}>
+              Nombre del destinatario
+            </label>
             <Input
+              id={`${fid}-1`}
               aria-label="Nombre del destinatario"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -231,8 +235,15 @@ function ShipmentModal({
             />
           </div>
           <div>
-            <label className={shipmentLabelCls}>Email</label>
-            <Input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <label htmlFor={`${fid}-2`} className={shipmentLabelCls}>
+              Email
+            </label>
+            <Input
+              id={`${fid}-2`}
+              aria-label="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
             {emailTooLong && (
               <p className="mt-1 text-xs text-danger">
                 Andreani no acepta emails de más de 40 caracteres ({email.trim().length}).
@@ -243,16 +254,33 @@ function ShipmentModal({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className={shipmentLabelCls}>Tipo de doc.</label>
-            <Input aria-label="Tipo de doc." value={docType} onChange={(e) => setDocType(e.target.value)} />
-          </div>
-          <div>
-            <label className={shipmentLabelCls}>Número</label>
-            <Input aria-label="Número" value={docNumber} onChange={(e) => setDocNumber(e.target.value)} />
-          </div>
-          <div>
-            <label className={shipmentLabelCls}>Teléfono</label>
+            <label htmlFor={`${fid}-3`} className={shipmentLabelCls}>
+              Tipo de doc.
+            </label>
             <Input
+              id={`${fid}-3`}
+              aria-label="Tipo de doc."
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${fid}-4`} className={shipmentLabelCls}>
+              Número
+            </label>
+            <Input
+              id={`${fid}-4`}
+              aria-label="Número"
+              value={docNumber}
+              onChange={(e) => setDocNumber(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${fid}-5`} className={shipmentLabelCls}>
+              Teléfono
+            </label>
+            <Input
+              id={`${fid}-5`}
               aria-label="Teléfono"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -270,8 +298,11 @@ function ShipmentModal({
 
         {toBranch ? (
           <div>
-            <label className={shipmentLabelCls}>ID de la sucursal de retiro</label>
+            <label htmlFor={`${fid}-6`} className={shipmentLabelCls}>
+              ID de la sucursal de retiro
+            </label>
             <Input
+              id={`${fid}-6`}
               aria-label="ID de la sucursal de retiro"
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
@@ -281,8 +312,11 @@ function ShipmentModal({
           <>
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="sm:col-span-2">
-                <label className={shipmentLabelCls}>Calle</label>
+                <label htmlFor={`${fid}-7`} className={shipmentLabelCls}>
+                  Calle
+                </label>
                 <Input
+                  id={`${fid}-7`}
                   aria-label="Calle"
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
@@ -290,8 +324,11 @@ function ShipmentModal({
                 />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Número</label>
+                <label htmlFor={`${fid}-8`} className={shipmentLabelCls}>
+                  Número
+                </label>
                 <Input
+                  id={`${fid}-8`}
                   aria-label="Número"
                   value={number}
                   onChange={(e) => setNumber(e.target.value)}
@@ -299,8 +336,11 @@ function ShipmentModal({
                 />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Código postal</label>
+                <label htmlFor={`${fid}-9`} className={shipmentLabelCls}>
+                  Código postal
+                </label>
                 <Input
+                  id={`${fid}-9`}
                   aria-label="Código postal"
                   value={zipcode}
                   onChange={(e) => setZipcode(e.target.value)}
@@ -311,8 +351,11 @@ function ShipmentModal({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className={shipmentLabelCls}>Localidad</label>
+                <label htmlFor={`${fid}-10`} className={shipmentLabelCls}>
+                  Localidad
+                </label>
                 <Input
+                  id={`${fid}-10`}
                   aria-label="Localidad"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
@@ -320,8 +363,11 @@ function ShipmentModal({
                 />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Piso, depto. u observaciones</label>
+                <label htmlFor={`${fid}-11`} className={shipmentLabelCls}>
+                  Piso, depto. u observaciones
+                </label>
                 <Input
+                  id={`${fid}-11`}
                   aria-label="Piso, depto. u observaciones"
                   value={extras}
                   onChange={(e) => setExtras(e.target.value)}
@@ -333,8 +379,11 @@ function ShipmentModal({
         )}
 
         <div className="sm:w-1/2">
-          <label className={shipmentLabelCls}>Valor declarado</label>
+          <label htmlFor={`${fid}-12`} className={shipmentLabelCls}>
+            Valor declarado
+          </label>
           <Input
+            id={`${fid}-12`}
             aria-label="Valor declarado"
             value={declared}
             onChange={(e) => setDeclared(e.target.value)}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useId } from 'react';
 import { Calculator, Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
 import { Button, Modal, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -273,6 +273,7 @@ function MethodDialog({
   onClose: () => void;
   onSaved: (created: boolean) => void;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const [name, setName] = useState(method?.name ?? '');
   const [kind, setKind] = useState<ShippingKind>(method?.kind ?? 'DELIVERY');
@@ -340,8 +341,11 @@ function MethodDialog({
 
       <div className="mt-4 space-y-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Nombre</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            Nombre
+          </label>
           <input
+            id={`${fid}-1`}
             aria-label="Nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -353,8 +357,11 @@ function MethodDialog({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Tipo
+          </label>
           <select
+            id={`${fid}-2`}
             aria-label="Tipo"
             value={kind}
             onChange={(e) => setKind(e.target.value as ShippingKind)}
@@ -366,8 +373,11 @@ function MethodDialog({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Precio</label>
+          <label htmlFor={`${fid}-3`} className="mb-1 block text-sm font-medium text-fg">
+            Precio
+          </label>
           <input
+            id={`${fid}-3`}
             aria-label="Precio"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
@@ -383,8 +393,11 @@ function MethodDialog({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Plazo o descripción (opcional)</label>
+          <label htmlFor={`${fid}-4`} className="mb-1 block text-sm font-medium text-fg">
+            Plazo o descripción (opcional)
+          </label>
           <input
+            id={`${fid}-4`}
             aria-label="Plazo o descripción (opcional)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -395,8 +408,11 @@ function MethodDialog({
 
         {kind === 'PICKUP' && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Dirección y horarios de retiro</label>
+            <label htmlFor={`${fid}-5`} className="mb-1 block text-sm font-medium text-fg">
+              Dirección y horarios de retiro
+            </label>
             <textarea
+              id={`${fid}-5`}
               aria-label="Dirección y horarios de retiro"
               value={pickupAddress}
               onChange={(e) => setPickupAddress(e.target.value)}

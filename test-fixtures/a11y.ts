@@ -40,9 +40,25 @@ export async function a11yViolations(axe: Axe, root: Element = document.body) {
   // Una regla que no pudo correr (falta algo en jsdom) no puede pasar en
   // silencio: así fue como los diálogos quedaron sin revisar.
   const broken = incomplete.filter((v) => v.error);
-  return [...violations, ...broken].map((v) => ({
+  const found = [...violations, ...broken].map((v) => ({
     rule: v.id,
     help: v.error ? `axe no pudo correr la regla: ${String((v.error as Error).message ?? v.error)}` : v.help,
     nodes: v.nodes.map((n) => n.html.slice(0, 160)),
   }));
+  const orphans = orphanLabels(root);
+  return orphans.length > 0 ? [...found, orphans[0]!] : found;
+}
+
+/**
+ * Una `<label>` que no apunta a ningún campo: axe no la marca si el campo
+ * tiene `aria-label`, pero hacer clic en la etiqueta no lo enfoca (y en el
+ * celular es el blanco grande para tocar). Va con `htmlFor` o envolviendo.
+ */
+function orphanLabels(root: Element) {
+  const nodes = [...root.querySelectorAll('label')]
+    .filter((l) => !l.control)
+    .map((l) => l.outerHTML.slice(0, 160));
+  return nodes.length === 0
+    ? []
+    : [{ rule: 'label-sin-campo', help: 'La etiqueta no está asociada a ningún campo', nodes }];
 }

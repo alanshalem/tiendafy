@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, useId } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -225,6 +225,7 @@ export function IssuerStep({
   config: FiscalConfigDto | null;
   onSaved: () => Promise<void>;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const [cuit, setCuit] = useState(config?.cuit ?? '');
   const [businessName, setBusinessName] = useState(config?.businessName ?? '');
@@ -260,8 +261,11 @@ export function IssuerStep({
     >
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">CUIT</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            CUIT
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="CUIT"
             value={cuit}
             onChange={(e) => setCuit(e.target.value)}
@@ -275,8 +279,11 @@ export function IssuerStep({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Razón social</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Razón social
+          </label>
           <Input
+            id={`${fid}-2`}
             aria-label="Razón social"
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
@@ -286,8 +293,11 @@ export function IssuerStep({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Condición frente a ARCA</label>
+          <label htmlFor={`${fid}-3`} className="mb-1 block text-sm font-medium text-fg">
+            Condición frente a ARCA
+          </label>
           <Select
+            id={`${fid}-3`}
             aria-label="Condición frente a ARCA"
             value={condition}
             onChange={(e) => setCondition(e.target.value as FiscalCondition)}
@@ -303,8 +313,11 @@ export function IssuerStep({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Ambiente</label>
+          <label htmlFor={`${fid}-4`} className="mb-1 block text-sm font-medium text-fg">
+            Ambiente
+          </label>
           <Select
+            id={`${fid}-4`}
             aria-label="Ambiente"
             value={environment}
             onChange={(e) => setEnvironment(e.target.value as FiscalEnvironment)}
@@ -344,6 +357,7 @@ export function CertificateStep({
   config: FiscalConfigDto | null;
   onChanged: () => Promise<void>;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const cert = config?.certificate ?? null;
   const configured = !!config?.configured;
@@ -487,10 +501,11 @@ export function CertificateStep({
             {csr && (
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-fg">
+                  <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
                     Tu solicitud de certificado (CSR)
                   </label>
                   <Textarea
+                    id={`${fid}-1`}
                     aria-label="Tu solicitud de certificado (CSR)"
                     readOnly
                     rows={5}
@@ -537,10 +552,11 @@ export function CertificateStep({
             )}
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg">
+              <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
                 Pegá acá el certificado firmado por ARCA
               </label>
               <Textarea
+                id={`${fid}-2`}
                 aria-label="Pegá acá el certificado firmado por ARCA"
                 rows={5}
                 value={certPem}
@@ -596,6 +612,7 @@ export function PointsOfSaleStep({
   configured: boolean;
   onChanged: () => Promise<void>;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const confirm = useConfirm();
   const [number, setNumber] = useState('');
@@ -699,8 +716,11 @@ export function PointsOfSaleStep({
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div className="w-24">
-          <label className="mb-1 block text-sm font-medium text-fg">Número</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            Número
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="Número"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
@@ -709,8 +729,11 @@ export function PointsOfSaleStep({
           />
         </div>
         <div className="min-w-[10rem] flex-1">
-          <label className="mb-1 block text-sm font-medium text-fg">Etiqueta (opcional)</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Etiqueta (opcional)
+          </label>
           <Input
+            id={`${fid}-2`}
             aria-label="Etiqueta (opcional)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -736,6 +759,7 @@ export function EmissionStep({
   points: PointOfSale[];
   onSaved: () => Promise<void>;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const [autoInvoice, setAutoInvoice] = useState(config?.autoInvoice ?? false);
   const [trigger, setTrigger] = useState<InvoiceTrigger>(config?.trigger ?? 'ONPAYMENT');
@@ -782,8 +806,11 @@ export function EmissionStep({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">¿Cuándo se factura?</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            ¿Cuándo se factura?
+          </label>
           <Select
+            id={`${fid}-1`}
             aria-label="¿Cuándo se factura?"
             value={trigger}
             onChange={(e) => setTrigger(e.target.value as InvoiceTrigger)}
@@ -800,8 +827,11 @@ export function EmissionStep({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Punto de venta por defecto</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Punto de venta por defecto
+          </label>
           <Select
+            id={`${fid}-2`}
             aria-label="Punto de venta por defecto"
             value={defaultPos}
             onChange={(e) => setDefaultPos(e.target.value)}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
@@ -167,6 +167,7 @@ export function ScannerPage() {
 // ------------------------------------------------------------ Buscar/ajustar
 
 function BuscarTab() {
+  const fid = useId();
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -304,9 +305,12 @@ function BuscarTab() {
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div>
-                <label className="mb-1 block text-xs text-fg-muted">Stock disponible</label>
+                <label htmlFor={`${fid}-1`} className="mb-1 block text-xs text-fg-muted">
+                  Stock disponible
+                </label>
                 <div className="w-24 shrink-0">
                   <Input
+                    id={`${fid}-1`}
                     aria-label="Stock disponible"
                     compact
                     type="number"
@@ -325,8 +329,11 @@ function BuscarTab() {
                 Guardar stock
               </Button>
               <div className="w-32">
-                <label className="mb-1 block text-xs text-fg-muted">Ubicación (ej. B3)</label>
+                <label htmlFor={`${fid}-2`} className="mb-1 block text-xs text-fg-muted">
+                  Ubicación (ej. B3)
+                </label>
                 <Input
+                  id={`${fid}-2`}
                   aria-label="Ubicación (ej. B3)"
                   value={locationDraft}
                   onChange={(e) => setLocationDraft(e.target.value)}

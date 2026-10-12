@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 
@@ -87,6 +88,7 @@ export function FilterPanel({
   draft,
   setDraft,
 }: FilterPanelProps) {
+  const fid = useId();
   return (
     <>
       <div
@@ -121,8 +123,11 @@ export function FilterPanel({
 
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Categoría</label>
+            <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+              Categoría
+            </label>
             <select
+              id={`${fid}-1`}
               aria-label="Categoría"
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}

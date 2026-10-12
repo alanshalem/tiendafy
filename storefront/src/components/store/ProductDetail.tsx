@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import {
   Minus,
   Plus,
@@ -87,6 +87,7 @@ export function ProductDetail({
   const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
   // Selección por opción (color/talle); index-alineado a `options`.
   const [selected, setSelected] = useState<string[]>(variants[0]?.optionValues ?? []);
+  const fieldId = useId();
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -293,10 +294,11 @@ export function ProductDetail({
         {hasOptions
           ? options.map((opt, oi) => (
               <div key={opt.name} className="mt-5">
-                <label className="mb-1.5 block text-sm font-medium">
+                {/* Nombra al grupo de botones (un <label> solo nombra un campo). */}
+                <p id={`${fieldId}-opt-${oi}`} className="mb-1.5 block text-sm font-medium">
                   {opt.name}: <span className="font-semibold">{selected[oi]}</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
+                </p>
+                <div role="group" aria-labelledby={`${fieldId}-opt-${oi}`} className="flex flex-wrap gap-2">
                   {opt.values.map((val) => {
                     const active = selected[oi] === val;
                     return (
@@ -321,8 +323,11 @@ export function ProductDetail({
             ))
           : variants.length > 1 && (
               <div className="mt-5">
-                <label className="mb-1.5 block text-sm font-medium">Variante</label>
+                <label htmlFor={`${fieldId}-variant`} className="mb-1.5 block text-sm font-medium">
+                  Variante
+                </label>
                 <select
+                  id={`${fieldId}-variant`}
                   value={variantId}
                   onChange={(e) => setVariantId(e.target.value)}
                   aria-label="Variante"

@@ -114,6 +114,14 @@ describe('ficha de producto: comprar', () => {
     expect(cart()[0]!.quantity).toBe(4);
   });
 
+  it('cada opción es un grupo con nombre, que dice lo elegido', async () => {
+    const { user } = await show();
+    const color = screen.getByRole('group', { name: 'Color: Rojo' });
+    await user.click(within(color).getByRole('button', { name: 'Azul' }));
+    expect(screen.getByRole('group', { name: 'Color: Azul' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /^Talle/ })).toBeInTheDocument();
+  });
+
   it('una combinación que no existe cae en la primera variante; restar no baja de 1', async () => {
     const { user } = await show();
     await user.click(screen.getByRole('button', { name: 'Azul' }));

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useId } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button, Input, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -25,6 +25,7 @@ interface Redirect {
 }
 
 export function RedirectsPage() {
+  const fid = useId();
   const { store } = useStore();
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -92,8 +93,11 @@ export function RedirectsPage() {
       <div className={SETTINGS_CARD}>
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[12rem] flex-1">
-            <label className="mb-1.5 block text-sm font-medium text-fg">Dirección vieja</label>
+            <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+              Dirección vieja
+            </label>
             <Input
+              id={`${fid}-1`}
               aria-label="Dirección vieja"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -101,8 +105,11 @@ export function RedirectsPage() {
             />
           </div>
           <div className="min-w-[12rem] flex-1">
-            <label className="mb-1.5 block text-sm font-medium text-fg">Dirección nueva</label>
+            <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+              Dirección nueva
+            </label>
             <Input
+              id={`${fid}-2`}
               aria-label="Dirección nueva"
               value={to}
               onChange={(e) => setTo(e.target.value)}

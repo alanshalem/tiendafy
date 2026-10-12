@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
@@ -120,6 +120,7 @@ function EditModal({
   onClose: () => void;
   onSave: (subject: string, bodyHtml: string) => void;
 }) {
+  const fid = useId();
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.bodyHtml);
   const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
@@ -163,8 +164,11 @@ function EditModal({
         {/* Editor (única columna con scroll) */}
         <div className="min-h-0 space-y-4 overflow-y-auto pb-2 pr-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
+            <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+              Asunto
+            </label>
             <Input
+              id={`${fid}-1`}
               aria-label="Asunto"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
@@ -172,8 +176,10 @@ function EditModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Contenido</label>
-            <RichTextEditor value={body} onChange={setBody} />
+            <p id={`${fid}-contenido`} className="mb-1.5 block text-sm font-medium text-fg">
+              Contenido
+            </p>
+            <RichTextEditor labelledBy={`${fid}-contenido`} value={body} onChange={setBody} />
           </div>
           <div className="rounded-md bg-bg-muted/50 p-3 text-xs text-fg-muted">
             <span className="font-medium text-fg">Variables disponibles:</span>{' '}

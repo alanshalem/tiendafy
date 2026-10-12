@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Send } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -72,6 +72,7 @@ export function CorreoShipmentButton({ order }: { order: ShippingOrderLike }) {
 }
 
 function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: () => void }) {
+  const fid = useId();
   const { toast } = useToast();
   const parsed = parseAddress(order.shippingAddress);
   const isAgencyMethod = /sucursal/i.test(order.shippingMethod ?? '');
@@ -154,8 +155,11 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
 
           <div className="grid gap-2.5 sm:grid-cols-3">
             <div className="sm:col-span-1">
-              <label className={shipmentLabelCls}>Tipo de entrega</label>
+              <label htmlFor={`${fid}-1`} className={shipmentLabelCls}>
+                Tipo de entrega
+              </label>
               <Select
+                id={`${fid}-1`}
                 aria-label="Tipo de entrega"
                 value={deliveryType}
                 onChange={(e) => setDeliveryType(e.target.value)}
@@ -166,24 +170,44 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
               />
             </div>
             <div>
-              <label className={shipmentLabelCls}>Nombre del destinatario</label>
+              <label htmlFor={`${fid}-2`} className={shipmentLabelCls}>
+                Nombre del destinatario
+              </label>
               <Input
+                id={`${fid}-2`}
                 aria-label="Nombre del destinatario"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div>
-              <label className={shipmentLabelCls}>Email</label>
-              <Input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <label className={shipmentLabelCls}>Teléfono</label>
-              <Input aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div>
-              <label className={shipmentLabelCls}>Valor declarado ($)</label>
+              <label htmlFor={`${fid}-3`} className={shipmentLabelCls}>
+                Email
+              </label>
               <Input
+                id={`${fid}-3`}
+                aria-label="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${fid}-4`} className={shipmentLabelCls}>
+                Teléfono
+              </label>
+              <Input
+                id={`${fid}-4`}
+                aria-label="Teléfono"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${fid}-5`} className={shipmentLabelCls}>
+                Valor declarado ($)
+              </label>
+              <Input
+                id={`${fid}-5`}
                 aria-label="Valor declarado ($)"
                 value={declared}
                 onChange={(e) => setDeclared(e.target.value)}
@@ -194,8 +218,11 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
 
           {deliveryType === 'S' ? (
             <div>
-              <label className={shipmentLabelCls}>Código de sucursal (ej: B0107)</label>
+              <label htmlFor={`${fid}-6`} className={shipmentLabelCls}>
+                Código de sucursal (ej: B0107)
+              </label>
               <Input
+                id={`${fid}-6`}
                 aria-label="Código de sucursal (ej: B0107)"
                 value={agency}
                 onChange={(e) => setAgency(e.target.value.toUpperCase())}
@@ -207,28 +234,66 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-6">
               <div className="sm:col-span-3">
-                <label className={shipmentLabelCls}>Calle</label>
-                <Input aria-label="Calle" value={street} onChange={(e) => setStreet(e.target.value)} />
+                <label htmlFor={`${fid}-7`} className={shipmentLabelCls}>
+                  Calle
+                </label>
+                <Input
+                  id={`${fid}-7`}
+                  aria-label="Calle"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Número</label>
-                <Input aria-label="Número" value={number} onChange={(e) => setNumber(e.target.value)} />
+                <label htmlFor={`${fid}-8`} className={shipmentLabelCls}>
+                  Número
+                </label>
+                <Input
+                  id={`${fid}-8`}
+                  aria-label="Número"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Piso</label>
-                <Input aria-label="Piso" value={floor} onChange={(e) => setFloor(e.target.value)} />
+                <label htmlFor={`${fid}-9`} className={shipmentLabelCls}>
+                  Piso
+                </label>
+                <Input
+                  id={`${fid}-9`}
+                  aria-label="Piso"
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                />
               </div>
               <div>
-                <label className={shipmentLabelCls}>Depto</label>
-                <Input aria-label="Depto" value={apartment} onChange={(e) => setApartment(e.target.value)} />
+                <label htmlFor={`${fid}-10`} className={shipmentLabelCls}>
+                  Depto
+                </label>
+                <Input
+                  id={`${fid}-10`}
+                  aria-label="Depto"
+                  value={apartment}
+                  onChange={(e) => setApartment(e.target.value)}
+                />
               </div>
               <div className="sm:col-span-2">
-                <label className={shipmentLabelCls}>Ciudad</label>
-                <Input aria-label="Ciudad" value={city} onChange={(e) => setCity(e.target.value)} />
+                <label htmlFor={`${fid}-11`} className={shipmentLabelCls}>
+                  Ciudad
+                </label>
+                <Input
+                  id={`${fid}-11`}
+                  aria-label="Ciudad"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
               </div>
               <div className="sm:col-span-2">
-                <label className={shipmentLabelCls}>Provincia</label>
+                <label htmlFor={`${fid}-12`} className={shipmentLabelCls}>
+                  Provincia
+                </label>
                 <Select
+                  id={`${fid}-12`}
                   aria-label="Provincia"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
@@ -236,8 +301,15 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className={shipmentLabelCls}>Código postal</label>
-                <Input aria-label="Código postal" value={cp} onChange={(e) => setCp(e.target.value)} />
+                <label htmlFor={`${fid}-13`} className={shipmentLabelCls}>
+                  Código postal
+                </label>
+                <Input
+                  id={`${fid}-13`}
+                  aria-label="Código postal"
+                  value={cp}
+                  onChange={(e) => setCp(e.target.value)}
+                />
               </div>
             </div>
           )}

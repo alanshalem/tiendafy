@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
@@ -17,6 +17,7 @@ import type { PoDetail } from './compras-tipos';
  */
 
 export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void }) {
+  const fid = useId();
   const { store } = useStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -148,8 +149,12 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
               Confirmá lo que llegó: el stock sube y el costo de cada variante queda fijado al landed cost con
               el tipo de cambio definitivo.
             </p>
-            <label className="mt-3 block text-sm font-medium text-fg">{`Tipo de cambio definitivo (ARS por ${po.currency})`}</label>
+            <label
+              htmlFor={`${fid}-1`}
+              className="mt-3 block text-sm font-medium text-fg"
+            >{`Tipo de cambio definitivo (ARS por ${po.currency})`}</label>
             <Input
+              id={`${fid}-1`}
               aria-label={`Tipo de cambio definitivo (ARS por ${po.currency})`}
               type="number"
               min={0}
@@ -215,6 +220,7 @@ export function SupplierField({
   disabled: boolean;
   onChange: (supplierId: string, supplierName: string) => void;
 }) {
+  const fid = useId();
   const { store } = useStore();
 
   const { data } = useQuery({
@@ -238,9 +244,12 @@ export function SupplierField({
 
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-fg">Proveedor</label>
+      <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+        Proveedor
+      </label>
       {suppliers.length === 0 && !supplierId ? (
         <Input
+          id={`${fid}-1`}
           aria-label="Proveedor"
           value={supplierName}
           disabled={disabled}
@@ -248,6 +257,7 @@ export function SupplierField({
         />
       ) : (
         <Select
+          id={`${fid}-1`}
           aria-label="Proveedor"
           value={supplierId}
           disabled={disabled}

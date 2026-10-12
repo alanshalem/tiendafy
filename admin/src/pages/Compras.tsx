@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Package, Plus, Ship } from 'lucide-react';
 import { Badge, Button, Card, Input, Select, Tabs, useConfirm, useToast } from '@tiendafy/ui';
@@ -379,6 +379,7 @@ function PoEditor({
   initialItems?: FormItem[];
   onBack: () => void;
 }) {
+  const fid = useId();
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -537,10 +538,11 @@ function PoEditor({
                 onChange={(supplierId, supplierName) => setForm({ ...form, supplierId, supplierName })}
               />
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">
+                <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
                   Referencia (proforma / contenedor)
                 </label>
                 <Input
+                  id={`${fid}-1`}
                   aria-label="Referencia (proforma / contenedor)"
                   value={form.reference}
                   disabled={!editable}
@@ -548,8 +550,11 @@ function PoEditor({
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">Lead time (días)</label>
+                <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+                  Lead time (días)
+                </label>
                 <Input
+                  id={`${fid}-2`}
                   aria-label="Lead time (días)"
                   type="number"
                   min={0}
@@ -559,8 +564,11 @@ function PoEditor({
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">Moneda de la OC</label>
+                <label htmlFor={`${fid}-3`} className="mb-1.5 block text-sm font-medium text-fg">
+                  Moneda de la OC
+                </label>
                 <Select
+                  id={`${fid}-3`}
                   aria-label="Moneda de la OC"
                   value={form.currency}
                   disabled={!editable}
@@ -569,8 +577,12 @@ function PoEditor({
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">{`Tipo de cambio (ARS por ${form.currency})`}</label>
+                <label
+                  htmlFor={`${fid}-4`}
+                  className="mb-1.5 block text-sm font-medium text-fg"
+                >{`Tipo de cambio (ARS por ${form.currency})`}</label>
                 <Input
+                  id={`${fid}-4`}
                   aria-label={`Tipo de cambio (ARS por ${form.currency})`}
                   type="number"
                   min={0}
@@ -581,8 +593,11 @@ function PoEditor({
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-fg">Notas</label>
+                <label htmlFor={`${fid}-5`} className="mb-1.5 block text-sm font-medium text-fg">
+                  Notas
+                </label>
                 <Input
+                  id={`${fid}-5`}
                   aria-label="Notas"
                   value={form.notes}
                   disabled={!editable}

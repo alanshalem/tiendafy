@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button, Input, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
@@ -39,6 +39,7 @@ const MESSAGE_MAX = 500;
  * propia configuración y el comprador no veía ninguna.
  */
 export function CheckoutOptionsPage() {
+  const fid = useId();
   const { store } = useStore();
   const { toast } = useToast();
 
@@ -182,8 +183,11 @@ export function CheckoutOptionsPage() {
         >
           {value.customerNoteEnabled && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg">Qué dice el campo</label>
+              <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+                Qué dice el campo
+              </label>
               <Input
+                id={`${fid}-1`}
                 aria-label="Qué dice el campo"
                 value={value.customerNoteLabel}
                 maxLength={NOTE_MAX}

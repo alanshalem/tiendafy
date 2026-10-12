@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Loader2, Plug, Users } from 'lucide-react';
 import { Badge, Button, EmptyList, Input, Modal, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -158,6 +158,7 @@ export function CuentasTab({
 // ---- Telegram: bot token + chat por formulario (sin OAuth) -------------------
 
 function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
+  const fid = useId();
   const { toast } = useToast();
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
@@ -201,8 +202,11 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
       </p>
       <div className="mt-4 space-y-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Token del bot</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            Token del bot
+          </label>
           <Input
+            id={`${fid}-1`}
             aria-label="Token del bot"
             value={botToken}
             onChange={(e) => setBotToken(e.target.value)}
@@ -211,8 +215,11 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-fg">Canal o chat</label>
+          <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+            Canal o chat
+          </label>
           <Input
+            id={`${fid}-2`}
             aria-label="Canal o chat"
             value={chatId}
             onChange={(e) => setChatId(e.target.value)}

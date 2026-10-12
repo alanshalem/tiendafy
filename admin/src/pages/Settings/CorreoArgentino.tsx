@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Loader2, Mail, Package } from 'lucide-react';
 import { Button, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -92,6 +92,7 @@ function ConfigModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const [userToken, setUserToken] = useState('');
   const [passwordToken, setPasswordToken] = useState('');
@@ -193,8 +194,11 @@ function ConfigModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">userToken</label>
+            <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+              userToken
+            </label>
             <Input
+              id={`${fid}-1`}
               aria-label="userToken"
               type="password"
               value={userToken}
@@ -203,8 +207,11 @@ function ConfigModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">passwordToken</label>
+            <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+              passwordToken
+            </label>
             <Input
+              id={`${fid}-2`}
               aria-label="passwordToken"
               type="password"
               value={passwordToken}
@@ -213,8 +220,11 @@ function ConfigModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Ambiente</label>
+            <label htmlFor={`${fid}-3`} className="mb-1.5 block text-sm font-medium text-fg">
+              Ambiente
+            </label>
             <Select
+              id={`${fid}-3`}
               aria-label="Ambiente"
               value={environment}
               onChange={(e) => setEnvironment(e.target.value)}
@@ -225,8 +235,11 @@ function ConfigModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">CP de origen (despacho)</label>
+            <label htmlFor={`${fid}-4`} className="mb-1.5 block text-sm font-medium text-fg">
+              CP de origen (despacho)
+            </label>
             <Input
+              id={`${fid}-4`}
               aria-label="CP de origen (despacho)"
               value={originCp}
               onChange={(e) => setOriginCp(e.target.value)}
@@ -271,8 +284,11 @@ function ConfigModal({
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div>
-              <label className="mb-1 block text-xs text-fg-muted">Peso (g)</label>
+              <label htmlFor={`${fid}-5`} className="mb-1 block text-xs text-fg-muted">
+                Peso (g)
+              </label>
               <Input
+                id={`${fid}-5`}
                 aria-label="Peso (g)"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
@@ -280,8 +296,11 @@ function ConfigModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-fg-muted">Largo (cm)</label>
+              <label htmlFor={`${fid}-6`} className="mb-1 block text-xs text-fg-muted">
+                Largo (cm)
+              </label>
               <Input
+                id={`${fid}-6`}
                 aria-label="Largo (cm)"
                 value={length}
                 onChange={(e) => setLength(e.target.value)}
@@ -289,8 +308,11 @@ function ConfigModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-fg-muted">Ancho (cm)</label>
+              <label htmlFor={`${fid}-7`} className="mb-1 block text-xs text-fg-muted">
+                Ancho (cm)
+              </label>
               <Input
+                id={`${fid}-7`}
                 aria-label="Ancho (cm)"
                 value={width}
                 onChange={(e) => setWidth(e.target.value)}
@@ -298,8 +320,11 @@ function ConfigModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-fg-muted">Alto (cm)</label>
+              <label htmlFor={`${fid}-8`} className="mb-1 block text-xs text-fg-muted">
+                Alto (cm)
+              </label>
               <Input
+                id={`${fid}-8`}
                 aria-label="Alto (cm)"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}

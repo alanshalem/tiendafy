@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '../lib/format';
@@ -176,6 +176,7 @@ function PageModal({
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [body, setBody] = useState('');
+  const contentLabelId = useId();
   const [published, setPublished] = useState(true);
   const [error, setError] = useState<string>();
   const isEdit = !!page;
@@ -233,9 +234,16 @@ function PageModal({
           <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="sobre-nosotros" />
         </FormField>
 
-        <FormField label="Contenido" hint="Editá con formato: títulos, negrita, listas, links e imágenes.">
-          <RichTextEditor value={body} onChange={setBody} />
-        </FormField>
+        {/* Un contenteditable no se asocia con <label for>: se nombra con aria-labelledby. */}
+        <div className="space-y-1.5">
+          <p id={contentLabelId} className="block text-sm font-medium text-fg">
+            Contenido
+          </p>
+          <RichTextEditor labelledBy={contentLabelId} value={body} onChange={setBody} />
+          <p className="text-sm text-fg-muted">
+            Editá con formato: títulos, negrita, listas, links e imágenes.
+          </p>
+        </div>
 
         <label className="flex items-center gap-2 text-sm font-medium text-fg">
           <Checkbox checked={published} onChange={(e) => setPublished(e.target.checked)} />

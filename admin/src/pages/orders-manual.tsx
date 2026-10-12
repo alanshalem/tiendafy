@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Copy, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
@@ -24,6 +24,7 @@ interface ManualItem {
  * side-effects que un pago online: kits, email y factura automática.
  */
 export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const fid = useId();
   const { toast } = useToast();
   const [items, setItems] = useState<ManualItem[]>([]);
   const [payment, setPayment] = useState('cash');
@@ -225,8 +226,11 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Cliente</label>
+            <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+              Cliente
+            </label>
             <Input
+              id={`${fid}-1`}
               aria-label="Cliente"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
@@ -234,10 +238,11 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">
+            <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
               Email {payment === 'link' ? '(requerido)' : '(opcional)'}
             </label>
             <Input
+              id={`${fid}-2`}
               type="email"
               value={buyerEmail}
               onChange={(e) => setBuyerEmail(e.target.value)}
@@ -245,8 +250,11 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Teléfono (opcional)</label>
+            <label htmlFor={`${fid}-3`} className="mb-1 block text-sm font-medium text-fg">
+              Teléfono (opcional)
+            </label>
             <Input
+              id={`${fid}-3`}
               aria-label="Teléfono (opcional)"
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(e.target.value)}
@@ -265,8 +273,11 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Cobro</label>
+            <label htmlFor={`${fid}-4`} className="mb-1 block text-sm font-medium text-fg">
+              Cobro
+            </label>
             <Select
+              id={`${fid}-4`}
               aria-label="Cobro"
               value={payment}
               onChange={(e) => setPayment(e.target.value)}
@@ -279,8 +290,11 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg">Notas (opcional)</label>
+            <label htmlFor={`${fid}-5`} className="mb-1 block text-sm font-medium text-fg">
+              Notas (opcional)
+            </label>
             <Input
+              id={`${fid}-5`}
               aria-label="Notas (opcional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -321,6 +335,7 @@ function CustomerPicker({
   onSearch: (value: string) => void;
   onPick: (customer: PickedCustomer | null) => void;
 }) {
+  const fid = useId();
   const debounced = useDebouncedValue(search, 300).trim();
 
   const { data } = useQuery({
@@ -367,10 +382,11 @@ function CustomerPicker({
         </div>
       ) : (
         <>
-          <label className="mb-1 block text-sm font-medium text-fg">
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
             Cliente de la agenda {required ? '(requerido)' : '(opcional)'}
           </label>
           <Input
+            id={`${fid}-1`}
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Buscar por nombre o email…"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button, Checkbox, Modal, cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
@@ -17,6 +17,7 @@ export function RefundDialog({
   onClose: () => void;
   onSubmit: (amount: number | null, reason: string, restock: boolean) => void;
 }) {
+  const fid = useId();
   const refundable = order.refundable?.amount ?? order.total.amount;
   const [mode, setMode] = useState<'total' | 'partial'>('total');
   const [amount, setAmount] = useState('');
@@ -95,8 +96,11 @@ export function RefundDialog({
 
       {mode === 'partial' && (
         <div className="mt-3">
-          <label className="mb-1 block text-sm font-medium text-fg">Monto a reembolsar</label>
+          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
+            Monto a reembolsar
+          </label>
           <input
+            id={`${fid}-1`}
             aria-label="Monto a reembolsar"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -113,8 +117,11 @@ export function RefundDialog({
       )}
 
       <div className="mt-3">
-        <label className="mb-1 block text-sm font-medium text-fg">Motivo (opcional)</label>
+        <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
+          Motivo (opcional)
+        </label>
         <input
+          id={`${fid}-2`}
           aria-label="Motivo (opcional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}

@@ -19,8 +19,19 @@ import {
 import { cn, useToast, usePrompt } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 
-/** Editor WYSIWYG para el contenido de páginas. Devuelve HTML (sanitizado server-side al guardar). */
-export function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+/**
+ * Editor WYSIWYG para el contenido de páginas. Devuelve HTML (sanitizado server-side al guardar).
+ * `labelledBy`: id del texto que lo nombra (un contenteditable no se asocia con `<label htmlFor>`).
+ */
+export function RichTextEditor({
+  value,
+  onChange,
+  labelledBy,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+  labelledBy?: string;
+}) {
   const { toast } = useToast();
   const prompt = usePrompt();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -40,6 +51,9 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
       attributes: {
         // rte-content: fuerza el color del texto al token del tema (adapta dark/light).
         class: 'rte-content prose prose-sm max-w-none min-h-[240px] px-3 py-2 focus:outline-none',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        ...(labelledBy ? { 'aria-labelledby': labelledBy } : { 'aria-label': 'Contenido' }),
       },
     },
   });

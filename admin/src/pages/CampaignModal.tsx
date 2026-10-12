@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useId } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, Loader2, Plus, Search, Send, X, XCircle } from 'lucide-react';
 import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
@@ -93,6 +93,7 @@ export function CampaignModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const fid = useId();
   const { toast } = useToast();
   const confirm = useConfirm();
   const spec = campaign?.audienceSpec;
@@ -270,8 +271,11 @@ export function CampaignModal({
           {showSchedule && (
             <div className="flex items-end gap-2 rounded-md border border-info/40 bg-info-bg/40 p-3">
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-fg">Fecha y hora de envío</label>
+                <label htmlFor={`${fid}-1`} className="mb-1 block text-xs font-medium text-fg">
+                  Fecha y hora de envío
+                </label>
                 <Input
+                  id={`${fid}-1`}
                   aria-label="Fecha y hora de envío"
                   type="datetime-local"
                   value={scheduleAt}
@@ -285,8 +289,11 @@ export function CampaignModal({
           )}
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Asunto</label>
+            <label htmlFor={`${fid}-2`} className="mb-1.5 block text-sm font-medium text-fg">
+              Asunto
+            </label>
             <Input
+              id={`${fid}-2`}
               aria-label="Asunto"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
@@ -315,8 +322,10 @@ export function CampaignModal({
           />
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Contenido</label>
-            <RichTextEditor value={body} onChange={setBody} />
+            <p id={`${fid}-contenido`} className="mb-1.5 block text-sm font-medium text-fg">
+              Contenido
+            </p>
+            <RichTextEditor labelledBy={`${fid}-contenido`} value={body} onChange={setBody} />
           </div>
 
           <div className="rounded-md border border-border p-3">
@@ -351,8 +360,11 @@ export function CampaignModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-fg">Cupón de la campaña (opcional)</label>
+            <label htmlFor={`${fid}-3`} className="mb-1.5 block text-sm font-medium text-fg">
+              Cupón de la campaña (opcional)
+            </label>
             <Select
+              id={`${fid}-3`}
               aria-label="Cupón de la campaña"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
@@ -422,13 +434,17 @@ function AudienceBuilder(props: {
   setFavoritedIds: (v: string[]) => void;
   audienceCount: number | null;
 }) {
+  const fid = useId();
   const { audience, setAudience, audienceCount } = props;
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="rounded-md border border-border p-3">
-      <label className="mb-1.5 block text-sm font-medium text-fg">Audiencia</label>
+      <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+        Audiencia
+      </label>
       <Select
+        id={`${fid}-1`}
         aria-label="Audiencia"
         value={audience}
         onChange={(e) => setAudience(e.target.value as 'buyers' | 'customers' | 'subscribers' | 'custom')}
@@ -443,8 +459,11 @@ function AudienceBuilder(props: {
       {audience !== 'custom' && (
         <div className="mt-2.5 grid grid-cols-2 gap-2">
           <div>
-            <label className="mb-1 block text-xs text-fg-muted">Gastó al menos ($)</label>
+            <label htmlFor={`${fid}-2`} className="mb-1 block text-xs text-fg-muted">
+              Gastó al menos ($)
+            </label>
             <Input
+              id={`${fid}-2`}
               aria-label="Gastó al menos ($)"
               value={props.minSpent}
               onChange={(e) => props.setMinSpent(e.target.value)}
@@ -453,8 +472,11 @@ function AudienceBuilder(props: {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-fg-muted">Compras mínimas</label>
+            <label htmlFor={`${fid}-3`} className="mb-1 block text-xs text-fg-muted">
+              Compras mínimas
+            </label>
             <Input
+              id={`${fid}-3`}
               aria-label="Compras mínimas"
               value={props.minOrders}
               onChange={(e) => props.setMinOrders(e.target.value)}
@@ -463,8 +485,11 @@ function AudienceBuilder(props: {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-fg-muted">Compró en los últimos (días)</label>
+            <label htmlFor={`${fid}-4`} className="mb-1 block text-xs text-fg-muted">
+              Compró en los últimos (días)
+            </label>
             <Input
+              id={`${fid}-4`}
               aria-label="Compró en los últimos (días)"
               value={props.withinDays}
               onChange={(e) => props.setWithinDays(e.target.value)}
@@ -473,8 +498,11 @@ function AudienceBuilder(props: {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-fg-muted">Sin comprar hace (días)</label>
+            <label htmlFor={`${fid}-5`} className="mb-1 block text-xs text-fg-muted">
+              Sin comprar hace (días)
+            </label>
             <Input
+              id={`${fid}-5`}
               aria-label="Sin comprar hace (días)"
               value={props.inactiveDays}
               onChange={(e) => props.setInactiveDays(e.target.value)}

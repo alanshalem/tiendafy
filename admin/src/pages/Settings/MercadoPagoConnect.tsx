@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BadgeCheck, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
@@ -244,6 +244,7 @@ function ConnectedView({
   onSaveDescriptor: () => void;
   onDisconnect: () => void;
 }) {
+  const fid = useId();
   return (
     <div className="space-y-5">
       {readOnly && <ReadOnlyNote />}
@@ -338,9 +339,12 @@ function ConnectedView({
 
       {/* Descriptor en el resumen de tarjeta */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-fg">Nombre en el resumen de la tarjeta</label>
+        <label htmlFor={`${fid}-1`} className="mb-1.5 block text-sm font-medium text-fg">
+          Nombre en el resumen de la tarjeta
+        </label>
         <div className="flex gap-2">
           <input
+            id={`${fid}-1`}
             aria-label="Nombre en el resumen de la tarjeta"
             value={descriptor}
             maxLength={22}
