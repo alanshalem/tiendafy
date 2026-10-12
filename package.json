@@ -6,7 +6,8 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "fixtures:api": "node scripts/fixtures-api.mjs"
+    "fixtures:api": "node scripts/fixtures-api.mjs",
+    "test:load": "node scripts/load-test.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",
