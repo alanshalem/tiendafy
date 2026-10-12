@@ -57,7 +57,7 @@ public sealed partial class ApiFixturesExport
             var path = Concrete(pattern, seeded.Ids);
             if (path is null) continue;
 
-            var res = await store.SendAsync(HttpMethod.Get, path + Query(pattern));
+            var res = await store.SendAsync(HttpMethod.Get, path + Query(pattern, seeded.Ids));
             if (!res.IsSuccessStatusCode) continue;
             if (res.Content.Headers.ContentType?.MediaType != "application/json") continue;
 
@@ -180,9 +180,10 @@ public sealed partial class ApiFixturesExport
         return string.Join('/', segments);
     }
 
-    private static string Query(string pattern) => pattern switch
+    private static string Query(string pattern, IReadOnlyDictionary<string, string> ids) => pattern switch
     {
-        "/api/v1/finance/ledger" or "/api/v1/finance/ledger/pending" => "?partyKind=customer&partyId=" + Guid.Empty,
+        // El cliente sembrado tiene una venta en cuenta corriente con un cobro parcial.
+        "/api/v1/finance/ledger" or "/api/v1/finance/ledger/pending" => "?partyKind=customer&partyId=" + ids["customer"],
         _ => "",
     };
 

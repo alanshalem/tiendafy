@@ -119,6 +119,30 @@ public static class SeededStore
         ids["purchaseOrder"] = FirstId(await store.GetAsync("/api/v1/purchasing/purchase-orders"));
         ids["conversation"] = FirstId(await store.GetAsync("/api/v1/support/conversations"));
         ids["coupon"] = FirstId(await store.GetAsync("/api/v1/coupons"));
+
+        // Finanzas con movimiento: un gasto de caja, una venta en cuenta
+        // corriente al primer cliente con un cobro parcial, y una deuda con el
+        // proveedor. Sin esto Tesorería y Cuentas corrientes solo muestran vacíos.
+        await store.PostAsync("/api/v1/finance/movements",
+            new { accountId = ids["account"], kind = "out", amountMinor = 30_000L, concept = "Flete" });
+        await store.PostAsync("/api/v1/finance/ledger/adjustments", new
+        {
+            partyKind = "customer", partyId = ids["customer"], kind = "debit",
+            amountMinor = 200_000L, currency = "ARS", label = "Factura A 0001-00000001",
+        });
+        var pendingInvoice = FirstId(await store.GetAsync(
+            $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={ids["customer"]}"));
+        await store.PostAsync("/api/v1/finance/receipts", new
+        {
+            kind = "collection", partyKind = "customer", partyId = ids["customer"], partyName = "Cliente sembrado",
+            payments = new[] { new { accountId = ids["account"], amountMinor = 80_000L } },
+            allocations = new[] { new { ledgerEntryId = pendingInvoice, amountMinor = 80_000L } },
+        });
+        await store.PostAsync("/api/v1/finance/ledger/adjustments", new
+        {
+            partyKind = "supplier", partyId = ids["supplier"], kind = "credit",
+            amountMinor = 500_000L, currency = "ARS", label = "Factura proveedor 0003-00000120",
+        });
         ids["contactMessage"] = FirstId(await store.GetAsync("/api/v1/contact/messages"));
         var pages = await store.GetAsync("/api/v1/pages");
         ids["page"] = FirstId(pages);
