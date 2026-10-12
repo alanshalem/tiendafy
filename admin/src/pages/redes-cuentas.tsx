@@ -203,6 +203,7 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Token del bot</label>
           <Input
+            aria-label="Token del bot"
             value={botToken}
             onChange={(e) => setBotToken(e.target.value)}
             placeholder="123456789:AAF…"
@@ -212,6 +213,7 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Canal o chat</label>
           <Input
+            aria-label="Canal o chat"
             value={chatId}
             onChange={(e) => setChatId(e.target.value)}
             placeholder="@mitienda o -1001234567890"
