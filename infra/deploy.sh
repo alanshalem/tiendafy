@@ -49,9 +49,12 @@ compose up -d --remove-orphans
 
 # Esperar a que la API responda antes de dar el deploy por bueno: si el
 # contenedor arranca y se cae por config, el compose igual devuelve 0.
+# Se pregunta desde el servidor, por el puerto publicado: la imagen de la API
+# no trae wget ni curl.
+API_ADDR="$(compose port api 5080 2>/dev/null || echo 127.0.0.1:5080)"
 echo -n "==> esperando health "
 for _ in $(seq 1 30); do
-  if compose exec -T api wget -qO- http://localhost:5080/health >/dev/null 2>&1; then
+  if curl -fsS -o /dev/null "http://$API_ADDR/health" 2>/dev/null; then
     echo "OK"
     compose ps
     exit 0
