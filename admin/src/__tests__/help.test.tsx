@@ -8,7 +8,9 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpDemo } from '../components/HelpDemos';
-import { HELP_CONTENT, type HelpDemoId, type HelpLinkId } from '../config/helpContent';
+import type { HelpLinkId } from '../config/features';
+import { HELP_CONTENT, type HelpDemoId } from '../config/helpContent';
+import { foldText } from '../lib/text';
 import { mockApi } from '../test/api';
 import { explore, settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
@@ -115,11 +117,10 @@ describe('índice de ayuda', () => {
     expect(screen.queryByRole('heading', { name: /Los más consultados/ })).not.toBeInTheDocument();
 
     // Regresión: la búsqueda no ignoraba tildes y "envios" no encontraba "envíos".
-    const withAccent = TOPICS.filter((t) => HELP_CONTENT[t].title.includes('í'));
-    expect(withAccent.length).toBeGreaterThan(0);
-    const title = HELP_CONTENT[withAccent[0]!].title;
+    const accented = TOPICS.find((t) => HELP_CONTENT[t].title.includes('í'));
+    expect(accented).toBeDefined();
     await user.clear(search);
-    await user.type(search, title.normalize('NFD').replace(/[̀-ͯ]/g, ''));
+    await user.type(search, foldText(HELP_CONTENT[accented!].title));
     expect(screen.getAllByText(/guías? encontradas?/).length).toBeGreaterThan(0);
     // Se resalta el texto original, con su tilde.
     const marks = Array.from(document.querySelectorAll('mark')).map((m) => m.textContent ?? '');
