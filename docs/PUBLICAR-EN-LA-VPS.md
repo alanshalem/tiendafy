@@ -22,6 +22,16 @@ ya corren **cking** y **ckinsight**, con **Caddy delante de todo**.
  └─ ckinsight.cking.com.ar
 ```
 
+**¿Por qué un solo Caddy y no uno por sistema?** El 443 de una IP lo puede
+escuchar un único programa. Con un Caddy por sistema, dos de ellos tendrían que
+ir en otros puertos *detrás* del primero, así que igual habría una sola
+puerta, más dos saltos y dos programas más para mantener. La separación ya
+está donde importa: cada sistema tiene su archivo en `sites/`, su propio
+backend y sus propios certificados. Un `caddy reload` con un archivo roto se
+rechaza y queda andando la configuración anterior. Y los dominios propios de
+las tiendas (el bloque `https://` que atiende cualquier dominio) solo los
+puede atender el que tiene el 443.
+
 | Dirección | Qué es |
 |---|---|
 | `puenteoriente.com.ar` | La tienda **Puente Oriente** (`PRIMARY_STORE_SUBDOMAIN=puenteoriente`) |
@@ -167,7 +177,7 @@ una sola vez.
 ### 1.9 Token de GitHub para bajar las imágenes
 
 Las imágenes de Docker de Tiendafy las arma GitHub y quedan en tu cuenta
-(privadas). El servidor necesita permiso de lectura:
+(privadas, aunque el código sea público). El servidor necesita permiso de lectura:
 
 GitHub → **Settings → Developer settings → Personal access tokens → Tokens
 (classic) → Generate new token (classic)** → nombre `vps-ghcr`, scope **solo
@@ -186,6 +196,11 @@ GitHub → **Settings → Developer settings → Personal access tokens → Toke
 
 ## Parte 2 — Preparar el servidor (cking y ckinsight siguen andando)
 
+No depende de NIC.ar: se puede hacer con el dominio todavía *Pending* en
+Cloudflare. Para levantar Tiendafy alcanza con R2 (1.5); Resend y Mercado Pago
+se completan después en `.env.prod` y se aplican volviendo a correr
+`./infra/deploy.sh prod <tag>`.
+
 ### 2.1 Entrar y darle Docker al usuario `deploy`
 
 ```bash
@@ -203,24 +218,12 @@ docker ps                              # ahora tiene que andar sin "permission d
 > en un servidor de un solo dueño, y es lo que permite que GitHub despliegue
 > solo (Parte 5) sin usar la cuenta de root.
 
-### 2.2 Bajar el código (el repo es privado: una llave de solo lectura)
+### 2.2 Bajar el código
+
+El repo es público, así que no hace falta ninguna llave:
 
 ```bash
-ssh-keygen -t ed25519 -C "vps tiendafy (solo lectura)" -f ~/.ssh/tiendafy_deploy -N ""
-cat ~/.ssh/tiendafy_deploy.pub
-```
-
-Copiá esa línea en GitHub → repo **tiendafy → Settings → Deploy keys → Add
-deploy key** (título `vps`, **sin** permiso de escritura). Después:
-
-```bash
-cat >> ~/.ssh/config <<'EOF'
-Host github-tiendafy
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/tiendafy_deploy
-EOF
-git clone git@github-tiendafy:alanshalem/tiendafy.git /srv/tiendafy
+git clone https://github.com/alanshalem/tiendafy.git /srv/tiendafy
 ```
 
 ### 2.3 Que Docker pueda bajar las imágenes
@@ -323,7 +326,10 @@ ls /root/cking/deploy/nginx/cking.detras-de-caddy.conf /root/ckinsight/deploy/ck
 
 ## Parte 3 — El cambio de puerta (el único momento con corte)
 
-Hacelo en un horario tranquilo. Todo como **root** (`su -`).
+Hacelo en un horario tranquilo, y **con el dominio ya *Active* en Cloudflare**
+(1.2): sin eso Caddy no puede sacar los certificados de `puenteoriente.com.ar`.
+A cking y ckinsight no los afectaría, pero no tiene sentido cambiar la puerta
+dos veces. Todo como **root** (`su -`).
 
 ### 3.1 Respaldo de nginx
 
@@ -431,7 +437,13 @@ Hasta acá, cada versión nueva se despliega a mano con
 `./infra/deploy.sh prod sha-XXXXXXX`. Para que GitHub lo haga solo, **con tu
 aprobación** en cada salida a producción:
 
-1. Una llave para que GitHub entre como `deploy`. En **tu PC**:
+1. **Primero la aprobación**: GitHub → repo **tiendafy → Settings →
+   Environments → production → Required reviewers** → vos → *Save protection
+   rules*. Va antes que todo lo demás: en cuanto exista la variable
+   `PLATFORM_DOMAIN` (paso 3), cada push a `main` intenta desplegar, y sin
+   este paso lo haría sin preguntarte.
+
+2. Una llave para que GitHub entre como `deploy`. En **tu PC**:
 
    ```bash
    ssh-keygen -t ed25519 -C "github actions → vps" -f tiendafy-actions -N ""
@@ -440,7 +452,7 @@ aprobación** en cada salida a producción:
    Agregá el contenido de `tiendafy-actions.pub` al final de
    `/home/deploy/.ssh/authorized_keys` en el servidor.
 
-2. GitHub → repo **tiendafy → Settings → Secrets and variables → Actions**:
+3. GitHub → repo **tiendafy → Settings → Secrets and variables → Actions**:
    - *Secrets*:
      - `DEPLOY_HOST` = `31.97.166.27`
      - `DEPLOY_USER` = `deploy`
@@ -448,11 +460,12 @@ aprobación** en cada salida a producción:
    - *Variables*:
      - `PLATFORM_DOMAIN` = `puenteoriente.com.ar`
      - `DEPLOY_PATH` = `/srv/tiendafy`
-3. **Settings → Environments → production → Required reviewers** → vos.
 4. Borrá el archivo privado `tiendafy-actions` de tu PC: ya está en GitHub.
 
 Desde ahí, cada push a `main` arma las imágenes, espera tu aprobación y
-despliega. Mientras no exista la variable `STAGING_DOMAIN`, staging se saltea solo.
+despliega. Mientras no exista la variable `STAGING_DOMAIN`, staging se saltea
+solo; y mientras no exista `PLATFORM_DOMAIN`, producción también (GitHub solo
+arma las imágenes).
 
 ---
 
