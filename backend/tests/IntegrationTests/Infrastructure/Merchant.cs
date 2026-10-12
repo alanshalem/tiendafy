@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using System.Web;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -183,6 +185,36 @@ public sealed class Merchant
             buyerName = "Comprador de Test",
         });
         return order.GetProperty("id").GetGuid();
+    }
+
+    /// <summary>
+    /// Conecta la cuenta de Mercado Pago de la tienda por el OAuth de verdad:
+    /// pide la URL de autorización, Mercado Pago (simulado) canjea el código y
+    /// el callback vuelve al panel con "conectado".
+    /// </summary>
+    public async Task ConnectMercadoPagoAsync(long mpUserId)
+    {
+        const string mp = "https://api.mercadopago.com";
+        var connect = await PostAsync("/api/v1/payments/mercadopago/connect", new { });
+        var authUrl = new Uri(connect.GetProperty("authUrl").GetString()!);
+        Assert.StartsWith("https://auth.mercadopago.com.ar/authorization", authUrl.ToString());
+        var state = HttpUtility.ParseQueryString(authUrl.Query)["state"]!;
+
+        Factory.ExternalHttp.OnJson(HttpMethod.Post, $"{mp}/oauth/token", new
+        {
+            user_id = mpUserId,
+            access_token = "APP_USR-access",
+            refresh_token = "TG-refresh",
+            public_key = "APP_USR-public",
+            scope = "offline_access read write",
+            expires_in = 15_552_000,
+        });
+
+        var browser = Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var callback = await browser.GetAsync($"/api/v1/payments/mercadopago/callback?code=TG-code&state={Uri.EscapeDataString(state)}");
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.EndsWith("mp=connected", callback.Headers.Location!.ToString());
+        Assert.Contains("code=TG-code", Factory.ExternalHttp.SentTo($"{mp}/oauth/token").Last().Body);
     }
 
     /// <summary>El stock disponible de una variante, como lo ve el panel.</summary>

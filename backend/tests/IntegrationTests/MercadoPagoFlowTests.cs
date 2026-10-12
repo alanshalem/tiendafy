@@ -40,7 +40,7 @@ public sealed class MercadoPagoFlowTests
 
         // 1. Conectar: el OAuth de verdad, con el canje del code simulado.
         Assert.False((await merchant.GetAsync("/api/v1/payments/mercadopago/connection")).GetProperty("connected").GetBoolean());
-        await ConnectAsync(merchant, mpUserId);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
 
         var connection = await merchant.GetAsync("/api/v1/payments/mercadopago/connection");
         Assert.True(connection.GetProperty("connected").GetBoolean());
@@ -129,7 +129,7 @@ public sealed class MercadoPagoFlowTests
     public async Task Pago_con_tarjeta_en_la_tienda()
     {
         var merchant = await Merchant.CreateAsync(_factory, "mpo");
-        await ConnectAsync(merchant, Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
         var (_, variantId) = await merchant.CreateProductAsync("Buzo MP", priceMinor: 30_000_00);
         var shopper = new Shopper(merchant);
 
@@ -176,7 +176,7 @@ public sealed class MercadoPagoFlowTests
         Assert.Equal(HttpStatusCode.Conflict,
             (await merchant.SendAsync(HttpMethod.Put, "/api/v1/payments/mercadopago/preferences", new { })).StatusCode);
 
-        await ConnectAsync(merchant, mpUserId);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
 
         // MP no responde el pago: el worker registra el fallo y lo deja para después.
         var paymentId = Random.Shared.NextInt64(10_000_000, 99_999_999).ToString();
@@ -247,30 +247,6 @@ public sealed class MercadoPagoFlowTests
     // ---------------------------------------------------------------- helpers
 
     /// <summary>El OAuth completo: pedir la URL, "autorizar" y volver por el callback.</summary>
-    private async Task ConnectAsync(Merchant merchant, long mpUserId)
-    {
-        var connect = await merchant.PostAsync("/api/v1/payments/mercadopago/connect", new { });
-        var authUrl = new Uri(connect.GetProperty("authUrl").GetString()!);
-        Assert.StartsWith("https://auth.mercadopago.com.ar/authorization", authUrl.ToString());
-        var state = HttpUtility.ParseQueryString(authUrl.Query)["state"]!;
-
-        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/oauth/token", new
-        {
-            user_id = mpUserId,
-            access_token = "APP_USR-access",
-            refresh_token = "TG-refresh",
-            public_key = "APP_USR-public",
-            scope = "offline_access read write",
-            expires_in = 15_552_000,
-        });
-
-        var browser = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        var callback = await browser.GetAsync($"/api/v1/payments/mercadopago/callback?code=TG-code&state={Uri.EscapeDataString(state)}");
-        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
-        Assert.EndsWith("mp=connected", callback.Headers.Location!.ToString());
-        Assert.Contains("code=TG-code", _factory.ExternalHttp.SentTo($"{Api}/oauth/token").Last().Body);
-    }
-
     /// <summary>
     /// Pasadas del worker hasta vaciar lo que está para procesar. La base de
     /// tests persiste entre corridas y el worker toma de a 20: puede haber
