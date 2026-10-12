@@ -187,38 +187,50 @@ function ShipmentModal({
         <div className="grid gap-2.5 sm:grid-cols-2">
           <div>
             <label className={shipmentLabelCls}>Nombre del destinatario</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              aria-label="Nombre del destinatario"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div>
             <label className={shipmentLabelCls}>DNI / documento</label>
-            <Input value={document} onChange={(e) => setDocument(e.target.value)} />
+            <Input
+              aria-label="DNI / documento"
+              value={document}
+              onChange={(e) => setDocument(e.target.value)}
+            />
           </div>
           <div>
             <label className={shipmentLabelCls}>Email</label>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
             <label className={shipmentLabelCls}>Teléfono</label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
         </div>
 
         <div className="grid gap-2.5 sm:grid-cols-6">
           <div className="sm:col-span-3">
             <label className={shipmentLabelCls}>Calle</label>
-            <Input value={street} onChange={(e) => setStreet(e.target.value)} />
+            <Input aria-label="Calle" value={street} onChange={(e) => setStreet(e.target.value)} />
           </div>
           <div>
             <label className={shipmentLabelCls}>Número</label>
-            <Input value={number} onChange={(e) => setNumber(e.target.value)} />
+            <Input aria-label="Número" value={number} onChange={(e) => setNumber(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
             <label className={shipmentLabelCls}>Piso / depto (opcional)</label>
-            <Input value={extras} onChange={(e) => setExtras(e.target.value)} />
+            <Input
+              aria-label="Piso / depto (opcional)"
+              value={extras}
+              onChange={(e) => setExtras(e.target.value)}
+            />
           </div>
           <div className="sm:col-span-2">
             <label className={shipmentLabelCls}>Ciudad</label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            <Input aria-label="Ciudad" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
             <label className={shipmentLabelCls}>Provincia</label>
@@ -230,11 +242,16 @@ function ShipmentModal({
           </div>
           <div>
             <label className={shipmentLabelCls}>CP</label>
-            <Input value={zipcode} onChange={(e) => setZipcode(e.target.value)} />
+            <Input aria-label="CP" value={zipcode} onChange={(e) => setZipcode(e.target.value)} />
           </div>
           <div>
             <label className={shipmentLabelCls}>Valor declarado ($)</label>
-            <Input value={declared} onChange={(e) => setDeclared(e.target.value)} inputMode="numeric" />
+            <Input
+              aria-label="Valor declarado ($)"
+              value={declared}
+              onChange={(e) => setDeclared(e.target.value)}
+              inputMode="numeric"
+            />
           </div>
         </div>
       </div>

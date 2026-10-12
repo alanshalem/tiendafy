@@ -405,6 +405,7 @@ function MetaAdsSection({
         <p className="text-sm text-fg-muted">Elegí la cuenta publicitaria de la tienda:</p>
         <div className="mt-2 max-w-sm">
           <Select
+            aria-label="Cuenta publicitaria"
             value=""
             placeholder="Cuenta publicitaria…"
             options={(accounts?.items ?? []).map((a) => ({ value: a.id, label: a.name || a.id }))}

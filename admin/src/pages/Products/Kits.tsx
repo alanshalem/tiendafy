@@ -207,6 +207,7 @@ export function KitsPage() {
               <li key={c.componentVariantId} className="flex items-center gap-2 text-sm">
                 <div className="w-16 shrink-0">
                   <Input
+                    aria-label={`Cantidad de ${c.label}`}
                     compact
                     type="number"
                     min={1}

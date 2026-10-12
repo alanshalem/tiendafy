@@ -286,7 +286,11 @@ public sealed class Product : AggregateRoot
     public Result<ProductImage> AddImage(string? url, string? altText)
     {
         var trimmed = url?.Trim() ?? string.Empty;
-        if (trimmed.Length is < 10 or > 500 || !Uri.IsWellFormedUriString(trimmed, UriKind.Absolute))
+        // http(s) explícito: en Linux "file:///etc/passwd" también es una URI
+        // absoluta bien formada, y una imagen de producto solo se sirve por web.
+        if (trimmed.Length is < 10 or > 500 || !Uri.IsWellFormedUriString(trimmed, UriKind.Absolute)
+            || !(trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                 || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
             return Result.Failure<ProductImage>(Error.Validation(
                 "Image.InvalidUrl", "Image URL must be a valid absolute URL."));
 

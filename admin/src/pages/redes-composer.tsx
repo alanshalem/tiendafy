@@ -371,6 +371,7 @@ export function ComposerModal({
                 <div className="flex gap-2">
                   <div className="w-64">
                     <Select
+                      aria-label="Cupón para medir ventas"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                       options={[
@@ -399,6 +400,7 @@ export function ComposerModal({
               <p className="mb-1.5 text-sm font-medium text-fg">Programar para</p>
               <div className="w-64">
                 <Input
+                  aria-label="Programar para"
                   type="datetime-local"
                   value={scheduleAt}
                   onChange={(e) => setScheduleAt(e.target.value)}

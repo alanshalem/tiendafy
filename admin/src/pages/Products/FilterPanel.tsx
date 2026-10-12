@@ -123,6 +123,7 @@ export function FilterPanel({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Categoría</label>
             <select
+              aria-label="Categoría"
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}
               className="h-10 w-full appearance-none rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"

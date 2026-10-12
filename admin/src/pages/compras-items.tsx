@@ -70,6 +70,7 @@ export function ItemsEditor({
               <td className="py-2 text-right">
                 <div className="ml-auto w-20 shrink-0">
                   <Input
+                    aria-label={`Cantidad de ${item.label}`}
                     compact
                     type="number"
                     min={1}
@@ -87,6 +88,7 @@ export function ItemsEditor({
               <td className="py-2 text-right">
                 <div className="ml-auto w-24 shrink-0">
                   <Input
+                    aria-label={`Costo unitario de ${item.label}`}
                     compact
                     type="number"
                     min={0}

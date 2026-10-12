@@ -74,10 +74,12 @@ public sealed class UrlRedirect
         var value = (raw ?? string.Empty).Trim();
         if (value.Length == 0) return null;
 
-        // Si pegaron la URL entera, se usa solo la ruta.
-        if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
+        // Si pegaron la URL entera, se usa solo la ruta. Se decide por el
+        // esquema escrito y no por Uri.TryCreate(Absolute): en Linux una ruta
+        // como "/zapatos" ES una URI absoluta (file:///zapatos) y se rechazaba.
+        if (value.Contains("://", StringComparison.Ordinal))
         {
-            if (absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps) return null;
+            if (!IsHttpUrl(value, out var absolute)) return null;
             value = absolute.AbsolutePath;
         }
 
@@ -102,8 +104,8 @@ public sealed class UrlRedirect
         var value = (raw ?? string.Empty).Trim();
         if (value.Length == 0 || value.Length > MaxPathLength) return null;
 
-        if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
-            return absolute.Scheme is "http" or "https" ? absolute.ToString() : null;
+        if (value.Contains("://", StringComparison.Ordinal))
+            return IsHttpUrl(value, out var absolute) ? absolute.ToString() : null;
 
         // Sin esquema tiene que ser una ruta de la tienda. Se descarta cualquier
         // cosa con ":" (javascript:, data:) y el "//" con protocolo implícito.
@@ -111,5 +113,19 @@ public sealed class UrlRedirect
         if (!value.StartsWith('/')) value = "/" + value;
         while (value.StartsWith("//", StringComparison.Ordinal)) value = value[1..];
         return value;
+    }
+
+    /// <summary>
+    /// ¿Es una URL http(s) escrita como tal? No alcanza con Uri.TryCreate(Absolute):
+    /// en Linux —donde corre producción— "/productos/remera" también es absoluta
+    /// (file:///productos/remera), y en Windows no.
+    /// </summary>
+    private static bool IsHttpUrl(string value, out Uri absolute)
+    {
+        absolute = null!;
+        return (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            && Uri.TryCreate(value, UriKind.Absolute, out absolute!)
+            && (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps);
     }
 }

@@ -156,6 +156,7 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
             <div className="sm:col-span-1">
               <label className={shipmentLabelCls}>Tipo de entrega</label>
               <Select
+                aria-label="Tipo de entrega"
                 value={deliveryType}
                 onChange={(e) => setDeliveryType(e.target.value)}
                 options={[
@@ -166,26 +167,39 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
             </div>
             <div>
               <label className={shipmentLabelCls}>Nombre del destinatario</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                aria-label="Nombre del destinatario"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div>
               <label className={shipmentLabelCls}>Email</label>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
               <label className={shipmentLabelCls}>Teléfono</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className={shipmentLabelCls}>Valor declarado ($)</label>
-              <Input value={declared} onChange={(e) => setDeclared(e.target.value)} inputMode="numeric" />
+              <Input
+                aria-label="Valor declarado ($)"
+                value={declared}
+                onChange={(e) => setDeclared(e.target.value)}
+                inputMode="numeric"
+              />
             </div>
           </div>
 
           {deliveryType === 'S' ? (
             <div>
               <label className={shipmentLabelCls}>Código de sucursal (ej: B0107)</label>
-              <Input value={agency} onChange={(e) => setAgency(e.target.value.toUpperCase())} />
+              <Input
+                aria-label="Código de sucursal (ej: B0107)"
+                value={agency}
+                onChange={(e) => setAgency(e.target.value.toUpperCase())}
+              />
               <p className="mt-1 text-xs text-fg-subtle">
                 Si el comprador eligió sucursal en el checkout, el código figura en la dirección de la venta.
               </p>
@@ -194,27 +208,28 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
             <div className="grid gap-2.5 sm:grid-cols-6">
               <div className="sm:col-span-3">
                 <label className={shipmentLabelCls}>Calle</label>
-                <Input value={street} onChange={(e) => setStreet(e.target.value)} />
+                <Input aria-label="Calle" value={street} onChange={(e) => setStreet(e.target.value)} />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Número</label>
-                <Input value={number} onChange={(e) => setNumber(e.target.value)} />
+                <Input aria-label="Número" value={number} onChange={(e) => setNumber(e.target.value)} />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Piso</label>
-                <Input value={floor} onChange={(e) => setFloor(e.target.value)} />
+                <Input aria-label="Piso" value={floor} onChange={(e) => setFloor(e.target.value)} />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Depto</label>
-                <Input value={apartment} onChange={(e) => setApartment(e.target.value)} />
+                <Input aria-label="Depto" value={apartment} onChange={(e) => setApartment(e.target.value)} />
               </div>
               <div className="sm:col-span-2">
                 <label className={shipmentLabelCls}>Ciudad</label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                <Input aria-label="Ciudad" value={city} onChange={(e) => setCity(e.target.value)} />
               </div>
               <div className="sm:col-span-2">
                 <label className={shipmentLabelCls}>Provincia</label>
                 <Select
+                  aria-label="Provincia"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
                   options={CORREO_PROVINCES}
@@ -222,7 +237,7 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
               </div>
               <div className="sm:col-span-2">
                 <label className={shipmentLabelCls}>Código postal</label>
-                <Input value={cp} onChange={(e) => setCp(e.target.value)} />
+                <Input aria-label="Código postal" value={cp} onChange={(e) => setCp(e.target.value)} />
               </div>
             </div>
           )}

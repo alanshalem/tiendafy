@@ -213,6 +213,7 @@ function ConfigModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Ambiente</label>
             <Select
+              aria-label="Ambiente"
               value={environment}
               onChange={(e) => setEnvironment(e.target.value)}
               options={[
@@ -264,19 +265,39 @@ function ConfigModal({
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs text-fg-muted">Peso (g)</label>
-              <Input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="numeric" />
+              <Input
+                aria-label="Peso (g)"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                inputMode="numeric"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs text-fg-muted">Largo (cm)</label>
-              <Input value={length} onChange={(e) => setLength(e.target.value)} inputMode="numeric" />
+              <Input
+                aria-label="Largo (cm)"
+                value={length}
+                onChange={(e) => setLength(e.target.value)}
+                inputMode="numeric"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs text-fg-muted">Ancho (cm)</label>
-              <Input value={width} onChange={(e) => setWidth(e.target.value)} inputMode="numeric" />
+              <Input
+                aria-label="Ancho (cm)"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+                inputMode="numeric"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs text-fg-muted">Alto (cm)</label>
-              <Input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="numeric" />
+              <Input
+                aria-label="Alto (cm)"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                inputMode="numeric"
+              />
             </div>
           </div>
         </div>

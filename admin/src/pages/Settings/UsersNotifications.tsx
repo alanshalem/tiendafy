@@ -265,6 +265,7 @@ export function UsersNotificationsPage() {
                   className="h-10 min-w-[10rem] flex-1 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
                 />
                 <select
+                  aria-label="Rol"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   className="h-10 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
@@ -331,6 +332,7 @@ export function UsersNotificationsPage() {
                       <td className="px-4 py-3">
                         {editable ? (
                           <select
+                            aria-label={`Rol de ${m.email ?? 'este usuario'}`}
                             value={normalizeRole(m.role)}
                             disabled={changeRole.isPending}
                             onChange={async (e) => {

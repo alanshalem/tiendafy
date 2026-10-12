@@ -150,6 +150,7 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
             </p>
             <label className="mt-3 block text-sm font-medium text-fg">{`Tipo de cambio definitivo (ARS por ${po.currency})`}</label>
             <Input
+              aria-label={`Tipo de cambio definitivo (ARS por ${po.currency})`}
               type="number"
               min={0}
               step="0.01"
@@ -174,6 +175,7 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
                   <span className="text-xs text-fg-subtle">pedidas {i.quantity}</span>
                   <div className="w-20 shrink-0">
                     <Input
+                      aria-label={`Recibidas de ${i.productName}`}
                       compact
                       type="number"
                       min={0}
@@ -238,9 +240,15 @@ export function SupplierField({
     <div>
       <label className="mb-1.5 block text-sm font-medium text-fg">Proveedor</label>
       {suppliers.length === 0 && !supplierId ? (
-        <Input value={supplierName} disabled={disabled} onChange={(e) => onChange('', e.target.value)} />
+        <Input
+          aria-label="Proveedor"
+          value={supplierName}
+          disabled={disabled}
+          onChange={(e) => onChange('', e.target.value)}
+        />
       ) : (
         <Select
+          aria-label="Proveedor"
           value={supplierId}
           disabled={disabled}
           options={options}

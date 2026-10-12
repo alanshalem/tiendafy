@@ -223,11 +223,16 @@ function ShipmentModal({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={shipmentLabelCls}>Nombre del destinatario</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+            <Input
+              aria-label="Nombre del destinatario"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={40}
+            />
           </div>
           <div>
             <label className={shipmentLabelCls}>Email</label>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             {emailTooLong && (
               <p className="mt-1 text-xs text-danger">
                 Andreani no acepta emails de más de 40 caracteres ({email.trim().length}).
@@ -239,15 +244,20 @@ function ShipmentModal({
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className={shipmentLabelCls}>Tipo de doc.</label>
-            <Input value={docType} onChange={(e) => setDocType(e.target.value)} />
+            <Input aria-label="Tipo de doc." value={docType} onChange={(e) => setDocType(e.target.value)} />
           </div>
           <div>
             <label className={shipmentLabelCls}>Número</label>
-            <Input value={docNumber} onChange={(e) => setDocNumber(e.target.value)} />
+            <Input aria-label="Número" value={docNumber} onChange={(e) => setDocNumber(e.target.value)} />
           </div>
           <div>
             <label className={shipmentLabelCls}>Teléfono</label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={15} />
+            <Input
+              aria-label="Teléfono"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              maxLength={15}
+            />
           </div>
         </div>
 
@@ -261,33 +271,62 @@ function ShipmentModal({
         {toBranch ? (
           <div>
             <label className={shipmentLabelCls}>ID de la sucursal de retiro</label>
-            <Input value={branchId} onChange={(e) => setBranchId(e.target.value)} />
+            <Input
+              aria-label="ID de la sucursal de retiro"
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+            />
           </div>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="sm:col-span-2">
                 <label className={shipmentLabelCls}>Calle</label>
-                <Input value={street} onChange={(e) => setStreet(e.target.value)} maxLength={40} />
+                <Input
+                  aria-label="Calle"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  maxLength={40}
+                />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Número</label>
-                <Input value={number} onChange={(e) => setNumber(e.target.value)} maxLength={40} />
+                <Input
+                  aria-label="Número"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  maxLength={40}
+                />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Código postal</label>
-                <Input value={zipcode} onChange={(e) => setZipcode(e.target.value)} maxLength={4} />
+                <Input
+                  aria-label="Código postal"
+                  value={zipcode}
+                  onChange={(e) => setZipcode(e.target.value)}
+                  maxLength={4}
+                />
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className={shipmentLabelCls}>Localidad</label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={40} />
+                <Input
+                  aria-label="Localidad"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  maxLength={40}
+                />
               </div>
               <div>
                 <label className={shipmentLabelCls}>Piso, depto. u observaciones</label>
-                <Input value={extras} onChange={(e) => setExtras(e.target.value)} maxLength={40} />
+                <Input
+                  aria-label="Piso, depto. u observaciones"
+                  value={extras}
+                  onChange={(e) => setExtras(e.target.value)}
+                  maxLength={40}
+                />
               </div>
             </div>
           </>
@@ -295,7 +334,12 @@ function ShipmentModal({
 
         <div className="sm:w-1/2">
           <label className={shipmentLabelCls}>Valor declarado</label>
-          <Input value={declared} onChange={(e) => setDeclared(e.target.value)} inputMode="decimal" />
+          <Input
+            aria-label="Valor declarado"
+            value={declared}
+            onChange={(e) => setDeclared(e.target.value)}
+            inputMode="decimal"
+          />
         </div>
       </div>
     </Modal>

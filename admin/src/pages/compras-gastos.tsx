@@ -71,6 +71,7 @@ export function ExpensesEditor({
             </div>
             <div className="w-28 shrink-0">
               <Select
+                aria-label={`Moneda de ${e.label || 'este gasto'}`}
                 value={e.isLocal ? 'ars' : 'po'}
                 disabled={!editable}
                 onChange={(ev) => {

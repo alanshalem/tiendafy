@@ -489,6 +489,7 @@ export function CertificateStep({
                     Tu solicitud de certificado (CSR)
                   </label>
                   <Textarea
+                    aria-label="Tu solicitud de certificado (CSR)"
                     readOnly
                     rows={5}
                     value={csr.csrPem}

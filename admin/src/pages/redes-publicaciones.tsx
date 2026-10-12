@@ -78,7 +78,12 @@ export function PublicacionesTab({
     <div>
       <div className="mb-4 flex justify-end">
         <div className="w-52">
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} options={STATUS_FILTER} />
+          <Select
+            aria-label="Filtrar por estado"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            options={STATUS_FILTER}
+          />
         </div>
       </div>
 

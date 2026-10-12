@@ -214,4 +214,16 @@ public class ProductTests
         Assert.True(product.SetVariantCost(variant.Id, new Money(-1, "ARS")).IsFailure);
         Assert.True(product.SetVariantCost(Guid.NewGuid(), Ars(100)).IsFailure);
     }
+
+    [Theory]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://cdn.example.com/a.jpg")]
+    [InlineData("/media/remera.jpg")]
+    public void Una_imagen_solo_se_acepta_por_http(string url)
+    {
+        // Regresión: en Linux "file:///etc/passwd" es una URI absoluta bien formada.
+        var product = Product.Create(Tenant, "Remera").Value;
+        Assert.True(product.AddImage(url, null).IsFailure);
+        Assert.True(product.AddImage("https://cdn.example.com/remera.jpg", "Frente").IsSuccess);
+    }
 }

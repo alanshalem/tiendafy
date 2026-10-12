@@ -332,6 +332,7 @@ export function MeliSettingsPage() {
                   help="En ML se publica stock − colchón: absorbe la ventana entre una venta local y el aviso a ML. 0 = publicar todo el stock."
                 >
                   <Input
+                    aria-label="Colchón anti-sobreventa (unidades)"
                     type="number"
                     min={0}
                     max={1000}
@@ -356,6 +357,7 @@ export function MeliSettingsPage() {
                   help="ML cobra bastante más comisión que tu tienda: con 15, un producto de $10.000 se publica a $11.500. 0 = mismo precio que en tu tienda."
                 >
                   <Input
+                    aria-label="Recargo para Mercado Libre (%)"
                     type="number"
                     min={-50}
                     max={200}

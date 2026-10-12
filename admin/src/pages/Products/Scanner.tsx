@@ -307,6 +307,7 @@ function BuscarTab() {
                 <label className="mb-1 block text-xs text-fg-muted">Stock disponible</label>
                 <div className="w-24 shrink-0">
                   <Input
+                    aria-label="Stock disponible"
                     compact
                     type="number"
                     min={0}
@@ -325,7 +326,11 @@ function BuscarTab() {
               </Button>
               <div className="w-32">
                 <label className="mb-1 block text-xs text-fg-muted">Ubicación (ej. B3)</label>
-                <Input value={locationDraft} onChange={(e) => setLocationDraft(e.target.value)} />
+                <Input
+                  aria-label="Ubicación (ej. B3)"
+                  value={locationDraft}
+                  onChange={(e) => setLocationDraft(e.target.value)}
+                />
               </div>
               <Button
                 variant="secondary"
@@ -411,6 +416,7 @@ function PickingTab() {
         alarma antes de despachar.
       </p>
       <select
+        aria-label="Pedido a preparar"
         className="mt-2 h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg"
         value={orderId}
         onChange={(e) => {
@@ -599,6 +605,7 @@ function ConteoTab() {
                     <span className="inline-flex items-center gap-1">
                       <div className="w-20 shrink-0">
                         <Input
+                          aria-label={`Contado de ${r.hit.productName}`}
                           compact
                           type="number"
                           min={0}

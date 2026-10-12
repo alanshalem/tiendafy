@@ -107,7 +107,12 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
         </p>
         <div className="mt-3 flex gap-2">
           <div className="min-w-0 flex-1">
-            <Input readOnly value={paymentLink} onFocus={(e) => e.currentTarget.select()} />
+            <Input
+              aria-label="Link de pago"
+              readOnly
+              value={paymentLink}
+              onFocus={(e) => e.currentTarget.select()}
+            />
           </div>
           <Button
             variant="secondary"

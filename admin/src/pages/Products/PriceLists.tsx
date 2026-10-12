@@ -477,6 +477,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
                       {row.isManual && <Badge variant="warning">A mano</Badge>}
                       <div className="w-32">
                         <Input
+                          aria-label={`Precio de ${row.productName}${row.variantDescription ? ` · ${row.variantDescription}` : ''}`}
                           compact
                           inputMode="decimal"
                           className="text-right"

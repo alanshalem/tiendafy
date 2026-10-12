@@ -541,6 +541,7 @@ function PoEditor({
                   Referencia (proforma / contenedor)
                 </label>
                 <Input
+                  aria-label="Referencia (proforma / contenedor)"
                   value={form.reference}
                   disabled={!editable}
                   onChange={(e) => setForm({ ...form, reference: e.target.value })}
@@ -549,6 +550,7 @@ function PoEditor({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-fg">Lead time (días)</label>
                 <Input
+                  aria-label="Lead time (días)"
                   type="number"
                   min={0}
                   value={form.leadTimeDays}
@@ -559,6 +561,7 @@ function PoEditor({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-fg">Moneda de la OC</label>
                 <Select
+                  aria-label="Moneda de la OC"
                   value={form.currency}
                   disabled={!editable}
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
@@ -568,6 +571,7 @@ function PoEditor({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-fg">{`Tipo de cambio (ARS por ${form.currency})`}</label>
                 <Input
+                  aria-label={`Tipo de cambio (ARS por ${form.currency})`}
                   type="number"
                   min={0}
                   step="0.01"
@@ -579,6 +583,7 @@ function PoEditor({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-fg">Notas</label>
                 <Input
+                  aria-label="Notas"
                   value={form.notes}
                   disabled={!editable}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}

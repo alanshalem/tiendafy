@@ -353,7 +353,12 @@ function MethodDialog({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Tipo</label>
-          <select value={kind} onChange={(e) => setKind(e.target.value as ShippingKind)} className={inputCls}>
+          <select
+            aria-label="Tipo"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as ShippingKind)}
+            className={inputCls}
+          >
             <option value="DELIVERY">Envío a domicilio</option>
             <option value="PICKUP">Retiro en punto</option>
           </select>
