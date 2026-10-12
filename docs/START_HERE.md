@@ -27,6 +27,7 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 | Entender los pagos | [payments-mercadopago.md](./payments-mercadopago.md) — OAuth marketplace, webhooks, refunds |
 | Entender roles y permisos | [rbac.md](./rbac.md) — roles, matriz y enforcement (fuente de verdad: `Permissions.cs`) |
 | Entender el chat posventa | [support-chat.md](./support-chat.md) |
+| Correr o escribir tests (todos los tipos: unit, integración, componentes, accesibilidad, e2e, carga) | [TESTING.md](./TESTING.md) |
 | Construir UI nueva | [DESIGN.md](./DESIGN.md) (reglas de diseño) |
 | Agregar un módulo | [guides/adding-a-module.md](./guides/adding-a-module.md) — receta basada en módulos reales |
 | Por qué cada decisión de arquitectura | [adr/](./adr/) — monolito .NET, Next+Vite, multi-tenancy |
