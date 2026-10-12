@@ -6,6 +6,8 @@
 #
 # Staging es opcional: corre solo si el repo tiene la variable STAGING_DOMAIN.
 # Sin ella, del build se pasa directo a producción (con la misma aprobación).
+# Producción, igual: sin la variable PLATFORM_DOMAIN (servidor todavía sin
+# preparar) el workflow solo construye y publica las imágenes.
 #
 # La aprobación no se configura acá sino en el repo: Settings → Environments →
 # production → Required reviewers. Sin eso, el job de producción sale solo.
@@ -110,7 +112,7 @@ jobs:
   deploy-production:
     needs: [build-push, deploy-staging, smoke-staging]
     if: >-
-      always() && github.ref == 'refs/heads/main' &&
+      always() && github.ref == 'refs/heads/main' && vars.PLATFORM_DOMAIN != '' &&
       needs.build-push.result == 'success' &&
       (needs.smoke-staging.result == 'success' ||
        (needs.deploy-staging.result == 'skipped' && needs.smoke-staging.result == 'skipped'))
