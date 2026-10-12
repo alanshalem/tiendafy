@@ -46,6 +46,8 @@
   --color-danger-bg: 254 242 242; /* red-50 */
   --color-info: 2 132 199; /* sky-600 */
   --color-info-bg: 240 249 255; /* sky-50 */
+  /* Texto sobre un color de estado lleno (bg-danger, bg-success…). */
+  --color-status-fg: 255 255 255;
 
   /* ---------- Tipografía ---------- */
   --font-sans:

@@ -56,6 +56,9 @@ module.exports = {
           DEFAULT: cssVar('--color-info'),
           bg: cssVar('--color-info-bg'),
         },
+        status: {
+          fg: cssVar('--color-status-fg'),
+        },
       },
       fontFamily: {
         sans: 'var(--font-sans)',

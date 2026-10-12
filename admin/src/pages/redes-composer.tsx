@@ -329,7 +329,7 @@ export function ComposerModal({
                       <button
                         type="button"
                         onClick={() => setMediaUrls((prev) => prev.filter((_, j) => j !== i))}
-                        className="absolute -right-1.5 -top-1.5 rounded-full bg-danger p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-danger p-0.5 text-status-fg opacity-0 transition-opacity group-hover:opacity-100"
                         title="Quitar imagen"
                       >
                         <XIcon className="h-3 w-3" />

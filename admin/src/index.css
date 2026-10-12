@@ -92,6 +92,8 @@ option {
   --color-warning: 255 159 10; /* #FF9F0A */
   --color-danger: 255 69 58; /* #FF453A */
   --color-info: 64 156 255;
+  /* Los estados del tema oscuro son claros (para leerse como texto): encima, oscuro. */
+  --color-status-fg: 0 0 0;
 
   --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 28px -10px rgb(0 0 0 / 0.5);
   --shadow-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.7), 0 4px 12px -6px rgb(0 0 0 / 0.5);

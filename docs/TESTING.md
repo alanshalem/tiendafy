@@ -135,22 +135,17 @@ accesible; el `Modal` y los `Tabs` compartidos sin nombre/estado accesible.
 
 ## Pendientes conocidos
 
-- **Contraste de color (WCAG AA, 4,5:1)**: lo mide el e2e en navegador y queda
-  como `test.fixme`. En el panel fallan tokens de diseño (menú lateral 4,34:1 y
-  2,42:1; azul `#007aff` con texto blanco 4,01:1); en la tienda, colores que
-  elige cada comercio. Corregirlo cambia la identidad visual: es una decisión
-  de diseño.
-- **`<label>` del panel sin `htmlFor`**: los campos ya tienen nombre accesible
-  (`aria-label`), pero hacer clic en la etiqueta no enfoca el campo.
-  `FormField` lo hace bien; migrar a `FormField` es lo recomendado.
-- **"Lista para retirar" nunca se envía**: las plantillas de email y de
-  WhatsApp existen y se ofrecen en el panel, pero nada las dispara; al
-  despachar un pedido de retiro en el local se manda "confirmación de envío".
-  Arreglarlo pide decidir cuándo se avisa y guardar en la orden si es retiro.
-- **Pool de conexiones en frío**: la primera ráfaga concurrente paga abrir las
-  conexiones a Postgres (en Docker Desktop, ~380 ms cada una). Si en producción
-  hay picos después de períodos ociosos, conviene `Minimum Pool Size` en la
-  cadena de conexión.
+Ninguno abierto. Cerrados en oct-2026 (cada uno con su prueba):
+
+- Contraste WCAG AA: tokens del panel en claro y oscuro (con `status-fg`
+  para el texto sobre rojo/verde/naranja llenos), y en la tienda
+  `primary-ink`/`fg-muted` calculados con los colores del comercio
+  (`e2e/tests/accesibilidad.spec.ts`, `storefront/src/lib/__tests__/theme.test.ts`).
+- `<label>` sin campo: asociadas con `useId`; `test-fixtures/a11y.ts` marca
+  cualquier etiqueta suelta (`label-sin-campo`) en todas las pantallas.
+- "Lista para retirar": la orden guarda `IsPickup` y al despacharla avisa eso
+  en vez de "en camino" (`PickupOrderTests`).
+- Pool en frío: `Minimum Pool Size` (5, `DB_MIN_POOL_SIZE`) en el stack.
 
 ## Números de referencia (carga, dev en Windows + Docker)
 

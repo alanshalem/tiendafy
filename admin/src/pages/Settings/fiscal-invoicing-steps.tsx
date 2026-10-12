@@ -140,9 +140,9 @@ export function ProgressChecklist({
               className={cn(
                 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                 s.done
-                  ? 'bg-success text-white'
+                  ? 'bg-success text-status-fg'
                   : s.pending
-                    ? 'bg-warning text-white'
+                    ? 'bg-warning text-status-fg'
                     : 'bg-bg-muted text-fg-muted',
               )}
             >

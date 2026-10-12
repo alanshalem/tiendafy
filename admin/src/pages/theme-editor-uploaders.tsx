@@ -114,7 +114,7 @@ export function ImageUploader({
           <button
             onClick={() => onChange('')}
             aria-label="Quitar imagen"
-            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"
+            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-status-fg"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -159,7 +159,7 @@ export function VideoUploader({
           <button
             onClick={() => onChange('')}
             aria-label="Quitar video"
-            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"
+            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-status-fg"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -216,7 +216,7 @@ export function MultiImageUploader({
             <button
               onClick={() => onChange(images.filter((_, idx) => idx !== i))}
               aria-label="Quitar"
-              className="flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-danger text-status-fg"
             >
               <X className="h-3.5 w-3.5" />
             </button>

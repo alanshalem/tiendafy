@@ -25,7 +25,7 @@ export function RemovableThumb({
         type="button"
         onClick={onRemove}
         aria-label="Quitar imagen"
-        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
+        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-status-fg"
       >
         <X className="h-3.5 w-3.5" />
       </button>
