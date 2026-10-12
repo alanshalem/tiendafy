@@ -20,6 +20,7 @@ import {
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { HelpLink } from '../components/HelpLink';
 import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
@@ -69,6 +70,7 @@ export function DiscountsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const canEdit = usePermissions().can('discounts.write');
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
 
@@ -138,39 +140,40 @@ export function DiscountsPage() {
     {
       key: 'createdAtUtc',
       header: '',
-      cell: (c) => (
-        <div className="flex justify-end">
-          <Dropdown>
-            <Dropdown.Trigger label={`Acciones de ${c.code}`}>
-              <MoreVertical className="h-4 w-4" />
-            </Dropdown.Trigger>
-            <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(c)}>
-                <Pencil className="mr-2 inline h-4 w-4" /> Editar
-              </Dropdown.Item>
-              <Dropdown.Item onSelect={() => toggle.mutate(c)}>
-                <Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}
-              </Dropdown.Item>
-              <Dropdown.Item
-                destructive
-                onSelect={async () => {
-                  if (
-                    await confirm({
-                      title: 'Eliminar cupón',
-                      message: `¿Eliminar el cupón ${c.code}?`,
-                      confirmLabel: 'Eliminar',
-                      variant: 'danger',
-                    })
-                  )
-                    remove.mutate(c);
-                }}
-              >
-                <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      ),
+      cell: (c) =>
+        canEdit && (
+          <div className="flex justify-end">
+            <Dropdown>
+              <Dropdown.Trigger label={`Acciones de ${c.code}`}>
+                <MoreVertical className="h-4 w-4" />
+              </Dropdown.Trigger>
+              <Dropdown.Menu align="end">
+                <Dropdown.Item onSelect={() => setEditing(c)}>
+                  <Pencil className="mr-2 inline h-4 w-4" /> Editar
+                </Dropdown.Item>
+                <Dropdown.Item onSelect={() => toggle.mutate(c)}>
+                  <Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}
+                </Dropdown.Item>
+                <Dropdown.Item
+                  destructive
+                  onSelect={async () => {
+                    if (
+                      await confirm({
+                        title: 'Eliminar cupón',
+                        message: `¿Eliminar el cupón ${c.code}?`,
+                        confirmLabel: 'Eliminar',
+                        variant: 'danger',
+                      })
+                    )
+                      remove.mutate(c);
+                  }}
+                >
+                  <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        ),
     },
   ];
 
@@ -188,11 +191,13 @@ export function DiscountsPage() {
                 {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'cupón' : 'cupones')}
               </span>
             )}
-            <Button onClick={() => setCreateOpen(true)}>
-              <span className="inline-flex items-center gap-1.5">
-                <Plus className="h-4 w-4" /> Crear cupón
-              </span>
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Crear cupón
+                </span>
+              </Button>
+            )}
           </div>
         }
       />
@@ -206,7 +211,7 @@ export function DiscountsPage() {
           kicker="Descuentos"
           title="Creá tu primer cupón"
           body="Un código que tus clientes ingresan en el carrito para obtener un descuento o envío gratis."
-          action={{ label: 'Crear cupón', onClick: () => setCreateOpen(true) }}
+          action={canEdit ? { label: 'Crear cupón', onClick: () => setCreateOpen(true) } : undefined}
         />
       ) : (
         <Card flush>

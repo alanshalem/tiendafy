@@ -5,6 +5,7 @@ import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'l
 import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
 import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination } from '../../components/Pagination';
@@ -62,6 +63,8 @@ const FILTER_LABEL: Record<string, string> = {
 
 export function ProductsPage() {
   const { store } = useStore();
+  // Quien solo ve el stock mira la lista; editar, crear y exportar es de catálogo.
+  const canEdit = usePermissions().can('catalog.write');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -119,7 +122,7 @@ export function ProductsPage() {
 
   // Salud del catálogo entero (no de la página): un listado paginado esconde
   // cuántos productos quedaron en borrador o sin foto.
-  const { data: health } = useCatalogHealth();
+  const { data: health } = useCatalogHealth(canEdit);
 
   const { data: cats } = useQuery({
     queryKey: ['categories', store?.id],
@@ -245,18 +248,22 @@ export function ProductsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Productos</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Link to="/productos/exportar-importar">
-            <HeaderBtn>
-              <ArrowUpDown className="h-4 w-4" /> Exportar e importar
-            </HeaderBtn>
-          </Link>
-          <Link to="/productos/nuevo">
-            <Button>
-              <span className="inline-flex items-center gap-1.5">
-                <Plus className="h-4 w-4" /> Agregar producto
-              </span>
-            </Button>
-          </Link>
+          {canEdit && (
+            <>
+              <Link to="/productos/exportar-importar">
+                <HeaderBtn>
+                  <ArrowUpDown className="h-4 w-4" /> Exportar e importar
+                </HeaderBtn>
+              </Link>
+              <Link to="/productos/nuevo">
+                <Button>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Plus className="h-4 w-4" /> Agregar producto
+                  </span>
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -446,12 +453,14 @@ export function ProductsPage() {
               <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
                 <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
                   <th className="w-10 px-3 py-2.5">
-                    <Checkbox
-                      checked={allPageSelected}
-                      indeterminate={somePageSelected}
-                      onChange={toggleSelectAll}
-                      aria-label="Seleccionar todos"
-                    />
+                    {canEdit && (
+                      <Checkbox
+                        checked={allPageSelected}
+                        indeterminate={somePageSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Seleccionar todos"
+                      />
+                    )}
                   </th>
                   <th className="px-3 py-2.5">Producto</th>
                   <th className="w-20 px-3 py-2.5 text-center">Stock</th>
@@ -492,6 +501,7 @@ export function ProductsPage() {
                       product={product}
                       stockMap={stockMap}
                       storeId={store.id}
+                      readOnly={!canEdit}
                       selected={selected.has(product.id)}
                       onToggleSelect={() => toggleSelect(product.id)}
                       onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}

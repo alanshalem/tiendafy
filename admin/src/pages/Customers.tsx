@@ -16,6 +16,7 @@ import {
 } from '@tiendafy/ui';
 import { formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -41,6 +42,7 @@ export function CustomersPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const canEdit = usePermissions().can('customers.write');
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [term, setTerm] = useState('');
@@ -118,36 +120,37 @@ export function CustomersPage() {
     {
       key: 'id',
       header: '',
-      cell: (c) => (
-        <div className="flex justify-end">
-          <Dropdown>
-            <Dropdown.Trigger label={`Acciones de ${c.name}`}>
-              <MoreVertical className="h-4 w-4" />
-            </Dropdown.Trigger>
-            <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(c)}>
-                <Pencil className="mr-2 inline h-4 w-4" /> Editar
-              </Dropdown.Item>
-              <Dropdown.Item
-                destructive
-                onSelect={async () => {
-                  if (
-                    await confirm({
-                      title: 'Eliminar cliente',
-                      message: `¿Eliminar a ${c.name}?`,
-                      confirmLabel: 'Eliminar',
-                      variant: 'danger',
-                    })
-                  )
-                    remove.mutate(c);
-                }}
-              >
-                <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      ),
+      cell: (c) =>
+        canEdit && (
+          <div className="flex justify-end">
+            <Dropdown>
+              <Dropdown.Trigger label={`Acciones de ${c.name}`}>
+                <MoreVertical className="h-4 w-4" />
+              </Dropdown.Trigger>
+              <Dropdown.Menu align="end">
+                <Dropdown.Item onSelect={() => setEditing(c)}>
+                  <Pencil className="mr-2 inline h-4 w-4" /> Editar
+                </Dropdown.Item>
+                <Dropdown.Item
+                  destructive
+                  onSelect={async () => {
+                    if (
+                      await confirm({
+                        title: 'Eliminar cliente',
+                        message: `¿Eliminar a ${c.name}?`,
+                        confirmLabel: 'Eliminar',
+                        variant: 'danger',
+                      })
+                    )
+                      remove.mutate(c);
+                  }}
+                >
+                  <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        ),
     },
   ];
 
@@ -184,26 +187,30 @@ export function CustomersPage() {
               {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
             </span>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => importFromOrders.mutate()}
-            disabled={importFromOrders.isPending}
-            title="Suma a la agenda los compradores de tus ventas anteriores"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {importFromOrders.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
-              Traer de mis ventas
-            </span>
-          </Button>
-          <Button onClick={() => setCreateOpen(true)}>
-            <span className="inline-flex items-center gap-1.5">
-              <Plus className="h-4 w-4" /> Agregar cliente
-            </span>
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => importFromOrders.mutate()}
+                disabled={importFromOrders.isPending}
+                title="Suma a la agenda los compradores de tus ventas anteriores"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  {importFromOrders.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="h-4 w-4" />
+                  )}
+                  Traer de mis ventas
+                </span>
+              </Button>
+              <Button onClick={() => setCreateOpen(true)}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Agregar cliente
+                </span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -223,7 +230,9 @@ export function CustomersPage() {
             kicker="Clientes"
             title="Agregá tu primer cliente"
             body="Cada venta pagada deja acá la ficha de su comprador. Si ya vendiste antes, traé esos compradores con un click."
-            action={{ label: 'Traer de mis ventas', onClick: () => importFromOrders.mutate() }}
+            action={
+              canEdit ? { label: 'Traer de mis ventas', onClick: () => importFromOrders.mutate() } : undefined
+            }
           />
         )
       ) : (

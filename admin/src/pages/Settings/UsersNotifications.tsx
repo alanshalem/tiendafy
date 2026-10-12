@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ShieldAlert, ShieldCheck, Trash2, User } from 'lucide-react';
+import { Loader2, Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
 import { cn, useToast, useConfirm } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
+import type { Perm } from '../../lib/access';
 import { HelpLink } from '../../components/HelpLink';
 import { usePermissions } from '../../context/PermissionsContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,69 +13,41 @@ import { formatDate, formatNumber } from '../../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
-import { RolePermissionsMatrix, SENSITIVE_KEYS, usePermissionMatrix } from './RolePermissionsMatrix';
+import { OWNER, ROLE_BADGE, sensitiveKeys, useAccessMatrix, type RoleRow } from './team-access';
+import { MemberPermissionsModal, type MemberForPermissions } from './member-permissions';
+import { TeamActivity } from './team-activity';
 
-interface Member {
-  userId: string;
-  role: string;
-  email: string | null;
-  name: string | null;
+interface Member extends MemberForPermissions {
   createdAtUtc: string;
 }
 
-interface RoleMeta {
-  value: string;
-  label: string;
-  desc: string;
-  badge: string;
-}
-
-const ROLES: RoleMeta[] = [
-  { value: 'owner', label: 'Dueño', desc: 'control total', badge: 'bg-amber-100 text-amber-700' },
-  {
-    value: 'admin',
-    label: 'Administrador',
-    desc: 'todo lo operativo',
-    badge: 'bg-purple-100 text-purple-700',
-  },
-  { value: 'vendedor', label: 'Vendedor', desc: 'ventas, clientes y chat', badge: 'bg-sky-100 text-sky-700' },
-  {
-    value: 'catalogo',
-    label: 'Catálogo',
-    desc: 'productos e inventario',
-    badge: 'bg-green-100 text-green-700',
-  },
-  { value: 'finanzas', label: 'Finanzas', desc: 'reportes y reembolsos', badge: 'bg-blue-100 text-blue-700' },
-  { value: 'soporte', label: 'Soporte', desc: 'posventa y mensajes', badge: 'bg-rose-100 text-rose-700' },
-];
-
-/** "staff" es el rol legacy: equivale a admin. */
-const normalizeRole = (r: string): string => (r === 'staff' ? 'admin' : r);
-
-const roleMeta = (r: string): RoleMeta =>
-  ROLES.find((x) => x.value === normalizeRole(r)) ?? {
-    value: r,
-    label: r,
-    desc: '',
-    badge: 'bg-gray-100 text-gray-600',
-  };
-
-const roleOptionLabel = (r: RoleMeta) => (r.desc ? `${r.label} — ${r.desc}` : r.label);
-
-const ROLE_LABELS: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
-
 /** Usuarios por página. */
 const PAGE_SIZE = 25;
+
+const roleOptionLabel = (r: RoleRow) => `${r.label} — ${r.summary}`;
 
 export function UsersNotificationsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
-  const { role: myRoleRaw, can } = usePermissions();
+  const { role: myRole, can, reload } = usePermissions();
   const { user: me } = useAuth();
-  const myRole = normalizeRole(myRoleRaw ?? '');
-  const isOwner = myRole === 'owner';
+  const isOwner = myRole === OWNER;
   const canManage = can('members.manage');
+
+  // La matriz real del backend: nombres de los roles, qué puede cada uno y qué
+  // es sensible. Sin copia acá que pueda quedar desactualizada.
+  const { data: matrix } = useAccessMatrix();
+  const roles = matrix?.roles ?? [];
+  const roleOf = (key: string) => roles.find((r) => r.role === key);
+  const sensitive = sensitiveKeys(matrix);
+  const myRank = roleOf(myRole ?? '')?.rank ?? 0;
+
+  // Los roles que esta persona puede asignar: las mismas reglas que el backend
+  // (nunca por encima del propio, ni uno que pueda algo que ella no puede).
+  const assignable = roles.filter(
+    (r) => isOwner || (r.role !== OWNER && r.rank <= myRank && r.permissions.every((p) => can(p))),
+  );
 
   const [page, setPage] = useState(1);
   const membersQ = useQuery({
@@ -86,15 +60,16 @@ export function UsersNotificationsPage() {
   });
   const totalPages = Math.max(1, Math.ceil((membersQ.data?.total ?? 0) / PAGE_SIZE));
 
-  // Roles asignables: nunca por encima del propio. Solo el dueño puede asignar "owner".
-  const assignable = isOwner ? ROLES : ROLES.filter((r) => r.value !== 'owner');
-
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('vendedor');
+  const [editingPermissions, setEditingPermissions] = useState<Member | null>(null);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['members'] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['members'] });
+    qc.invalidateQueries({ queryKey: ['team-activity'] });
+  };
   // El backend valida jerarquía y devuelve mensajes en español: se muestran tal cual.
   const onError = (e: unknown) => toast(errMsg(e, 'No se pudo completar la acción.'), { variant: 'error' });
 
@@ -113,9 +88,11 @@ export function UsersNotificationsPage() {
   const changeRole = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) =>
       api.patch(`/api/v1/members/${userId}`, { role }),
-    onSuccess: () => {
+    onSuccess: (_d, { userId }) => {
       toast('Rol actualizado', { variant: 'success' });
       invalidate();
+      // Si me cambié a mí, el menú tiene que reflejar lo que puedo ahora.
+      if (userId === me?.id) reload();
     },
     onError,
   });
@@ -129,20 +106,11 @@ export function UsersNotificationsPage() {
   });
 
   const members = membersQ.data?.items ?? [];
-  const [matrixOpen, setMatrixOpen] = useState(false);
-
-  // La matriz real del backend: la misma que decide los permisos en cada
-  // request. Sirve para marcar quién tiene accesos sensibles sin repetir acá
-  // una copia de la política que puede quedar desactualizada.
-  const { data: matrix } = usePermissionMatrix();
-  const permissionsOf = (role: string): string[] =>
-    matrix?.items.find((r) => r.role === normalizeRole(role))?.permissions ?? [];
-  const sensitiveOf = (role: string) => permissionsOf(role).filter((p) => SENSITIVE_KEYS.includes(p));
-
   const total = membersQ.data?.total ?? 0;
-  const owners = members.filter((m) => normalizeRole(m.role) === 'owner');
-  const canRefund = members.filter((m) => permissionsOf(m.role).includes('orders.refund'));
-  const canInvite = members.filter((m) => permissionsOf(m.role).includes('members.manage'));
+  const owners = members.filter((m) => m.role === OWNER);
+  const canRefund = members.filter((m) => m.permissions.includes('orders.refund'));
+  const canInvite = members.filter((m) => m.permissions.includes('members.manage'));
+  const sensitiveOf = (m: Member) => m.permissions.filter((p: Perm) => sensitive.has(p));
 
   /**
    * Los cambios que no se pueden deshacer solos piden confirmación: ascender a
@@ -152,7 +120,7 @@ export function UsersNotificationsPage() {
   const confirmRoleChange = async (m: Member, next: string): Promise<boolean> => {
     const who = m.name ?? m.email ?? 'esta persona';
 
-    if (next === 'owner') {
+    if (next === OWNER) {
       return confirm({
         title: 'Hacer dueño',
         message: `${who} va a tener control total de la tienda, incluido borrarla y sacarte a vos. ¿Seguís?`,
@@ -171,6 +139,14 @@ export function UsersNotificationsPage() {
       });
     }
 
+    if (m.customized) {
+      return confirm({
+        title: 'Cambiar el rol',
+        message: `${who} tiene permisos personalizados. Al cambiarle el rol, esas excepciones se borran.`,
+        confirmLabel: 'Cambiar el rol',
+      });
+    }
+
     return true;
   };
 
@@ -179,8 +155,8 @@ export function UsersNotificationsPage() {
       <SettingsHeader
         title="Usuarios y permisos"
         description={`Invitá a tu equipo y elegí qué puede hacer cada uno en el panel.${
-          (membersQ.data?.total ?? 0) > 0
-            ? ` · ${pageRangeLabel(page, PAGE_SIZE, membersQ.data!.total, membersQ.data!.total === 1 ? 'usuario' : 'usuarios')}`
+          total > 0
+            ? ` · ${pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'usuario' : 'usuarios')}`
             : ''
         }`}
         action={
@@ -256,12 +232,14 @@ export function UsersNotificationsPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@ejemplo.com"
+                  aria-label="Email"
                   className="h-10 min-w-[14rem] flex-1 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
                 />
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre (opcional)"
+                  aria-label="Nombre"
                   className="h-10 min-w-[10rem] flex-1 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
                 />
                 <select
@@ -271,7 +249,7 @@ export function UsersNotificationsPage() {
                   className="h-10 rounded-md border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary"
                 >
                   {assignable.map((r) => (
-                    <option key={r.value} value={r.value}>
+                    <option key={r.role} value={r.role}>
                       {roleOptionLabel(r)}
                     </option>
                   ))}
@@ -311,13 +289,17 @@ export function UsersNotificationsPage() {
                 )}
                 {members.map((m) => {
                   const isMe = m.userId === me?.id;
-                  const meta = roleMeta(m.role);
-                  // Sin ser owner no se puede tocar a un owner (el backend igual lo bloquea).
-                  const lockedOwner = normalizeRole(m.role) === 'owner' && !isOwner;
-                  const editable = canManage && !lockedOwner;
-                  const options = assignable.some((r) => r.value === normalizeRole(m.role))
-                    ? assignable
-                    : [meta, ...assignable];
+                  const meta = roleOf(m.role);
+                  const target = meta?.rank ?? 0;
+                  // Las mismas reglas que el backend: a un dueño solo lo toca
+                  // otro dueño, y nadie toca a alguien de su rango o más.
+                  const touchable = isOwner || (m.role !== OWNER && (isMe || target < myRank));
+                  const editable = canManage && touchable;
+                  const canEditPermissions =
+                    canManage && !isMe && m.role !== OWNER && (isOwner || target < myRank);
+                  const options =
+                    assignable.some((r) => r.role === m.role) || !meta ? assignable : [meta, ...assignable];
+                  const sens = sensitiveOf(m);
                   return (
                     <tr key={m.userId} className="border-b border-border last:border-b-0">
                       <td className="px-4 py-3">
@@ -333,46 +315,56 @@ export function UsersNotificationsPage() {
                         {editable ? (
                           <select
                             aria-label={`Rol de ${m.email ?? 'este usuario'}`}
-                            value={normalizeRole(m.role)}
+                            value={m.role}
                             disabled={changeRole.isPending}
                             onChange={async (e) => {
                               const next = e.target.value;
-                              const current = normalizeRole(m.role);
-                              if (next === current) return;
+                              if (next === m.role) return;
                               if (!(await confirmRoleChange(m, next))) {
                                 // Volver a dejar el select como estaba: el
                                 // cambio se cancela, no queda a medias.
-                                e.target.value = current;
+                                e.target.value = m.role;
                                 return;
                               }
                               changeRole.mutate({ userId: m.userId, role: next });
                             }}
                             className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg outline-none focus:border-primary disabled:opacity-60"
-                            title={meta.desc || undefined}
+                            title={meta?.summary}
                           >
                             {options.map((r) => (
-                              <option key={r.value} value={r.value}>
+                              <option key={r.role} value={r.role}>
                                 {roleOptionLabel(r)}
                               </option>
                             ))}
                           </select>
                         ) : (
                           <span
-                            className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', meta.badge)}
-                            title={meta.desc || undefined}
+                            className={cn(
+                              'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                              ROLE_BADGE[m.role] ?? 'bg-gray-100 text-gray-600',
+                            )}
+                            title={meta?.summary}
                           >
-                            {meta.label}
+                            {meta?.label ?? m.role}
+                          </span>
+                        )}
+                        {m.customized && (
+                          <span
+                            className="mt-1 block text-[11px] font-medium text-primary"
+                            title="Tiene permisos distintos de los de su rol."
+                          >
+                            Personalizado
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {sensitiveOf(m.role).length > 0 ? (
+                        {sens.length > 0 ? (
                           <span
                             className="inline-flex items-center gap-1 text-xs font-medium text-warning"
-                            title={`Accesos sensibles: ${sensitiveOf(m.role).length}. Mirá el detalle en "Qué puede hacer cada rol".`}
+                            title={`Accesos sensibles: ${sens.length}.`}
                           >
                             <ShieldAlert className="h-3.5 w-3.5" />
-                            {sensitiveOf(m.role).length}
+                            {sens.length}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs text-fg-subtle">
@@ -381,27 +373,39 @@ export function UsersNotificationsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-fg-muted">{formatDate(m.createdAtUtc)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {editable && (
-                          <button
-                            onClick={async () => {
-                              if (
-                                await confirm({
-                                  title: 'Quitar de la tienda',
-                                  message: `¿Quitar a ${m.email ?? m.name ?? 'este usuario'} de la tienda?`,
-                                  confirmLabel: 'Quitar',
-                                  variant: 'danger',
-                                })
-                              )
-                                removeM.mutate(m.userId);
-                            }}
-                            disabled={removeM.isPending}
-                            className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-60"
-                            aria-label="Quitar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1.5">
+                          {canEditPermissions && matrix && (
+                            <button
+                              onClick={() => setEditingPermissions(m)}
+                              className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted hover:text-fg"
+                              aria-label={`Permisos de ${m.email ?? m.name ?? 'este usuario'}`}
+                              title="Permisos de esta persona"
+                            >
+                              <SlidersHorizontal className="h-4 w-4" />
+                            </button>
+                          )}
+                          {editable && (
+                            <button
+                              onClick={async () => {
+                                if (
+                                  await confirm({
+                                    title: 'Quitar de la tienda',
+                                    message: `¿Quitar a ${m.email ?? m.name ?? 'este usuario'} de la tienda?`,
+                                    confirmLabel: 'Quitar',
+                                    variant: 'danger',
+                                  })
+                                )
+                                  removeM.mutate(m.userId);
+                              }}
+                              disabled={removeM.isPending}
+                              className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-60"
+                              aria-label="Quitar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -423,27 +427,32 @@ export function UsersNotificationsPage() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-fg">Los roles, en resumen</p>
                 <div className="mt-2 grid gap-1 text-xs text-fg-muted sm:grid-cols-2">
-                  {ROLES.map((r) => (
-                    <div key={r.value}>
-                      <strong className="text-fg">{r.label}</strong> — {r.desc}
+                  {roles.map((r) => (
+                    <div key={r.role}>
+                      <strong className="text-fg">{r.label}</strong> — {r.summary}
                     </div>
                   ))}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setMatrixOpen(true)}
+              <Link
+                to="/configuracion/roles"
                 className="shrink-0 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
               >
-                Ver qué puede hacer cada rol
-              </button>
+                {can('roles.manage') ? 'Ver y editar qué puede cada rol' : 'Ver qué puede hacer cada rol'}
+              </Link>
             </div>
           </div>
 
-          {matrixOpen && (
-            <RolePermissionsMatrix roleLabels={ROLE_LABELS} onClose={() => setMatrixOpen(false)} />
-          )}
+          <TeamActivity />
         </>
+      )}
+
+      {editingPermissions && matrix && (
+        <MemberPermissionsModal
+          member={editingPermissions}
+          matrix={matrix}
+          onClose={() => setEditingPermissions(null)}
+        />
       )}
 
       <HelpLink id="users" />

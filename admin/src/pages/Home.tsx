@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check } from 'lucide-react';
 import { Badge, Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
-import { canAny, usePermissions } from '../context/PermissionsContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { api } from '../lib/api';
 import { formatMoney, formatNumber } from '../lib/format';
 import { Sparkline } from '../components/charts';
@@ -27,6 +27,10 @@ interface Sales {
 
 export function HomePage() {
   const { store } = useStore();
+  const { can } = usePermissions();
+  // Cada tarjeta pide lo suyo solo si la persona lo puede ver: sin esto, a
+  // alguien de catálogo o de soporte el Inicio le tiraba un 403 por tarjeta.
+  const canStats = can('stats.read');
 
   const { data: products } = useQuery({
     queryKey: ['products', store?.id, 'count'],
@@ -36,22 +40,23 @@ export function HomePage() {
   const { data: overview } = useQuery({
     queryKey: ['stats-overview', store?.id],
     queryFn: () => api.get<Overview>('/api/v1/stats/overview'),
-    enabled: !!store,
+    enabled: !!store && canStats,
   });
   const { data: sales } = useQuery({
     queryKey: ['stats-sales-30', store?.id],
     queryFn: () => api.get<Sales>('/api/v1/stats/sales?days=30'),
-    enabled: !!store,
+    enabled: !!store && canStats,
   });
   const { data: mp } = useQuery({
     queryKey: ['mp-connection', store?.id],
     queryFn: () => api.get<{ connected: boolean }>('/api/v1/payments/mercadopago/connection'),
-    enabled: !!store,
+    enabled: !!store && can('payments.read'),
   });
   const { data: theme } = useQuery({
     queryKey: ['theme-published', store?.id],
-    queryFn: () => api.get<{ logo?: string }>('/api/v1/admin/theme'),
-    enabled: !!store,
+    // La config publicada (la misma que ve el comprador): tiene el logo.
+    queryFn: () => api.get<{ logo?: string }>('/api/v1/theme'),
+    enabled: !!store && can('content.write'),
   });
 
   if (!store) {
@@ -60,20 +65,25 @@ export function HomePage() {
 
   const hasProducts = (products?.items.length ?? 0) > 0;
 
+  // Los pasos que la persona puede hacer: no tiene sentido mandar a alguien de
+  // soporte a conectar Mercado Pago.
   const steps = [
     {
       done: true,
       title: 'Creaste tu tienda',
       body: `${storefrontHost(store.subdomain)} ya existe.`,
       to: '/tenants',
+      allowed: true,
     },
     {
+      allowed: can('catalog.write'),
       done: hasProducts,
       title: 'Cargá tu primer producto',
       body: 'Con foto, precio y variantes. Es lo que tus clientes van a ver.',
       to: '/productos',
     },
     {
+      allowed: can('payments.write'),
       done: mp?.connected ?? false,
       title: mp?.connected ? 'Mercado Pago conectado' : 'Conectá Mercado Pago',
       body: mp?.connected
@@ -82,12 +92,13 @@ export function HomePage() {
       to: '/configuracion/medios-de-pago',
     },
     {
+      allowed: can('content.write'),
       done: Boolean(theme?.logo),
       title: 'Personalizá tu tienda',
       body: 'Logo, colores, tipografía y secciones a tu medida.',
       to: '/canales/tienda-online',
     },
-  ];
+  ].filter((s) => s.allowed);
 
   // Puesta en marcha: sirve al abrir una tienda nueva y estorba el resto del
   // tiempo. Cuando está todo hecho, la tarjeta desaparece sola.
@@ -105,31 +116,37 @@ export function HomePage() {
       <AvisosCard />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Ventas (30 días)</div>
-          <div className="mt-1 text-2xl font-bold text-fg">
-            {sales ? formatMoney(sales.revenue, sales.currency) : '—'}
-          </div>
-          <div className="mt-1 text-xs text-fg-subtle">
-            {sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}
-          </div>
-          {sales && sales.series.length > 1 && (
-            <div className="mt-2">
-              <Sparkline data={sales.series.map((s) => s.revenue)} />
+        {canStats && (
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+              Ventas (30 días)
             </div>
-          )}
-        </Card>
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Productos</div>
-          <div className="mt-1 text-2xl font-bold text-fg">
-            {overview ? formatNumber(overview.products.total) : '—'}
-          </div>
-          <div className="mt-1 text-xs text-fg-subtle">
-            {overview
-              ? `${overview.products.published} publicados · ${overview.products.draft} borradores`
-              : 'Cargando…'}
-          </div>
-        </Card>
+            <div className="mt-1 text-2xl font-bold text-fg">
+              {sales ? formatMoney(sales.revenue, sales.currency) : '—'}
+            </div>
+            <div className="mt-1 text-xs text-fg-subtle">
+              {sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}
+            </div>
+            {sales && sales.series.length > 1 && (
+              <div className="mt-2">
+                <Sparkline data={sales.series.map((s) => s.revenue)} />
+              </div>
+            )}
+          </Card>
+        )}
+        {canStats && (
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Productos</div>
+            <div className="mt-1 text-2xl font-bold text-fg">
+              {overview ? formatNumber(overview.products.total) : '—'}
+            </div>
+            <div className="mt-1 text-xs text-fg-subtle">
+              {overview
+                ? `${overview.products.published} publicados · ${overview.products.draft} borradores`
+                : 'Cargando…'}
+            </div>
+          </Card>
+        )}
         <Card>
           <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Estado</div>
           <div className="mt-1 text-2xl font-bold text-fg">
@@ -197,9 +214,8 @@ function AvisosCard() {
   const { store } = useStore();
   const { can } = usePermissions();
 
-  const canPurchasing = canAny(can, 'purchasing');
-  const canSocial = canAny(can, 'social');
-  const canStats = canAny(can, 'stats.read');
+  const canPurchasing = can('purchasing.manage');
+  const canSocial = can('social.publish');
 
   const { data: reorder } = useQuery({
     queryKey: ['reorder-suggestions', store?.id, ''],
@@ -222,7 +238,7 @@ function AvisosCard() {
       api.get<{ items: { status: string; fiscalDocumentId: string | null }[] }>(
         '/api/v1/admin/meli/orders?limit=50',
       ),
-    enabled: !!store && canStats,
+    enabled: !!store && can('meli.operate'),
   });
 
   const { data: profit } = useQuery({
@@ -231,7 +247,7 @@ function AvisosCard() {
       api.get<{ coverage: { ordersWithCost: number; ordersTotal: number } }>(
         '/api/v1/stats/profitability?days=30',
       ),
-    enabled: !!store && canStats,
+    enabled: !!store && can('costs.read'),
   });
 
   const avisos: Aviso[] = [];

@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Home, Loader2, ShieldOff } from 'lucide-react';
 import { api } from '../lib/api';
+import { satisfies, type Perm, type PermRequirement } from '../lib/access';
 import { useStore } from './StoreContext';
 
 /** Respuesta de GET /api/v1/me/permissions (rol + claves efectivas en la tienda activa). */
@@ -16,7 +17,9 @@ interface PermissionsContextValue {
   /** true mientras se resuelven las tiendas o los permisos. */
   loading: boolean;
   /** ¿Tiene el permiso? Devuelve false mientras carga o si la carga falló. */
-  can: (perm: string) => boolean;
+  can: (perm: Perm) => boolean;
+  /** Vuelve a pedir los permisos (después de cambiarse el rol a uno mismo). */
+  reload: () => void;
 }
 
 const PermissionsContext = createContext<PermissionsContextValue | null>(null);
@@ -27,13 +30,8 @@ export function usePermissions(): PermissionsContextValue {
   return ctx;
 }
 
-/** true si tiene ALGUNO de los permisos pedidos (string o lista). */
-export function canAny(can: (p: string) => boolean, perm: string | string[]): boolean {
-  return (Array.isArray(perm) ? perm : [perm]).some(can);
-}
-
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { store, isLoading: storesLoading } = useStore();
+  const { store, stores, isLoading: storesLoading } = useStore();
   const [state, setState] = useState<{
     role: string | null;
     permissions: Set<string>;
@@ -41,11 +39,15 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   }>({ role: null, permissions: new Set(), loading: true });
 
   const storeId = store?.id ?? null;
+  const [version, setVersion] = useState(0);
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
 
   useEffect(() => {
     if (!storeId) {
-      // Sin tienda activa: sin permisos. Mientras las tiendas cargan seguimos en loading.
-      setState({ role: null, permissions: new Set(), loading: storesLoading });
+      // Sin tienda activa: sin permisos. Mientras las tiendas cargan —o ya
+      // llegaron y la activa se está eligiendo— seguimos en loading: si no, por
+      // un instante parecía no tener permisos y las pantallas lo echaban.
+      setState({ role: null, permissions: new Set(), loading: storesLoading || stores.length > 0 });
       return;
     }
     let alive = true;
@@ -61,15 +63,16 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [storeId, storesLoading]);
+  }, [storeId, storesLoading, stores.length, version]);
 
   const value = useMemo<PermissionsContextValue>(
     () => ({
       role: state.role,
       loading: state.loading,
-      can: (perm: string) => !state.loading && state.permissions.has(perm),
+      can: (perm: Perm) => !state.loading && state.permissions.has(perm),
+      reload,
     }),
-    [state],
+    [state, reload],
   );
 
   return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>;
@@ -77,9 +80,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
 /**
  * Guard de rutas: muestra spinner mientras cargan los permisos y una pantalla
- * amigable si el rol no tiene acceso. `perm` acepta string o lista (pasa con alguno).
+ * amigable si no tiene acceso. `perm` acepta uno o varios (pasa con alguno).
  */
-export function RequirePerm({ perm, children }: { perm: string | string[]; children: ReactNode }) {
+export function RequirePerm({ perm, children }: { perm: PermRequirement; children: ReactNode }) {
   const { can, loading } = usePermissions();
 
   if (loading) {
@@ -90,7 +93,7 @@ export function RequirePerm({ perm, children }: { perm: string | string[]; child
     );
   }
 
-  if (!canAny(can, perm)) {
+  if (!satisfies(can, perm)) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-bg-muted text-fg-muted">
@@ -98,8 +101,8 @@ export function RequirePerm({ perm, children }: { perm: string | string[]; child
         </span>
         <h1 className="text-lg font-bold text-fg">No tenés permiso para ver esta sección</h1>
         <p className="max-w-sm text-sm text-fg-muted">
-          Si creés que deberías tener acceso, pedile al dueño o a un administrador de la tienda que ajuste tu
-          rol.
+          Si creés que deberías tener acceso, pedile al dueño o a un administrador de la tienda que ajuste tus
+          permisos.
         </p>
         <Link
           to="/"

@@ -12,6 +12,7 @@ export function ProductRows({
   product,
   stockMap,
   storeId,
+  readOnly = false,
   selected,
   onToggleSelect,
   onStatus,
@@ -21,6 +22,8 @@ export function ProductRows({
   product: ProductDto;
   stockMap: Map<string, StockItem>;
   storeId: string;
+  /** Sin permiso de catálogo: se mira, no se edita (ni precio, ni acciones, ni selección). */
+  readOnly?: boolean;
   selected: boolean;
   onToggleSelect: () => void;
   onStatus: (publish: boolean) => void;
@@ -69,11 +72,13 @@ export function ProductRows({
             {vi === 0 ? (
               <>
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
-                  <Checkbox
-                    checked={selected}
-                    onChange={onToggleSelect}
-                    aria-label={`Seleccionar ${product.name}`}
-                  />
+                  {!readOnly && (
+                    <Checkbox
+                      checked={selected}
+                      onChange={onToggleSelect}
+                      aria-label={`Seleccionar ${product.name}`}
+                    />
+                  )}
                 </td>
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
                   <div className="flex items-start gap-3">
@@ -89,12 +94,16 @@ export function ProductRows({
                       </div>
                     )}
                     <div className="min-w-0">
-                      <Link
-                        to={`/productos/${product.id}/editar`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {product.name}
-                      </Link>
+                      {readOnly ? (
+                        <span className="font-medium text-fg">{product.name}</span>
+                      ) : (
+                        <Link
+                          to={`/productos/${product.id}/editar`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {product.name}
+                        </Link>
+                      )}
                       <div className="text-xs text-fg-subtle">/{product.slug}</div>
                       <div className="mt-1">
                         <Badge variant={statusVariant[product.status]}>{statusLabel[product.status]}</Badge>
@@ -117,6 +126,7 @@ export function ProductRows({
               <PriceInput
                 label={`Precio de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
                 value={form.regular}
+                readOnly={readOnly}
                 onSave={(amount) => savePrice.mutate({ variant, regular: amount, promo: form.promo })}
               />
             </td>
@@ -125,6 +135,7 @@ export function ProductRows({
                 label={`Precio promocional de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
                 value={form.promo}
                 placeholder="—"
+                readOnly={readOnly}
                 onSave={(amount) => savePrice.mutate({ variant, regular: form.regular, promo: amount })}
               />
             </td>
@@ -133,38 +144,40 @@ export function ProductRows({
             </td>
             {vi === 0 ? (
               <td className="px-3 py-3 text-right align-top" rowSpan={product.variants.length}>
-                <Dropdown>
-                  <Dropdown.Trigger label={`Acciones de ${product.name}`}>
-                    <MoreVertical className="h-4 w-4" />
-                  </Dropdown.Trigger>
-                  <Dropdown.Menu align="end">
-                    <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>
-                      Editar
-                    </Dropdown.Item>
-                    <Dropdown.Item onSelect={onDuplicate}>Duplicar</Dropdown.Item>
-                    {product.status === 'ACTIVE' ? (
-                      <Dropdown.Item onSelect={() => onStatus(false)}>Archivar</Dropdown.Item>
-                    ) : (
-                      <Dropdown.Item onSelect={() => onStatus(true)}>Publicar</Dropdown.Item>
-                    )}
-                    <Dropdown.Item
-                      destructive
-                      onSelect={async () => {
-                        if (
-                          await confirm({
-                            title: 'Eliminar producto',
-                            message: `¿Eliminar "${product.name}"? No se puede deshacer.`,
-                            confirmLabel: 'Eliminar',
-                            variant: 'danger',
-                          })
-                        )
-                          onDelete();
-                      }}
-                    >
-                      Eliminar
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
+                {!readOnly && (
+                  <Dropdown>
+                    <Dropdown.Trigger label={`Acciones de ${product.name}`}>
+                      <MoreVertical className="h-4 w-4" />
+                    </Dropdown.Trigger>
+                    <Dropdown.Menu align="end">
+                      <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>
+                        Editar
+                      </Dropdown.Item>
+                      <Dropdown.Item onSelect={onDuplicate}>Duplicar</Dropdown.Item>
+                      {product.status === 'ACTIVE' ? (
+                        <Dropdown.Item onSelect={() => onStatus(false)}>Archivar</Dropdown.Item>
+                      ) : (
+                        <Dropdown.Item onSelect={() => onStatus(true)}>Publicar</Dropdown.Item>
+                      )}
+                      <Dropdown.Item
+                        destructive
+                        onSelect={async () => {
+                          if (
+                            await confirm({
+                              title: 'Eliminar producto',
+                              message: `¿Eliminar "${product.name}"? No se puede deshacer.`,
+                              confirmLabel: 'Eliminar',
+                              variant: 'danger',
+                            })
+                          )
+                            onDelete();
+                        }}
+                      >
+                        Eliminar
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                )}
               </td>
             ) : null}
           </tr>
@@ -179,12 +192,14 @@ function PriceInput({
   label,
   value,
   placeholder,
+  readOnly = false,
   onSave,
 }: {
   /** Nombre accesible: en la fila no hay un <label> visible, el encabezado de la columna lo da a entender. */
   label: string;
   value: number | null;
   placeholder?: string;
+  readOnly?: boolean;
   onSave: (amountCents: number) => void;
 }) {
   const initial = value != null ? (value / 100).toString() : '';
@@ -208,8 +223,9 @@ function PriceInput({
         aria-label={label}
         value={draft}
         placeholder={placeholder}
+        readOnly={readOnly}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
+        onBlur={readOnly ? undefined : commit}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         className="h-8 w-full bg-transparent px-1.5 text-sm tabular-nums focus:outline-none"
         inputMode="decimal"

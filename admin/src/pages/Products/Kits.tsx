@@ -10,6 +10,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { VariantPicker } from '../../components/VariantPicker';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { usePermissions } from '../../context/PermissionsContext';
 
 interface KitDto {
   kitVariantId: string;
@@ -31,6 +32,7 @@ interface DraftComponent {
  */
 export function KitsPage() {
   const { store } = useStore();
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -45,7 +47,8 @@ export function KitsPage() {
       api.get<{ items: { kitVariantId: string; suggestedCostMinor: number | null }[] }>(
         '/api/v1/products/kits/suggested-costs',
       ),
-    enabled: !!store,
+    // El costo sugerido muestra costos: solo para quien puede verlos.
+    enabled: !!store && can('costs.read'),
   });
   const suggestedByKit = new Map((suggested?.items ?? []).map((i) => [i.kitVariantId, i.suggestedCostMinor]));
 

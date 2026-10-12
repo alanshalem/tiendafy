@@ -259,7 +259,10 @@ describe('ventas: venta manual', () => {
       within(dialog).getByPlaceholderText('Buscar producto o SKU para agregar…'),
       product.name.slice(0, 5),
     );
-    await user.click(await within(dialog).findByRole('button', { name: rx(product.name) }));
+    // La búsqueda espera a que se deje de tipear (debounce) antes de ir a la API.
+    await user.click(
+      await within(dialog).findByRole('button', { name: rx(product.name) }, { timeout: 4000 }),
+    );
     return { api, user, dialog: within(dialog), root: dialog };
   }
 

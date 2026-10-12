@@ -4,6 +4,8 @@ import { Search, CornerDownLeft, Package } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { useProductSearch } from '../lib/useProductSearch';
 import { usePermissions } from '../context/PermissionsContext';
+import { visibleMainNav, visibleSettingsNav } from '../config/navigation';
+import { routePerm, satisfies, type Perm } from '../lib/access';
 import { foldText } from '../lib/text';
 
 /* ============================================================
@@ -14,133 +16,65 @@ import { foldText } from '../lib/text';
 interface NavCommand {
   label: string;
   to: string;
-  /** Permiso requerido (alguno de la lista). Sin permiso no se lista. */
-  perm?: string | string[];
   /** Términos extra de búsqueda (sinónimos). */
   keywords?: string;
   group: string;
 }
 
-const NAV: NavCommand[] = [
-  { label: 'Inicio', to: '/', keywords: 'home dashboard', group: 'Ir a' },
-  {
-    label: 'Productos',
-    to: '/productos',
-    perm: ['inventory.read', 'catalog.write'],
-    keywords: 'catalogo',
-    group: 'Ir a',
-  },
-  {
-    label: 'Nuevo producto',
-    to: '/productos/nuevo',
-    perm: 'catalog.write',
-    keywords: 'crear agregar',
-    group: 'Ir a',
-  },
-  { label: 'Categorías', to: '/productos/categorias', perm: 'catalog.write', group: 'Ir a' },
-  {
-    label: 'Inventario',
-    to: '/productos/inventario',
-    perm: 'inventory.read',
-    keywords: 'stock',
-    group: 'Ir a',
-  },
-  { label: 'Ventas', to: '/ventas', perm: 'orders.read', keywords: 'ordenes pedidos', group: 'Ir a' },
-  { label: 'Carritos abandonados', to: '/ventas/carritos', perm: 'orders.read', group: 'Ir a' },
-  { label: 'Clientes', to: '/clientes', perm: 'customers.read', group: 'Ir a' },
-  {
-    label: 'Cupones',
-    to: '/descuentos',
-    perm: 'discounts.read',
-    keywords: 'descuentos cupon',
-    group: 'Ir a',
-  },
-  {
-    label: 'Mensajes de contacto',
-    to: '/mensajes',
-    perm: 'messages.read',
-    keywords: 'arrepentimiento consultas',
-    group: 'Ir a',
-  },
-  { label: 'Posventa', to: '/posventa', perm: 'support.chat', keywords: 'chat soporte', group: 'Ir a' },
-  {
-    label: 'Páginas de contenido',
-    to: '/paginas',
-    perm: 'content.write',
-    keywords: 'cms institucionales',
-    group: 'Ir a',
-  },
-  {
-    label: 'Editor de diseño',
-    to: '/canales/tienda-online',
-    perm: 'content.write',
-    keywords: 'tema tienda online personalizar',
-    group: 'Ir a',
-  },
+/** Sinónimos para encontrar cada pantalla con las palabras de cada uno. */
+const KEYWORDS: Record<string, string> = {
+  '/': 'home dashboard',
+  '/productos': 'catalogo',
+  '/productos/inventario': 'stock',
+  '/ventas': 'ordenes pedidos',
+  '/descuentos': 'descuentos cupon',
+  '/mensajes': 'arrepentimiento consultas',
+  '/posventa': 'chat soporte',
+  '/paginas': 'cms institucionales',
+  '/canales/tienda-online': 'tema tienda online personalizar editor diseño',
+  '/estadisticas': 'reportes analytics',
+  '/tenants': 'tiendas sucursales',
+  '/presupuestos': 'cotizacion',
+  '/compras': 'importaciones ordenes de compra contenedor',
+  '/tesoreria': 'caja banco cobros pagos',
+  '/configuracion/medios-de-pago': 'mercado pago cobros payway',
+  '/configuracion/medios-de-envio': 'correo envios andreani zipnova',
+  '/configuracion/facturacion': 'afip arca factura fiscal',
+  '/configuracion/usuarios': 'staff equipo',
+  '/configuracion/roles': 'permisos matriz accesos',
+};
+
+/** Accesos que no son una entrada de menú. */
+const EXTRA: NavCommand[] = [
+  { label: 'Nuevo producto', to: '/productos/nuevo', keywords: 'crear agregar', group: 'Ir a' },
   {
     label: 'Diseños listos',
     to: '/canales/tienda-online/disenios',
-    perm: 'content.write',
     keywords: 'plantillas temas',
     group: 'Ir a',
   },
-  {
-    label: 'Estadísticas',
-    to: '/estadisticas',
-    perm: 'stats.read',
-    keywords: 'reportes analytics',
-    group: 'Ir a',
-  },
-  { label: 'Mis tiendas', to: '/tenants', keywords: 'tiendas sucursales', group: 'Ir a' },
   { label: 'Centro de ayuda', to: '/ayuda', keywords: 'help soporte', group: 'Ir a' },
-  {
-    label: 'Medios de pago',
-    to: '/configuracion/medios-de-pago',
-    perm: 'payments.read',
-    keywords: 'mercado pago cobros',
-    group: 'Configuración',
-  },
-  {
-    label: 'Medios de envío',
-    to: '/configuracion/medios-de-envio',
-    perm: 'settings.write',
-    keywords: 'correo envios',
-    group: 'Configuración',
-  },
-  {
-    label: 'Emails automáticos',
-    to: '/configuracion/emails-automaticos',
-    perm: 'settings.write',
-    group: 'Configuración',
-  },
-  {
-    label: 'WhatsApp automático',
-    to: '/configuracion/whatsapp-automatico',
-    perm: 'settings.write',
-    group: 'Configuración',
-  },
-  {
-    label: 'Opciones del checkout',
-    to: '/configuracion/opciones-del-checkout',
-    perm: 'settings.write',
-    group: 'Configuración',
-  },
-  {
-    label: 'Facturación (ARCA)',
-    to: '/configuracion/facturacion',
-    perm: 'fiscal.config',
-    keywords: 'afip factura fiscal',
-    group: 'Configuración',
-  },
-  {
-    label: 'Usuarios y notificaciones',
-    to: '/configuracion/usuarios',
-    perm: 'members.read',
-    keywords: 'staff equipo',
-    group: 'Configuración',
-  },
-  { label: 'Dominios', to: '/configuracion/dominios', perm: 'settings.write', group: 'Configuración' },
 ];
+
+/**
+ * Las pantallas que la persona puede abrir: las de sus menús (así el buscador
+ * encuentra exactamente lo que el menú muestra) más algunos accesos directos.
+ */
+function navCommands(can: (perm: Perm) => boolean): NavCommand[] {
+  const main: NavCommand[] = visibleMainNav(can).flatMap((s) =>
+    s.items
+      .flatMap((it) => [it, ...(it.children ?? [])])
+      .map((it) => ({ label: it.label, to: it.to, group: 'Ir a' })),
+  );
+  const settings: NavCommand[] = visibleSettingsNav(can).flatMap((g) =>
+    g.items.map((it) => ({ label: it.label, to: it.to, group: 'Configuración' })),
+  );
+  const extra = EXTRA.filter((c) => satisfies(can, routePerm(c.to)));
+  const seen = new Set<string>();
+  return [...main, ...extra, ...settings]
+    .filter((c) => !seen.has(c.to) && seen.add(c.to))
+    .map((c) => ({ ...c, keywords: KEYWORDS[c.to] ?? c.keywords }));
+}
 
 interface ProductHit {
   id: string;
@@ -210,7 +144,7 @@ export function CommandPalette() {
   );
 
   const items = useMemo<Item[]>(() => {
-    const nav = NAV.filter((c) => !c.perm || (Array.isArray(c.perm) ? c.perm.some(can) : can(c.perm)))
+    const nav = navCommands(can)
       .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''}`))
       .map((cmd): Item => ({ kind: 'nav', cmd }));
     const prods = productQuery

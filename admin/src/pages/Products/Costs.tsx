@@ -16,6 +16,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
+import { usePermissions } from '../../context/PermissionsContext';
 
 interface VariantCost {
   variantId: string;
@@ -33,6 +34,10 @@ interface VariantCost {
 const PAGE_SIZE = 20;
 
 export function CostsPage() {
+  const { can } = usePermissions();
+  // El costo se guarda en el producto; repreciar es cambiar precios en masa.
+  const canEditCosts = can('catalog.write');
+  const canReprice = can('prices.manage');
   const { store } = useStore();
   const { data: health } = useCatalogHealth();
   const queryClient = useQueryClient();
@@ -195,9 +200,11 @@ export function CostsPage() {
             }}
           />
         </div>
-        <Button variant="secondary" className="shrink-0" onClick={() => setRepriceOpen(true)}>
-          <TrendingUp className="h-4 w-4" /> Repreciar en masa
-        </Button>
+        {canReprice && (
+          <Button variant="secondary" className="shrink-0" onClick={() => setRepriceOpen(true)}>
+            <TrendingUp className="h-4 w-4" /> Repreciar en masa
+          </Button>
+        )}
       </div>
 
       <Card flush>
@@ -261,6 +268,7 @@ export function CostsPage() {
                             className="text-right"
                             value={value}
                             placeholder="Sin costo"
+                            readOnly={!canEditCosts}
                             onChange={(e) => setDrafts((d) => ({ ...d, [variant.id]: e.target.value }))}
                           />
                         </div>
@@ -269,7 +277,7 @@ export function CostsPage() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={!changed || save.isPending}
+                          disabled={!changed || save.isPending || !canEditCosts}
                           onClick={() =>
                             save.mutate({
                               productId: product.id,

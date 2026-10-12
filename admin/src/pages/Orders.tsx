@@ -239,7 +239,7 @@ export function OrdersPage() {
       <div className="mb-5 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Ventas</h1>
         <div className="flex items-center gap-2">
-          {can('orders.fulfill') && (
+          {can('orders.create') && (
             <button
               onClick={() => setManualOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"

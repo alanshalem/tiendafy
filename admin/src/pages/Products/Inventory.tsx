@@ -14,6 +14,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { usePermissions } from '../../context/PermissionsContext';
 
 interface VariantDto {
   id: string;
@@ -54,6 +55,8 @@ interface InventorySummary {
 }
 
 export function InventoryPage() {
+  // Ver el stock alcanza para mirarlo y sacar etiquetas; cambiarlo, no.
+  const canAdjust = usePermissions().can('inventory.write');
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -281,6 +284,7 @@ export function InventoryPage() {
                           className="text-center"
                           value={value}
                           placeholder="—"
+                          readOnly={!canAdjust}
                           onChange={(e) =>
                             setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
                           }
@@ -288,7 +292,7 @@ export function InventoryPage() {
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {changed && (
+                      {changed && canAdjust && (
                         <Button
                           size="sm"
                           loading={save.isPending && save.variables?.variantId === variant.id}

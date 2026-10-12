@@ -4,6 +4,8 @@ import { Store } from 'lucide-react';
 import { Tabs } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../context/PermissionsContext';
+import type { Perm } from '../lib/access';
 import { HelpLink } from '../components/HelpLink';
 import { VentasTab } from './mercadolibre-ventas';
 import { PreguntasTab } from './mercadolibre-preguntas';
@@ -19,15 +21,18 @@ interface MeliStatus {
 
 type Tab = 'ventas' | 'preguntas' | 'publicaciones' | 'reclamos';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'ventas', label: 'Ventas' },
-  { id: 'preguntas', label: 'Preguntas' },
-  { id: 'publicaciones', label: 'Publicaciones' },
-  { id: 'reclamos', label: 'Reclamos' },
+/** Atender (ventas, preguntas, reclamos) y publicar son permisos distintos. */
+const TABS: { id: Tab; label: string; perm: Perm }[] = [
+  { id: 'ventas', label: 'Ventas', perm: 'meli.operate' },
+  { id: 'preguntas', label: 'Preguntas', perm: 'meli.operate' },
+  { id: 'publicaciones', label: 'Publicaciones', perm: 'meli.publish' },
+  { id: 'reclamos', label: 'Reclamos', perm: 'meli.operate' },
 ];
 
 export function MercadoLibrePage() {
   const { store } = useStore();
+  const { can } = usePermissions();
+  const tabs = TABS.filter((t) => can(t.perm));
   const [status, setStatus] = useState<MeliStatus | null>(null);
 
   // La pestaña vive en la URL para poder mandar a alguien directo a la que
@@ -35,7 +40,7 @@ export function MercadoLibrePage() {
   // publicaciones — y para que el botón Atrás del browser haga lo esperable.
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab');
-  const tab: Tab = TABS.some((t) => t.id === requested) ? (requested as Tab) : 'ventas';
+  const tab: Tab = tabs.find((t) => t.id === requested)?.id ?? tabs[0]?.id ?? 'ventas';
   const setTab = (next: Tab) => {
     params.set('tab', next);
     setParams(params, { replace: true });
@@ -82,7 +87,7 @@ export function MercadoLibrePage() {
             Conectado como <span className="font-medium text-fg">{status.nickname}</span>
           </p>
         </div>
-        <Tabs items={TABS} value={tab} onChange={setTab} />
+        <Tabs items={tabs} value={tab} onChange={setTab} />
       </div>
 
       {tab === 'ventas' && <VentasTab />}

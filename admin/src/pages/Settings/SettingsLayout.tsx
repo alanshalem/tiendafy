@@ -1,169 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import {
-  BarChart3,
-  ChevronLeft,
-  ListChecks,
-  CreditCard,
-  FileText,
-  Globe,
-  Mail,
-  MessageCircle,
-  Package,
-  ShoppingCart,
-  Signpost,
-  Store,
-  User,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { cn, Tooltip } from '@tiendafy/ui';
 import { ThemeModeToggle } from '../../components/ThemeModeToggle';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
-import { isNavVisible } from '../../config/features';
-import { canAny, usePermissions } from '../../context/PermissionsContext';
+import { visibleSettingsNav } from '../../config/navigation';
+import { usePermissions } from '../../context/PermissionsContext';
 import { LogoMark } from '../../components/LogoMark';
-
-interface NavItem {
-  to: string;
-  label: string;
-  /** Una línea que explica la página (tooltip al pasar el mouse). */
-  desc?: string;
-  icon: LucideIcon;
-  /** Permiso RBAC requerido (string o lista: alcanza con uno). */
-  perm?: string | string[];
-}
-interface NavGroup {
-  heading: string;
-  items: NavItem[];
-}
-
-const groups: NavGroup[] = [
-  {
-    heading: 'Pagos y envíos',
-    items: [
-      {
-        to: '/configuracion/medios-de-pago',
-        label: 'Medios de pago',
-        desc: 'Conectá Mercado Pago y elegí cómo cobra tu tienda.',
-        icon: CreditCard,
-        perm: 'payments.read',
-      },
-      {
-        to: '/configuracion/medios-de-envio',
-        label: 'Medios de envío',
-        desc: 'Envíos a domicilio, retiro y cotización en vivo (Correo Argentino, Zipnova).',
-        icon: Package,
-        perm: 'settings.write',
-      },
-      {
-        to: '/configuracion/mercadolibre',
-        label: 'Mercado Libre',
-        desc: 'Conectá tu cuenta de vendedor para activar el canal ML.',
-        icon: Store,
-        perm: 'settings.write',
-      },
-    ],
-  },
-  {
-    heading: 'Facturación',
-    items: [
-      {
-        to: '/configuracion/facturacion',
-        label: 'Facturación',
-        desc: 'Factura electrónica ARCA: certificado, punto de venta y emisión automática.',
-        icon: FileText,
-        perm: 'fiscal.config',
-      },
-    ],
-  },
-  {
-    heading: 'Comunicación',
-    items: [
-      {
-        to: '/configuracion/emails-automaticos',
-        label: 'E-mails automáticos',
-        desc: 'Los emails que tu tienda manda sola: confirmaciones, envíos, carritos.',
-        icon: Mail,
-        perm: 'settings.write',
-      },
-      {
-        to: '/configuracion/whatsapp-automatico',
-        label: 'WhatsApp automático',
-        desc: 'Avisos automáticos por WhatsApp con la API oficial de Meta.',
-        icon: MessageCircle,
-        perm: 'settings.write',
-      },
-    ],
-  },
-  {
-    heading: 'Catálogo',
-    items: [
-      {
-        to: '/configuracion/ficha-tecnica',
-        label: 'Ficha técnica',
-        desc: 'Los datos propios de lo que vendés: medidas, materiales, compatibilidad, códigos.',
-        icon: ListChecks,
-        perm: 'catalog.write',
-      },
-    ],
-  },
-  {
-    heading: 'Checkout',
-    items: [
-      {
-        to: '/configuracion/opciones-del-checkout',
-        label: 'Opciones del checkout',
-        desc: 'Qué pide y muestra el proceso de compra: datos, cuotas, condiciones.',
-        icon: ShoppingCart,
-        perm: 'settings.write',
-      },
-    ],
-  },
-  {
-    heading: 'Equipo y dominios',
-    items: [
-      {
-        to: '/configuracion/usuarios',
-        label: 'Usuarios y notificaciones',
-        desc: 'Tu equipo con roles y permisos, y qué avisos recibe cada uno.',
-        icon: User,
-        perm: 'members.read',
-      },
-      {
-        to: '/configuracion/dominios',
-        label: 'Dominios',
-        desc: 'El subdominio de tu tienda y la conexión de tu dominio propio.',
-        icon: Globe,
-        perm: 'settings.write',
-      },
-      {
-        to: '/configuracion/redirecciones',
-        label: 'Redirecciones',
-        desc: 'Mandar una dirección vieja a la nueva para no perder visitas ni posicionamiento.',
-        icon: Signpost,
-        perm: 'settings.write',
-      },
-      {
-        to: '/configuracion/medicion',
-        label: 'Medición y píxeles',
-        desc: 'Google Analytics, Google Ads, el píxel de Meta y Clarity, con permiso del visitante.',
-        icon: BarChart3,
-        perm: 'settings.write',
-      },
-    ],
-  },
-];
 
 export function SettingsLayout() {
   const navigate = useNavigate();
   const { can } = usePermissions();
 
-  // Filtra el menú de configuración por flags de config/features.ts + permisos RBAC.
-  const visibleGroups = groups
-    .map((g) => ({
-      ...g,
-      items: g.items.filter((it) => isNavVisible(it.to) && (!it.perm || canAny(can, it.perm))),
-    }))
-    .filter((g) => g.items.length > 0);
+  // Filtra el menú por flags de config/features.ts + permisos.
+  const visibleGroups = visibleSettingsNav(can);
 
   return (
     <div className="flex min-h-screen">

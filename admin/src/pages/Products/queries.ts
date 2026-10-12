@@ -46,11 +46,11 @@ export interface CatalogHealth {
  * Una sola consulta para las dos pantallas que la usan (Productos y Costos):
  * mismo `queryKey`, así la segunda sale de la caché.
  */
-export function useCatalogHealth() {
+export function useCatalogHealth(enabled = true) {
   const { store } = useStore();
   return useQuery({
     queryKey: ['catalog-health', store?.id],
     queryFn: () => api.get<CatalogHealth>('/api/v1/products/health'),
-    enabled: !!store,
+    enabled: !!store && enabled,
   });
 }

@@ -199,10 +199,12 @@ describe('usuarios y permisos', () => {
   const member = fixture<{ items: { userId: string; email: string }[] }>('/api/v1/members').items[0]!;
   const extra = {
     userId: 'u-2',
-    role: 'staff',
+    role: 'vendedor',
     email: 'ventas@tienda.com',
     name: 'Ventas',
     createdAtUtc: '2026-10-01T00:00:00Z',
+    permissions: ['orders.read', 'orders.fulfill'],
+    customized: false,
   };
 
   it('agrega un usuario con su rol, le cambia el rol y lo quita', async () => {

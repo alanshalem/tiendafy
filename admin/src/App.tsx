@@ -14,6 +14,7 @@ import { SpecFieldsPage } from './pages/Settings/SpecFields';
 import { FiscalInvoicingPage } from './pages/Settings/FiscalInvoicing';
 import { DomainsPage } from './pages/Settings/Domains';
 import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
+import { RolesPage } from './pages/Settings/Roles';
 import { HomePage } from './pages/Home';
 import { ProductsPage } from './pages/Products';
 import { CategoriesPage } from './pages/Products/Categories';
@@ -55,12 +56,15 @@ import { StatsVisitsPage } from './pages/Stats/Visits';
 import { StatsRealTimePage } from './pages/Stats/RealTime';
 import { StatsCouponsPage } from './pages/Stats/Coupons';
 import { NotFoundPage } from './pages/NotFound';
-import { RequirePerm } from './context/PermissionsContext';
+import { RequirePerm, usePermissions } from './context/PermissionsContext';
+import { firstSettingsPath, routePerm, SETTINGS_BASE } from './lib/access';
 
-/** Tabla de rutas: path + permiso + elemento (el boilerplate de <RequirePerm> se arma al render). */
+/**
+ * Tabla de rutas: path + pantalla. El permiso de cada una sale de
+ * lib/access (la misma tabla que usan los menús), y el <RequirePerm> se arma al render.
+ */
 interface AppRoute {
   path: string;
-  perm?: string | string[];
   el: ReactNode;
 }
 
@@ -71,32 +75,31 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/', el: <HomePage /> },
 
   // Estadísticas
-  { path: '/estadisticas', perm: 'stats.read', el: <StatsOverviewPage /> },
-  { path: '/estadisticas/productos', perm: 'stats.read', el: <StatsProductsPage /> },
-  { path: '/estadisticas/ventas', perm: 'stats.read', el: <StatsSalesPage /> },
-  { path: '/estadisticas/rentabilidad', perm: 'stats.read', el: <StatsProfitabilityPage /> },
-  { path: '/estadisticas/visitas', perm: 'stats.read', el: <StatsVisitsPage /> },
-  { path: '/estadisticas/tiempo-real', perm: 'stats.read', el: <StatsRealTimePage /> },
-  { path: '/estadisticas/cupones', perm: 'stats.read', el: <StatsCouponsPage /> },
+  { path: '/estadisticas', el: <StatsOverviewPage /> },
+  { path: '/estadisticas/productos', el: <StatsProductsPage /> },
+  { path: '/estadisticas/ventas', el: <StatsSalesPage /> },
+  { path: '/estadisticas/rentabilidad', el: <StatsProfitabilityPage /> },
+  { path: '/estadisticas/visitas', el: <StatsVisitsPage /> },
+  { path: '/estadisticas/tiempo-real', el: <StatsRealTimePage /> },
+  { path: '/estadisticas/cupones', el: <StatsCouponsPage /> },
 
   // Productos
-  { path: '/productos', perm: ['inventory.read', 'catalog.write'], el: <ProductsPage /> },
-  { path: '/productos/nuevo', perm: 'catalog.write', el: <NewProductPage /> },
-  { path: '/productos/:id/editar', perm: 'catalog.write', el: <EditProductPage /> },
-  { path: '/productos/exportar-importar', perm: 'catalog.write', el: <ExportImportPage /> },
-  { path: '/productos/categorias', perm: 'catalog.write', el: <CategoriesPage /> },
-  { path: '/productos/inventario', perm: 'inventory.read', el: <InventoryPage /> },
-  { path: '/productos/costos', perm: 'catalog.write', el: <CostsPage /> },
-  { path: '/productos/listas-de-precios', perm: 'catalog.write', el: <PriceListsPage /> },
-  { path: '/compras', perm: 'purchasing', el: <ComprasPage /> },
-  { path: '/proveedores', perm: 'purchasing', el: <ProveedoresPage /> },
-  { path: '/productos/escaner', perm: 'inventory.read', el: <ScannerPage /> },
-  { path: '/productos/kits', perm: 'catalog.write', el: <KitsPage /> },
+  { path: '/productos', el: <ProductsPage /> },
+  { path: '/productos/nuevo', el: <NewProductPage /> },
+  { path: '/productos/:id/editar', el: <EditProductPage /> },
+  { path: '/productos/exportar-importar', el: <ExportImportPage /> },
+  { path: '/productos/categorias', el: <CategoriesPage /> },
+  { path: '/productos/inventario', el: <InventoryPage /> },
+  { path: '/productos/costos', el: <CostsPage /> },
+  { path: '/productos/listas-de-precios', el: <PriceListsPage /> },
+  { path: '/compras', el: <ComprasPage /> },
+  { path: '/proveedores', el: <ProveedoresPage /> },
+  { path: '/productos/escaner', el: <ScannerPage /> },
+  { path: '/productos/kits', el: <KitsPage /> },
 
   // Tienda online (chunks lazy)
   {
     path: '/canales/tienda-online',
-    perm: 'content.write',
     el: (
       <Suspense fallback={lazyFallback('Cargando editor...')}>
         <ThemeEditorPage />
@@ -105,7 +108,6 @@ const MAIN_ROUTES: AppRoute[] = [
   },
   {
     path: '/canales/tienda-online/disenios',
-    perm: 'content.write',
     el: (
       <Suspense fallback={lazyFallback('Cargando...')}>
         <ThemeGalleryPage />
@@ -114,38 +116,39 @@ const MAIN_ROUTES: AppRoute[] = [
   },
 
   // Ventas y el resto del panel
-  { path: '/ventas', perm: 'orders.read', el: <OrdersPage /> },
-  { path: '/ventas/carritos', perm: 'orders.read', el: <AbandonedCartsPage /> },
-  { path: '/presupuestos', perm: 'orders.read', el: <PresupuestosPage /> },
-  { path: '/descuentos', perm: 'discounts.read', el: <DiscountsPage /> },
-  { path: '/marketing', perm: 'settings.write', el: <MarketingPage /> },
-  { path: '/mercadolibre', perm: 'orders.read', el: <MercadoLibrePage /> },
-  { path: '/redes', perm: 'social', el: <RedesPage /> },
-  { path: '/clientes', perm: 'customers.read', el: <CustomersPage /> },
+  { path: '/ventas', el: <OrdersPage /> },
+  { path: '/ventas/carritos', el: <AbandonedCartsPage /> },
+  { path: '/presupuestos', el: <PresupuestosPage /> },
+  { path: '/descuentos', el: <DiscountsPage /> },
+  { path: '/marketing', el: <MarketingPage /> },
+  { path: '/mercadolibre', el: <MercadoLibrePage /> },
+  { path: '/redes', el: <RedesPage /> },
+  { path: '/clientes', el: <CustomersPage /> },
 
   // Finanzas
-  { path: '/tesoreria', perm: 'finance', el: <TesoreriaPage /> },
-  { path: '/cuentas-corrientes', perm: 'finance', el: <CuentasCorrientesPage /> },
-  { path: '/mensajes', perm: 'messages.read', el: <MessagesPage /> },
-  { path: '/posventa', perm: 'support.chat', el: <SupportChatPage /> },
-  { path: '/paginas', perm: 'content.write', el: <PagesPage /> },
+  { path: '/tesoreria', el: <TesoreriaPage /> },
+  { path: '/cuentas-corrientes', el: <CuentasCorrientesPage /> },
+  { path: '/mensajes', el: <MessagesPage /> },
+  { path: '/posventa', el: <SupportChatPage /> },
+  { path: '/paginas', el: <PagesPage /> },
   { path: '/tenants', el: <TenantsPage /> },
 ];
 
 // Rutas de Configuración (SettingsLayout, paths relativos).
 const SETTINGS_ROUTES: AppRoute[] = [
-  { path: 'medios-de-pago', perm: 'payments.read', el: <PaymentMethodsPage /> },
-  { path: 'medios-de-envio', perm: 'settings.write', el: <ShippingMethodsPage /> },
-  { path: 'mercadolibre', perm: 'settings.write', el: <MeliSettingsPage /> },
-  { path: 'emails-automaticos', perm: 'settings.write', el: <AutoEmailsPage /> },
-  { path: 'whatsapp-automatico', perm: 'settings.write', el: <WhatsAppAutoPage /> },
-  { path: 'opciones-del-checkout', perm: 'settings.write', el: <CheckoutOptionsPage /> },
-  { path: 'facturacion', perm: 'fiscal.config', el: <FiscalInvoicingPage /> },
-  { path: 'usuarios', perm: 'members.read', el: <UsersNotificationsPage /> },
-  { path: 'dominios', perm: 'settings.write', el: <DomainsPage /> },
-  { path: 'redirecciones', perm: 'settings.write', el: <RedirectsPage /> },
-  { path: 'medicion', perm: 'settings.write', el: <TrackingPage /> },
-  { path: 'ficha-tecnica', perm: 'catalog.write', el: <SpecFieldsPage /> },
+  { path: 'medios-de-pago', el: <PaymentMethodsPage /> },
+  { path: 'medios-de-envio', el: <ShippingMethodsPage /> },
+  { path: 'mercadolibre', el: <MeliSettingsPage /> },
+  { path: 'emails-automaticos', el: <AutoEmailsPage /> },
+  { path: 'whatsapp-automatico', el: <WhatsAppAutoPage /> },
+  { path: 'opciones-del-checkout', el: <CheckoutOptionsPage /> },
+  { path: 'facturacion', el: <FiscalInvoicingPage /> },
+  { path: 'usuarios', el: <UsersNotificationsPage /> },
+  { path: 'roles', el: <RolesPage /> },
+  { path: 'dominios', el: <DomainsPage /> },
+  { path: 'redirecciones', el: <RedirectsPage /> },
+  { path: 'medicion', el: <TrackingPage /> },
+  { path: 'ficha-tecnica', el: <SpecFieldsPage /> },
 ];
 
 /**
@@ -154,17 +157,24 @@ const SETTINGS_ROUTES: AppRoute[] = [
  */
 export const ALL_PATHS: readonly string[] = [
   ...MAIN_ROUTES.map((r) => r.path),
-  ...SETTINGS_ROUTES.map((r) => `/configuracion/${r.path}`),
+  ...SETTINGS_ROUTES.map((r) => `${SETTINGS_BASE}/${r.path}`),
   '/ayuda',
 ];
 
-const renderRoute = (r: AppRoute) => (
-  <Route
-    key={r.path}
-    path={r.path}
-    element={r.perm ? <RequirePerm perm={r.perm}>{r.el}</RequirePerm> : r.el}
-  />
-);
+const renderRoute = (base: string) => (r: AppRoute) => {
+  const perm = routePerm(`${base}${r.path}`);
+  return (
+    <Route key={r.path} path={r.path} element={perm ? <RequirePerm perm={perm}>{r.el}</RequirePerm> : r.el} />
+  );
+};
+
+/** /configuracion lleva a la primera pantalla que la persona puede ver. */
+function SettingsIndex() {
+  const { can, loading } = usePermissions();
+  if (loading) return null;
+  const first = firstSettingsPath(can);
+  return <Navigate to={first ? `${SETTINGS_BASE}/${first}` : '/'} replace />;
+}
 
 export default function App() {
   return (
@@ -172,12 +182,12 @@ export default function App() {
       {/* Ctrl/Cmd+K en cualquier pantalla del admin. */}
       <CommandPalette />
       <Routes>
-        <Route element={<AdminLayout />}>{MAIN_ROUTES.map(renderRoute)}</Route>
+        <Route element={<AdminLayout />}>{MAIN_ROUTES.map(renderRoute(''))}</Route>
 
         {/* Configuración: layout propio con su nav lateral */}
-        <Route path="/configuracion" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="/configuracion/medios-de-pago" replace />} />
-          {SETTINGS_ROUTES.map(renderRoute)}
+        <Route path={SETTINGS_BASE} element={<SettingsLayout />}>
+          <Route index element={<SettingsIndex />} />
+          {SETTINGS_ROUTES.map(renderRoute(`${SETTINGS_BASE}/`))}
         </Route>
 
         {/* Centro de ayuda (standalone, sin sidebar — se abre en pestaña nueva). */}
