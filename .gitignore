@@ -33,11 +33,11 @@ out/
 # Package managers
 .pnpm-store/
 
-# Environment
+# Environment (todas las variantes tienen secretos; las plantillas .example sí van)
 .env
-.env.local
-.env.*.local
-.env.test
+.env.*
+!.env.example
+!.env.*.example
 
 # Terraform
 terraform.tfstate*

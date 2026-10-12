@@ -1,0 +1,53 @@
+# ============================================================
+# El BORDE del servidor: un solo Caddy delante de TODOS los sistemas de la
+# máquina (Tiendafy, cking, ckinsight y lo que venga).
+#
+# Es el único que se queda con los puertos 80 y 443. Cada sistema tiene su
+# archivo en sites/ y escucha solo adentro del servidor (127.0.0.1:puerto);
+# Caddy los distingue por dominio, saca y renueva todos los certificados, y
+# para los dominios propios de las tiendas los emite solo en la primera visita.
+#
+#   cp .env.example .env && chmod 600 .env     # una sola vez
+#   docker compose up -d --build                # levantar
+#   docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile   # después de tocar un sitio
+#
+# Se levanta una vez y no se toca en cada deploy: los deploys cambian
+# contenedores de aplicación, no el borde.
+#
+# Guía completa: docs/PUBLICAR-EN-LA-VPS.md
+# ============================================================
+
+name: edge
+
+services:
+  caddy:
+    build: .
+    image: edge-caddy:latest
+    restart: unless-stopped
+    # La red del propio servidor, no una de Docker: así Caddy ve la IP real de
+    # cada visitante (los límites por IP de las aplicaciones dependen de eso) y
+    # llega a los sistemas que escuchan en 127.0.0.1, estén o no en Docker.
+    network_mode: host
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?definir en .env}
+      TIENDAFY_DOMAIN: ${TIENDAFY_DOMAIN:?definir en .env}
+      # Token de Cloudflare con DNS:Edit sobre la zona de Tiendafy: con eso los
+      # certificados comodín (*.dominio) salen por DNS-01 y una tienda nueva
+      # funciona desde el primer visitante.
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?definir en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      # Los certificados. Perderlos no rompe nada, pero obliga a pedirlos de
+      # nuevo y Let's Encrypt limita cuántos da por semana.
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  caddydata:
+  caddyconfig:

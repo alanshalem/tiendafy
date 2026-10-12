@@ -4,6 +4,9 @@
 #   push a main → build (tag sha-XXXX) → deploy a staging → smoke →
 #   → aprobación manual (GitHub Environment "production") → deploy a producción
 #
+# Staging es opcional: corre solo si el repo tiene la variable STAGING_DOMAIN.
+# Sin ella, del build se pasa directo a producción (con la misma aprobación).
+#
 # La aprobación no se configura acá sino en el repo: Settings → Environments →
 # production → Required reviewers. Sin eso, el job de producción sale solo.
 name: docker-release
@@ -70,7 +73,7 @@ jobs:
   # ---- Staging: automático en cada push a main ----------------------------
   deploy-staging:
     needs: build-push
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.STAGING_DOMAIN != ''
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -87,9 +90,7 @@ jobs:
             cd ${{ vars.DEPLOY_PATH }}
             git fetch --quiet origin main
             git checkout --quiet ${{ github.sha }}
-            ./infra/deploy.sh staging sha-${GITHUB_SHA::7}
-        env:
-          GITHUB_SHA: ${{ github.sha }}
+            ./infra/deploy.sh staging "sha-$(printf '%.7s' '${{ github.sha }}')"
 
   # ---- Humo: si esto falla, producción ni se ofrece -----------------------
   smoke-staging:
@@ -104,9 +105,15 @@ jobs:
         run: curl --fail --silent --show-error --retry 5 --retry-delay 5 -o /dev/null https://admin.${{ vars.STAGING_DOMAIN }}/
 
   # ---- Producción: el MISMO tag, con aprobación humana --------------------
+  # Con staging: después de su humo. Sin staging (saltado a propósito): después
+  # del build. Si staging falló, NO sigue.
   deploy-production:
-    needs: smoke-staging
-    if: github.ref == 'refs/heads/main'
+    needs: [build-push, deploy-staging, smoke-staging]
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      needs.build-push.result == 'success' &&
+      (needs.smoke-staging.result == 'success' ||
+       (needs.deploy-staging.result == 'skipped' && needs.smoke-staging.result == 'skipped'))
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -123,9 +130,7 @@ jobs:
             cd ${{ vars.DEPLOY_PATH }}
             git fetch --quiet origin main
             git checkout --quiet ${{ github.sha }}
-            ./infra/deploy.sh prod sha-${GITHUB_SHA::7}
-        env:
-          GITHUB_SHA: ${{ github.sha }}
+            ./infra/deploy.sh prod "sha-$(printf '%.7s' '${{ github.sha }}')"
 
       - name: La API de producción responde
         run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://api.${{ vars.PLATFORM_DOMAIN }}/health

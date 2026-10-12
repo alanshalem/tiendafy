@@ -724,7 +724,10 @@ export const PLATAFORMA = {
             type: 'table',
             headers: ['Archivo', 'Qué configura'],
             rows: [
-              ['.env.edge', 'Los dominios, el mail de los certificados y el token de DNS de Cloudflare'],
+              [
+                'infra/edge/.env',
+                'El borde del servidor: el dominio, el mail de los certificados y el token de DNS de Cloudflare',
+              ],
               ['.env.prod', 'El ambiente de producción: base, imágenes, cobros, emails'],
               ['.env.staging', 'El de staging: lo mismo, con credenciales de prueba y sin backup'],
             ],

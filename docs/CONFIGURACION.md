@@ -93,11 +93,11 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 
 ## 4. Producción: `.env.prod`
 
-Hay **tres** plantillas en `infra/docker/`, una por pieza (copiarlas sin el `.example` y completarlas; nunca commitearlas):
+Hay **tres** plantillas, una por pieza (copiarlas sin el `.example` y completarlas; nunca commitearlas):
 
-- **`.env.edge.example`** → el Caddy compartido: `PLATFORM_DOMAIN`, `STAGING_DOMAIN`, `ACME_EMAIL`, `CLOUDFLARE_API_TOKEN` (certificados comodín por DNS-01).
-- **`.env.prod.example`** → el stack de producción.
-- **`.env.staging.example`** → el mismo stack, con credenciales de prueba y sin backup.
+- **`infra/edge/.env.example`** → el Caddy del borde, uno para todo el servidor: `TIENDAFY_DOMAIN`, `ACME_EMAIL`, `CLOUDFLARE_API_TOKEN` (certificados comodín por DNS-01).
+- **`infra/docker/.env.prod.example`** → el stack de producción (incluye `PRIMARY_STORE_SUBDOMAIN` y los puertos internos).
+- **`infra/docker/.env.staging.example`** → el mismo stack, con credenciales de prueba, otros puertos y sin backup.
 
 Los dos stacks usan el MISMO `docker-compose.stack.yml`: lo único distinto es el archivo de variables. Claves de cada stack: `COMPOSE_PROJECT_NAME`, `APP_ENV`, `STACK_DOMAIN`, `POSTGRES_PASSWORD`, `REGISTRY`/`TAG` (imágenes GHCR), `EMAIL_FROM`, `RESEND_API_KEY`, `MP_*`, `MEDIA_*` (storage), `SENTRY_DSN_*`, `BRAND_NAME` (la marca del panel; vacío = Tiendafy), `WORKERS_ENABLED` y los techos de memoria `*_MEM_LIMIT`. El resto (Mercado Libre, Captcha, Google, CORS) va como variables de entorno manuales del servicio `api`.
 
@@ -106,7 +106,7 @@ Los dos stacks usan el MISMO `docker-compose.stack.yml`: lo único distinto es e
 ## 5. Checklist de lanzamiento (orden sugerido)
 
 1. VPS + DNS: `TUDOMINIO`, `*.TUDOMINIO`, `api.`, `admin.` → Caddy hace el TLS solo (on-demand para dominios propios de tiendas).
-2. `.env.edge` + `.env.prod` + `.env.staging` completos → `docker compose -f infra/docker/docker-compose.edge.yml --env-file infra/docker/.env.edge up -d` y después `./infra/deploy.sh staging` / `./infra/deploy.sh prod`.
+2. `infra/edge/.env` + `.env.prod` completos → `./infra/deploy.sh prod` y después el borde: `docker compose -f infra/edge/docker-compose.yml up -d` (paso a paso, con un servidor que ya tiene otros sistemas: [PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md)).
 3. Migrar: `docker compose … run --rm api dotnet Api.dll migrate`.
 4. Resend: dominio verificado + `EMAIL_FROM` + webhook de bounces (§1).
 5. Mercado Pago: app en modo productivo, redirect URI real, webhook de pagos apuntando a `https://api.TUDOMINIO/api/v1/payments/webhooks/mercadopago`.

@@ -1,0 +1,59 @@
+# ============================================================
+# Tiendafy (producción). Los servicios escuchan en 127.0.0.1 (ver los puertos
+# en infra/docker/.env.prod): API 5080, tiendas 3000, panel 8090.
+#
+# Staging, el día que exista: copiar los bloques con {$TIENDAFY_STAGING_DOMAIN}
+# y los puertos de .env.staging, más el `X-Robots-Tag noindex`.
+# ============================================================
+
+# Los dominios de la plataforma usan certificados por DNS-01 (Cloudflare): el
+# comodín *.dominio cubre a cada tienda nueva sin esperar una emisión.
+(tiendafy_tls) {
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	}
+}
+
+api.{$TIENDAFY_DOMAIN} {
+	import security_headers
+	import tiendafy_tls
+	reverse_proxy 127.0.0.1:5080
+}
+
+admin.{$TIENDAFY_DOMAIN} {
+	import security_headers
+	import tiendafy_tls
+	reverse_proxy 127.0.0.1:8090
+}
+
+# www va al dominio pelado: el mismo contenido en dos direcciones es lo que
+# Google penaliza.
+www.{$TIENDAFY_DOMAIN} {
+	import tiendafy_tls
+	redir https://{$TIENDAFY_DOMAIN}{uri} permanent
+}
+
+# El dominio pelado (la tienda principal, PRIMARY_STORE_SUBDOMAIN) y cada
+# tienda por subdominio.
+{$TIENDAFY_DOMAIN}, *.{$TIENDAFY_DOMAIN} {
+	import security_headers
+	import tiendafy_tls
+	reverse_proxy 127.0.0.1:3000
+}
+
+# Dominios propios de las tiendas: cualquier otro dominio que la API reconozca
+# (ver on_demand_tls en el Caddyfile). Caddy siempre prefiere el bloque más
+# específico, así que esto no le quita nada a los otros sistemas del servidor.
+https:// {
+	import security_headers
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:3000
+}
+
+# Y su versión http, que manda a https. Los dominios con nombre ya lo hacen
+# solos; los propios de las tiendas no se conocen de antemano.
+http:// {
+	redir https://{host}{uri} permanent
+}

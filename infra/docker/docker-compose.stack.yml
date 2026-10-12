@@ -9,9 +9,11 @@
 #   docker compose -f docker-compose.stack.yml --env-file .env.prod    up -d
 #   docker compose -f docker-compose.stack.yml --env-file .env.staging up -d
 #
-# El borde (Caddy, puertos 80/443) NO está acá: vive en docker-compose.edge.yml
-# y es uno solo para los dos ambientes. Por eso cada servicio se publica en la
-# red compartida con un alias que lleva el ambiente (api-prod, api-staging…).
+# El borde (Caddy, puertos 80/443) NO está acá: vive en infra/edge y es uno
+# solo para todo el servidor (Tiendafy y los demás sistemas de la máquina). Por
+# eso cada servicio publica su puerto SOLO en 127.0.0.1: el que da la cara es
+# Caddy. Los puertos salen del .env de cada ambiente para que prod y staging no
+# choquen (y tienen que coincidir con infra/edge/sites/tiendafy.caddy).
 #
 # Migraciones como paso de deploy, antes del up:
 #   docker compose ... --env-file .env.<amb> run --rm api dotnet Api.dll migrate
@@ -25,14 +27,6 @@ x-logging: &logging
     options:
       max-size: '10m'
       max-file: '3'
-
-# Red compartida con el borde. Se crea una sola vez:
-#   docker network create tiendafy-edge
-networks:
-  default:
-  edge:
-    external: true
-    name: tiendafy-edge
 
 services:
   postgres:
@@ -88,21 +82,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      default:
-      edge:
-        aliases:
-          - api-${APP_ENV}
+    ports:
+      - '127.0.0.1:${API_PORT:-5080}:5080'
     environment:
       # Production también en staging: staging tiene que comportarse como
       # producción (fail-fast de config, cookies Secure, sin seeds de dev).
       # Lo que lo distingue es a qué servicios apunta, no cómo se comporta.
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:5080
-      # Caddy y los demás contenedores hablan con la API por la red de Docker
-      # (rangos privados; la API no publica puertos). Sin esto, todo el tráfico
-      # parece venir de Caddy y los límites por IP —10 logins cada 5 minutos, el
-      # techo global— se comparten entre TODOS los usuarios de la plataforma.
+      # Lo que llega por el puerto publicado entra desde la red de Docker (rangos
+      # privados), y Caddy manda la IP real del visitante en X-Forwarded-For.
+      # Sin confiar en esos rangos, todo el tráfico parece venir de un solo lugar
+      # y los límites por IP —10 logins cada 5 minutos, el techo global— se
+      # comparten entre TODOS los usuarios de la plataforma.
       ForwardedHeaders__KnownNetworks__0: ${TRUSTED_PROXY_CIDR_0:-172.16.0.0/12}
       ForwardedHeaders__KnownNetworks__1: ${TRUSTED_PROXY_CIDR_1:-192.168.0.0/16}
       ForwardedHeaders__KnownNetworks__2: ${TRUSTED_PROXY_CIDR_2:-10.0.0.0/8}
@@ -168,11 +160,8 @@ services:
     restart: unless-stopped
     <<: *logging
     mem_limit: ${WEB_MEM_LIMIT:-768m}
-    networks:
-      default:
-      edge:
-        aliases:
-          - storefront-${APP_ENV}
+    ports:
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
     environment:
       NODE_ENV: production
       APP_ENV: ${APP_ENV}
@@ -197,11 +186,8 @@ services:
     restart: unless-stopped
     <<: *logging
     mem_limit: ${ADMIN_MEM_LIMIT:-128m}
-    networks:
-      default:
-      edge:
-        aliases:
-          - admin-${APP_ENV}
+    ports:
+      - '127.0.0.1:${ADMIN_PORT:-8090}:8080'
     environment:
       # El contenedor escribe config.js al arrancar con estos valores: la misma
       # imagen sirve para staging y para producción (ver admin/docker-config.sh).

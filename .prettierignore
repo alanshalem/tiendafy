@@ -13,4 +13,5 @@ backend
 # Docs largos y data (formatearlos genera diffs sin valor)
 docs
 *.md
-infra/caddy/Caddyfile
+infra/edge/Caddyfile
+infra/edge/sites

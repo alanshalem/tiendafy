@@ -1,0 +1,13 @@
+# ============================================================
+# ckinsight.cking.com.ar
+#
+# Igual que cking: su nginx sigue adentro (127.0.0.1:8081, el límite del login
+# y las rutas a la API y al frontend). Comparte el puerto con cking: nginx los
+# distingue por el dominio, que Caddy le pasa tal cual.
+#
+# Config de nginx: deploy/ckinsight.detras-de-caddy.nginx.conf del repo de ckinsight.
+# ============================================================
+
+ckinsight.cking.com.ar {
+	reverse_proxy 127.0.0.1:8081
+}

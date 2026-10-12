@@ -20,17 +20,21 @@ Los dos ambientes usan **el mismo** `docker-compose.stack.yml`. Que sea el
 mismo archivo no es prolijidad: si staging se define aparte, se va pareciendo
 cada vez menos a producción y deja de servir para probar.
 
-El borde (Caddy, puertos 80/443) es **uno solo** para los dos, en
-`docker-compose.edge.yml`. Dos Caddy no pueden convivir en una máquina.
+El borde (Caddy, puertos 80/443) es **uno solo para todo el servidor**, en
+`infra/edge/`: atiende a Tiendafy y a cualquier otro sistema de la máquina,
+un archivo por sistema en `infra/edge/sites/`. Cada stack publica sus puertos
+solo en `127.0.0.1` (`API_PORT`, `WEB_PORT`, `ADMIN_PORT` de su `.env`) y Caddy
+los distingue por dominio. Para un servidor que ya tiene otros sistemas
+andando, la guía paso a paso (con vuelta atrás) es
+[PUBLICAR-EN-LA-VPS.md](./PUBLICAR-EN-LA-VPS.md).
 
 ```bash
 # Una sola vez
-docker network create tiendafy-edge
-cp infra/docker/.env.edge.example    infra/docker/.env.edge
+cp infra/edge/.env.example           infra/edge/.env
 cp infra/docker/.env.prod.example    infra/docker/.env.prod
-cp infra/docker/.env.staging.example infra/docker/.env.staging
-chmod 600 infra/docker/.env.*        # tienen secretos
-docker compose -f infra/docker/docker-compose.edge.yml --env-file infra/docker/.env.edge up -d
+cp infra/docker/.env.staging.example infra/docker/.env.staging   # si hay staging
+chmod 600 infra/edge/.env infra/docker/.env.*                    # tienen secretos
+docker compose -f infra/edge/docker-compose.yml up -d --build
 
 # Cada deploy (lo hace GitHub Actions, o vos a mano)
 ./infra/deploy.sh staging sha-a1b2c3d
@@ -162,7 +166,7 @@ No hay redirect en la app (evita loops).
 
 **Wildcard DNS + TLS**: `*.tudominio.com` y `*.stg.tudominio.com` apuntan al
 servidor. Los certificados comodín salen por **DNS-01 con el plugin de
-Cloudflare** (`infra/caddy/Dockerfile`), con un token acotado a la zona: así una
+Cloudflare** (`infra/edge/Dockerfile`), con un token acotado a la zona: así una
 tienda nueva funciona desde el primer visitante, sin emitir un certificado en el
 momento — que además choca contra el límite semanal de Let's Encrypt cuando hay
 varias tiendas.
@@ -205,20 +209,22 @@ Notas de build (ya resueltas en los Dockerfiles):
 ### Qué corre en el servidor
 
 ```
-docker network tiendafy-edge
-├── tiendafy-edge      caddy (80/443)         ← el único que expone puertos
-├── tiendafy-prod      postgres, pg-backup, api, storefront, admin
-└── tiendafy-staging   postgres, api, storefront, admin
+edge               caddy (80/443, red del servidor)   ← el único que da la cara
+├── tiendafy-prod      api 127.0.0.1:5080, storefront :3000, admin :8090 (+ postgres, pg-backup)
+├── tiendafy-staging   lo mismo en :5081, :3002, :8091 (opcional)
+└── otros sistemas     lo que escuche en 127.0.0.1 (ver infra/edge/sites/)
 ```
 
-Cada stack publica sus servicios en la red compartida con alias por ambiente
-(`api-prod`, `api-staging`), que es contra lo que rutea el Caddyfile. Los
-límites de memoria de cada `.env` evitan que staging deje sin RAM a producción.
+Caddy usa la red del propio servidor (no una de Docker) para ver la IP real
+de cada visitante y llegar a todo lo que escucha en `127.0.0.1`, esté o no en
+Docker. Los límites de memoria de cada `.env` evitan que staging deje sin RAM
+a producción.
 
 CI publica las imágenes en GHCR y dispara los deploys
 (`.github/workflows/docker-release.yml`): staging automático en cada push a
-`main`, producción **con aprobación manual** (GitHub → Settings → Environments
-→ production → Required reviewers).
+`main` (solo si el repo tiene la variable `STAGING_DOMAIN`), producción **con
+aprobación manual** (GitHub → Settings → Environments → production → Required
+reviewers).
 
 **Deploy a mano** (las migraciones son un paso explícito, NO corren al boot):
 

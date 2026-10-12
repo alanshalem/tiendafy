@@ -1,0 +1,19 @@
+# ============================================================
+# cking.com.ar
+#
+# Detrás de Caddy sigue estando el nginx de cking, ahora escuchando solo
+# adentro (127.0.0.1:8081): ahí siguen las fotos que se sirven del disco, los
+# límites por IP, las cabeceras y las rutas a la API y al sitio. Caddy solo
+# pone el certificado y le pasa la IP real del visitante.
+#
+# Config de nginx: deploy/nginx/cking.detras-de-caddy.conf del repo de cking.
+# ============================================================
+
+cking.com.ar {
+	reverse_proxy 127.0.0.1:8081
+}
+
+# www al dominio pelado en un solo salto (antes lo hacía nginx).
+www.cking.com.ar {
+	redir https://cking.com.ar{uri} permanent
+}

@@ -1,0 +1,30 @@
+# ============================================================
+# El borde del servidor. Lo común va acá; cada sistema, en sites/<sistema>.caddy.
+#
+# Sumar un sistema nuevo: un archivo en sites/ con su dominio y el puerto
+# interno donde escucha, y `caddy reload`. Nada más.
+# ============================================================
+{
+	email {$ACME_EMAIL}
+
+	# Dominios PROPIOS de las tiendas (volxen.com.ar en vez de un subdominio):
+	# el certificado se emite en la primera visita, pero antes Caddy le pregunta
+	# a la API de Tiendafy si ese dominio es de una tienda (200 emite, 404 no).
+	# Sin esta pregunta, cualquiera podría apuntar un dominio al servidor y
+	# gastarnos el cupo semanal de Let's Encrypt.
+	on_demand_tls {
+		ask http://127.0.0.1:5080/api/v1/tenants/resolve
+	}
+}
+
+# Cabeceras de seguridad para los sitios que no las ponen ellos mismos.
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+import sites/*.caddy
