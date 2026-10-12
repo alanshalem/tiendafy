@@ -34,6 +34,16 @@ public static class TeamRules
         return targetRole is null || targetIsSelf ? null : CanTouch(requester, targetRole);
     }
 
+    /// <summary>
+    /// Abrir una tienda nueva es cosa de dueños: quien es vendedor (o cualquier
+    /// otro rol) en una tienda no se arma una propia. La única excepción es la
+    /// primera tienda de alguien que todavía no está en ninguna (el arranque).
+    /// </summary>
+    public static AccessDenial? CanCreateStore(int storesTheyBelongTo, int storesTheyOwn) =>
+        storesTheyBelongTo == 0 || storesTheyOwn > 0
+            ? null
+            : new("Stores.OwnersOnly", "Solo el dueño de una tienda puede crear tiendas nuevas.");
+
     public static AccessDenial? CanRemove(MemberAccess requester, string targetRole, bool targetIsSelf) =>
         targetIsSelf ? null : CanTouch(requester, targetRole);
 

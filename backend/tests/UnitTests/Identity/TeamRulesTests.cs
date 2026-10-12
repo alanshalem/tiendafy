@@ -104,6 +104,16 @@ public class TeamRulesTests
     public void Las_excepciones_respetan_la_jerarquia() =>
         Assert.Equal("Members.RoleTooHigh", TeamRules.CanEditMember(Admin, Roles.Admin, false, Set(Permission.CostsRead))?.Code);
 
+    // ---------------------------------------------------------------- tiendas nuevas
+
+    [Theory]
+    [InlineData(0, 0, true)]  // la primera tienda: el arranque
+    [InlineData(3, 1, true)]  // dueño de alguna
+    [InlineData(1, 0, false)] // vendedor (o cualquier rol) en una tienda ajena
+    [InlineData(4, 0, false)]
+    public void Solo_un_duenio_abre_tiendas_nuevas(int belongs, int owns, bool allowed) =>
+        Assert.Equal(allowed, TeamRules.CanCreateStore(belongs, owns) is null);
+
     // ---------------------------------------------------------------- la matriz
 
     [Fact]

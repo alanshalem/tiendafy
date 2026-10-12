@@ -55,6 +55,19 @@ El rol `staff` (de cuando había dos) se migró a `admin`.
 
 Editar la matriz pide `roles.manage`; las excepciones y altas, `members.manage`.
 
+## Cuentas y tiendas
+
+Cada persona tiene **una sola cuenta** (email + contraseña) para toda la
+plataforma; el acceso es **por tienda**: una fila en `tenant_memberships` con
+su rol. Sumar a alguien como vendedor en una tienda no le da nada en las demás.
+Las contraseñas se guardan hasheadas: nadie (ni el dueño) las ve; quien la
+olvida la restablece por email.
+
+Crear una tienda nueva es de quien ya es **dueño** de alguna (`TeamRules.CanCreateStore`;
+la única excepción es la primera tienda de una instalación nueva). Editar,
+archivar y borrar una tienda es del dueño de **esa** tienda (`tenant.admin`).
+Quien crea una tienda queda como su dueño.
+
 ## Enforcement (backend)
 
 En `backend/src/Api/Auth/AuthExtensions.cs`:

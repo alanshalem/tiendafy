@@ -6635,7 +6635,9 @@
         }
       ],
       "nextCursor": null,
-      "hasMore": false
+      "hasMore": false,
+      "canCreate": true,
+      "manageable": ["08f81530-fcdc-46b4-a764-d7fdd54d1881"]
     },
     "/api/v1/tenants/:id": {
       "id": "08f81530-fcdc-46b4-a764-d7fdd54d1881",

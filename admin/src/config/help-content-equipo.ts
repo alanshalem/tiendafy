@@ -16,6 +16,15 @@ export const EQUIPO = {
         blocks: [{ type: 'path', segments: ['Configuración', 'Usuarios'] }],
       },
       {
+        heading: 'Una cuenta, un rol por tienda',
+        steps: [
+          'Cada persona entra con su email y su contraseña, la misma para todas las tiendas.',
+          'Lo que puede hacer se elige por tienda: puede ser vendedora en una y no tener acceso a otra.',
+          'Para darle acceso a otra tienda, entrá a esa tienda y sumala desde Configuración → Usuarios.',
+          'Nadie ve las contraseñas: si alguien la olvida, la restablece desde “¿Olvidaste tu contraseña?”.',
+        ],
+      },
+      {
         heading: 'Los roles, de fábrica',
         blocks: [
           {
@@ -86,6 +95,7 @@ export const EQUIPO = {
               'Nadie da ni quita algo que él mismo no puede hacer.',
               'Nadie asigna un rol por encima del propio ni toca a alguien de su mismo rango.',
               'Solo un dueño puede nombrar o modificar dueños, y la tienda nunca queda sin dueño.',
+              'Crear tiendas nuevas es de dueños; editar, archivar o borrar una tienda, solo de su dueño.',
               'Nadie se cambia sus propios permisos.',
               'Cada cambio queda en el registro de actividad (Configuración → Usuarios): quién, qué y cuándo.',
             ],

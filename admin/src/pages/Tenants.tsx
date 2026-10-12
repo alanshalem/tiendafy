@@ -26,6 +26,10 @@ interface TenantsResponse {
   items: Tenant[];
   nextCursor: string | null;
   hasMore: boolean;
+  /** Abrir tiendas nuevas es de dueños (o la primera de quien no está en ninguna). */
+  canCreate?: boolean;
+  /** Las tiendas donde es dueño: las únicas que puede editar, archivar o borrar. */
+  manageable?: string[];
 }
 
 /** Pulso de una tienda del grupo (ventana de 30 días). */
@@ -88,6 +92,8 @@ export function TenantsPage() {
     queryKey: ['tenants'],
     queryFn: () => api.get<TenantsResponse>('/api/v1/tenants?limit=50'),
   });
+  const canCreate = data?.canCreate ?? false;
+  const manageable = new Set(data?.manageable ?? []);
 
   // El pulso de cada tienda va aparte: si el tablero falla o tarda, la lista
   // (que es lo que permite operar) igual se muestra.
@@ -218,48 +224,49 @@ export function TenantsPage() {
     {
       key: 'actions',
       header: '',
-      cell: (t) => (
-        <div className="flex justify-end">
-          <Dropdown>
-            <Dropdown.Trigger label={`Acciones de ${t.name}`}>
-              <MoreVertical className="h-4 w-4" />
-            </Dropdown.Trigger>
-            <Dropdown.Menu align="end">
-              <Dropdown.Item onSelect={() => setEditing(t)}>
-                <Pencil className="mr-2 inline h-4 w-4" /> Editar
-              </Dropdown.Item>
-              {t.status === 'ACTIVE' ? (
-                <Dropdown.Item onSelect={() => archiveMut.mutate(t)}>
-                  <Archive className="mr-2 inline h-4 w-4" /> Archivar
+      cell: (t) =>
+        manageable.has(t.id) && (
+          <div className="flex justify-end">
+            <Dropdown>
+              <Dropdown.Trigger label={`Acciones de ${t.name}`}>
+                <MoreVertical className="h-4 w-4" />
+              </Dropdown.Trigger>
+              <Dropdown.Menu align="end">
+                <Dropdown.Item onSelect={() => setEditing(t)}>
+                  <Pencil className="mr-2 inline h-4 w-4" /> Editar
                 </Dropdown.Item>
-              ) : (
-                <Dropdown.Item onSelect={() => activateMut.mutate(t)}>
-                  <ArchiveRestore className="mr-2 inline h-4 w-4" /> Activar
+                {t.status === 'ACTIVE' ? (
+                  <Dropdown.Item onSelect={() => archiveMut.mutate(t)}>
+                    <Archive className="mr-2 inline h-4 w-4" /> Archivar
+                  </Dropdown.Item>
+                ) : (
+                  <Dropdown.Item onSelect={() => activateMut.mutate(t)}>
+                    <ArchiveRestore className="mr-2 inline h-4 w-4" /> Activar
+                  </Dropdown.Item>
+                )}
+                <Dropdown.Item destructive onSelect={() => setDeleting(t)}>
+                  <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
                 </Dropdown.Item>
-              )}
-              <Dropdown.Item destructive onSelect={() => setDeleting(t)}>
-                <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
-              </Dropdown.Item>
-              {import.meta.env.DEV && (
-                <Dropdown.Item
-                  destructive
-                  onSelect={async () => {
-                    const ok = await confirm({
-                      title: 'Borrar definitivo (dev)',
-                      message: `Se borra "${t.name}" y TODA su data para siempre. No se puede deshacer.`,
-                      confirmLabel: 'Borrar para siempre',
-                      variant: 'danger',
-                    });
-                    if (ok) purgeMut.mutate(t);
-                  }}
-                >
-                  <Trash2 className="mr-2 inline h-4 w-4" /> Borrar definitivo (dev)
-                </Dropdown.Item>
-              )}
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      ),
+                {import.meta.env.DEV && (
+                  <Dropdown.Item
+                    destructive
+                    onSelect={async () => {
+                      const ok = await confirm({
+                        title: 'Borrar definitivo (dev)',
+                        message: `Se borra "${t.name}" y TODA su data para siempre. No se puede deshacer.`,
+                        confirmLabel: 'Borrar para siempre',
+                        variant: 'danger',
+                      });
+                      if (ok) purgeMut.mutate(t);
+                    }}
+                  >
+                    <Trash2 className="mr-2 inline h-4 w-4" /> Borrar definitivo (dev)
+                  </Dropdown.Item>
+                )}
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        ),
     },
   ];
 
@@ -272,7 +279,7 @@ export function TenantsPage() {
             Todas las tiendas del grupo y cómo viene cada una en los últimos {WINDOW_DAYS} días.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>Crear tienda</Button>
+        {canCreate && <Button onClick={() => setCreateOpen(true)}>Crear tienda</Button>}
       </div>
 
       <ListStats

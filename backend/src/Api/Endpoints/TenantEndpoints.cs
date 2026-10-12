@@ -22,6 +22,8 @@ public static class TenantEndpoints
         {
             var userId = user.GetUserId();
             if (userId is null) return Results.Unauthorized();
+            if (await CreateDenialAsync(userId.Value, memberships, ct) is { } denied)
+                return Results.Problem(title: denied.Code, detail: denied.Detail, statusCode: denied.Status);
             var result = await handler.HandleAsync(new CreateTenantCommand(request.Name, request.Subdomain), ct);
             if (!result.IsSuccess) return result.Error.ToProblem();
             await memberships.AddOwnerAsync(userId.Value, result.Value.Id, ct);
@@ -110,7 +112,17 @@ public static class TenantEndpoints
                 var t = await service.GetByIdAsync(id, ct);
                 if (t is not null) items.Add(t);
             }
-            return Results.Ok(new { items, nextCursor = (string?)null, hasMore = false });
+            // Qué puede hacer con la lista: crear tiendas nuevas, y en cuáles es
+            // dueño (editar, archivar, borrar). El panel no ofrece lo demás.
+            var owned = await memberships.OwnedTenantIdsAsync(userId.Value, ct);
+            return Results.Ok(new
+            {
+                items,
+                nextCursor = (string?)null,
+                hasMore = false,
+                canCreate = TeamRules.CanCreateStore(ids.Count, owned.Count) is null,
+                manageable = owned,
+            });
         }).RequireAuthorization();
 
         // Estado REAL del dominio propio de la tienda activa.
@@ -287,6 +299,11 @@ public static class TenantEndpoints
         }
         catch when (swallow) { /* best-effort: seguir con las demás tablas */ }
     }
+
+    private static async Task<AccessDenial?> CreateDenialAsync(Guid userId, IMembershipService memberships, CancellationToken ct) =>
+        TeamRules.CanCreateStore(
+            (await memberships.TenantIdsForUserAsync(userId, ct)).Count,
+            (await memberships.OwnedTenantIdsAsync(userId, ct)).Count);
 
     private static async Task<bool> NotMember(HttpContext http, Guid tenantId) =>
         await http.GetAccessAsync(tenantId) is null;

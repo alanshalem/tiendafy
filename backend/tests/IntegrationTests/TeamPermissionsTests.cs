@@ -214,6 +214,33 @@ public sealed class TeamPermissionsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Solo_un_duenio_crea_tiendas_y_edita_las_suyas()
+    {
+        var owner = await Merchant.CreateAsync(factory, "crt");
+        var seller = await owner.AddTeammateAsync("vendedor");
+
+        // Una vendedora no se abre una tienda propia.
+        var denied = await seller.Client.PostAsJsonAsync("/api/v1/tenants", new { name = "La mía", subdomain = $"v{Guid.NewGuid():N}"[..12] });
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        Assert.Contains("Solo el dueño", await denied.Content.ReadAsStringAsync());
+        var mine = await seller.Client.GetFromJsonAsync<JsonElement>("/api/v1/tenants");
+        Assert.False(mine.GetProperty("canCreate").GetBoolean());
+        Assert.Equal(0, mine.GetProperty("manageable").GetArrayLength());
+
+        // Ni la edita, ni la archiva, ni la borra.
+        Assert.Equal(HttpStatusCode.Forbidden, (await seller.Client.PostAsJsonAsync($"/api/v1/tenants/{owner.TenantId}/archive", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await seller.Client.DeleteAsync($"/api/v1/tenants/{owner.TenantId}")).StatusCode);
+
+        // El dueño sí: abre otra y maneja las dos.
+        var second = await owner.OpenAnotherStoreAsync("crt2");
+        var ownerView = await owner.Client.GetFromJsonAsync<JsonElement>("/api/v1/tenants");
+        Assert.True(ownerView.GetProperty("canCreate").GetBoolean());
+        var manageable = ownerView.GetProperty("manageable").EnumerateArray().Select(e => e.GetGuid()).ToList();
+        Assert.Contains(owner.TenantId, manageable);
+        Assert.Contains(second.TenantId, manageable);
+    }
+
+    [Fact]
     public async Task Mis_tiendas_no_le_muestra_la_facturacion_a_quien_no_ve_estadisticas()
     {
         var owner = await Merchant.CreateAsync(factory, "tab");

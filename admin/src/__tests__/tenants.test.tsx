@@ -44,7 +44,13 @@ afterEach(() => {
 
 async function openTenants(setup?: (api: MockApi) => void) {
   const api = mockApi();
-  api.on('GET', '/api/v1/tenants', { items: [seeded, archived], total: 2 });
+  // Quien mira es dueño de las dos: puede crear y manejar cada una.
+  api.on('GET', '/api/v1/tenants', {
+    items: [seeded, archived],
+    total: 2,
+    canCreate: true,
+    manageable: [seeded.id, archived.id],
+  });
   api.on('GET', '/api/v1/tenants/overview', {
     ...overview,
     items: [
@@ -235,5 +241,22 @@ describe('tiendas: archivar, activar, eliminar', () => {
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Borrar para siempre' }),
     );
     expect(await screen.findByText(`"${archived.name}" borrada definitivamente`)).toBeInTheDocument();
+  });
+});
+
+describe('tiendas: alguien del equipo que no es dueño', () => {
+  it('las ve, pero no crea ni maneja ninguna', async () => {
+    await openTenants((api) =>
+      api.on('GET', '/api/v1/tenants', {
+        items: [seeded, archived],
+        total: 2,
+        canCreate: false,
+        manageable: [],
+      }),
+    );
+    expect(row(seeded.name)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Crear tienda' })).toBeNull();
+    for (const t of [seeded, archived])
+      expect(screen.queryByRole('button', { name: `Acciones de ${t.name}` })).toBeNull();
   });
 });
