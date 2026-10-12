@@ -11,6 +11,9 @@ on:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
 
+  # A mano desde Actions, para re-verificar main sin tener que tocar código.
+  workflow_dispatch:
+
 permissions:
   contents: read
 

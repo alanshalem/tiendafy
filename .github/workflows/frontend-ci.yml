@@ -27,6 +27,9 @@ on:
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
 
+  # A mano desde Actions, para re-verificar main sin tener que tocar código.
+  workflow_dispatch:
+
 permissions:
   contents: read
 
