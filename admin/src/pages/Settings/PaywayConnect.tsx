@@ -242,6 +242,7 @@ export function PaywayConnect() {
                     <button
                       key={n}
                       type="button"
+                      aria-pressed={active}
                       disabled={readOnly}
                       onClick={() => toggleInstallment(n)}
                       className={
