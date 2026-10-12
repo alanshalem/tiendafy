@@ -553,6 +553,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
                       compact
                       type="number"
                       min={1}
+                      aria-label={`Cantidad de ${line.productName}`}
                       className="text-right"
                       disabled={!editable}
                       value={line.quantity}
@@ -563,6 +564,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
                     <Input
                       compact
                       inputMode="decimal"
+                      aria-label={`Precio de ${line.productName}`}
                       className="text-right"
                       disabled={!editable}
                       placeholder={suggested != null ? String(suggested / 100) : '0'}

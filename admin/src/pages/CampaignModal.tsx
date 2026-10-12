@@ -270,6 +270,7 @@ export function CampaignModal({
               <div className="flex-1">
                 <label className="mb-1 block text-xs font-medium text-fg">Fecha y hora de envío</label>
                 <Input
+                  aria-label="Fecha y hora de envío"
                   type="datetime-local"
                   value={scheduleAt}
                   onChange={(e) => setScheduleAt(e.target.value)}
@@ -349,6 +350,7 @@ export function CampaignModal({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">Cupón de la campaña (opcional)</label>
             <Select
+              aria-label="Cupón de la campaña"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
               options={[
@@ -424,6 +426,7 @@ function AudienceBuilder(props: {
     <div className="rounded-md border border-border p-3">
       <label className="mb-1.5 block text-sm font-medium text-fg">Audiencia</label>
       <Select
+        aria-label="Audiencia"
         value={audience}
         onChange={(e) => setAudience(e.target.value as 'buyers' | 'customers' | 'subscribers' | 'custom')}
         options={[

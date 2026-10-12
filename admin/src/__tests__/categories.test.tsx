@@ -7,7 +7,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { mockApi, type MockApi } from '../test/api';
+import { mockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
 

@@ -23,7 +23,6 @@ async function open(api: MockApi) {
   return user;
 }
 
-const field = (label: string) => screen.getByLabelText(label, { exact: false });
 const writes = (api: MockApi, method: string, path: string) =>
   api.calls.filter((c) => c.method === method && c.path.startsWith(path));
 
