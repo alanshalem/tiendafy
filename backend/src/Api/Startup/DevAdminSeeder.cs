@@ -7,14 +7,31 @@ using Tenancy.Infrastructure.Persistence;
 namespace Api.Startup;
 
 /// <summary>
-/// Dev: crea un usuario admin de prueba con membresía a TODAS las tiendas
-/// existentes, para poder entrar con login local sin quedarte sin stores.
-/// Credenciales en docs/usuarios-de-prueba.md. Idempotente.
+/// Dev: un usuario de prueba por cada rol, con membresía a TODAS las tiendas
+/// existentes, para probar el panel como lo ve cada uno sin armar el equipo a
+/// mano. Credenciales en docs/usuarios-de-prueba.md.
+///
+/// Corre al arrancar la API y es idempotente: crea las cuentas y membresías
+/// que faltan y no toca las que existen (un rol cambiado desde el panel para
+/// probar se respeta; alguien sacado de una tienda vuelve a entrar con su rol
+/// de siempre). Las tiendas creadas después reciben al equipo al reiniciar.
 /// </summary>
 public static class DevAdminSeeder
 {
     public const string Email = "admin@tiendafy.local";
     public const string Password = "password123";
+
+    /// <summary>Cada cuenta de prueba con su rol. El "admin" histórico es el dueño.</summary>
+    public static readonly IReadOnlyList<(string Email, string Name, string Role)> Team =
+    [
+        (Email, "Admin Dev", Roles.Owner),
+        ("duenio@tiendafy.local", "Dueña de prueba", Roles.Owner),
+        ("administrador@tiendafy.local", "Administrador de prueba", Roles.Admin),
+        ("vendedor@tiendafy.local", "Vendedor de prueba", Roles.Vendedor),
+        ("catalogo@tiendafy.local", "Catálogo de prueba", Roles.Catalogo),
+        ("finanzas@tiendafy.local", "Finanzas de prueba", Roles.Finanzas),
+        ("soporte@tiendafy.local", "Soporte de prueba", Roles.Soporte),
+    ];
 
     public static async Task SeedDevAdminAsync(this IServiceProvider services)
     {
@@ -23,25 +40,25 @@ public static class DevAdminSeeder
         var idDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         var tenants = scope.ServiceProvider.GetRequiredService<TenancyDbContext>();
 
-        var user = await users.FindByEmailAsync(Email);
-        if (user is null)
+        var tenantIds = await tenants.Tenants.AsNoTracking().Select(t => t.Id).ToListAsync();
+
+        foreach (var (email, name, role) in Team)
         {
-            user = new AppUser { UserName = Email, Email = Email, EmailConfirmed = true, DisplayName = "Admin Dev" };
-            var created = await users.CreateAsync(user, Password);
-            if (!created.Succeeded) return;
+            var user = await users.FindByEmailAsync(email);
+            if (user is null)
+            {
+                user = new AppUser { UserName = email, Email = email, EmailConfirmed = true, DisplayName = name };
+                if (!(await users.CreateAsync(user, Password)).Succeeded) continue;
+            }
+
+            var userId = user.Id;
+            var existing = (await idDb.TenantMemberships.Where(m => m.UserId == userId)
+                .Select(m => m.TenantId).ToListAsync()).ToHashSet();
+            idDb.TenantMemberships.AddRange(tenantIds
+                .Where(existing.Add)
+                .Select(tid => TenantMembership.Create(userId, tid, role)));
         }
 
-        var tenantIds = await tenants.Tenants.AsNoTracking().Select(t => t.Id).ToListAsync();
-        var existing = (await idDb.TenantMemberships.Where(m => m.UserId == user.Id).Select(m => m.TenantId).ToListAsync()).ToHashSet();
-        var added = false;
-        foreach (var tid in tenantIds)
-        {
-            if (existing.Add(tid))
-            {
-                idDb.TenantMemberships.Add(TenantMembership.Create(user.Id, tid));
-                added = true;
-            }
-        }
-        if (added) await idDb.SaveChangesAsync();
+        await idDb.SaveChangesAsync();
     }
 }
