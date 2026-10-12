@@ -6,6 +6,8 @@
 !pnpm-workspace.yaml
 !storefront
 !shared
+# Fixtures y helpers de test compartidos: el build typechequea también los tests.
+!test-fixtures
 # Manifests de los otros workspaces: pnpm valida el lockfile contra TODOS.
 !admin/package.json
 !e2e/package.json
