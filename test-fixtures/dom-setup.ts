@@ -70,6 +70,12 @@ export function installDomPolyfills() {
   URL.createObjectURL ??= () => 'blob:test';
   URL.revokeObjectURL ??= () => {};
 
+  // El editor de texto con formato (ProseMirror) mide la selección para
+  // mantenerla a la vista: jsdom no tiene geometría, alcanza con rectángulos vacíos.
+  const emptyRects = () => Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getClientRects ??= emptyRects;
+  Range.prototype.getBoundingClientRect ??= () => new DOMRect(0, 0, 0, 0);
+
   // Leer un archivo elegido (la vista previa de un CSV) usa Blob.text(), que
   // jsdom no implementa: se lee con FileReader, que sí tiene.
   Blob.prototype.text ??= function (this: Blob) {

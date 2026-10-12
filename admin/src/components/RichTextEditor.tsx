@@ -32,6 +32,9 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
       Image.configure({ HTMLAttributes: { class: 'rounded-md' } }),
     ],
     content: value,
+    // Tiptap 3 ya no re-renderiza en cada cambio: sin esto la barra nunca
+    // marcaba la negrita, la lista o el enlace donde está el cursor.
+    shouldRerenderOnTransaction: true,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: {
@@ -171,6 +174,8 @@ function Btn({
       type="button"
       onClick={onClick}
       title={title}
+      // Los de formato (negrita, listas…) son interruptores: se anuncia si están puestos.
+      aria-pressed={active}
       className={cn(
         'flex h-8 w-8 items-center justify-center rounded text-fg-muted hover:bg-bg-muted hover:text-fg',
         active && 'bg-primary/10 text-primary',

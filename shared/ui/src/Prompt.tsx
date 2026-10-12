@@ -72,6 +72,7 @@ export function PromptProvider({ children }: { children: ReactNode }) {
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Input
             autoFocus
+            aria-label={typeof state?.opts.message === 'string' ? state.opts.message : state?.opts.title}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={state?.opts.placeholder}
