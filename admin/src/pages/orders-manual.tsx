@@ -176,6 +176,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
                       compact
                       type="number"
                       min={1}
+                      aria-label={`Cantidad de ${item.label}`}
                       className="text-right"
                       value={item.quantity}
                       onChange={(e) => setItems((l) => replaceAt(l, idx, { quantity: e.target.value }))}
@@ -188,6 +189,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
                       min={0}
                       step="0.01"
                       placeholder="$ lista"
+                      aria-label={`Precio de ${item.label}`}
                       className="text-right"
                       value={item.price}
                       onChange={(e) => setItems((l) => replaceAt(l, idx, { price: e.target.value }))}
@@ -195,6 +197,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
                   </div>
                   <button
                     type="button"
+                    aria-label={`Quitar ${item.label}`}
                     className="text-fg-subtle hover:text-danger"
                     onClick={() => setItems((l) => l.filter((_, i) => i !== idx))}
                   >
@@ -249,6 +252,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           <div>
             <label className="mb-1 block text-sm font-medium text-fg">Cobro</label>
             <Select
+              aria-label="Cobro"
               value={payment}
               onChange={(e) => setPayment(e.target.value)}
               options={[

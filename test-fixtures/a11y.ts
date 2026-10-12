@@ -20,9 +20,11 @@ interface AxeResult {
   impact?: string | null;
   help: string;
   nodes: AxeNode[];
+  /** Cuando la regla no pudo correr. */
+  error?: unknown;
 }
 interface Axe {
-  run(context: Element, options: object): Promise<{ violations: AxeResult[] }>;
+  run(context: Element, options: object): Promise<{ violations: AxeResult[]; incomplete: AxeResult[] }>;
 }
 
 /** Reglas que dependen de layout/color reales (jsdom no los tiene). */
@@ -30,14 +32,17 @@ const NEEDS_A_BROWSER = ['color-contrast', 'target-size', 'scrollable-region-foc
 
 /** Las violaciones, resumidas para que un fallo se lea en el reporte del test. */
 export async function a11yViolations(axe: Axe, root: Element = document.body) {
-  const { violations } = await axe.run(root, {
+  const { violations, incomplete } = await axe.run(root, {
     runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
     rules: Object.fromEntries(NEEDS_A_BROWSER.map((id) => [id, { enabled: false }])),
-    resultTypes: ['violations'],
+    resultTypes: ['violations', 'incomplete'],
   });
-  return violations.map((v) => ({
+  // Una regla que no pudo correr (falta algo en jsdom) no puede pasar en
+  // silencio: así fue como los diálogos quedaron sin revisar.
+  const broken = incomplete.filter((v) => v.error);
+  return [...violations, ...broken].map((v) => ({
     rule: v.id,
-    help: v.help,
+    help: v.error ? `axe no pudo correr la regla: ${String((v.error as Error).message ?? v.error)}` : v.help,
     nodes: v.nodes.map((n) => n.html.slice(0, 160)),
   }));
 }

@@ -157,7 +157,8 @@ describe('la tienda publicada', () => {
     expect(document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href).toBe(
       'https://cdn.example.com/favicon.png',
     );
-    const css = document.querySelector('style')!.innerHTML;
+    // El <style> de la tienda (el setup de los tests agrega otro en el <head>).
+    const css = document.querySelector('body style')!.innerHTML;
     expect(css).toContain('color: red');
     expect(css).not.toContain('@import');
     expect(document.querySelector('a[href^="https://wa.me/5491155554444"]')).not.toBeNull();

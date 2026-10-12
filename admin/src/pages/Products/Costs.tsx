@@ -385,6 +385,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Alcance</label>
           <Select
+            aria-label="Alcance"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             options={[
@@ -396,6 +397,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Redondeo</label>
           <Select
+            aria-label="Redondeo"
             value={rounding}
             onChange={(e) => setRounding(e.target.value)}
             options={[

@@ -5,10 +5,12 @@
  * datos reales de la tienda sembrada. Nada puede romperse.
  *
  * Las escrituras van al fetch simulado, así que comprar o enviar un formulario
- * acá no tiene consecuencias.
+ * acá no tiene consecuencias. Cada diálogo que se abre pasa además por axe.
  */
+import axe from 'axe-core';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { a11yViolations } from '../../../test-fixtures/a11y';
 import { mockApi } from '../test/api';
 import { explore, settle, watchCrashes } from '../test/explore';
 import { PAGES } from '../test/pages';
@@ -34,9 +36,20 @@ describe('cada página aguanta que la toquen', () => {
     await renderPage((await load()).default as never, url, params);
     await settle(4);
 
-    await explore(user, () => document.body, MAX_CLICKS);
+    const inaccessible: { opener: string; violations: unknown[] }[] = [];
+    await explore(
+      user,
+      () => document.body,
+      MAX_CLICKS,
+      async (dialog, opener) => {
+        const violations = await a11yViolations(axe, dialog);
+        if (violations.length > 0)
+          inaccessible.push({ opener: opener.textContent?.trim() ?? '', violations });
+      },
+    );
     await settle(2);
 
     expect(crashes()).toEqual([]);
+    expect(inaccessible).toEqual([]);
   });
 });

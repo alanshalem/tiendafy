@@ -55,6 +55,18 @@ export function installDomPolyfills() {
     if (top.dispatchEvent(cancel)) top.close();
   });
 
+  // Sin layout no hay nada "en un punto". axe los usa para ubicar el diálogo
+  // modal abierto: sin ellos sus reglas fallan y dentro de un <dialog> nada se
+  // revisaba.
+  document.elementFromPoint ??= () => null;
+  document.elementsFromPoint ??= () => [];
+
+  // jsdom no carga Tailwind: un <input type=file class="hidden"> (el patrón de
+  // "subir archivo" con un botón propio) le parecería visible a axe.
+  const style = document.createElement('style');
+  style.textContent = 'input[type=file].hidden { display: none; }';
+  document.head.appendChild(style);
+
   URL.createObjectURL ??= () => 'blob:test';
   URL.revokeObjectURL ??= () => {};
 }
