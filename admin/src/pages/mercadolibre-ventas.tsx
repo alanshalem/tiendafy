@@ -320,7 +320,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
           placeholder="Escribí tu respuesta (máx. 350 caracteres)…"
           onKeyDown={(e) => e.key === 'Enter' && send()}
         />
-        <Button onClick={send} disabled={sending || !text.trim()}>
+        <Button aria-label="Enviar" onClick={send} disabled={sending || !text.trim()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>

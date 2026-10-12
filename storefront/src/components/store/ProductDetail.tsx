@@ -646,6 +646,8 @@ function Lightbox({
           {images.map((im, i) => (
             <button
               key={i}
+              aria-label={`Ver imagen ${i + 1}`}
+              aria-current={i === index || undefined}
               onClick={() => {
                 setZoomed(false);
                 onChange(i);

@@ -264,6 +264,7 @@ function LinkModal({
         />
         {product && product.variants.length > 1 && (
           <Select
+            aria-label="Variante"
             value={variantId}
             onChange={(e) => setVariantId(e.target.value)}
             placeholder="Elegí la variante…"
@@ -361,6 +362,7 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
         )}
         {suggestions && suggestions.length > 0 && (
           <Select
+            aria-label="Categoría de Mercado Libre"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             options={suggestions

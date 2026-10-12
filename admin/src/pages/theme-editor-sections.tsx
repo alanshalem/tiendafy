@@ -384,7 +384,11 @@ export function HomePanel({
             >
               <X className="h-4 w-4" />
             </button>
-            <button onClick={() => onOpenSection(s.id)} className="text-fg-subtle">
+            <button
+              onClick={() => onOpenSection(s.id)}
+              aria-label="Editar sección"
+              className="text-fg-subtle"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

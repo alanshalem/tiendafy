@@ -222,6 +222,7 @@ export function KitsPage() {
                 </span>
                 <button
                   type="button"
+                  aria-label={`Quitar ${c.label}`}
                   className="text-fg-subtle hover:text-danger"
                   onClick={() => setComponents((list) => list.filter((_, i) => i !== idx))}
                 >
