@@ -273,8 +273,9 @@ function Choice({
 }) {
   return (
     <div>
-      <div className="mb-1.5 text-sm font-medium text-fg">{label}</div>
-      <RadioGroup legend="">
+      {/* El título es la legend del grupo: con una legend vacía, los dos
+          "Obligatorio / Opcional" de la pantalla no decían de qué eran. */}
+      <RadioGroup legend={label}>
         {options.map((o) => (
           <div key={o.id}>
             <Radio name={name} label={o.label} checked={value === o.id} onChange={() => onChange(o.id)} />
