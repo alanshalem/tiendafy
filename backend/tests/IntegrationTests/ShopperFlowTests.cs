@@ -221,9 +221,22 @@ public sealed partial class ShopperFlowTests
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedAtUtc, DateTime.UtcNow.AddHours(-2)));
         }
 
+        // Con WhatsApp conectado y la plantilla activa, también le llega por ahí
+        // (al teléfono que dejó en el checkout).
+        var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
+        var messages = $"https://graph.facebook.com/v20.0/{phoneNumberId}/messages";
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-aba" });
+        await merchant.PutAsync("/api/v1/whatsapp/templates/carritos-abandonados",
+            new { enabled = true, metaTemplateName = "carrito_olvidado", languageCode = "es_AR" });
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, messages, new { messages = new[] { new { id = "wamid.aba" } } });
+
         await RunAbandonedCartsUntilEmailedAsync(checkoutId);
         var mail = Assert.Single(_factory.ExternalHttp.EmailsTo(email), m => m.Subject.Contains("carrito"));
         Assert.Contains(merchant.Subdomain, mail.Html);
+        var whatsapp = Assert.Single(_factory.ExternalHttp.SentTo(messages)).Body!;
+        Assert.Contains("carrito_olvidado", whatsapp);
+        Assert.Contains("5491155556666", whatsapp);
+        Assert.Contains("Ana", whatsapp);
 
         await Workers.RunOnceAsync<AbandonedCartWorker>(_factory);
         Assert.Single(_factory.ExternalHttp.EmailsTo(email), m => m.Subject.Contains("carrito"));

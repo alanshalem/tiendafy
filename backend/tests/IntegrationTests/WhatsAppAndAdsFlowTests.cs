@@ -85,6 +85,33 @@ public sealed class WhatsAppAndAdsFlowTests
     }
 
     [Fact]
+    public async Task El_aviso_de_envio_sin_seguimiento_ni_nombre_igual_sale_bien()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "wae");
+        var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
+        var messages = $"{WhatsAppGraph}/{phoneNumberId}/messages";
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-wae" });
+        await merchant.PutAsync("/api/v1/whatsapp/templates/confirmacion-envio",
+            new { enabled = true, metaTemplateName = "pedido_enviado", languageCode = "es_AR" });
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, messages, new { messages = new[] { new { id = "wamid.e" } } });
+
+        // Venta sin nombre del comprador y despacho sin número de seguimiento.
+        var (_, variantId) = await merchant.CreateProductAsync("Gorra WA", priceMinor: 8_000_00);
+        var sale = await merchant.PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId, quantity = 1 } },
+            paymentMethod = "cash",
+            buyerEmail = "juana.perez@mail.com",
+            buyerPhone = "11 5555-4444",
+        });
+        await merchant.PostAsync($"/api/v1/orders/{sale.GetProperty("id").GetGuid()}/fulfill", new { tracking = (string?)null });
+
+        var body = Assert.Single(_factory.ExternalHttp.SentTo(messages)).Body!;
+        Assert.Contains("juana.perez", body);   // el nombre sale del email
+        Assert.Contains("a coordinar", body);   // sin seguimiento todavía
+    }
+
+    [Fact]
     public async Task Meta_Ads_conectar_elegir_cuenta_y_ver_el_gasto()
     {
         var merchant = await Merchant.CreateAsync(_factory, "ads");
