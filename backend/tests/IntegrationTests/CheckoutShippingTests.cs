@@ -111,8 +111,13 @@ public sealed class CheckoutShippingTests
         // Lo que pide el checkout: lo configura la tienda, lo lee el storefront.
         await merchant.PutAsync("/api/v1/admin/checkout/settings", new
         {
-            singleColumn = true, requirePhone = true, requireDocument = true, customerNoteEnabled = true,
-            customerNoteLabel = "¿Algo para el repartidor?", orderMessageEnabled = true, orderMessageText = "¡Gracias!",
+            singleColumn = true,
+            requirePhone = true,
+            requireDocument = true,
+            customerNoteEnabled = true,
+            customerNoteLabel = "¿Algo para el repartidor?",
+            orderMessageEnabled = true,
+            orderMessageText = "¡Gracias!",
         });
         Assert.True((await merchant.GetAsync("/api/v1/admin/checkout/settings")).GetProperty("requireDocument").GetBoolean());
         var settings = await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/checkout-settings");
@@ -143,8 +148,14 @@ public sealed class CheckoutShippingTests
         var userToken = $"user-{merchant.Subdomain}";
         await merchant.PutAsync("/api/v1/admin/shipping/correo", new
         {
-            userToken, passwordToken = "p", customerId = "0009", environment = "TEST", originPostalCode = "1425",
-            offerHomeDelivery = true, offerAgencyDelivery = true, active = true,
+            userToken,
+            passwordToken = "p",
+            customerId = "0009",
+            environment = "TEST",
+            originPostalCode = "1425",
+            offerHomeDelivery = true,
+            offerAgencyDelivery = true,
+            active = true,
         });
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Correo}/token", new { token = "jwt" });
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Correo}/rates", new
@@ -174,10 +185,24 @@ public sealed class CheckoutShippingTests
 
         await merchant.PutAsync("/api/v1/admin/shipping/andreani", new
         {
-            username = "u", password = "p", homeDeliveryContract = "300006611", branchPickupContract = "400006709", useQa = false,
-            senderName = "Tienda", senderEmail = "t@t.com", senderDocumentType = "CUIT", senderDocumentNumber = "30712345678",
-            originStreet = "Calle", originNumber = "1", originCity = "CABA", originPostalCode = "1425",
-            weightGrams = 1000, lengthCm = 30, widthCm = 20, heightCm = 15, active = true,
+            username = "u",
+            password = "p",
+            homeDeliveryContract = "300006611",
+            branchPickupContract = "400006709",
+            useQa = false,
+            senderName = "Tienda",
+            senderEmail = "t@t.com",
+            senderDocumentType = "CUIT",
+            senderDocumentNumber = "30712345678",
+            originStreet = "Calle",
+            originNumber = "1",
+            originCity = "CABA",
+            originPostalCode = "1425",
+            weightGrams = 1000,
+            lengthCm = 30,
+            widthCm = 20,
+            heightCm = 15,
+            active = true,
         });
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Andreani}/v1/tarifas", new { tarifaConIva = new { total = "6000.00" }, tarifaSinIva = new { total = "4958.68" } });
     }

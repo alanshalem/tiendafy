@@ -112,20 +112,42 @@ public sealed class CatalogFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/spec-definitions", new { name = "" })).StatusCode);
         var material = await merchant.PostAsync("/api/v1/spec-definitions", new
         {
-            name = "Material", type = "TEXT", unit = (string?)null, options = (string[]?)null,
-            categoryIds = new[] { categoryId }, showOnProduct = true, filterable = true, meliAttributeId = "MATERIAL", sortOrder = 1,
+            name = "Material",
+            type = "TEXT",
+            unit = (string?)null,
+            options = (string[]?)null,
+            categoryIds = new[] { categoryId },
+            showOnProduct = true,
+            filterable = true,
+            meliAttributeId = "MATERIAL",
+            sortOrder = 1,
         });
         var weight = await merchant.PostAsync("/api/v1/spec-definitions", new
         {
-            name = "Peso", type = "NUMBER", unit = "g", showOnProduct = true, filterable = false, sortOrder = 2,
+            name = "Peso",
+            type = "NUMBER",
+            unit = "g",
+            showOnProduct = true,
+            filterable = false,
+            sortOrder = 2,
         });
         var fit = await merchant.PostAsync("/api/v1/spec-definitions", new
         {
-            name = "Calce", type = "SELECT", options = new[] { "Regular", "Oversize" }, showOnProduct = true, filterable = true, sortOrder = 3,
+            name = "Calce",
+            type = "SELECT",
+            options = new[] { "Regular", "Oversize" },
+            showOnProduct = true,
+            filterable = true,
+            sortOrder = 3,
         });
         await merchant.PutAsync($"/api/v1/spec-definitions/{weight.GetProperty("id").GetGuid()}", new
         {
-            name = "Peso neto", type = "NUMBER", unit = "g", showOnProduct = false, filterable = false, sortOrder = 2,
+            name = "Peso neto",
+            type = "NUMBER",
+            unit = "g",
+            showOnProduct = false,
+            filterable = false,
+            sortOrder = 2,
         });
         var specs = await merchant.PutAsync($"/api/v1/products/{id}/specs", new
         {

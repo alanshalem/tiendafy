@@ -164,7 +164,9 @@ public sealed partial class PlatformFlowTests
         var newSub = $"ed{Guid.NewGuid():N}"[..12];
         var edited = await merchant.PatchAsync($"/api/v1/tenants/{second.TenantId}", new
         {
-            name = $"Tienda editada {newSub}", subdomain = newSub, customDomain = $"www.{newSub}.com.ar",
+            name = $"Tienda editada {newSub}",
+            subdomain = newSub,
+            customDomain = $"www.{newSub}.com.ar",
         });
         Assert.Equal(newSub, edited.GetProperty("subdomain").GetString());
         var domain = await second.GetAsync("/api/v1/tenants/domain-status");

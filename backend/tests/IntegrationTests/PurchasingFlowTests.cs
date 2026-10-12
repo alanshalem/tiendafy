@@ -41,11 +41,16 @@ public sealed class PurchasingFlowTests
         // internacional (USD) y despachante (pesos).
         Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/purchasing/purchase-orders", new
         {
-            supplierName = "X", currency = "USD", exchangeRate = 1000m, items = new[] { new { variantId = Guid.NewGuid(), quantity = 1, unitCost = 1m } },
+            supplierName = "X",
+            currency = "USD",
+            exchangeRate = 1000m,
+            items = new[] { new { variantId = Guid.NewGuid(), quantity = 1, unitCost = 1m } },
         })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/purchasing/purchase-orders", new
         {
-            supplierName = "X", currency = "DOLARES", exchangeRate = 1000m,
+            supplierName = "X",
+            currency = "DOLARES",
+            exchangeRate = 1000m,
         })).StatusCode);
 
         var po = await merchant.PostAsync("/api/v1/purchasing/purchase-orders", new
@@ -146,13 +151,21 @@ public sealed class PurchasingFlowTests
         // Confirmar la factura: queda la deuda en la cuenta corriente del proveedor.
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Put, $"/api/v1/purchasing/purchase-orders/{poId}/invoice", new
         {
-            supplierTaxId = "30712345678", invoiceType = "A", invoiceNumber = "0003-00001234",
-            invoiceDateUtc = DateTime.UtcNow, invoiceNetArs = -1m, invoiceVatArs = 0m,
+            supplierTaxId = "30712345678",
+            invoiceType = "A",
+            invoiceNumber = "0003-00001234",
+            invoiceDateUtc = DateTime.UtcNow,
+            invoiceNetArs = -1m,
+            invoiceVatArs = 0m,
         })).StatusCode);
         await merchant.PutAsync($"/api/v1/purchasing/purchase-orders/{poId}/invoice", new
         {
-            supplierTaxId = "30712345678", invoiceType = "A", invoiceNumber = "0003-00001234",
-            invoiceDateUtc = DateTime.UtcNow, invoiceNetArs = 500_000m, invoiceVatArs = 105_000m,
+            supplierTaxId = "30712345678",
+            invoiceType = "A",
+            invoiceNumber = "0003-00001234",
+            invoiceDateUtc = DateTime.UtcNow,
+            invoiceNetArs = 500_000m,
+            invoiceVatArs = 105_000m,
         });
         var ficha = await merchant.GetAsync($"/api/v1/suppliers/{supplierId}");
         Assert.Equal(-605_000_00, ficha.GetProperty("balanceMinor").GetInt64());

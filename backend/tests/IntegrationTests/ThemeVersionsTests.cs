@@ -1,7 +1,7 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
 
 namespace IntegrationTests;
 

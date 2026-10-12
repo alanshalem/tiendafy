@@ -56,18 +56,33 @@ public sealed class StoreAdminFlowTests
         // Medición: ids validados; apagada, la tienda no ve nada.
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Put, "/api/v1/admin/tracking", new
         {
-            enabled = true, requireConsent = true, ga4Id = "<script>", googleAdsId = (string?)null, metaPixelId = (string?)null, clarityId = (string?)null,
+            enabled = true,
+            requireConsent = true,
+            ga4Id = "<script>",
+            googleAdsId = (string?)null,
+            metaPixelId = (string?)null,
+            clarityId = (string?)null,
         })).StatusCode);
         await merchant.PutAsync("/api/v1/admin/tracking", new
         {
-            enabled = true, requireConsent = false, ga4Id = "G-ABC123XYZ", googleAdsId = "AW-123456789", metaPixelId = "1234567890123456", clarityId = "abcd1234ef",
+            enabled = true,
+            requireConsent = false,
+            ga4Id = "G-ABC123XYZ",
+            googleAdsId = "AW-123456789",
+            metaPixelId = "1234567890123456",
+            clarityId = "abcd1234ef",
         });
         var visible = await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/tracking");
         Assert.Equal("G-ABC123XYZ", visible.GetProperty("ga4Id").GetString());
         Assert.False(visible.GetProperty("requireConsent").GetBoolean());
         await merchant.PutAsync("/api/v1/admin/tracking", new
         {
-            enabled = false, requireConsent = true, ga4Id = "G-ABC123XYZ", googleAdsId = (string?)null, metaPixelId = (string?)null, clarityId = (string?)null,
+            enabled = false,
+            requireConsent = true,
+            ga4Id = "G-ABC123XYZ",
+            googleAdsId = (string?)null,
+            metaPixelId = (string?)null,
+            clarityId = (string?)null,
         });
         Assert.Equal(JsonValueKind.Null, (await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/tracking")).GetProperty("ga4Id").ValueKind);
         Assert.Equal("G-ABC123XYZ", (await merchant.GetAsync("/api/v1/admin/tracking")).GetProperty("ga4Id").GetString());
@@ -82,21 +97,41 @@ public sealed class StoreAdminFlowTests
         // Alta, validaciones y edición.
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/coupons", new
         {
-            code = "", type = "percentage", value = 10, minPurchase = 0, active = true,
+            code = "",
+            type = "percentage",
+            value = 10,
+            minPurchase = 0,
+            active = true,
         })).StatusCode);
         var coupon = await merchant.PostAsync("/api/v1/coupons", new
         {
-            code = "verano10", type = "percent", value = 10, minPurchase = 50_000_00L, startsAtUtc = DateTime.UtcNow.AddDays(-1), endsAtUtc = DateTime.UtcNow.AddDays(30), maxUses = 100, active = true,
+            code = "verano10",
+            type = "percent",
+            value = 10,
+            minPurchase = 50_000_00L,
+            startsAtUtc = DateTime.UtcNow.AddDays(-1),
+            endsAtUtc = DateTime.UtcNow.AddDays(30),
+            maxUses = 100,
+            active = true,
         });
         var couponId = coupon.GetProperty("id").GetGuid();
         Assert.Equal("VERANO10", coupon.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, "/api/v1/coupons", new
         {
-            code = "VERANO10", type = "fixed", value = 1000, minPurchase = 0, active = true,
+            code = "VERANO10",
+            type = "fixed",
+            value = 1000,
+            minPurchase = 0,
+            active = true,
         })).StatusCode);
         await merchant.PutAsync($"/api/v1/coupons/{couponId}", new
         {
-            code = "VERANO10", type = "percentage", value = 15, minPurchase = 50_000_00L, maxUses = 100, active = true,
+            code = "VERANO10",
+            type = "percentage",
+            value = 15,
+            minPurchase = 50_000_00L,
+            maxUses = 100,
+            active = true,
         });
         await merchant.PostAsync("/api/v1/coupons", new { code = "ENVIOGRATIS", type = "free_shipping", value = 0, minPurchase = 0, active = true });
 
@@ -147,7 +182,12 @@ public sealed class StoreAdminFlowTests
         var wholesaleId = wholesale.GetProperty("id").GetGuid();
         var distributor = await merchant.PostAsync("/api/v1/price-lists", new
         {
-            name = "Distribuidor", currency = "ARS", basedOnPriceListId = wholesaleId, adjustmentPercent = -10, rounding = "100", sortOrder = 2,
+            name = "Distribuidor",
+            currency = "ARS",
+            basedOnPriceListId = wholesaleId,
+            adjustmentPercent = -10,
+            rounding = "100",
+            sortOrder = 2,
         });
         var distributorId = distributor.GetProperty("id").GetGuid();
 
