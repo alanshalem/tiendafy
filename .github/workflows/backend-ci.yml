@@ -83,8 +83,8 @@ jobs:
       # Ratchet de cobertura TOTAL (unit + integración unidos por archivo y
       # línea con tools/coverage.py, que no cuenta dos veces la misma línea):
       # piso 90 (medido: 92.5%). Al subir la cobertura, subir el piso.
-      - name: Cobertura total >= 90%
-        run: python tools/coverage.py test-results --min 90 --top 15
+      - name: Cobertura total >= 93%
+        run: python tools/coverage.py test-results --min 93 --top 15
 
       - name: Upload test results
         if: always()

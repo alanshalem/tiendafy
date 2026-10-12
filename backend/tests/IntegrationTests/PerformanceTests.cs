@@ -26,6 +26,9 @@ public sealed class PerformanceTests
 
     public PerformanceTests(ApiFactory factory) => _factory = factory;
 
+    /// <summary>Consultas de diferencia que no son N+1 (cachés que vencen entre mediciones).</summary>
+    private const int JitterQueries = 1;
+
     /// <summary>Lo que se mide: cada listado, con su forma de pedirlo.</summary>
     private static readonly string[] Listings =
     [
@@ -53,7 +56,10 @@ public sealed class PerformanceTests
         foreach (var path in Listings)
         {
             Assert.True(few[path] > 0, $"{path}: no se contó ninguna consulta (¿el contador escucha a EF?)");
-            Assert.True(many[path] <= few[path],
+            // Un N+1 suma una consulta por fila: 10 ventas más son ~10 consultas más.
+            // Se tolera una suelta (un caché que vence entre las dos mediciones), que
+            // en CI hacía fallar el test con 9 contra 10 sin que nada creciera con los datos.
+            Assert.True(many[path] <= few[path] + JitterQueries,
                 $"{path}: {few[path]} consultas con 2 ventas y {many[path]} con 12 — crece con los datos (N+1)");
         }
     }
