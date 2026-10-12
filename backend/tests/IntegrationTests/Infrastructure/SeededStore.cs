@@ -72,12 +72,21 @@ public static class SeededStore
         await store.PutAsync($"/api/v1/products/{ids["product"]}/categories", new { categoryIds = new[] { ids["category"] } });
         var material = await store.PostAsync("/api/v1/spec-definitions", new
         {
-            name = "Material", type = "TEXT", categoryIds = new[] { ids["category"] },
-            showOnProduct = true, filterable = true, sortOrder = 1,
+            name = "Material",
+            type = "TEXT",
+            categoryIds = new[] { ids["category"] },
+            showOnProduct = true,
+            filterable = true,
+            sortOrder = 1,
         });
         var weight = await store.PostAsync("/api/v1/spec-definitions", new
         {
-            name = "Peso", type = "NUMBER", unit = "kg", showOnProduct = true, filterable = false, sortOrder = 2,
+            name = "Peso",
+            type = "NUMBER",
+            unit = "kg",
+            showOnProduct = true,
+            filterable = false,
+            sortOrder = 2,
         });
         await store.PutAsync($"/api/v1/products/{ids["product"]}/specs", new
         {
@@ -127,21 +136,32 @@ public static class SeededStore
             new { accountId = ids["account"], kind = "out", amountMinor = 30_000L, concept = "Flete" });
         await store.PostAsync("/api/v1/finance/ledger/adjustments", new
         {
-            partyKind = "customer", partyId = ids["customer"], kind = "debit",
-            amountMinor = 200_000L, currency = "ARS", label = "Factura A 0001-00000001",
+            partyKind = "customer",
+            partyId = ids["customer"],
+            kind = "debit",
+            amountMinor = 200_000L,
+            currency = "ARS",
+            label = "Factura A 0001-00000001",
         });
         var pendingInvoice = FirstId(await store.GetAsync(
             $"/api/v1/finance/ledger/pending?partyKind=customer&partyId={ids["customer"]}"));
         await store.PostAsync("/api/v1/finance/receipts", new
         {
-            kind = "collection", partyKind = "customer", partyId = ids["customer"], partyName = "Cliente sembrado",
+            kind = "collection",
+            partyKind = "customer",
+            partyId = ids["customer"],
+            partyName = "Cliente sembrado",
             payments = new[] { new { accountId = ids["account"], amountMinor = 80_000L } },
             allocations = new[] { new { ledgerEntryId = pendingInvoice, amountMinor = 80_000L } },
         });
         await store.PostAsync("/api/v1/finance/ledger/adjustments", new
         {
-            partyKind = "supplier", partyId = ids["supplier"], kind = "credit",
-            amountMinor = 500_000L, currency = "ARS", label = "Factura proveedor 0003-00000120",
+            partyKind = "supplier",
+            partyId = ids["supplier"],
+            kind = "credit",
+            amountMinor = 500_000L,
+            currency = "ARS",
+            label = "Factura proveedor 0003-00000120",
         });
         ids["contactMessage"] = FirstId(await store.GetAsync("/api/v1/contact/messages"));
         var pages = await store.GetAsync("/api/v1/pages");
