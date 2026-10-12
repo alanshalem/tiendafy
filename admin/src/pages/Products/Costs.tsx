@@ -251,6 +251,9 @@ export function CostsPage() {
                       <td className="px-4 py-2.5">
                         <div className="mx-auto w-28 shrink-0">
                           <Input
+                            aria-label={`Costo de ${product.name}${
+                              variant.optionValues.length > 0 ? ` (${variant.optionValues.join(' / ')})` : ''
+                            }`}
                             compact
                             type="number"
                             min={0}
@@ -294,11 +297,11 @@ export function CostsPage() {
   );
 }
 
-// ---- Repreciacion masiva -----------------------------------------------------
+// ---- Repreciación masiva -----------------------------------------------------
 
 /**
- * Llego el contenedor con dolar nuevo: +X% a todo el catalogo (o a una
- * categoria) con redondeo comercial, en dos clicks.
+ * Llegó el contenedor con dólar nuevo: +X% a todo el catálogo (o a una
+ * categoría) con redondeo comercial, en dos clicks.
  */
 function RepriceModal({ onClose }: { onClose: () => void }) {
   const { store } = useStore();
@@ -319,12 +322,12 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
   const apply = async () => {
     const pct = Number(percent);
     if (!Number.isFinite(pct) || pct === 0) {
-      toast('Ingresa un porcentaje distinto de cero.', { variant: 'error' });
+      toast('Ingresá un porcentaje distinto de cero.', { variant: 'error' });
       return;
     }
     const ok = await confirm({
       title: 'Repreciar en masa',
-      message: `Se ${pct > 0 ? 'aumentan' : 'bajan'} los precios ${Math.abs(pct)}%${categoryId ? ' de la categoria elegida' : ' de TODO el catalogo'}. Impacta en la tienda al instante y no se puede deshacer en bloque.`,
+      message: `Se ${pct > 0 ? 'aumentan' : 'bajan'} los precios ${Math.abs(pct)}%${categoryId ? ' de la categoría elegida' : ' de TODO el catálogo'}. Impacta en la tienda al instante y no se puede deshacer en bloque.`,
       confirmLabel: 'Repreciar',
       variant: 'danger',
     });
@@ -366,7 +369,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
     >
       <p className="text-sm text-fg-muted">
         Sube (o baja) todos los precios en un porcentaje, con redondeo comercial. Los precios tachados de
-        oferta se ajustan igual, asi la promo mantiene su descuento relativo.
+        oferta se ajustan igual, así la promo mantiene su descuento relativo.
       </p>
       <div className="mt-4 space-y-3">
         <div>
@@ -390,7 +393,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             options={[
-              { value: '', label: 'Todo el catalogo' },
+              { value: '', label: 'Todo el catálogo' },
               ...(cats?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
             ]}
           />
@@ -402,9 +405,9 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
             value={rounding}
             onChange={(e) => setRounding(e.target.value)}
             options={[
-              { value: '990', label: 'Terminacion $990 (ej: $45.990)' },
-              { value: '1000', label: 'Al $1.000 mas cercano' },
-              { value: '100', label: 'Al $100 mas cercano' },
+              { value: '990', label: 'Terminación $990 (ej: $45.990)' },
+              { value: '1000', label: 'Al $1.000 más cercano' },
+              { value: '100', label: 'Al $100 más cercano' },
               { value: 'none', label: 'Sin redondeo' },
             ]}
           />
