@@ -180,29 +180,51 @@ function blockText(b: HelpBlock): string {
 
 /** ¿El artículo matchea la búsqueda? (título, intro, headings, texto y bloques). */
 function matches(article: HelpArticle, q: string): boolean {
-  const needle = q.trim().toLowerCase();
+  // Sin tildes de los dos lados: "envios" tiene que encontrar "envíos".
+  const needle = foldText(q.trim());
   if (!needle) return true;
-  const haystack = [article.title, article.intro, ...sectionTexts(article)].join(' ').toLowerCase();
+  const haystack = foldText([article.title, article.intro, ...sectionTexts(article)].join(' '));
   return needle.split(/\s+/).every((word) => haystack.includes(word));
 }
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** Resalta las palabras buscadas dentro de un texto. */
+/**
+ * Resalta las palabras buscadas dentro de un texto.
+ *
+ * La búsqueda ignora tildes, así que el resaltado también: se busca sobre el
+ * texto sin tildes y se marca el original ("envios" resalta "envíos").
+ */
 function Highlight({ text, query }: { text: string; query: string }) {
-  const words = query.trim().split(/\s+/).filter(Boolean);
+  const words = foldText(query).trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return <>{text}</>;
-  const re = new RegExp(`(${words.map(escapeRegExp).join('|')})`, 'gi');
-  const parts = text.split(re);
+
+  const chars = Array.from(text);
+  const folded = chars.map(foldText);
+  // De cada posición del texto sin tildes, a qué carácter del original pertenece.
+  const owner = folded.flatMap((f, i) => Array.from(f, () => i));
+  const flat = folded.join('');
+  const marked = chars.map(() => false);
+  for (const word of words) {
+    for (let at = flat.indexOf(word); at !== -1; at = flat.indexOf(word, at + word.length)) {
+      for (let k = at; k < at + word.length; k++) marked[owner[k]!] = true;
+    }
+  }
+
+  // Tramos consecutivos marcados / sin marcar.
+  const parts: { text: string; mark: boolean }[] = [];
+  chars.forEach((c, i) => {
+    const last = parts.at(-1);
+    if (last && last.mark === marked[i]) last.text += c;
+    else parts.push({ text: c, mark: marked[i]! });
+  });
   return (
     <>
       {parts.map((p, i) =>
-        i % 2 === 1 ? (
+        p.mark ? (
           <mark key={i} className="rounded-sm bg-warning-bg px-0.5 text-fg">
-            {p}
+            {p.text}
           </mark>
         ) : (
-          p
+          p.text
         ),
       )}
     </>
