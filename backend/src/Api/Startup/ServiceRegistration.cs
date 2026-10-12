@@ -263,6 +263,9 @@ public static class ServiceRegistration
 
         // Importación masiva de productos: cola en memoria + worker en background.
         services.AddHttpClient();
+        // Descargas de URLs ajenas (imágenes del CSV): sin redirecciones y con la IP validada al conectar.
+        services.AddHttpClient(Api.Import.PublicUrlGuard.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(Api.Import.PublicUrlGuard.CreateHandler);
         services.AddSingleton<ProductImportQueue>();
         services.AddHostedService<ProductImportWorker>();
         services.AddSingleton<ImageImportQueue>();

@@ -60,4 +60,27 @@ public sealed class PublicUrlGuardTests
     [Fact]
     public async Task Una_IP_publica_literal_se_puede_bajar() =>
         Assert.True(await PublicUrlGuard.IsFetchableAsync("https://8.8.8.8/logo.png", CancellationToken.None));
+
+    // La IP se vuelve a validar al conectar (DNS rebinding) y un 302 no se sigue.
+    [Theory]
+    [InlineData("127.0.0.1")]
+    [InlineData("localhost")]
+    [InlineData("169.254.169.254")]
+    public async Task Al_conectar_rechaza_lo_interno(string host)
+    {
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await PublicUrlGuard.ConnectToPublicAsync(new DnsEndPoint(host, 80), CancellationToken.None));
+        Assert.Contains("no resuelve a una dirección pública", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_cliente_de_descargas_no_sigue_redirecciones_y_valida_al_conectar()
+    {
+        using var handler = PublicUrlGuard.CreateHandler();
+        Assert.False(handler.AllowAutoRedirect);
+
+        using var http = new HttpClient(handler);
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("http://127.0.0.1:9/imagen.jpg"));
+        Assert.Contains("no resuelve a una dirección pública", ex.ToString(), StringComparison.Ordinal);
+    }
 }

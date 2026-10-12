@@ -12,6 +12,41 @@ namespace Api.Import;
 /// </summary>
 public static class PublicUrlGuard
 {
+    /// <summary>Cliente HTTP para descargar URLs ajenas (ver <see cref="CreateHandler"/>).</summary>
+    public const string HttpClientName = "public-fetch";
+
+    /// <summary>
+    /// El handler de ese cliente. Revisar la URL antes de pedirla no alcanza:
+    /// una URL pública puede responder un 302 a la red interna, y el DNS puede
+    /// cambiar entre el chequeo y la conexión (DNS rebinding). Por eso no sigue
+    /// redirecciones y vuelve a validar la IP en el momento de conectar.
+    /// </summary>
+    public static SocketsHttpHandler CreateHandler() => new()
+    {
+        AllowAutoRedirect = false,
+        ConnectCallback = (context, ct) => ConnectToPublicAsync(context.DnsEndPoint, ct),
+    };
+
+    /// <summary>Conecta solo si el host resuelve, entero, a direcciones públicas.</summary>
+    public static async ValueTask<Stream> ConnectToPublicAsync(DnsEndPoint endpoint, CancellationToken ct)
+    {
+        var addresses = await Dns.GetHostAddressesAsync(endpoint.Host, ct);
+        if (addresses.Length == 0 || addresses.Any(IsPrivateOrReserved))
+            throw new HttpRequestException($"{endpoint.Host} no resuelve a una dirección pública.");
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        try
+        {
+            await socket.ConnectAsync(addresses, endpoint.Port, ct);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
     /// <summary>¿Se puede descargar? http(s) y todas sus IPs públicas.</summary>
     public static async Task<bool> IsFetchableAsync(string url, CancellationToken ct)
     {

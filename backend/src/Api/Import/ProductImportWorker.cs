@@ -265,7 +265,7 @@ public sealed class ProductImportWorker(
             // (169.254.169.254), loopback y rangos privados de la red interna.
             if (!await PublicUrlGuard.IsFetchableAsync(src, ct)) return null;
 
-            var http = httpFactory.CreateClient();
+            var http = httpFactory.CreateClient(PublicUrlGuard.HttpClientName);
             http.Timeout = TimeSpan.FromSeconds(20);
 
             using var resp = await http.GetAsync(src, ct);
