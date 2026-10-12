@@ -187,4 +187,40 @@ describe('secciones de la portada', () => {
     }
     expect(crashes()).toEqual([]);
   });
+
+  it('Instagram: un post se embebe, un perfil es una tarjeta y Vimeo se reproduce', () => {
+    const { rerender } = render(
+      view([section('instagram', { video: 'https://www.instagram.com/reel/Cx1-ab_C/' })]),
+    );
+    expect(screen.getByTitle('Instagram')).toHaveAttribute(
+      'src',
+      'https://www.instagram.com/p/Cx1-ab_C/embed',
+    );
+
+    rerender(view([section('instagram', { video: 'https://instagram.com/tienda.oficial?hl=es' })]));
+    expect(screen.getByRole('link', { name: /tienda\.oficial/ })).toHaveAttribute(
+      'href',
+      'https://instagram.com/tienda.oficial',
+    );
+
+    rerender(view([section('instagram', { video: 'https://vimeo.com/123456' })]));
+    expect(document.querySelector('iframe')?.getAttribute('src')).toBe(
+      'https://player.vimeo.com/video/123456',
+    );
+    expect(crashes()).toEqual([]);
+  });
+
+  it('imagen y texto sin texto es un banner a lo ancho; sin imagen ni título no se muestra', () => {
+    const { container, rerender } = render(view([section('image-text', { image: img(9) })]));
+    expect(container.querySelector('main img')).toHaveAttribute('src', img(9));
+    expect(container.querySelector('main h2')).toBeNull();
+
+    rerender(view([section('image-text', { description: 'solo descripción' })]));
+    expect(container.querySelector('main')!.childElementCount).toBe(0);
+  });
+
+  it('una sección de un tipo que no existe no rompe la portada', () => {
+    const { container } = render(view([section('no-existe' as SectionType, {})]));
+    expect(container.querySelector('main')!.childElementCount).toBe(0);
+  });
 });

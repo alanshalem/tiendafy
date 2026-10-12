@@ -294,4 +294,32 @@ describe('pie', () => {
       expect(footer.getByRole('link', { name: red })).toBeInTheDocument();
     if (page) expect(footer.getByRole('link', { name: page.title })).toBeInTheDocument();
   });
+
+  it('los contactos: WhatsApp, teléfono y email como links, la dirección como texto', async () => {
+    await show(
+      theme(
+        {},
+        {
+          footer: {
+            ...base.footer,
+            whatsapps: ['+54 9 11 5555-4444', ''],
+            phones: ['011 4555 1234'],
+            emails: ['hola@tienda.com'],
+            addresses: ['Av. Corrientes 1234, CABA'],
+          } as ThemeConfig['footer'],
+        },
+      ),
+    );
+    const footer = within(screen.getByRole('contentinfo'));
+    expect(footer.getByRole('link', { name: /\+54 9 11 5555-4444/ })).toHaveAttribute(
+      'href',
+      'https://wa.me/5491155554444',
+    );
+    expect(footer.getByRole('link', { name: /011 4555 1234/ })).toHaveAttribute('href', 'tel:01145551234');
+    expect(footer.getByRole('link', { name: /hola@tienda.com/ })).toHaveAttribute(
+      'href',
+      'mailto:hola@tienda.com',
+    );
+    expect(footer.getByText('Av. Corrientes 1234, CABA')).toBeInTheDocument();
+  });
 });
