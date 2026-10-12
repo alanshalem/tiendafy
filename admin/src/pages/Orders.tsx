@@ -284,6 +284,7 @@ export function OrdersPage() {
         </div>
         <div className="w-52">
           <Select
+            aria-label="Filtrar por estado"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);

@@ -188,6 +188,7 @@ function ComprasList({
                 así que el que manda es el layout, no el control. */}
             <div className="w-44 shrink-0">
               <Select
+                aria-label="Filtrar por estado"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);

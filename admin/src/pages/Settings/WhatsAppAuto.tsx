@@ -105,7 +105,12 @@ export function WhatsAppAutoPage() {
           onEdit={setEditing}
           renderToggle={(t) => (
             <span title={!connected ? 'Conectá WhatsApp primero' : undefined}>
-              <Switch checked={t.enabled} disabled={!connected} onChange={(on) => toggle(t, on)} />
+              <Switch
+                aria-label={`Activar «${t.label}»`}
+                checked={t.enabled}
+                disabled={!connected}
+                onChange={(on) => toggle(t, on)}
+              />
             </span>
           )}
         />

@@ -192,7 +192,8 @@ function StepCard({
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
               Paso {step}
             </span>
-            <span className="text-base font-bold text-fg">{title}</span>
+            {/* Encabezado (y no un span): con un lector de pantalla se salta de paso en paso. */}
+            <h2 className="text-base font-bold text-fg">{title}</h2>
           </div>
           {subtitle && <p className="mt-0.5 text-xs text-fg-muted">{subtitle}</p>}
         </div>
@@ -285,6 +286,7 @@ export function IssuerStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Condición frente a ARCA</label>
           <Select
+            aria-label="Condición frente a ARCA"
             value={condition}
             onChange={(e) => setCondition(e.target.value as FiscalCondition)}
             options={[
@@ -301,6 +303,7 @@ export function IssuerStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Ambiente</label>
           <Select
+            aria-label="Ambiente"
             value={environment}
             onChange={(e) => setEnvironment(e.target.value as FiscalEnvironment)}
             options={[
@@ -771,6 +774,7 @@ export function EmissionStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">¿Cuándo se factura?</label>
           <Select
+            aria-label="¿Cuándo se factura?"
             value={trigger}
             onChange={(e) => setTrigger(e.target.value as InvoiceTrigger)}
             disabled={!autoInvoice}
@@ -788,6 +792,7 @@ export function EmissionStep({
         <div>
           <label className="mb-1 block text-sm font-medium text-fg">Punto de venta por defecto</label>
           <Select
+            aria-label="Punto de venta por defecto"
             value={defaultPos}
             onChange={(e) => setDefaultPos(e.target.value)}
             placeholder={points.length ? 'Elegí un punto de venta' : 'Cargá un punto de venta primero'}

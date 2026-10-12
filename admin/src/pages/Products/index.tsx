@@ -361,6 +361,7 @@ export function ProductsPage() {
               )}
             </button>
             <select
+              aria-label="Ordenar productos"
               value={sort}
               onChange={(e) => {
                 setSort(e.target.value as SortLabel);

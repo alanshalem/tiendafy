@@ -78,7 +78,13 @@ export function AutoEmailsPage() {
           items={items}
           editLabel="Editar contenido"
           onEdit={setEditing}
-          renderToggle={(t) => <Switch checked={t.enabled} onChange={(on) => toggle(t, on)} />}
+          renderToggle={(t) => (
+            <Switch
+              aria-label={`Activar «${t.label}»`}
+              checked={t.enabled}
+              onChange={(on) => toggle(t, on)}
+            />
+          )}
         />
       </div>
 

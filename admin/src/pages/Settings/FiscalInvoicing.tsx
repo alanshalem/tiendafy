@@ -125,6 +125,7 @@ function ExportLibroIva() {
   return (
     <div className="flex items-center gap-2">
       <input
+        aria-label="Mes del libro de IVA ventas"
         type="month"
         value={period}
         onChange={(e) => setPeriod(e.target.value)}

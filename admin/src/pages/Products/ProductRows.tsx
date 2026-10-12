@@ -115,12 +115,14 @@ export function ProductRows({
             </td>
             <td className="px-3 py-2">
               <PriceInput
+                label={`Precio de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
                 value={form.regular}
                 onSave={(amount) => savePrice.mutate({ variant, regular: amount, promo: form.promo })}
               />
             </td>
             <td className="px-3 py-2">
               <PriceInput
+                label={`Precio promocional de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
                 value={form.promo}
                 placeholder="—"
                 onSave={(amount) => savePrice.mutate({ variant, regular: form.regular, promo: amount })}
@@ -174,10 +176,13 @@ export function ProductRows({
 
 /** Input de precio inline: muestra en pesos, guarda en centavos al blur si cambió. */
 function PriceInput({
+  label,
   value,
   placeholder,
   onSave,
 }: {
+  /** Nombre accesible: en la fila no hay un <label> visible, el encabezado de la columna lo da a entender. */
+  label: string;
   value: number | null;
   placeholder?: string;
   onSave: (amountCents: number) => void;
@@ -200,6 +205,7 @@ function PriceInput({
     <div className="flex items-center rounded-md border border-border-strong bg-surface focus-within:ring-2 focus-within:ring-primary">
       <span className="pl-2 text-xs text-fg-subtle">$</span>
       <input
+        aria-label={label}
         value={draft}
         placeholder={placeholder}
         onChange={(e) => setDraft(e.target.value)}

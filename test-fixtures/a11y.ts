@@ -1,0 +1,43 @@
+/**
+ * Accesibilidad automática con axe-core, compartida por admin y storefront.
+ *
+ * Corre las reglas de WCAG 2.x A/AA que tienen sentido sin un navegador real:
+ * nombres accesibles (botones, links, campos, imágenes, diálogos), ARIA válido
+ * y bien anidado, foco dentro de lo oculto, controles anidados. Quedan afuera
+ * las que necesitan layout o color de verdad (contraste, tamaño de los
+ * objetivos táctiles): jsdom no los calcula y darían falsos resultados; esas
+ * las cubre el e2e con un navegador.
+ *
+ * Recibe `axe` por parámetro: cada proyecto lo resuelve desde su node_modules.
+ */
+
+interface AxeNode {
+  html: string;
+  target: unknown[];
+}
+interface AxeResult {
+  id: string;
+  impact?: string | null;
+  help: string;
+  nodes: AxeNode[];
+}
+interface Axe {
+  run(context: Element, options: object): Promise<{ violations: AxeResult[] }>;
+}
+
+/** Reglas que dependen de layout/color reales (jsdom no los tiene). */
+const NEEDS_A_BROWSER = ['color-contrast', 'target-size', 'scrollable-region-focusable'];
+
+/** Las violaciones, resumidas para que un fallo se lea en el reporte del test. */
+export async function a11yViolations(axe: Axe, root: Element = document.body) {
+  const { violations } = await axe.run(root, {
+    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+    rules: Object.fromEntries(NEEDS_A_BROWSER.map((id) => [id, { enabled: false }])),
+    resultTypes: ['violations'],
+  });
+  return violations.map((v) => ({
+    rule: v.id,
+    help: v.help,
+    nodes: v.nodes.map((n) => n.html.slice(0, 160)),
+  }));
+}

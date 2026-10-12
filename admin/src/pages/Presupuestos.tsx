@@ -219,6 +219,7 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
           placeholder="Buscar por cliente o número..."
         />
         <Select
+          aria-label="Filtrar por estado"
           className="w-44"
           value={status}
           onChange={(e) => {

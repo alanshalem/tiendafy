@@ -250,40 +250,38 @@ export function EditProductPage() {
           <FormField label="Nombre" required error={error}>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </FormField>
-          <FormField label="Descripción">
-            <div>
+          {/* El botón de IA va fuera del FormField: adentro, el <label> apuntaba al
+              contenedor y la descripción quedaba sin nombre accesible. */}
+          <div>
+            <FormField label="Descripción">
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
-              {aiEnabled && name.trim().length > 2 && (
-                <button
-                  type="button"
-                  disabled={aiWriting}
-                  onClick={async () => {
-                    setAiWriting(true);
-                    try {
-                      const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
-                        name,
-                        notes: description || null,
-                      });
-                      setDescription(r.text);
-                    } catch (err) {
-                      toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
-                    } finally {
-                      setAiWriting(false);
-                    }
-                  }}
-                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                  title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
-                >
-                  {aiWriting ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3" />
-                  )}
-                  Escribir con IA
-                </button>
-              )}
-            </div>
-          </FormField>
+            </FormField>
+            {aiEnabled && name.trim().length > 2 && (
+              <button
+                type="button"
+                disabled={aiWriting}
+                onClick={async () => {
+                  setAiWriting(true);
+                  try {
+                    const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
+                      name,
+                      notes: description || null,
+                    });
+                    setDescription(r.text);
+                  } catch (err) {
+                    toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
+                  } finally {
+                    setAiWriting(false);
+                  }
+                }}
+                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
+              >
+                {aiWriting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Escribir con IA
+              </button>
+            )}
+          </div>
           <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
             <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />
           </FormField>

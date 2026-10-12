@@ -406,7 +406,7 @@ function MethodDialog({
             <div className="text-sm font-medium text-fg">Activo</div>
             <div className="text-xs text-fg-muted">Si lo desactivás, deja de aparecer en el checkout.</div>
           </div>
-          <Switch checked={active} onChange={setActive} />
+          <Switch aria-label="Activo" checked={active} onChange={setActive} />
         </div>
       </div>
     </Modal>

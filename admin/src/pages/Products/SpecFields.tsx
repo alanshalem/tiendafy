@@ -64,7 +64,11 @@ export function SpecFields({
               // Tres estados: sin definir, sí, no. "Sin definir" no es lo mismo
               // que "no", y en una ficha técnica esa diferencia importa.
               <div className="flex h-10 items-center gap-3">
-                <Switch checked={value === 'Sí'} onChange={(on) => set(d.id, on ? 'Sí' : 'No')} />
+                <Switch
+                  aria-label={d.name}
+                  checked={value === 'Sí'}
+                  onChange={(on) => set(d.id, on ? 'Sí' : 'No')}
+                />
                 <span className="text-sm text-fg-muted">{value === '' ? 'Sin definir' : value}</span>
                 {value !== '' && (
                   <button

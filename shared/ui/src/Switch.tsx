@@ -11,10 +11,20 @@ export interface SwitchProps {
   label?: ReactNode;
   description?: ReactNode;
   className?: string;
+  /** Nombre accesible cuando el switch va sin `label` (ej. en una grilla). */
+  'aria-label'?: string;
 }
 
 /** Toggle on/off estilo iOS. Usado en opciones de checkout, emails, mensajes. */
-export function Switch({ checked, onChange, disabled, label, description, className }: SwitchProps) {
+export function Switch({
+  checked,
+  onChange,
+  disabled,
+  label,
+  description,
+  className,
+  'aria-label': ariaLabel,
+}: SwitchProps) {
   const id = useId();
 
   const toggle = (
@@ -23,6 +33,7 @@ export function Switch({ checked, onChange, disabled, label, description, classN
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(

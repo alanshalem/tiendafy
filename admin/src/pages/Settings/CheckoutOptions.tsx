@@ -174,6 +174,7 @@ export function CheckoutOptionsPage() {
           description="Un campo libre para que aclare algo del pedido: un timbre, un horario, un color."
           toggle={
             <Switch
+              aria-label="Pedir nota del comprador"
               checked={value.customerNoteEnabled}
               onChange={(customerNoteEnabled) => update({ customerNoteEnabled })}
             />
@@ -201,6 +202,7 @@ export function CheckoutOptionsPage() {
           description="Se muestra en la pantalla final, junto con la confirmación del pago. Es donde contestar lo que todos preguntan apenas pagan: cuándo sale el pedido, cómo lo siguen, a dónde escribir."
           toggle={
             <Switch
+              aria-label="Mostrar mensaje al terminar la compra"
               checked={value.orderMessageEnabled}
               onChange={(orderMessageEnabled) => update({ orderMessageEnabled })}
             />

@@ -31,7 +31,7 @@ const CATEGORIES = {
 async function open(categories: object = CATEGORIES) {
   const api = mockApi();
   api.on('GET', '/api/v1/categories', categories);
-  api.on('POST', '/api/v1/categories', (body) => ({
+  api.on('POST', '/api/v1/categories', (body: unknown) => ({
     ...cat('nueva', (body as { name: string }).name),
     id: 'nueva',
   }));

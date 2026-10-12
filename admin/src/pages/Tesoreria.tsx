@@ -314,6 +314,7 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
           )}
         </div>
         <Select
+          aria-label="Filtrar por cuenta"
           className="w-56"
           value={accountId}
           onChange={(e) => {
