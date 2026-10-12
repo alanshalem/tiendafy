@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Inventory.Core.Domain;
@@ -265,7 +263,7 @@ public sealed class ProductImportWorker(
         {
             // Anti-SSRF: solo http(s) a hosts públicos. Bloquea metadata de cloud
             // (169.254.169.254), loopback y rangos privados de la red interna.
-            if (!await IsFetchablePublicUrlAsync(src, ct)) return null;
+            if (!await PublicUrlGuard.IsFetchableAsync(src, ct)) return null;
 
             var http = httpFactory.CreateClient();
             http.Timeout = TimeSpan.FromSeconds(20);
@@ -290,49 +288,6 @@ public sealed class ProductImportWorker(
 
     private static string? Fallback(string src) =>
         Uri.IsWellFormedUriString(src, UriKind.Absolute) && src.Length is >= 10 and <= 500 ? src : null;
-
-    /// <summary>
-    /// Valida que la URL sea http(s) y resuelva a una IP pública. Defensa anti-SSRF
-    /// para la descarga de imágenes del CSV (input controlado por el merchant).
-    /// </summary>
-    private static async Task<bool> IsFetchablePublicUrlAsync(string url, CancellationToken ct)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
-        if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps) return false;
-        try
-        {
-            var addresses = await Dns.GetHostAddressesAsync(u.DnsSafeHost, ct);
-            if (addresses.Length == 0) return false;
-            foreach (var ip in addresses)
-                if (IsPrivateOrReserved(ip)) return false;
-            return true;
-        }
-        catch { return false; }
-    }
-
-    private static bool IsPrivateOrReserved(IPAddress ip)
-    {
-        if (IPAddress.IsLoopback(ip)) return true;
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var b = ip.GetAddressBytes();
-            return b[0] == 0                                   // 0.0.0.0/8
-                || b[0] == 10                                  // 10/8
-                || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)   // 172.16/12
-                || (b[0] == 192 && b[1] == 168)                // 192.168/16
-                || (b[0] == 169 && b[1] == 254)                // 169.254/16 link-local (cloud metadata)
-                || b[0] == 127                                 // loopback
-                || b[0] >= 224;                                // multicast/reserved
-        }
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast) return true;
-            var b = ip.GetAddressBytes();
-            if ((b[0] & 0xFE) == 0xFC) return true;            // fc00::/7 unique-local
-            return false;
-        }
-        return true;
-    }
 
     private static string GuessContentType(string url)
     {
