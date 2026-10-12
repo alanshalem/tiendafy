@@ -253,8 +253,8 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             {!data.active && <Badge variant="neutral">Inactivo</Badge>}
           </h1>
           <p className="mt-0.5 text-sm text-fg-muted">
-            Alta el {formatDate(data.createdAtUtc)} · {data.purchases.length} orden
-            {data.purchases.length === 1 ? '' : 'es'} de compra
+            Alta el {formatDate(data.createdAtUtc)} · {data.purchases.length}{' '}
+            {data.purchases.length === 1 ? 'orden' : 'órdenes'} de compra
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
