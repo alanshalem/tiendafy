@@ -129,6 +129,7 @@ public static class ServiceRegistration
         services.AddScoped<DemoDataSeeder>();   // datos de ejemplo; solo se usa desde /dev
         services.AddScoped<Api.Orders.PaidOrderSideEffects>();
         services.AddScoped<Api.Orders.ManualOrderService>();
+        services.AddSingleton<Api.Auth.IGoogleIdTokenValidator, Api.Auth.GoogleIdTokenValidator>(); // login de compradores con Google
         // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
         services.AddScoped<Api.Meli.MeliTokenService>();
         services.AddScoped<Api.Meli.MeliSyncService>();

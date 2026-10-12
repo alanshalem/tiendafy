@@ -156,7 +156,7 @@ public static class ShopAuthEndpoints
             return Results.Redirect(url);
         });
 
-        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
+        auth.MapGet("/google/callback", async (string? code, string? state, IConfiguration cfg, IHttpClientFactory httpFactory, IDataProtectionProvider dp, IGoogleIdTokenValidator google, CustomersDbContext db, HttpContext http, CancellationToken ct) =>
         {
             var clientId = cfg["Authentication:Google:ClientId"];
             var clientSecret = cfg["Authentication:Google:ClientSecret"];
@@ -192,16 +192,8 @@ public static class ShopAuthEndpoints
             if (string.IsNullOrEmpty(idToken)) return Problem("ShopAuth.GoogleError", "Sin id_token.", 502);
 
             // Verificamos firma + aud + exp + iss contra las llaves públicas de Google.
-            Google.Apis.Auth.GoogleJsonWebSignature.Payload gp;
-            try
-            {
-                gp = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(idToken,
-                    new Google.Apis.Auth.GoogleJsonWebSignature.ValidationSettings { Audience = new[] { clientId } });
-            }
-            catch
-            {
-                return Problem("ShopAuth.GoogleError", "id_token inválido.", 502);
-            }
+            var gp = await google.ValidateAsync(idToken, clientId);
+            if (gp is null) return Problem("ShopAuth.GoogleError", "id_token inválido.", 502);
             var sub = gp.Subject;
             var email = ShopAuth.NormalizeEmail(gp.Email);
             var name = string.IsNullOrWhiteSpace(gp.Name) ? email : gp.Name;
