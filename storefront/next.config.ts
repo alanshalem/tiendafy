@@ -67,6 +67,14 @@ const nextConfig: NextConfig = {
   // raíz del monorepo para que resuelva los paquetes workspace (@tiendafy/*).
   output: 'standalone',
   outputFileTracingRoot: path.join(process.cwd(), '..'),
+  // Node 22.12+ resuelve la condición `module-sync` también en require(), y
+  // @swc/helpers la apunta a su versión esm/. El tracing de Next solo copia la
+  // cjs/, así que el server standalone no arrancaba ("Cannot find module
+  // .../@swc/helpers/esm/_interop_require_default.js"). Es el único paquete
+  // del standalone con ese hueco (revisado sobre la imagen, oct-2026).
+  outputFileTracingIncludes: {
+    '/*': ['../node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/esm/**/*'],
+  },
   // Paquetes workspace en TS source — Next los transpila.
   transpilePackages: ['@tiendafy/ui', '@tiendafy/types', '@tiendafy/design-system'],
   // Multi-tenant: cada merchant sube imágenes a hosts arbitrarios → permitimos
