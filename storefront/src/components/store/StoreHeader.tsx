@@ -22,7 +22,7 @@ const logoSizeClass = { sm: 'text-base', md: 'text-lg', lg: 'text-2xl' };
 /** Badge numérico (carrito / favoritos) sobre el ícono del header. */
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="absolute -right-2 -top-2 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">
+    <span className="absolute right-0.5 top-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">
       {count}
     </span>
   );
@@ -266,7 +266,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const cartBtn = header.showCart ? (
     <button
       onClick={() => setOpen(true)}
-      className="relative inline-flex items-center gap-1.5 text-sm"
+      className="relative -m-2.5 inline-flex items-center gap-1.5 p-2.5 text-sm"
       aria-label="Abrir carrito"
     >
       <Icon name="cart" className="h-5 w-5" />
@@ -281,7 +281,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const favBtn = (
     <Link
       href={href('/favoritos')}
-      className="relative inline-flex items-center opacity-90 hover:opacity-100"
+      className="relative -m-2.5 inline-flex items-center p-2.5 opacity-90 hover:opacity-100"
       aria-label="Favoritos"
       title="Favoritos"
     >

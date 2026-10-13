@@ -37,7 +37,7 @@ export function AccountButton() {
           onClick={() => setModal(true)}
           aria-label="Iniciar sesión"
           title="Iniciar sesión"
-          className="opacity-90 hover:opacity-100"
+          className="-m-2.5 p-2.5 opacity-90 hover:opacity-100"
         >
           <Icon name="user" className="h-5 w-5" />
         </button>

@@ -114,16 +114,18 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           </div>
         )}
         {/* Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res. 424/2020). */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-fg-muted">
-          <Link href="/terminos" className="hover:underline">
+        {/* py-2: con el texto de 12 px, el link solo medía 16 px de alto y en el
+            celular costaba acertarle con el dedo. */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 text-xs text-fg-muted">
+          <Link href="/terminos" className="inline-block py-2 hover:underline">
             Términos y condiciones
           </Link>
           <span aria-hidden>·</span>
-          <Link href="/privacidad" className="hover:underline">
+          <Link href="/privacidad" className="inline-block py-2 hover:underline">
             Privacidad
           </Link>
           <span aria-hidden>·</span>
-          <Link href="/arrepentimiento" className="font-semibold hover:underline">
+          <Link href="/arrepentimiento" className="inline-block py-2 font-semibold hover:underline">
             Botón de arrepentimiento
           </Link>
         </div>

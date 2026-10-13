@@ -23,7 +23,30 @@ import { nav } from '../test/next';
 import { renderPage } from '../test/server';
 import { settle, watchCrashes } from '../test/explore';
 
-vi.mock('next/font/google', () => ({ Fraunces: () => ({ variable: 'font-fraunces' }) }));
+// Las fuentes del editor (app/store-fonts.ts): next/font las baja al compilar;
+// en el test alcanza con la clase de cada variable.
+vi.mock('next/font/google', () =>
+  Object.fromEntries(
+    [
+      'Archivo_Black',
+      'Barlow',
+      'Barlow_Condensed',
+      'Bebas_Neue',
+      'Cormorant_Garamond',
+      'DM_Sans',
+      'DM_Serif_Display',
+      'Fraunces',
+      'Inter',
+      'Lora',
+      'Manrope',
+      'Montserrat',
+      'Playfair_Display',
+      'Poppins',
+      'Space_Grotesk',
+      'Work_Sans',
+    ].map((name) => [name, () => ({ variable: `font-${name.toLowerCase()}` })]),
+  ),
+);
 
 const slug = fixture<{ slug: string }>('/api/v1/products/by-slug/x').slug;
 const pageSlug = fixture<{ items: { slug: string }[] }>('/api/v1/pages/published').items[0]?.slug;
@@ -127,8 +150,8 @@ describe('404 y errores', () => {
       children: ReactElement[];
     }>;
     expect(html.props.lang).toBe('es');
-    const head = html.props.children[0] as ReactElement<{ children: ReactElement[] }>;
-    const first = head.props.children[0] as ReactElement<{
+    const head = html.props.children[0] as ReactElement<{ children: ReactElement | ReactElement[] }>;
+    const first = [head.props.children].flat()[0] as ReactElement<{
       id: string;
       dangerouslySetInnerHTML: { __html: string };
     }>;

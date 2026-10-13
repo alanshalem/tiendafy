@@ -1,17 +1,8 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Fraunces } from 'next/font/google';
 import './globals.css';
 import { serverRuntimeConfig } from '@/lib/runtime';
-
-// Fraunces es la opción "display" del editor de diseño (ver FONT_FAMILIES en
-// lib/theme): se sirve self-hosted por next/font, así que no depende de una
-// request a Google en el render de la tienda.
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  style: ['normal', 'italic'],
-  variable: '--font-fraunces',
-});
+import { storeFontVariables } from './store-fonts';
 
 // Título de respaldo: cada tienda define el suyo en generateMetadata. Este se
 // ve solo si una ruta no genera metadata propia.
@@ -19,27 +10,6 @@ export const metadata: Metadata = {
   title: 'Tienda online',
   description: 'Tu tienda online',
 };
-
-// Fuentes elegibles del editor de diseño. Se cargan vía Google Fonts: el
-// navegador solo descarga la familia que la tienda realmente usa.
-const STORE_FONTS_HREF =
-  'https://fonts.googleapis.com/css2' +
-  '?family=Poppins:wght@400;500;600;700' +
-  '&family=Inter:wght@400;500;600;700' +
-  '&family=Montserrat:wght@400;500;600;700;800;900' +
-  '&family=Barlow:wght@400;500;600;700' +
-  '&family=Barlow+Condensed:wght@400;600;700' +
-  '&family=DM+Sans:wght@400;500;700' +
-  '&family=Manrope:wght@400;600;700' +
-  '&family=Work+Sans:wght@400;600;700' +
-  '&family=Space+Grotesk:wght@400;500;700' +
-  '&family=Playfair+Display:wght@400;600;700;800' +
-  '&family=Lora:wght@400;500;600;700' +
-  '&family=Cormorant+Garamond:wght@400;500;600;700' +
-  '&family=DM+Serif+Display' +
-  '&family=Bebas+Neue' +
-  '&family=Archivo+Black' +
-  '&display=swap';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -54,11 +24,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: `window.__TIENDAFY_CONFIG__=${JSON.stringify(serverRuntimeConfig())}`,
           }}
         />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="stylesheet" href={STORE_FONTS_HREF} />
       </head>
-      <body className={`${fraunces.variable} min-h-screen antialiased`}>{children}</body>
+      {/* Las fuentes del editor de diseño, servidas por la tienda (ver store-fonts). */}
+      <body className={`${storeFontVariables} min-h-screen antialiased`}>{children}</body>
     </html>
   );
 }

@@ -221,7 +221,7 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
           <button
             onClick={() => setOpen(false)}
             aria-label="Cerrar"
-            className="inline-flex leading-none opacity-60 hover:opacity-100"
+            className="-m-2 inline-flex p-2 leading-none opacity-60 hover:opacity-100"
           >
             <X className="h-6 w-6" />
           </button>

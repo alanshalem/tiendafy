@@ -68,8 +68,30 @@ export async function fetchDraftTheme(tenantId: string, previewToken?: string): 
 }
 
 // Catálogo compartido, con las fuentes que la tienda ya carga como variables.
+// Las del catálogo las sirve la propia tienda (app/store-fonts.ts): cada una
+// vive en su variable CSS; si faltara, cae a la familia por nombre.
+const SELF_HOSTED: Record<string, string> = {
+  poppins: "var(--font-poppins, 'Poppins'), sans-serif",
+  inter: "var(--font-inter, 'Inter'), sans-serif",
+  montserrat: "var(--font-montserrat, 'Montserrat'), sans-serif",
+  barlow: "var(--font-barlow, 'Barlow'), sans-serif",
+  barlowcondensed:
+    "var(--font-barlow-condensed, 'Barlow Condensed'), var(--font-barlow, 'Barlow'), sans-serif",
+  dmsans: "var(--font-dm-sans, 'DM Sans'), sans-serif",
+  manrope: "var(--font-manrope, 'Manrope'), sans-serif",
+  worksans: "var(--font-work-sans, 'Work Sans'), sans-serif",
+  spacegrotesk: "var(--font-space-grotesk, 'Space Grotesk'), sans-serif",
+  playfair: "var(--font-playfair, 'Playfair Display'), serif",
+  lora: "var(--font-lora, 'Lora'), serif",
+  cormorant: "var(--font-cormorant, 'Cormorant Garamond'), serif",
+  dmserif: "var(--font-dm-serif, 'DM Serif Display'), serif",
+  bebas: "var(--font-bebas, 'Bebas Neue'), sans-serif",
+  archivoblack: "var(--font-archivo-black, 'Archivo Black'), sans-serif",
+};
+
 const FONT_FAMILIES: Record<string, string> = {
   ...FONT_FAMILY_CSS,
+  ...SELF_HOSTED,
   sans: 'var(--font-sans)',
   display: 'var(--font-fraunces, Georgia, serif)',
   mono: 'var(--font-mono)',
