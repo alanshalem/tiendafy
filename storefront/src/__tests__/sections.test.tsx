@@ -131,11 +131,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+/** Las secciones de la portada (sin el h1 invisible que va cuando ninguna pone título). */
+const sectionsIn = (container: HTMLElement) =>
+  container.querySelector('main')!.querySelectorAll(':scope > :not(h1.sr-only)').length;
+
 describe('secciones de la portada', () => {
   it.each(TYPES)('%s con todo cargado', { timeout: 30_000 }, async (type) => {
     const { container } = render(view([section(type, FULL[type].data)]));
     await settle(1);
-    expect(container.querySelector('main')!.childElementCount).toBe(1);
+    expect(sectionsIn(container)).toBe(1);
     const shows = FULL[type].shows;
     if (shows) expect(screen.getAllByText(shows).length).toBeGreaterThan(0);
 
@@ -152,7 +156,7 @@ describe('secciones de la portada', () => {
 
   it('las ocultas no se muestran', () => {
     const { container } = render(view([section('institutional', FULL.institutional.data, false)]));
-    expect(container.querySelector('main')!.childElementCount).toBe(0);
+    expect(sectionsIn(container)).toBe(0);
   });
 
   it('en el preview anima altas, bajas y secciones que se ocultan', async () => {
@@ -216,11 +220,37 @@ describe('secciones de la portada', () => {
     expect(container.querySelector('main h2')).toBeNull();
 
     rerender(view([section('image-text', { description: 'solo descripción' })]));
-    expect(container.querySelector('main')!.childElementCount).toBe(0);
+    expect(sectionsIn(container)).toBe(0);
   });
 
   it('una sección de un tipo que no existe no rompe la portada', () => {
     const { container } = render(view([section('no-existe' as SectionType, {})]));
-    expect(container.querySelector('main')!.childElementCount).toBe(0);
+    expect(sectionsIn(container)).toBe(0);
+  });
+});
+
+describe('título principal de la portada', () => {
+  const section = (type: SectionType, data: Record<string, unknown> = {}) =>
+    ({ id: type, type, visible: true, data }) as ThemeSection;
+  const home = (sections: ThemeSection[]) =>
+    render(
+      <HomeSections
+        sections={sections}
+        products={[]}
+        storeName="Puente Oriente"
+        productList={defaultTheme.productList}
+      />,
+    );
+
+  it('si ninguna sección lo pone, va un h1 invisible con el nombre de la tienda', () => {
+    home([]);
+    expect(screen.getByRole('heading', { level: 1, name: 'Puente Oriente' })).toHaveClass('sr-only');
+  });
+
+  it('con un video de portada con título, ese es el h1 (y uno solo)', () => {
+    home([section('hero-video', { title: 'Equipá tu gimnasio' })]);
+    const titles = screen.getAllByRole('heading', { level: 1 });
+    expect(titles).toHaveLength(1);
+    expect(titles[0]).toHaveTextContent('Equipá tu gimnasio');
   });
 });

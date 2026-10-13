@@ -29,6 +29,19 @@ interface PItem {
   show: boolean;
 }
 
+/**
+ * ¿Alguna sección visible pone el título principal (h1) de la portada? Hoy
+ * solo el video de portada con título. Si ninguna lo pone, la portada iba sin
+ * h1 —Google y los lectores de pantalla no encontraban de qué es la página— y
+ * va uno invisible con el nombre de la tienda.
+ */
+export function homeHasTitle(sections: ThemeSection[]): boolean {
+  return sections.some(
+    (s) =>
+      s.visible && s.type === 'hero-video' && typeof s.data.title === 'string' && s.data.title.trim() !== '',
+  );
+}
+
 /** Render de las secciones del home. En preview anima cuando se agregan/quitan/ocultan. */
 export function HomeSections({
   sections,
@@ -48,6 +61,7 @@ export function HomeSections({
   if (!preview) {
     return (
       <main>
+        {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
         {visible.map((s) => (
           <SectionRenderer
             key={s.id}
@@ -128,6 +142,7 @@ function AnimatedSections({
 
   return (
     <main>
+      {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
       {items.map((it) => (
         <PresenceItem key={it.id} show={it.show}>
           <EditableRegion target="section" id={it.section.id} label={SECTION_LABELS[it.section.type]}>
