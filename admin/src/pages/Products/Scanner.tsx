@@ -104,21 +104,27 @@ export function useScanner(onCode: (code: string) => void) {
 
   useEffect(() => () => stopRef.current(), []);
 
-  return { videoRef, active, supported, start, stop };
+  // El <video> se engancha con una función y no entregando el ref: así quien
+  // dibuja la cámara solo recibe valores, no un objeto mutable.
+  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+  }, []);
+
+  return { attachVideo, active, supported, start, stop };
 }
 
-export function CameraBox({ scanner }: { scanner: ReturnType<typeof useScanner> }) {
+export function CameraBox({ attachVideo, active, supported, start, stop }: ReturnType<typeof useScanner>) {
   return (
     <div className="space-y-2">
       <video
-        ref={scanner.videoRef}
-        className={`w-full rounded-md border border-border bg-black ${scanner.active ? 'aspect-video' : 'hidden'}`}
+        ref={attachVideo}
+        className={`w-full rounded-md border border-border bg-black ${active ? 'aspect-video' : 'hidden'}`}
         muted
         playsInline
       />
-      {scanner.supported ? (
-        <Button variant="secondary" onClick={scanner.active ? scanner.stop : scanner.start}>
-          <Camera className="h-4 w-4" /> {scanner.active ? 'Apagar cámara' : 'Escanear con la cámara'}
+      {supported ? (
+        <Button variant="secondary" onClick={active ? stop : start}>
+          <Camera className="h-4 w-4" /> {active ? 'Apagar cámara' : 'Escanear con la cámara'}
         </Button>
       ) : (
         <p className="text-xs text-fg-muted">
@@ -241,7 +247,7 @@ function BuscarTab() {
 
   return (
     <Card>
-      <CameraBox scanner={scanner} />
+      <CameraBox {...scanner} />
       <form
         className="mt-3 flex gap-2"
         onSubmit={(e) => {
@@ -371,30 +377,26 @@ function PickingTab() {
   const pending = (orders?.items ?? []).filter((o) => o.status === 'PAID' && !o.fulfilledAtUtc);
   const order = pending.find((o) => o.id === orderId) ?? null;
 
-  const onCode = useCallback(
-    async (code: string) => {
-      if (!order) return;
-      try {
-        const found = await api.get<CodeHit>(`/api/v1/products/by-code/${encodeURIComponent(code)}`);
-        const item = order.items.find((i) => i.variantId === found.variantId);
-        if (!item) {
-          toast(`⚠ ${found.productName} NO va en este pedido`, { variant: 'error' });
-          return;
-        }
-        setPicked((p) => {
-          const current = p[item.variantId] ?? 0;
-          if (current >= item.quantity) {
-            toast(`Ya juntaste las ${item.quantity} de ${item.productName}`, { variant: 'error' });
-            return p;
-          }
-          return { ...p, [item.variantId]: current + 1 };
-        });
-      } catch {
-        toast('Código desconocido', { variant: 'error' });
+  // useScanner guarda siempre el callback más reciente: ve el pedido y lo
+  // juntado de este render.
+  const onCode = async (code: string) => {
+    if (!order) return;
+    try {
+      const found = await api.get<CodeHit>(`/api/v1/products/by-code/${encodeURIComponent(code)}`);
+      const item = order.items.find((i) => i.variantId === found.variantId);
+      if (!item) {
+        toast(`⚠ ${found.productName} NO va en este pedido`, { variant: 'error' });
+        return;
       }
-    },
-    [order, toast],
-  );
+      if ((picked[item.variantId] ?? 0) >= item.quantity) {
+        toast(`Ya juntaste las ${item.quantity} de ${item.productName}`, { variant: 'error' });
+        return;
+      }
+      setPicked((p) => ({ ...p, [item.variantId]: (p[item.variantId] ?? 0) + 1 }));
+    } catch {
+      toast('Código desconocido', { variant: 'error' });
+    }
+  };
 
   const scanner = useScanner(onCode);
   const complete = order && order.items.every((i) => (picked[i.variantId] ?? 0) >= i.quantity);
@@ -442,7 +444,7 @@ function PickingTab() {
       {order && (
         <>
           <div className="mt-3">
-            <CameraBox scanner={scanner} />
+            <CameraBox {...scanner} />
           </div>
           <ManualPickInput onCode={onCode} />
           <ul className="mt-3 space-y-1.5">
@@ -586,7 +588,7 @@ function ConteoTab() {
         el sistema a lo contado — sin frenar la operación.
       </p>
       <div className="mt-2">
-        <CameraBox scanner={scanner} />
+        <CameraBox {...scanner} />
       </div>
       <ManualPickInput onCode={onCode} />
 

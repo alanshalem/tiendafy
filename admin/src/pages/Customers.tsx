@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, MoreVertical, Pencil, Trash2, Plus, Search, UserPlus } from 'lucide-react';
 import {
@@ -242,8 +242,16 @@ export function CustomersPage() {
         </Card>
       )}
 
-      <CustomerModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
+      {/* La key vuelve a montar el formulario en cada apertura: arranca con los
+          datos de ese momento, sin un efecto que los copie después. */}
       <CustomerModal
+        key={createOpen ? 'alta' : 'alta-cerrada'}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSaved={refresh}
+      />
+      <CustomerModal
+        key={editing?.id ?? 'edicion-cerrada'}
         open={!!editing}
         customer={editing ?? undefined}
         onClose={() => setEditing(null)}
@@ -266,12 +274,13 @@ function CustomerModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [notes, setNotes] = useState('');
-  const [priceListId, setPriceListId] = useState('');
+  // Crear = vacío, editar = datos del cliente (ver la key en quien lo abre).
+  const [name, setName] = useState(customer?.name ?? '');
+  const [email, setEmail] = useState(customer?.email ?? '');
+  const [phone, setPhone] = useState(customer?.phone ?? '');
+  const [address, setAddress] = useState(customer?.address ?? '');
+  const [notes, setNotes] = useState(customer?.notes ?? '');
+  const [priceListId, setPriceListId] = useState(customer?.priceListId ?? '');
   const [error, setError] = useState<string>();
   const isEdit = !!customer;
 
@@ -283,18 +292,6 @@ function CustomerModal({
     enabled: open,
   });
   const activeLists = (priceLists?.items ?? []).filter((l) => l.active);
-
-  // Inicializar los campos al abrir (crear = vacío, editar = datos del cliente).
-  useEffect(() => {
-    if (!open) return;
-    setName(customer?.name ?? '');
-    setEmail(customer?.email ?? '');
-    setPhone(customer?.phone ?? '');
-    setAddress(customer?.address ?? '');
-    setNotes(customer?.notes ?? '');
-    setPriceListId(customer?.priceListId ?? '');
-    setError(undefined);
-  }, [open, customer]);
 
   const save = useMutation({
     mutationFn: () => {

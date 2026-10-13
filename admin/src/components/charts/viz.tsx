@@ -168,33 +168,38 @@ export function DonutChart({
 
   const radius = size / 2 - 12;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  // Cada porción arranca donde terminó la anterior: los desplazamientos se
+  // calculan antes de dibujar, no sumando dentro del map del render.
+  const arcs = slices.reduce<
+    { slice: (typeof slices)[number]; portion: number; dash: number; offset: number }[]
+  >((acc, slice) => {
+    const portion = slice.value / total;
+    const prev = acc[acc.length - 1];
+    return [
+      ...acc,
+      { slice, portion, dash: portion * circumference, offset: prev ? prev.offset + prev.dash : 0 },
+    ];
+  }, []);
 
   return (
     <div className="flex flex-wrap items-center gap-5">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          {slices.map((s, i) => {
-            const portion = s.value / total;
-            const dash = portion * circumference;
-            const el = (
-              <circle
-                key={`${id}-${s.label}`}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke={s.color ?? SLICE_COLORS[i % SLICE_COLORS.length]}
-                strokeWidth="14"
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-offset}
-              >
-                <title>{`${s.label}: ${Math.round(portion * 100)}%`}</title>
-              </circle>
-            );
-            offset += dash;
-            return el;
-          })}
+          {arcs.map(({ slice: s, portion, dash, offset }, i) => (
+            <circle
+              key={`${id}-${s.label}`}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={s.color ?? SLICE_COLORS[i % SLICE_COLORS.length]}
+              strokeWidth="14"
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={-offset}
+            >
+              <title>{`${s.label}: ${Math.round(portion * 100)}%`}</title>
+            </circle>
+          ))}
         </g>
         {centerValue && (
           <>

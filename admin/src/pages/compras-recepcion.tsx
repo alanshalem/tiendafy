@@ -164,7 +164,7 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
               onChange={(e) => setRate(e.target.value)}
             />
             <div className="mt-3">
-              <CameraBox scanner={scanner} />
+              <CameraBox {...scanner} />
               <p className="mt-1 text-xs text-fg-muted">
                 Escaneá lo que baja del contenedor: el contador de cada ítem sube solo (arranca en lo pedido —
                 corregí a mano lo que falte).

@@ -22,7 +22,9 @@ export function useStore(): StoreContextValue {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [store, setStore] = useState<Tenant | null>(null);
+  // La tienda elegida (o la que quedó guardada). La activa se deriva de esto y
+  // de la lista: si la elegida ya no existe, la primera.
+  const [chosenId, setChosenId] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenants'],
@@ -30,45 +32,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   // Memoizado: con `?? []` suelto, mientras carga era un array nuevo en cada
-  // render y el efecto de abajo corría en cada uno. No entraba en loop solo
-  // porque setStore recibía el mismo null y React lo ignoraba.
+  // render y todo lo que depende de la lista se recalculaba.
   const stores = useMemo(() => data?.items ?? [], [data]);
 
-  // Restaurar selección previa; si no hay, auto-seleccionar la primera.
-  // El header X-Tenant-Id se setea ACÁ (sync) para que las queries que
-  // refetchean al cambiar store.id ya usen el tenant correcto (sin race).
-  useEffect(() => {
-    // Sin tiendas (p.ej. se eliminaron todas): limpiar selección, header y
-    // localStorage para que el switcher no muestre nombres viejos al recargar.
-    if (stores.length === 0) {
-      setStore((current) => {
-        if (current) {
-          setActiveTenant(null);
-          localStorage.removeItem(STORAGE_KEY);
-        }
-        return null;
-      });
-      return;
-    }
-    setStore((current) => {
-      const target = current
-        ? (stores.find((s) => s.id === current.id) ?? stores[0]!)
-        : (stores.find((s) => s.id === localStorage.getItem(STORAGE_KEY)) ?? stores[0]!);
-      setActiveTenant(target.id);
-      return target;
-    });
-  }, [stores]);
+  const store = useMemo(
+    () => (stores.length === 0 ? null : (stores.find((s) => s.id === chosenId) ?? stores[0]!)),
+    [stores, chosenId],
+  );
 
-  // Backup: mantener el header en sync con la tienda activa.
+  // El header X-Tenant-Id sigue a la tienda activa en el MISMO render en que
+  // cambia: las queries que dependen de store.id refetchean con el tenant
+  // correcto, sin esperar a un efecto (sin race).
+  setActiveTenant(store?.id ?? null);
+
+  // Sin tiendas (p. ej. se eliminaron todas): que al recargar el switcher no
+  // busque una tienda que ya no existe.
   useEffect(() => {
-    setActiveTenant(store?.id ?? null);
-  }, [store]);
+    if (!isLoading && stores.length === 0) localStorage.removeItem(STORAGE_KEY);
+  }, [isLoading, stores.length]);
 
   const selectStore = useCallback(
     (next: Tenant) => {
       if (next.id === store?.id) return;
       setActiveTenant(next.id); // sync, ANTES de que las queries (key store.id) refetcheen
-      setStore(next);
+      setChosenId(next.id);
       localStorage.setItem(STORAGE_KEY, next.id);
     },
     [store?.id],

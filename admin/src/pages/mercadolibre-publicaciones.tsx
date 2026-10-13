@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { AlertTriangle, ExternalLink, Link2, Link2Off, Loader2, Store, Upload } from 'lucide-react';
 import {
   Badge,
@@ -17,6 +17,7 @@ import { api, errMsg } from '../lib/api';
 import { useProductSearch } from '../lib/useProductSearch';
 import { moneyMajor } from './mercadolibre-shared';
 import type { MoneyDto } from '@tiendafy/types';
+import { useServerLoad } from '../lib/useServerLoad';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -69,18 +70,15 @@ export function PublicacionesTab() {
   const [linking, setLinking] = useState<MeliItem | null>(null);
   const [publishing, setPublishing] = useState(false);
 
-  const load = useCallback(() => {
-    setItems(null);
-    api
-      .get<{ items: MeliItem[] }>('/api/v1/admin/meli/items')
-      .then((r) => setItems(r.items))
-      .catch((err) => {
-        toast(errMsg(err, 'No se pudieron cargar las publicaciones.'), { variant: 'error' });
-        setItems([]);
-      });
-  }, [toast]);
-
-  useEffect(load, [load]);
+  const { loading, reload: load } = useServerLoad(
+    'publicaciones',
+    () => api.get<{ items: MeliItem[] }>('/api/v1/admin/meli/items'),
+    (r) => setItems(r.items),
+    (err) => {
+      toast(errMsg(err, 'No se pudieron cargar las publicaciones.'), { variant: 'error' });
+      setItems([]);
+    },
+  );
 
   const unlink = async (item: MeliItem) => {
     const ok = await confirm({
@@ -109,7 +107,7 @@ export function PublicacionesTab() {
         </Button>
       </div>
 
-      {items === null ? (
+      {items === null || loading ? (
         <Spinner />
       ) : items.length === 0 ? (
         <EmptyList>
@@ -207,10 +205,12 @@ function LinkModal({
   const products = found?.items ?? [];
   const product = products.find((p) => p.id === productId);
 
-  useEffect(() => {
-    const only = product?.variants.length === 1 ? product.variants[0] : undefined;
-    setVariantId(only ? only.id : '');
-  }, [product]);
+  // Al elegir un producto con una sola variante, esa queda elegida.
+  const choose = (id: string) => {
+    setProductId(id);
+    const picked = products.find((p) => p.id === id);
+    setVariantId(picked?.variants.length === 1 ? picked.variants[0]!.id : '');
+  };
 
   const save = async () => {
     if (!productId || !variantId) return;
@@ -260,7 +260,7 @@ function LinkModal({
           onSearch={setSearch}
           products={products}
           selectedId={productId}
-          onSelect={setProductId}
+          onSelect={choose}
         />
         {product && product.variants.length > 1 && (
           <Select
@@ -293,21 +293,27 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   const products = found?.items ?? [];
   const product = products.find((p) => p.id === productId);
 
-  // Al elegir producto, pedirle a ML la categoría sugerida por el título.
-  useEffect(() => {
+  // Al elegir producto, pedirle a ML la categoría sugerida por el título. Si
+  // se elige otro antes de que responda, la respuesta vieja se descarta.
+  const lastPick = useRef('');
+  const choose = (id: string) => {
+    setProductId(id);
     setSuggestions(null);
     setCategoryId('');
-    if (!product) return;
+    lastPick.current = id;
+    const picked = products.find((p) => p.id === id);
+    if (!picked) return;
     api
       .get<{
         suggestions: { categoryId: string | null; categoryName: string | null; domainName: string | null }[];
-      }>(`/api/v1/admin/meli/categories/predict?title=${encodeURIComponent(product.name)}`)
+      }>(`/api/v1/admin/meli/categories/predict?title=${encodeURIComponent(picked.name)}`)
       .then((r) => {
+        if (lastPick.current !== id) return;
         setSuggestions(r.suggestions);
         if (r.suggestions[0]?.categoryId) setCategoryId(r.suggestions[0].categoryId);
       })
-      .catch(() => setSuggestions([]));
-  }, [product]);
+      .catch(() => lastPick.current === id && setSuggestions([]));
+  };
 
   const publish = async () => {
     if (!product || !categoryId) return;
@@ -355,7 +361,7 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
           onSearch={setSearch}
           products={products}
           selectedId={productId}
-          onSelect={setProductId}
+          onSelect={choose}
         />
         {product && suggestions === null && (
           <p className="text-sm text-fg-subtle">Buscando la categoría de Mercado Libre…</p>

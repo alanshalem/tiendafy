@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useId } from 'react';
+import { useState, useId } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button, Input, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -7,6 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 /**
  * Redirecciones 301: URL vieja → URL nueva.
@@ -36,20 +37,18 @@ export function RedirectsPage() {
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
-    setLoadError(null);
-    api
-      .get<{ items: Redirect[] }>('/api/v1/redirects/')
-      .then((d) => setItems(d.items ?? []))
-      .catch((err) => {
-        setItems(null);
-        setLoadError(errMsg(err, 'No se pudieron cargar las redirecciones.'));
-      });
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<{ items: Redirect[] }>('/api/v1/redirects/'),
+    (d) => {
+      setItems(d.items ?? []);
+      setLoadError(null);
+    },
+    (err) => {
+      setItems(null);
+      setLoadError(errMsg(err, 'No se pudieron cargar las redirecciones.'));
+    },
+  );
 
   const add = async () => {
     setBusy(true);

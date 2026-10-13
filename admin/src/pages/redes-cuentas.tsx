@@ -35,7 +35,7 @@ export function CuentasTab({
         `/api/v1/admin/social/accounts/connect/${connector}`,
         {},
       );
-      window.location.href = res.authUrl;
+      window.location.assign(res.authUrl);
     } catch (err) {
       toast(errMsg(err, 'No se pudo iniciar la conexión.'), { variant: 'error' });
       setConnecting(null);

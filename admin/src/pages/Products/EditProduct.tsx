@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, GripVertical } from 'lucide-react';
@@ -94,8 +94,12 @@ export function EditProductPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [error, setError] = useState<string>();
 
-  useEffect(() => {
-    if (!product) return;
+  // Los campos se cargan UNA vez por producto, al dibujar. Antes un efecto los
+  // volvía a copiar en cada recarga del producto —por ejemplo al subir una
+  // foto— y se perdía lo que se estaba editando sin guardar.
+  const [formFor, setFormFor] = useState<string | null>(null);
+  if (product && formFor !== product.id) {
+    setFormFor(product.id);
     setName(product.name);
     setDescription(product.description ?? '');
     setBrand(product.brand ?? '');
@@ -113,18 +117,24 @@ export function EditProductPage() {
     );
     setBarcodes(Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])));
     setShipping(Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])));
-  }, [product]);
+  }
 
-  useEffect(() => {
-    if (!product) return;
-    setImageOrder(product.images.map((img) => img.id));
-  }, [product]);
-
-  useEffect(() => {
-    if (!stockData || !product) return;
+  // El stock llega aparte: también se carga una sola vez por producto.
+  const [stockFor, setStockFor] = useState<string | null>(null);
+  if (product && stockData && stockFor !== product.id) {
+    setStockFor(product.id);
     const map = new Map(stockData.items.map((s) => [s.variantId, s.available]));
     setStock(Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')])));
-  }, [stockData, product]);
+  }
+
+  // Las fotos, en cambio, siguen al servidor: se agregan y se quitan al
+  // instante. El orden local solo adelanta el arrastre mientras se guarda.
+  const imagesKey = product?.images.map((img) => img.id).join(',') ?? '';
+  const [imagesFor, setImagesFor] = useState('');
+  if (imagesFor !== imagesKey) {
+    setImagesFor(imagesKey);
+    setImageOrder(product?.images.map((img) => img.id) ?? []);
+  }
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['product', id] });

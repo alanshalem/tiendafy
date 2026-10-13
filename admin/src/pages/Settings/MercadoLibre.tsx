@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { ListStats } from '../../components/stats/ListStats';
 import { SettingsHeader } from './SettingsLayout';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 interface MeliConnection {
   available: boolean;
@@ -71,22 +72,20 @@ export function MeliSettingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
-    setLoadError(null);
-    api
-      .get<MeliConnection>('/api/v1/admin/meli/connection')
-      .then(setConnection)
-      // Sin esto, cualquier error de red dejaba la pantalla en blanco y mudo:
-      // el `return null` de abajo no distingue "cargando" de "se cayó".
-      .catch((err) => {
-        setConnection(null);
-        setLoadError(errMsg(err, 'No se pudo cargar la conexión con Mercado Libre.'));
-      });
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<MeliConnection>('/api/v1/admin/meli/connection'),
+    (data) => {
+      setConnection(data);
+      setLoadError(null);
+    },
+    // Sin esto, cualquier error de red dejaba la pantalla en blanco y mudo:
+    // el `return null` de abajo no distingue "cargando" de "se cayó".
+    (err) => {
+      setConnection(null);
+      setLoadError(errMsg(err, 'No se pudo cargar la conexión con Mercado Libre.'));
+    },
+  );
 
   // Resultado del redirect OAuth (?meli=connected|error).
   useEffect(() => {
@@ -96,8 +95,9 @@ export function MeliSettingsPage() {
     else toast('No se pudo conectar la cuenta de Mercado Libre.', { variant: 'error' });
     params.delete('meli');
     setParams(params, { replace: true });
-    load();
-  }, [params, setParams, toast, load]);
+    // No hace falta volver a pedir la conexión: se vuelve del OAuth con una
+    // carga de página completa y la pantalla ya la pide al montar.
+  }, [params, setParams, toast]);
 
   const connect = async () => {
     setBusy(true);

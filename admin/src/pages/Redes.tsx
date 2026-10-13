@@ -29,7 +29,8 @@ export function RedesPage() {
   const { store } = useStore();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<Tab>('calendario');
+  // Al volver de conectar una cuenta (?social=…) se abre directo en Cuentas.
+  const [tab, setTab] = useState<Tab>(() => (searchParams.get('social') ? 'cuentas' : 'calendario'));
   const [channels, setChannels] = useState<SocialChannelsDto | null>(null);
   const [accounts, setAccounts] = useState<SocialAccountDto[] | null>(null);
   const [posts, setPosts] = useState<SocialPostDto[] | null>(null);
@@ -69,11 +70,9 @@ export function RedesPage() {
     if (!result) return;
     if (result === 'connected') {
       toast('¡Cuenta conectada!', { variant: 'success' });
-      setTab('cuentas');
       loadAccounts();
     } else {
       toast('No se pudo conectar la cuenta. Probá de nuevo.', { variant: 'error' });
-      setTab('cuentas');
     }
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams, toast, loadAccounts]);

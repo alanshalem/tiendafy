@@ -257,7 +257,6 @@ export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => vo
   const results = useMemo(() => searchOptions(q), [q]);
 
   useEffect(() => inputRef.current?.focus(), []);
-  useEffect(() => setActive(0), [q]);
 
   const pick = (entry: OptionEntry) => {
     onPick(entry.view);
@@ -278,7 +277,10 @@ export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => vo
           <input
             ref={inputRef}
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setActive(0); // otra búsqueda, otra lista: se arranca por el primero
+            }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
                 e.preventDefault();

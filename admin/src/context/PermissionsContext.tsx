@@ -24,6 +24,8 @@ interface PermissionsContextValue {
 
 const PermissionsContext = createContext<PermissionsContextValue | null>(null);
 
+const NO_PERMISSIONS: ReadonlySet<string> = new Set();
+
 export function usePermissions(): PermissionsContextValue {
   const ctx = useContext(PermissionsContext);
   if (!ctx) throw new Error('usePermissions must be used inside <PermissionsProvider>');
@@ -32,38 +34,39 @@ export function usePermissions(): PermissionsContextValue {
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const { store, stores, isLoading: storesLoading } = useStore();
-  const [state, setState] = useState<{
-    role: string | null;
-    permissions: Set<string>;
-    loading: boolean;
-  }>({ role: null, permissions: new Set(), loading: true });
-
   const storeId = store?.id ?? null;
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
 
+  // La respuesta queda guardada junto con el pedido que la trajo: "está
+  // cargando" es simplemente que la última respuesta no es de este pedido.
+  const request = storeId ? `${storeId}:${version}` : null;
+  const [answer, setAnswer] = useState<{ request: string; role: string | null; permissions: Set<string> }>();
+
   useEffect(() => {
-    if (!storeId) {
-      // Sin tienda activa: sin permisos. Mientras las tiendas cargan —o ya
-      // llegaron y la activa se está eligiendo— seguimos en loading: si no, por
-      // un instante parecía no tener permisos y las pantallas lo echaban.
-      setState({ role: null, permissions: new Set(), loading: storesLoading || stores.length > 0 });
-      return;
-    }
+    if (!request) return;
     let alive = true;
-    setState((s) => ({ ...s, loading: true }));
     api
       .get<MePermissionsDto>('/api/v1/me/permissions')
       .then((d) => {
-        if (alive) setState({ role: d.role, permissions: new Set(d.permissions), loading: false });
+        if (alive) setAnswer({ request, role: d.role, permissions: new Set(d.permissions) });
       })
       .catch(() => {
-        if (alive) setState({ role: null, permissions: new Set(), loading: false });
+        if (alive) setAnswer({ request, role: null, permissions: new Set() });
       });
     return () => {
       alive = false;
     };
-  }, [storeId, storesLoading, stores.length, version]);
+  }, [request]);
+
+  const state = !request
+    ? // Sin tienda activa: sin permisos. Mientras las tiendas cargan —o ya
+      // llegaron y la activa se está eligiendo— seguimos en loading: si no, por
+      // un instante parecía no tener permisos y las pantallas lo echaban.
+      { role: null, permissions: NO_PERMISSIONS, loading: storesLoading || stores.length > 0 }
+    : answer?.request === request
+      ? { role: answer.role, permissions: answer.permissions, loading: false }
+      : { role: answer?.role ?? null, permissions: answer?.permissions ?? NO_PERMISSIONS, loading: true };
 
   const value = useMemo<PermissionsContextValue>(
     () => ({
@@ -72,7 +75,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       can: (perm: Perm) => !state.loading && state.permissions.has(perm),
       reload,
     }),
-    [state, reload],
+    [state.role, state.loading, state.permissions, reload],
   );
 
   return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>;

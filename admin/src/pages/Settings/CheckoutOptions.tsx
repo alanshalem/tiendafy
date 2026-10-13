@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useId } from 'react';
+import { useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button, Input, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
@@ -7,6 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 interface CheckoutSettings {
   singleColumn: boolean;
@@ -44,27 +45,20 @@ export function CheckoutOptionsPage() {
   const { toast } = useToast();
 
   const [value, setValue] = useState<CheckoutSettings>(DEFAULTS);
-  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setLoadError(null);
-    api
-      .get<CheckoutSettings>('/api/v1/admin/checkout/settings')
-      .then((d) => {
-        setValue({ ...DEFAULTS, ...d });
-        setDirty(false);
-      })
-      .catch((err) => setLoadError(errMsg(err, 'No se pudieron cargar las opciones del checkout.')))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { loading, reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<CheckoutSettings>('/api/v1/admin/checkout/settings'),
+    (d) => {
+      setValue({ ...DEFAULTS, ...d });
+      setDirty(false);
+      setLoadError(null);
+    },
+    (err) => setLoadError(errMsg(err, 'No se pudieron cargar las opciones del checkout.')),
+  );
 
   const update = (patch: Partial<CheckoutSettings>) => {
     setValue((v) => ({ ...v, ...patch }));

@@ -296,13 +296,11 @@ function VerifyEmailScreen() {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') ?? '';
   const token = params.get('token') ?? '';
-  const [state, setState] = useState<'busy' | 'ok' | 'fail'>('busy');
+  // Sin email o token el link está roto: se sabe sin preguntarle a nadie.
+  const [state, setState] = useState<'busy' | 'ok' | 'fail'>(email && token ? 'busy' : 'fail');
 
   useEffect(() => {
-    if (!email || !token) {
-      setState('fail');
-      return;
-    }
+    if (!email || !token) return;
     api
       .post('/api/v1/auth/verify', { email, token })
       .then(() => setState('ok'))

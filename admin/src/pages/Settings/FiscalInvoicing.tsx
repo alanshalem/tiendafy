@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Download, Loader2, Lock } from 'lucide-react';
 import { useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -18,6 +18,7 @@ import {
   type FiscalConfigDto,
   type PointOfSale,
 } from './fiscal-invoicing-steps';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 // ---- Página ------------------------------------------------------------------
 
@@ -29,28 +30,21 @@ export function FiscalInvoicingPage() {
 
   const [config, setConfig] = useState<FiscalConfigDto | null>(null);
   const [points, setPoints] = useState<PointOfSale[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cfg, pos] = await Promise.all([
+  const { loading: fetching, reload: load } = useServerLoad(
+    store && canConfig ? store.id : null,
+    () =>
+      Promise.all([
         api.get<FiscalConfigDto>('/api/v1/fiscal/config'),
         api.get<{ items: PointOfSale[] }>('/api/v1/fiscal/points-of-sale').catch(() => ({ items: [] })),
-      ]);
+      ]),
+    ([cfg, pos]) => {
       setConfig(cfg);
       setPoints(pos.items ?? []);
-    } catch (err) {
-      toast(errMsg(err, 'No se pudo cargar la configuración de facturación.'), { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    if (store && canConfig) load();
-    else if (!canConfig) setLoading(false);
-  }, [store, canConfig, load]);
+    },
+    (err) => toast(errMsg(err, 'No se pudo cargar la configuración de facturación.'), { variant: 'error' }),
+  );
+  // Con permiso pero sin tienda elegida todavía, también es "cargando".
+  const loading = fetching || (canConfig && !store);
 
   return (
     <div className="pb-10">

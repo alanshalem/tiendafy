@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -41,8 +41,11 @@ export function SupportChatPage() {
   const { toast } = useToast();
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  // La conversación abierta, para descartar respuestas que llegan tarde.
   const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  useLayoutEffect(() => {
+    selectedRef.current = selected;
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -51,16 +54,19 @@ export function SupportChatPage() {
   const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadConvs = useCallback(async () => {
-    try {
-      const d = await api.get<{ items: Conversation[] }>('/api/v1/support/conversations');
-      setConvs(d.items ?? []);
-    } catch {
-      setConvs([]);
-    } finally {
-      setLoading(false);
-    }
+  const fetchConvs = useCallback(
+    () =>
+      api
+        .get<{ items: Conversation[] }>('/api/v1/support/conversations')
+        .then((d) => d.items ?? [])
+        .catch(() => [] as Conversation[]),
+    [],
+  );
+  const showConvs = useCallback((items: Conversation[]) => {
+    setConvs(items);
+    setLoading(false);
   }, []);
+  const loadConvs = useCallback(async () => showConvs(await fetchConvs()), [fetchConvs, showConvs]);
 
   const loadMessages = useCallback(async (id: string) => {
     // La respuesta tardía de otra conversación no puede pisar la abierta
@@ -77,8 +83,13 @@ export function SupportChatPage() {
   }, []);
 
   useEffect(() => {
-    if (store) loadConvs();
-  }, [store, loadConvs]);
+    if (!store) return;
+    let current = true;
+    fetchConvs().then((items) => current && showConvs(items));
+    return () => {
+      current = false;
+    };
+  }, [store, fetchConvs, showConvs]);
 
   // Polling: bandeja siempre; hilo abierto también.
   useEffect(() => {

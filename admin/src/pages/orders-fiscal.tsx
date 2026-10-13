@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Loader2, RefreshCw, FileText, Download } from 'lucide-react';
 import { useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { InvoiceDialog, type InvoiceBuyer } from './orders-invoice-dialog';
+import { useServerLoad } from '../lib/useServerLoad';
 
 interface FiscalDoc {
   id: string;
@@ -53,23 +54,15 @@ export function FiscalPanel({
 }) {
   const { toast } = useToast();
   const [data, setData] = useState<FiscalStatus | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await api.get<FiscalStatus>(`/api/v1/orders/${orderId}/fiscal`));
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId]);
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { loading, reload: load } = useServerLoad(
+    orderId,
+    () => api.get<FiscalStatus>(`/api/v1/orders/${orderId}/fiscal`),
+    setData,
+    () => setData(null),
+  );
 
   const invoice = data?.documents.find((d) => !isNc(d.cbteTipo) && d.result === 'Authorized');
   // Se pidió el CAE y la respuesta no llegó: puede estar autorizado del lado de

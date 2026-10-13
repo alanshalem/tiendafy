@@ -62,6 +62,16 @@ function buildTree(items: CategoryDto[], order: Record<string, string[]>): TreeN
   return roots;
 }
 
+/** El orden de categorías que se guardó en este navegador (vacío si no hay o está roto). */
+function readSavedOrder(key: string): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function CategoriesPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -72,11 +82,19 @@ export function CategoriesPage() {
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<CategoryDto | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [order, setOrder] = useState<Record<string, string[]>>({});
   const [dirty, setDirty] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
 
+  // El orden guardado en el navegador, por tienda. Al cambiar de tienda se
+  // lee el suyo en el mismo render (antes, un efecto pintaba primero el de la
+  // tienda anterior).
   const storageKey = `tiendafy.catOrder.${store?.id ?? ''}`;
+  const [order, setOrder] = useState<Record<string, string[]>>(() => readSavedOrder(storageKey));
+  const [orderFor, setOrderFor] = useState(storageKey);
+  if (orderFor !== storageKey) {
+    setOrderFor(storageKey);
+    setOrder(readSavedOrder(storageKey));
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['categories', store?.id],
@@ -84,19 +102,6 @@ export function CategoriesPage() {
     enabled: !!store,
   });
   const categories = useMemo(() => data?.items ?? [], [data]);
-
-  // Cargar orden guardado del navegador.
-  useEffect(() => {
-    if (!store) return;
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      try {
-        setOrder(JSON.parse(raw));
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [store, storageKey]);
 
   // Aviso del navegador si hay cambios sin guardar.
   useEffect(() => {
@@ -271,6 +276,8 @@ export function CategoriesPage() {
       )}
 
       <CreateCategoryModal
+        // Cada apertura arranca de cero, con el padre que se eligió.
+        key={createOpen ? `nueva:${createParentId ?? ''}` : 'cerrada'}
         open={createOpen}
         onClose={() => {
           setCreateOpen(false);
@@ -468,13 +475,9 @@ function CreateCategoryModal({
   presetParentId?: string | null;
 }) {
   const [name, setName] = useState('');
-  const [parentId, setParentId] = useState('');
+  // Al abrir con "Agregar subcategoría", el padre ya viene elegido.
+  const [parentId, setParentId] = useState(presetParentId ?? '');
   const [error, setError] = useState<string>();
-
-  // Al abrir con "Agregar subcategoría", preseleccionar el padre.
-  useEffect(() => {
-    if (open) setParentId(presetParentId ?? '');
-  }, [open, presetParentId]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

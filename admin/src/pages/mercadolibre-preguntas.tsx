@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Button, EmptyList, Input, Spinner, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { fecha } from './mercadolibre-shared';
+import { useServerLoad } from '../lib/useServerLoad';
 
 interface MeliQuestion {
   id: number;
@@ -25,20 +26,19 @@ export function PreguntasTab() {
   const [suggesting, setSuggesting] = useState<number | null>(null);
   const [sendingId, setSendingId] = useState<number | null>(null);
 
-  const load = useCallback(() => {
-    setQuestions(null);
-    api
-      .get<{ questions: MeliQuestion[] }>(
+  // Al cambiar el filtro se vuelve a pedir; mientras tanto, "cargando".
+  const { loading, reload: load } = useServerLoad(
+    soloSinResponder ? 'sin-responder' : 'todas',
+    () =>
+      api.get<{ questions: MeliQuestion[] }>(
         `/api/v1/admin/meli/questions${soloSinResponder ? '?status=UNANSWERED' : ''}`,
-      )
-      .then((r) => setQuestions(r.questions))
-      .catch((err) => {
-        toast(errMsg(err, 'No se pudieron cargar las preguntas.'), { variant: 'error' });
-        setQuestions([]);
-      });
-  }, [soloSinResponder, toast]);
-
-  useEffect(load, [load]);
+      ),
+    (r) => setQuestions(r.questions),
+    (err) => {
+      toast(errMsg(err, 'No se pudieron cargar las preguntas.'), { variant: 'error' });
+      setQuestions([]);
+    },
+  );
 
   // La IA sugiere, el vendedor decide: llena el input, editable antes de enviar.
   const suggest = async (q: MeliQuestion) => {
@@ -88,7 +88,7 @@ export function PreguntasTab() {
         </Button>
       </div>
 
-      {questions === null ? (
+      {questions === null || loading ? (
         <Spinner />
       ) : questions.length === 0 ? (
         <EmptyList>

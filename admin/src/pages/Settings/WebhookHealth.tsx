@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Loader2, RotateCw } from 'lucide-react';
 import { Button, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatDateTime } from '../../lib/format';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 /**
  * Avisos de Mercado Pago que no se pudieron procesar.
@@ -42,17 +43,12 @@ export function WebhookHealth() {
   const [health, setHealth] = useState<Health | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setHealth(await api.get<Health>('/api/v1/payments/mercadopago/webhooks/health'));
-    } catch {
-      setHealth(null); // sin permiso o sin conexión: no es un error que mostrar acá
-    }
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<Health>('/api/v1/payments/mercadopago/webhooks/health'),
+    setHealth,
+    () => setHealth(null), // sin permiso o sin conexión: no es un error que mostrar acá
+  );
 
   if (!health?.connected || health.stuck === 0) return null;
 

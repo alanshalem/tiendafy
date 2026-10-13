@@ -99,13 +99,7 @@ function matches(query: string, text: string): boolean {
 type Item = { kind: 'nav'; cmd: NavCommand } | { kind: 'product'; product: ProductHit };
 
 export function CommandPalette() {
-  const navigate = useNavigate();
-  const { can } = usePermissions();
   const [open, setOpen] = useState(false);
-  const [q, setQ] = useState('');
-  const [active, setActive] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   // Atajo global Ctrl/Cmd+K (y Esc para cerrar).
   useEffect(() => {
@@ -121,21 +115,24 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Al abrir: limpiar búsqueda y foco al input. SOLO depende de `open`: si
-  // dependiera de los resultados, al llegar re-ejecutaría y BORRARÍA lo que
-  // el usuario ya tipeó (bug real cazado por el E2E).
-  useEffect(() => {
-    if (!open) return;
-    setQ('');
-    setActive(0);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }, [open]);
+  // El diálogo se monta al abrir: arranca con la búsqueda vacía y el foco en
+  // el campo cada vez, sin un efecto que lo limpie (y que, si dependiera de
+  // los resultados, BORRARÍA lo que ya se tipeó: bug real cazado por el E2E).
+  return open ? <PaletteDialog onClose={() => setOpen(false)} /> : null;
+}
+
+function PaletteDialog({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const { can } = usePermissions();
+  const [q, setQ] = useState('');
+  const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Productos: los busca la base, sin tildes y con las palabras en cualquier
   // orden, igual que el filtro de abajo. Antes se traían los primeros cien y
   // se filtraba acá: en una tienda con miles, el producto ciento uno no
   // aparecía nunca en la paleta.
-  const productQuery = open && q.trim().length >= 2 && can('catalog.write') ? q : '';
+  const productQuery = q.trim().length >= 2 && can('catalog.write') ? q : '';
   const search = useProductSearch<ProductDto>(productQuery, { enabled: productQuery !== '' });
   const products = useMemo<ProductHit[]>(
     () =>
@@ -153,17 +150,13 @@ export function CommandPalette() {
     return [...prods, ...nav].slice(0, 14);
   }, [q, productQuery, products, can]);
 
-  useEffect(() => {
-    setActive(0);
-  }, [q]);
-
   const run = useCallback(
     (item: Item) => {
-      setOpen(false);
+      onClose();
       if (item.kind === 'nav') navigate(item.cmd.to);
       else navigate(`/productos/${item.product.id}/editar`);
     },
-    [navigate],
+    [navigate, onClose],
   );
 
   const onInputKey = (e: React.KeyboardEvent) => {
@@ -184,12 +177,10 @@ export function CommandPalette() {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [active]);
 
-  if (!open) return null;
-
   return (
     <div
       className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[12vh]"
-      onClick={() => setOpen(false)}
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Buscar en el panel"
@@ -201,9 +192,12 @@ export function CommandPalette() {
         <div className="flex items-center gap-2.5 border-b border-border px-4">
           <Search className="h-4 w-4 shrink-0 text-fg-subtle" />
           <input
-            ref={inputRef}
+            autoFocus
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setActive(0); // otra búsqueda, otra lista: se arranca por el primero
+            }}
             onKeyDown={onInputKey}
             placeholder="Buscar pantallas o productos…"
             aria-label="Buscar pantallas o productos"

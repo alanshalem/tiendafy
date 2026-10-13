@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CalendarClock, History, Loader2, Store } from 'lucide-react';
 import { Modal, useToast } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime } from '../lib/format';
+import { useServerLoad } from '../lib/useServerLoad';
 
 interface Version {
   id: string;
@@ -31,14 +32,14 @@ export function HistoryModal({
   const [items, setItems] = useState<Version[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setItems(null);
-    api
-      .get<{ items: Version[] }>('/api/v1/theme/history')
-      .then((r) => setItems(r.items ?? []))
-      .catch(() => setItems([]));
-  }, [open]);
+  // Cada apertura vuelve a pedir el historial (key null = cerrado).
+  const { loading } = useServerLoad(
+    open ? 'historial' : null,
+    () => api.get<{ items: Version[] }>('/api/v1/theme/history'),
+    (r) => setItems(r.items ?? []),
+    () => setItems([]),
+  );
+  const shown = loading ? null : items;
 
   const restore = async (v: Version) => {
     setBusy(v.id);
@@ -56,11 +57,11 @@ export function HistoryModal({
 
   return (
     <Modal open={open} onClose={onClose} title="Historial de publicaciones">
-      {items === null ? (
+      {shown === null ? (
         <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
           <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
         </div>
-      ) : items.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="py-4 text-sm text-fg-muted">
           Todavía no hay versiones anteriores. Se guarda una cada vez que publicás un cambio.
         </p>
@@ -70,7 +71,7 @@ export function HistoryModal({
             Cada línea es cómo se veía tu tienda antes de una publicación. Se guardan las últimas 20.
           </p>
           <ul className="space-y-1.5">
-            {items.map((v) => (
+            {shown.map((v) => (
               <li
                 key={v.id}
                 className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
@@ -191,9 +192,13 @@ export function ScheduleModal({
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Cada apertura arranca sin fecha elegida (se ajusta al dibujar, no en un
+  // efecto que pinta primero la fecha de la vez anterior).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setWhen('');
-  }, [open]);
+  }
 
   const save = async () => {
     if (!when) return;

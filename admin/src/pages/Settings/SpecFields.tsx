@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { GripVertical, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
@@ -18,6 +18,7 @@ import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD } from '../../lib/styles';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 type SpecType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'LIST';
 
@@ -71,20 +72,18 @@ export function SpecFieldsPage() {
   const [items, setItems] = useState<SpecDefinition[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setLoadError(null);
-    api
-      .get<{ items: SpecDefinition[] }>('/api/v1/spec-definitions/')
-      .then((d) => setItems(d.items ?? []))
-      .catch((err) => {
-        setItems(null);
-        setLoadError(errMsg(err, 'No se pudieron cargar los campos.'));
-      });
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<{ items: SpecDefinition[] }>('/api/v1/spec-definitions/'),
+    (d) => {
+      setItems(d.items ?? []);
+      setLoadError(null);
+    },
+    (err) => {
+      setItems(null);
+      setLoadError(errMsg(err, 'No se pudieron cargar los campos.'));
+    },
+  );
 
   const categoriesQ = useQuery({
     queryKey: ['categories', store?.id],

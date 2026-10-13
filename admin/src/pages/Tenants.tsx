@@ -330,13 +330,17 @@ export function TenantsPage() {
         )}
       </Card>
 
+      {/* La key vuelve a montar el formulario en cada apertura: arranca con los
+          datos de ese momento, sin un efecto que los copie después. */}
       <TenantFormModal
+        key={createOpen ? 'alta' : 'alta-cerrada'}
         mode="create"
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSaved={refresh}
       />
       <TenantFormModal
+        key={editing?.id ?? 'edicion-cerrada'}
         mode="edit"
         tenant={editing ?? undefined}
         open={!!editing}
@@ -398,10 +402,7 @@ function useAvailability(name: string, subdomain: string, excludeId?: string) {
   const [result, setResult] = useState<CheckResult | null>(null);
 
   useEffect(() => {
-    if (!name && !subdomain) {
-      setResult(null);
-      return;
-    }
+    if (!name && !subdomain) return;
     const handle = setTimeout(async () => {
       const qs = new URLSearchParams();
       if (name) qs.set('name', name);
@@ -416,7 +417,8 @@ function useAvailability(name: string, subdomain: string, excludeId?: string) {
     return () => clearTimeout(handle);
   }, [name, subdomain, excludeId]);
 
-  return result;
+  // Sin nada escrito no hay chequeo que mostrar (aunque quede uno viejo guardado).
+  return name || subdomain ? result : null;
 }
 
 function TenantFormModal({
@@ -433,20 +435,11 @@ function TenantFormModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  const [name, setName] = useState('');
-  const [subdomain, setSubdomain] = useState('');
-  const [customDomain, setCustomDomain] = useState('');
+  // Crear = vacío, editar = datos de la tienda (ver la key en quien lo abre).
+  const [name, setName] = useState(tenant?.name ?? '');
+  const [subdomain, setSubdomain] = useState(tenant?.subdomain ?? '');
+  const [customDomain, setCustomDomain] = useState(tenant?.customDomain ?? '');
   const [error, setError] = useState<string>();
-
-  // Cargar valores al abrir en modo edición.
-  useEffect(() => {
-    if (open) {
-      setName(tenant?.name ?? '');
-      setSubdomain(tenant?.subdomain ?? '');
-      setCustomDomain(tenant?.customDomain ?? '');
-      setError(undefined);
-    }
-  }, [open, tenant]);
 
   const check = useAvailability(name.trim(), subdomain.trim(), tenant?.id);
   const nameTaken = !!name.trim() && check?.nameAvailable === false;

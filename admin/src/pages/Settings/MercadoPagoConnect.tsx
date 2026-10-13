@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode, useId } from 'react';
+import { useEffect, useState, type ReactNode, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BadgeCheck, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
 import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
@@ -9,6 +9,7 @@ import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 import { BRAND } from '../../lib/runtime';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 type CheckoutMode = 'PRO' | 'API';
 
@@ -34,26 +35,18 @@ export function MercadoPagoConnect() {
   const [params, setParams] = useSearchParams();
 
   const [conn, setConn] = useState<ConnectionDto | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [descriptor, setDescriptor] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<ConnectionDto>('/api/v1/payments/mercadopago/connection');
+  const { loading, reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<ConnectionDto>('/api/v1/payments/mercadopago/connection'),
+    (data) => {
       setConn(data);
       setDescriptor(data.statementDescriptor ?? '');
-    } catch {
-      setConn(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+    },
+    () => setConn(null),
+  );
 
   // Volvemos del OAuth con ?mp=connected|error → avisar y limpiar la URL.
   useEffect(() => {

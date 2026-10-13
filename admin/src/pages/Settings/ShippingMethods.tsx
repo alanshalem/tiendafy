@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useId } from 'react';
+import { useState, useId } from 'react';
 import { Calculator, Loader2, Pencil, Plus, Store, Trash2, Truck } from 'lucide-react';
 import { Button, Modal, Switch, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -10,6 +10,7 @@ import { CorreoArgentinoCard } from './CorreoArgentino';
 import { ZipnovaCard } from './Zipnova';
 import { AndreaniCard } from './Andreani';
 import type { MoneyDto } from '@tiendafy/types';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -47,27 +48,19 @@ export function ShippingMethodsPage() {
   const confirm = useConfirm();
 
   const [items, setItems] = useState<ShippingMethod[] | null>(null);
-  const [loading, setLoading] = useState(true);
   // null = cerrado, 'new' = alta, ShippingMethod = edición.
   const [editing, setEditing] = useState<ShippingMethod | 'new' | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<{ items: ShippingMethod[] }>('/api/v1/admin/shipping/methods');
-      setItems(data.items ?? []);
-    } catch (err) {
+  const { loading, reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<{ items: ShippingMethod[] }>('/api/v1/admin/shipping/methods'),
+    (data) => setItems(data.items ?? []),
+    (err) => {
       setItems(null);
       toast(errMsg(err, 'No se pudieron cargar los medios de envío.'), { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+    },
+  );
 
   const remove = async (method: ShippingMethod) => {
     const ok = await confirm({

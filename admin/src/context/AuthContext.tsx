@@ -44,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    setReady(false);
     api
       .get<AdminUser>('/api/v1/auth/me')
       .then((u) => {
@@ -59,7 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true));
   }, [attempt]);
 
-  const retry = () => setAttempt((n) => n + 1);
+  // Reintentar vuelve a "verificando sesión" en el mismo evento: así el efecto
+  // solo pregunta, sin cambiar estado antes de tener la respuesta.
+  const retry = () => {
+    setReady(false);
+    setAttempt((n) => n + 1);
+  };
 
   const login = async (email: string, password: string, captcha?: string): Promise<AuthResult> => {
     try {

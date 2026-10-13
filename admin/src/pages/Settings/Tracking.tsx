@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart3, Eye, Loader2, Megaphone, MousePointerClick, ShieldCheck } from 'lucide-react';
 import { Button, Input, Switch, useToast } from '@tiendafy/ui';
@@ -9,6 +9,7 @@ import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 interface Tracking {
   enabled: boolean;
@@ -44,34 +45,27 @@ export function TrackingPage() {
   const { toast } = useToast();
 
   const [value, setValue] = useState<Tracking>(DEFAULTS);
-  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setLoadError(null);
-    api
-      .get<Tracking>('/api/v1/admin/tracking/')
-      .then((d) => {
-        setValue({
-          ...DEFAULTS,
-          ...d,
-          ga4Id: d.ga4Id ?? '',
-          googleAdsId: d.googleAdsId ?? '',
-          metaPixelId: d.metaPixelId ?? '',
-          clarityId: d.clarityId ?? '',
-        });
-        setDirty(false);
-      })
-      .catch((err) => setLoadError(errMsg(err, 'No se pudo cargar la configuración de medición.')))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+  const { loading, reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<Tracking>('/api/v1/admin/tracking/'),
+    (d) => {
+      setValue({
+        ...DEFAULTS,
+        ...d,
+        ga4Id: d.ga4Id ?? '',
+        googleAdsId: d.googleAdsId ?? '',
+        metaPixelId: d.metaPixelId ?? '',
+        clarityId: d.clarityId ?? '',
+      });
+      setDirty(false);
+      setLoadError(null);
+    },
+    (err) => setLoadError(errMsg(err, 'No se pudo cargar la configuración de medición.')),
+  );
 
   const update = (patch: Partial<Tracking>) => {
     setValue((v) => ({ ...v, ...patch }));

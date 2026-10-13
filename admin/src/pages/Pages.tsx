@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '../lib/format';
@@ -149,8 +149,16 @@ export function PagesPage() {
         </Card>
       )}
 
-      <PageModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
+      {/* La key vuelve a montar el formulario en cada apertura: arranca con los
+          datos de ese momento, sin un efecto que los copie después. */}
       <PageModal
+        key={createOpen ? 'alta' : 'alta-cerrada'}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSaved={refresh}
+      />
+      <PageModal
+        key={editing?.id ?? 'edicion-cerrada'}
         open={!!editing}
         page={editing ?? undefined}
         onClose={() => setEditing(null)}
@@ -173,23 +181,14 @@ function PageModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  const [title, setTitle] = useState('');
-  const [slug, setSlug] = useState('');
-  const [body, setBody] = useState('');
+  // Crear = vacío, editar = datos de la página (ver la key en quien lo abre).
+  const [title, setTitle] = useState(page?.title ?? '');
+  const [slug, setSlug] = useState(page?.slug ?? '');
+  const [body, setBody] = useState(page?.body ?? '');
   const contentLabelId = useId();
-  const [published, setPublished] = useState(true);
+  const [published, setPublished] = useState(page?.published ?? true);
   const [error, setError] = useState<string>();
   const isEdit = !!page;
-
-  // Inicializar los campos al abrir (crear = vacío, editar = datos de la página).
-  useEffect(() => {
-    if (!open) return;
-    setTitle(page?.title ?? '');
-    setSlug(page?.slug ?? '');
-    setBody(page?.body ?? '');
-    setPublished(page?.published ?? true);
-    setError(undefined);
-  }, [open, page]);
 
   const save = useMutation({
     mutationFn: () => {

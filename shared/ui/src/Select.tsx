@@ -42,7 +42,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     <select
       ref={ref}
       aria-invalid={error || undefined}
-      defaultValue={defaultValue ?? (placeholder !== undefined ? '' : undefined)}
+      // El placeholder arranca elegido solo en un select NO controlado: con
+      // `value` y `defaultValue` a la vez React avisa en cada render y el
+      // segundo se ignora igual.
+      defaultValue={
+        props.value !== undefined ? undefined : (defaultValue ?? (placeholder !== undefined ? '' : undefined))
+      }
       style={{ ...arrowStyle, ...style }}
       className={cn(
         'h-10 w-full appearance-none rounded-md border bg-surface px-3 pr-9 text-sm text-fg',

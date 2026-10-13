@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Plus, RefreshCw, Package, PackageCheck, Truck, Undo2 } from 'lucide-react';
@@ -94,7 +94,6 @@ export function OrdersPage() {
   const prompt = usePrompt();
   const [manualOpen, setManualOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -105,26 +104,39 @@ export function OrdersPage() {
 
   // La búsqueda y el filtro viajan al servidor: con miles de ventas, filtrar
   // solo lo que ya está en pantalla es no encontrar nada.
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        limit: String(PAGE_SIZE),
-        offset: String((page - 1) * PAGE_SIZE),
-      });
-      if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
-      if (statusFilter) params.set('status', statusFilter);
+  const query = useMemo(() => {
+    const params = new URLSearchParams({
+      limit: String(PAGE_SIZE),
+      offset: String((page - 1) * PAGE_SIZE),
+    });
+    if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+    if (statusFilter) params.set('status', statusFilter);
+    return params.toString();
+  }, [page, debouncedSearch, statusFilter]);
 
-      const data = await api.get<{ items: Order[]; total: number }>(`/api/v1/orders?${params}`);
+  // Cada respuesta queda anotada con el pedido que la trajo: "cargando" es que
+  // la última no corresponde a la tienda, página y filtro de ahora.
+  const request = `${store?.id}?${query}`;
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = loadedFor !== request;
+
+  const fetchOrders = useCallback(
+    () =>
+      api
+        .get<{ items: Order[]; total: number }>(`/api/v1/orders?${query}`)
+        .catch(() => ({ items: [] as Order[], total: 0 })),
+    [query],
+  );
+  const show = useCallback(
+    (data: { items: Order[]; total: number }) => {
       setOrders(data.items ?? []);
       setTotal(data.total ?? 0);
-    } catch {
-      setOrders([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, debouncedSearch, statusFilter]);
+      setLoadedFor(request);
+    },
+    [request],
+  );
+  /** Recargar después de una acción (despachar, reembolsar…). */
+  const load = useCallback(async () => show(await fetchOrders()), [fetchOrders, show]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -217,16 +229,27 @@ export function OrdersPage() {
     [load, confirm, toast],
   );
 
+  // Si mientras tanto cambió la página o el filtro, la respuesta vieja se
+  // descarta: no pisa a la nueva.
   useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+    if (!store) return;
+    let current = true;
+    fetchOrders().then((data) => current && show(data));
+    return () => {
+      current = false;
+    };
+  }, [store, fetchOrders, show]);
 
   // Deep-link desde Mensajes (arrepentimiento): /ventas?order=<id> expande esa venta.
   const [params] = useSearchParams();
   const focusOrder = params.get('order');
-  useEffect(() => {
+  // Al llegar con otro ?order= se expande esa venta (se ajusta al dibujar, no
+  // en un efecto que pinta primero la lista sin expandir).
+  const [focusedFor, setFocusedFor] = useState<string | null>(null);
+  if (focusOrder !== focusedFor) {
+    setFocusedFor(focusOrder);
     if (focusOrder) setExpanded(focusOrder);
-  }, [focusOrder]);
+  }
   const focusMissing = !loading && !!focusOrder && !orders.some((o) => o.id === focusOrder);
 
   return (

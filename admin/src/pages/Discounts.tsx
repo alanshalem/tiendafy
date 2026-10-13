@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Power, Trash2, Plus } from 'lucide-react';
 import {
@@ -226,8 +226,16 @@ export function DiscountsPage() {
         </Card>
       )}
 
-      <CouponModal open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refresh} />
+      {/* La key vuelve a montar el formulario en cada apertura: arranca con los
+          datos de ese momento, sin un efecto que los copie después. */}
       <CouponModal
+        key={createOpen ? 'alta' : 'alta-cerrada'}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSaved={refresh}
+      />
+      <CouponModal
+        key={editing?.id ?? 'edicion-cerrada'}
         open={!!editing}
         coupon={editing ?? undefined}
         onClose={() => setEditing(null)}
@@ -254,38 +262,27 @@ function CouponModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  const [code, setCode] = useState('');
-  const [type, setType] = useState<CouponType>('Percentage');
-  const [value, setValue] = useState('');
-  const [minPurchase, setMinPurchase] = useState('');
-  const [startsAt, setStartsAt] = useState('');
-  const [endsAt, setEndsAt] = useState('');
-  const [maxUses, setMaxUses] = useState('');
-  const [active, setActive] = useState(true);
+  // Crear = vacío, editar = datos del cupón (ver la key en quien lo abre).
+  const [code, setCode] = useState(coupon?.code ?? '');
+  const [type, setType] = useState<CouponType>(coupon?.type ?? 'Percentage');
+  const [value, setValue] = useState(
+    coupon
+      ? coupon.type === 'FixedAmount'
+        ? String(coupon.value / 100)
+        : coupon.type === 'Percentage'
+          ? String(coupon.value)
+          : ''
+      : '',
+  );
+  const [minPurchase, setMinPurchase] = useState(
+    coupon && coupon.minPurchase > 0 ? String(coupon.minPurchase / 100) : '',
+  );
+  const [startsAt, setStartsAt] = useState(toDateInput(coupon?.startsAtUtc ?? null));
+  const [endsAt, setEndsAt] = useState(toDateInput(coupon?.endsAtUtc ?? null));
+  const [maxUses, setMaxUses] = useState(coupon?.maxUses != null ? String(coupon.maxUses) : '');
+  const [active, setActive] = useState(coupon?.active ?? true);
   const [error, setError] = useState<string>();
   const isEdit = !!coupon;
-
-  // Inicializar los campos al abrir (crear = vacío, editar = datos del cupón).
-  useEffect(() => {
-    if (!open) return;
-    setCode(coupon?.code ?? '');
-    setType(coupon?.type ?? 'Percentage');
-    setValue(
-      coupon
-        ? coupon.type === 'FixedAmount'
-          ? String(coupon.value / 100)
-          : coupon.type === 'Percentage'
-            ? String(coupon.value)
-            : ''
-        : '',
-    );
-    setMinPurchase(coupon && coupon.minPurchase > 0 ? String(coupon.minPurchase / 100) : '');
-    setStartsAt(toDateInput(coupon?.startsAtUtc ?? null));
-    setEndsAt(toDateInput(coupon?.endsAtUtc ?? null));
-    setMaxUses(coupon?.maxUses != null ? String(coupon.maxUses) : '');
-    setActive(coupon?.active ?? true);
-    setError(undefined);
-  }, [open, coupon]);
 
   const save = useMutation({
     mutationFn: () => {

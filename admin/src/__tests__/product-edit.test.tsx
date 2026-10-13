@@ -110,6 +110,25 @@ describe('editar producto', () => {
     ]);
   });
 
+  it('subir una foto (que recarga el producto) no pisa lo que se estaba editando', async () => {
+    const api = mockApi();
+    api.on('POST', '/api/v1/media', { url: 'https://cdn.example.com/nueva.jpg' });
+    const user = await open(api);
+    const name = screen.getByLabelText(/^Nombre/);
+    await user.clear(name);
+    await user.type(name, 'Nombre todavía sin guardar');
+
+    await user.upload(
+      document.querySelector<HTMLInputElement>('input[type=file]')!,
+      new File(['png'], 'nueva.png', { type: 'image/png' }),
+    );
+    await settle(4);
+    expect(
+      api.calls.filter((c) => c.method === 'GET' && c.path === `/api/v1/products/${product.id}`).length,
+    ).toBeGreaterThan(1);
+    expect(screen.getByLabelText(/^Nombre/)).toHaveValue('Nombre todavía sin guardar');
+  });
+
   it('sin tocar el paquete no lo reescribe', async () => {
     const api = mockApi();
     const single = { ...variant, barcode: 'X1', weightGrams: 800, lengthCm: 30, widthCm: 20, heightCm: 10 };

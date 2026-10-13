@@ -182,15 +182,25 @@ export function ThemeEditorPage() {
     };
   }, []);
 
-  // Cargar draft inicial. Seteamos el tenant explícitamente para evitar
-  // la race con el efecto de StoreContext (efectos hijos corren primero).
-  useEffect(() => {
-    if (!store) return;
-    setActiveTenant(store.id);
+  // Otra tienda (o reintentar): se vacía el editor en el mismo render, y el
+  // efecto de abajo pide lo nuevo.
+  const loadFor = store ? `${store.id}:${loadKey}` : null;
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  if (loadFor && resetFor !== loadFor) {
+    setResetFor(loadFor);
     setTheme(null);
     setPublished(null);
     setLoadError(false);
     setPreviewToken(undefined);
+  }
+
+  // Cargar draft inicial. Seteamos el tenant explícitamente para evitar
+  // la race con el efecto de StoreContext (efectos hijos corren primero).
+  // Lo que llega de una tienda anterior se descarta.
+  useEffect(() => {
+    if (!store) return;
+    let current = true;
+    setActiveTenant(store.id);
     undoStack.current = [];
     redoStack.current = [];
     Promise.all([
@@ -198,10 +208,12 @@ export function ThemeEditorPage() {
       api.get<Partial<ThemeConfig>>('/api/v1/theme'),
     ])
       .then(([d, p]) => {
+        if (!current) return;
         setTheme(withDefaults(d));
         setPublished(withDefaults(p));
       })
       .catch(() => {
+        if (!current) return;
         setTheme(null);
         setLoadError(true);
       });
@@ -209,17 +221,20 @@ export function ThemeEditorPage() {
     // el preview cae al tema publicado (el postMessage pinta el draft igual).
     api
       .post<{ token: string }>('/api/v1/theme/preview-token', {})
-      .then((r) => setPreviewToken(r.token))
-      .catch(() => setPreviewToken(null));
+      .then((r) => current && setPreviewToken(r.token))
+      .catch(() => current && setPreviewToken(null));
     api
       .get<{ scheduledAtUtc: string | null }>('/api/v1/theme/schedule')
-      .then((r) => setScheduledAt(r.scheduledAtUtc))
-      .catch(() => setScheduledAt(null));
+      .then((r) => current && setScheduledAt(r.scheduledAtUtc))
+      .catch(() => current && setScheduledAt(null));
     // Un producto real para previsualizar el panel "Detalle de producto".
     api
       .get<{ items: { slug: string }[] }>('/api/v1/products?limit=1')
-      .then((r) => setFirstSlug(r.items[0]?.slug ?? null))
-      .catch(() => setFirstSlug(null));
+      .then((r) => current && setFirstSlug(r.items[0]?.slug ?? null))
+      .catch(() => current && setFirstSlug(null));
+    return () => {
+      current = false;
+    };
   }, [store, loadKey]);
 
   // Postear tema al iframe (preview en vivo), con throttle (~80ms trailing):

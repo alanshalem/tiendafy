@@ -92,6 +92,7 @@ export function AutoEmailsPage() {
 
       {editing && (
         <EditModal
+          key={editing.type}
           template={editing}
           onClose={() => setEditing(null)}
           onSave={(subject, bodyHtml) =>
@@ -121,14 +122,10 @@ function EditModal({
   onSave: (subject: string, bodyHtml: string) => void;
 }) {
   const fid = useId();
+  // Otra plantilla, otro formulario: lo vuelve a montar la key de quien lo abre.
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.bodyHtml);
   const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
-
-  useEffect(() => {
-    setSubject(template.subject);
-    setBody(template.bodyHtml);
-  }, [template]);
 
   // Preview EXACTO: lo renderiza el backend con el mismo layout brandeado
   // (logo + color de la tienda) que usa al enviar. Debounce para no spamear.

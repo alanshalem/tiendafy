@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getInitialMode, toggleMode, type ThemeMode } from '../lib/themeMode';
 
 /** Switch sol/luna con reveal circular animado. */
 export function ThemeModeToggle({ className }: { className?: string }) {
-  const [mode, setMode] = useState<ThemeMode>('light');
-
-  useEffect(() => {
-    setMode((document.documentElement.dataset.theme as ThemeMode) || getInitialMode());
-  }, []);
+  // El modo ya está aplicado al documento antes de montar (main.tsx): se lee
+  // de ahí al crear el estado, no en un efecto que pinta un frame equivocado.
+  const [mode, setMode] = useState<ThemeMode>(
+    () => (document.documentElement.dataset.theme as ThemeMode) || getInitialMode(),
+  );
 
   return (
     <button

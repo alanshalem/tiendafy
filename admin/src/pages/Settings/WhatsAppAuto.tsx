@@ -1,4 +1,4 @@
-import { useEffect, useState, useId } from 'react';
+import { useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
@@ -121,6 +121,7 @@ export function WhatsAppAutoPage() {
 
       {editing && (
         <TemplateModal
+          key={editing.type}
           template={editing}
           saving={save.isPending}
           onClose={() => setEditing(null)}
@@ -444,13 +445,9 @@ function TemplateModal({
   onSave: (metaTemplateName: string, languageCode: string) => void;
 }) {
   const fid = useId();
+  // Otra plantilla, otro formulario: lo vuelve a montar la key de quien lo abre.
   const [name, setName] = useState(template.metaTemplateName);
   const [lang, setLang] = useState(template.languageCode || 'es_AR');
-
-  useEffect(() => {
-    setName(template.metaTemplateName);
-    setLang(template.languageCode || 'es_AR');
-  }, [template]);
 
   return (
     <Modal

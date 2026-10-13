@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CreditCard, Loader2, Lock, Unplug } from 'lucide-react';
 import { Button, FormField, Input, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
@@ -7,6 +7,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { formatDateTime } from '../../lib/format';
 import { Helper } from './Helper';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
+import { useServerLoad } from '../../lib/useServerLoad';
 
 type Environment = 'SANDBOX' | 'PRODUCTION';
 
@@ -37,7 +38,6 @@ export function PaywayConnect() {
   const confirm = useConfirm();
 
   const [conn, setConn] = useState<PaywayConnectionDto | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const [siteId, setSiteId] = useState('');
@@ -48,10 +48,10 @@ export function PaywayConnect() {
   const [establishmentName, setEstablishmentName] = useState('');
   const [installments, setInstallments] = useState<number[]>([1]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<PaywayConnectionDto>('/api/v1/payments/payway/connection');
+  const { loading, reload: load } = useServerLoad(
+    store?.id ?? null,
+    () => api.get<PaywayConnectionDto>('/api/v1/payments/payway/connection'),
+    (data) => {
       setConn(data);
       setSiteId(data.siteId ?? '');
       setEnvironment(data.environment ?? 'SANDBOX');
@@ -62,16 +62,9 @@ export function PaywayConnect() {
       // La privada nunca vuelve del servidor: el campo arranca vacío y vacío
       // significa "dejá la que está".
       setPrivateKey('');
-    } catch {
-      setConn(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (store) load();
-  }, [store, load]);
+    },
+    () => setConn(null),
+  );
 
   const save = async () => {
     setBusy(true);
