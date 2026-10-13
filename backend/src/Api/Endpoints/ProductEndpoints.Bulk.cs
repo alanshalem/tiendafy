@@ -4,6 +4,7 @@ using Catalog.Core.Domain;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -32,7 +33,7 @@ public static partial class ProductEndpoints
             var form = await req.ReadFormAsync(ct);
             var file = form.Files["file"];
             if (file is null || file.Length == 0)
-                return Results.BadRequest(new { error = "Falta el archivo 'file'." });
+                return Error.Validation("Import.MissingFile", "Falta el archivo CSV.").ToProblem();
 
             using var reader = new StreamReader(file.OpenReadStream());
             var csv = await reader.ReadToEndAsync(ct);
@@ -96,7 +97,7 @@ public static partial class ProductEndpoints
 
             var form = await req.ReadFormAsync(ct);
             if (form.Files.Count == 0)
-                return Results.BadRequest(new { error = "No se subió ninguna imagen." });
+                return Error.Validation("Import.NoFiles", "No se subió ninguna imagen.").ToProblem();
 
             var jobId = Guid.NewGuid();
             var tempDir = Path.Combine(Path.GetTempPath(), "tiendafy-img-import", jobId.ToString("N"));
@@ -126,7 +127,7 @@ public static partial class ProductEndpoints
             if (total == 0)
             {
                 try { Directory.Delete(tempDir, true); } catch { /* best effort */ }
-                return Results.BadRequest(new { error = "No se encontraron imágenes (jpg, png, webp, avif) ni un .zip con imágenes." });
+                return Error.Validation("Import.NoImages", "No se encontraron imágenes (JPG, PNG, WebP o AVIF) ni un ZIP con imágenes.").ToProblem();
             }
 
             var job = queue.Create(tenant.TenantId.Value, tempDir, total);

@@ -91,7 +91,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         TenantId tenantId, Guid variantId, int quantity, CancellationToken ct = default)
     {
         if (quantity <= 0)
-            return Result.Failure<Reservation>(Error.Validation("Reservation.InvalidQuantity", "Quantity must be positive."));
+            return Result.Failure<Reservation>(Error.Validation("Reservation.InvalidQuantity", "La cantidad tiene que ser mayor a cero."));
 
         await using var tx = await context.Database.BeginTransactionAsync(ct);
 
@@ -104,7 +104,7 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
 
         if (updated == 0)
             return Result.Failure<Reservation>(Error.Conflict(
-                "Stock.Insufficient", "Not enough stock for this variant."));
+                "Stock.Insufficient", "No hay stock suficiente de este producto."));
 
         var reservation = new Reservation(tenantId, variantId, quantity);
         context.Reservations.Add(reservation);

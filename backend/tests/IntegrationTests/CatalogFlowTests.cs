@@ -375,7 +375,7 @@ public sealed class CatalogFlowTests
         Assert.Equal(1, job.GetProperty("skipped").GetInt32());
         var errors = job.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("message").GetString()!).ToList();
         Assert.Contains(errors, e => e.Contains($"REM-{tag}", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("Name", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("El nombre", StringComparison.Ordinal));
 
         // Si la imagen no se pudo bajar, se conserva la URL original en vez de perderla.
         var vaso = await merchant.GetAsync($"/api/v1/products/by-slug/vaso-{tag}");

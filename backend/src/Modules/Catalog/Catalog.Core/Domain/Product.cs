@@ -110,7 +110,7 @@ public sealed class Product : AggregateRoot
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 1 or > 255)
             return Result.Failure<Product>(Error.Validation(
-                "Product.InvalidName", "Name must be between 1 and 255 characters."));
+                "Product.InvalidName", "El nombre tiene que tener entre 1 y 255 caracteres."));
 
         var slugResult = Slug.Create(trimmed);
         if (slugResult.IsFailure)
@@ -128,20 +128,20 @@ public sealed class Product : AggregateRoot
         if (_variants.Count > 0)
             return Result.Failure(Error.Conflict(
                 "Product.OptionsLocked",
-                "Options cannot change once variants exist. Remove variants first."));
+                "Las opciones no se pueden cambiar cuando ya hay variantes. Borrá las variantes primero."));
 
         if (_options.Count >= MaxOptions)
             return Result.Failure(Error.Validation(
-                "Product.TooManyOptions", $"A product supports at most {MaxOptions} options."));
+                "Product.TooManyOptions", $"Un producto admite hasta {MaxOptions} opciones."));
 
         var trimmedName = name?.Trim() ?? string.Empty;
         if (trimmedName.Length is < 1 or > 50)
             return Result.Failure(Error.Validation(
-                "Product.InvalidOptionName", "Option name must be between 1 and 50 characters."));
+                "Product.InvalidOptionName", "El nombre de la opción tiene que tener entre 1 y 50 caracteres."));
 
         if (_options.Any(o => string.Equals(o.Name, trimmedName, StringComparison.OrdinalIgnoreCase)))
             return Result.Failure(Error.Conflict(
-                "Product.DuplicateOption", $"Option '{trimmedName}' already exists."));
+                "Product.DuplicateOption", $"Ya hay una opción «{trimmedName}»."));
 
         var cleanValues = (values ?? [])
             .Select(v => v.Trim())
@@ -151,7 +151,7 @@ public sealed class Product : AggregateRoot
 
         if (cleanValues.Count == 0)
             return Result.Failure(Error.Validation(
-                "Product.EmptyOptionValues", "An option needs at least one value."));
+                "Product.EmptyOptionValues", "Cada opción necesita al menos un valor."));
 
         _options.Add(new ProductOption(trimmedName, cleanValues));
         return Result.Success();
@@ -185,38 +185,38 @@ public sealed class Product : AggregateRoot
     {
         if (cost is { IsNegative: true })
             return Result.Failure<Variant>(Error.Validation(
-                "Variant.NegativeCost", "Cost cannot be negative."));
+                "Variant.NegativeCost", "El costo no puede ser negativo."));
 
         var trimmedSku = sku?.Trim() ?? string.Empty;
         if (trimmedSku.Length is < 1 or > 64)
             return Result.Failure<Variant>(Error.Validation(
-                "Variant.InvalidSku", "SKU must be between 1 and 64 characters."));
+                "Variant.InvalidSku", "El SKU tiene que tener entre 1 y 64 caracteres."));
 
         if (_variants.Any(v => string.Equals(v.Sku, trimmedSku, StringComparison.OrdinalIgnoreCase)))
             return Result.Failure<Variant>(Error.Conflict(
-                "Variant.DuplicateSku", $"SKU '{trimmedSku}' already exists in this product."));
+                "Variant.DuplicateSku", $"El SKU «{trimmedSku}» ya lo usa otra variante de este producto."));
 
         if (price.IsNegative)
             return Result.Failure<Variant>(Error.Validation(
-                "Variant.NegativePrice", "Price cannot be negative."));
+                "Variant.NegativePrice", "El precio no puede ser negativo."));
 
         var values = optionValues ?? [];
         if (values.Count != _options.Count)
             return Result.Failure<Variant>(Error.Validation(
                 "Variant.OptionMismatch",
-                $"Variant must provide exactly {_options.Count} option value(s), got {values.Count}."));
+                $"La variante tiene que indicar {_options.Count} valor(es) de opción y trae {values.Count}."));
 
         for (var i = 0; i < _options.Count; i++)
         {
             if (!_options[i].HasValue(values[i]))
                 return Result.Failure<Variant>(Error.Validation(
                     "Variant.UnknownOptionValue",
-                    $"'{values[i]}' is not a value of option '{_options[i].Name}'."));
+                    $"«{values[i]}» no es un valor de la opción «{_options[i].Name}»."));
         }
 
         if (_variants.Any(v => v.Matches(values)))
             return Result.Failure<Variant>(Error.Conflict(
-                "Variant.DuplicateCombination", "A variant with this option combination already exists."));
+                "Variant.DuplicateCombination", "Ya hay una variante con esa combinación."));
 
         var variant = new Variant(trimmedSku, values, price, compareAtPrice, cost);
         _variants.Add(variant);
@@ -228,7 +228,7 @@ public sealed class Product : AggregateRoot
     {
         var variant = _variants.FirstOrDefault(v => v.Id == variantId);
         if (variant is null)
-            return Result.Failure(Error.NotFound("Variant.NotFound", "Variant not found."));
+            return Result.Failure(Error.NotFound("Variant.NotFound", "No existe esa variante."));
         var trimmed = barcode?.Trim();
         if (trimmed is { Length: > 64 })
             return Result.Failure(Error.Validation("Variant.InvalidBarcode", "El código de barras admite hasta 64 caracteres."));
@@ -241,9 +241,9 @@ public sealed class Product : AggregateRoot
     {
         var variant = _variants.FirstOrDefault(v => v.Id == variantId);
         if (variant is null)
-            return Result.Failure(Error.NotFound("Variant.NotFound", "Variant not found."));
+            return Result.Failure(Error.NotFound("Variant.NotFound", "No existe esa variante."));
         if (cost is { IsNegative: true })
-            return Result.Failure(Error.Validation("Variant.NegativeCost", "Cost cannot be negative."));
+            return Result.Failure(Error.Validation("Variant.NegativeCost", "El costo no puede ser negativo."));
         variant.SetCost(cost);
         return Result.Success();
     }
@@ -252,11 +252,11 @@ public sealed class Product : AggregateRoot
     {
         if (Status == ProductStatus.Archived)
             return Result.Failure(Error.Conflict(
-                "Product.Archived", "Archived products cannot be published. Restore it first."));
+                "Product.Archived", "Un producto archivado no se puede publicar: restauralo primero."));
 
         if (_variants.Count == 0)
             return Result.Failure(Error.Validation(
-                "Product.NoVariants", "A product needs at least one variant to be published."));
+                "Product.NoVariants", "Para publicar el producto hace falta al menos una variante."));
 
         if (Status == ProductStatus.Active)
             return Result.Success(); // idempotente
@@ -292,11 +292,11 @@ public sealed class Product : AggregateRoot
             || !(trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                  || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
             return Result.Failure<ProductImage>(Error.Validation(
-                "Image.InvalidUrl", "Image URL must be a valid absolute URL."));
+                "Image.InvalidUrl", "La dirección de la imagen no es válida."));
 
         if (_images.Count >= MaxImages)
             return Result.Failure<ProductImage>(Error.Validation(
-                "Image.TooMany", $"A product supports at most {MaxImages} images."));
+                "Image.TooMany", $"Un producto admite hasta {MaxImages} fotos."));
 
         var image = new ProductImage(trimmed, altText?.Trim(), _images.Count);
         _images.Add(image);
@@ -352,7 +352,7 @@ public sealed class Product : AggregateRoot
 
         if (price.IsNegative)
             return Result.Failure(Error.Validation(
-                "Variant.NegativePrice", "Price cannot be negative."));
+                "Variant.NegativePrice", "El precio no puede ser negativo."));
 
         variant.ChangePrice(price, compareAtPrice);
         return Result.Success();
@@ -374,7 +374,7 @@ public sealed class Product : AggregateRoot
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 1 or > 255)
             return Result.Failure(Error.Validation(
-                "Product.InvalidName", "Name must be between 1 and 255 characters."));
+                "Product.InvalidName", "El nombre tiene que tener entre 1 y 255 caracteres."));
 
         // El slug NO se regenera: cambiarlo rompe SEO y links compartidos.
         Name = trimmed;

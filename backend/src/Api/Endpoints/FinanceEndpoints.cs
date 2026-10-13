@@ -4,6 +4,7 @@ using Finance.Infrastructure;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -241,7 +242,7 @@ public static class FinanceEndpoints
             ITenantContext tenant, FinanceDbContext db, PartyDirectory parties, CancellationToken ct,
             string partyKind = "customer", Guid? partyId = null) =>
         {
-            if (partyId is not { } party || party == Guid.Empty) return Results.BadRequest(new { error = "Falta el cliente o proveedor." });
+            if (partyId is not { } party || party == Guid.Empty) return Error.Validation("Finance.MissingParty", "Falta el cliente o proveedor.").ToProblem();
 
             var tid = tenant.TenantId.Value;
             var kind = ParsePartyKind(partyKind);
@@ -286,7 +287,7 @@ public static class FinanceEndpoints
             ITenantContext tenant, FinanceDbContext db, CancellationToken ct,
             string partyKind = "customer", Guid? partyId = null) =>
         {
-            if (partyId is not { } party || party == Guid.Empty) return Results.BadRequest(new { error = "Falta el cliente o proveedor." });
+            if (partyId is not { } party || party == Guid.Empty) return Error.Validation("Finance.MissingParty", "Falta el cliente o proveedor.").ToProblem();
 
             var tid = tenant.TenantId.Value;
             var kind = ParsePartyKind(partyKind);

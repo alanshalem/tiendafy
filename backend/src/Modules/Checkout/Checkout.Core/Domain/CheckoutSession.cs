@@ -63,16 +63,16 @@ public sealed class CheckoutSession : AggregateRoot
     {
         if (lines.Count == 0)
             return Result.Failure<CheckoutSession>(Error.Validation(
-                "Checkout.Empty", "Checkout needs at least one item."));
+                "Checkout.Empty", "El carrito está vacío."));
 
         if (lines.Any(l => l.Quantity is <= 0 or > 99))
             return Result.Failure<CheckoutSession>(Error.Validation(
-                "Checkout.InvalidQuantity", "Item quantity must be between 1 and 99."));
+                "Checkout.InvalidQuantity", "La cantidad de cada producto tiene que estar entre 1 y 99."));
 
         var currencies = lines.Select(l => l.UnitPrice.Currency).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (currencies.Count > 1)
             return Result.Failure<CheckoutSession>(Error.Validation(
-                "Checkout.MixedCurrencies", "All items must share the same currency."));
+                "Checkout.MixedCurrencies", "Todos los productos tienen que estar en la misma moneda."));
 
         var session = new CheckoutSession(Guid.NewGuid(), tenantId, currencies[0]);
         foreach (var line in lines)
@@ -94,13 +94,13 @@ public sealed class CheckoutSession : AggregateRoot
     public Result MarkSubmitted(string email, IReadOnlyDictionary<Guid, Guid> reservationByVariant, DateTime nowUtc)
     {
         if (Status != CheckoutStatus.Open)
-            return Result.Failure(Error.Conflict("Checkout.NotOpen", $"Checkout is {Status}."));
+            return Result.Failure(Error.Conflict("Checkout.NotOpen", "Esta compra ya no se puede modificar."));
         if (nowUtc >= ExpiresAtUtc)
-            return Result.Failure(Error.Conflict("Checkout.Expired", "Checkout session expired."));
+            return Result.Failure(Error.Conflict("Checkout.Expired", "La compra venció: volvé a empezar desde el carrito."));
 
         var trimmed = email.Trim();
         if (trimmed.Length < 5 || !trimmed.Contains('@'))
-            return Result.Failure(Error.Validation("Checkout.InvalidEmail", "A valid email is required."));
+            return Result.Failure(Error.Validation("Checkout.InvalidEmail", "Ingresá un email válido."));
 
         foreach (var item in _items)
         {

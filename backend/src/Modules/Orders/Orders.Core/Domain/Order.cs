@@ -95,11 +95,11 @@ public sealed class Order : AggregateRoot
         string? couponCode = null)
     {
         if (lines.Count == 0)
-            return Result.Failure<Order>(Error.Validation("Order.Empty", "Order needs at least one item."));
+            return Result.Failure<Order>(Error.Validation("Order.Empty", "La venta necesita al menos un producto."));
 
         var email = buyerEmail.Trim();
         if (email.Length < 5 || !email.Contains('@'))
-            return Result.Failure<Order>(Error.Validation("Order.InvalidEmail", "A valid email is required."));
+            return Result.Failure<Order>(Error.Validation("Order.InvalidEmail", "Ingresá un email válido."));
 
         var order = new Order(Guid.NewGuid(), tenantId)
         {
@@ -191,7 +191,7 @@ public sealed class Order : AggregateRoot
     {
         if (Status == OrderStatus.Paid) return Result.Success();
         if (Status != OrderStatus.PendingPayment)
-            return Result.Failure(Error.Conflict("Order.NotPending", $"Order is {Status}, cannot mark paid."));
+            return Result.Failure(Error.Conflict("Order.NotPending", "Esta venta ya no está pendiente: no se puede marcar como pagada."));
 
         Status = OrderStatus.Paid;
         PaymentId = paymentId;

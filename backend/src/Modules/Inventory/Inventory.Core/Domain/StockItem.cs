@@ -112,9 +112,9 @@ public sealed class Reservation : Entity
     public Result Confirm(DateTime nowUtc)
     {
         if (Status != ReservationStatus.Active)
-            return Result.Failure(Error.Conflict("Reservation.NotActive", $"Reservation is {Status}."));
+            return Result.Failure(Error.Conflict("Reservation.NotActive", "La reserva de stock ya no está activa."));
         if (nowUtc >= ExpiresAtUtc)
-            return Result.Failure(Error.Conflict("Reservation.Expired", "Reservation already expired."));
+            return Result.Failure(Error.Conflict("Reservation.Expired", "La reserva de stock venció."));
 
         Status = ReservationStatus.Confirmed;
         return Result.Success();
@@ -123,7 +123,7 @@ public sealed class Reservation : Entity
     public Result Release()
     {
         if (Status != ReservationStatus.Active)
-            return Result.Failure(Error.Conflict("Reservation.NotActive", $"Reservation is {Status}."));
+            return Result.Failure(Error.Conflict("Reservation.NotActive", "La reserva de stock ya no está activa."));
 
         Status = ReservationStatus.Released;
         return Result.Success();

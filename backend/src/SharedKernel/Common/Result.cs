@@ -61,8 +61,29 @@ public sealed record Error(string Code, string Message, ErrorType Type = ErrorTy
 {
     public static readonly Error None = new(string.Empty, string.Empty);
 
+    /// <summary>
+    /// "No existe" de una entidad por id. El mensaje lo lee el comercio o el
+    /// comprador: va en castellano y sin el id (un GUID no le dice nada a nadie).
+    /// </summary>
     public static Error NotFound(string entity, object id) =>
-        new($"{entity}.NotFound", $"{entity} with id '{id}' was not found.", ErrorType.NotFound);
+        new($"{entity}.NotFound", $"{Noun(entity)} no existe o ya no está disponible.", ErrorType.NotFound);
+
+    /// <summary>"No existe" con código y mensaje propios.</summary>
+    public static Error NotFound(string code, string message) =>
+        new(code, message, ErrorType.NotFound);
+
+    private static string Noun(string entity) => entity switch
+    {
+        "Category" => "La categoría",
+        "Checkout" => "La compra",
+        "Image" => "La imagen",
+        "Order" => "La venta",
+        "Product" => "El producto",
+        "Reservation" => "La reserva de stock",
+        "Tenant" => "La tienda",
+        "Variant" => "La variante",
+        _ => "Lo que buscás",
+    };
 
     public static Error Validation(string code, string message) =>
         new(code, message, ErrorType.Validation);

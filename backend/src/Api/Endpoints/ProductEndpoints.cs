@@ -472,7 +472,7 @@ public static partial class ProductEndpoints
     }
 
     private static IResult MultipartExpected() =>
-        Results.BadRequest(new { error = "Se espera multipart/form-data." });
+        Error.Validation("Import.MultipartExpected", "Se espera multipart/form-data.").ToProblem();
     /// <summary>
     /// Variante con precio y costo: la forma exacta que consume la pantalla de
     /// Costos, servida tanto de a un producto como en el bulk de la página.

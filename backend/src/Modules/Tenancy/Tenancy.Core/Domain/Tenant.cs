@@ -33,7 +33,7 @@ public sealed class Tenant : AggregateRoot
         var trimmedName = name?.Trim() ?? string.Empty;
         if (trimmedName.Length is < 2 or > 100)
             return Result.Failure<Tenant>(Error.Validation(
-                "Tenant.InvalidName", "Name must be between 2 and 100 characters."));
+                "Tenant.InvalidName", "El nombre tiene que tener entre 2 y 100 caracteres."));
 
         var subdomainResult = Subdomain.Create(subdomainRaw);
         if (subdomainResult.IsFailure)
@@ -52,7 +52,7 @@ public sealed class Tenant : AggregateRoot
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 2 or > 100)
             return Result.Failure(Error.Validation(
-                "Tenant.InvalidName", "Name must be between 2 and 100 characters."));
+                "Tenant.InvalidName", "El nombre tiene que tener entre 2 y 100 caracteres."));
         Name = trimmed;
         return Result.Success();
     }

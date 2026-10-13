@@ -33,7 +33,7 @@ public sealed class Category : AggregateRoot
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 1 or > 50)
             return Result.Failure<Category>(Error.Validation(
-                "Category.InvalidName", "Name must be between 1 and 50 characters."));
+                "Category.InvalidName", "El nombre tiene que tener entre 1 y 50 caracteres."));
 
         var slugResult = Slug.Create(trimmed);
         if (slugResult.IsFailure)
@@ -41,7 +41,7 @@ public sealed class Category : AggregateRoot
 
         if (parent is not null && parent.Depth >= MaxDepth)
             return Result.Failure<Category>(Error.Validation(
-                "Category.TooDeep", $"Categories support at most {MaxDepth} levels."));
+                "Category.TooDeep", $"Las categorías admiten hasta {MaxDepth} niveles."));
 
         var path = parent is null
             ? slugResult.Value.Value
@@ -57,7 +57,7 @@ public sealed class Category : AggregateRoot
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 1 or > 50)
             return Result.Failure(Error.Validation(
-                "Category.InvalidName", "Name must be between 1 and 50 characters."));
+                "Category.InvalidName", "El nombre tiene que tener entre 1 y 50 caracteres."));
 
         // Path estable: renombrar no rompe URLs de la tienda (slug no cambia).
         Name = trimmed;

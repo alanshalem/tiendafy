@@ -31,12 +31,12 @@ public sealed partial record Subdomain
         if (!ValidPattern().IsMatch(value))
             return Result.Failure<Subdomain>(Error.Validation(
                 "Subdomain.Invalid",
-                "Subdomain must be 3-63 chars: lowercase letters, digits, hyphens; cannot start or end with a hyphen."));
+                "La dirección de la tienda tiene que tener entre 3 y 63 caracteres: minúsculas, números y guiones, sin guion al principio ni al final."));
 
         if (Reserved.Contains(value))
             return Result.Failure<Subdomain>(Error.Validation(
                 "Subdomain.Reserved",
-                $"Subdomain '{value}' is reserved."));
+                $"La dirección «{value}» está reservada: elegí otra."));
 
         return new Subdomain(value);
     }

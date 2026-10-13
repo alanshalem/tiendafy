@@ -15,7 +15,7 @@ public sealed class StartCheckoutHandler(ICatalogCheckoutQuery catalog, ICheckou
     public async Task<Result<CheckoutSession>> HandleAsync(StartCheckoutCommand command, CancellationToken ct = default)
     {
         if (command.Lines.Count == 0)
-            return Result.Failure<CheckoutSession>(Error.Validation("Checkout.Empty", "Cart is empty."));
+            return Result.Failure<CheckoutSession>(Error.Validation("Checkout.Empty", "El carrito está vacío."));
 
         var variantIds = command.Lines.Select(l => l.VariantId).Distinct().ToList();
         var variants = await catalog.GetVariantsAsync(command.TenantId.Value, variantIds, ct);

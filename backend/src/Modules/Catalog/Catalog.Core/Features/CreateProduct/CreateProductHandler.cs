@@ -78,6 +78,6 @@ public sealed class CreateProductHandler(IProductRepository repository, IUnitOfW
 
         return Result.Failure(Error.Conflict(
             "Product.SlugExhausted",
-            $"Could not find a free slug for '{product.Slug.Value}' after {MaxSlugAttempts} attempts."));
+            $"No hay un identificador de URL libre para «{product.Slug.Value}». Probá con otro nombre."));
     }
 }

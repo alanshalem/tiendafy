@@ -69,8 +69,7 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
             var tenant = ctx.RequestServices.GetRequiredService<ITenantContext>();
             if (!tenant.HasTenant)
             {
-                ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await ctx.Response.WriteAsJsonAsync(new { error = AuthExtensions.MissingTenantHeaderMessage });
+                await AuthExtensions.MissingTenant().ExecuteAsync(ctx);
                 return;
             }
 

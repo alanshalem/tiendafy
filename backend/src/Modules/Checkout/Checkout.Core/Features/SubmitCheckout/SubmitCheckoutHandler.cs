@@ -45,11 +45,11 @@ public sealed class SubmitCheckoutHandler(
 
         if (session.Status != CheckoutStatus.Open)
             return Result.Failure<CheckoutSession>(Error.Conflict(
-                "Checkout.NotOpen", $"Checkout is {session.Status}."));
+                "Checkout.NotOpen", "Esta compra ya no se puede modificar."));
 
         if (session.IsExpired(DateTime.UtcNow))
             return Result.Failure<CheckoutSession>(Error.Conflict(
-                "Checkout.Expired", "Checkout session expired. Start again."));
+                "Checkout.Expired", "La compra venció: volvé a empezar desde el carrito."));
 
         // Envío cotizado por carrier: el precio sale del quote firmado (capa API).
         if (command.Quote is { } quote)

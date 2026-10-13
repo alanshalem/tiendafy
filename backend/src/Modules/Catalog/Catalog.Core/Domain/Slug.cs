@@ -26,7 +26,7 @@ public sealed partial record Slug
         if (!ValidPattern().IsMatch(slugified))
             return Result.Failure<Slug>(Error.Validation(
                 "Slug.Invalid",
-                "Slug must be 1-120 chars of lowercase letters, digits and hyphens."));
+                "El identificador de URL tiene que tener entre 1 y 120 caracteres: minúsculas, números y guiones."));
 
         return new Slug(slugified);
     }

@@ -8,10 +8,11 @@ namespace Api.Auth;
 public static class AuthExtensions
 {
     /// <summary>Mensaje único del 400 cuando falta el header X-Tenant-Id.</summary>
-    public const string MissingTenantHeaderMessage = "Missing X-Tenant-Id header.";
+    public const string MissingTenantHeaderMessage = "Elegí una tienda antes de seguir.";
 
     /// <summary>400 estándar cuando falta el header X-Tenant-Id (cuerpo JSON compartido).</summary>
-    public static IResult MissingTenant() => Results.BadRequest(new { error = MissingTenantHeaderMessage });
+    public static IResult MissingTenant() =>
+        Results.Problem(title: "Tenant.Missing", detail: MissingTenantHeaderMessage, statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>Id del usuario de plataforma autenticado (claim NameIdentifier), o null.</summary>
     public static Guid? GetUserId(this ClaimsPrincipal principal)

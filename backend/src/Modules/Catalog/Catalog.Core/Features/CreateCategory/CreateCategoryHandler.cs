@@ -27,7 +27,7 @@ public sealed class CreateCategoryHandler(ICategoryRepository repository, IUnitO
 
         if (await repository.PathExistsAsync(command.TenantId, category.Path, ct))
             return Result.Failure<CategoryDto>(Error.Conflict(
-                "Category.Duplicate", $"A category with path '{category.Path}' already exists."));
+                "Category.Duplicate", $"Ya existe la categoría «{category.Path}»."));
 
         await repository.AddAsync(category, ct);
         await unitOfWork.SaveChangesAsync(ct);
