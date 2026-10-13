@@ -81,6 +81,14 @@ public interface IMediaStorage
 /// </summary>
 public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaStorage
 {
+    // Sin firmar el contenido y sin checksum al final: sobre https, AWSSDK.S3
+    // manda el cuerpo en trozos firmados con el checksum al final (Streaming
+    // SigV4), R2 lo rechaza y la subida falla con un 500. Es lo que pide la
+    // documentación de R2 para este SDK; el contenido igual viaja cifrado. Por
+    // http (el MinIO de desarrollo) el SDK no permite dejar de firmar, y ahí
+    // tampoco hace falta: MinIO acepta los trozos.
+    private readonly bool unsignedPayload =
+        options.Endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
     public const long MaxImageBytes = 5 * 1024 * 1024;   // 5 MB
     public const long MaxVideoBytes = 20 * 1024 * 1024;  // 20 MB (hero loops cortos y comprimidos)
     public const long MaxSvgBytes = 1 * 1024 * 1024;     // 1 MB (SVG es texto; cap bajo)
@@ -104,15 +112,17 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
         var type = contentType.ToLowerInvariant();
         if (!AllowedTypes.TryGetValue(type, out var extension))
             return Result.Failure<string>(Error.Validation(
-                "Media.UnsupportedType", $"Content type '{contentType}' not allowed. Use JPEG, PNG, WebP, AVIF, SVG, MP4 or WebM."));
+                "Media.UnsupportedType", "Ese tipo de archivo no se puede subir. Usá JPG, PNG, WebP, AVIF o SVG para imágenes, y MP4 o WebM para videos."));
 
         var isSvg = type == SvgType;
         var max = isSvg ? MaxSvgBytes
             : type.StartsWith("video/", StringComparison.Ordinal) ? MaxVideoBytes
             : MaxImageBytes;
-        if (length <= 0 || length > max)
+        if (length <= 0)
+            return Result.Failure<string>(Error.Validation("Media.Empty", "El archivo está vacío."));
+        if (length > max)
             return Result.Failure<string>(Error.Validation(
-                "Media.TooLarge", $"File must be between 1 byte and {max / 1024 / 1024} MB."));
+                "Media.TooLarge", $"El archivo pesa demasiado: el máximo es {max / 1024 / 1024} MB."));
 
         // Stream que efectivamente subimos. Para SVG lo reemplazamos por el contenido
         // saneado; para el resto subimos el original tras validar magic bytes.
@@ -152,6 +162,8 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
                 Key = key,
                 InputStream = upload,
                 ContentType = contentType,
+                DisablePayloadSigning = unsignedPayload,
+                DisableDefaultChecksumValidation = true,
             }, ct);
 
             return options.PublicUrl(key);
@@ -203,6 +215,8 @@ public sealed class S3MediaStorage(IAmazonS3 s3, MediaOptions options) : IMediaS
             Key = key,
             InputStream = content,
             ContentType = contentType,
+            DisablePayloadSigning = unsignedPayload,
+            DisableDefaultChecksumValidation = true,
         }, ct);
 
         return key;

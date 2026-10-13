@@ -135,4 +135,95 @@ public sealed class MediaModuleTests
         await sp.EnsureMediaBucketAsync();
         Assert.DoesNotContain(stub.Sent, s => s.StartsWith("PUT", StringComparison.Ordinal));
     }
+
+    /// <summary>Anota las cabeceras de cada PUT de objeto, y lo da por bueno.</summary>
+    private sealed class HeaderRecorder : HttpMessageHandler
+    {
+        public List<Dictionary<string, string>> Puts { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            if (request.Method == HttpMethod.Put)
+            {
+                var headers = request.Headers.Concat(request.Content?.Headers ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>())
+                    .ToDictionary(h => h.Key.ToLowerInvariant(), h => string.Join(",", h.Value));
+                Puts.Add(headers);
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") });
+        }
+    }
+
+    private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
+
+    /// <summary>
+    /// R2 rechaza la subida "en trozos firmados" (Streaming SigV4, con el
+    /// checksum al final) que AWSSDK.S3 usa por defecto sobre https: la
+    /// primera foto subida en producción falló así, y en desarrollo MinIO la
+    /// acepta. Las dos subidas (la pública y los adjuntos privados) tienen que
+    /// mandar el cuerpo entero, sin firmar el contenido y sin checksum al final.
+    /// </summary>
+    [Fact]
+    public async Task Las_subidas_van_en_el_formato_que_acepta_R2()
+    {
+        var recorder = new HeaderRecorder();
+        var s3 = new AmazonS3Client(new BasicAWSCredentials("k", "s"), new AmazonS3Config
+        {
+            ServiceURL = "https://cuenta.r2.cloudflarestorage.com",
+            ForcePathStyle = true,
+            AuthenticationRegion = "auto",
+            HttpClientFactory = new StubFactory(recorder),
+        });
+        var storage = new S3MediaStorage(s3, new MediaOptions
+        {
+            Endpoint = "https://cuenta.r2.cloudflarestorage.com",
+            PublicBaseUrl = "https://img.tienda.com",
+            AccessKey = "k",
+            SecretKey = "s",
+            BucketInPublicUrl = false,
+        });
+
+        var publica = await storage.UploadAsync(Guid.NewGuid(), new MemoryStream(Png), "image/png", Png.Length);
+        var privada = await storage.UploadPrivateAsync(Guid.NewGuid(), "chat", new MemoryStream(Png), "image/png", Png.Length);
+
+        Assert.True(publica.IsSuccess);
+        Assert.True(privada.IsSuccess);
+        Assert.Equal(2, recorder.Puts.Count);
+        foreach (var put in recorder.Puts)
+        {
+            Assert.Equal("UNSIGNED-PAYLOAD", put["x-amz-content-sha256"]);
+            Assert.False(put.ContainsKey("x-amz-trailer"), "no manda checksum al final");
+            Assert.False(put.TryGetValue("content-encoding", out var enc) && enc.Contains("aws-chunked", StringComparison.Ordinal),
+                "no manda el cuerpo en trozos");
+        }
+    }
+
+    /// <summary>
+    /// Por http (el MinIO de desarrollo) el SDK no deja subir sin firmar el
+    /// contenido: tira "the request must be sent over HTTPS". Ahí sigue firmando.
+    /// </summary>
+    [Fact]
+    public async Task Por_http_el_MinIO_de_desarrollo_sigue_recibiendo_las_subidas()
+    {
+        var recorder = new HeaderRecorder();
+        var s3 = new AmazonS3Client(new BasicAWSCredentials("k", "s"), new AmazonS3Config
+        {
+            ServiceURL = "http://localhost:9000",
+            ForcePathStyle = true,
+            HttpClientFactory = new StubFactory(recorder),
+        });
+        var storage = new S3MediaStorage(s3, new MediaOptions
+        {
+            Endpoint = "http://localhost:9000",
+            PublicBaseUrl = "http://localhost:9000",
+            AccessKey = "k",
+            SecretKey = "s",
+        });
+
+        var publica = await storage.UploadAsync(Guid.NewGuid(), new MemoryStream(Png), "image/png", Png.Length);
+        var privada = await storage.UploadPrivateAsync(Guid.NewGuid(), "chat", new MemoryStream(Png), "image/png", Png.Length);
+
+        Assert.True(publica.IsSuccess);
+        Assert.True(privada.IsSuccess);
+        Assert.Equal(2, recorder.Puts.Count);
+    }
 }

@@ -92,9 +92,10 @@ export function ImageUploader({
   const accept = allowSvg
     ? 'image/jpeg,image/png,image/webp,image/avif,image/svg+xml'
     : 'image/jpeg,image/png,image/webp,image/avif';
-  const errorMsg = allowSvg
-    ? 'Error subiendo imagen. Usá JPG, PNG, WebP, AVIF o SVG (hasta 5MB).'
-    : 'Error subiendo imagen. Usá JPG, PNG, WebP o AVIF (hasta 5MB).';
+  // Si el problema es el archivo (tipo, peso), la API lo explica y se muestra
+  // eso. Este texto es para cuando falla el servidor: antes decía "Usá JPG,
+  // PNG…" también ahí, y mandaba a revisar un archivo que estaba bien.
+  const errorMsg = 'No se pudo subir la imagen. Probá de nuevo en un rato.';
   return (
     <div>
       {value ? (
@@ -169,7 +170,7 @@ export function VideoUploader({
           accept={accept}
           idleLabel={label}
           busyLabel="Subiendo video…"
-          errorMsg="Error subiendo el video. Usá MP4 o WebM (hasta 20MB)."
+          errorMsg="No se pudo subir el video. Probá de nuevo en un rato."
           onUploaded={onChange}
         />
       )}
