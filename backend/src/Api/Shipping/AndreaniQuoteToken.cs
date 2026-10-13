@@ -19,7 +19,9 @@ public sealed record AndreaniQuotePayload(
     /// <summary>Contrato con el que se cotizó: es el que hay que usar al despachar.</summary>
     string Contract,
     bool ToBranch,
-    string DestPostalCode);
+    string DestPostalCode,
+    // Huella del carrito cotizado (CartKey); null en cotizaciones por cantidad.
+    string? CartKey = null);
 
 public static class AndreaniQuoteToken
 {

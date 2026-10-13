@@ -120,17 +120,19 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
     /// <summary>POST /shipments/quote — dimensiones en CM (contrato de esa página).</summary>
     public async Task<ZipnovaQuoteResponse> QuoteAsync(
         ZipnovaCredentials creds, ZipnovaConfig config,
-        string city, string state, string zipcode, int units, decimal declaredValue, CancellationToken ct)
+        string city, string state, string zipcode, IReadOnlyList<ParcelUnit> units, decimal declaredValue,
+        CancellationToken ct)
     {
-        var package = new
+        // Un paquete por unidad, cada uno con su peso y sus medidas.
+        var packages = units.Select(u => new
         {
-            weight = config.DefaultWeightGrams,
-            height = config.DefaultHeightCm,
-            width = config.DefaultWidthCm,
-            length = config.DefaultLengthCm,
+            weight = Math.Clamp(u.WeightGrams, ZipnovaConfig.MinWeightGrams, ZipnovaConfig.MaxWeightGrams),
+            height = u.HeightCm,
+            width = u.WidthCm,
+            length = u.LengthCm,
             classification_id = "1",
             description_1 = "Pedido de tienda online",
-        };
+        }).ToArray();
         var payload = new Dictionary<string, object?>
         {
             // sort_by y destino explícitos: la spec no documenta defaults y el
@@ -140,8 +142,8 @@ public sealed class ZipnovaClient(HttpClient http, ILogger<ZipnovaClient> logger
             ["declared_value"] = declaredValue,
             ["sort_by"] = "price",
             ["destination"] = new { city, state, zipcode },
-            // N unidades = N paquetes iguales (items[] no tiene quantity).
-            ["packages"] = Enumerable.Repeat(package, units).ToArray(),
+            // N unidades = N paquetes (items[] no tiene quantity).
+            ["packages"] = packages,
         };
         if (config.OriginId != "auto" && int.TryParse(config.OriginId, out var originId))
             payload["origin_id"] = originId;

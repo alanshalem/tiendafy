@@ -23,9 +23,12 @@ public sealed record SubmitCheckoutCommand(
 /// RequiresAddress: entrega a domicilio exige dirección del comprador;
 /// retiro en sucursal ya trae la dirección de la sucursal resuelta server-side.
 /// ExpectedUnits: unidades cotizadas — si el carrito real difiere, se recotiza.
+/// ExpectedCartKey: huella de QUÉ se cotizó (variantes y cantidades, ver
+/// CartKey); null si la cotización vino solo con la cantidad de unidades.
 /// </summary>
 public sealed record QuotedShipping(
-    string Name, Money Price, bool RequiresAddress, string? ResolvedAddress, int ExpectedUnits);
+    string Name, Money Price, bool RequiresAddress, string? ResolvedAddress, int ExpectedUnits,
+    string? ExpectedCartKey = null);
 
 /// <summary>
 /// La saga orquestada simple del checkout (sin framework, con disciplina):
@@ -54,7 +57,11 @@ public sealed class SubmitCheckoutHandler(
         // Envío cotizado por carrier: el precio sale del quote firmado (capa API).
         if (command.Quote is { } quote)
         {
-            if (quote.ExpectedUnits != session.Items.Sum(i => i.Quantity))
+            // Con peso por variante no alcanza con contar unidades: cambiar
+            // medias por discos con la misma cantidad cambia el envío.
+            if (quote.ExpectedUnits != session.Items.Sum(i => i.Quantity)
+                || (quote.ExpectedCartKey is { } key
+                    && key != CartKey.Of(session.Items.Select(i => (i.VariantId, i.Quantity)))))
                 return Result.Failure<CheckoutSession>(Error.Validation(
                     "Checkout.QuoteMismatch",
                     "El carrito cambió desde que cotizaste el envío. Volvé a calcularlo."));

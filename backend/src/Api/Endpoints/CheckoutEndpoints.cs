@@ -82,17 +82,17 @@ public static class CheckoutEndpoints
                                 "Elegí la sucursal de Correo donde retirar.").ToProblem();
                         var agencyLabel = await ResolveAgencyLabelAsync(
                             tenant.TenantId.Value, request.CorreoAgency.Trim(), correoConfigs, protector, correoClient, ct);
-                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: false, agencyLabel, correoPayload.Units);
+                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: false, agencyLabel, correoPayload.Units, correoPayload.CartKey);
                     }
                     else
                     {
-                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: true, null, correoPayload.Units);
+                        quote = new QuotedShipping(correoPayload.ServiceName, price, RequiresAddress: true, null, correoPayload.Units, correoPayload.CartKey);
                     }
                 }
                 else if (zipnovaPayload is not null)
                 {
                     var price = new Money(zipnovaPayload.PriceMinorUnits, zipnovaPayload.Currency);
-                    quote = new QuotedShipping(zipnovaPayload.ServiceName, price, RequiresAddress: true, null, zipnovaPayload.Units);
+                    quote = new QuotedShipping(zipnovaPayload.ServiceName, price, RequiresAddress: true, null, zipnovaPayload.Units, zipnovaPayload.CartKey);
                 }
                 else if (andreaniPayload is not null)
                 {
@@ -100,7 +100,7 @@ public static class CheckoutEndpoints
                     // Retiro en sucursal no pide dirección; a domicilio sí.
                     quote = new QuotedShipping(
                         andreaniPayload.ServiceName, price,
-                        RequiresAddress: !andreaniPayload.ToBranch, null, andreaniPayload.Units);
+                        RequiresAddress: !andreaniPayload.ToBranch, null, andreaniPayload.Units, andreaniPayload.CartKey);
                 }
                 else
                 {

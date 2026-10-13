@@ -332,11 +332,27 @@ namespace Catalog.Infrastructure.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("cost");
 
+                    b.Property<int?>("HeightCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("height_cm");
+
+                    b.Property<int?>("LengthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("length_cm");
+
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("sku");
+
+                    b.Property<int?>("WeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight_grams");
+
+                    b.Property<int?>("WidthCm")
+                        .HasColumnType("integer")
+                        .HasColumnName("width_cm");
 
                     b.PrimitiveCollection<List<string>>("_optionValues")
                         .IsRequired()

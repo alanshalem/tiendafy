@@ -161,6 +161,16 @@ public static partial class ProductEndpoints
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         });
 
+        // Peso y medidas del paquete de una unidad: con esto cotizan los correos.
+        products.MapPut("/{id:guid}/variants/{variantId:guid}/shipping", async (
+            Guid id, Guid variantId, SetVariantShippingRequest request, ITenantContext tenant,
+            UpdateProductHandler handler, CancellationToken ct) =>
+        {
+            var result = await handler.SetVariantShippingAsync(tenant.TenantId, id, variantId,
+                request.WeightGrams, request.LengthCm, request.WidthCm, request.HeightCm, ct);
+            return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+        });
+
         // Costo sugerido de un kit: la suma del costo de sus componentes por
         // cantidad. Sin esto, el costo del combo era un número a mano y la
         // rentabilidad de los kits dependía de que alguien hiciera la cuenta.

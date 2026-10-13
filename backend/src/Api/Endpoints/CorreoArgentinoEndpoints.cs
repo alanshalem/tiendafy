@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Shipping;
+using Catalog.Contracts;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Carriers;
 using Identity.Infrastructure;
@@ -153,7 +154,7 @@ public static class CorreoArgentinoEndpoints
         // y el submit valida que la sesión real coincida.
         group.MapPost("/shipping/correo/quote", async (
             CorreoQuoteRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
-            ShippingSecretProtector protector, MiCorreoClient client,
+            ShippingSecretProtector protector, MiCorreoClient client, ICatalogCheckoutQuery catalog,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
 
@@ -166,11 +167,13 @@ public static class CorreoArgentinoEndpoints
                 return Error.Validation("Correo.InvalidPostalCode",
                     "Ingresá un código postal válido de 4 dígitos.").ToProblem();
 
-            var units = Math.Clamp(req.Units ?? 0, 0, 999);
-            if (units == 0)
+            // Un paquete por unidad, con el peso y las medidas de su variante.
+            var parcels = await CartParcelsBuilder.FromQuoteAsync(catalog, tenant.TenantId.Value,
+                req.Items, req.Units, DefaultParcel(config), maxUnits: 999, ct);
+            if (parcels is { Count: 0 })
                 return Error.Validation("Correo.EmptyCart", "El carrito está vacío.").ToProblem();
-            var package = CorreoPackage.Aggregate(units,
-                config.DefaultWeightGrams, config.DefaultLengthCm, config.DefaultWidthCm, config.DefaultHeightCm);
+            var units = parcels?.Count ?? 0;
+            var package = parcels is null ? null : CorreoPackage.Aggregate(parcels.Units);
             if (package is null)
                 return Results.Ok(new
                 {
@@ -197,7 +200,7 @@ public static class CorreoArgentinoEndpoints
                         var token = CorreoQuoteToken.Protect(dp, new CorreoQuotePayload(
                             tenant.TenantId.Value, units, r.DeliveredType,
                             money.AmountInMinorUnits, money.Currency, name,
-                            r.DeliveryTimeMin, r.DeliveryTimeMax, destination));
+                            r.DeliveryTimeMin, r.DeliveryTimeMax, destination, parcels!.CartKey));
                         return new
                         {
                             token,
@@ -259,7 +262,7 @@ public static class CorreoArgentinoEndpoints
         // ------------------------------- Admin: alta de envío desde una venta
         group.MapPost("/admin/orders/{orderId:guid}/correo-shipment", async (
             Guid orderId, CorreoShipmentRequest req, ITenantContext tenant,
-            ICorreoArgentinoConfigRepository configs, IOrderRepository orders,
+            ICorreoArgentinoConfigRepository configs, IOrderRepository orders, ICatalogCheckoutQuery catalog,
             ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
         {
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
@@ -280,6 +283,13 @@ public static class CorreoArgentinoEndpoints
                 || string.IsNullOrWhiteSpace(req.PostalCode)))
                 return Error.Validation("Correo.MissingAddress",
                     "Completá la dirección de entrega (calle, número, ciudad, provincia y CP).").ToProblem();
+
+            // El paquete de la venta: con lo que pesa lo que se vendió, el mismo
+            // cálculo que la cotización que pagó el comprador. Lo que se cargue a
+            // mano en el pedido manda.
+            var sold = await CartParcelsBuilder.FromLinesAsync(catalog, tenant.TenantId.Value,
+                order.Items.Select(i => (i.VariantId, i.Quantity)), DefaultParcel(config), maxUnits: 999, ct);
+            var soldPackage = sold is null ? null : CorreoPackage.Aggregate(sold.Units);
 
             var payload = new
             {
@@ -307,11 +317,15 @@ public static class CorreoArgentinoEndpoints
                         provinceCode = req.ProvinceCode!.Trim().ToUpperInvariant(),
                         postalCode = req.PostalCode!.Trim(),
                     },
-                    weight = Math.Clamp(req.WeightGrams ?? config.DefaultWeightGrams, 1, CorreoArgentinoConfig.MaxWeightGrams),
+                    weight = Math.Clamp(req.WeightGrams ?? soldPackage?.WeightGrams ?? config.DefaultWeightGrams,
+                        1, CorreoArgentinoConfig.MaxWeightGrams),
                     declaredValue = Math.Max(0, req.DeclaredValue ?? 0),
-                    height = Math.Clamp(req.HeightCm ?? config.DefaultHeightCm, 1, CorreoArgentinoConfig.MaxSideCm),
-                    length = Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, CorreoArgentinoConfig.MaxSideCm),
-                    width = Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, CorreoArgentinoConfig.MaxSideCm),
+                    height = Math.Clamp(req.HeightCm ?? soldPackage?.HeightCm ?? config.DefaultHeightCm,
+                        1, CorreoArgentinoConfig.MaxSideCm),
+                    length = Math.Clamp(req.LengthCm ?? soldPackage?.LengthCm ?? config.DefaultLengthCm,
+                        1, CorreoArgentinoConfig.MaxSideCm),
+                    width = Math.Clamp(req.WidthCm ?? soldPackage?.WidthCm ?? config.DefaultWidthCm,
+                        1, CorreoArgentinoConfig.MaxSideCm),
                 },
             };
 
@@ -356,6 +370,10 @@ public static class CorreoArgentinoEndpoints
     }
 
     // ---------------------------------------------------------------- Helpers
+
+    /// <summary>El paquete por defecto de la tienda: el de cada unidad cuya variante no tiene peso o medidas.</summary>
+    private static ParcelUnit DefaultParcel(CorreoArgentinoConfig config) =>
+        new(config.DefaultWeightGrams, config.DefaultLengthCm, config.DefaultWidthCm, config.DefaultHeightCm);
 
     internal static MiCorreoCredentials Credentials(CorreoArgentinoConfig config, ShippingSecretProtector protector) =>
         new(protector.Unprotect(config.UserTokenEncrypted),
@@ -412,7 +430,8 @@ public sealed record CorreoConfigRequest(
 
 public sealed record CorreoTestRequest(string? PostalCode);
 
-public sealed record CorreoQuoteRequest(string? PostalCode, int? Units);
+/// <summary>`Items`: el detalle del carrito (para el peso de cada variante); `Units` queda por compatibilidad.</summary>
+public sealed record CorreoQuoteRequest(string? PostalCode, int? Units, List<CartLineInput>? Items = null);
 
 public sealed record CorreoShipmentRequest(
     string? DeliveryType,     // "D" | "S"

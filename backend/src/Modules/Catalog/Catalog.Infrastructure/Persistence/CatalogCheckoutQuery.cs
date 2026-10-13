@@ -26,7 +26,11 @@ public sealed class CatalogCheckoutQuery(CatalogDbContext context) : ICatalogChe
                     v.Sku,
                     new MoneyDto(v.Price.AmountInMinorUnits, v.Price.Currency),
                     p.Status == Core.Domain.ProductStatus.Active,
-                    v.Cost is { } c ? new MoneyDto(c.AmountInMinorUnits, c.Currency) : null)))
+                    v.Cost is { } c ? new MoneyDto(c.AmountInMinorUnits, c.Currency) : null,
+                    v.WeightGrams,
+                    v.LengthCm,
+                    v.WidthCm,
+                    v.HeightCm)))
             .ToList();
     }
 }

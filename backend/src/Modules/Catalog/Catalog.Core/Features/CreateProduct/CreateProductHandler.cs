@@ -37,6 +37,20 @@ public sealed class CreateProductHandler(IProductRepository repository, IUnitOfW
             var variantResult = product.AddVariant(variant.Sku, variant.OptionValues, price, compareAt, cost);
             if (variantResult.IsFailure)
                 return Result.Failure<ProductDto>(variantResult.Error);
+
+            var id = variantResult.Value.Id;
+            if (!string.IsNullOrWhiteSpace(variant.Barcode))
+            {
+                var barcode = product.SetVariantBarcode(id, variant.Barcode);
+                if (barcode.IsFailure) return Result.Failure<ProductDto>(barcode.Error);
+            }
+            if (variant.WeightGrams is not null || variant.LengthCm is not null
+                || variant.WidthCm is not null || variant.HeightCm is not null)
+            {
+                var shipping = product.SetVariantShipping(
+                    id, variant.WeightGrams, variant.LengthCm, variant.WidthCm, variant.HeightCm);
+                if (shipping.IsFailure) return Result.Failure<ProductDto>(shipping.Error);
+            }
         }
 
         if (command.Publish)

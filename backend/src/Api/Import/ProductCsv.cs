@@ -19,6 +19,12 @@ public sealed class ImportVariant
     public long? CompareAtMinor { get; set; }
     public long? CostMinor { get; set; }
     public string? Barcode { get; set; }
+    /// <summary>Paquete de una unidad: la planilla trae el peso en kg y las medidas en cm.</summary>
+    public int? WeightGrams { get; set; }
+    public int? LengthCm { get; set; }
+    public int? WidthCm { get; set; }
+    public int? HeightCm { get; set; }
+    public bool HasShipping => WeightGrams is not null || LengthCm is not null || WidthCm is not null || HeightCm is not null;
     public int? Stock { get; set; }
     public int Line { get; set; }
 }
@@ -207,6 +213,10 @@ public static class ProductCsv
                     CompareAtMinor = ParseMinor(Cell(cells, index, "precio promocional")),
                     CostMinor = ParseMinor(Cell(cells, index, "costo")),
                     Barcode = Cell(cells, index, "codigo de barras").Trim() is { Length: > 0 } bc ? bc : null,
+                    WeightGrams = ParseScaled(Cell(cells, index, "peso"), 1000m),
+                    LengthCm = ParseScaled(Cell(cells, index, "profundidad", "largo"), 1m),
+                    WidthCm = ParseScaled(Cell(cells, index, "ancho"), 1m),
+                    HeightCm = ParseScaled(Cell(cells, index, "alto"), 1m),
                     Stock = ParseInt(Cell(cells, index, "stock")),
                     Line = line,
                 };
@@ -264,7 +274,11 @@ public static class ProductCsv
                     v?.CompareAtPrice != null ? Minor(v.Price.AmountInMinorUnits) : "",
                     // Costo del merchant: el export exige membership (dato interno).
                     v?.Cost != null ? Minor(v.Cost.Value.AmountInMinorUnits) : "",
-                    "", "", "", "", // Peso / Alto / Ancho / Prof
+                    // Peso (kg) / Alto / Ancho / Profundidad (cm) del paquete de una unidad.
+                    v?.WeightGrams is { } g ? (g / 1000m).ToString("0.###", CultureInfo.InvariantCulture) : "",
+                    v?.HeightCm?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    v?.WidthCm?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    v?.LengthCm?.ToString(CultureInfo.InvariantCulture) ?? "",
                     "", // Stock: vive en Inventory, no se exporta acá
                     v?.Sku ?? "",
                     v?.Barcode ?? "",
@@ -323,6 +337,15 @@ public static class ProductCsv
         raw.Split([' ', ',', ';', '|', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim())
             .Where(s => Uri.IsWellFormedUriString(s, UriKind.Absolute));
+
+    /// <summary>Un número de la planilla multiplicado y redondeado a entero (kg → g); null si está vacío o es cero.</summary>
+    private static int? ParseScaled(string raw, decimal factor)
+    {
+        var minor = ParseMinor(raw);
+        if (minor is not > 0) return null;
+        var value = Math.Round(minor.Value / 100m * factor, MidpointRounding.AwayFromZero);
+        return value is >= 1 and <= int.MaxValue ? (int)value : null;
+    }
 
     private static long? ParseMinor(string raw)
     {

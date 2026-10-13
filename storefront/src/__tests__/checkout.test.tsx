@@ -509,9 +509,16 @@ describe('checkout: envío cotizado', () => {
       city: 'CABA',
       state: 'Buenos Aires',
       units: 2,
+      items: [{ variantId: LINE.variantId, quantity: 2 }],
       declaredValue: 3000,
     });
-    expect(posted('/andreani/quote').at(-1)).toEqual({ postalCode: '1043', units: 2, declaredValue: 3000 });
+    // El detalle del carrito viaja para que cada correo cotice con el peso de cada variante.
+    expect(posted('/andreani/quote').at(-1)).toEqual({
+      postalCode: '1043',
+      units: 2,
+      items: [{ variantId: LINE.variantId, quantity: 2 }],
+      declaredValue: 3000,
+    });
     for (const name of [
       'Correo a domicilio',
       'Correo a sucursal',

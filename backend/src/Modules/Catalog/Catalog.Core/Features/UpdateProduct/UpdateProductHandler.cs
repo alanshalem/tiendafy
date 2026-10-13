@@ -105,7 +105,12 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         foreach (var opt in src.Options)
             copy.AddOption(opt.Name, opt.Values);
         foreach (var v in src.Variants)
-            copy.AddVariant(v.Sku, v.OptionValues, v.Price, v.CompareAtPrice, v.Cost);
+        {
+            // El código de barras no se copia (identifica ESA mercadería); el paquete sí.
+            var added = copy.AddVariant(v.Sku, v.OptionValues, v.Price, v.CompareAtPrice, v.Cost);
+            if (added.IsSuccess)
+                copy.SetVariantShipping(added.Value.Id, v.WeightGrams, v.LengthCm, v.WidthCm, v.HeightCm);
+        }
         foreach (var img in src.Images.OrderBy(i => i.Position))
             copy.AddImage(img.Url, img.AltText);
         copy.SetCategories(src.CategoryIds);
@@ -123,6 +128,18 @@ public sealed class UpdateProductHandler(IProductRepository repository, IUnitOfW
         var loaded = await LoadAsync(tenantId, productId, ct);
         if (loaded.IsFailure) return Result.Failure(loaded.Error);
         var result = loaded.Value.SetVariantBarcode(variantId, barcode);
+        if (result.IsFailure) return result;
+        await unitOfWork.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result> SetVariantShippingAsync(
+        TenantId tenantId, Guid productId, Guid variantId,
+        int? weightGrams, int? lengthCm, int? widthCm, int? heightCm, CancellationToken ct = default)
+    {
+        var loaded = await LoadAsync(tenantId, productId, ct);
+        if (loaded.IsFailure) return Result.Failure(loaded.Error);
+        var result = loaded.Value.SetVariantShipping(variantId, weightGrams, lengthCm, widthCm, heightCm);
         if (result.IsFailure) return result;
         await unitOfWork.SaveChangesAsync(ct);
         return Result.Success();

@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Shipping;
+using Catalog.Contracts;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Carriers;
 using Identity.Infrastructure;
@@ -102,7 +103,7 @@ public static class ZipnovaEndpoints
             {
                 var quote = await client.QuoteAsync(Credentials(config, protector), config,
                     req.City?.Trim() ?? "Rosario", req.State?.Trim() ?? "Santa Fe",
-                    NumericZip(req.Zipcode?.Trim() ?? "2000"), units: 1, declaredValue: 10000m, ct);
+                    NumericZip(req.Zipcode?.Trim() ?? "2000"), [DefaultParcel(config)], declaredValue: 10000m, ct);
                 return Results.Ok(new
                 {
                     ok = true,
@@ -127,7 +128,7 @@ public static class ZipnovaEndpoints
         // --------------------------------------- Público: cotización del checkout
         group.MapPost("/shipping/zipnova/quote", async (
             ZipnovaPublicQuoteRequest req, ITenantContext tenant, IZipnovaRepository repo,
-            ShippingSecretProtector protector, ZipnovaClient client,
+            ShippingSecretProtector protector, ZipnovaClient client, ICatalogCheckoutQuery catalog,
             IDataProtectionProvider dp, CancellationToken ct) =>
         {
 
@@ -142,15 +143,25 @@ public static class ZipnovaEndpoints
                 return Error.Validation("Zipnova.MissingDestination",
                     "Completá ciudad, provincia y código postal para cotizar.").ToProblem();
 
-            var units = Math.Clamp(req.Units ?? 0, 0, 200);
-            if (units == 0)
+            // Un paquete por unidad, con el peso y las medidas de su variante.
+            var parcels = await CartParcelsBuilder.FromQuoteAsync(catalog, tenant.TenantId.Value,
+                req.Items, req.Units, DefaultParcel(config), MaxUnits, ct);
+            if (parcels is null)
+                return Results.Ok(new
+                {
+                    available = true,
+                    options = Array.Empty<object>(),
+                    error = $"El pedido tiene más de {MaxUnits} unidades: coordiná el envío con la tienda.",
+                });
+            if (parcels.Count == 0)
                 return Error.Validation("Zipnova.EmptyCart", "El carrito está vacío.").ToProblem();
+            var units = parcels.Count;
 
             try
             {
                 var declared = Math.Max(0, req.DeclaredValue ?? 0);
                 var quote = await client.QuoteAsync(Credentials(config, protector), config,
-                    city, state, zipcode, units, declared, ct);
+                    city, state, zipcode, parcels.Units, declared, ct);
 
                 var options = (quote.AllResults ?? [])
                     // V1: entrega a domicilio. pickup_point requiere selector de
@@ -164,7 +175,7 @@ public static class ZipnovaEndpoints
                         var name = $"Zipnova · {r.Carrier?.Name ?? "envío"} ({r.ServiceType?.Name ?? "Estándar"})";
                         var token = ZipnovaQuoteToken.Protect(dp, new ZipnovaQuotePayload(
                             tenant.TenantId.Value, units, money.AmountInMinorUnits, money.Currency,
-                            name, r.DeliveryTime?.EstimatedDelivery, zipcode));
+                            name, r.DeliveryTime?.EstimatedDelivery, zipcode, parcels.CartKey));
                         return new
                         {
                             token,
@@ -191,7 +202,7 @@ public static class ZipnovaEndpoints
         // ------------------------------- Admin: envío desde una venta + etiqueta
         group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment", async (
             Guid orderId, ZipnovaShipmentRequest req, ITenantContext tenant,
-            IZipnovaRepository repo, IOrderRepository orders,
+            IZipnovaRepository repo, IOrderRepository orders, ICatalogCheckoutQuery catalog,
             ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
@@ -222,21 +233,34 @@ public static class ZipnovaEndpoints
             // prosa de la spec → se garantiza acá). 16 hex de la orden alcanzan.
             var externalId = $"TF-{orderId:N}"[..19];
 
-            var units = Math.Clamp(req.Units ?? 1, 1, 200);
-            var weight = Math.Clamp(req.WeightGrams ?? config.DefaultWeightGrams,
-                ZipnovaConfig.MinWeightGrams, ZipnovaConfig.MaxWeightGrams);
+            // Los paquetes de la venta: uno por unidad vendida, con el peso de su
+            // variante (lo mismo que se cotizó). Antes salía un solo paquete con
+            // el peso por defecto aunque se hubieran vendido tres cosas. Lo que
+            // se indique a mano (cantidad, peso o medidas) manda.
+            var manual = req.Units is not null || req.WeightGrams is not null
+                || req.HeightCm is not null || req.WidthCm is not null || req.LengthCm is not null;
+            var manualUnit = new ParcelUnit(
+                req.WeightGrams ?? config.DefaultWeightGrams,
+                req.LengthCm ?? config.DefaultLengthCm,
+                req.WidthCm ?? config.DefaultWidthCm,
+                req.HeightCm ?? config.DefaultHeightCm);
+            var parcels = manual
+                ? Enumerable.Repeat(manualUnit, Math.Clamp(req.Units ?? 1, 1, MaxUnits)).ToList()
+                : (await CartParcelsBuilder.FromLinesAsync(catalog, tenant.TenantId.Value,
+                    order.Items.Select(i => (i.VariantId, i.Quantity)), DefaultParcel(config), MaxUnits, ct))?.Units
+                  ?? [DefaultParcel(config)];
             // Dimensiones SIEMPRE en CM: la spec pública decía mm para la creación,
             // pero soporte de Zipnova confirmó por escrito (jul-2026) que TODOS los
             // endpoints esperan centímetros. No convertir.
-            var package = new
+            var packages = parcels.Select(p => new
             {
-                weight,
-                height = Math.Clamp(req.HeightCm ?? config.DefaultHeightCm, 1, ZipnovaConfig.MaxSideCm),
-                width = Math.Clamp(req.WidthCm ?? config.DefaultWidthCm, 1, ZipnovaConfig.MaxSideCm),
-                length = Math.Clamp(req.LengthCm ?? config.DefaultLengthCm, 1, ZipnovaConfig.MaxSideCm),
+                weight = Math.Clamp(p.WeightGrams, ZipnovaConfig.MinWeightGrams, ZipnovaConfig.MaxWeightGrams),
+                height = Math.Clamp(p.HeightCm, 1, ZipnovaConfig.MaxSideCm),
+                width = Math.Clamp(p.WidthCm, 1, ZipnovaConfig.MaxSideCm),
+                length = Math.Clamp(p.LengthCm, 1, ZipnovaConfig.MaxSideCm),
                 classification_id = "1",
                 description_1 = Text.Cap($"Pedido {externalId}", 60),
-            };
+            }).ToArray();
 
             var payload = new Dictionary<string, object?>
             {
@@ -259,7 +283,7 @@ public static class ZipnovaEndpoints
                     state = Text.Cap(req.State.Trim(), 80),
                     zipcode = Text.Cap(NumericZip(req.Zipcode.Trim()), 10),
                 },
-                ["packages"] = Enumerable.Repeat(package, units).ToArray(),
+                ["packages"] = packages,
             };
 
             try
@@ -342,6 +366,13 @@ public static class ZipnovaEndpoints
 
     // ---------------------------------------------------------------- Helpers
 
+    /// <summary>Paquetes por envío: más que esto no se cotiza online.</summary>
+    private const int MaxUnits = 200;
+
+    /// <summary>El paquete por defecto de la tienda: el de cada unidad cuya variante no tiene peso o medidas.</summary>
+    private static ParcelUnit DefaultParcel(ZipnovaConfig config) =>
+        new(config.DefaultWeightGrams, config.DefaultLengthCm, config.DefaultWidthCm, config.DefaultHeightCm);
+
     private static ZipnovaCredentials Credentials(ZipnovaConfig config, ShippingSecretProtector protector) =>
         new(protector.Unprotect(config.ApiTokenEncrypted),
             protector.Unprotect(config.ApiSecretEncrypted),
@@ -400,8 +431,10 @@ public sealed record ZipnovaConfigRequest(
 
 public sealed record ZipnovaTestRequest(string? City, string? State, string? Zipcode);
 
+/// <summary>`Items`: el detalle del carrito (para el peso de cada variante); `Units` queda por compatibilidad.</summary>
 public sealed record ZipnovaPublicQuoteRequest(
-    string? PostalCode, string? City, string? State, int? Units, decimal? DeclaredValue);
+    string? PostalCode, string? City, string? State, int? Units, decimal? DeclaredValue,
+    List<CartLineInput>? Items = null);
 
 public sealed record ZipnovaShipmentRequest(
     string? Name,

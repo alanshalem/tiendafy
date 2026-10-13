@@ -276,13 +276,16 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       setShippingId(null);
     setAgencyCode(null);
     const units = lines.reduce((s, l) => s + l.quantity, 0);
+    // El detalle del carrito: cada correo cotiza con el peso y las medidas de
+    // cada variante, y la cotización queda atada a este contenido.
+    const items = lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
     const headers = tenantHeaders(tenantId, true);
 
     const correoPromise = correoEnabled
       ? fetch(`${API}/api/v1/shipping/correo/quote`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ postalCode: cp, units }),
+          body: JSON.stringify({ postalCode: cp, units, items }),
         })
           .then(async (res) => {
             const data = await res.json();
@@ -307,6 +310,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
               city: quoteCity.trim(),
               state: quoteProvince.trim(),
               units,
+              items,
               declaredValue: subtotal / 100,
             }),
           })
@@ -327,7 +331,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       ? fetch(`${API}/api/v1/shipping/andreani/quote`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ postalCode: cp, units, declaredValue: subtotal / 100 }),
+          body: JSON.stringify({ postalCode: cp, units, items, declaredValue: subtotal / 100 }),
         })
           .then(async (res) => {
             const data = await res.json();

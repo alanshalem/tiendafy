@@ -128,6 +128,7 @@ public sealed class ProductImportWorker(
             else
             {
                 if (iv.Barcode is not null) product.SetVariantBarcode(vr.Value.Id, iv.Barcode);
+                ApplyShipping(product, vr.Value.Id, iv, model.Handle, job);
                 addedVariants++;
             }
         }
@@ -179,6 +180,8 @@ public sealed class ProductImportWorker(
             // Celda "Costo" vacía = no tocar el costo existente (CSVs viejos sin la columna).
             if (cost is not null) product.SetVariantCost(match.Id, cost);
             if (iv.Barcode is not null) product.SetVariantBarcode(match.Id, iv.Barcode);
+            // Celdas de peso y medidas vacías = no tocar lo cargado.
+            ApplyShipping(product, match.Id, iv, model.Handle, job);
         }
 
         await db.SaveChangesAsync(ct);
@@ -222,6 +225,24 @@ public sealed class ProductImportWorker(
     /// Normaliza precio/promocional del CSV: se cobra el menor y se tacha el mayor.
     /// (Tiendanube: "Promocional" es la oferta; el scraping a veces los manda invertidos.)
     /// </summary>
+    /// <summary>
+    /// Peso y medidas del paquete de una unidad, de la planilla. Lo que viene
+    /// vacío no pisa lo cargado; las medidas valen las tres juntas.
+    /// </summary>
+    private static void ApplyShipping(Product product, Guid variantId, ImportVariant iv, string handle, ImportJob job)
+    {
+        if (!iv.HasShipping) return;
+        var current = product.Variants.First(v => v.Id == variantId);
+        var hasSize = iv.LengthCm is not null || iv.WidthCm is not null || iv.HeightCm is not null;
+        var result = product.SetVariantShipping(variantId,
+            iv.WeightGrams ?? current.WeightGrams,
+            hasSize ? iv.LengthCm : current.LengthCm,
+            hasSize ? iv.WidthCm : current.WidthCm,
+            hasSize ? iv.HeightCm : current.HeightCm);
+        if (result.IsFailure)
+            job.AddError(iv.Line, handle, $"Variante '{iv.Sku}': {result.Error.Message}");
+    }
+
     private static (long Price, long? Compare) NormalizePrice(long precio, long? promo)
     {
         if (promo is not { } p || p == precio) return (precio, null);

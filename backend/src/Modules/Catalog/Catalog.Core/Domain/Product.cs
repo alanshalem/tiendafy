@@ -236,6 +236,37 @@ public sealed class Product : AggregateRoot
         return Result.Success();
     }
 
+    /// <summary>Tope del peso de una unidad: 1.000 kg. Más que eso no lo lleva ningún correo.</summary>
+    public const int MaxVariantWeightGrams = 1_000_000;
+    /// <summary>Tope de cada medida del paquete de una unidad.</summary>
+    public const int MaxVariantSideCm = 500;
+
+    /// <summary>
+    /// Peso y medidas del paquete de una unidad, para cotizar el envío. Null =
+    /// sin cargar (el correo usa su peso por defecto). Las medidas van las tres
+    /// juntas: con una sola no se puede calcular el volumen.
+    /// </summary>
+    public Result SetVariantShipping(Guid variantId, int? weightGrams, int? lengthCm, int? widthCm, int? heightCm)
+    {
+        var variant = _variants.FirstOrDefault(v => v.Id == variantId);
+        if (variant is null)
+            return Result.Failure(Error.NotFound("Variant.NotFound", "No existe esa variante."));
+        if (weightGrams is < 1 or > MaxVariantWeightGrams)
+            return Result.Failure(Error.Validation(
+                "Variant.InvalidWeight", "El peso tiene que estar entre 1 gramo y 1.000 kg."));
+
+        int?[] sides = [lengthCm, widthCm, heightCm];
+        if (sides.Any(s => s is not null) && sides.Any(s => s is null))
+            return Result.Failure(Error.Validation(
+                "Variant.IncompleteSize", "Cargá las tres medidas (largo, ancho y alto) o ninguna."));
+        if (sides.Any(s => s is < 1 or > MaxVariantSideCm))
+            return Result.Failure(Error.Validation(
+                "Variant.InvalidSize", $"Cada medida tiene que estar entre 1 y {MaxVariantSideCm} cm."));
+
+        variant.SetShipping(weightGrams, lengthCm, widthCm, heightCm);
+        return Result.Success();
+    }
+
     /// <summary>Setea el costo unitario de una variante (null = borrar el dato).</summary>
     public Result SetVariantCost(Guid variantId, Money? cost)
     {

@@ -10,7 +10,13 @@ public sealed record VariantDto(
     string Sku,
     IReadOnlyList<string> OptionValues,
     MoneyDto Price,
-    MoneyDto? CompareAtPrice);
+    MoneyDto? CompareAtPrice,
+    string? Barcode = null,
+    // Paquete de una unidad para cotizar el envío (null = sin cargar).
+    int? WeightGrams = null,
+    int? LengthCm = null,
+    int? WidthCm = null,
+    int? HeightCm = null);
 
 public sealed record ProductImageDto(Guid Id, string Url, string? AltText, int Position);
 

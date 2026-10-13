@@ -28,7 +28,12 @@ public static class ProductMapping
         variant.Sku,
         variant.OptionValues,
         variant.Price.ToDto(),
-        variant.CompareAtPrice?.ToDto());
+        variant.CompareAtPrice?.ToDto(),
+        variant.Barcode,
+        variant.WeightGrams,
+        variant.LengthCm,
+        variant.WidthCm,
+        variant.HeightCm);
 
     public static MoneyDto ToDto(this Money money) => new(money.AmountInMinorUnits, money.Currency);
 }

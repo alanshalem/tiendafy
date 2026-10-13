@@ -18,7 +18,9 @@ public sealed record CorreoQuotePayload(
     string ServiceName,   // ej: "Correo Argentino Clásico (a domicilio)"
     string? EtaMin,
     string? EtaMax,
-    string DestPostalCode);
+    string DestPostalCode,
+    // Huella del carrito cotizado (CartKey); null en cotizaciones por cantidad.
+    string? CartKey = null);
 
 public static class CorreoQuoteToken
 {

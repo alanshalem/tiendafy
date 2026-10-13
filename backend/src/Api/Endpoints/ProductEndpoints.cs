@@ -28,7 +28,9 @@ public static partial class ProductEndpoints
                 request.Description,
                 request.Options?.Select(o => new CreateProductOption(o.Name, o.Values)).ToList() ?? [],
                 request.Variants?.Select(v => new CreateProductVariant(
-                    v.Sku, v.OptionValues ?? [], v.PriceAmount, v.Currency ?? Money.DefaultCurrency, v.CompareAtAmount)).ToList() ?? [],
+                    v.Sku, v.OptionValues ?? [], v.PriceAmount, v.Currency ?? Money.DefaultCurrency, v.CompareAtAmount,
+                    Barcode: v.Barcode, WeightGrams: v.WeightGrams,
+                    LengthCm: v.LengthCm, WidthCm: v.WidthCm, HeightCm: v.HeightCm)).ToList() ?? [],
                 request.Publish);
 
             var result = await handler.HandleAsync(command, ct);
@@ -645,7 +647,15 @@ public sealed record VariantInput(
     List<string>? OptionValues,
     long PriceAmount,
     string? Currency,
-    long? CompareAtAmount);
+    long? CompareAtAmount,
+    string? Barcode = null,
+    int? WeightGrams = null,
+    int? LengthCm = null,
+    int? WidthCm = null,
+    int? HeightCm = null);
+
+/// <summary>Paquete de una unidad para cotizar el envío. Todo null = borrarlo.</summary>
+public sealed record SetVariantShippingRequest(int? WeightGrams, int? LengthCm, int? WidthCm, int? HeightCm);
 
 public sealed record SetSpecsRequest(List<ProductSpecValue>? Values);
 public sealed record ProductSpecValue(Guid DefinitionId, string? Value);

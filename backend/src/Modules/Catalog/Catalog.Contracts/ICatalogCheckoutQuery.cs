@@ -13,7 +13,12 @@ public sealed record CheckoutVariantDto(
     string Sku,
     MoneyDto Price,
     bool ProductIsActive,
-    MoneyDto? Cost = null);
+    MoneyDto? Cost = null,
+    // Paquete de una unidad para cotizar el envío (null = el correo usa su default).
+    int? WeightGrams = null,
+    int? LengthCm = null,
+    int? WidthCm = null,
+    int? HeightCm = null);
 
 /// <summary>
 /// Consulta que Checkout hace sobre el catálogo. Implementada en

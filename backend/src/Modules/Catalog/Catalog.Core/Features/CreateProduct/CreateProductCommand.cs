@@ -18,4 +18,9 @@ public sealed record CreateProductVariant(
     long PriceAmount,
     string Currency,
     long? CompareAtAmount,
-    long? CostAmount = null);
+    long? CostAmount = null,
+    string? Barcode = null,
+    int? WeightGrams = null,
+    int? LengthCm = null,
+    int? WidthCm = null,
+    int? HeightCm = null);

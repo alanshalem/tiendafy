@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Shipping;
+using Catalog.Contracts;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Carriers;
 using Identity.Infrastructure;
@@ -35,7 +36,9 @@ public sealed record SaveAndreaniRequest(
     int HeightCm,
     bool Active);
 
-public sealed record AndreaniQuoteRequest(string? PostalCode, int? Units, decimal? DeclaredValue);
+/// <summary>`Items`: el detalle del carrito (para el peso de cada variante); `Units` queda por compatibilidad.</summary>
+public sealed record AndreaniQuoteRequest(
+    string? PostalCode, int? Units, decimal? DeclaredValue, List<CartLineInput>? Items = null);
 
 public sealed record AndreaniShipmentRequest(
     string? Name, string? Email, string? DocumentType, string? DocumentNumber, string? Phone,
@@ -167,7 +170,7 @@ public static class AndreaniEndpoints
     {
         group.MapPost("/shipping/andreani/quote", async (
             AndreaniQuoteRequest req, ITenantContext tenant, IAndreaniRepository repo,
-            AndreaniClient client, IDataProtectionProvider dp, CancellationToken ct) =>
+            AndreaniClient client, ICatalogCheckoutQuery catalog, IDataProtectionProvider dp, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null || !config.Active)
@@ -182,12 +185,22 @@ public static class AndreaniEndpoints
                 return Error.Validation("Andreani.BadPostalCode",
                     "El código postal tiene que ser de 4 dígitos.").ToProblem();
 
-            var units = Math.Clamp(req.Units ?? 0, 0, 200);
-            if (units == 0)
+            // Un bulto por unidad, con el peso y las medidas de su variante.
+            var parcels = await CartParcelsBuilder.FromQuoteAsync(catalog, tenant.TenantId.Value,
+                req.Items, req.Units, DefaultParcel(config), MaxUnits, ct);
+            if (parcels is null)
+                return Results.Ok(new
+                {
+                    available = true,
+                    options = Array.Empty<object>(),
+                    error = $"El pedido tiene más de {MaxUnits} unidades: coordiná el envío con la tienda.",
+                });
+            if (parcels.Count == 0)
                 return Error.Validation("Andreani.EmptyCart", "El carrito está vacío.").ToProblem();
+            var units = parcels.Count;
 
             var declared = Math.Max(0, req.DeclaredValue ?? 0);
-            var packages = BuildPackages(config, units, declared);
+            var packages = BuildPackages(parcels.Units, declared);
 
             var options = new List<object>();
             foreach (var (contract, toBranch, label) in Modalities(config))
@@ -201,7 +214,7 @@ public static class AndreaniEndpoints
                 {
                     token = AndreaniQuoteToken.Protect(dp, new AndreaniQuotePayload(
                         tenant.TenantId.Value, units, money.AmountInMinorUnits, money.Currency,
-                        name, contract, toBranch, postalCode)),
+                        name, contract, toBranch, postalCode, parcels.CartKey)),
                     name,
                     price = ApiJson.MoneyJson(money),
                     toBranch,
@@ -221,7 +234,7 @@ public static class AndreaniEndpoints
     {
         group.MapPost("/admin/orders/{orderId:guid}/andreani-shipment", async (
             Guid orderId, AndreaniShipmentRequest req, ITenantContext tenant,
-            IAndreaniRepository repo, IOrderRepository orders,
+            IAndreaniRepository repo, IOrderRepository orders, ICatalogCheckoutQuery catalog,
             ShippingSecretProtector protector, AndreaniClient client, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
@@ -251,9 +264,17 @@ public static class AndreaniEndpoints
             var validation = ValidateRecipient(req);
             if (validation is not null) return validation.ToProblem();
 
-            var units = Math.Clamp(req.Units ?? 1, 1, 200);
+            // Los bultos de la venta: uno por unidad vendida, con el peso de su
+            // variante (lo mismo que se cotizó). Antes salía un solo bulto con
+            // el peso por defecto aunque se hubieran vendido tres cosas. Si se
+            // indica a mano la cantidad de bultos, manda eso.
+            var parcels = req.Units is { } manual
+                ? Enumerable.Repeat(DefaultParcel(config), Math.Clamp(manual, 1, MaxUnits)).ToList()
+                : (await CartParcelsBuilder.FromLinesAsync(catalog, tenant.TenantId.Value,
+                    order.Items.Select(i => (i.VariantId, i.Quantity)), DefaultParcel(config), MaxUnits, ct))?.Units
+                  ?? [DefaultParcel(config)];
             var declared = Math.Max(0, req.DeclaredValue ?? order.Total.ToDecimal());
-            var payload = BuildOrderPayload(config, req, contract!, units, declared, orderId);
+            var payload = BuildOrderPayload(config, req, contract!, parcels, declared, orderId);
 
             try
             {
@@ -375,16 +396,21 @@ public static class AndreaniEndpoints
             yield return (config.BranchPickupContract, true, "Retiro en sucursal");
     }
 
+    /// <summary>Bultos por envío: más que esto no se cotiza online.</summary>
+    private const int MaxUnits = 200;
+
+    /// <summary>El bulto por defecto de la tienda: el de cada unidad cuya variante no tiene peso o medidas.</summary>
+    private static ParcelUnit DefaultParcel(AndreaniConfig config) =>
+        new(config.DefaultWeightGrams, config.DefaultLengthCm, config.DefaultWidthCm, config.DefaultHeightCm);
+
     /// <summary>
-    /// N unidades = N bultos iguales del paquete configurado. El volumen va en
-    /// cm³ y el peso en kilos, que es lo que espera la API.
+    /// Un bulto por unidad. El volumen va en cm³ y el peso en kilos, que es lo
+    /// que espera la API.
     /// </summary>
-    private static List<AndreaniPackage> BuildPackages(AndreaniConfig config, int units, decimal declaredValue)
+    private static List<AndreaniPackage> BuildPackages(IReadOnlyList<ParcelUnit> units, decimal declaredValue)
     {
-        var perUnit = units == 0 ? 0m : Math.Round(declaredValue / units, 2);
-        return Enumerable.Range(0, units)
-            .Select(_ => new AndreaniPackage(config.DefaultWeightGrams / 1000m, config.UnitVolumeCm, perUnit))
-            .ToList();
+        var perUnit = units.Count == 0 ? 0m : Math.Round(declaredValue / units.Count, 2);
+        return units.Select(u => new AndreaniPackage(u.WeightGrams / 1000m, u.VolumeCm3, perUnit)).ToList();
     }
 
     private static Error? ValidateRecipient(AndreaniShipmentRequest req)
@@ -415,20 +441,21 @@ public static class AndreaniEndpoints
 
     private static Dictionary<string, object?> BuildOrderPayload(
         AndreaniConfig config, AndreaniShipmentRequest req, string contract,
-        int units, decimal declaredValue, Guid orderId)
+        IReadOnlyList<ParcelUnit> parcels, decimal declaredValue, Guid orderId)
     {
         var reference = $"TF-{orderId:N}"[..Math.Min(35, $"TF-{orderId:N}".Length)];
+        var units = parcels.Count;
         var perUnit = Math.Round(declaredValue / units, 2);
 
-        var bultos = Enumerable.Range(0, units).Select(i => new Dictionary<string, object?>
+        var bultos = parcels.Select((p, i) => new Dictionary<string, object?>
         {
-            ["kilos"] = config.DefaultWeightGrams / 1000m,
-            ["largoCm"] = config.DefaultLengthCm,
-            ["altoCm"] = config.DefaultHeightCm,
-            ["anchoCm"] = config.DefaultWidthCm,
+            ["kilos"] = p.WeightGrams / 1000m,
+            ["largoCm"] = p.LengthCm,
+            ["altoCm"] = p.HeightCm,
+            ["anchoCm"] = p.WidthCm,
             // volumenCm es obligatorio y las tres dimensiones no: al revés de
             // lo intuitivo. Se mandan los cuatro.
-            ["volumenCm"] = config.UnitVolumeCm,
+            ["volumenCm"] = p.VolumeCm3,
             ["valorDeclaradoSinImpuestos"] = perUnit,
             ["descripcion"] = units > 1 ? $"Bulto {i + 1} de {units}" : "Pedido",
             // El meta "idCliente" con el mismo contenido es lo que agrupa

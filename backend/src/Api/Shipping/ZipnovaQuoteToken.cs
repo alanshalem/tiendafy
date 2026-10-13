@@ -15,7 +15,9 @@ public sealed record ZipnovaQuotePayload(
     string Currency,
     string ServiceName,   // ej: "Zipnova · Andreani (Estándar)"
     string? EstimatedDelivery,
-    string DestZipcode);
+    string DestZipcode,
+    // Huella del carrito cotizado (CartKey); null en cotizaciones por cantidad.
+    string? CartKey = null);
 
 public static class ZipnovaQuoteToken
 {
