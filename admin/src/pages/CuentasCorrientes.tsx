@@ -129,7 +129,7 @@ export function CuentasCorrientesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       {partyId ? (
         <PartyStatement partyKind={kind} partyId={partyId} onBack={() => go({ contacto: null })} />
       ) : (

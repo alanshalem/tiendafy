@@ -41,7 +41,7 @@ export function AbandonedCartsPage() {
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-6">
+    <div>
       <h1 className="mb-1 text-2xl font-bold text-fg">Carritos abandonados</h1>
       <p className="mb-5 text-sm text-fg-muted">
         Checkouts iniciados que no terminaron en compra (últimos 30 días).

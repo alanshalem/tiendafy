@@ -100,7 +100,7 @@ export function TrackingPage() {
 
   if (loadError)
     return (
-      <div className="mx-auto max-w-2xl">
+      <div>
         <SettingsHeader title="Medición y píxeles" description="Google, Meta y Clarity en tu tienda." />
         <div className={SETTINGS_CARD}>
           <p className="text-sm text-danger">{loadError}</p>
@@ -113,7 +113,7 @@ export function TrackingPage() {
 
   if (loading)
     return (
-      <div className="mx-auto max-w-2xl">
+      <div>
         <SettingsHeader title="Medición y píxeles" description="Google, Meta y Clarity en tu tienda." />
         <div className={`${SETTINGS_CARD} flex items-center gap-2 text-sm text-fg-muted`}>
           <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
@@ -126,7 +126,7 @@ export function TrackingPage() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-2xl pb-20">
+    <div className="pb-20">
       <SettingsHeader
         title="Medición y píxeles"
         description="Conectá tu tienda con las herramientas que miden visitas y campañas. Se pide el identificador de cada servicio, no el código."

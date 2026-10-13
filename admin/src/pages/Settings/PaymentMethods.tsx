@@ -12,7 +12,7 @@ import { PaywayConnect } from './PaywayConnect';
  */
 export function PaymentMethodsPage() {
   return (
-    <div className="mx-auto max-w-3xl pb-10">
+    <div className="pb-10">
       <SettingsHeader title="Medios de pago" />
       <MercadoPagoConnect />
       <WebhookHealth />

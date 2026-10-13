@@ -87,7 +87,7 @@ export function CheckoutOptionsPage() {
 
   if (loadError)
     return (
-      <div className="mx-auto max-w-2xl">
+      <div>
         <SettingsHeader title="Opciones del checkout" description="Qué se le pide al comprador." />
         <div className={SETTINGS_CARD}>
           <p className="text-sm text-danger">{loadError}</p>
@@ -100,7 +100,7 @@ export function CheckoutOptionsPage() {
 
   if (loading)
     return (
-      <div className="mx-auto max-w-2xl">
+      <div>
         <SettingsHeader title="Opciones del checkout" description="Qué se le pide al comprador." />
         <div className={`${SETTINGS_CARD} flex items-center gap-2 text-sm text-fg-muted`}>
           <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
@@ -109,7 +109,7 @@ export function CheckoutOptionsPage() {
     );
 
   return (
-    <div className="mx-auto max-w-2xl pb-20">
+    <div className="pb-20">
       <SettingsHeader
         title="Opciones del checkout"
         description="Qué datos se le piden al comprador para terminar la compra, y qué ve cuando termina."

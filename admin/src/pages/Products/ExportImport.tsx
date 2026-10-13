@@ -14,7 +14,7 @@ export function ExportImportPage() {
   const [tab, setTab] = useState<Tab>('export');
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <Link
         to="/productos"
         className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

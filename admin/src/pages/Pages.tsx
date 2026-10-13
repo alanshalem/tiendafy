@@ -119,7 +119,7 @@ export function PagesPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       <PageHeader
         title="Páginas de contenido"
         subtitle="Páginas institucionales de tu tienda: sobre nosotros, términos, preguntas frecuentes y más."

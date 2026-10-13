@@ -113,7 +113,7 @@ export function SpecFieldsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl pb-10">
+    <div className="pb-10">
       <SettingsHeader
         title="Ficha técnica"
         description="Los datos propios de lo que vendés: medidas, materiales, compatibilidad, códigos. Se muestran en la página del producto, se pueden usar como filtro del catálogo y viajan a Mercado Libre."

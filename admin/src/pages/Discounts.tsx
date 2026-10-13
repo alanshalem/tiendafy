@@ -180,7 +180,7 @@ export function DiscountsPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       <PageHeader
         title="Cupones de descuento"
         subtitle="Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos."

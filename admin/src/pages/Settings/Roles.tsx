@@ -102,7 +102,7 @@ export function RolesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <SettingsHeader
         title="Roles y permisos"
         description="Activá o desactivá cada funcionalidad para cada rol de esta tienda. Vale desde el próximo clic de esa gente."

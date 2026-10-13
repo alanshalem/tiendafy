@@ -126,7 +126,7 @@ export function CostsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Costos</h1>
         <p className="mt-0.5 text-sm text-fg-muted">

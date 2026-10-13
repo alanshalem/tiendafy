@@ -10,6 +10,7 @@ import { visibleMainNav, type NavItem } from '../config/navigation';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
 import { storefrontUrl } from '../lib/storefront';
+import { PAGE_MAIN } from '../lib/styles';
 import { LogoMark } from './LogoMark';
 
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
@@ -198,7 +199,7 @@ export function AdminLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6 md:p-8 print:p-0">
+        <main className={cn(PAGE_MAIN, 'print:p-0')}>
           <Outlet />
         </main>
       </div>

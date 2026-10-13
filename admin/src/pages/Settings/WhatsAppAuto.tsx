@@ -73,7 +73,7 @@ export function WhatsAppAutoPage() {
     );
 
   return (
-    <div className="mx-auto max-w-3xl pb-20">
+    <div className="pb-20">
       <SettingsHeader
         title="WhatsApp automático"
         description="Mensajes de WhatsApp que se envían solos a tus clientes, con la API oficial de Meta."

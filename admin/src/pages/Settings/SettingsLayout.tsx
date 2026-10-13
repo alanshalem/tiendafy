@@ -6,6 +6,7 @@ import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { visibleSettingsNav } from '../../config/navigation';
 import { usePermissions } from '../../context/PermissionsContext';
 import { LogoMark } from '../../components/LogoMark';
+import { FIXED_BAR_PADDING, PAGE_MAIN } from '../../lib/styles';
 
 export function SettingsLayout() {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ export function SettingsLayout() {
           <StoreSwitcher />
           <ThemeModeToggle />
         </header>
-        <main className="p-6 md:p-8">
+        <main className={PAGE_MAIN}>
           <Outlet />
         </main>
       </div>
@@ -107,8 +108,13 @@ export function SaveBar({
 }) {
   if (!dirty) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-6 py-3 backdrop-blur md:left-sidebar">
-      <div className="mx-auto flex max-w-3xl items-center justify-end gap-2">
+    <div
+      className={cn(
+        'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur md:left-sidebar',
+        FIXED_BAR_PADDING,
+      )}
+    >
+      <div className="flex items-center justify-end gap-2">
         {onCancel && (
           <button
             type="button"

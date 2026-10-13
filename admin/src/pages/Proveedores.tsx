@@ -66,7 +66,7 @@ export function ProveedoresPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       {selected ? (
         <SupplierDetailView id={selected} onBack={() => setSelected(null)} />
       ) : (

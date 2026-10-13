@@ -151,7 +151,7 @@ export function UsersNotificationsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <SettingsHeader
         title="Usuarios y permisos"
         description={`Invitá a tu equipo y elegí qué puede hacer cada uno en el panel.${

@@ -64,7 +64,7 @@ export function AutoEmailsPage() {
     );
 
   return (
-    <div className="mx-auto max-w-3xl pb-20">
+    <div className="pb-20">
       <SettingsHeader
         title="E-mails automáticos"
         description="Estos e-mails se envían a tus clientes solos. Activá los que quieras y editá el contenido."

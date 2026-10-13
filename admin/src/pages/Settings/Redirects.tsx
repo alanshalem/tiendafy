@@ -84,7 +84,7 @@ export function RedirectsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl pb-10">
+    <div className="pb-10">
       <SettingsHeader
         title="Redirecciones"
         description="Cuando cambiás la dirección de un producto o borrás una página, el link que ya circula por ahí queda roto. Una redirección lo manda al lugar nuevo y le pasa a Google el posicionamiento que tenía."

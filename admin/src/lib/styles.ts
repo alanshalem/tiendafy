@@ -32,6 +32,20 @@
  */
 export const Z_ANCHORED = 'z-40';
 
+/**
+ * El área de contenido de todas las pantallas del panel: el mismo ancho y el
+ * mismo margen en todas.
+ *
+ * Antes cada página se encerraba en su propio ancho (de 672 a 1600 px en una
+ * pantalla de 1920) y el título saltaba de lugar al pasar de una a otra. Las
+ * páginas no ponen ancho propio (lo vigila un test); el tope solo se nota en
+ * monitores ultra anchos, donde una tabla de 2500 px ya no se lee.
+ */
+export const PAGE_MAIN = 'mx-auto w-full max-w-[120rem] p-6 md:p-8';
+
+/** Las barras de guardar fijas al pie: el mismo margen que el contenido, para alinear los botones. */
+export const FIXED_BAR_PADDING = 'px-6 py-3 md:px-8';
+
 /** Card de configuración (p-5; distinta del <Card> de @tiendafy/ui, que usa p-4). */
 export const SETTINGS_CARD = 'rounded-lg border border-border bg-surface p-5 shadow-card';
 

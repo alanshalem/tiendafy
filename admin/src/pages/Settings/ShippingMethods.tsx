@@ -90,7 +90,7 @@ export function ShippingMethodsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl pb-10">
+    <div className="pb-10">
       <SettingsHeader
         title="Medios de envío"
         description="Definí cómo entregás los pedidos. El comprador los elige en el checkout."

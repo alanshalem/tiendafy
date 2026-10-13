@@ -271,7 +271,7 @@ export function TenantsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Tiendas</h1>

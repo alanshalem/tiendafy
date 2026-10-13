@@ -67,7 +67,7 @@ export function DomainsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl pb-10">
+    <div className="pb-10">
       <SettingsHeader
         title="Dominios"
         description="La dirección de tu tienda en internet. Podés usar la que te damos o conectar la tuya."

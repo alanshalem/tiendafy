@@ -53,7 +53,7 @@ export function FiscalInvoicingPage() {
   }, [store, canConfig, load]);
 
   return (
-    <div className="mx-auto max-w-3xl pb-10">
+    <div className="pb-10">
       <SettingsHeader
         title="Facturación electrónica (ARCA)"
         description="Conectá tu tienda con ARCA para emitir facturas oficiales de tus ventas."

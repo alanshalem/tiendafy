@@ -137,7 +137,7 @@ export function ScannerPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Escáner</h1>
         <p className="mt-0.5 text-sm text-fg-muted">

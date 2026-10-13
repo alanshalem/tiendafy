@@ -75,7 +75,7 @@ export function MessagesPage() {
         );
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">Mensajes de contacto</h1>

@@ -18,7 +18,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
-import { TABLE_CARD } from '../../lib/styles';
+import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
 
 interface CategoryDto {
@@ -200,7 +200,7 @@ export function CategoriesPage() {
   const isEmpty = !isLoading && categories.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-20">
+    <div className="space-y-4 pb-20">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-fg">Categorías</h1>
@@ -252,8 +252,13 @@ export function CategoriesPage() {
 
       {/* Barra de cambios sin guardar */}
       {dirty && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-6 py-3 backdrop-blur md:left-sidebar">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+        <div
+          className={cn(
+            'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur md:left-sidebar',
+            FIXED_BAR_PADDING,
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium text-fg">Tenés cambios de orden sin guardar.</span>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={discard}>

@@ -230,7 +230,7 @@ export function OrdersPage() {
   const focusMissing = !loading && !!focusOrder && !orders.some((o) => o.id === focusOrder);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-6">
+    <div>
       {focusMissing && (
         <p className="mb-4 rounded-lg bg-warning-bg px-3 py-2 text-sm text-warning">
           La venta buscada no está entre las últimas 50 — usá “Actualizar” o buscala por el email del cliente.

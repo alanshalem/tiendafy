@@ -56,7 +56,7 @@ export function PriceListsPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       {openList ? (
         <ListPrices list={openList} onBack={() => setOpenList(null)} />
       ) : (

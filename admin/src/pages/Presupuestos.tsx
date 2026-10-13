@@ -103,7 +103,7 @@ export function PresupuestosPage() {
   if (!store) return <NoStoreSelected />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="space-y-4">
       {view.mode === 'list' ? (
         <QuoteList
           onNew={() => setView({ mode: 'edit', id: null })}

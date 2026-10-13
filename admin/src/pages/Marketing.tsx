@@ -117,7 +117,7 @@ export function MarketingPage() {
     'inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-bg-muted hover:text-fg';
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-6 pb-20">
+    <div className="pb-20">
       <PageHeader
         className="mb-5"
         title="Email marketing"
