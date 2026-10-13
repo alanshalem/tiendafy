@@ -46,6 +46,14 @@ export const PAGE_MAIN = 'mx-auto w-full max-w-[120rem] p-4 sm:p-6 md:p-8';
 /** Las barras de guardar fijas al pie: el mismo margen que el contenido, para alinear los botones. */
 export const FIXED_BAR_PADDING = 'px-4 py-3 sm:px-6 md:px-8';
 
+/**
+ * Las tarjetas de una pantalla de configuración que son formularios: en
+ * pantallas muy anchas van de a dos por fila. Con el contenido a todo el
+ * ancho, una sola columna dejaba campos de 1.500 px para un ID de doce
+ * caracteres.
+ */
+export const SETTINGS_COLUMNS = 'grid items-start gap-4 2xl:grid-cols-2';
+
 /** Card de configuración (p-5; distinta del <Card> de @tiendafy/ui, que usa p-4). */
 export const SETTINGS_CARD = 'rounded-lg border border-border bg-surface p-5 shadow-card';
 

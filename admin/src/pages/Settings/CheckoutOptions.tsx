@@ -6,7 +6,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { SETTINGS_CARD } from '../../lib/styles';
+import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 
 interface CheckoutSettings {
   singleColumn: boolean;
@@ -115,7 +115,7 @@ export function CheckoutOptionsPage() {
         description="Qué datos se le piden al comprador para terminar la compra, y qué ve cuando termina."
       />
 
-      <div className="space-y-4">
+      <div className={SETTINGS_COLUMNS}>
         <Section
           title="Datos que se piden"
           description="Cuantos menos campos obligatorios, menos gente abandona a mitad de camino. Pero sin teléfono cuesta coordinar una entrega, y sin documento no se puede facturar como corresponde."

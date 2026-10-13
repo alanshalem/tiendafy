@@ -7,7 +7,7 @@ import { formatDateTime } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { SETTINGS_CARD } from '../../lib/styles';
+import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
 
 interface Tracking {
@@ -132,8 +132,8 @@ export function TrackingPage() {
         description="Conectá tu tienda con las herramientas que miden visitas y campañas. Se pide el identificador de cada servicio, no el código."
       />
 
-      <div className="space-y-4">
-        <div className="flex items-start gap-2.5 rounded-lg border border-border bg-bg-subtle px-4 py-3">
+      <div className={SETTINGS_COLUMNS}>
+        <div className="flex items-start gap-2.5 rounded-lg border border-border bg-bg-subtle px-4 py-3 2xl:col-span-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
           <p className="text-sm text-fg-muted">
             Nunca vas a tener que pegar un <code className="text-fg">&lt;script&gt;</code> acá. El código lo
@@ -178,7 +178,7 @@ export function TrackingPage() {
           onChange={(clarityId) => update({ clarityId })}
         />
 
-        <div className={SETTINGS_CARD}>
+        <div className={`${SETTINGS_CARD} 2xl:col-span-2`}>
           <h3 className="text-base font-semibold text-fg">Permiso del visitante</h3>
           <div className="mt-3 space-y-4">
             <Switch

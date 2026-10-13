@@ -141,7 +141,7 @@ export function PaywayConnect() {
     });
 
   return (
-    <div className="mt-5 overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       <div className="flex items-center gap-3 px-5 py-4" style={{ background: `${PAYWAY_ORANGE}0d` }}>
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
