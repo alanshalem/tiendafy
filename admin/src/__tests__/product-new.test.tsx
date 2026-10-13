@@ -2,7 +2,9 @@
  * Alta de producto desde el panel: el flujo simple (precio, promo, stock
  * limitado, imágenes) y el de variantes (opciones → combinaciones con precio,
  * SKU y stock por fila). Se verifica lo que viaja a la API, en orden: crear,
- * subir y adjuntar imágenes, cargar el stock inicial de cada variante.
+ * subir y adjuntar imágenes, cargar el stock inicial de cada variante. Y que
+ * cada campo que se ve se guarda: código de barras, peso y medidas, marca,
+ * categorías y SEO.
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -40,7 +42,21 @@ describe('nuevo producto', () => {
     await user.click(screen.getByLabelText('Limitado'));
     await user.type(screen.getByPlaceholderText('Cantidad'), '7x');
     await user.type(screen.getByPlaceholderText('REM-001'), 'rem-1');
-    await user.click(screen.getByLabelText('Digital / servicio'));
+    await user.type(screen.getByLabelText(/^Código de barras/), '7790001112223');
+    await user.type(screen.getByLabelText('Peso del paquete (kg)'), '1,5');
+    await user.type(screen.getByLabelText('Largo (cm)'), '30');
+    await user.type(screen.getByLabelText('Ancho (cm)'), '20');
+    // Una medida sola no arma una caja: hasta completar las tres no se guarda.
+    expect(
+      await screen.findByText('Cargá las tres medidas (largo, ancho y alto) o ninguna.'),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Alto (cm)'), '10');
+    await user.type(screen.getByPlaceholderText('Sin marca'), 'Hierro Pro');
+    const category = (await screen.findAllByRole('button', { pressed: false })).find((b) =>
+      b.closest('section')?.textContent?.startsWith('Categorías'),
+    )!;
+    await user.click(category);
+    await user.type(screen.getByLabelText(/Título SEO/), 'Remera barata');
     await user.upload(
       document.querySelector<HTMLInputElement>('input[type=file]')!,
       new File(['png'], 'remera.png', { type: 'image/png' }),
@@ -57,7 +73,27 @@ describe('nuevo producto', () => {
       name: 'Remera',
       options: [],
       publish: false,
-      variants: [{ sku: 'REM-1', optionValues: [], currency: 'ARS' }],
+      variants: [
+        {
+          sku: 'REM-1',
+          optionValues: [],
+          currency: 'ARS',
+          barcode: '7790001112223',
+          weightGrams: 1500,
+          lengthCm: 30,
+          widthCm: 20,
+          heightCm: 10,
+        },
+      ],
+    });
+    // Lo que el alta no recibe se guarda enseguida sobre el producto creado.
+    expect(writes(api, 'PATCH', `/api/v1/products/${created.id}`)[0]!.body).toMatchObject({
+      name: 'Remera',
+      brand: 'Hierro Pro',
+      seoTitle: 'Remera barata',
+    });
+    expect(writes(api, 'PUT', `/api/v1/products/${created.id}/categories`)[0]!.body).toEqual({
+      categoryIds: [expect.any(String)],
     });
     expect(writes(api, 'POST', `/api/v1/products/${created.id}/images`)[0]!.body).toEqual({
       url: 'https://cdn.example.com/remera.jpg',

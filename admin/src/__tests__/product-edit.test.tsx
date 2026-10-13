@@ -87,6 +87,39 @@ describe('editar producto', () => {
     );
   });
 
+  it('código de barras y paquete de cada variante: se guardan solo si cambian', async () => {
+    const api = mockApi();
+    const single = { ...variant, barcode: null, weightGrams: 800, lengthCm: 30, widthCm: 20, heightCm: 10 };
+    const user = await open(api, { variants: [single] } as Partial<Product>);
+    expect(screen.getByLabelText('Peso del paquete (kg)')).toHaveValue('0,8');
+
+    await user.type(screen.getByLabelText(/^Código de barras/), '7790001112223');
+    const weight = screen.getByLabelText('Peso del paquete (kg)');
+    await user.clear(weight);
+    await user.type(weight, '15');
+    await user.clear(screen.getByLabelText('Alto (cm)'));
+    // Sin las tres medidas no se puede guardar.
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    await user.type(screen.getByLabelText('Alto (cm)'), '5');
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/variants/${variant.id}/barcode`)).toEqual([{ barcode: '7790001112223' }]);
+    expect(sent(api, 'PUT', `/variants/${variant.id}/shipping`)).toEqual([
+      { weightGrams: 15_000, lengthCm: 30, widthCm: 20, heightCm: 5 },
+    ]);
+  });
+
+  it('sin tocar el paquete no lo reescribe', async () => {
+    const api = mockApi();
+    const single = { ...variant, barcode: 'X1', weightGrams: 800, lengthCm: 30, widthCm: 20, heightCm: 10 };
+    const user = await open(api, { variants: [single] } as Partial<Product>);
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/variants/${variant.id}/barcode`)).toEqual([]);
+    expect(sent(api, 'PUT', `/variants/${variant.id}/shipping`)).toEqual([]);
+  });
+
   it('sin cambios de precio no lo reescribe; un error al guardar se muestra', async () => {
     const api = mockApi();
     api.on('PUT', `/api/v1/products/${product.id}/specs`, { detail: 'Ficha inválida.' }, 400);

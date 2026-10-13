@@ -1,18 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2, GripVertical, Loader2, Sparkles } from 'lucide-react';
-import { Button, Checkbox, FormField, Input, Textarea, useToast } from '@tiendafy/ui';
+import { Trash2, GripVertical } from 'lucide-react';
+import { Button, Checkbox, FormField, Input, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
-import { useAiEnabled } from '../../lib/useAi';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
-import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
+import { type SpecValues } from './SpecFields';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
-import { statusLabel, type Category, type StockItem } from './types';
+import { statusLabel, type StockItem } from './types';
+import {
+  CategoriesSection,
+  DetailsSection,
+  SeoSection,
+  SHIPPING_HINT,
+  ShippingInputs,
+  SpecSection,
+  parseShipping,
+  sameShipping,
+  toShippingDraft,
+  type ShippingDraft,
+} from './product-form';
 import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 
@@ -22,6 +33,11 @@ interface VariantDto {
   optionValues: string[];
   price: MoneyDto;
   compareAtPrice: MoneyDto | null;
+  barcode?: string | null;
+  weightGrams?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
 }
 interface ProductImage {
   id: string;
@@ -60,22 +76,18 @@ export function EditProductPage() {
     queryFn: () => api.get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantIds.join(',')}`),
     enabled: variantIds.length > 0,
   });
-  const { data: cats } = useQuery({
-    queryKey: ['categories', store?.id],
-    queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
 
   // Estado del form (se inicializa al cargar el producto).
   const [name, setName] = useState('');
-  const aiEnabled = useAiEnabled();
-  const [aiWriting, setAiWriting] = useState(false);
   const [description, setDescription] = useState('');
   const [brand, setBrand] = useState('');
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [prices, setPrices] = useState<Record<string, { price: string; promo: string }>>({});
   const [stock, setStock] = useState<Record<string, string>>({});
+  // Por variante: código de barras y el paquete de una unidad (peso y medidas).
+  const [barcodes, setBarcodes] = useState<Record<string, string>>({});
+  const [shipping, setShipping] = useState<Record<string, ShippingDraft>>({});
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [specs, setSpecs] = useState<SpecValues>({});
   const [imageOrder, setImageOrder] = useState<string[]>([]);
@@ -99,6 +111,8 @@ export function EditProductPage() {
         }),
       ),
     );
+    setBarcodes(Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])));
+    setShipping(Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])));
   }, [product]);
 
   useEffect(() => {
@@ -192,6 +206,14 @@ export function EditProductPage() {
             available: parseInt(sVal, 10),
             reason: 'Edición de producto',
           });
+
+        const barcode = (barcodes[v.id] ?? '').trim();
+        if (barcode !== (v.barcode ?? ''))
+          await api.put(`/api/v1/products/${id}/variants/${v.id}/barcode`, { barcode: barcode || null });
+
+        const size = shipping[v.id] && parseShipping(shipping[v.id]!).value;
+        if (size && !sameShipping(v, size))
+          await api.put(`/api/v1/products/${id}/variants/${v.id}/shipping`, size);
       }
 
       const before = [...(product.categoryIds ?? [])].sort().join(',');
@@ -238,8 +260,10 @@ export function EditProductPage() {
   if (isLoading || !product)
     return <p className="py-16 text-center text-sm text-fg-muted">Cargando producto...</p>;
 
-  const toggleCategory = (cid: string) =>
-    setCategoryIds((prev) => (prev.includes(cid) ? prev.filter((x) => x !== cid) : [...prev, cid]));
+  const shippingInvalid = product.variants.some(
+    (v) => shipping[v.id] && parseShipping(shipping[v.id]!).error,
+  );
+  const multi = product.variants.length > 1;
 
   return (
     <div className="space-y-4 pb-24">
@@ -252,52 +276,15 @@ export function EditProductPage() {
           (estado, categorías, SEO) en una columna al costado. */}
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
         <div className="min-w-0 space-y-4">
-          <Section title="Nombre y descripción">
-            <div className="space-y-4">
-              <FormField label="Nombre" required error={error}>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
-              </FormField>
-              {/* El botón de IA va fuera del FormField: adentro, el <label> apuntaba al
-              contenedor y la descripción quedaba sin nombre accesible. */}
-              <div>
-                <FormField label="Descripción">
-                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
-                </FormField>
-                {aiEnabled && name.trim().length > 2 && (
-                  <button
-                    type="button"
-                    disabled={aiWriting}
-                    onClick={async () => {
-                      setAiWriting(true);
-                      try {
-                        const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
-                          name,
-                          notes: description || null,
-                        });
-                        setDescription(r.text);
-                      } catch (err) {
-                        toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
-                      } finally {
-                        setAiWriting(false);
-                      }
-                    }}
-                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                    title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
-                  >
-                    {aiWriting ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3" />
-                    )}
-                    Escribir con IA
-                  </button>
-                )}
-              </div>
-              <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
-                <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />
-              </FormField>
-            </div>
-          </Section>
+          <DetailsSection
+            name={name}
+            onName={setName}
+            description={description}
+            onDescription={setDescription}
+            brand={brand}
+            onBrand={setBrand}
+            error={error}
+          />
 
           <Section title="Fotos" hint="Se agregan o eliminan al instante. Arrastrá para reordenar.">
             <div className="flex flex-wrap gap-3">
@@ -341,54 +328,71 @@ export function EditProductPage() {
             </div>
           </Section>
 
-          <Section title="Precios y stock" hint={product.variants.length > 1 ? 'Por variante' : undefined}>
+          <Section
+            title={multi ? 'Variantes' : 'Precio, stock y envío'}
+            hint={multi ? 'Precio, stock, código de barras y paquete de cada una.' : undefined}
+          >
             <div className="space-y-4">
-              {product.variants.map((v) => (
-                <div key={v.id} className="rounded-md border border-border p-3">
-                  {product.variants.length > 1 && (
-                    <div className="mb-2 text-sm font-medium text-fg">
-                      {v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku}
+              {product.variants.map((v) => {
+                const label = v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku;
+                return (
+                  <div key={v.id} className={multi ? 'rounded-md border border-border p-3' : undefined}>
+                    {multi && <div className="mb-2 text-sm font-medium text-fg">{label}</div>}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <FormField label="Precio (ARS)" required>
+                        <Input
+                          inputMode="decimal"
+                          value={prices[v.id]?.price ?? ''}
+                          onChange={(e) =>
+                            setPrices((p) => ({
+                              ...p,
+                              [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value },
+                            }))
+                          }
+                        />
+                      </FormField>
+                      <FormField label="Promocional" hint="Opcional">
+                        <Input
+                          inputMode="decimal"
+                          value={prices[v.id]?.promo ?? ''}
+                          onChange={(e) =>
+                            setPrices((p) => ({
+                              ...p,
+                              [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value },
+                            }))
+                          }
+                          placeholder="—"
+                        />
+                      </FormField>
+                      <FormField label="Stock">
+                        <Input
+                          inputMode="numeric"
+                          value={stock[v.id] ?? ''}
+                          onChange={(e) =>
+                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))
+                          }
+                          placeholder="—"
+                        />
+                      </FormField>
+                      <FormField label="Código de barras" hint="EAN, UPC…">
+                        <Input
+                          value={barcodes[v.id] ?? ''}
+                          onChange={(e) => setBarcodes((b) => ({ ...b, [v.id]: e.target.value }))}
+                          placeholder="—"
+                        />
+                      </FormField>
                     </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    <FormField label="Precio (ARS)" required>
-                      <Input
-                        inputMode="decimal"
-                        value={prices[v.id]?.price ?? ''}
-                        onChange={(e) =>
-                          setPrices((p) => ({
-                            ...p,
-                            [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value },
-                          }))
-                        }
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs text-fg-muted">{SHIPPING_HINT}</p>
+                      <ShippingInputs
+                        value={shipping[v.id] ?? toShippingDraft(v)}
+                        onChange={(next) => setShipping((s) => ({ ...s, [v.id]: next }))}
+                        labelPrefix={multi ? label : ''}
                       />
-                    </FormField>
-                    <FormField label="Promocional" hint="Opcional">
-                      <Input
-                        inputMode="decimal"
-                        value={prices[v.id]?.promo ?? ''}
-                        onChange={(e) =>
-                          setPrices((p) => ({
-                            ...p,
-                            [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value },
-                          }))
-                        }
-                        placeholder="—"
-                      />
-                    </FormField>
-                    <FormField label="Stock">
-                      <Input
-                        inputMode="numeric"
-                        value={stock[v.id] ?? ''}
-                        onChange={(e) =>
-                          setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))
-                        }
-                        placeholder="—"
-                      />
-                    </FormField>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Section>
 
@@ -423,44 +427,14 @@ export function EditProductPage() {
             )}
           </Section>
 
-          <Section title="Categorías" hint="Aparecen en el menú y los filtros de la tienda.">
-            {(cats?.items ?? []).length === 0 ? (
-              <p className="text-xs text-fg-subtle">No hay categorías. Creálas en Productos → Categorías.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {cats!.items.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => toggleCategory(c.id)}
-                    aria-pressed={categoryIds.includes(c.id)}
-                    className={
-                      categoryIds.includes(c.id)
-                        ? 'rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary'
-                        : 'rounded-full border border-border-strong px-3 py-1 text-xs text-fg-muted hover:bg-bg-muted'
-                    }
-                  >
-                    {c.path.split('/').join(' › ')}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Section>
+          <CategoriesSection value={categoryIds} onChange={setCategoryIds} />
 
-          <Section title="SEO" hint="Cómo se ve en Google y al compartir.">
-            <div className="space-y-4">
-              <FormField label="Título SEO" hint="≤ 70 caracteres">
-                <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
-              </FormField>
-              <FormField label="Descripción SEO" hint="≤ 320 caracteres">
-                <Textarea
-                  value={seoDescription}
-                  onChange={(e) => setSeoDescription(e.target.value)}
-                  rows={3}
-                />
-              </FormField>
-            </div>
-          </Section>
+          <SeoSection
+            title={seoTitle}
+            onTitle={setSeoTitle}
+            description={seoDescription}
+            onDescription={setSeoDescription}
+          />
         </div>
       </div>
 
@@ -470,46 +444,14 @@ export function EditProductPage() {
         </Button>
         <Button
           loading={save.isPending}
-          disabled={!name || product.variants.some((v) => !isValidPrice(prices[v.id]?.price ?? ''))}
+          disabled={
+            !name || shippingInvalid || product.variants.some((v) => !isValidPrice(prices[v.id]?.price ?? ''))
+          }
           onClick={() => save.mutate()}
         >
           Guardar cambios
         </Button>
       </StickyFormBar>
     </div>
-  );
-}
-
-/**
- * Ficha técnica del producto. Solo muestra los campos que la tienda declaró
- * para las categorías de ESTE producto: sin eso, cargar un producto sería
- * bajar por cuarenta campos que no aplican.
- */
-function SpecSection({
-  categoryIds,
-  values,
-  onChange,
-}: {
-  categoryIds: string[];
-  values: SpecValues;
-  onChange: (next: SpecValues) => void;
-}) {
-  const { applicable, total } = useSpecDefinitions(categoryIds);
-  if (total === 0) return null;
-
-  return (
-    <Section
-      title="Ficha técnica"
-      hint="Se muestra en la página del producto y se puede usar como filtro del catálogo."
-    >
-      {applicable.length === 0 ? (
-        <p className="text-xs text-fg-subtle">
-          Ninguno de los campos definidos aplica a las categorías de este producto. Se configuran en
-          Configuración → Ficha técnica.
-        </p>
-      ) : (
-        <SpecFields definitions={applicable} values={values} onChange={onChange} />
-      )}
-    </Section>
   );
 }
