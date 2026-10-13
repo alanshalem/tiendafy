@@ -135,8 +135,14 @@ public sealed class ShippingWeightTests(ApiFactory factory)
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Correo}/shipping/import", new { createdAt = "2026-10-13T12:00:00" });
         await merchant.PostAsync($"/api/v1/admin/orders/{orderId}/correo-shipment", new
         {
-            deliveryType = "D", recipientName = "Ana", recipientEmail = "ana@mail.com",
-            streetName = "Corrientes", streetNumber = "1234", city = "CABA", provinceCode = "C", postalCode = "1043",
+            deliveryType = "D",
+            recipientName = "Ana",
+            recipientEmail = "ana@mail.com",
+            streetName = "Corrientes",
+            streetNumber = "1234",
+            city = "CABA",
+            provinceCode = "C",
+            postalCode = "1043",
         });
         var shippingBody = JsonDocument.Parse(factory.ExternalHttp.SentTo($"{Correo}/shipping/import").Last().Body!)
             .RootElement.GetProperty("shipping");
@@ -187,8 +193,16 @@ public sealed class ShippingWeightTests(ApiFactory factory)
 
         await merchant.PutAsync("/api/v1/admin/shipping/zipnova", new
         {
-            apiToken = "zt", apiSecret = "zs", country = "AR", accountId = 1, originId = "auto",
-            defaultWeightGrams = 800, defaultLengthCm = 30, defaultWidthCm = 20, defaultHeightCm = 10, active = true,
+            apiToken = "zt",
+            apiSecret = "zs",
+            country = "AR",
+            accountId = 1,
+            originId = "auto",
+            defaultWeightGrams = 800,
+            defaultLengthCm = 30,
+            defaultWidthCm = 20,
+            defaultHeightCm = 10,
+            active = true,
         });
         factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Zipnova}/shipments/quote", new
         {
