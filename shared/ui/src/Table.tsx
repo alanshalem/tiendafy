@@ -45,8 +45,11 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
         {/* El fondo va en cada `th` y no en el `tr`: el elemento fijo pinta su
             propio fondo y el de la fila queda debajo, así que las filas se le
             verían a través. El borde inferior va como sombra porque con bordes
-            colapsados lo pinta la tabla y bajo una celda fija desaparece. */}
-        <thead className="sticky top-[var(--header-height)] z-10">
+            colapsados lo pinta la tabla y bajo una celda fija desaparece.
+            Fijo solo desde lg, igual que el scroll: debajo, anclado al
+            envoltorio, el corrimiento del header de la página lo bajaba justo
+            encima de la primera fila y la tapaba entera. */}
+        <thead className="z-10 lg:sticky lg:top-[var(--header-height)]">
           <tr className="border-b border-border">
             {columns.map((col) => (
               <th
