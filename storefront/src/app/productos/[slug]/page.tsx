@@ -1,11 +1,14 @@
+import { Suspense } from 'react';
 import { StorefrontView } from '@/components/store/StorefrontView';
+import { ProductDetailSkeleton } from '@/components/store/Skeletons';
 import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
 import { ProductDetail } from '@/components/store/ProductDetail';
 import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
 import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
-import { loadStorefront, siteBase } from '@/lib/storefront';
+import { loadStorefront, siteBase, type StorefrontData } from '@/lib/storefront';
+import type { ThemeConfig } from '@/lib/theme';
 import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
@@ -80,6 +83,34 @@ export default async function ProductDetailPage({
   if (!resolved.ok) return resolved.fallback;
   const { data, theme, preview } = resolved;
 
+  // El marco de la tienda sale ya; la ficha (producto, relacionados, miga y
+  // ficha técnica: lo que tarda) llega después, con su esqueleto en el lugar.
+  return (
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
+      <Suspense fallback={<ProductDetailSkeleton />}>
+        <ProductContent slug={slug} data={data} theme={theme} preview={preview} />
+      </Suspense>
+    </StorefrontView>
+  );
+}
+
+async function ProductContent({
+  slug,
+  data,
+  theme,
+  preview,
+}: {
+  slug: string;
+  data: StorefrontData;
+  theme: ThemeConfig;
+  preview: boolean;
+}) {
   // Data cache 30s keyed por tenant (_mt): TTFB decente sin SSR+DB en cada hit.
   const product = await apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, {
     next: { revalidate: REVALIDATE.catalog },
@@ -146,63 +177,55 @@ export default async function ProductDetailPage({
       : null;
 
   return (
-    <StorefrontView
-      tenantId={data.tenant.id}
-      tenantName={data.tenant.name}
-      theme={theme}
-      products={data.products}
-      live={preview}
-    >
-      <main className="mx-auto max-w-container px-4 py-8">
-        {product && <StoreBreadcrumbs items={crumbs} />}
-        {breadcrumbJsonLd && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+    <main className="mx-auto max-w-container px-4 py-8">
+      {product && <StoreBreadcrumbs items={crumbs} />}
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        />
+      )}
+      {productJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        />
+      )}
+      {product ? (
+        <>
+          <ProductDetail
+            name={product.name}
+            description={product.description}
+            images={product.images}
+            options={product.options}
+            variants={product.variants}
+            specs={specRows}
+            config={theme.productDetail}
+            paymentLogos={theme.footer.paymentLogos}
+            whatsappPhone={theme.whatsappButton.phone}
           />
-        )}
-        {productJsonLd && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-          />
-        )}
-        {product ? (
-          <>
-            <ProductDetail
-              name={product.name}
-              description={product.description}
-              images={product.images}
-              options={product.options}
-              variants={product.variants}
-              specs={specRows}
-              config={theme.productDetail}
-              paymentLogos={theme.footer.paymentLogos}
-              whatsappPhone={theme.whatsappButton.phone}
+          {theme.productDetail.showRelated && related.length > 0 && (
+            <SectionRenderer
+              section={{
+                id: 'related',
+                type: 'featured',
+                visible: true,
+                data: { title: 'También te puede gustar' },
+              }}
+              products={related}
+              storeName={data.tenant.name}
+              productList={theme.productList}
             />
-            {theme.productDetail.showRelated && related.length > 0 && (
-              <SectionRenderer
-                section={{
-                  id: 'related',
-                  type: 'featured',
-                  visible: true,
-                  data: { title: 'También te puede gustar' },
-                }}
-                products={related}
-                storeName={data.tenant.name}
-                productList={theme.productList}
-              />
-            )}
-          </>
-        ) : (
-          <EmptyState
-            title="Producto no encontrado"
-            message="Puede que ya no esté disponible o que el enlace sea incorrecto."
-            cta={{ href: preview ? '/productos?preview=1' : '/productos', label: 'Ver todos los productos' }}
-          />
-        )}
-      </main>
-    </StorefrontView>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          title="Producto no encontrado"
+          message="Puede que ya no esté disponible o que el enlace sea incorrecto."
+          cta={{ href: preview ? '/productos?preview=1' : '/productos', label: 'Ver todos los productos' }}
+        />
+      )}
+    </main>
   );
 }
 

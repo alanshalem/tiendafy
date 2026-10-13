@@ -8,7 +8,7 @@
  * HTML y componentes cliente — se renderiza normal.
  */
 import { render } from '@testing-library/react';
-import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, Suspense, type ReactElement, type ReactNode } from 'react';
 import { nav } from './next';
 
 type Component = (props: unknown) => ReactNode | Promise<ReactNode>;
@@ -41,16 +41,24 @@ function tryServer(
   }
 }
 
-/** Resuelve los Server Components async de un árbol (incluidos los anidados en props). */
-export async function resolveServer(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(resolveServer));
+/**
+ * Resuelve los Server Components async de un árbol (incluidos los anidados en props).
+ *
+ * `pending`: la foto de la página mientras lo lento todavía no llegó — cada
+ * `<Suspense>` muestra su fallback y lo de adentro no se ejecuta. Es lo que ve
+ * el visitante en el primer pintado, antes de que el server termine.
+ */
+export async function resolveServer(node: ReactNode, pending = false): Promise<ReactNode> {
+  if (Array.isArray(node)) return Promise.all(node.map((n) => resolveServer(n, pending)));
   if (!isValidElement(node)) return node;
 
   const element = node as ReactElement<Record<string, unknown>>;
-  if (isAsync(element.type)) return resolveServer(await element.type(element.props));
+  if (pending && element.type === Suspense)
+    return resolveServer(element.props.fallback as ReactNode, pending);
+  if (isAsync(element.type)) return resolveServer(await element.type(element.props), pending);
   if (isFunctionComponent(element.type)) {
     const attempt = tryServer(element.type, element.props);
-    if (attempt.ok) return resolveServer(await attempt.value);
+    if (attempt.ok) return resolveServer(await attempt.value, pending);
   }
 
   const props = element.props;
@@ -58,7 +66,7 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
   let changed = false;
   for (const [key, value] of Object.entries(props)) {
     if (key === 'children' || isValidElement(value) || Array.isArray(value)) {
-      const resolved = await resolveServer(value as ReactNode);
+      const resolved = await resolveServer(value as ReactNode, pending);
       if (resolved !== value) {
         resolvedProps[key] = key === 'children' ? Children.toArray(resolved) : resolved;
         changed = true;
@@ -83,5 +91,21 @@ export async function renderPage<P extends object>(
   const searchParams = Object.fromEntries(new URLSearchParams(nav.search));
   const props = { params: Promise.resolve(params), searchParams: Promise.resolve(searchParams) } as P;
   const tree = await resolveServer(await page(props));
+  return render(<>{tree}</>);
+}
+
+/**
+ * La misma página, pero en el instante en que lo lento todavía no llegó (ver
+ * `pending` en resolveServer).
+ */
+export async function renderPending<P extends object>(
+  page: Page<P>,
+  url: string,
+  params: Record<string, string> = {},
+) {
+  nav.at(url);
+  const searchParams = Object.fromEntries(new URLSearchParams(nav.search));
+  const props = { params: Promise.resolve(params), searchParams: Promise.resolve(searchParams) } as P;
+  const tree = await resolveServer(await page(props), true);
   return render(<>{tree}</>);
 }

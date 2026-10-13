@@ -1,11 +1,14 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
+import { ProductGridSkeleton } from '@/components/store/Skeletons';
 import { CatalogBrowser } from '@/components/store/CatalogBrowser';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { searchProducts, fetchCategories, toStoreProduct } from '@/lib/catalog';
 import { resolveTenant } from '@/lib/tenancy';
 import type { StoreProduct } from '@/components/store/sections';
 import { siteBase } from '@/lib/storefront';
+import type { ThemeConfig } from '@/lib/theme';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +25,39 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function ProductsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolved = await resolveStorefrontPage(searchParams);
   if (!resolved.ok) return resolved.fallback;
   const { data, theme, preview } = resolved;
 
+  // El marco de la tienda sale ya; la búsqueda (lo que tarda) llega después,
+  // con el esqueleto de la grilla en su lugar.
+  return (
+    <StorefrontView
+      tenantId={data.tenant.id}
+      tenantName={data.tenant.name}
+      theme={theme}
+      products={data.products}
+      live={preview}
+    >
+      <Suspense fallback={<ProductGridSkeleton count={12} />}>
+        <Catalog tenantId={data.tenant.id} theme={theme} searchParams={searchParams} />
+      </Suspense>
+    </StorefrontView>
+  );
+}
+
+async function Catalog({
+  tenantId,
+  theme,
+  searchParams,
+}: {
+  tenantId: string;
+  theme: ThemeConfig;
+  searchParams: Promise<SearchParams>;
+}) {
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
   const many = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -51,7 +78,7 @@ export default async function ProductsPage({
   const pageSize = Math.min(48, Math.max(1, list.pageSize || 24));
 
   const [result, categories] = await Promise.all([
-    searchProducts(data.tenant.id, {
+    searchProducts(tenantId, {
       q,
       category,
       sort: sort || list.defaultSort,
@@ -63,45 +90,37 @@ export default async function ProductsPage({
       priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
       priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
     }),
-    fetchCategories(data.tenant.id),
+    fetchCategories(tenantId),
   ]);
 
   const products = result.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
 
   return (
-    <StorefrontView
-      tenantId={data.tenant.id}
-      tenantName={data.tenant.name}
-      theme={theme}
-      products={products}
-      live={preview}
-    >
-      <main className="min-h-[60vh]">
-        <div className="mx-auto max-w-container px-4 pt-8">
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-            Todos los productos
-          </h1>
-        </div>
-        <CatalogBrowser
-          products={products}
-          total={result.total}
-          page={result.page}
-          totalPages={result.totalPages}
-          categories={categories}
-          facets={result.facets}
-          productList={theme.productList}
-          current={{
-            q,
-            sort,
-            category,
-            brand,
-            options,
-            specs,
-            priceMin: one(sp.priceMin),
-            priceMax: one(sp.priceMax),
-          }}
-        />
-      </main>
-    </StorefrontView>
+    <main className="min-h-[60vh]">
+      <div className="mx-auto max-w-container px-4 pt-8">
+        <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          Todos los productos
+        </h1>
+      </div>
+      <CatalogBrowser
+        products={products}
+        total={result.total}
+        page={result.page}
+        totalPages={result.totalPages}
+        categories={categories}
+        facets={result.facets}
+        productList={theme.productList}
+        current={{
+          q,
+          sort,
+          category,
+          brand,
+          options,
+          specs,
+          priceMin: one(sp.priceMin),
+          priceMax: one(sp.priceMax),
+        }}
+      />
+    </main>
   );
 }

@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { loadStorefront, type StorefrontData } from './storefront';
 import { fetchDraftTheme, fetchPublishedTheme, type ThemeConfig } from './theme';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { StorefrontView } from '@/components/store/StorefrontView';
+import { PageSkeleton } from '@/components/store/Skeletons';
 
 /**
  * Resuelve lo común de toda página interna del storefront: tienda + tema
@@ -37,24 +38,30 @@ export async function resolveStorefrontPage(
   return { ok: true, data, theme, preview };
 }
 
+type ResolvedPage = { data: StorefrontData; theme: ThemeConfig; preview: boolean };
+
 /**
  * Esqueleto de una página interna: resolveStorefrontPage + StorefrontView, que
  * antes se copiaba idéntico en cada ruta. `children` recibe lo resuelto y
  * devuelve el contenido específico (puede ser async, ej. fetch por slug).
+ *
+ * El marco (encabezado, pie, carrito) sale apenas se conoce la tienda y su
+ * diseño; el contenido llega después, en un <Suspense> con `fallback` en su
+ * lugar. Así lo que tarde se ve como un esqueleto ADENTRO de la tienda, y no
+ * como una página en blanco.
  */
 export async function StorefrontPageShell({
   searchParams,
   catalogProducts = true,
+  fallback = <PageSkeleton />,
   children,
 }: {
   searchParams: Promise<{ preview?: string; pt?: string }>;
   /** false = la página no necesita el catálogo (ej. checkout). */
   catalogProducts?: boolean;
-  children: (page: {
-    data: StorefrontData;
-    theme: ThemeConfig;
-    preview: boolean;
-  }) => ReactNode | Promise<ReactNode>;
+  /** Lo que se ve mientras llega el contenido. */
+  fallback?: ReactNode;
+  children: (page: ResolvedPage) => ReactNode | Promise<ReactNode>;
 }) {
   const resolved = await resolveStorefrontPage(searchParams);
   if (!resolved.ok) return resolved.fallback;
@@ -68,7 +75,20 @@ export async function StorefrontPageShell({
       products={catalogProducts ? data.products : []}
       live={preview}
     >
-      {await children({ data, theme, preview })}
+      <Suspense fallback={fallback}>
+        <ShellContent render={children} page={{ data, theme, preview }} />
+      </Suspense>
     </StorefrontView>
   );
+}
+
+/** El contenido de la página, aparte para que su espera quede dentro del Suspense. */
+async function ShellContent({
+  render,
+  page,
+}: {
+  render: (page: ResolvedPage) => ReactNode | Promise<ReactNode>;
+  page: ResolvedPage;
+}) {
+  return <>{await render(page)}</>;
 }
