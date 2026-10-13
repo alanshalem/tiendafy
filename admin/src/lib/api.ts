@@ -27,15 +27,18 @@ export function errMsg(e: unknown, fallback = 'Error'): string {
 
 /** Construye el ApiRequestError a partir de una respuesta no-ok (RFC 7807). */
 async function toApiError(res: Response, fallbackMessage: string): Promise<ApiRequestError> {
-  // La API devuelve RFC 7807: { title: código, detail: mensaje }.
-  const problem = await res.json().catch(() => null);
+  return problemToError(res.status, await res.json().catch(() => null), fallbackMessage);
+}
+
+function problemToError(status: number, problem: unknown, fallbackMessage: string): ApiRequestError {
+  // La API devuelve RFC 7807: { title: código, detail: mensaje }. Algunos
+  // endpoints de importación todavía responden { error: mensaje }.
+  const p = (problem ?? {}) as { title?: string; detail?: unknown; error?: unknown };
+  const detail = typeof p.detail === 'string' ? p.detail : typeof p.error === 'string' ? p.error : null;
   return new ApiRequestError(
-    res.status,
-    {
-      code: problem?.title ?? `HTTP.${res.status}`,
-      message: problem?.detail ?? fallbackMessage,
-    },
-    typeof problem?.detail === 'string',
+    status,
+    { code: p.title ?? `HTTP.${status}`, message: detail ?? fallbackMessage },
+    detail !== null,
   );
 }
 
@@ -72,13 +75,14 @@ export const api = {
     request<T>(path, { method: 'PUT', body: JSON.stringify(body), ...init }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   /** multipart/form-data — el browser setea el Content-Type con boundary. */
-  upload: async <T>(path: string, file: File): Promise<T> => {
+  upload: async <T>(path: string, file: File, progress?: UploadProgress): Promise<T> => {
     const form = new FormData();
     form.append('file', file);
-    return sendForm<T>(path, form);
+    return sendForm<T>(path, form, progress);
   },
   /** multipart/form-data con campos extra además del archivo. */
-  postForm: <T>(path: string, form: FormData): Promise<T> => sendForm<T>(path, form),
+  postForm: <T>(path: string, form: FormData, progress?: UploadProgress): Promise<T> =>
+    sendForm<T>(path, form, progress),
   /** Descarga un archivo (CSV/binario) y devuelve el Blob, con el header de tenant. */
   download: async (path: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}${path}`, {
@@ -90,13 +94,49 @@ export const api = {
   },
 };
 
-async function sendForm<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: activeTenantId ? { 'X-Tenant-Id': activeTenantId } : undefined,
-    body: form,
+export interface UploadProgress {
+  /** Fracción enviada, de 0 a 1. */
+  onProgress?: (fraction: number) => void;
+  signal?: AbortSignal;
+}
+
+/** La subida que se canceló a pedido (no es un error para mostrar). */
+export class UploadAbortedError extends Error {
+  constructor() {
+    super('Subida cancelada');
+  }
+}
+
+/**
+ * POST multipart con avance real. `fetch` no informa cuánto del cuerpo ya
+ * salió; XMLHttpRequest sí, y un video de 20 MB por wifi de local tarda lo
+ * suficiente como para que "Subiendo…" a secas parezca colgado.
+ */
+function sendForm<T>(path: string, form: FormData, progress?: UploadProgress): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}${path}`);
+    xhr.withCredentials = true;
+    if (activeTenantId) xhr.setRequestHeader('X-Tenant-Id', activeTenantId);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) progress?.onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: unknown;
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        body = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve((xhr.status === 204 ? undefined : body) as T);
+      else reject(problemToError(xhr.status, body, `Upload failed with status ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new TypeError('Network error'));
+    xhr.onabort = () => reject(new UploadAbortedError());
+    if (progress?.signal) {
+      if (progress.signal.aborted) return reject(new UploadAbortedError());
+      progress.signal.addEventListener('abort', () => xhr.abort(), { once: true });
+    }
+    xhr.send(form);
   });
-  if (!res.ok) throw await toApiError(res, `Upload failed with status ${res.status}`);
-  return res.status === 204 ? (undefined as T) : res.json();
 }

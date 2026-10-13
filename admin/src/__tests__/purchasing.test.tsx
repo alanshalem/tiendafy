@@ -192,7 +192,8 @@ describe('compras: factura del proveedor', () => {
     const huge = new File(['x'], 'enorme.pdf', { type: 'application/pdf' });
     Object.defineProperty(huge, 'size', { value: 11 * 1024 * 1024 });
     await user.upload(input, huge);
-    expect(await screen.findByText(/supera los 10 MB/)).toBeInTheDocument();
+    expect(await screen.findByText('Pesa 11 MB y el máximo para PDF es 10 MB.')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path.endsWith('/invoice/scan'))).toBe(false);
   });
 
   it('libro de IVA compras del mes', async () => {

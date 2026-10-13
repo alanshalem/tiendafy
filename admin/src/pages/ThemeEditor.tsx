@@ -9,7 +9,7 @@ import { useStore } from '../context/StoreContext';
 import { api, setActiveTenant, errMsg } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { ImageUploader } from './theme-editor-uploaders';
+import { MediaUpload } from '../components/upload/MediaUpload';
 import { BackHeader, Field, TextInput, TextArea, contrastText } from './theme-editor-inputs';
 import { HomePanel, SectionPanel } from './theme-editor-sections';
 import {
@@ -661,29 +661,27 @@ export function ThemeEditorPage() {
               <div className="space-y-5 p-4">
                 <Field
                   label="Logo de la tienda"
-                  hint="Se muestra en el encabezado. JPG, PNG, WebP, AVIF o SVG · hasta 5MB. Tamaño recomendado: 575×230px (horizontal, fondo transparente). SVG ideal: se ve nítido en cualquier tamaño. Si no cargás logo, se muestra el nombre de la tienda."
+                  hint="Se muestra en el encabezado. Si no cargás logo, se muestra el nombre de la tienda."
                 >
-                  <ImageUploader
+                  <MediaUpload
+                    kind="logo"
                     value={theme.logo}
                     onChange={(url) => updateTheme((t) => ({ ...t, logo: url }))}
-                    allowSvg
                   />
                 </Field>
-                <Field
-                  label="Favicon"
-                  hint="El ícono chico de la pestaña del navegador. JPG, PNG, WebP, AVIF o SVG · hasta 5MB. Tamaño recomendado: 130×130px (cuadrado). SVG ideal por nitidez."
-                >
-                  <ImageUploader
+                <Field label="Favicon" hint="El ícono chico de la pestaña del navegador.">
+                  <MediaUpload
+                    kind="favicon"
                     value={theme.favicon}
                     onChange={(url) => updateTheme((t) => ({ ...t, favicon: url }))}
-                    allowSvg
                   />
                 </Field>
                 <Field
                   label="Imagen al compartir"
-                  hint="La que se ve al compartir el link en redes (WhatsApp, Instagram…). JPG, PNG, WebP o AVIF · hasta 5MB. Tamaño recomendado: 1200×630px (horizontal) o 600×600px (cuadrada)."
+                  hint="La que se ve al compartir el link en redes (WhatsApp, Instagram…)."
                 >
-                  <ImageUploader
+                  <MediaUpload
+                    kind="shareImage"
                     value={theme.shareImage}
                     onChange={(url) => updateTheme((t) => ({ ...t, shareImage: url }))}
                   />

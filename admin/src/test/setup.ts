@@ -6,8 +6,10 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import { installDomPolyfills } from '../../../test-fixtures/dom-setup';
+import { installFetchBackedXhr } from './xhr';
 
 installDomPolyfills();
+installFetchBackedXhr();
 
 afterEach(() => {
   cleanup();

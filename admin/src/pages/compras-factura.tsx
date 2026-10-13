@@ -6,7 +6,9 @@ import { api, errMsg } from '../lib/api';
 import { formatDate, formatNumber } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { useAiEnabled } from '../lib/useAi';
-import { CONFIDENCE_TONE, SCAN_ACCEPT, SCAN_MAX_BYTES } from './compras-tipos';
+import { CONFIDENCE_TONE } from './compras-tipos';
+import { UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
+import { UPLOADS, describe } from '../lib/uploads';
 import type { PoDetail, ScannedInvoice } from './compras-tipos';
 
 /**
@@ -159,47 +161,45 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
 // ------------------------------------------------ Lectura de la factura
 
 function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan: ScannedInvoice) => void }) {
-  const { toast } = useToast();
-  const [busy, setBusy] = useState(false);
-
-  const pick = async (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > SCAN_MAX_BYTES) {
-      toast('El archivo supera los 10 MB. Probá con un escaneo de menor resolución.', { variant: 'error' });
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      onScanned(
-        await api.postForm<ScannedInvoice>(`/api/v1/purchasing/purchase-orders/${poId}/invoice/scan`, form),
-      );
-    } catch (e) {
-      toast(errMsg(e, 'No se pudo leer la factura.'), { variant: 'error' });
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Lo que no sirve (otro formato, más de 10 MB) se rechaza antes de mandarlo.
+  const scans = useUploadQueue('invoiceScan', (file, progress) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.postForm<ScannedInvoice>(
+      `/api/v1/purchasing/purchase-orders/${poId}/invoice/scan`,
+      form,
+      progress,
+    );
+  });
+  const picker = useFilePicker({
+    kind: 'invoiceScan',
+    disabled: scans.busy,
+    onFiles: (files) => void scans.run(files.slice(0, 1), onScanned),
+  });
+  const spec = describe(UPLOADS.invoiceScan);
+  const current = scans.pending[0];
 
   return (
-    <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-fg hover:bg-bg-muted">
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-      {busy ? 'Leyendo…' : 'Leer factura'}
-      <input
-        type="file"
-        accept={SCAN_ACCEPT}
-        className="hidden"
-        disabled={busy}
-        onChange={(e) => {
-          void pick(e.target.files?.[0]);
-          // Sin esto, subir el mismo archivo otra vez (tras corregir algo) no
-          // dispara el onChange.
-          e.target.value = '';
-        }}
-      />
-    </label>
+    <div className="flex max-w-xs shrink-0 flex-col items-end gap-1.5">
+      {picker.input}
+      <Button
+        variant="secondary"
+        onClick={picker.open}
+        disabled={scans.busy}
+        title={`${spec.formats} · ${spec.weight}`}
+      >
+        {current ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {!current
+          ? 'Leer factura'
+          : current.progress < 1
+            ? `Subiendo… ${Math.round(current.progress * 100)} %`
+            : 'Leyendo…'}
+      </Button>
+      <p className="text-right text-[11px] text-fg-subtle">
+        {spec.formats} · {spec.weight}
+      </p>
+      <UploadNotes notes={scans.notes} onDismiss={scans.dismissNotes} showFile={false} />
+    </div>
   );
 }
 

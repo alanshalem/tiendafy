@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Download, Plus, Upload, X } from 'lucide-react';
+import { Check, Download, Upload, X } from 'lucide-react';
 import { Button, Card, Checkbox, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
-import { api, errMsg } from '../../lib/api';
+import { api, errMsg, UploadAbortedError } from '../../lib/api';
+import { FileDropzone, UploadBar, UploadNotes, useUploadQueue } from '../../components/upload/primitives';
 import { pollWhileRunning } from './queries';
 import { BOM, buildCsv, CSV_HEADER, downloadCsv, TEMPLATE_EXAMPLES } from './import-templates';
 
@@ -29,7 +30,11 @@ export function ImportTab() {
   const [modifyExisting, setModifyExisting] = useState(true);
   const [updateStock, setUpdateStock] = useState(true);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // Avance del envío (de 0 a 1); null si no se está mandando nada.
+  const [sending, setSending] = useState<number | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  // Solo para revisar el archivo al elegirlo (formato y peso).
+  const check = useUploadQueue('productCsv', async () => undefined);
   const { toast } = useToast();
 
   const { data: job } = useQuery({
@@ -66,7 +71,8 @@ export function ImportTab() {
 
   const startImport = async () => {
     if (!file) return;
-    setSubmitting(true);
+    abort.current = new AbortController();
+    setSending(0);
     try {
       const form = new FormData();
       form.append('file', file);
@@ -75,14 +81,16 @@ export function ImportTab() {
       const res = await api.postForm<{ jobId: string; totalProducts: number }>(
         '/api/v1/products/import',
         form,
+        { onProgress: setSending, signal: abort.current.signal },
       );
       setJobId(res.jobId);
     } catch (e) {
-      toast(errMsg(e, 'No se pudo encolar la importación'), {
-        variant: 'error',
-      });
+      if (!(e instanceof UploadAbortedError))
+        toast(errMsg(e, 'No se pudo encolar la importación'), {
+          variant: 'error',
+        });
     } finally {
-      setSubmitting(false);
+      setSending(null);
     }
   };
 
@@ -138,27 +146,19 @@ export function ImportTab() {
 
       {/* Paso 2: subir el archivo completado */}
       <div className="mt-4 text-sm font-semibold text-fg">Subí tu archivo completado</div>
-      <label
-        className={cn(
-          'mt-2 flex flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed py-7 transition-colors',
-          running
-            ? 'cursor-not-allowed border-border bg-bg-subtle text-fg-subtle'
-            : 'cursor-pointer border-primary/40 bg-primary/[0.03] text-primary hover:bg-primary/[0.06]',
-        )}
-      >
-        <Plus className="h-6 w-6" />
-        <span className="text-sm font-semibold">{file ? file.name : 'Cargar archivo .csv'}</span>
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          disabled={!!running}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onFile(f);
-          }}
-        />
-      </label>
+      <FileDropzone
+        kind="productCsv"
+        label={file ? file.name : 'Cargar archivo .csv'}
+        disabled={!!running || sending !== null}
+        onFiles={(picked) => {
+          const [ok] = check.screen(picked.slice(0, 1));
+          if (ok) void onFile(ok);
+        }}
+        className="mt-2 py-7"
+      />
+      <div className="mt-2">
+        <UploadNotes notes={check.notes} onDismiss={check.dismissNotes} showFile={false} />
+      </div>
 
       {preview && !job && (
         <div className="mt-4 overflow-x-auto rounded-md border border-border">
@@ -210,15 +210,21 @@ export function ImportTab() {
             />
           </div>
 
-          <Button className="mt-4" disabled={!file || submitting} onClick={startImport}>
-            {submitting ? (
-              'Encolando…'
-            ) : (
+          {sending !== null && file ? (
+            <UploadBar
+              className="mt-4"
+              name={file.name}
+              fraction={sending}
+              onCancel={() => abort.current?.abort()}
+              doneLabel="Encolando…"
+            />
+          ) : (
+            <Button className="mt-4" disabled={!file} onClick={startImport}>
               <span className="inline-flex items-center gap-1.5">
                 <Upload className="h-4 w-4" /> Importar
               </span>
-            )}
-          </Button>
+            </Button>
+          )}
         </>
       )}
 

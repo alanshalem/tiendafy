@@ -148,7 +148,3 @@ export const CONFIDENCE_TONE: Record<string, BadgeVariant> = {
   media: 'warning',
   baja: 'danger',
 };
-
-/** Tipos que acepta el backend. Filtrar acá evita el viaje y el error genérico. */
-export const SCAN_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
-export const SCAN_MAX_BYTES = 10 * 1024 * 1024;

@@ -4,7 +4,8 @@ import { cn, useConfirm } from '@tiendafy/ui';
 import { type ThemeConfig, type ThemeSection, type SectionType } from '@tiendafy/types';
 import { useFlipList } from '../lib/useFlip';
 import { Field, Check, TextInput, TextArea, Select, BackHeader } from './theme-editor-inputs';
-import { ImageUploader, VideoUploader, MultiImageUploader } from './theme-editor-uploaders';
+import { MediaUpload, MediaUploadList } from '../components/upload/MediaUpload';
+import type { UploadKind } from '../lib/uploads';
 import { InfoBarEditor, ProductPicker, type InfoItem } from './theme-editor-pickers';
 import { moveItem } from '../lib/arrays';
 
@@ -445,30 +446,20 @@ function HeroVideoEditor({ set, str }: SectionEditorProps) {
     <>
       <p className="rounded-md bg-bg-muted p-2.5 text-xs text-fg-muted">
         Subí el mismo video en 2 formatos: <strong>WebM</strong> (más liviano, para Chrome/Android) y{' '}
-        <strong>MP4</strong> (para iPhone/Safari). Ideal: 1920×1080, loop corto de 5–12s, sin audio, bien
-        comprimido (&lt;5MB).
+        <strong>MP4</strong> (para iPhone/Safari).
       </p>
       <Field label="Video WebM (recomendado)">
-        <VideoUploader
+        <MediaUpload
+          kind="heroVideoWebm"
           value={str('videoWebm')}
           onChange={(url) => set({ videoWebm: url })}
-          accept="video/webm"
-          label="Elegir video WebM"
         />
       </Field>
       <Field label="Video MP4 (compatibilidad)">
-        <VideoUploader
-          value={str('videoMp4')}
-          onChange={(url) => set({ videoMp4: url })}
-          accept="video/mp4"
-          label="Elegir video MP4"
-        />
+        <MediaUpload kind="heroVideoMp4" value={str('videoMp4')} onChange={(url) => set({ videoMp4: url })} />
       </Field>
-      <Field
-        label="Imagen de respaldo (poster)"
-        hint="Se ve mientras carga el video y en conexiones lentas. Tamaño recomendado: 1920×1080px."
-      >
-        <ImageUploader value={str('poster')} onChange={(url) => set({ poster: url })} />
+      <Field label="Imagen de respaldo (poster)" hint="Se ve mientras carga el video y en conexiones lentas.">
+        <MediaUpload kind="heroPoster" value={str('poster')} onChange={(url) => set({ poster: url })} />
       </Field>
       <Field label="Título">
         <TextInput value={str('title')} onChange={(v) => set({ title: v })} />
@@ -525,11 +516,12 @@ function HeroVideoEditor({ set, str }: SectionEditorProps) {
 function CarouselEditor({ d, set }: SectionEditorProps) {
   return (
     <>
-      <Field
-        label="Imágenes del carrusel"
-        hint="Tamaño recomendado: 1580×600px. Podés cargar varias; se pasan solas."
-      >
-        <MultiImageUploader images={arr<string>(d.images)} onChange={(images) => set({ images })} />
+      <Field label="Imágenes del carrusel" hint="Podés cargar varias; se pasan solas.">
+        <MediaUploadList
+          kind="carousel"
+          values={arr<string>(d.images)}
+          onChange={(images) => set({ images })}
+        />
       </Field>
       <Check
         label="Extender al alto de la pantalla en celulares"
@@ -578,8 +570,8 @@ function InstitutionalEditor({ set, str }: SectionEditorProps) {
 function ImageTextEditor({ set, str }: SectionEditorProps) {
   return (
     <>
-      <Field label="Imagen" hint="Tamaño recomendado: 1270×300px">
-        <ImageUploader value={str('image')} onChange={(url) => set({ image: url })} />
+      <Field label="Imagen">
+        <MediaUpload kind="imageText" value={str('image')} onChange={(url) => set({ image: url })} />
       </Field>
       <Field label="Título">
         <TextInput value={str('title')} onChange={(v) => set({ title: v })} />
@@ -619,7 +611,7 @@ function PromoBannersEditor({ d, set }: SectionEditorProps) {
         banners={arr<Banner>(d.banners)}
         onChange={(banners) => set({ banners })}
         withDescription
-        imageHint="Tamaño recomendado: 620×235px"
+        imageKind="promoBanner"
         addLabel="Agregar promoción"
       />
     </>
@@ -637,7 +629,7 @@ function CategoryBannersEditor({ d, set }: SectionEditorProps) {
       <BannersEditor
         banners={arr<Banner>(d.banners)}
         onChange={(banners) => set({ banners })}
-        imageHint="Tamaño recomendado: 620×620px"
+        imageKind="categoryBanner"
         addLabel="Agregar categoría"
       />
     </>
@@ -653,8 +645,8 @@ function NewsletterEditor({ set, str }: SectionEditorProps) {
       <Field label="Texto">
         <TextArea value={str('text')} onChange={(v) => set({ text: v })} />
       </Field>
-      <Field label="Imagen (opcional)" hint="Tamaño recomendado: 280×320px">
-        <ImageUploader value={str('image')} onChange={(url) => set({ image: url })} />
+      <Field label="Imagen (opcional)">
+        <MediaUpload kind="newsletterImage" value={str('image')} onChange={(url) => set({ image: url })} />
       </Field>
     </>
   );
@@ -724,7 +716,11 @@ function TestimonialsEditor({ d, set, str }: SectionEditorProps) {
               placeholder="Detalle (ej. Compró en CABA) — opcional"
             />
             <Field label="Foto (opcional)">
-              <ImageUploader value={t.photo ?? ''} onChange={(url) => update(i, { photo: url })} />
+              <MediaUpload
+                kind="testimonialPhoto"
+                value={t.photo ?? ''}
+                onChange={(url) => update(i, { photo: url })}
+              />
             </Field>
           </div>
         </div>
@@ -808,9 +804,13 @@ function BrandsEditor({ d, set, str }: SectionEditorProps) {
       </Field>
       <Field
         label="Logos de marcas"
-        hint="PNG con fondo transparente, apaisados. Con 5 o más se deslizan solos en loop; con menos quedan fijos y centrados."
+        hint="Con 5 o más se deslizan solos en loop; con menos quedan fijos y centrados."
       >
-        <MultiImageUploader images={arr<string>(d.images)} onChange={(images) => set({ images })} />
+        <MediaUploadList
+          kind="brandLogo"
+          values={arr<string>(d.images)}
+          onChange={(images) => set({ images })}
+        />
       </Field>
     </>
   );
@@ -868,13 +868,13 @@ function BannersEditor({
   banners,
   onChange,
   withDescription,
-  imageHint,
+  imageKind,
   addLabel = 'Agregar banner',
 }: {
   banners: Banner[];
   onChange: (b: Banner[]) => void;
   withDescription?: boolean;
-  imageHint?: string;
+  imageKind: UploadKind;
   addLabel?: string;
 }) {
   const update = (i: number, patch: Banner) =>
@@ -896,9 +896,12 @@ function BannersEditor({
           </div>
           <Check label="Mostrar banner" checked={b.show !== false} onChange={(v) => update(i, { show: v })} />
           <div className="mt-2">
-            <ImageUploader value={b.image ?? ''} onChange={(url) => update(i, { image: url })} />
+            <MediaUpload
+              kind={imageKind}
+              value={b.image ?? ''}
+              onChange={(url) => update(i, { image: url })}
+            />
           </div>
-          {imageHint && <p className="mt-1 text-xs text-fg-subtle">{imageHint}</p>}
           <div className="mt-2 space-y-2">
             <TextInput value={b.title ?? ''} onChange={(v) => update(i, { title: v })} placeholder="Título" />
             {withDescription && (

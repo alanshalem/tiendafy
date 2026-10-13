@@ -13,7 +13,8 @@ import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { statusLabel, type Category, type StockItem } from './types';
-import { AddImagesTile, RemovableThumb } from './ImageTiles';
+import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
+import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 
 interface VariantDto {
   id: string;
@@ -116,20 +117,22 @@ export function EditProductPage() {
     queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
   };
 
-  // Imágenes: alta/baja inmediata (manager de medios).
-  const addImages = useMutation({
-    mutationFn: async (files: File[]) => {
-      for (const file of files) {
-        const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
-        await api.post(`/api/v1/products/${id}/images`, { url, altText: name });
-      }
-    },
-    onSuccess: () => {
-      refresh();
-      toast('Imágenes agregadas', { variant: 'success' });
-    },
-    onError: (e) => toast(errMsg(e), { variant: 'error' }),
+  // Imágenes: alta/baja inmediata (manager de medios). Cada foto sube con
+  // su avance y se suma a la grilla apenas queda guardada; la que no sirve
+  // queda afuera con su motivo, sin frenar al resto.
+  const uploads = useUploadQueue('productImage', async (file, progress) => {
+    const url = await uploadMedia(file, progress);
+    await api.post(`/api/v1/products/${id}/images`, { url, altText: name });
+    // La miniatura nueva aparece justo cuando se va la que estaba subiendo.
+    await queryClient.invalidateQueries({ queryKey: ['product', id] });
+    return url;
   });
+  const addImages = async (files: File[]) => {
+    const added = await uploads.run(files, () => {}, product?.images.length ?? 0);
+    if (added === 0) return;
+    queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
+    toast(added === 1 ? 'Foto agregada' : `${added} fotos agregadas`, { variant: 'success' });
+  };
   const removeImage = useMutation({
     mutationFn: (imageId: string) => api.delete(`/api/v1/products/${id}/images/${imageId}`),
     onSuccess: () => refresh(),
@@ -239,195 +242,227 @@ export function EditProductPage() {
     setCategoryIds((prev) => (prev.includes(cid) ? prev.filter((x) => x !== cid) : [...prev, cid]));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 pb-24">
+    <div className="space-y-4 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Editar producto</h1>
         <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
       </div>
 
-      <Section title="Nombre y descripción">
-        <div className="space-y-4">
-          <FormField label="Nombre" required error={error}>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </FormField>
-          {/* El botón de IA va fuera del FormField: adentro, el <label> apuntaba al
+      {/* En pantallas anchas, lo principal a la izquierda y lo que se toca poco
+          (estado, categorías, SEO) en una columna al costado. */}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+        <div className="min-w-0 space-y-4">
+          <Section title="Nombre y descripción">
+            <div className="space-y-4">
+              <FormField label="Nombre" required error={error}>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </FormField>
+              {/* El botón de IA va fuera del FormField: adentro, el <label> apuntaba al
               contenedor y la descripción quedaba sin nombre accesible. */}
-          <div>
-            <FormField label="Descripción">
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
-            </FormField>
-            {aiEnabled && name.trim().length > 2 && (
-              <button
-                type="button"
-                disabled={aiWriting}
-                onClick={async () => {
-                  setAiWriting(true);
-                  try {
-                    const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
-                      name,
-                      notes: description || null,
-                    });
-                    setDescription(r.text);
-                  } catch (err) {
-                    toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
-                  } finally {
-                    setAiWriting(false);
-                  }
-                }}
-                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
-              >
-                {aiWriting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Escribir con IA
-              </button>
-            )}
-          </div>
-          <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
-            <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />
-          </FormField>
-        </div>
-      </Section>
-
-      <Section title="SEO" hint="Cómo se ve en Google y al compartir.">
-        <div className="space-y-4">
-          <FormField label="Título SEO" hint="≤ 70 caracteres">
-            <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
-          </FormField>
-          <FormField label="Descripción SEO" hint="≤ 320 caracteres">
-            <Textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} rows={3} />
-          </FormField>
-        </div>
-      </Section>
-
-      <Section title="Fotos" hint="Se agregan o eliminan al instante. Arrastrá para reordenar.">
-        <div className="flex flex-wrap gap-3">
-          {imageOrder
-            .map((iid) => product.images.find((img) => img.id === iid))
-            .filter((img): img is ProductImage => !!img)
-            .map((img) => (
-              <div
-                key={img.id}
-                draggable
-                onDragStart={() => setDragId(img.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  onDropImage(img.id);
-                }}
-                className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
-              >
-                <RemovableThumb src={img.url} onRemove={() => removeImage.mutate(img.id)}>
-                  <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    <GripVertical className="h-3.5 w-3.5" />
-                  </span>
-                </RemovableThumb>
+              <div>
+                <FormField label="Descripción">
+                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+                </FormField>
+                {aiEnabled && name.trim().length > 2 && (
+                  <button
+                    type="button"
+                    disabled={aiWriting}
+                    onClick={async () => {
+                      setAiWriting(true);
+                      try {
+                        const r = await api.post<{ text: string }>('/api/v1/ai/product-description', {
+                          name,
+                          notes: description || null,
+                        });
+                        setDescription(r.text);
+                      } catch (err) {
+                        toast(errMsg(err, 'La IA no pudo escribir la descripción.'), { variant: 'error' });
+                      } finally {
+                        setAiWriting(false);
+                      }
+                    }}
+                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                    title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
+                  >
+                    {aiWriting ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    Escribir con IA
+                  </button>
+                )}
               </div>
-            ))}
-          <AddImagesTile busy={addImages.isPending} onFiles={(f) => addImages.mutate(f)} />
-        </div>
-      </Section>
+              <FormField label="Marca" hint="Se usa para filtrar en la tienda (ej: Royal Canin).">
+                <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Sin marca" />
+              </FormField>
+            </div>
+          </Section>
 
-      <Section title="Precios y stock" hint={product.variants.length > 1 ? 'Por variante' : undefined}>
-        <div className="space-y-4">
-          {product.variants.map((v) => (
-            <div key={v.id} className="rounded-md border border-border p-3">
-              {product.variants.length > 1 && (
-                <div className="mb-2 text-sm font-medium text-fg">
-                  {v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku}
+          <Section title="Fotos" hint="Se agregan o eliminan al instante. Arrastrá para reordenar.">
+            <div className="flex flex-wrap gap-3">
+              {imageOrder
+                .map((iid) => product.images.find((img) => img.id === iid))
+                .filter((img): img is ProductImage => !!img)
+                .map((img) => (
+                  <div
+                    key={img.id}
+                    draggable
+                    onDragStart={() => setDragId(img.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      onDropImage(img.id);
+                    }}
+                    className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
+                  >
+                    <RemovableThumb src={img.url} onRemove={() => removeImage.mutate(img.id)}>
+                      <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        <GripVertical className="h-3.5 w-3.5" />
+                      </span>
+                    </RemovableThumb>
+                  </div>
+                ))}
+              {uploads.pending.map((item) => (
+                <UploadingThumb
+                  key={item.id}
+                  src={item.preview}
+                  name={item.file.name}
+                  progress={item.progress}
+                  started={item.started}
+                  onCancel={() => uploads.cancel(item.id)}
+                />
+              ))}
+              <AddImagesTile onFiles={(f) => void addImages(f)} />
+            </div>
+            <div className="mt-3 space-y-2">
+              <UploadSpecHint kind="productImage" />
+              <UploadNotes notes={uploads.notes} onDismiss={uploads.dismissNotes} />
+            </div>
+          </Section>
+
+          <Section title="Precios y stock" hint={product.variants.length > 1 ? 'Por variante' : undefined}>
+            <div className="space-y-4">
+              {product.variants.map((v) => (
+                <div key={v.id} className="rounded-md border border-border p-3">
+                  {product.variants.length > 1 && (
+                    <div className="mb-2 text-sm font-medium text-fg">
+                      {v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField label="Precio (ARS)" required>
+                      <Input
+                        inputMode="decimal"
+                        value={prices[v.id]?.price ?? ''}
+                        onChange={(e) =>
+                          setPrices((p) => ({
+                            ...p,
+                            [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value },
+                          }))
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Promocional" hint="Opcional">
+                      <Input
+                        inputMode="decimal"
+                        value={prices[v.id]?.promo ?? ''}
+                        onChange={(e) =>
+                          setPrices((p) => ({
+                            ...p,
+                            [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value },
+                          }))
+                        }
+                        placeholder="—"
+                      />
+                    </FormField>
+                    <FormField label="Stock">
+                      <Input
+                        inputMode="numeric"
+                        value={stock[v.id] ?? ''}
+                        onChange={(e) =>
+                          setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))
+                        }
+                        placeholder="—"
+                      />
+                    </FormField>
+                  </div>
                 </div>
-              )}
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="Precio (ARS)" required>
-                  <Input
-                    inputMode="decimal"
-                    value={prices[v.id]?.price ?? ''}
-                    onChange={(e) =>
-                      setPrices((p) => ({
-                        ...p,
-                        [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), price: e.target.value },
-                      }))
-                    }
-                  />
-                </FormField>
-                <FormField label="Promocional" hint="Opcional">
-                  <Input
-                    inputMode="decimal"
-                    value={prices[v.id]?.promo ?? ''}
-                    onChange={(e) =>
-                      setPrices((p) => ({
-                        ...p,
-                        [v.id]: { ...(p[v.id] ?? { price: '', promo: '' }), promo: e.target.value },
-                      }))
-                    }
-                    placeholder="—"
-                  />
-                </FormField>
-                <FormField label="Stock">
-                  <Input
-                    inputMode="numeric"
-                    value={stock[v.id] ?? ''}
-                    onChange={(e) => setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))}
-                    placeholder="—"
-                  />
-                </FormField>
-              </div>
+              ))}
             </div>
-          ))}
+          </Section>
+
+          <SpecSection categoryIds={categoryIds} values={specs} onChange={setSpecs} />
         </div>
-      </Section>
+        <div className="min-w-0 space-y-4">
+          <Section title="Estado y acciones">
+            <Checkbox
+              label="Mostrar en la tienda (publicado)"
+              checked={product.status === 'ACTIVE'}
+              onChange={(e) => setStatus.mutate(e.target.checked)}
+            />
+            <button
+              type="button"
+              onClick={() => setConfirmDel(true)}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-danger hover:underline"
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar producto
+            </button>
+            {confirmDel && (
+              <div className="mt-2 rounded-md border border-danger/30 bg-danger/[0.04] p-3">
+                <p className="text-sm text-fg">¿Seguro? Esto borra el producto y no se puede deshacer.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button variant="danger" loading={del.isPending} onClick={() => del.mutate()}>
+                    Eliminar
+                  </Button>
+                  <Button variant="secondary" onClick={() => setConfirmDel(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Section>
 
-      <Section title="Categorías" hint="Aparecen en el menú y los filtros de la tienda.">
-        {(cats?.items ?? []).length === 0 ? (
-          <p className="text-xs text-fg-subtle">No hay categorías. Creálas en Productos → Categorías.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {cats!.items.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleCategory(c.id)}
-                className={
-                  categoryIds.includes(c.id)
-                    ? 'rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary'
-                    : 'rounded-full border border-border-strong px-3 py-1 text-xs text-fg-muted hover:bg-bg-muted'
-                }
-              >
-                {c.path.split('/').join(' › ')}
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
+          <Section title="Categorías" hint="Aparecen en el menú y los filtros de la tienda.">
+            {(cats?.items ?? []).length === 0 ? (
+              <p className="text-xs text-fg-subtle">No hay categorías. Creálas en Productos → Categorías.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {cats!.items.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleCategory(c.id)}
+                    aria-pressed={categoryIds.includes(c.id)}
+                    className={
+                      categoryIds.includes(c.id)
+                        ? 'rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary'
+                        : 'rounded-full border border-border-strong px-3 py-1 text-xs text-fg-muted hover:bg-bg-muted'
+                    }
+                  >
+                    {c.path.split('/').join(' › ')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Section>
 
-      <SpecSection categoryIds={categoryIds} values={specs} onChange={setSpecs} />
-
-      <Section title="Estado y acciones">
-        <Checkbox
-          label="Mostrar en la tienda (publicado)"
-          checked={product.status === 'ACTIVE'}
-          onChange={(e) => setStatus.mutate(e.target.checked)}
-        />
-        <button
-          type="button"
-          onClick={() => setConfirmDel(true)}
-          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-danger hover:underline"
-        >
-          <Trash2 className="h-4 w-4" /> Eliminar producto
-        </button>
-        {confirmDel && (
-          <div className="mt-2 rounded-md border border-danger/30 bg-danger/[0.04] p-3">
-            <p className="text-sm text-fg">¿Seguro? Esto borra el producto y no se puede deshacer.</p>
-            <div className="mt-2 flex gap-2">
-              <Button variant="danger" loading={del.isPending} onClick={() => del.mutate()}>
-                Eliminar
-              </Button>
-              <Button variant="secondary" onClick={() => setConfirmDel(false)}>
-                Cancelar
-              </Button>
+          <Section title="SEO" hint="Cómo se ve en Google y al compartir.">
+            <div className="space-y-4">
+              <FormField label="Título SEO" hint="≤ 70 caracteres">
+                <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
+              </FormField>
+              <FormField label="Descripción SEO" hint="≤ 320 caracteres">
+                <Textarea
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value)}
+                  rows={3}
+                />
+              </FormField>
             </div>
-          </div>
-        )}
-      </Section>
+          </Section>
+        </div>
+      </div>
 
       <StickyFormBar>
         <Button variant="secondary" onClick={() => navigate('/productos')}>

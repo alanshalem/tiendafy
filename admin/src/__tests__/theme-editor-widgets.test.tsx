@@ -1,6 +1,6 @@
 /**
  * Piezas sueltas del editor de diseño, de a una: el buscador de opciones
- * (Ctrl+K) y los uploaders de imagen, video y carrusel.
+ * (Ctrl+K) y el selector de productos. Los uploaders están en uploads.test.tsx.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -8,13 +8,10 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OPTION_INDEX, OptionSearch, searchOptions } from '../pages/theme-editor-search';
 import { ProductPicker } from '../pages/theme-editor-pickers';
-import { ImageUploader, MultiImageUploader, VideoUploader } from '../pages/theme-editor-uploaders';
 import { fixture, mockApi } from '../test/api';
 import { renderWithProviders } from '../test/render';
 
 const user = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-
-const fileInput = () => document.querySelector('input[type=file]') as HTMLInputElement;
 
 /** Con los providers del panel (que esperan la sesión antes de mostrar nada). */
 async function mount(ui: React.ReactElement) {
@@ -70,93 +67,6 @@ describe('buscador de opciones', () => {
     expect(onClose).toHaveBeenCalledTimes(3);
     await u.click(input.closest('.fixed')!);
     expect(onClose).toHaveBeenCalledTimes(4);
-  });
-});
-
-/** Un uploader con estado, como lo usa el editor. */
-function Harness({ kind }: { kind: 'image' | 'svg' | 'video' }) {
-  const [value, setValue] = useState('');
-  if (kind === 'video')
-    return <VideoUploader value={value} onChange={setValue} accept="video/mp4" label="Elegir video" />;
-  return <ImageUploader value={value} onChange={setValue} allowSvg={kind === 'svg'} />;
-}
-
-const file = (name: string, bytes: number, type: string) => new File([new Uint8Array(bytes)], name, { type });
-
-describe('uploaders', () => {
-  it('sube una imagen, avisa si pesa mucho y se puede quitar', async () => {
-    const api = mockApi();
-    api.on('POST', '/api/v1/media', { url: 'https://cdn.example/foto.jpg' });
-    const u = user();
-    await mount(<Harness kind="image" />);
-    expect(fileInput().accept).not.toContain('svg');
-
-    await u.upload(fileInput(), file('foto.jpg', 700 * 1024, 'image/jpeg'));
-    expect(await screen.findByText(/La imagen pesa 700 KB/)).toBeInTheDocument();
-    expect(document.querySelector('img')!.getAttribute('src')).toBe('https://cdn.example/foto.jpg');
-
-    await u.click(screen.getByRole('button', { name: 'Quitar imagen' }));
-    expect(document.querySelector('img')).toBeNull();
-
-    // Una liviana no avisa; una de más de 1 MB se informa en MB.
-    await u.upload(fileInput(), file('chica.png', 10 * 1024, 'image/png'));
-    await waitFor(() => expect(document.querySelector('img')).not.toBeNull());
-    await u.click(screen.getByRole('button', { name: 'Quitar imagen' }));
-    await u.upload(fileInput(), file('grande.jpg', 2 * 1024 * 1024, 'image/jpeg'));
-    expect(await screen.findByText(/La imagen pesa 2.0 MB/)).toBeInTheDocument();
-  });
-
-  it('el logo acepta SVG y un error de subida se muestra legible', async () => {
-    const api = mockApi();
-    api.on('POST', '/api/v1/media', { detail: 'El archivo no es una imagen válida.' }, 400);
-    const u = user();
-    await mount(<Harness kind="svg" />);
-    expect(fileInput().accept).toContain('image/svg+xml');
-    await u.upload(fileInput(), file('logo.svg', 100, 'image/svg+xml'));
-    expect(await screen.findByText('El archivo no es una imagen válida.')).toBeInTheDocument();
-    // Sin archivo (se canceló el diálogo) no hace nada.
-    fireEvent.change(fileInput(), { target: { files: [] } });
-    expect(api.calls.filter((c) => c.path === '/api/v1/media')).toHaveLength(1);
-  });
-
-  it('video: sube, muestra y se quita; si falla, lo dice', async () => {
-    const api = mockApi();
-    api.on('POST', '/api/v1/media', { detail: 'El video supera los 20 MB.' }, 413);
-    const u = user();
-    await mount(<Harness kind="video" />);
-    await u.upload(fileInput(), file('clip.mp4', 100, 'video/mp4'));
-    expect(await screen.findByText('El video supera los 20 MB.')).toBeInTheDocument();
-
-    api.on('POST', '/api/v1/media', { url: 'https://cdn.example/clip.mp4' });
-    await u.upload(fileInput(), file('clip.mp4', 100, 'video/mp4'));
-    await waitFor(() =>
-      expect(document.querySelector('video')?.getAttribute('src')).toBe('https://cdn.example/clip.mp4'),
-    );
-    await u.click(screen.getByRole('button', { name: 'Quitar video' }));
-    expect(document.querySelector('video')).toBeNull();
-  });
-
-  it('carrusel: agrega, ordena y quita imágenes', async () => {
-    const api = mockApi();
-    api.on('POST', '/api/v1/media', { url: 'https://cdn.example/c.jpg' });
-    const onChange = vi.fn();
-    const u = user();
-    const a = 'https://cdn.example/a.jpg';
-    const b = 'https://cdn.example/b.jpg';
-    await mount(<MultiImageUploader images={[a, b]} onChange={onChange} />);
-    const [upA, upB] = screen.getAllByRole('button', { name: 'Subir' });
-    const [downA, downB] = screen.getAllByRole('button', { name: 'Bajar' });
-    expect(upA).toBeDisabled();
-    expect(downB).toBeDisabled();
-    await u.click(upB!);
-    expect(onChange).toHaveBeenLastCalledWith([b, a]);
-    await u.click(downA!);
-    expect(onChange).toHaveBeenLastCalledWith([b, a]);
-    await u.click(screen.getAllByRole('button', { name: 'Quitar' })[0]!);
-    expect(onChange).toHaveBeenLastCalledWith([b]);
-
-    await u.upload(fileInput(), file('c.jpg', 100, 'image/jpeg'));
-    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith([a, b, 'https://cdn.example/c.jpg']));
   });
 });
 

@@ -8,6 +8,8 @@ import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
 import { formatNumber } from '../lib/format';
+import { UPLOADS, describe } from '../lib/uploads';
+import { UploadBar, UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
 
 interface Conversation {
   id: string;
@@ -48,7 +50,6 @@ export function SupportChatPage() {
   const aiEnabled = useAiEnabled();
   const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const loadConvs = useCallback(async () => {
     try {
@@ -131,25 +132,27 @@ export function SupportChatPage() {
     }
   };
 
-  const sendFile = async (file: File) => {
-    if (!selected || sending) return;
-    setSending(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      if (text.trim()) form.append('body', text.trim());
-      await api.postForm(`/api/v1/support/conversations/${selected}/attachments`, form);
-      setText('');
-      await loadMessages(selected);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo adjuntar (solo PDF/JPG/PNG, máx 10 MB).', {
-        variant: 'error',
-      });
-    } finally {
-      setSending(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
+  // El adjunto viaja con el texto que ya estaba escrito, como un solo mensaje.
+  const attachments = useUploadQueue('supportAttachment', (file, progress) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (text.trim()) form.append('body', text.trim());
+    return api.postForm(`/api/v1/support/conversations/${selected}/attachments`, form, progress);
+  });
+  const sendFile = async (files: File[]) => {
+    const conversation = selected;
+    if (!conversation) return;
+    if ((await attachments.run(files.slice(0, 1), () => {})) === 0) return;
+    setText('');
+    await loadMessages(conversation);
   };
+  const attachPicker = useFilePicker({
+    kind: 'supportAttachment',
+    disabled: attachments.busy,
+    onFiles: (files) => void sendFile(files),
+  });
+  const attachSpec = describe(UPLOADS.supportAttachment);
+  const attaching = attachments.pending[0];
 
   const close = async () => {
     if (!selected) return;
@@ -180,7 +183,7 @@ export function SupportChatPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-6">
+    <div>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
         <button
@@ -339,22 +342,31 @@ export function SupportChatPage() {
                 <div ref={bottomRef} />
               </div>
 
+              {(attaching || attachments.notes.length > 0) && (
+                <div className="space-y-2 border-t border-border px-3 pt-2.5">
+                  {attaching && (
+                    <UploadBar
+                      name={attaching.file.name}
+                      fraction={attaching.progress}
+                      onCancel={() => attachments.cancel(attaching.id)}
+                      doneLabel="Enviando…"
+                    />
+                  )}
+                  <UploadNotes
+                    notes={attachments.notes}
+                    onDismiss={attachments.dismissNotes}
+                    showFile={false}
+                  />
+                </div>
+              )}
               <div className="flex items-center gap-2 border-t border-border px-3 py-2.5">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) sendFile(f);
-                  }}
-                />
+                {attachPicker.input}
                 <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={sending}
+                  onClick={attachPicker.open}
+                  disabled={attachments.busy}
                   className="rounded-md p-2 text-fg-muted hover:bg-bg-muted disabled:opacity-40"
                   aria-label="Adjuntar"
+                  title={`Adjuntar ${attachSpec.formats} · ${attachSpec.weight}`}
                 >
                   <Paperclip className="h-5 w-5" />
                 </button>

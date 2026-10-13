@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -16,8 +16,9 @@ import {
   Undo,
   Redo,
 } from 'lucide-react';
-import { cn, useToast, usePrompt } from '@tiendafy/ui';
-import { api, errMsg } from '../lib/api';
+import { cn, usePrompt } from '@tiendafy/ui';
+import { UPLOADS, describe } from '../lib/uploads';
+import { UploadBar, UploadNotes, uploadMedia, useFilePicker, useUploadQueue } from './upload/primitives';
 
 /**
  * Editor WYSIWYG para el contenido de páginas. Devuelve HTML (sanitizado server-side al guardar).
@@ -32,9 +33,7 @@ export function RichTextEditor({
   onChange: (html: string) => void;
   labelledBy?: string;
 }) {
-  const { toast } = useToast();
   const prompt = usePrompt();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -58,6 +57,15 @@ export function RichTextEditor({
     },
   });
 
+  // Una imagen por vez: sube con su avance arriba del texto y entra donde
+  // estaba el cursor.
+  const images = useUploadQueue('pageImage', uploadMedia);
+  const picker = useFilePicker({
+    kind: 'pageImage',
+    onFiles: (files) =>
+      void images.run(files.slice(0, 1), (url) => editor?.chain().focus().setImage({ src: url }).run()),
+  });
+
   // Sincronizar cuando cambia el contenido desde afuera (abrir el modal con otra página).
   useEffect(() => {
     if (editor && value !== editor.getHTML()) editor.commands.setContent(value || '');
@@ -78,14 +86,8 @@ export function RichTextEditor({
     else editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
   };
 
-  const uploadImage = async (file: File) => {
-    try {
-      const { url } = await api.upload<{ url: string }>('/api/v1/media', file);
-      editor.chain().focus().setImage({ src: url }).run();
-    } catch (e) {
-      toast(errMsg(e, 'No se pudo subir la imagen.'), { variant: 'error' });
-    }
-  };
+  const spec = describe(UPLOADS.pageImage);
+  const uploading = images.pending[0];
 
   return (
     <div className="rounded-md border border-border bg-surface focus-within:ring-2 focus-within:ring-primary/40">
@@ -145,7 +147,7 @@ export function RichTextEditor({
         <Btn onClick={setLink} active={editor.isActive('link')} title="Enlace">
           <Link2 className="h-4 w-4" />
         </Btn>
-        <Btn onClick={() => fileRef.current?.click()} title="Imagen">
+        <Btn onClick={picker.open} title="Imagen" hint={`Imagen: ${spec.formats} · ${spec.weight}`}>
           <ImageIcon className="h-4 w-4" />
         </Btn>
         <Sep />
@@ -156,18 +158,30 @@ export function RichTextEditor({
           <Redo className="h-4 w-4" />
         </Btn>
       </div>
+      {uploading && (
+        <div className="relative flex items-center gap-2 overflow-hidden border-b border-border px-3 py-2">
+          {uploading.preview && (
+            <img
+              src={uploading.preview}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded object-cover opacity-70"
+            />
+          )}
+          <UploadBar
+            name={uploading.file.name}
+            fraction={uploading.progress}
+            onCancel={() => images.cancel(uploading.id)}
+            className="flex-1"
+          />
+        </div>
+      )}
+      {images.notes.length > 0 && (
+        <div className="border-b border-border p-2">
+          <UploadNotes notes={images.notes} onDismiss={images.dismissNotes} showFile={false} />
+        </div>
+      )}
       <EditorContent editor={editor} />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/avif"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) uploadImage(file);
-          e.target.value = '';
-        }}
-      />
+      {picker.input}
     </div>
   );
 }
@@ -176,18 +190,22 @@ function Btn({
   onClick,
   active,
   title,
+  hint,
   children,
 }: {
   onClick: () => void;
   active?: boolean;
   title: string;
+  /** Lo que muestra al pasar el mouse, si dice más que el nombre. */
+  hint?: string;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      aria-label={title}
+      title={hint ?? title}
       // Los de formato (negrita, listas…) son interruptores: se anuncia si están puestos.
       aria-pressed={active}
       className={cn(

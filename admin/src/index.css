@@ -126,6 +126,34 @@ body {
   color: rgb(var(--color-primary));
 }
 
+/* Brillo de carga sobre una imagen que está subiendo o bajando (ver
+   components/upload). El padre lleva `relative overflow-hidden`. */
+.upload-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.45) 50%, transparent 80%);
+  background-size: 200% 100%;
+  animation: upload-shimmer 1.3s linear infinite;
+}
+[data-theme='dark'] .upload-shimmer {
+  background-image: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.12) 50%, transparent 80%);
+}
+@keyframes upload-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-shimmer {
+    animation: none;
+    background: rgb(255 255 255 / 0.25);
+  }
+}
+
 /* Impresión: el panel es una herramienta, pero un presupuesto es un documento
    que el cliente recibe. Al imprimir se va el chrome (barra lateral, encabezado,
    botones marcados con `print:hidden`) y queda la hoja con fondo blanco. */

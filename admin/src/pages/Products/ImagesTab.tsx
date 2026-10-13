@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Plus, Upload, X } from 'lucide-react';
+import { Check, Upload, X } from 'lucide-react';
 import { Button, Card, cn, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
-import { api, errMsg } from '../../lib/api';
+import { api, errMsg, UploadAbortedError } from '../../lib/api';
+import { sizeLabel } from '../../lib/uploads';
+import { FileDropzone, UploadBar, UploadNotes, useUploadQueue } from '../../components/upload/primitives';
 import { pollWhileRunning } from './queries';
 import { Stat } from './ImportTab';
 
@@ -24,7 +26,11 @@ export function ImagesTab() {
   const queryClient = useQueryClient();
   const [files, setFiles] = useState<File[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // Avance del envío (de 0 a 1) mientras viajan los archivos; null si no se está mandando nada.
+  const [sending, setSending] = useState<number | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  // Solo para revisar cada archivo al elegirlo: el envío es uno solo, con todos.
+  const check = useUploadQueue('bulkImages', async () => undefined);
   const { toast } = useToast();
 
   const { data: job } = useQuery({
@@ -45,26 +51,37 @@ export function ImagesTab() {
 
   const start = async () => {
     if (files.length === 0) return;
-    setSubmitting(true);
+    abort.current = new AbortController();
+    setSending(0);
     try {
       const form = new FormData();
       for (const f of files) form.append('files', f);
       const res = await api.postForm<{ jobId: string; totalFiles: number }>(
         '/api/v1/products/images/import',
         form,
+        { onProgress: setSending, signal: abort.current.signal },
       );
       setJobId(res.jobId);
     } catch (e) {
-      toast(errMsg(e, 'No se pudo subir'), { variant: 'error' });
+      if (!(e instanceof UploadAbortedError)) toast(errMsg(e, 'No se pudo subir'), { variant: 'error' });
     } finally {
-      setSubmitting(false);
+      setSending(null);
     }
+  };
+
+  // Se suman a los ya elegidos (se puede arrastrar de a tandas); el mismo nombre no se repite.
+  const addFiles = (picked: File[]) => {
+    const ok = check.screen(picked);
+    setFiles((current) => [...current.filter((f) => !ok.some((n) => n.name === f.name)), ...ok]);
   };
 
   const reset = () => {
     setFiles([]);
     setJobId(null);
+    check.dismissNotes();
   };
+
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
 
   const running = job && (job.status === 'queued' || job.status === 'processing');
   const done = job && (job.status === 'completed' || job.status === 'failed');
@@ -107,31 +124,47 @@ export function ImagesTab() {
 
       {!job && (
         <>
-          <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-primary/40 bg-primary/[0.03] py-7 text-primary transition-colors hover:bg-primary/[0.06]">
-            <Plus className="h-6 w-6" />
-            <span className="text-sm font-semibold">
-              {files.length > 0
-                ? `${files.length} archivo(s) seleccionado(s)`
-                : 'Elegí imágenes, un .zip o un CSV de mapeo'}
-            </span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif,.zip,.csv"
-              multiple
-              className="hidden"
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-            />
-          </label>
+          <FileDropzone
+            kind="bulkImages"
+            multiple
+            disabled={sending !== null}
+            label={files.length > 0 ? 'Agregar más archivos' : 'Elegí imágenes, un .zip o un CSV de mapeo'}
+            onFiles={addFiles}
+            className="mt-4 py-7"
+          />
 
-          <Button className="mt-4" disabled={files.length === 0 || submitting} onClick={start}>
-            {submitting ? (
-              'Subiendo…'
-            ) : (
+          {files.length > 0 && (
+            <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+              <span className="text-fg">
+                {files.length === 1 ? '1 archivo elegido' : `${files.length} archivos elegidos`} ·{' '}
+                <span className="text-fg-muted">{sizeLabel(totalBytes)}</span>
+              </span>
+              {sending === null && (
+                <button type="button" onClick={reset} className="text-xs text-fg-muted hover:underline">
+                  Vaciar
+                </button>
+              )}
+            </div>
+          )}
+          <div className="mt-2">
+            <UploadNotes notes={check.notes} onDismiss={check.dismissNotes} />
+          </div>
+
+          {sending !== null ? (
+            <UploadBar
+              className="mt-4"
+              name={files.length === 1 ? files[0]!.name : `${files.length} archivos`}
+              fraction={sending}
+              onCancel={() => abort.current?.abort()}
+              doneLabel="Encolando…"
+            />
+          ) : (
+            <Button className="mt-4" disabled={files.length === 0} onClick={start}>
               <span className="inline-flex items-center gap-1.5">
                 <Upload className="h-4 w-4" /> Importar imágenes
               </span>
-            )}
-          </Button>
+            </Button>
+          )}
         </>
       )}
 

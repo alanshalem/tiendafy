@@ -13,7 +13,7 @@ import {
   QuickStyles,
   type QuickStyle,
 } from './theme-editor-inputs';
-import { ImageUploader } from './theme-editor-uploaders';
+import { MediaUpload } from '../components/upload/MediaUpload';
 
 export type PanelProps = {
   theme: ThemeConfig;
@@ -381,7 +381,11 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
         </Field>
 
         <Field label="Imagen">
-          <ImageUploader value={theme.comingSoon.image} onChange={(url) => set({ image: url })} />
+          <MediaUpload
+            kind="comingSoon"
+            value={theme.comingSoon.image}
+            onChange={(url) => set({ image: url })}
+          />
         </Field>
         <p className="-mt-2 text-xs text-fg-muted">
           Centrado la usa de fondo; dividido, en la mitad de la pantalla. Sin imagen queda el color de tu

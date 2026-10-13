@@ -54,7 +54,7 @@ describe('editar producto', () => {
     await user.type(stock, '12');
 
     // Categoría: se saca la que tenía.
-    const category = screen.getAllByRole('button').find((b) => b.className.includes('border-primary'));
+    const category = screen.queryAllByRole('button', { pressed: true })[0];
     if (category) await user.click(category);
 
     // Ficha técnica: cambiar el material.
