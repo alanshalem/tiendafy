@@ -13,6 +13,12 @@ import { AuthProvider } from '../context/AuthContext';
 import { PermissionsProvider } from '../context/PermissionsContext';
 import { StoreProvider } from '../context/StoreContext';
 import { AuthGate } from '../pages/Login';
+import { preloadPages } from '../lib/lazyPage';
+
+// Las pantallas se bajan recién al abrirse (lib/lazyPage). En los tests se
+// bajan todas antes: un import lento no tiene que parecer una pantalla que no
+// aparece.
+await preloadPages();
 
 export function Providers({ children, path = '/' }: { children: ReactNode; path?: string }) {
   // Un cliente por test: sin reintentos (un 404 de las fixtures es definitivo)

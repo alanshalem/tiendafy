@@ -22,6 +22,7 @@ import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface Customer {
   id: string;
@@ -216,7 +217,7 @@ export function CustomersPage() {
 
       {isLoading ? (
         <Card>
-          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+          <TableSkeleton label="Cargando clientes…" />
         </Card>
       ) : customers.length === 0 ? (
         q ? (

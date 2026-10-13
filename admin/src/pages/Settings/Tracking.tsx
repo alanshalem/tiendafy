@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, Eye, Loader2, Megaphone, MousePointerClick, ShieldCheck } from 'lucide-react';
+import { BarChart3, Eye, Megaphone, MousePointerClick, ShieldCheck } from 'lucide-react';
 import { Button, Input, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
@@ -10,6 +10,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface Tracking {
   enabled: boolean;
@@ -109,8 +110,8 @@ export function TrackingPage() {
     return (
       <div>
         <SettingsHeader title="Medición y píxeles" description="Google, Meta y Clarity en tu tienda." />
-        <div className={`${SETTINGS_CARD} flex items-center gap-2 text-sm text-fg-muted`}>
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+        <div className={SETTINGS_CARD}>
+          <TableSkeleton rows={4} label="Cargando medición…" />
         </div>
       </div>
     );

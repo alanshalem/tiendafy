@@ -16,6 +16,7 @@ import { useStore } from '../../context/StoreContext';
 import { formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface CouponRow {
   code: string;
@@ -123,7 +124,7 @@ export function StatsCouponsPage() {
         info="Usos, ventas concretadas, descuento otorgado y lo que quedó neto después del descuento."
       >
         {isLoading ? (
-          <p className="py-4 text-sm text-fg-muted">Cargando…</p>
+          <TableSkeleton rows={4} label="Cargando cupones…" />
         ) : items.length === 0 ? (
           <p className="py-4 text-sm text-fg-muted">Todavía nadie usó un cupón.</p>
         ) : (

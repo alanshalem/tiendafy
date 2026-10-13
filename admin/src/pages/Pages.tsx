@@ -24,6 +24,7 @@ import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { HelpLink } from '../components/HelpLink';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface PageDto {
   id: string;
@@ -134,7 +135,7 @@ export function PagesPage() {
 
       {isLoading ? (
         <Card>
-          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+          <TableSkeleton label="Cargando páginas…" />
         </Card>
       ) : pages.length === 0 ? (
         <EmptyState

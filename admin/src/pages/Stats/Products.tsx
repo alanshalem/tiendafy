@@ -14,6 +14,7 @@ import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatMoney, formatNumber } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { ScreenSkeleton } from '../../components/Skeleton';
 
 interface TopProducts {
   items: { product: string; units: number; revenue: number }[];
@@ -50,7 +51,7 @@ export function StatsProductsPage() {
       <p className="-mt-3 text-sm text-fg-muted">Qué se vendió y qué no — {rangeLabel(range)}.</p>
 
       {isLoading ? (
-        <p className="py-16 text-center text-sm text-fg-muted">Cargando…</p>
+        <ScreenSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">

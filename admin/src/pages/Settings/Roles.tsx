@@ -15,6 +15,7 @@ import {
   type AccessMatrix,
   type RoleRow,
 } from './team-access';
+import { TableSkeleton } from '../../components/Skeleton';
 
 /**
  * La columna de la izquierda queda fija al scrollear de costado: sin esto se
@@ -109,7 +110,9 @@ export function RolesPage() {
       />
 
       {isLoading ? (
-        <p className="py-12 text-center text-sm text-fg-muted">Cargando…</p>
+        <div className="rounded-lg border border-border bg-surface">
+          <TableSkeleton rows={8} label="Cargando permisos…" />
+        </div>
       ) : isError || !matrix ? (
         <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-fg-muted">
           {errMsg(error, 'No se pudo cargar la matriz de permisos.')}

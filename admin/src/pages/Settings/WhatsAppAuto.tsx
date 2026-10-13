@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info, KeyRound, Loader2, MessageCircle, Send, Unplug } from 'lucide-react';
+import { Info, KeyRound, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
@@ -11,6 +11,7 @@ import { formatDate } from '../../lib/format';
 import { Helper } from './Helper';
 import { TemplateGrid } from './TemplateGrid';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
+import { TableSkeleton } from '../../components/Skeleton';
 
 const WA_GREEN = '#25D366';
 
@@ -94,8 +95,8 @@ export function WhatsAppAutoPage() {
 
       <div className="mt-6 space-y-6">
         {loadingTpls && (
-          <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando mensajes…
+          <div className="rounded-lg border border-border bg-surface">
+            <TableSkeleton rows={4} label="Cargando mensajes…" />
           </div>
         )}
         <TemplateGrid

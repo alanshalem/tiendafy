@@ -19,6 +19,7 @@ import { ProductRows } from './ProductRows';
 import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR, TABLE_SCROLL_X } from '../../lib/styles';
 import { ListStats } from '../../components/stats/ListStats';
 import { formatNumber } from '../../lib/format';
+import { TableSkeleton } from '../../components/Skeleton';
 
 export interface VariantDto {
   id: string;
@@ -474,8 +475,8 @@ export function ProductsPage() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-fg-muted">
-                        Cargando...
+                      <td colSpan={7}>
+                        <TableSkeleton label="Cargando productos…" />
                       </td>
                     </tr>
                   ) : noResults ? (

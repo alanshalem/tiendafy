@@ -40,6 +40,7 @@ import {
 } from './theme-editor-panels';
 import { OptionSearch } from './theme-editor-search';
 import { CopyFromStoreModal, HistoryModal, ScheduleModal } from './theme-editor-versions';
+import { ScreenSkeleton } from '../components/Skeleton';
 
 /* ============================================================
    Editor de diseño con preview en vivo (postMessage al storefront).
@@ -563,7 +564,7 @@ export function ThemeEditorPage() {
       </div>
     );
   }
-  if (!theme) return <p className="py-16 text-center text-sm text-fg-muted">Cargando editor...</p>;
+  if (!theme) return <ScreenSkeleton label="Cargando editor…" />;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg-subtle">

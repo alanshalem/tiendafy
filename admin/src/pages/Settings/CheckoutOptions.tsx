@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import {} from 'lucide-react';
 import { Button, Input, Radio, RadioGroup, Switch, Textarea, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -8,6 +8,7 @@ import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface CheckoutSettings {
   singleColumn: boolean;
@@ -96,8 +97,8 @@ export function CheckoutOptionsPage() {
     return (
       <div>
         <SettingsHeader title="Opciones del checkout" description="Qué se le pide al comprador." />
-        <div className={`${SETTINGS_CARD} flex items-center gap-2 text-sm text-fg-muted`}>
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+        <div className={SETTINGS_CARD}>
+          <TableSkeleton rows={4} label="Cargando opciones del checkout…" />
         </div>
       </div>
     );

@@ -67,8 +67,10 @@ export function RichTextEditor({
   });
 
   // Sincronizar cuando cambia el contenido desde afuera (abrir el modal con otra página).
+  // Un editor ya destruido (Tiptap lo rearma al montar dos veces) no tiene
+  // esquema: preguntarle el HTML tiraba "reading 'cached'" y rompía la pantalla.
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) editor.commands.setContent(value || '');
+    if (editor && !editor.isDestroyed && value !== editor.getHTML()) editor.commands.setContent(value || '');
   }, [value, editor]);
 
   if (!editor) return null;

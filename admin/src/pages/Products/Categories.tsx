@@ -20,6 +20,7 @@ import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
 import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface CategoryDto {
   id: string;
@@ -229,7 +230,9 @@ export function CategoriesPage() {
           action={{ label: 'Crear mi primera categoría', onClick: () => setCreateOpen(true) }}
         />
       ) : isLoading ? (
-        <p className="py-12 text-center text-sm text-fg-muted">Cargando...</p>
+        <div className={TABLE_CARD}>
+          <TableSkeleton label="Cargando categorías…" />
+        </div>
       ) : (
         <div ref={listRef} className={TABLE_CARD}>
           {tree.map((node) => (

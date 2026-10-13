@@ -1,63 +1,72 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/AdminLayout';
 import { CommandPalette } from './components/CommandPalette';
 import { SettingsLayout } from './pages/Settings/SettingsLayout';
-import { PaymentMethodsPage } from './pages/Settings/PaymentMethods';
-import { ShippingMethodsPage } from './pages/Settings/ShippingMethods';
-import { AutoEmailsPage } from './pages/Settings/AutoEmails';
-import { WhatsAppAutoPage } from './pages/Settings/WhatsAppAuto';
-import { CheckoutOptionsPage } from './pages/Settings/CheckoutOptions';
-import { RedirectsPage } from './pages/Settings/Redirects';
-import { TrackingPage } from './pages/Settings/Tracking';
-import { SpecFieldsPage } from './pages/Settings/SpecFields';
-import { FiscalInvoicingPage } from './pages/Settings/FiscalInvoicing';
-import { DomainsPage } from './pages/Settings/Domains';
-import { UsersNotificationsPage } from './pages/Settings/UsersNotifications';
-import { RolesPage } from './pages/Settings/Roles';
-import { HomePage } from './pages/Home';
-import { ProductsPage } from './pages/Products';
-import { CategoriesPage } from './pages/Products/Categories';
-import { InventoryPage } from './pages/Products/Inventory';
-import { CostsPage } from './pages/Products/Costs';
-import { PriceListsPage } from './pages/Products/PriceLists';
-import { ComprasPage } from './pages/Compras';
-import { ProveedoresPage } from './pages/Proveedores';
-import { TesoreriaPage } from './pages/Tesoreria';
-import { CuentasCorrientesPage } from './pages/CuentasCorrientes';
-import { ScannerPage } from './pages/Products/Scanner';
-import { KitsPage } from './pages/Products/Kits';
-import { ExportImportPage } from './pages/Products/ExportImport';
-import { NewProductPage } from './pages/Products/NewProduct';
-import { EditProductPage } from './pages/Products/EditProduct';
-import { DiscountsPage } from './pages/Discounts';
-import { MarketingPage } from './pages/Marketing';
-import { MercadoLibrePage } from './pages/MercadoLibre';
-import { RedesPage } from './pages/Redes';
-import { MeliSettingsPage } from './pages/Settings/MercadoLibre';
-import { CustomersPage } from './pages/Customers';
-import { MessagesPage } from './pages/Messages';
-import { SupportChatPage } from './pages/SupportChat';
-import { OrdersPage } from './pages/Orders';
-import { AbandonedCartsPage } from './pages/AbandonedCarts';
-import { PresupuestosPage } from './pages/Presupuestos';
-import { HelpArticlePage, HelpIndexPage } from './pages/Help';
-import { PagesPage } from './pages/Pages';
-// El editor de diseño (+ galería) es el chunk más pesado del admin y solo se usa
-// en /canales/tienda-online → lazy para sacarlo del bundle inicial.
-const ThemeEditorPage = lazy(() => import('./pages/ThemeEditor'));
-const ThemeGalleryPage = lazy(() => import('./pages/ThemeGallery'));
-import { TenantsPage } from './pages/Tenants';
-import { StatsOverviewPage } from './pages/Stats/Overview';
-import { StatsProductsPage } from './pages/Stats/Products';
-import { StatsSalesPage } from './pages/Stats/SalesCustomers';
-import { StatsProfitabilityPage } from './pages/Stats/Profitability';
-import { StatsVisitsPage } from './pages/Stats/Visits';
-import { StatsRealTimePage } from './pages/Stats/RealTime';
-import { StatsCouponsPage } from './pages/Stats/Coupons';
-import { NotFoundPage } from './pages/NotFound';
+import { ScreenBoundary } from './components/ScreenBoundary';
+import { lazyPage } from './lib/lazyPage';
 import { RequirePerm, usePermissions } from './context/PermissionsContext';
 import { firstSettingsPath, routePerm, SETTINGS_BASE } from './lib/access';
+
+// Cada pantalla se baja recién cuando se abre (ver lib/lazyPage).
+const PaymentMethodsPage = lazyPage(() => import('./pages/Settings/PaymentMethods'), 'PaymentMethodsPage');
+const ShippingMethodsPage = lazyPage(() => import('./pages/Settings/ShippingMethods'), 'ShippingMethodsPage');
+const AutoEmailsPage = lazyPage(() => import('./pages/Settings/AutoEmails'), 'AutoEmailsPage');
+const WhatsAppAutoPage = lazyPage(() => import('./pages/Settings/WhatsAppAuto'), 'WhatsAppAutoPage');
+const CheckoutOptionsPage = lazyPage(() => import('./pages/Settings/CheckoutOptions'), 'CheckoutOptionsPage');
+const RedirectsPage = lazyPage(() => import('./pages/Settings/Redirects'), 'RedirectsPage');
+const TrackingPage = lazyPage(() => import('./pages/Settings/Tracking'), 'TrackingPage');
+const SpecFieldsPage = lazyPage(() => import('./pages/Settings/SpecFields'), 'SpecFieldsPage');
+const FiscalInvoicingPage = lazyPage(() => import('./pages/Settings/FiscalInvoicing'), 'FiscalInvoicingPage');
+const DomainsPage = lazyPage(() => import('./pages/Settings/Domains'), 'DomainsPage');
+const UsersNotificationsPage = lazyPage(
+  () => import('./pages/Settings/UsersNotifications'),
+  'UsersNotificationsPage',
+);
+const RolesPage = lazyPage(() => import('./pages/Settings/Roles'), 'RolesPage');
+const HomePage = lazyPage(() => import('./pages/Home'), 'HomePage');
+const ProductsPage = lazyPage(() => import('./pages/Products'), 'ProductsPage');
+const CategoriesPage = lazyPage(() => import('./pages/Products/Categories'), 'CategoriesPage');
+const InventoryPage = lazyPage(() => import('./pages/Products/Inventory'), 'InventoryPage');
+const CostsPage = lazyPage(() => import('./pages/Products/Costs'), 'CostsPage');
+const PriceListsPage = lazyPage(() => import('./pages/Products/PriceLists'), 'PriceListsPage');
+const ComprasPage = lazyPage(() => import('./pages/Compras'), 'ComprasPage');
+const ProveedoresPage = lazyPage(() => import('./pages/Proveedores'), 'ProveedoresPage');
+const TesoreriaPage = lazyPage(() => import('./pages/Tesoreria'), 'TesoreriaPage');
+const CuentasCorrientesPage = lazyPage(() => import('./pages/CuentasCorrientes'), 'CuentasCorrientesPage');
+const ScannerPage = lazyPage(() => import('./pages/Products/Scanner'), 'ScannerPage');
+const KitsPage = lazyPage(() => import('./pages/Products/Kits'), 'KitsPage');
+const ExportImportPage = lazyPage(() => import('./pages/Products/ExportImport'), 'ExportImportPage');
+const NewProductPage = lazyPage(() => import('./pages/Products/NewProduct'), 'NewProductPage');
+const EditProductPage = lazyPage(() => import('./pages/Products/EditProduct'), 'EditProductPage');
+const DiscountsPage = lazyPage(() => import('./pages/Discounts'), 'DiscountsPage');
+const MarketingPage = lazyPage(() => import('./pages/Marketing'), 'MarketingPage');
+const MercadoLibrePage = lazyPage(() => import('./pages/MercadoLibre'), 'MercadoLibrePage');
+const RedesPage = lazyPage(() => import('./pages/Redes'), 'RedesPage');
+const MeliSettingsPage = lazyPage(() => import('./pages/Settings/MercadoLibre'), 'MeliSettingsPage');
+const CustomersPage = lazyPage(() => import('./pages/Customers'), 'CustomersPage');
+const MessagesPage = lazyPage(() => import('./pages/Messages'), 'MessagesPage');
+const SupportChatPage = lazyPage(() => import('./pages/SupportChat'), 'SupportChatPage');
+const OrdersPage = lazyPage(() => import('./pages/Orders'), 'OrdersPage');
+const AbandonedCartsPage = lazyPage(() => import('./pages/AbandonedCarts'), 'AbandonedCartsPage');
+const PresupuestosPage = lazyPage(() => import('./pages/Presupuestos'), 'PresupuestosPage');
+const HelpArticlePage = lazyPage(() => import('./pages/Help'), 'HelpArticlePage');
+const HelpIndexPage = lazyPage(() => import('./pages/Help'), 'HelpIndexPage');
+const PagesPage = lazyPage(() => import('./pages/Pages'), 'PagesPage');
+const TenantsPage = lazyPage(() => import('./pages/Tenants'), 'TenantsPage');
+const StatsOverviewPage = lazyPage(() => import('./pages/Stats/Overview'), 'StatsOverviewPage');
+const StatsProductsPage = lazyPage(() => import('./pages/Stats/Products'), 'StatsProductsPage');
+const StatsSalesPage = lazyPage(() => import('./pages/Stats/SalesCustomers'), 'StatsSalesPage');
+const StatsProfitabilityPage = lazyPage(
+  () => import('./pages/Stats/Profitability'),
+  'StatsProfitabilityPage',
+);
+const StatsVisitsPage = lazyPage(() => import('./pages/Stats/Visits'), 'StatsVisitsPage');
+const StatsRealTimePage = lazyPage(() => import('./pages/Stats/RealTime'), 'StatsRealTimePage');
+const StatsCouponsPage = lazyPage(() => import('./pages/Stats/Coupons'), 'StatsCouponsPage');
+const NotFoundPage = lazyPage(() => import('./pages/NotFound'), 'NotFoundPage');
+const ThemeEditorPage = lazyPage(() => import('./pages/ThemeEditor'), 'ThemeEditorPage');
+const ThemeGalleryPage = lazyPage(() => import('./pages/ThemeGallery'), 'ThemeGalleryPage');
 
 /**
  * Tabla de rutas: path + pantalla. El permiso de cada una sale de
@@ -67,8 +76,6 @@ interface AppRoute {
   path: string;
   el: ReactNode;
 }
-
-const lazyFallback = (label: string) => <p className="py-16 text-center text-sm text-fg-muted">{label}</p>;
 
 // Rutas del panel principal (AdminLayout).
 const MAIN_ROUTES: AppRoute[] = [
@@ -97,23 +104,9 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/productos/escaner', el: <ScannerPage /> },
   { path: '/productos/kits', el: <KitsPage /> },
 
-  // Tienda online (chunks lazy)
-  {
-    path: '/canales/tienda-online',
-    el: (
-      <Suspense fallback={lazyFallback('Cargando editor...')}>
-        <ThemeEditorPage />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/canales/tienda-online/disenios',
-    el: (
-      <Suspense fallback={lazyFallback('Cargando...')}>
-        <ThemeGalleryPage />
-      </Suspense>
-    ),
-  },
+  // Tienda online
+  { path: '/canales/tienda-online', el: <ThemeEditorPage /> },
+  { path: '/canales/tienda-online/disenios', el: <ThemeGalleryPage /> },
 
   // Ventas y el resto del panel
   { path: '/ventas', el: <OrdersPage /> },
@@ -163,8 +156,13 @@ export const ALL_PATHS: readonly string[] = [
 
 const renderRoute = (base: string) => (r: AppRoute) => {
   const perm = routePerm(`${base}${r.path}`);
+  // Cada pantalla, con su esqueleto mientras se baja y su barrera de errores.
   return (
-    <Route key={r.path} path={r.path} element={perm ? <RequirePerm perm={perm}>{r.el}</RequirePerm> : r.el} />
+    <Route
+      key={r.path}
+      path={r.path}
+      element={<ScreenBoundary>{perm ? <RequirePerm perm={perm}>{r.el}</RequirePerm> : r.el}</ScreenBoundary>}
+    />
   );
 };
 
@@ -191,11 +189,32 @@ export default function App() {
         </Route>
 
         {/* Centro de ayuda (standalone, sin sidebar — se abre en pestaña nueva). */}
-        <Route path="/ayuda" element={<HelpIndexPage />} />
-        <Route path="/ayuda/:topic" element={<HelpArticlePage />} />
+        <Route
+          path="/ayuda"
+          element={
+            <ScreenBoundary>
+              <HelpIndexPage />
+            </ScreenBoundary>
+          }
+        />
+        <Route
+          path="/ayuda/:topic"
+          element={
+            <ScreenBoundary>
+              <HelpArticlePage />
+            </ScreenBoundary>
+          }
+        />
 
         <Route element={<AdminLayout />}>
-          <Route path="*" element={<NotFoundPage />} />
+          <Route
+            path="*"
+            element={
+              <ScreenBoundary>
+                <NotFoundPage />
+              </ScreenBoundary>
+            }
+          />
         </Route>
       </Routes>
     </>

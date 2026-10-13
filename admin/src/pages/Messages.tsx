@@ -9,6 +9,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { formatDateTime } from '@tiendafy/types';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface ContactMessage {
   id: string;
@@ -124,7 +125,9 @@ export function MessagesPage() {
       />
 
       {isLoading ? (
-        <p className="py-16 text-center text-sm text-fg-muted">Cargando…</p>
+        <div className="rounded-lg border border-border bg-surface">
+          <TableSkeleton label="Cargando mensajes…" />
+        </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center text-fg-muted">
           <Mail className="h-8 w-8 opacity-50" />

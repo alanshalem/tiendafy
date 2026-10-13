@@ -19,6 +19,7 @@ import {
   type PointOfSale,
 } from './fiscal-invoicing-steps';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { TableSkeleton } from '../../components/Skeleton';
 
 // ---- Página ------------------------------------------------------------------
 
@@ -57,8 +58,8 @@ export function FiscalInvoicingPage() {
       {!canConfig ? (
         <NoPermission />
       ) : loading ? (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-6 text-sm text-fg-muted shadow-card">
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando configuración…
+        <div className="rounded-lg border border-border bg-surface shadow-card">
+          <TableSkeleton rows={4} label="Cargando configuración…" />
         </div>
       ) : (
         <div className="space-y-5">

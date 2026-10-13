@@ -47,6 +47,12 @@ async function backToRoot(user: User) {
     return;
   }
   for (let i = 0; i < 3; i++) {
+    // Un "atrás" que en realidad era un link puede haber sacado del editor.
+    if (!panel()) {
+      cleanup();
+      await openEditor();
+      return;
+    }
     const back = within(panel()).queryAllByRole('button')[0];
     if (!back || within(panel()).queryAllByText('Colores de tu marca').length > 0) break; // ya en el menú raíz
     await user.click(back);
@@ -64,6 +70,10 @@ describe('editor de diseño', () => {
     expect(entries).toBeGreaterThan(5);
 
     for (let i = 0; i < entries; i++) {
+      if (!panel()) {
+        cleanup();
+        await openEditor();
+      }
       const button = within(panel()).queryAllByRole('button')[i];
       if (!button) break;
       await user.click(button);

@@ -11,6 +11,7 @@ import { ZipnovaCard } from './Zipnova';
 import { AndreaniCard } from './Andreani';
 import type { MoneyDto } from '@tiendafy/types';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { TableSkeleton } from '../../components/Skeleton';
 
 type ShippingKind = 'DELIVERY' | 'PICKUP';
 
@@ -142,8 +143,8 @@ export function ShippingMethodsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-6 text-sm text-fg-muted shadow-card">
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando medios de envío…
+        <div className="rounded-lg border border-border bg-surface shadow-card">
+          <TableSkeleton rows={3} label="Cargando medios de envío…" />
         </div>
       ) : !items || items.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-10 text-center shadow-card">

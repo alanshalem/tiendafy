@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime, formatNumber } from '../lib/format';
@@ -8,6 +8,7 @@ import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
 import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface Abandoned {
   count: number;
@@ -65,8 +66,8 @@ export function AbandonedCartsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 py-16 text-sm text-fg-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+        <div className="rounded-lg border border-border bg-surface">
+          <TableSkeleton label="Cargando carritos…" />
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">

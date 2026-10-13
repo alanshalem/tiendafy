@@ -26,6 +26,7 @@ import {
 } from './product-form';
 import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
+import { ScreenSkeleton } from '../../components/Skeleton';
 
 interface VariantDto {
   id: string;
@@ -267,8 +268,7 @@ export function EditProductPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   if (!store) return <NoStoreSelected />;
-  if (isLoading || !product)
-    return <p className="py-16 text-center text-sm text-fg-muted">Cargando producto...</p>;
+  if (isLoading || !product) return <ScreenSkeleton label="Cargando producto…" />;
 
   const shippingInvalid = product.variants.some(
     (v) => shipping[v.id] && parseShipping(shipping[v.id]!).error,

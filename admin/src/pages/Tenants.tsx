@@ -21,6 +21,7 @@ import { api, errMsg } from '../lib/api';
 import { storefrontUrl, storefrontHost } from '../lib/storefront';
 import { ListStats } from '../components/stats/ListStats';
 import { Delta } from '../components/charts/viz';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface TenantsResponse {
   items: Tenant[];
@@ -314,7 +315,7 @@ export function TenantsPage() {
       )}
 
       <Card flush>
-        {isLoading && <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>}
+        {isLoading && <TableSkeleton label="Cargando tiendas…" />}
         {isError && (
           <p className="px-4 py-12 text-center text-sm text-danger">
             No se pudo conectar con la API. ¿Está corriendo en :5080?

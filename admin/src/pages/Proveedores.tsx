@@ -11,6 +11,7 @@ import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { ScreenSkeleton } from '../components/Skeleton';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -237,7 +238,7 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     enabled: !!store,
   });
 
-  if (!data) return <p className="py-16 text-center text-sm text-fg-muted">Cargando...</p>;
+  if (!data) return <ScreenSkeleton label="Cargando proveedor…" />;
 
   return (
     <>

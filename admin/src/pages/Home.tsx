@@ -10,6 +10,7 @@ import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { storefrontHost } from '../lib/storefront';
+import { InlineSkeleton } from '../components/Skeleton';
 
 interface ProductsResponse {
   items: unknown[];
@@ -125,7 +126,7 @@ export function HomePage() {
               {sales ? formatMoney(sales.revenue, sales.currency) : '—'}
             </div>
             <div className="mt-1 text-xs text-fg-subtle">
-              {sales ? `${sales.orders} ventas pagadas` : 'Cargando…'}
+              {sales ? `${sales.orders} ventas pagadas` : <InlineSkeleton label="Cargando ventas…" />}
             </div>
             {sales && sales.series.length > 1 && (
               <div className="mt-2">
@@ -141,9 +142,11 @@ export function HomePage() {
               {overview ? formatNumber(overview.products.total) : '—'}
             </div>
             <div className="mt-1 text-xs text-fg-subtle">
-              {overview
-                ? `${overview.products.published} publicados · ${overview.products.draft} borradores`
-                : 'Cargando…'}
+              {overview ? (
+                `${overview.products.published} publicados · ${overview.products.draft} borradores`
+              ) : (
+                <InlineSkeleton label="Cargando productos…" />
+              )}
             </div>
           </Card>
         )}

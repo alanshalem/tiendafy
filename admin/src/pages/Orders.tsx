@@ -21,6 +21,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { ListStats } from '../components/stats/ListStats';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface OrderItem {
   variantId: string;
@@ -348,8 +349,8 @@ export function OrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-16 text-sm text-fg-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Cargando ventas…
+        <div className="rounded-lg border border-border bg-surface">
+          <TableSkeleton rows={8} label="Cargando ventas…" />
         </div>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">

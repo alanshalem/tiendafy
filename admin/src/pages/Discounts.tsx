@@ -27,6 +27,7 @@ import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { TableSkeleton } from '../components/Skeleton';
 
 type CouponType = 'Percentage' | 'FixedAmount' | 'FreeShipping';
 
@@ -204,7 +205,7 @@ export function DiscountsPage() {
 
       {isLoading ? (
         <Card>
-          <p className="px-4 py-12 text-center text-sm text-fg-muted">Cargando...</p>
+          <TableSkeleton label="Cargando cupones…" />
         </Card>
       ) : coupons.length === 0 ? (
         <EmptyState
