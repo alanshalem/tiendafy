@@ -23,7 +23,7 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks());
 
-const panel = () => document.querySelector('aside.w-80') as HTMLElement;
+const panel = () => screen.getByRole('complementary', { name: 'Opciones del diseño' });
 
 async function openPanel(name: string) {
   const api = mockApi();

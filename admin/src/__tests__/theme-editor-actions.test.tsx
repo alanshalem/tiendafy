@@ -18,7 +18,7 @@ const tenant = fixture<{ items: { subdomain: string }[] }>('/api/v1/tenants').it
 const origin = storefrontUrl(tenant.subdomain);
 const theme = fixture<{ sections: { id: string; type: string; visible: boolean }[] }>('/api/v1/theme/draft');
 
-const panel = () => document.querySelector('aside.w-80') as HTMLElement;
+const panel = () => screen.getByRole('complementary', { name: 'Opciones del diseño' });
 
 async function openEditor(setup?: (api: MockApi) => void) {
   const api = mockApi();
@@ -165,6 +165,36 @@ describe('editor de diseño: la vista previa', () => {
       expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: EDITOR_MSG.theme }), origin),
     );
     expect(post).toHaveBeenCalledWith({ type: EDITOR_MSG.previewCart, open: false }, origin);
+  });
+
+  it('en celular se alterna entre editar y la vista previa sin recargarla', async () => {
+    const { user } = await openEditor();
+    const iframe = screen.getByTitle('Preview');
+    const preview = iframe.closest('div.flex-1') as HTMLElement;
+    const edit = screen.getByRole('button', { name: 'Editar', pressed: true });
+    expect(panel()).not.toHaveClass('hidden');
+    expect(preview).toHaveClass('hidden');
+
+    await user.click(screen.getByRole('button', { name: 'Vista previa' }));
+    expect(screen.getByRole('button', { name: 'Vista previa', pressed: true })).toBeInTheDocument();
+    expect(panel()).toHaveClass('hidden');
+    expect(preview).not.toHaveClass('hidden');
+    // El mismo iframe: ocultarlo no lo desmonta, así no recarga ni pierde el tema.
+    expect(screen.getByTitle('Preview')).toBe(iframe);
+
+    await user.click(edit);
+    expect(panel()).not.toHaveClass('hidden');
+  });
+
+  it('en pantallas chicas, lo que no entra en el encabezado está en el menú ⋯', async () => {
+    const { user } = await openEditor();
+    await user.click(screen.getByRole('button', { name: 'Más opciones' }));
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Ver tienda/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Descartar/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Modo (oscuro|claro)/ })).toBeInTheDocument();
+    await user.click(within(menu).getByRole('menuitem', { name: 'Programar' }));
+    expect(await screen.findByRole('dialog', { name: 'Programar la publicación' })).toBeInTheDocument();
   });
 
   it('cambiar de dispositivo recuerda la elección', async () => {

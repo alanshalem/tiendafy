@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 /** El panel izquierdo del editor (no la barra lateral del panel, que también es un aside). */
-const panel = () => document.querySelector('aside.w-80') as HTMLElement;
+const panel = () => screen.queryByRole('complementary', { name: 'Opciones del diseño' }) as HTMLElement;
 
 /** Abre el editor y espera a que cargue el diseño. */
 async function openEditor() {

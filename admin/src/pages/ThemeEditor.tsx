@@ -1,13 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { useNavigate } from 'react-router-dom';
 import { storefrontUrl } from '../lib/storefront';
-import { AlertTriangle, ExternalLink, Monitor, Smartphone, Tablet, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ExternalLink,
+  Eye,
+  Monitor,
+  MoreHorizontal,
+  SlidersHorizontal,
+  Smartphone,
+  Tablet,
+  X,
+} from 'lucide-react';
 import { Button, Dropdown, Modal, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig, normalizeTheme, baseTheme } from '@tiendafy/types';
+import { type Tenant, type ThemeConfig, normalizeTheme, baseTheme } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, setActiveTenant, errMsg } from '../lib/api';
 import { ThemeModeToggle } from '../components/ThemeModeToggle';
+import { toggleMode, type ThemeMode } from '../lib/themeMode';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { MediaUpload } from '../components/upload/MediaUpload';
 import { BackHeader, Field, TextInput, TextArea, contrastText } from './theme-editor-inputs';
@@ -53,10 +64,12 @@ const DEVICES = [
   { id: 'tablet' as const, label: 'Tablets', icon: Tablet },
   { id: 'desktop' as const, label: 'Computadoras', icon: Monitor },
 ];
+// En un celular la vista previa ocupa toda la pantalla y sin marco: el propio
+// teléfono ya es la vista de celular. El marco y el alto fijo, desde md.
 const DEVICE_FRAME: Record<Device, string> = {
-  mobile: 'h-[780px]',
-  tablet: 'h-[1000px]',
-  desktop: 'h-full min-h-[700px] rounded-lg border border-border shadow-card',
+  mobile: 'h-full md:h-[780px]',
+  tablet: 'h-full md:h-[1000px]',
+  desktop: 'h-full md:min-h-[700px] md:rounded-lg md:border md:border-border md:shadow-card',
 };
 
 /**
@@ -115,6 +128,10 @@ export function ThemeEditorPage() {
     return saved === 'mobile' || saved === 'tablet' || saved === 'desktop' ? saved : 'desktop';
   });
   const [view, setView] = useState<string>('root'); // 'root' | 'colors' | 'fonts' | 'header' | 'home' | 'home:<sectionId>' | ...
+  // En celular no entran el panel y la vista previa juntos: se alterna con las
+  // pestañas de abajo. El iframe no se desmonta al ocultarlo, así que los
+  // cambios siguen llegando y la vista previa no se recarga.
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   const [publishing, setPublishing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loadKey, setLoadKey] = useState(0); // bump = reintentar la carga
@@ -551,32 +568,35 @@ export function ThemeEditorPage() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg-subtle">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface/80 px-4 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
+      {/* Encabezado: en pantallas chicas queda lo indispensable (cerrar, estado
+          del guardado y Publicar) y el resto pasa al menú ⋯. Antes era una sola
+          fila con todo y en un celular Publicar quedaba fuera de la pantalla. */}
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-surface/80 px-3 backdrop-blur-xl sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button
             onClick={() => navigate('/canales/tienda-online/disenios')}
             aria-label="Cerrar"
-            className="text-fg-muted hover:text-fg"
+            className="shrink-0 text-fg-muted hover:text-fg"
           >
             <X className="h-5 w-5" />
           </button>
-          <span className="font-semibold text-fg">Editar diseño</span>
-          <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success">
+          <span className="truncate font-semibold text-fg">Editar diseño</span>
+          <span className="hidden shrink-0 rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success sm:inline">
             ● Borrador
           </span>
           {/* Estado del autosave: sin esto, un guardado fallido era invisible y se perdía trabajo. */}
-          {saveState === 'saving' && <span className="text-xs text-fg-subtle">Guardando…</span>}
-          {saveState === 'saved' && <span className="text-xs text-fg-subtle">Guardado</span>}
+          {saveState === 'saving' && <span className="shrink-0 text-xs text-fg-subtle">Guardando…</span>}
+          {saveState === 'saved' && <span className="shrink-0 text-xs text-fg-subtle">Guardado</span>}
           {saveState === 'error' && (
             <button
               onClick={() => flushDraft()}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-danger hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-danger hover:underline"
             >
               <AlertTriangle className="h-3.5 w-3.5" /> No se guardó — Reintentar
             </button>
           )}
           {stores.length > 1 && (
-            <Dropdown>
+            <Dropdown className="hidden lg:block">
               <Dropdown.Trigger>{store.name}</Dropdown.Trigger>
               <Dropdown.Menu align="start">
                 {stores.map((s) => (
@@ -598,7 +618,9 @@ export function ThemeEditorPage() {
             </Dropdown>
           )}
         </div>
-        <div className="flex gap-1 rounded-full border border-border bg-bg-muted p-1">
+        {/* El ancho de la vista previa: en un celular no se muestra (la vista
+            previa ya es la del celular); en pantallas medianas, solo íconos. */}
+        <div className="hidden shrink-0 gap-1 rounded-full border border-border bg-bg-muted p-1 md:flex">
           {DEVICES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -606,59 +628,91 @@ export function ThemeEditorPage() {
                 setDevice(id);
                 localStorage.setItem(DEVICE_KEY, id);
               }}
+              aria-label={label}
+              title={label}
+              aria-pressed={device === id}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 device === id ? 'bg-primary text-primary-fg shadow-sm' : 'text-fg-muted hover:text-fg',
               )}
             >
-              <Icon className="h-4 w-4" /> {label}
+              <Icon className="h-4 w-4" /> <span className="hidden xl:inline">{label}</span>
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <ThemeModeToggle />
-          <a
-            href={previewBase}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            Ver tienda <ExternalLink className="h-4 w-4" />
-          </a>
-          <button
-            onClick={() => setScheduleOpen(true)}
-            title="Programar la publicación para más adelante"
-            className={cn(
-              'text-sm font-medium hover:text-fg',
-              scheduledAt ? 'text-primary' : 'text-fg-muted',
-            )}
-          >
-            {scheduledAt ? 'Programado' : 'Programar'}
-          </button>
-          {dirty && (
-            <button
-              onClick={() => setShowChanges(true)}
-              className="text-sm font-medium text-fg-muted hover:text-fg"
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="hidden items-center gap-3 lg:flex">
+            <ThemeModeToggle />
+            <a
+              href={previewBase}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              Ver qué cambió
+              Ver tienda <ExternalLink className="h-4 w-4" />
+            </a>
+            <button
+              onClick={() => setScheduleOpen(true)}
+              title="Programar la publicación para más adelante"
+              className={cn(
+                'text-sm font-medium hover:text-fg',
+                scheduledAt ? 'text-primary' : 'text-fg-muted',
+              )}
+            >
+              {scheduledAt ? 'Programado' : 'Programar'}
             </button>
-          )}
-          <button
-            onClick={discard}
+            {dirty && (
+              <button
+                onClick={() => setShowChanges(true)}
+                className="text-sm font-medium text-fg-muted hover:text-fg"
+              >
+                Ver qué cambió
+              </button>
+            )}
+            <button
+              onClick={discard}
+              disabled={!dirty}
+              className="text-sm font-medium text-fg-muted hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Descartar
+            </button>
+          </div>
+          <EditorMenu
+            previewBase={previewBase}
+            scheduled={!!scheduledAt}
+            dirty={dirty}
+            stores={stores}
+            storeId={store.id}
+            onSchedule={() => setScheduleOpen(true)}
+            onShowChanges={() => setShowChanges(true)}
+            onDiscard={discard}
+            onSelectStore={(s) => {
+              flushDraft(); // no perder un guardado pendiente de ESTA tienda
+              setTheme(null);
+              selectStore(s);
+            }}
+          />
+          <Button
+            loading={publishing}
             disabled={!dirty}
-            className="text-sm font-medium text-fg-muted hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={publish}
+            aria-label={dirty ? 'Publicar cambios' : 'Sin cambios'}
           >
-            Descartar
-          </button>
-          <Button loading={publishing} disabled={!dirty} onClick={publish}>
-            {dirty ? 'Publicar cambios' : 'Sin cambios'}
+            <span className="sm:hidden">{dirty ? 'Publicar' : 'Publicado'}</span>
+            <span className="hidden sm:inline">{dirty ? 'Publicar cambios' : 'Sin cambios'}</span>
           </Button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {/* Panel izquierdo */}
-        <aside className="w-80 shrink-0 overflow-y-auto border-r border-border bg-surface">
+        {/* Panel izquierdo (en celular, la pestaña "Editar" a todo el ancho) */}
+        <aside
+          aria-label="Opciones del diseño"
+          className={cn(
+            'w-full shrink-0 overflow-y-auto border-border bg-surface md:block md:w-80 md:border-r',
+            mobileTab === 'preview' && 'hidden',
+          )}
+        >
           {view === 'root' && (
             <RootNav
               onNavigate={setView}
@@ -815,17 +869,25 @@ export function ThemeEditorPage() {
 
         {/* Preview — UN solo iframe persistente; cambiar de device solo reestiliza
             el contenedor (no remonta el iframe), así no recarga ni parpadea. */}
-        <div className="flex flex-1 items-start justify-center overflow-auto bg-bg-muted p-6">
+        <div
+          className={cn(
+            'min-w-0 flex-1 justify-center overflow-auto bg-bg-muted md:flex md:items-start md:p-6',
+            mobileTab === 'edit' ? 'hidden' : 'flex',
+          )}
+        >
           <div
             className={cn(
-              'transition-all duration-300 ease-out',
+              'h-full w-full transition-all duration-300 ease-out',
               device === 'mobile' &&
-                'overflow-hidden rounded-[2rem] border-8 border-black bg-black shadow-2xl',
+                'md:h-auto md:w-[var(--device-w)] md:overflow-hidden md:rounded-[2rem] md:border-8 md:border-black md:bg-black md:shadow-2xl',
               device === 'tablet' &&
-                'overflow-hidden rounded-[1.5rem] border-8 border-black bg-black shadow-2xl',
-              device === 'desktop' && 'h-full w-full',
+                'md:h-auto md:w-[var(--device-w)] md:overflow-hidden md:rounded-[1.5rem] md:border-8 md:border-black md:bg-black md:shadow-2xl',
             )}
-            style={DEVICE_WIDTH[device] ? { width: DEVICE_WIDTH[device]! } : undefined}
+            style={
+              DEVICE_WIDTH[device]
+                ? ({ '--device-w': `${DEVICE_WIDTH[device]}px` } as CSSProperties)
+                : undefined
+            }
           >
             {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
             {previewToken !== undefined ? (
@@ -849,6 +911,33 @@ export function ThemeEditorPage() {
           </div>
         </div>
       </div>
+
+      {/* Pestañas de celular: editar o mirar cómo queda. */}
+      <nav
+        aria-label="Editor"
+        className="grid shrink-0 grid-cols-2 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {(
+          [
+            { id: 'edit', label: 'Editar', icon: SlidersHorizontal },
+            { id: 'preview', label: 'Vista previa', icon: Eye },
+          ] as const
+        ).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobileTab(id)}
+            aria-pressed={mobileTab === id}
+            className={cn(
+              'flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold',
+              mobileTab === id ? 'text-primary' : 'text-fg-muted',
+            )}
+          >
+            <Icon className="h-5 w-5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </nav>
 
       {searchOpen && <OptionSearch onPick={(v) => setView(v)} onClose={() => setSearchOpen(false)} />}
 
@@ -899,3 +988,66 @@ export function ThemeEditorPage() {
 }
 
 export default ThemeEditorPage;
+
+/**
+ * Lo que no entra en el encabezado de una pantalla chica: ver la tienda,
+ * programar, ver qué cambió, descartar, el modo oscuro y la tienda. En
+ * pantallas grandes (lg) estos mismos controles están a la vista y el menú no
+ * aparece.
+ */
+function EditorMenu({
+  previewBase,
+  scheduled,
+  dirty,
+  stores,
+  storeId,
+  onSchedule,
+  onShowChanges,
+  onDiscard,
+  onSelectStore,
+}: {
+  previewBase: string;
+  scheduled: boolean;
+  dirty: boolean;
+  stores: Tenant[];
+  storeId: string;
+  onSchedule: () => void;
+  onShowChanges: () => void;
+  onDiscard: () => void;
+  onSelectStore: (store: Tenant) => void;
+}) {
+  // El modo se lee al abrir el menú: lo aplica el documento (lib/themeMode).
+  const mode = (document.documentElement.dataset.theme as ThemeMode) || 'light';
+  return (
+    <Dropdown className="lg:hidden">
+      <Dropdown.Trigger
+        bare
+        label="Más opciones"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-bg-muted hover:text-fg"
+      >
+        <MoreHorizontal className="h-5 w-5" />
+      </Dropdown.Trigger>
+      <Dropdown.Menu align="end">
+        <Dropdown.Item onSelect={() => window.open(previewBase, '_blank', 'noreferrer')}>
+          <ExternalLink className="mr-2 inline h-4 w-4" /> Ver tienda
+        </Dropdown.Item>
+        <Dropdown.Item onSelect={onSchedule}>{scheduled ? 'Programado' : 'Programar'}</Dropdown.Item>
+        {dirty && <Dropdown.Item onSelect={onShowChanges}>Ver qué cambió</Dropdown.Item>}
+        <Dropdown.Item onSelect={onDiscard} disabled={!dirty} destructive>
+          Descartar
+        </Dropdown.Item>
+        <Dropdown.Item onSelect={() => toggleMode(mode)}>
+          {mode === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+        </Dropdown.Item>
+        {stores.length > 1 &&
+          stores
+            .filter((s) => s.id !== storeId)
+            .map((s) => (
+              <Dropdown.Item key={s.id} onSelect={() => onSelectStore(s)}>
+                Editar {s.name}
+              </Dropdown.Item>
+            ))}
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+}

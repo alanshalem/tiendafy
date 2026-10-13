@@ -60,7 +60,9 @@ export function RootNav({
       >
         <SearchIcon className="h-4 w-4 shrink-0" />
         <span className="flex-1">Buscar una opción…</span>
-        <kbd className="rounded border border-border px-1.5 py-0.5 text-[0.65rem] font-semibold">Ctrl K</kbd>
+        <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-[0.65rem] font-semibold md:inline">
+          Ctrl K
+        </kbd>
       </button>
 
       {onCopyFromStore && (
