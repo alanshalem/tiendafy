@@ -1,25 +1,10 @@
-import {
-  Archivo_Black,
-  Barlow,
-  Barlow_Condensed,
-  Bebas_Neue,
-  Cormorant_Garamond,
-  DM_Sans,
-  DM_Serif_Display,
-  Fraunces,
-  Inter,
-  Lora,
-  Manrope,
-  Montserrat,
-  Playfair_Display,
-  Poppins,
-  Space_Grotesk,
-  Work_Sans,
-} from 'next/font/google';
+import localFont from 'next/font/local';
 
 /*
  * Las fuentes que el editor de diseño deja elegir, servidas por la propia
- * tienda (next/font las baja al compilar).
+ * tienda. Los archivos están en ./fonts (subconjunto latin de Google Fonts,
+ * licencia SIL OFL 1.1) y este archivo lo genera scripts/fetch-store-fonts.mjs:
+ * no editarlo a mano.
  *
  * Antes venían de una hoja de estilos de Google con las quince familias: un
  * pedido a otro dominio que frenaba el primer pintado de cada página, y además
@@ -31,117 +16,134 @@ import {
  * armar --font-heading y --font-body.
  */
 // next/font exige una const por fuente, con las opciones escritas literal.
-const fraunces = Fraunces({
-  subsets: ['latin'],
+const fraunces = localFont({
+  src: [
+    { path: './fonts/fraunces-italic-100-900.woff2', weight: '100 900', style: 'italic' },
+    { path: './fonts/fraunces-100-900.woff2', weight: '100 900', style: 'normal' },
+  ],
   display: 'swap',
   preload: false,
-  style: ['normal', 'italic'],
   variable: '--font-fraunces',
+  adjustFontFallback: 'Times New Roman',
 });
-const poppins = Poppins({
-  subsets: ['latin'],
+const poppins = localFont({
+  src: [
+    { path: './fonts/poppins-400.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/poppins-500.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/poppins-600.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/poppins-700.woff2', weight: '700', style: 'normal' },
+  ],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700'],
   variable: '--font-poppins',
+  adjustFontFallback: 'Arial',
 });
-const inter = Inter({
-  subsets: ['latin'],
+const inter = localFont({
+  src: [{ path: './fonts/inter-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700'],
   variable: '--font-inter',
+  adjustFontFallback: 'Arial',
 });
-const montserrat = Montserrat({
-  subsets: ['latin'],
+const montserrat = localFont({
+  src: [{ path: './fonts/montserrat-400-900.woff2', weight: '400 900', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700', '800', '900'],
   variable: '--font-montserrat',
+  adjustFontFallback: 'Arial',
 });
-const barlow = Barlow({
-  subsets: ['latin'],
+const barlow = localFont({
+  src: [
+    { path: './fonts/barlow-400.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/barlow-500.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/barlow-600.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/barlow-700.woff2', weight: '700', style: 'normal' },
+  ],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700'],
   variable: '--font-barlow',
+  adjustFontFallback: 'Arial',
 });
-const barlowCondensed = Barlow_Condensed({
-  subsets: ['latin'],
+const barlowCondensed = localFont({
+  src: [
+    { path: './fonts/barlow-condensed-400.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/barlow-condensed-600.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/barlow-condensed-700.woff2', weight: '700', style: 'normal' },
+  ],
   display: 'swap',
   preload: false,
-  weight: ['400', '600', '700'],
   variable: '--font-barlow-condensed',
+  adjustFontFallback: 'Arial',
 });
-const dmSans = DM_Sans({
-  subsets: ['latin'],
+const dmSans = localFont({
+  src: [{ path: './fonts/dm-sans-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '700'],
   variable: '--font-dm-sans',
+  adjustFontFallback: 'Arial',
 });
-const manrope = Manrope({
-  subsets: ['latin'],
+const manrope = localFont({
+  src: [{ path: './fonts/manrope-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '600', '700'],
   variable: '--font-manrope',
+  adjustFontFallback: 'Arial',
 });
-const workSans = Work_Sans({
-  subsets: ['latin'],
+const workSans = localFont({
+  src: [{ path: './fonts/work-sans-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '600', '700'],
   variable: '--font-work-sans',
+  adjustFontFallback: 'Arial',
 });
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
+const spaceGrotesk = localFont({
+  src: [{ path: './fonts/space-grotesk-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '700'],
   variable: '--font-space-grotesk',
+  adjustFontFallback: 'Arial',
 });
-const playfair = Playfair_Display({
-  subsets: ['latin'],
+const playfair = localFont({
+  src: [{ path: './fonts/playfair-display-400-800.woff2', weight: '400 800', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '600', '700', '800'],
   variable: '--font-playfair',
+  adjustFontFallback: 'Times New Roman',
 });
-const lora = Lora({
-  subsets: ['latin'],
+const lora = localFont({
+  src: [{ path: './fonts/lora-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700'],
   variable: '--font-lora',
+  adjustFontFallback: 'Times New Roman',
 });
-const cormorant = Cormorant_Garamond({
-  subsets: ['latin'],
+const cormorant = localFont({
+  src: [{ path: './fonts/cormorant-garamond-400-700.woff2', weight: '400 700', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: ['400', '500', '600', '700'],
   variable: '--font-cormorant',
+  adjustFontFallback: 'Times New Roman',
 });
-const dmSerif = DM_Serif_Display({
-  subsets: ['latin'],
+const dmSerif = localFont({
+  src: [{ path: './fonts/dm-serif-display-400.woff2', weight: '400', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: '400',
   variable: '--font-dm-serif',
+  adjustFontFallback: 'Times New Roman',
 });
-const bebas = Bebas_Neue({
-  subsets: ['latin'],
+const bebas = localFont({
+  src: [{ path: './fonts/bebas-neue-400.woff2', weight: '400', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: '400',
   variable: '--font-bebas',
+  adjustFontFallback: 'Arial',
 });
-const archivoBlack = Archivo_Black({
-  subsets: ['latin'],
+const archivoBlack = localFont({
+  src: [{ path: './fonts/archivo-black-400.woff2', weight: '400', style: 'normal' }],
   display: 'swap',
   preload: false,
-  weight: '400',
   variable: '--font-archivo-black',
+  adjustFontFallback: 'Arial',
 });
 
 const fonts = [

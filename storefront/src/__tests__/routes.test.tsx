@@ -23,30 +23,11 @@ import { nav } from '../test/next';
 import { renderPage } from '../test/server';
 import { settle, watchCrashes } from '../test/explore';
 
-// Las fuentes del editor (app/store-fonts.ts): next/font las baja al compilar;
-// en el test alcanza con la clase de cada variable.
-vi.mock('next/font/google', () =>
-  Object.fromEntries(
-    [
-      'Archivo_Black',
-      'Barlow',
-      'Barlow_Condensed',
-      'Bebas_Neue',
-      'Cormorant_Garamond',
-      'DM_Sans',
-      'DM_Serif_Display',
-      'Fraunces',
-      'Inter',
-      'Lora',
-      'Manrope',
-      'Montserrat',
-      'Playfair_Display',
-      'Poppins',
-      'Space_Grotesk',
-      'Work_Sans',
-    ].map((name) => [name, () => ({ variable: `font-${name.toLowerCase()}` })]),
-  ),
-);
+// Las fuentes del editor (app/store-fonts.ts): next/font las procesa al
+// compilar; en el test alcanza con la clase de la variable de cada una.
+vi.mock('next/font/local', () => ({
+  default: (options: { variable: string }) => ({ variable: options.variable.slice(2) }),
+}));
 
 const slug = fixture<{ slug: string }>('/api/v1/products/by-slug/x').slug;
 const pageSlug = fixture<{ items: { slug: string }[] }>('/api/v1/pages/published').items[0]?.slug;
