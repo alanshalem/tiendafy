@@ -41,10 +41,10 @@ export const Z_ANCHORED = 'z-40';
  * páginas no ponen ancho propio (lo vigila un test); el tope solo se nota en
  * monitores ultra anchos, donde una tabla de 2500 px ya no se lee.
  */
-export const PAGE_MAIN = 'mx-auto w-full max-w-[120rem] p-6 md:p-8';
+export const PAGE_MAIN = 'mx-auto w-full max-w-[120rem] p-4 sm:p-6 md:p-8';
 
 /** Las barras de guardar fijas al pie: el mismo margen que el contenido, para alinear los botones. */
-export const FIXED_BAR_PADDING = 'px-6 py-3 md:px-8';
+export const FIXED_BAR_PADDING = 'px-4 py-3 sm:px-6 md:px-8';
 
 /** Card de configuración (p-5; distinta del <Card> de @tiendafy/ui, que usa p-4). */
 export const SETTINGS_CARD = 'rounded-lg border border-border bg-surface p-5 shadow-card';
@@ -69,16 +69,21 @@ export const TABLE_CARD = 'overflow-clip rounded-lg border border-border bg-surf
  * través. El borde inferior va como sombra porque con bordes colapsados lo
  * pinta la tabla, y bajo una celda fija desaparece.
  *
+ * Fijo recién desde xl, igual que TABLE_SCROLL_X: más angosto la tabla va
+ * dentro de un contenedor con scroll de costado, y ahí un `sticky` se ancla a
+ * ese contenedor (que no scrollea para abajo) y el corrimiento del encabezado
+ * del panel lo deja tapando la primera fila.
+ *
  * El z-10 es el escalón más bajo de la escala de arriba: al pasar a ser un
  * elemento posicionado, la tabla empieza a competir con lo que flota sobre
  * ella, y tiene que perder.
  */
 export const TABLE_HEAD_STICKY =
-  'sticky top-[var(--header-height)] z-10 [&_th]:bg-surface [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+  'z-10 xl:sticky xl:top-[var(--header-height)] [&_th]:bg-surface [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
 
 /** Igual, para las tablas cuyo encabezado va sobre el gris de fondo. */
 export const TABLE_HEAD_STICKY_SUBTLE =
-  'sticky top-[var(--header-height)] z-10 [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+  'z-10 xl:sticky xl:top-[var(--header-height)] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
 
 /**
  * Envoltorio de las tablas anchas, las que no entran y hay que correr de
@@ -96,4 +101,4 @@ export const TABLE_SCROLL_X = 'overflow-x-auto xl:overflow-x-visible';
  * cuando estás editando en lote.
  */
 export const TABLE_HEAD_STICKY_UNDER_BAR =
-  'sticky top-[calc(var(--header-height)+var(--bulk-bar,0px))] z-10 [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';
+  'z-10 xl:sticky xl:top-[calc(var(--header-height)+var(--bulk-bar,0px))] [&_th]:bg-bg-subtle [&_th]:shadow-[inset_0_-1px_0_rgb(var(--color-border))]';

@@ -22,7 +22,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
@@ -246,40 +246,44 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                <th className="px-4 py-2 font-medium">Número</th>
-                <th className="px-4 py-2 font-medium">Cliente</th>
-                <th className="px-4 py-2 font-medium">Estado</th>
-                <th className="px-4 py-2 font-medium">Vence</th>
-                <th className="px-4 py-2 text-right font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((q) => (
-                <tr key={q.id} onClick={() => onOpen(q.id)} className="cursor-pointer hover:bg-bg-muted">
-                  <td className="whitespace-nowrap px-4 py-2 font-medium">{q.number}</td>
-                  <td className="px-4 py-2">
-                    {q.customerName}
-                    <div className="text-xs text-fg-subtle">
-                      {q.items} producto{q.items === 1 ? '' : 's'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
-                      {q.expired && <Badge variant="warning">Vencido</Badge>}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{formatDate(q.validUntilUtc)}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                    {formatMoney(q.totalMinor, q.currency)}
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-2 font-medium">Número</th>
+                  <th className="px-4 py-2 font-medium">Cliente</th>
+                  <th className="px-4 py-2 font-medium">Estado</th>
+                  <th className="px-4 py-2 font-medium">Vence</th>
+                  <th className="px-4 py-2 text-right font-medium">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((q) => (
+                  <tr key={q.id} onClick={() => onOpen(q.id)} className="cursor-pointer hover:bg-bg-muted">
+                    <td className="whitespace-nowrap px-4 py-2 font-medium">{q.number}</td>
+                    <td className="px-4 py-2">
+                      {q.customerName}
+                      <div className="text-xs text-fg-subtle">
+                        {q.items} producto{q.items === 1 ? '' : 's'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
+                        {q.expired && <Badge variant="warning">Vencido</Badge>}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
+                      {formatDate(q.validUntilUtc)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
+                      {formatMoney(q.totalMinor, q.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -100,7 +100,7 @@ export function RedesPage() {
             Un solo post para todas tus redes: escribilo una vez, programalo y listo.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Tabs items={TABS} value={tab} onChange={setTab} />
           {tab !== 'cuentas' && (
             <Button

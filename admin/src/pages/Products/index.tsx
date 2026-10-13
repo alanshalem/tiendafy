@@ -16,7 +16,7 @@ import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 import { type Category } from './types';
 import { ProductRows } from './ProductRows';
-import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR, TABLE_SCROLL_X } from '../../lib/styles';
 import { ListStats } from '../../components/stats/ListStats';
 import { formatNumber } from '../../lib/format';
 
@@ -449,69 +449,71 @@ export function ProductsPage() {
             className={TABLE_CARD}
             style={{ '--bulk-bar': selected.size > 0 ? '4rem' : '0px' } as CSSProperties}
           >
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
-                <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
-                  <th className="w-10 px-3 py-2.5">
-                    {canEdit && (
-                      <Checkbox
-                        checked={allPageSelected}
-                        indeterminate={somePageSelected}
-                        onChange={toggleSelectAll}
-                        aria-label="Seleccionar todos"
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
+                  <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                    <th className="w-10 px-3 py-2.5">
+                      {canEdit && (
+                        <Checkbox
+                          checked={allPageSelected}
+                          indeterminate={somePageSelected}
+                          onChange={toggleSelectAll}
+                          aria-label="Seleccionar todos"
+                        />
+                      )}
+                    </th>
+                    <th className="px-3 py-2.5">Producto</th>
+                    <th className="w-20 px-3 py-2.5 text-center">Stock</th>
+                    <th className="w-32 px-3 py-2.5">Precio</th>
+                    <th className="w-32 px-3 py-2.5">Promocional</th>
+                    <th className="w-28 px-3 py-2.5">Variantes</th>
+                    <th className="w-24 px-3 py-2.5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center text-fg-muted">
+                        Cargando...
+                      </td>
+                    </tr>
+                  ) : noResults ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearch('');
+                            setFilters(defaultFilters);
+                            setPage(1);
+                          }}
+                          className="mt-2 text-sm font-medium text-primary hover:underline"
+                        >
+                          Limpiar búsqueda y filtros
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                    pageItems.map((product) => (
+                      <ProductRows
+                        key={product.id}
+                        product={product}
+                        stockMap={stockMap}
+                        storeId={store.id}
+                        readOnly={!canEdit}
+                        selected={selected.has(product.id)}
+                        onToggleSelect={() => toggleSelect(product.id)}
+                        onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
+                        onDelete={() => deleteProduct.mutate(product.id)}
+                        onDuplicate={() => duplicateProduct.mutate(product.id)}
                       />
-                    )}
-                  </th>
-                  <th className="px-3 py-2.5">Producto</th>
-                  <th className="w-20 px-3 py-2.5 text-center">Stock</th>
-                  <th className="w-32 px-3 py-2.5">Precio</th>
-                  <th className="w-32 px-3 py-2.5">Promocional</th>
-                  <th className="w-28 px-3 py-2.5">Variantes</th>
-                  <th className="w-24 px-3 py-2.5 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-fg-muted">
-                      Cargando...
-                    </td>
-                  </tr>
-                ) : noResults ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
-                      <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearch('');
-                          setFilters(defaultFilters);
-                          setPage(1);
-                        }}
-                        className="mt-2 text-sm font-medium text-primary hover:underline"
-                      >
-                        Limpiar búsqueda y filtros
-                      </button>
-                    </td>
-                  </tr>
-                ) : (
-                  pageItems.map((product) => (
-                    <ProductRows
-                      key={product.id}
-                      product={product}
-                      stockMap={stockMap}
-                      storeId={store.id}
-                      readOnly={!canEdit}
-                      selected={selected.has(product.id)}
-                      onToggleSelect={() => toggleSelect(product.id)}
-                      onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
-                      onDelete={() => deleteProduct.mutate(product.id)}
-                      onDuplicate={() => duplicateProduct.mutate(product.id)}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <Pagination page={pageClamped} totalPages={totalPages} onPage={setPage} />

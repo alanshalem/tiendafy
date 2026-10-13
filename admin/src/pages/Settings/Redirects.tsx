@@ -6,7 +6,7 @@ import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { SETTINGS_CARD, TABLE_HEAD_STICKY } from '../../lib/styles';
+import { SETTINGS_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
 /**
  * Redirecciones 301: URL vieja → URL nueva.
@@ -134,42 +134,47 @@ export function RedirectsPage() {
         )}
 
         {items && items.length > 0 && (
-          <table className="mt-4 w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="border-b border-border text-left text-xs text-fg-muted">
-                <th className="py-2 font-medium">Desde</th>
-                <th className="py-2 font-medium">Hacia</th>
-                <th className="py-2 font-medium">Se usó</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-b-0">
-                  <td className="py-2 font-mono text-xs text-fg">{r.from}</td>
-                  <td className="py-2 font-mono text-xs text-fg">{r.to}</td>
-                  <td className="py-2 text-xs">
-                    {r.hits === 0 ? (
-                      <span className="text-fg-subtle">Nunca</span>
-                    ) : (
-                      <span className="text-fg" title={r.lastHitAtUtc ? formatDateTime(r.lastHitAtUtc) : ''}>
-                        {formatNumber(r.hits)} {r.hits === 1 ? 'vez' : 'veces'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      onClick={() => remove(r)}
-                      aria-label={`Eliminar la redirección de ${r.from}`}
-                      className="rounded-md p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="mt-4 w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="border-b border-border text-left text-xs text-fg-muted">
+                  <th className="py-2 font-medium">Desde</th>
+                  <th className="py-2 font-medium">Hacia</th>
+                  <th className="py-2 font-medium">Se usó</th>
+                  <th className="py-2" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((r) => (
+                  <tr key={r.id} className="border-b border-border last:border-b-0">
+                    <td className="py-2 font-mono text-xs text-fg">{r.from}</td>
+                    <td className="py-2 font-mono text-xs text-fg">{r.to}</td>
+                    <td className="py-2 text-xs">
+                      {r.hits === 0 ? (
+                        <span className="text-fg-subtle">Nunca</span>
+                      ) : (
+                        <span
+                          className="text-fg"
+                          title={r.lastHitAtUtc ? formatDateTime(r.lastHitAtUtc) : ''}
+                        >
+                          {formatNumber(r.hits)} {r.hits === 1 ? 'vez' : 'veces'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        onClick={() => remove(r)}
+                        aria-label={`Eliminar la redirección de ${r.from}`}
+                        className="rounded-md p-1 text-fg-muted hover:bg-danger/10 hover:text-danger"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

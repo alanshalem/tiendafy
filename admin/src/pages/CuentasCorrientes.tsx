@@ -19,7 +19,7 @@ import { api, errMsg } from '../lib/api';
 import { formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import type { FinanceAccount } from './Tesoreria';
@@ -238,35 +238,37 @@ function BalancesList({
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                <th className="px-4 py-2 font-medium">{kind === 'customer' ? 'Cliente' : 'Proveedor'}</th>
-                <th className="px-4 py-2 font-medium">Último movimiento</th>
-                <th className="px-4 py-2 text-right font-medium">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((r) => (
-                <tr
-                  key={r.partyId}
-                  onClick={() => onOpen(r.partyId)}
-                  className="cursor-pointer hover:bg-bg-muted"
-                >
-                  <td className="px-4 py-2 font-medium">{r.partyName}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{formatDate(r.lastAtUtc)}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right">
-                    <div
-                      className={`font-medium tabular-nums ${r.balanceMinor > 0 ? 'text-warning' : 'text-danger'}`}
-                    >
-                      {formatMoney(Math.abs(r.balanceMinor), r.currency)}
-                    </div>
-                    <div className="text-xs text-fg-subtle">{balanceLabel(kind, r.balanceMinor)}</div>
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-2 font-medium">{kind === 'customer' ? 'Cliente' : 'Proveedor'}</th>
+                  <th className="px-4 py-2 font-medium">Último movimiento</th>
+                  <th className="px-4 py-2 text-right font-medium">Saldo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((r) => (
+                  <tr
+                    key={r.partyId}
+                    onClick={() => onOpen(r.partyId)}
+                    className="cursor-pointer hover:bg-bg-muted"
+                  >
+                    <td className="px-4 py-2 font-medium">{r.partyName}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{formatDate(r.lastAtUtc)}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right">
+                      <div
+                        className={`font-medium tabular-nums ${r.balanceMinor > 0 ? 'text-warning' : 'text-danger'}`}
+                      >
+                        {formatMoney(Math.abs(r.balanceMinor), r.currency)}
+                      </div>
+                      <div className="text-xs text-fg-subtle">{balanceLabel(kind, r.balanceMinor)}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -345,43 +347,47 @@ function PartyStatement({
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                <th className="px-4 py-2 font-medium">Fecha</th>
-                <th className="px-4 py-2 font-medium">Comprobante</th>
-                <th className="px-4 py-2 text-right font-medium">Debe</th>
-                <th className="px-4 py-2 text-right font-medium">Haber</th>
-                <th className="px-4 py-2 text-right font-medium">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{formatDate(r.occurredAtUtc)}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>{r.docLabel}</span>
-                      <Badge variant="neutral">{DOC_LABEL[r.docType] ?? r.docType}</Badge>
-                      {r.pendingMinor > 0 && r.pendingMinor < r.debitMinor && (
-                        <Badge variant="warning">Pendiente {formatMoney(r.pendingMinor, r.currency)}</Badge>
-                      )}
-                    </div>
-                    {r.notes && <div className="text-xs text-fg-subtle">{r.notes}</div>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                    {r.debitMinor > 0 ? formatMoney(r.debitMinor, r.currency) : '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                    {r.creditMinor > 0 ? formatMoney(r.creditMinor, r.currency) : '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                    {formatMoney(r.balanceMinor, r.currency)}
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-2 font-medium">Fecha</th>
+                  <th className="px-4 py-2 font-medium">Comprobante</th>
+                  <th className="px-4 py-2 text-right font-medium">Debe</th>
+                  <th className="px-4 py-2 text-right font-medium">Haber</th>
+                  <th className="px-4 py-2 text-right font-medium">Saldo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
+                      {formatDate(r.occurredAtUtc)}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{r.docLabel}</span>
+                        <Badge variant="neutral">{DOC_LABEL[r.docType] ?? r.docType}</Badge>
+                        {r.pendingMinor > 0 && r.pendingMinor < r.debitMinor && (
+                          <Badge variant="warning">Pendiente {formatMoney(r.pendingMinor, r.currency)}</Badge>
+                        )}
+                      </div>
+                      {r.notes && <div className="text-xs text-fg-subtle">{r.notes}</div>}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                      {r.debitMinor > 0 ? formatMoney(r.debitMinor, r.currency) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                      {r.creditMinor > 0 ? formatMoney(r.creditMinor, r.currency) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
+                      {formatMoney(r.balanceMinor, r.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -435,53 +441,55 @@ function ReceiptsList({ kind }: { kind: PartyKind }) {
     <div className="space-y-2">
       <h2 className="font-medium">{kind === 'customer' ? 'Recibos de cobro' : 'Órdenes de pago'}</h2>
       <div className={TABLE_CARD}>
-        <table className="w-full text-sm">
-          <thead className={TABLE_HEAD_STICKY}>
-            <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-              <th className="px-4 py-2 font-medium">Número</th>
-              <th className="px-4 py-2 font-medium">Contacto</th>
-              <th className="px-4 py-2 font-medium">Fecha</th>
-              <th className="px-4 py-2 text-right font-medium">Importe</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.map((r) => (
-              <tr key={r.id} className={r.voided ? 'text-fg-subtle line-through' : undefined}>
-                <td className="whitespace-nowrap px-4 py-2 font-medium">{r.number}</td>
-                <td className="px-4 py-2">{r.partyName}</td>
-                <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                  {formatDateTime(r.occurredAtUtc)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                  {formatMoney(r.totalMinor, r.currency)}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {r.voided ? (
-                    <Badge variant="neutral">Anulado</Badge>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: `Anular ${r.number}`,
-                          message:
-                            'Se revierte todo lo que hizo: vuelve la deuda, se descuenta la plata de la cuenta donde entró y se liberan las imputaciones. El comprobante queda a la vista como anulado.',
-                          confirmLabel: 'Anular',
-                          variant: 'danger',
-                        });
-                        if (ok) voidReceipt.mutate({ id: r.id, reason: 'Anulado desde el panel' });
-                      }}
-                    >
-                      <Ban className="h-3.5 w-3.5" /> Anular
-                    </Button>
-                  )}
-                </td>
+        <div className={TABLE_SCROLL_X}>
+          <table className="w-full text-sm">
+            <thead className={TABLE_HEAD_STICKY}>
+              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                <th className="px-4 py-2 font-medium">Número</th>
+                <th className="px-4 py-2 font-medium">Contacto</th>
+                <th className="px-4 py-2 font-medium">Fecha</th>
+                <th className="px-4 py-2 text-right font-medium">Importe</th>
+                <th className="px-4 py-2" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => (
+                <tr key={r.id} className={r.voided ? 'text-fg-subtle line-through' : undefined}>
+                  <td className="whitespace-nowrap px-4 py-2 font-medium">{r.number}</td>
+                  <td className="px-4 py-2">{r.partyName}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
+                    {formatDateTime(r.occurredAtUtc)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                    {formatMoney(r.totalMinor, r.currency)}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {r.voided ? (
+                      <Badge variant="neutral">Anulado</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `Anular ${r.number}`,
+                            message:
+                              'Se revierte todo lo que hizo: vuelve la deuda, se descuenta la plata de la cuenta donde entró y se liberan las imputaciones. El comprobante queda a la vista como anulado.',
+                            confirmLabel: 'Anular',
+                            variant: 'danger',
+                          });
+                          if (ok) voidReceipt.mutate({ id: r.id, reason: 'Anulado desde el panel' });
+                        }}
+                      >
+                        <Ban className="h-3.5 w-3.5" /> Anular
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

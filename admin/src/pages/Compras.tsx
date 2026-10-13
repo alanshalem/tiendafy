@@ -7,7 +7,7 @@ import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
@@ -214,53 +214,55 @@ function ComprasList({
             ]}
           />
           <div className={TABLE_CARD}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-                <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-                  <th className="px-4 py-2.5 font-medium">Proveedor</th>
-                  <th className="px-4 py-2.5 font-medium">Referencia</th>
-                  <th className="px-4 py-2.5 font-medium">Estado</th>
-                  <th className="px-4 py-2.5 text-right font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      FOB{' '}
-                      <InfoDot info="Lo que cobra el proveedor por la mercadería, sin flete, seguro ni impuestos." />
-                    </span>
-                  </th>
-                  <th className="px-4 py-2.5 text-right font-medium">Unidades</th>
-                  <th className="px-4 py-2.5 font-medium">Creada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.items ?? []).map((po) => (
-                  <tr
-                    key={po.id}
-                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
-                    onClick={() => onOpen(po.id)}
-                  >
-                    <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
-                    <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
-                        {PO_STATUS[po.status]?.label ?? po.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                      {po.currency} {formatNumber(po.totalFob)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
-                    <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                  <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                    <th className="px-4 py-2.5 font-medium">Proveedor</th>
+                    <th className="px-4 py-2.5 font-medium">Referencia</th>
+                    <th className="px-4 py-2.5 font-medium">Estado</th>
+                    <th className="px-4 py-2.5 text-right font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        FOB{' '}
+                        <InfoDot info="Lo que cobra el proveedor por la mercadería, sin flete, seguro ni impuestos." />
+                      </span>
+                    </th>
+                    <th className="px-4 py-2.5 text-right font-medium">Unidades</th>
+                    <th className="px-4 py-2.5 font-medium">Creada</th>
                   </tr>
-                ))}
-                {(data?.items ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
-                      <Ship className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                      Todavía no hay compras. Creá la primera con «Nueva compra».
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(data?.items ?? []).map((po) => (
+                    <tr
+                      key={po.id}
+                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
+                      onClick={() => onOpen(po.id)}
+                    >
+                      <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
+                      <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
+                          {PO_STATUS[po.status]?.label ?? po.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-fg">
+                        {po.currency} {formatNumber(po.totalFob)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
+                      <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+                    </tr>
+                  ))}
+                  {(data?.items ?? []).length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
+                        <Ship className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                        Todavía no hay compras. Creá la primera con «Nueva compra».
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </>
@@ -326,43 +328,45 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
         )}
       </div>
       <div className={TABLE_CARD}>
-        <table className="w-full text-sm">
-          <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-            <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-              <th className="px-4 py-2.5 font-medium">Producto</th>
-              <th className="px-4 py-2.5 font-medium">SKU</th>
-              <th className="px-4 py-2.5 text-right font-medium">Venta/día</th>
-              <th className="px-4 py-2.5 text-right font-medium">Stock</th>
-              <th className="px-4 py-2.5 text-right font-medium">Cobertura</th>
-              <th className="px-4 py-2.5 text-right font-medium">Pedir</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data?.items ?? []).map((s) => (
-              <tr key={s.variantId} className="border-b border-border last:border-b-0">
-                <td className="px-4 py-2.5 text-fg">
-                  {s.product}
-                  {s.variant && <span className="text-fg-muted"> · {s.variant}</span>}
-                </td>
-                <td className="px-4 py-2.5 text-fg-subtle">{s.sku}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{s.unitsPerDay}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-fg">{s.available}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-danger">{s.coverageDays} días</td>
-                <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-fg">
-                  {s.suggestedQty} u
-                </td>
+        <div className={TABLE_SCROLL_X}>
+          <table className="w-full text-sm">
+            <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+              <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                <th className="px-4 py-2.5 font-medium">Producto</th>
+                <th className="px-4 py-2.5 font-medium">SKU</th>
+                <th className="px-4 py-2.5 text-right font-medium">Venta/día</th>
+                <th className="px-4 py-2.5 text-right font-medium">Stock</th>
+                <th className="px-4 py-2.5 text-right font-medium">Cobertura</th>
+                <th className="px-4 py-2.5 text-right font-medium">Pedir</th>
               </tr>
-            ))}
-            {(data?.items ?? []).length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
-                  <Package className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                  Nada por reponer con este lead time: el stock cubre las ventas proyectadas.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(data?.items ?? []).map((s) => (
+                <tr key={s.variantId} className="border-b border-border last:border-b-0">
+                  <td className="px-4 py-2.5 text-fg">
+                    {s.product}
+                    {s.variant && <span className="text-fg-muted"> · {s.variant}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-fg-subtle">{s.sku}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{s.unitsPerDay}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-fg">{s.available}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-danger">{s.coverageDays} días</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-fg">
+                    {s.suggestedQty} u
+                  </td>
+                </tr>
+              ))}
+              {(data?.items ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
+                    <Package className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                    Nada por reponer con este lead time: el stock cubre las ventas proyectadas.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

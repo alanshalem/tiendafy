@@ -8,7 +8,7 @@ import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
-import { TABLE_HEAD_STICKY } from '../../lib/styles';
+import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
 interface CodeHit {
   productId: string;
@@ -592,48 +592,50 @@ function ConteoTab() {
 
       {list.length > 0 && (
         <>
-          <table className="mt-3 w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="border-b border-border text-left text-xs text-fg-muted">
-                <th className="py-2 font-medium">Producto</th>
-                <th className="py-2 text-right font-medium">Sistema</th>
-                <th className="py-2 text-right font-medium">Contado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((r) => (
-                <tr key={r.hit.variantId} className="border-b border-border last:border-b-0">
-                  <td className="py-2 text-fg">
-                    {r.hit.productName}
-                    <span className="text-fg-muted"> · {r.hit.description}</span>
-                  </td>
-                  <td className="py-2 text-right tabular-nums text-fg-muted">{r.hit.available}</td>
-                  <td className="py-2 text-right">
-                    <span className="inline-flex items-center gap-1">
-                      <div className="w-20 shrink-0">
-                        <Input
-                          aria-label={`Contado de ${r.hit.productName}`}
-                          compact
-                          type="number"
-                          min={0}
-                          className="text-right"
-                          value={String(r.counted)}
-                          onChange={(e) =>
-                            setRows((rows) => ({
-                              ...rows,
-                              [r.hit.variantId]: { ...r, counted: Number(e.target.value) || 0 },
-                            }))
-                          }
-                        />
-                      </div>
-                      {r.counted !== r.hit.available && <X className="h-4 w-4 text-danger" />}
-                      {r.counted === r.hit.available && <Check className="h-4 w-4 text-success" />}
-                    </span>
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="mt-3 w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="border-b border-border text-left text-xs text-fg-muted">
+                  <th className="py-2 font-medium">Producto</th>
+                  <th className="py-2 text-right font-medium">Sistema</th>
+                  <th className="py-2 text-right font-medium">Contado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {list.map((r) => (
+                  <tr key={r.hit.variantId} className="border-b border-border last:border-b-0">
+                    <td className="py-2 text-fg">
+                      {r.hit.productName}
+                      <span className="text-fg-muted"> · {r.hit.description}</span>
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-fg-muted">{r.hit.available}</td>
+                    <td className="py-2 text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <div className="w-20 shrink-0">
+                          <Input
+                            aria-label={`Contado de ${r.hit.productName}`}
+                            compact
+                            type="number"
+                            min={0}
+                            className="text-right"
+                            value={String(r.counted)}
+                            onChange={(e) =>
+                              setRows((rows) => ({
+                                ...rows,
+                                [r.hit.variantId]: { ...r, counted: Number(e.target.value) || 0 },
+                              }))
+                            }
+                          />
+                        </div>
+                        {r.counted !== r.hit.available && <X className="h-4 w-4 text-danger" />}
+                        {r.counted === r.hit.available && <Check className="h-4 w-4 text-success" />}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-fg-muted">{withDiff.length} diferencia(s) contra el sistema.</span>
             <Button disabled={withDiff.length === 0 || apply.isPending} onClick={() => apply.mutate()}>

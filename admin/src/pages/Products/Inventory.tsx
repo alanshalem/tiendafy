@@ -13,7 +13,7 @@ import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
-import { TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
 
 interface VariantDto {
@@ -230,86 +230,88 @@ export function InventoryPage() {
       />
 
       <Card flush>
-        <table className="w-full text-sm">
-          <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-            <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-              <th className="px-4 py-2.5 font-medium">Producto</th>
-              <th className="px-4 py-2.5 font-medium">Variante</th>
-              <th className="px-4 py-2.5 font-medium">SKU</th>
-              <th className="px-4 py-2.5 text-center font-medium">
-                <span className="inline-flex items-center gap-1">
-                  Reservado{' '}
-                  <InfoDot info="Checkouts en curso: stock apartado mientras alguien compra. Si el pago no llega en 30 minutos, vuelve solo a disponible." />
-                </span>
-              </th>
-              <th className="px-4 py-2.5 text-center font-medium">
-                <span className="inline-flex items-center gap-1">
-                  Disponible{' '}
-                  <InfoDot info="Lo que se puede vender AHORA: el stock físico menos lo reservado." />
-                </span>
-              </th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.flatMap((product) =>
-              product.variants.map((variant, vi) => {
-                const current = stockByVariant.get(variant.id);
-                const draft = drafts[variant.id];
-                const value = draft ?? String(current?.available ?? '');
-                const changed = draft !== undefined && draft !== String(current?.available ?? '');
+        <div className={TABLE_SCROLL_X}>
+          <table className="w-full text-sm">
+            <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+              <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                <th className="px-4 py-2.5 font-medium">Producto</th>
+                <th className="px-4 py-2.5 font-medium">Variante</th>
+                <th className="px-4 py-2.5 font-medium">SKU</th>
+                <th className="px-4 py-2.5 text-center font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    Reservado{' '}
+                    <InfoDot info="Checkouts en curso: stock apartado mientras alguien compra. Si el pago no llega en 30 minutos, vuelve solo a disponible." />
+                  </span>
+                </th>
+                <th className="px-4 py-2.5 text-center font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    Disponible{' '}
+                    <InfoDot info="Lo que se puede vender AHORA: el stock físico menos lo reservado." />
+                  </span>
+                </th>
+                <th className="px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.flatMap((product) =>
+                product.variants.map((variant, vi) => {
+                  const current = stockByVariant.get(variant.id);
+                  const draft = drafts[variant.id];
+                  const value = draft ?? String(current?.available ?? '');
+                  const changed = draft !== undefined && draft !== String(current?.available ?? '');
 
-                return (
-                  <tr key={variant.id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-medium text-fg">{vi === 0 ? product.name : ''}</td>
-                    <td className="px-4 py-2.5 text-fg-muted">
-                      {variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única'}
-                    </td>
-                    <td className="px-4 py-2.5 text-fg-subtle">{variant.sku}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      {current && current.reserved > 0 ? (
-                        <Badge variant="warning">{current.reserved}</Badge>
-                      ) : (
-                        <span className="text-fg-subtle">0</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="mx-auto w-20 shrink-0">
-                        <Input
-                          aria-label={`Stock disponible de ${product.name}${
-                            variant.optionValues.length > 0 ? ` (${variant.optionValues.join(' / ')})` : ''
-                          }`}
-                          compact
-                          inputMode="numeric"
-                          className="text-center"
-                          value={value}
-                          placeholder="—"
-                          readOnly={!canAdjust}
-                          onChange={(e) =>
-                            setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
-                          }
-                        />
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {changed && canAdjust && (
-                        <Button
-                          size="sm"
-                          loading={save.isPending && save.variables?.variantId === variant.id}
-                          onClick={() =>
-                            save.mutate({ variantId: variant.id, available: parseInt(value || '0', 10) })
-                          }
-                        >
-                          Guardar
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              }),
-            )}
-          </tbody>
-        </table>
+                  return (
+                    <tr key={variant.id} className="border-b border-border last:border-b-0">
+                      <td className="px-4 py-2.5 font-medium text-fg">{vi === 0 ? product.name : ''}</td>
+                      <td className="px-4 py-2.5 text-fg-muted">
+                        {variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única'}
+                      </td>
+                      <td className="px-4 py-2.5 text-fg-subtle">{variant.sku}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        {current && current.reserved > 0 ? (
+                          <Badge variant="warning">{current.reserved}</Badge>
+                        ) : (
+                          <span className="text-fg-subtle">0</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="mx-auto w-20 shrink-0">
+                          <Input
+                            aria-label={`Stock disponible de ${product.name}${
+                              variant.optionValues.length > 0 ? ` (${variant.optionValues.join(' / ')})` : ''
+                            }`}
+                            compact
+                            inputMode="numeric"
+                            className="text-center"
+                            value={value}
+                            placeholder="—"
+                            readOnly={!canAdjust}
+                            onChange={(e) =>
+                              setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
+                            }
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {changed && canAdjust && (
+                          <Button
+                            size="sm"
+                            loading={save.isPending && save.variables?.variantId === variant.id}
+                            onClick={() =>
+                              save.mutate({ variantId: variant.id, available: parseInt(value || '0', 10) })
+                            }
+                          >
+                            Guardar
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                }),
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <Pagination page={page} totalPages={totalPages} onPage={setPage} />

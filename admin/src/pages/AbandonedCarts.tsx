@@ -6,7 +6,7 @@ import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
-import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
+import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 interface Abandoned {
@@ -75,30 +75,32 @@ export function AbandonedCartsPage() {
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="border-b border-border text-left text-xs text-fg-muted">
-                <th className="px-4 py-2.5 font-medium">Fecha</th>
-                <th className="px-4 py-2.5 font-medium">Cliente</th>
-                <th className="px-4 py-2.5 text-center font-medium">Ítems</th>
-                <th className="px-4 py-2.5 text-right font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((c) => (
-                <tr key={c.id} className="border-b border-border last:border-b-0">
-                  <td className="px-4 py-3 text-fg-muted">{formatDateTime(c.createdAtUtc)}</td>
-                  <td className="px-4 py-3 text-fg">
-                    {c.email ?? <span className="text-fg-subtle">Sin email (no recuperable)</span>}
-                  </td>
-                  <td className="px-4 py-3 text-center tabular-nums">{c.items}</td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">
-                    {formatMoney(c.total.amount, c.total.currency)}
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="border-b border-border text-left text-xs text-fg-muted">
+                  <th className="px-4 py-2.5 font-medium">Fecha</th>
+                  <th className="px-4 py-2.5 font-medium">Cliente</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Ítems</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((c) => (
+                  <tr key={c.id} className="border-b border-border last:border-b-0">
+                    <td className="px-4 py-3 text-fg-muted">{formatDateTime(c.createdAtUtc)}</td>
+                    <td className="px-4 py-3 text-fg">
+                      {c.email ?? <span className="text-fg-subtle">Sin email (no recuperable)</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center tabular-nums">{c.items}</td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">
+                      {formatMoney(c.total.amount, c.total.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       <HelpLink id="ventas" />

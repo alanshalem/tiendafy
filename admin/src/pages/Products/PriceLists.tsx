@@ -8,7 +8,7 @@ import { formatMoney } from '../../lib/format';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
-import { TABLE_CARD, TABLE_HEAD_STICKY } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { parseMoneyInput } from '../../lib/price';
 
@@ -454,52 +454,54 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                <th className="px-4 py-2 font-medium">Producto</th>
-                <th className="px-4 py-2 text-right font-medium">Precio del producto</th>
-                <th className="px-4 py-2 text-right font-medium">Precio en esta lista</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row) => (
-                <tr key={row.variantId}>
-                  <td className="px-4 py-2">
-                    <div className="truncate">
-                      {row.productName}
-                      {row.variantDescription && (
-                        <span className="text-fg-muted"> · {row.variantDescription}</span>
-                      )}
-                    </div>
-                    <div className="font-mono text-xs text-fg-subtle">{row.sku}</div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-fg-muted">
-                    {formatMoney(row.basePriceMinor, row.currency)}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-2">
-                      {row.isManual && <Badge variant="warning">A mano</Badge>}
-                      <div className="w-32">
-                        <Input
-                          aria-label={`Precio de ${row.productName}${row.variantDescription ? ` · ${row.variantDescription}` : ''}`}
-                          compact
-                          inputMode="decimal"
-                          className="text-right"
-                          value={draft[row.variantId] ?? String(row.priceMinor / 100)}
-                          onChange={(e) => setDraft((cur) => ({ ...cur, [row.variantId]: e.target.value }))}
-                          onBlur={() => commit(row)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-2 font-medium">Producto</th>
+                  <th className="px-4 py-2 text-right font-medium">Precio del producto</th>
+                  <th className="px-4 py-2 text-right font-medium">Precio en esta lista</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((row) => (
+                  <tr key={row.variantId}>
+                    <td className="px-4 py-2">
+                      <div className="truncate">
+                        {row.productName}
+                        {row.variantDescription && (
+                          <span className="text-fg-muted"> · {row.variantDescription}</span>
+                        )}
+                      </div>
+                      <div className="font-mono text-xs text-fg-subtle">{row.sku}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-fg-muted">
+                      {formatMoney(row.basePriceMinor, row.currency)}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        {row.isManual && <Badge variant="warning">A mano</Badge>}
+                        <div className="w-32">
+                          <Input
+                            aria-label={`Precio de ${row.productName}${row.variantDescription ? ` · ${row.variantDescription}` : ''}`}
+                            compact
+                            inputMode="decimal"
+                            className="text-right"
+                            value={draft[row.variantId] ?? String(row.priceMinor / 100)}
+                            onChange={(e) => setDraft((cur) => ({ ...cur, [row.variantId]: e.target.value }))}
+                            onBlur={() => commit(row)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.currentTarget.blur();
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

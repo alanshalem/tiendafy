@@ -5,6 +5,7 @@ import { BarChart, Delta } from '../../components/charts/viz';
 import { formatMoney, formatNumber } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { TABLE_SCROLL_X } from '../../lib/styles';
 
 interface RealTime {
   activeVisitors: number;
@@ -76,16 +77,18 @@ export function StatsRealTimePage() {
           {!data || data.activePaths.length === 0 ? (
             <p className="py-4 text-sm text-fg-muted">Nadie navegando ahora mismo.</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {data.activePaths.map((p) => (
-                  <tr key={p.path} className="border-b border-border last:border-b-0">
-                    <td className="py-2 font-mono text-xs text-fg">{p.path}</td>
-                    <td className="py-2 text-right tabular-nums text-fg">{p.visitors}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <tbody>
+                  {data.activePaths.map((p) => (
+                    <tr key={p.path} className="border-b border-border last:border-b-0">
+                      <td className="py-2 font-mono text-xs text-fg">{p.path}</td>
+                      <td className="py-2 text-right tabular-nums text-fg">{p.visitors}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </ChartCard>
 
@@ -93,18 +96,20 @@ export function StatsRealTimePage() {
           {!data || data.recent.length === 0 ? (
             <p className="py-4 text-sm text-fg-muted">Sin actividad.</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {data.recent.map((r, i) => (
-                  <tr key={i} className="border-b border-border last:border-b-0">
-                    <td className="py-2 font-mono text-xs text-fg">{r.path}</td>
-                    <td className="py-2 text-right text-xs text-fg-muted">
-                      {new Date(r.occurredAtUtc).toLocaleTimeString('es-AR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <tbody>
+                  {data.recent.map((r, i) => (
+                    <tr key={i} className="border-b border-border last:border-b-0">
+                      <td className="py-2 font-mono text-xs text-fg">{r.path}</td>
+                      <td className="py-2 text-right text-xs text-fg-muted">
+                        {new Date(r.occurredAtUtc).toLocaleTimeString('es-AR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </ChartCard>
       </div>

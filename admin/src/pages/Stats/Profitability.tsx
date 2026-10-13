@@ -171,30 +171,32 @@ export function StatsProfitabilityPage() {
                 {data.byChannel.length === 0 ? (
                   <p className="py-4 text-sm text-fg-muted">Sin ventas en el período.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead className={TABLE_HEAD_STICKY}>
-                      <tr className="border-b border-border text-left text-xs text-fg-muted">
-                        <th className="py-2 font-medium">Canal</th>
-                        <th className="py-2 text-right font-medium">Ventas</th>
-                        <th className="py-2 text-right font-medium">Facturado</th>
-                        <th className="py-2 text-right font-medium">Ganancia</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.byChannel.map((c) => (
-                        <tr key={c.source} className="border-b border-border last:border-b-0">
-                          <td className="py-2 capitalize text-fg">{c.source}</td>
-                          <td className="py-2 text-right tabular-nums text-fg-muted">{c.orders}</td>
-                          <td className="py-2 text-right tabular-nums text-fg">
-                            {formatMoney(c.revenue, data.currency)}
-                          </td>
-                          <td className="py-2 text-right tabular-nums font-medium text-fg">
-                            {c.ordersWithCost > 0 ? formatMoney(c.profit, data.currency) : '—'}
-                          </td>
+                  <div className={TABLE_SCROLL_X}>
+                    <table className="w-full text-sm">
+                      <thead className={TABLE_HEAD_STICKY}>
+                        <tr className="border-b border-border text-left text-xs text-fg-muted">
+                          <th className="py-2 font-medium">Canal</th>
+                          <th className="py-2 text-right font-medium">Ventas</th>
+                          <th className="py-2 text-right font-medium">Facturado</th>
+                          <th className="py-2 text-right font-medium">Ganancia</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {data.byChannel.map((c) => (
+                          <tr key={c.source} className="border-b border-border last:border-b-0">
+                            <td className="py-2 capitalize text-fg">{c.source}</td>
+                            <td className="py-2 text-right tabular-nums text-fg-muted">{c.orders}</td>
+                            <td className="py-2 text-right tabular-nums text-fg">
+                              {formatMoney(c.revenue, data.currency)}
+                            </td>
+                            <td className="py-2 text-right tabular-nums font-medium text-fg">
+                              {c.ordersWithCost > 0 ? formatMoney(c.profit, data.currency) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </ChartCard>
 
@@ -447,18 +449,20 @@ function MetaAdsSection({
         </div>
       </div>
       {spend && spend.campaigns.length > 0 && (
-        <table className="mt-3 w-full text-sm">
-          <tbody>
-            {spend.campaigns.map((c) => (
-              <tr key={c.id} className="border-b border-border last:border-b-0">
-                <td className="py-1.5 text-fg">{c.name}</td>
-                <td className="py-1.5 text-right tabular-nums text-fg-muted">
-                  {formatMoney(c.spend, currency)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className={TABLE_SCROLL_X}>
+          <table className="mt-3 w-full text-sm">
+            <tbody>
+              {spend.campaigns.map((c) => (
+                <tr key={c.id} className="border-b border-border last:border-b-0">
+                  <td className="py-1.5 text-fg">{c.name}</td>
+                  <td className="py-1.5 text-right tabular-nums text-fg-muted">
+                    {formatMoney(c.spend, currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </ChartCard>
   );

@@ -10,8 +10,8 @@ import { visibleMainNav, type NavItem } from '../config/navigation';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
 import { storefrontUrl } from '../lib/storefront';
-import { PAGE_MAIN } from '../lib/styles';
 import { LogoMark } from './LogoMark';
+import { PanelShell } from './PanelShell';
 
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
 // Marketing, Instagram/Facebook, Google Shopping, Marketplaces, Aplicaciones.
@@ -113,77 +113,83 @@ export function AdminLayout() {
   // La entrada Configuración se muestra si puede ver ALGO adentro.
   const showSettings = firstSettingsPath(can) !== null;
 
-  return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-accent/80 text-accent-fg backdrop-blur-xl print:hidden">
-        <div className="flex h-header items-center gap-2.5 border-b border-border px-4">
-          <LogoMark className="h-7 w-7" />
-          <span className="text-lg font-bold">tiendafy</span>
-        </div>
+  const sidebar = (
+    <>
+      <div className="flex h-header items-center gap-2.5 border-b border-border px-4">
+        <LogoMark className="h-7 w-7" />
+        <span className="text-lg font-bold">tiendafy</span>
+      </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto p-3">
-          {visibleSections.map((section) => (
-            <div key={section.heading ?? 'top'}>
-              {section.heading && (
-                <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
-                  {section.heading}
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {section.items.map((item) => (
-                  <SidebarItem key={item.to} item={item} />
-                ))}
+      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+        {visibleSections.map((section) => (
+          <div key={section.heading ?? 'top'}>
+            {section.heading && (
+              <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
+                {section.heading}
               </div>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <SidebarItem key={item.to} item={item} />
+              ))}
             </div>
-          ))}
-        </nav>
+          </div>
+        ))}
+      </nav>
 
-        <div className="space-y-0.5 border-t border-border p-3">
-          <a
-            href="/ayuda"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg"
+      <div className="space-y-0.5 border-t border-border p-3">
+        <a
+          href="/ayuda"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg"
+        >
+          <LifeBuoy className="h-4 w-4" />
+          Centro de ayuda
+        </a>
+        {showSettings && (
+          <NavLink
+            to="/configuracion"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
+                isActive
+                  ? 'bg-primary text-primary-fg'
+                  : 'text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg',
+              )
+            }
           >
-            <LifeBuoy className="h-4 w-4" />
-            Centro de ayuda
-          </a>
-          {showSettings && (
-            <NavLink
-              to="/configuracion"
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
-                  isActive
-                    ? 'bg-primary text-primary-fg'
-                    : 'text-accent-fg/75 hover:bg-fg/5 hover:text-accent-fg',
-                )
-              }
-            >
-              <Settings className="h-4 w-4" />
-              Configuración
-            </NavLink>
-          )}
-        </div>
-      </aside>
+            <Settings className="h-4 w-4" />
+            Configuración
+          </NavLink>
+        )}
+      </div>
+    </>
+  );
 
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-header items-center justify-between border-b border-border bg-surface/80 px-6 backdrop-blur-xl print:hidden">
-          <StoreSwitcher />
+  return (
+    <PanelShell
+      sidebar={sidebar}
+      header={
+        <>
+          <div className="min-w-0">
+            <StoreSwitcher />
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             {store && (
               <a
                 href={storefrontUrl(store.subdomain)}
                 target="_blank"
                 rel="noreferrer"
+                aria-label="Ver mi tienda"
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
               >
-                Ver mi tienda <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Ver mi tienda</span> <ExternalLink className="h-4 w-4" />
               </a>
             )}
             <ThemeModeToggle />
-            <div className="flex items-center gap-2 border-l border-border pl-3">
+            <div className="flex items-center gap-2 border-l border-border pl-2 sm:pl-3">
               <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">
                 {user?.name}
               </span>
@@ -198,11 +204,10 @@ export function AdminLayout() {
               </button>
             </div>
           </div>
-        </header>
-        <main className={cn(PAGE_MAIN, 'print:p-0')}>
-          <Outlet />
-        </main>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <Outlet />
+    </PanelShell>
   );
 }

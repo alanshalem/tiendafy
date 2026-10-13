@@ -7,7 +7,7 @@ import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { BRAND } from '../../lib/runtime';
 
 interface DomainStatus {
@@ -82,125 +82,127 @@ export function DomainsPage() {
       />
 
       <div className={TABLE_CARD}>
-        <table className="w-full text-sm">
-          <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-            <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
-              <th className="px-4 py-2.5">Dirección</th>
-              <th className="px-4 py-2.5">Estado</th>
-              <th className="px-4 py-2.5">Certificado</th>
-              <th className="px-4 py-2.5 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* El subdominio de Tiendafy siempre funciona: lo resuelve el
-                comodín del DNS de la plataforma, no depende del comerciante. */}
-            <tr className="border-b border-border last:border-b-0">
-              <td className="px-4 py-3">
-                <span className="font-medium text-fg">{status?.subdomain ?? '—'}</span>
-                <span className="ml-2 rounded-full bg-bg-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
-                  Siempre disponible
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <Badge variant="success">
-                  <span className="inline-flex items-center gap-1">
-                    <Check className="h-3.5 w-3.5" /> Funcionando
-                  </span>
-                </Badge>
-              </td>
-              <td className="px-4 py-3">
-                <Badge variant="success">
-                  <span className="inline-flex items-center gap-1">
-                    <Lock className="h-3.5 w-3.5" /> Automático
-                  </span>
-                </Badge>
-              </td>
-              <td className="px-4 py-3 text-right">
-                {status?.subdomain && (
-                  <a
-                    href={`https://${status.subdomain}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    Abrir <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </td>
-            </tr>
-
-            {status?.customDomain && (
+        <div className={TABLE_SCROLL_X}>
+          <table className="w-full text-sm">
+            <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+              <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                <th className="px-4 py-2.5">Dirección</th>
+                <th className="px-4 py-2.5">Estado</th>
+                <th className="px-4 py-2.5">Certificado</th>
+                <th className="px-4 py-2.5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* El subdominio de Tiendafy siempre funciona: lo resuelve el
+                  comodín del DNS de la plataforma, no depende del comerciante. */}
               <tr className="border-b border-border last:border-b-0">
                 <td className="px-4 py-3">
-                  <span className="font-medium text-fg">{status.customDomain}</span>
-                  <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    Tuyo
+                  <span className="font-medium text-fg">{status?.subdomain ?? '—'}</span>
+                  <span className="ml-2 rounded-full bg-bg-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
+                    Siempre disponible
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {statusQ.isFetching ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando…
+                  <Badge variant="success">
+                    <span className="inline-flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" /> Funcionando
                     </span>
-                  ) : status.pointsHere ? (
-                    <Badge variant="success">
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="h-3.5 w-3.5" /> Apuntando bien
-                      </span>
-                    </Badge>
-                  ) : status.resolves ? (
-                    <Badge variant="warning">Apunta a otro lado</Badge>
-                  ) : (
-                    <Badge variant="neutral">Sin apuntar todavía</Badge>
-                  )}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3">
-                  {/* El certificado se emite en la primera visita, así que
-                      hasta que el DNS no apunte no puede existir. */}
-                  {status.pointsHere ? (
-                    <Badge variant="success">
-                      <span className="inline-flex items-center gap-1">
-                        <Lock className="h-3.5 w-3.5" /> Automático
-                      </span>
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-fg-subtle">Cuando el dominio apunte</span>
-                  )}
+                  <Badge variant="success">
+                    <span className="inline-flex items-center gap-1">
+                      <Lock className="h-3.5 w-3.5" /> Automático
+                    </span>
+                  </Badge>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => statusQ.refetch()}
-                      disabled={statusQ.isFetching}
-                      className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted disabled:opacity-50"
-                      aria-label="Volver a verificar"
-                      title="Volver a verificar"
+                <td className="px-4 py-3 text-right">
+                  {status?.subdomain && (
+                    <a
+                      href={`https://${status.subdomain}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                    {canEdit && (
-                      <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: 'Quitar el dominio propio',
-                            message: `Tu tienda va a dejar de responder en ${status.customDomain} y va a quedar solo en ${status.subdomain}.`,
-                            confirmLabel: 'Quitar',
-                            variant: 'danger',
-                          });
-                          if (ok) remove.mutate();
-                        }}
-                        className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger"
-                        aria-label="Quitar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                      Abrir <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                 </td>
               </tr>
-            )}
-          </tbody>
-        </table>
+
+              {status?.customDomain && (
+                <tr className="border-b border-border last:border-b-0">
+                  <td className="px-4 py-3">
+                    <span className="font-medium text-fg">{status.customDomain}</span>
+                    <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      Tuyo
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {statusQ.isFetching ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando…
+                      </span>
+                    ) : status.pointsHere ? (
+                      <Badge variant="success">
+                        <span className="inline-flex items-center gap-1">
+                          <Check className="h-3.5 w-3.5" /> Apuntando bien
+                        </span>
+                      </Badge>
+                    ) : status.resolves ? (
+                      <Badge variant="warning">Apunta a otro lado</Badge>
+                    ) : (
+                      <Badge variant="neutral">Sin apuntar todavía</Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {/* El certificado se emite en la primera visita, así que
+                        hasta que el DNS no apunte no puede existir. */}
+                    {status.pointsHere ? (
+                      <Badge variant="success">
+                        <span className="inline-flex items-center gap-1">
+                          <Lock className="h-3.5 w-3.5" /> Automático
+                        </span>
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-fg-subtle">Cuando el dominio apunte</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => statusQ.refetch()}
+                        disabled={statusQ.isFetching}
+                        className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted disabled:opacity-50"
+                        aria-label="Volver a verificar"
+                        title="Volver a verificar"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Quitar el dominio propio',
+                              message: `Tu tienda va a dejar de responder en ${status.customDomain} y va a quedar solo en ${status.subdomain}.`,
+                              confirmLabel: 'Quitar',
+                              variant: 'danger',
+                            });
+                            if (ok) remove.mutate();
+                          }}
+                          className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger"
+                          aria-label="Quitar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Lo único que el comerciante necesita hacer, y con el valor exacto. */}

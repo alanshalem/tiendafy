@@ -9,7 +9,7 @@ import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { VariantPicker } from '../../components/VariantPicker';
-import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE } from '../../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { usePermissions } from '../../context/PermissionsContext';
 
 interface KitDto {
@@ -127,60 +127,62 @@ export function KitsPage() {
             onChange={(e) => setListSearch(e.target.value)}
           />
           <div className={TABLE_CARD}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-                <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
-                  <th className="px-4 py-2.5 font-medium">Kit</th>
-                  <th className="px-4 py-2.5 font-medium">Componentes</th>
-                  <th className="px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {(kits?.items ?? [])
-                  .filter((k) => {
-                    const q = listSearch.trim().toLowerCase();
-                    return (
-                      q === '' ||
-                      k.kitLabel.toLowerCase().includes(q) ||
-                      k.kitSku.toLowerCase().includes(q) ||
-                      k.components.some((c) => c.label.toLowerCase().includes(q))
-                    );
-                  })
-                  .map((k) => (
-                    <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
-                      <td className="px-4 py-2.5 font-medium text-fg">
-                        {k.kitLabel}
-                        <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-fg-muted">
-                        {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
-                        {suggestedByKit.get(k.kitVariantId) != null && (
-                          <span className="ml-2 text-xs text-fg-subtle">
-                            · costo de componentes: {formatMoney(suggestedByKit.get(k.kitVariantId)!)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
-                        >
-                          Editar
-                        </Button>
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                  <tr className="border-b border-border bg-bg-subtle text-left text-fg-muted">
+                    <th className="px-4 py-2.5 font-medium">Kit</th>
+                    <th className="px-4 py-2.5 font-medium">Componentes</th>
+                    <th className="px-4 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {(kits?.items ?? [])
+                    .filter((k) => {
+                      const q = listSearch.trim().toLowerCase();
+                      return (
+                        q === '' ||
+                        k.kitLabel.toLowerCase().includes(q) ||
+                        k.kitSku.toLowerCase().includes(q) ||
+                        k.components.some((c) => c.label.toLowerCase().includes(q))
+                      );
+                    })
+                    .map((k) => (
+                      <tr key={k.kitVariantId} className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-2.5 font-medium text-fg">
+                          {k.kitLabel}
+                          <span className="ml-1 font-mono text-xs text-fg-subtle">{k.kitSku}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-fg-muted">
+                          {k.components.map((c) => `${c.quantity}× ${c.label}`).join(' + ')}
+                          {suggestedByKit.get(k.kitVariantId) != null && (
+                            <span className="ml-2 text-xs text-fg-subtle">
+                              · costo de componentes: {formatMoney(suggestedByKit.get(k.kitVariantId)!)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => openEditor({ variantId: k.kitVariantId, label: k.kitLabel }, k)}
+                          >
+                            Editar
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  {(kits?.items ?? []).length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-10 text-center text-sm text-fg-muted">
+                        <Boxes className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                        Sin kits definidos. Buscá arriba el producto que vendés como combo.
                       </td>
                     </tr>
-                  ))}
-                {(kits?.items ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-10 text-center text-sm text-fg-muted">
-                      <Boxes className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                      Sin kits definidos. Buscá arriba el producto que vendés como combo.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       ) : (

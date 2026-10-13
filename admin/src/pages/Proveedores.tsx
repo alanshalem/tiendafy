@@ -8,7 +8,7 @@ import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { TABLE_CARD, TABLE_HEAD_STICKY } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 
@@ -166,52 +166,54 @@ function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
       ) : (
         <div className={TABLE_CARD}>
-          <table className="w-full text-sm">
-            <thead className={TABLE_HEAD_STICKY}>
-              <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                <th className="px-4 py-2 font-medium">Proveedor</th>
-                <th className="px-4 py-2 font-medium">CUIT</th>
-                <th className="px-4 py-2 text-right font-medium">Compras</th>
-                <th className="px-4 py-2 text-right font-medium">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((s) => (
-                <tr key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer hover:bg-bg-muted">
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{s.name}</span>
-                      {!s.active && <Badge variant="neutral">Inactivo</Badge>}
-                    </div>
-                    {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{s.taxId ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                    {s.purchaseCount > 0 ? s.purchaseCount : '—'}
-                    {s.lastPurchaseAtUtc && (
-                      <div className="text-xs text-fg-subtle">última {formatDate(s.lastPurchaseAtUtc)}</div>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {s.balanceMinor === 0 ? (
-                      <span className="text-fg-subtle">Al día</span>
-                    ) : (
-                      <>
-                        <div
-                          className={`font-medium tabular-nums ${s.balanceMinor < 0 ? 'text-danger' : 'text-success'}`}
-                        >
-                          {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
-                        </div>
-                        <div className="text-xs text-fg-subtle">
-                          {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
-                        </div>
-                      </>
-                    )}
-                  </td>
+          <div className={TABLE_SCROLL_X}>
+            <table className="w-full text-sm">
+              <thead className={TABLE_HEAD_STICKY}>
+                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-2 font-medium">Proveedor</th>
+                  <th className="px-4 py-2 font-medium">CUIT</th>
+                  <th className="px-4 py-2 text-right font-medium">Compras</th>
+                  <th className="px-4 py-2 text-right font-medium">Saldo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((s) => (
+                  <tr key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer hover:bg-bg-muted">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{s.name}</span>
+                        {!s.active && <Badge variant="neutral">Inactivo</Badge>}
+                      </div>
+                      {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{s.taxId ?? '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                      {s.purchaseCount > 0 ? s.purchaseCount : '—'}
+                      {s.lastPurchaseAtUtc && (
+                        <div className="text-xs text-fg-subtle">última {formatDate(s.lastPurchaseAtUtc)}</div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right">
+                      {s.balanceMinor === 0 ? (
+                        <span className="text-fg-subtle">Al día</span>
+                      ) : (
+                        <>
+                          <div
+                            className={`font-medium tabular-nums ${s.balanceMinor < 0 ? 'text-danger' : 'text-success'}`}
+                          >
+                            {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
+                          </div>
+                          <div className="text-xs text-fg-subtle">
+                            {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
+                          </div>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -308,30 +310,32 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           </div>
         ) : (
           <div className={TABLE_CARD}>
-            <table className="w-full text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
-                  <th className="px-4 py-2 font-medium">Referencia</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
-                  <th className="px-4 py-2 font-medium">Factura</th>
-                  <th className="px-4 py-2 font-medium">Fecha</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data.purchases.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2">{p.reference ?? '—'}</td>
-                    <td className="px-4 py-2">
-                      <Badge variant="neutral">{PO_STATUS[p.status] ?? p.status}</Badge>
-                    </td>
-                    <td className="px-4 py-2 text-fg-muted">{p.invoiceNumber ?? 'Sin cargar'}</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                      {formatDate(p.createdAtUtc)}
-                    </td>
+            <div className={TABLE_SCROLL_X}>
+              <table className="w-full text-sm">
+                <thead className={TABLE_HEAD_STICKY}>
+                  <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
+                    <th className="px-4 py-2 font-medium">Referencia</th>
+                    <th className="px-4 py-2 font-medium">Estado</th>
+                    <th className="px-4 py-2 font-medium">Factura</th>
+                    <th className="px-4 py-2 font-medium">Fecha</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.purchases.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-4 py-2">{p.reference ?? '—'}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant="neutral">{PO_STATUS[p.status] ?? p.status}</Badge>
+                      </td>
+                      <td className="px-4 py-2 text-fg-muted">{p.invoiceNumber ?? 'Sin cargar'}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
+                        {formatDate(p.createdAtUtc)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
