@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { buildCsp } from './lib/csp';
+import { serverRuntimeConfig } from './lib/runtime';
 
 /**
- * Deja la ruta pedida en un encabezado.
+ * Dos cosas en cada pedido de página:
+ *
+ * - El Content-Security-Policy, armado con la API de ESTE ambiente (la que se
+ *   inyecta al arrancar el contenedor). Al compilar no se conoce: ver lib/csp.ts.
+ * - La ruta pedida en un encabezado (abajo).
  *
  * La pantalla de 404 necesita saber qué URL pidió el visitante para poder
  * buscar si el comercio dejó una redirección, y un componente de servidor no
@@ -14,7 +20,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.set('x-pathname', request.nextUrl.pathname);
-  return NextResponse.next({ request: { headers } });
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set('Content-Security-Policy', buildCsp(serverRuntimeConfig().apiUrl));
+  return response;
 }
 
 export const config = {
