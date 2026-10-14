@@ -23,6 +23,8 @@ import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import type { MoneyDto } from '@tiendafy/types';
 import { INPUT_LIGHT_10 } from './styles';
+import { useStoreOffers } from './store-offers-context';
+import { offlineDiscountLabel } from '@/lib/store-offers';
 
 interface Variant {
   id: string;
@@ -98,6 +100,7 @@ export function ProductDetail({
   const waPhone = (live?.whatsappButton.phone ?? whatsappPhone ?? '').replace(/\D/g, '');
   const href = usePreviewHref();
   const { add, setOpen, beginCheckout } = useCart();
+  const offers = useStoreOffers();
   const hasOptions = options.length > 0;
 
   // Unidades de una variante: la suya si vino; si no, lo que se deduce del total.
@@ -333,19 +336,21 @@ export function ProductDetail({
             <span className="text-xl font-bold text-primary-ink">
               {formatMoney(cashPrice, shown.price.currency)}
             </span>
-            <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
+            <span className="ml-1.5 text-sm text-fg-muted">con {offlineDiscountLabel(offers)}</span>
             <div className="text-xs text-fg-muted">
-              {cashPct}% de descuento pagando con transferencia o efectivo
+              {cashPct}% de descuento pagando con {offlineDiscountLabel(offers)}
             </div>
           </div>
         )}
 
+        {/* "Hasta": las cuotas dependen de la tarjeta y del banco, y se dicen con sus condiciones. */}
         {cfg.installmentsCount > 0 && (
-          <div className="mt-1 text-sm opacity-70">
-            {cfg.installmentsCount} cuotas sin interés de{' '}
+          <div className="mt-1 text-sm text-fg-muted">
+            Hasta {cfg.installmentsCount} cuotas sin interés de{' '}
             <span className="font-semibold">
               {formatMoney(Math.round(shown.price.amount / cfg.installmentsCount), shown.price.currency)}
             </span>
+            {offers?.installments.note && <div className="text-xs">{offers.installments.note}</div>}
           </div>
         )}
 

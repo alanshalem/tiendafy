@@ -5,6 +5,7 @@ import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import { finishPurchase } from '@/lib/cart-storage';
+import { OfflinePaymentInstructions } from './OfflinePaymentInstructions';
 
 type Kind = 'success' | 'failure' | 'pending';
 
@@ -133,6 +134,10 @@ export function CheckoutResult({
         <p className="max-w-md whitespace-pre-line rounded-lg border border-black/10 bg-black/[0.03] px-4 py-3 text-sm">
           {ownMessage}
         </p>
+      )}
+      {/* Transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo (no muestra nada para otras órdenes). */}
+      {orderId && resolved === 'pending' && (
+        <OfflinePaymentInstructions tenantId={tenantId} orderId={orderId} />
       )}
       {orderId && <p className="text-xs text-fg-muted">Orden {orderId}</p>}
       <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">

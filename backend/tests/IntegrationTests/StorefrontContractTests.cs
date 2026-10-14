@@ -28,6 +28,7 @@ public sealed class StorefrontContractTests
         "/api/v1/checkout/00000000-0000-0000-0000-000000000000/pay",
         "/api/v1/checkout/00000000-0000-0000-0000-000000000000/pay-onsite",
         "/api/v1/checkout/00000000-0000-0000-0000-000000000000/pay-payway",
+        "/api/v1/checkout/00000000-0000-0000-0000-000000000000/pay-offline",
         "/api/v1/shipping/correo/quote",
         "/api/v1/shipping/zipnova/quote",
         "/api/v1/shipping/andreani/quote",

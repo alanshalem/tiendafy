@@ -52,7 +52,14 @@ public static class PaymentOptionsEndpoints
                 // false = la tienda nunca guardó estas opciones: el storefront
                 // sigue con los números que tenía el diseño (temas viejos).
                 configured = options is not null,
-                transfer = new { enabled = transfer, discountPercent = options?.DiscountPercent ?? 0 },
+                // Las horas de reserva se le dicen al comprador antes de elegir:
+                // "te guardamos los productos 48 h" es parte de la oferta.
+                transfer = new
+                {
+                    enabled = transfer,
+                    discountPercent = options?.DiscountPercent ?? 0,
+                    holdHours = options?.HoldHours ?? StorePaymentOptions.DefaultHoldHours,
+                },
                 cashOnPickup = new { enabled = cash },
                 installments = new { max = options?.InstallmentsMax ?? 0, note = options?.InstallmentsNote },
                 freeShipping = cheapest is null

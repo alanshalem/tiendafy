@@ -323,12 +323,12 @@ export function PaywayCardForm({
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
           type="submit"
           disabled={!ready || busy}
-          className="w-full rounded-md bg-black px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full rounded-md bg-primary px-4 py-3 text-sm font-semibold text-primary-fg disabled:opacity-50"
         >
           {busy ? 'Procesando…' : `Pagar ${amountLabel}`}
         </button>
