@@ -11,6 +11,7 @@ import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
 import { useCatalogHealth } from './queries';
 import { useListParams, useListSearch } from '../../lib/useListParams';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -317,6 +318,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
   const [categoryId, setCategoryId] = useState('');
   const [rounding, setRounding] = useState('990');
   const [busy, setBusy] = useState(false);
+  const { dirty, close } = useModalFormGuard({ percent, categoryId, rounding }, onClose);
 
   const { data: cats } = useQuery({
     queryKey: ['categories', store?.id],
@@ -359,11 +361,12 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Repreciar en masa"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={apply} disabled={busy || !percent}>

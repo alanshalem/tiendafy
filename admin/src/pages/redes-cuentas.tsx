@@ -2,6 +2,7 @@ import { useState, useId } from 'react';
 import { Loader2, Plug, Users } from 'lucide-react';
 import { Badge, Button, EmptyList, Input, Modal, Spinner, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   CONNECTOR_META,
   connectorFor,
@@ -163,6 +164,7 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
   const [saving, setSaving] = useState(false);
+  const { dirty, close } = useModalFormGuard({ botToken: botToken.trim(), chatId: chatId.trim() }, onClose);
 
   const save = async () => {
     setSaving(true);
@@ -182,11 +184,12 @@ function TelegramModal({ onClose, onConnected }: { onClose: () => void; onConnec
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Conectar Telegram"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving || !botToken.trim() || !chatId.trim()}>

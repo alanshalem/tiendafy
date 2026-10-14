@@ -2,6 +2,7 @@ import { useEffect, useState, useId } from 'react';
 import { Send } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
   parseAddress,
@@ -93,6 +94,26 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
   const [declared, setDeclared] = useState(declaredValueFromOrder(order));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  // Creado el envío, lo que queda en el form ya no se pierde: cerrar no pregunta.
+  const { dirty, close } = useModalFormGuard(
+    {
+      deliveryType,
+      name,
+      email,
+      phone,
+      street,
+      number,
+      floor,
+      apartment,
+      city,
+      province,
+      cp,
+      agency,
+      declared,
+    },
+    onClose,
+    { enabled: !done },
+  );
 
   const submit = async () => {
     setBusy(true);
@@ -129,12 +150,13 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Crear envío en Correo Argentino"
       footer={
         done ? (
           <Button onClick={onClose}>Listo</Button>
         ) : (
-          <ShipmentFooter busy={busy} onClose={onClose} onSubmit={submit} />
+          <ShipmentFooter busy={busy} onClose={close} onSubmit={submit} />
         )
       }
     >

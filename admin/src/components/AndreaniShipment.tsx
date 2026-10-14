@@ -3,6 +3,7 @@ import { Download, Loader2, Truck } from 'lucide-react';
 import { Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
   declaredValueFromOrder,
   parseAddress,
@@ -174,6 +175,25 @@ function ShipmentModal({
   const [toBranch, setToBranch] = useState(false);
   const [branchId, setBranchId] = useState('');
   const [busy, setBusy] = useState(false);
+  // Lo precargado de la venta no cuenta: solo lo que la persona corrigió.
+  const { dirty, close } = useModalFormGuard(
+    {
+      name,
+      docType,
+      docNumber,
+      email,
+      phone,
+      street,
+      number,
+      extras,
+      city,
+      zipcode,
+      declared,
+      toBranch,
+      branchId,
+    },
+    onClose,
+  );
 
   // Andreani corta el email del destinatario en 40 caracteres. Es la causa
   // número uno de rechazos, así que se avisa acá y no cuando falla el despacho.
@@ -213,8 +233,9 @@ function ShipmentModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Crear envío en Andreani"
-      footer={<ShipmentFooter busy={busy || emailTooLong} onClose={onClose} onSubmit={submit} />}
+      footer={<ShipmentFooter busy={busy || emailTooLong} onClose={close} onSubmit={submit} />}
     >
       <div className="space-y-3">
         <p className="rounded-md bg-warning-bg px-3 py-2 text-xs text-warning">

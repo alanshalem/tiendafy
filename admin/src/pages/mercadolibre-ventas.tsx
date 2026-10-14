@@ -29,6 +29,7 @@ import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { useListParams, useListSearch } from '../lib/useListParams';
 import { useFiscalReady } from '../lib/useFiscalReady';
 import { useIsNarrow } from '../lib/useMediaQuery';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -520,6 +521,8 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
   >(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // Una respuesta a medio escribir no se pierde por un click afuera.
+  const { dirty } = useModalFormGuard(text.trim(), onClose);
 
   const load = useCallback(() => {
     api
@@ -550,7 +553,13 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
   };
 
   return (
-    <Modal open onClose={onClose} title={`Chat con ${order.buyerNickname || 'el comprador'}`} size="md">
+    <Modal
+      open
+      onClose={onClose}
+      dirty={dirty}
+      title={`Chat con ${order.buyerNickname || 'el comprador'}`}
+      size="md"
+    >
       <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg bg-bg-subtle p-3">
         {messages === null ? (
           <Spinner />

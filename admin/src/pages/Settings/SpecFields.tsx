@@ -19,6 +19,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 type SpecType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'LIST';
 
@@ -239,6 +240,10 @@ function FieldModal({
   const [filterable, setFilterable] = useState(field?.filterable ?? false);
   const [meli, setMeli] = useState(field?.meliAttributeId ?? '');
   const [busy, setBusy] = useState(false);
+  const { dirty, close } = useModalFormGuard(
+    { name, type, unit, optionsText, categoryIds: [...categoryIds].sort(), showOnProduct, filterable, meli },
+    onClose,
+  );
 
   const options = optionsText
     .split('\n')
@@ -274,10 +279,11 @@ function FieldModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title={field ? 'Editar campo' : 'Nuevo campo de ficha técnica'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button variant="secondary" onClick={close} disabled={busy}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={busy || name.trim().length < 2}>

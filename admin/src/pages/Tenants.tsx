@@ -19,6 +19,7 @@ import { MoreVertical, Pencil, Archive, ArchiveRestore, Plus, Trash2 } from 'luc
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { storefrontHost, storePublicHost, storePublicUrl } from '../lib/storefront';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import { ListStats } from '../components/stats/ListStats';
 import { Delta } from '../components/charts/viz';
 import { TableSkeleton } from '../components/Skeleton';
@@ -451,6 +452,7 @@ function TenantFormModal({
   const [subdomain, setSubdomain] = useState(tenant?.subdomain ?? '');
   const [customDomain, setCustomDomain] = useState(tenant?.customDomain ?? '');
   const [error, setError] = useState<string>();
+  const { dirty, close } = useModalFormGuard({ name, subdomain, customDomain }, onClose);
 
   const check = useAvailability(name.trim(), subdomain.trim(), tenant?.id);
   const nameTaken = !!name.trim() && check?.nameAvailable === false;
@@ -485,10 +487,11 @@ function TenantFormModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={mode === 'create' ? 'Crear tienda' : 'Editar tienda'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button loading={save.isPending} disabled={blocked} onClick={() => save.mutate()}>

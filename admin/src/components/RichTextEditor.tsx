@@ -69,8 +69,13 @@ export function RichTextEditor({
   // Sincronizar cuando cambia el contenido desde afuera (abrir el modal con otra página).
   // Un editor ya destruido (Tiptap lo rearma al montar dos veces) no tiene
   // esquema: preguntarle el HTML tiraba "reading 'cached'" y rompía la pantalla.
+  // Sin emitUpdate: lo que llega de afuera no es una edición. Tiptap 3 avisa
+  // por defecto, y un HTML guardado que el editor normaliza distinto (texto
+  // suelto que envuelve en <p>) volvía como onChange y el form quedaba
+  // "modificado" sin que nadie tocara nada: preguntaba al cerrarlo.
   useEffect(() => {
-    if (editor && !editor.isDestroyed && value !== editor.getHTML()) editor.commands.setContent(value || '');
+    if (editor && !editor.isDestroyed && value !== editor.getHTML())
+      editor.commands.setContent(value || '', { emitUpdate: false });
   }, [value, editor]);
 
   if (!editor) return null;

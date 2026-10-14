@@ -24,6 +24,7 @@ import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import type { FinanceAccount } from './Tesoreria';
 import { parseMoneyInput } from '../lib/price';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -530,6 +531,17 @@ function ReceiptModal({
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [allocations, setAllocations] = useState<Record<string, string>>({});
+  // Una imputación escrita y borrada no cuenta como cambio.
+  const { dirty, close } = useModalFormGuard(
+    {
+      party: party?.id ?? null,
+      pickedAccountId,
+      amount,
+      notes,
+      allocations: Object.entries(allocations).filter(([, v]) => v.trim() !== ''),
+    },
+    onClose,
+  );
 
   const { data: parties } = useQuery({
     queryKey: ['finance-parties', store?.id, partyKind, debounced],
@@ -619,7 +631,7 @@ function ReceiptModal({
   const title = partyKind === 'customer' ? 'Registrar un cobro' : 'Registrar un pago';
 
   return (
-    <Modal open onClose={onClose} title={title} size="lg">
+    <Modal open onClose={onClose} dirty={dirty} title={title} size="lg">
       <div className="space-y-3">
         {party ? (
           <div className="flex items-center justify-between rounded-md border border-border bg-bg-subtle px-3 py-2">
@@ -790,7 +802,7 @@ function ReceiptModal({
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button onClick={submit} disabled={save.isPending} loading={save.isPending}>
@@ -818,6 +830,10 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
   const [amount, setAmount] = useState('');
   const [label, setLabel] = useState('');
   const [reason, setReason] = useState('');
+  const { dirty, close } = useModalFormGuard(
+    { party: party?.id ?? null, kind, amount, label, reason },
+    onClose,
+  );
 
   const { data: parties } = useQuery({
     queryKey: ['finance-parties', store?.id, partyKind, debounced],
@@ -864,7 +880,7 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
         ];
 
   return (
-    <Modal open onClose={onClose} title="Ajuste de cuenta corriente">
+    <Modal open onClose={onClose} dirty={dirty} title="Ajuste de cuenta corriente">
       <p className="mb-3 text-sm text-fg-muted">
         Para cargar un saldo que viene de antes del sistema, o corregir una diferencia. Queda registrado como
         un movimiento más, con el motivo a la vista.
@@ -935,7 +951,7 @@ function AdjustmentModal({ partyKind, onClose }: { partyKind: PartyKind; onClose
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button onClick={() => save.mutate()} disabled={invalid || save.isPending} loading={save.isPending}>

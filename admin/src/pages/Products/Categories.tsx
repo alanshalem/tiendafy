@@ -21,7 +21,7 @@ import { useFlipList } from '../../lib/useFlip';
 import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
 import { TableSkeleton } from '../../components/Skeleton';
-import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
+import { useModalFormGuard, useUnsavedChanges } from '../../lib/useUnsavedChanges';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 
 interface CategoryDto {
@@ -372,14 +372,16 @@ function RenameCategoryModal({
   saving: boolean;
 }) {
   const [name, setName] = useState(category.name);
+  const { dirty, close } = useModalFormGuard(name.trim(), onClose);
   return (
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Editar nombre"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button loading={saving} disabled={!name.trim()} onClick={() => onSave(name.trim())}>
@@ -544,6 +546,7 @@ function CreateCategoryModal({
   const [error, setError] = useState<string>();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { dirty, close } = useModalFormGuard({ name, parentId }, onClose);
 
   const parentOptions = categories
     .filter((c) => c.depth < 3)
@@ -566,10 +569,11 @@ function CreateCategoryModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title="Crear categoría"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button loading={createCategory.isPending} disabled={!name} onClick={() => createCategory.mutate()}>

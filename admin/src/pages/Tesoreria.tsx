@@ -12,6 +12,7 @@ import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { parseMoneyInput } from '../lib/price';
 import { useListParams } from '../lib/useListParams';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -179,6 +180,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
   const [opening, setOpening] = useState('0');
   const [detail, setDetail] = useState(account?.detail ?? '');
   const [active, setActive] = useState(account?.active ?? true);
+  const { dirty, close } = useModalFormGuard({ name, kind, currency, opening, detail, active }, onClose);
 
   const save = useMutation({
     mutationFn: () =>
@@ -202,7 +204,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
   const openingInvalid = !editing && Number.isNaN(parseMoneyInput(opening || '0'));
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Editar cuenta' : 'Nueva cuenta'}>
+    <Modal open onClose={onClose} dirty={dirty} title={editing ? 'Editar cuenta' : 'Nueva cuenta'}>
       <div className="space-y-3">
         <FormField label="Nombre">
           <Input
@@ -258,7 +260,7 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button
@@ -390,6 +392,7 @@ function MovementModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
   const [amount, setAmount] = useState('');
   const [concept, setConcept] = useState('');
   const [reference, setReference] = useState('');
+  const { dirty, close } = useModalFormGuard({ accountId, kind, amount, concept, reference }, onClose);
 
   const amountMinor = parseMoneyInput(amount);
   const invalid = !accountId || !concept.trim() || !Number.isFinite(amountMinor) || amountMinor <= 0;
@@ -413,7 +416,7 @@ function MovementModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
   });
 
   return (
-    <Modal open onClose={onClose} title="Nuevo movimiento">
+    <Modal open onClose={onClose} dirty={dirty} title="Nuevo movimiento">
       <div className="space-y-3">
         <FormField label="Cuenta">
           <Select
@@ -453,7 +456,7 @@ function MovementModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button onClick={() => save.mutate()} disabled={invalid || save.isPending} loading={save.isPending}>
@@ -473,6 +476,7 @@ function TransferModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
   const [toAccountId, setTo] = useState(accounts[1]?.id ?? '');
   const [amount, setAmount] = useState('');
   const [concept, setConcept] = useState('');
+  const { dirty, close } = useModalFormGuard({ fromAccountId, toAccountId, amount, concept }, onClose);
 
   const from = accounts.find((a) => a.id === fromAccountId);
   const to = accounts.find((a) => a.id === toAccountId);
@@ -511,7 +515,7 @@ function TransferModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
   }));
 
   return (
-    <Modal open onClose={onClose} title="Transferir entre cuentas">
+    <Modal open onClose={onClose} dirty={dirty} title="Transferir entre cuentas">
       <p className="mb-3 text-sm text-fg-muted">
         Mover plata de una cuenta a otra no es un ingreso ni un gasto: quedan los dos movimientos atados, para
         que no infle los totales.
@@ -537,7 +541,7 @@ function TransferModal({ accounts, onClose }: { accounts: FinanceAccount[]; onCl
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button onClick={() => save.mutate()} disabled={invalid || save.isPending} loading={save.isPending}>

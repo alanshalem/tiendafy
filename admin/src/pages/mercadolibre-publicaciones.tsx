@@ -18,6 +18,7 @@ import { useProductSearch } from '../lib/useProductSearch';
 import { moneyMajor } from './mercadolibre-shared';
 import type { MoneyDto } from '@tiendafy/types';
 import { useServerLoad } from '../lib/useServerLoad';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -200,6 +201,8 @@ function LinkModal({
   const [productId, setProductId] = useState('');
   const [variantId, setVariantId] = useState('');
   const [saving, setSaving] = useState(false);
+  // Lo que se escribe en el buscador no cuenta: lo que se pierde es lo elegido.
+  const { dirty, close } = useModalFormGuard({ productId, variantId }, onClose);
 
   const { data: found } = useProductSearch<ProductDto>(search);
   const products = found?.items ?? [];
@@ -236,11 +239,12 @@ function LinkModal({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Vincular con tu catálogo"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving || !productId || !variantId}>
@@ -288,6 +292,7 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
   >(null);
   const [categoryId, setCategoryId] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const { dirty, close } = useModalFormGuard({ productId, categoryId }, onClose);
 
   const { data: found } = useProductSearch<ProductDto>(search, { activeOnly: true });
   const products = found?.items ?? [];
@@ -337,11 +342,12 @@ function PublishModal({ onClose, onPublished }: { onClose: () => void; onPublish
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Publicar en Mercado Libre"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={publish} disabled={publishing || !product || !categoryId}>

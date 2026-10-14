@@ -4,6 +4,7 @@ import { Button, FormField, Input, Modal, Switch, useToast } from '@tiendafy/ui'
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatNumber } from '../../lib/format';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 interface AndreaniConfig {
   configured: boolean;
@@ -118,6 +119,33 @@ function ConfigModal({
   const [height, setHeight] = useState(String(config.defaultHeightCm ?? 15));
   const [active, setActive] = useState(config.active ?? true);
 
+  // Las credenciales nunca vuelven del servidor: escribir una ya es un cambio.
+  const { dirty, close } = useModalFormGuard(
+    {
+      username,
+      password,
+      clientCode,
+      homeContract,
+      branchContract,
+      originBranch,
+      useQa,
+      senderName,
+      senderEmail,
+      senderDocType,
+      senderDocNumber,
+      senderPhone,
+      originStreet,
+      originNumber,
+      originCity,
+      originZip,
+      weight,
+      length,
+      width,
+      height,
+      active,
+    },
+    onClose,
+  );
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
@@ -179,10 +207,11 @@ function ConfigModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Configurar Andreani"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           {config.configured && (

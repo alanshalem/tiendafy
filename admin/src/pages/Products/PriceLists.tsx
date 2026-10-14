@@ -12,6 +12,7 @@ import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles'
 import { useListParams, useListSearch, useRecordParam } from '../../lib/useListParams';
 import { ScreenSkeleton } from '../../components/Skeleton';
 import { parseMoneyInput } from '../../lib/price';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -239,6 +240,10 @@ function PriceListModal({
   const [rounding, setRounding] = useState(list?.rounding ?? 'none');
   const [notes, setNotes] = useState(list?.notes ?? '');
   const [active, setActive] = useState(list?.active ?? true);
+  const { dirty, close } = useModalFormGuard(
+    { name, currency, basedOn, percent, rounding, notes, active },
+    onClose,
+  );
 
   const percentNumber = Number(percent.replace(',', '.'));
   const invalid = name.trim().length < 2 || !Number.isFinite(percentNumber) || percentNumber <= -100;
@@ -294,7 +299,7 @@ function PriceListModal({
   const preview = Number.isFinite(percentNumber) ? Math.round(100000 * (1 + percentNumber / 100)) : 0;
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Editar lista' : 'Nueva lista de precios'}>
+    <Modal open onClose={onClose} dirty={dirty} title={editing ? 'Editar lista' : 'Nueva lista de precios'}>
       <div className="space-y-3">
         <FormField label="Nombre" required>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mayorista" autoFocus />
@@ -355,7 +360,7 @@ function PriceListModal({
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           Cancelar
         </Button>
         <Button onClick={() => save.mutate()} disabled={invalid || save.isPending} loading={save.isPending}>

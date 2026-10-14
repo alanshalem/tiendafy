@@ -11,6 +11,7 @@ import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
 import { useListParams, useListSearch } from '../lib/useListParams';
+import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
 export interface AdminReview {
   id: string;
@@ -421,16 +422,21 @@ function ReviewSettingsModal({ onClose }: { onClose: () => void }) {
   };
 
   const set = (patch: Partial<ReviewSettings>) => value && setForm({ ...value, ...patch });
+  // Contra lo guardado, no "se tocó algo": prender y volver a apagar un switch
+  // no es un cambio que se pierda.
+  const dirty = form !== null && JSON.stringify(form) !== JSON.stringify(data);
+  const close = useGuardedClose(dirty, onClose);
+  useBeforeUnload(dirty);
 
   return (
     <Modal
       open
       onClose={onClose}
       title="Configuración de reseñas"
-      dirty={form !== null}
+      dirty={dirty}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             Cancelar
           </Button>
           <Button loading={saving} disabled={!value} onClick={() => void save()}>

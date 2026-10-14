@@ -40,6 +40,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { CARD_MENU_TRIGGER, ResponsiveList } from '../components/ListCards';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
+import { useModalFormGuard } from '../lib/useUnsavedChanges';
 
 export interface Customer {
   id: string;
@@ -524,6 +525,7 @@ export function CustomerModal({
   const [priceListId, setPriceListId] = useState(customer?.priceListId ?? '');
   const [error, setError] = useState<string>();
   const isEdit = !!customer;
+  const { dirty, close } = useModalFormGuard({ name, email, phone, address, notes, priceListId }, onClose);
 
   // Las listas se piden solo con el modal abierto: la mayoría de las tiendas no
   // tiene ninguna y el campo entero desaparece.
@@ -560,10 +562,11 @@ export function CustomerModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={isEdit ? 'Editar cliente' : 'Agregar cliente'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button loading={save.isPending} disabled={!name.trim()} onClick={() => save.mutate()}>

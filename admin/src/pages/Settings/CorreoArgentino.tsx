@@ -4,6 +4,7 @@ import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tien
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatAmount } from '../../lib/format';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 interface CorreoConfig {
   configured: boolean;
@@ -108,6 +109,26 @@ function ConfigModal({
   const [offerHome, setOfferHome] = useState(config.offerHomeDelivery ?? true);
   const [offerAgency, setOfferAgency] = useState(config.offerAgencyDelivery ?? true);
   const [active, setActive] = useState(config.active ?? true);
+  // Las credenciales nunca vuelven del servidor: escribir una ya es un cambio.
+  const { dirty, close } = useModalFormGuard(
+    {
+      userToken,
+      passwordToken,
+      customerId,
+      miEmail,
+      miPassword,
+      environment,
+      originCp,
+      weight,
+      length,
+      width,
+      height,
+      offerHome,
+      offerAgency,
+      active,
+    },
+    onClose,
+  );
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testRates, setTestRates] = useState<TestRate[] | null>(null);
@@ -160,6 +181,7 @@ function ConfigModal({
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title="Correo Argentino (MiCorreo)"
       footer={
         <>
@@ -168,7 +190,7 @@ function ConfigModal({
               {testing && <Loader2 className="h-4 w-4 animate-spin" />} Probar cotización
             </Button>
           )}
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving}>

@@ -149,7 +149,9 @@ describe('cuentas corrientes', () => {
     await user.click(dialog.getByRole('button', { name: 'Imputar lo más viejo primero' }));
     const first = dialog.getAllByLabelText(/Monto a imputar a/)[0]!;
     expect((first as HTMLInputElement).value).not.toMatch(/\.\d{2}$/); // ni "500.00"
+    // Con el importe cargado, cancelar pregunta antes de tirarlo.
     await user.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }));
 
     api.on('GET', '/api/v1/finance/accounts', { items: [], totals: [] });
     await user.click(await screen.findByRole('button', { name: /Registrar cobro/ }));
