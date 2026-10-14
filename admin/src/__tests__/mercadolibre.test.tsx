@@ -105,7 +105,15 @@ describe('Mercado Libre: preguntas', () => {
     const card = screen.getByText(question.text).closest('div.rounded-lg') as HTMLElement;
     await user.click(within(card).getByTitle(/Sugerir una respuesta con IA/));
     await waitFor(() => expect(within(card).getByDisplayValue('Sí, es compatible.')).toBeInTheDocument());
+    // Enter solo hace un salto de línea: la respuesta es pública y no se borra.
     await user.type(within(card).getByPlaceholderText('Escribí tu respuesta…'), ' ¡Saludos!{Enter}');
+    await settle(1);
+    expect(posted(api, `/api/v1/admin/meli/questions/${question.id}/answer`)).toBeUndefined();
+    expect(within(card).getByText(/Ctrl \+ Enter para publicar/)).toBeInTheDocument();
+    await user.type(
+      within(card).getByPlaceholderText('Escribí tu respuesta…'),
+      '{Backspace}{Control>}{Enter}{/Control}',
+    );
     await settle(2);
     expect(posted(api, `/api/v1/admin/meli/questions/${question.id}/answer`)).toEqual({
       text: 'Sí, es compatible. ¡Saludos!',
@@ -114,6 +122,101 @@ describe('Mercado Libre: preguntas', () => {
     await user.click(screen.getByRole('button', { name: 'Todas' }));
     await settle(2);
     await user.click(screen.getByRole('button', { name: 'Sin responder' }));
+  });
+});
+
+describe('Mercado Libre: preguntas con su publicación', () => {
+  it('muestra título, precio y stock, y la IA recibe el título (no el id)', async () => {
+    const { api, user } = await open('preguntas', (a) => {
+      a.on('GET', '/api/v1/ai/status', { enabled: true });
+      a.on('POST', '/api/v1/ai/ml-answer', { text: 'Sí.' });
+      a.on('GET', '/api/v1/admin/meli/questions', {
+        total: 1,
+        questions: [
+          {
+            id: 77,
+            text: '¿Viene en talle L?',
+            status: 'UNANSWERED',
+            itemId: 'MLA1',
+            item: {
+              id: 'MLA1',
+              title: 'Buzo frisado azul',
+              thumbnail: null,
+              price: 25000,
+              currencyId: 'ARS',
+              availableQuantity: 0,
+              permalink: 'https://articulo.mercadolibre.com.ar/MLA-1',
+              status: 'active',
+            },
+            dateCreated: '2026-10-10',
+            answer: null,
+          },
+        ],
+      });
+    });
+    expect(await screen.findByText('Buzo frisado azul')).toBeInTheDocument();
+    expect(screen.getByText('Sin stock')).toBeInTheDocument();
+    expect(screen.getByText(/25\.000/)).toBeInTheDocument();
+    await user.click(screen.getByTitle(/Sugerir una respuesta con IA/));
+    await settle(2);
+    expect(posted(api, '/api/v1/ai/ml-answer')).toEqual({
+      question: '¿Viene en talle L?',
+      itemTitle: 'Buzo frisado azul',
+    });
+  });
+});
+
+describe('Mercado Libre: ventas en lote y filtros', () => {
+  const unbilled = orders.filter((o) => o.status === 'paid' && !o.fiscalDocumentId).slice(0, 2);
+
+  it('busca y filtra en el servidor, con el filtro en la URL', async () => {
+    const { api, user } = await open('ventas&estado=sin-facturar');
+    const last = () => api.calls.filter((c) => c.path.startsWith('/api/v1/admin/meli/orders?')).at(-1)!.path;
+    expect(last()).toContain('estado=sin-facturar');
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar ventas de Mercado Libre' }), 'remera');
+    await waitFor(() => expect(last()).toContain('q=remera'), { timeout: 3000 });
+  });
+
+  it('factura las elegidas de a una y cuenta qué pasó', async () => {
+    const { api, user } = await open('ventas', (a) => {
+      a.on('GET', '/api/v1/admin/meli/orders', { items: unbilled, total: unbilled.length });
+      a.on('POST', `/api/v1/admin/meli/orders/${unbilled[0]!.meliOrderId}/invoice`, {
+        cae: '1',
+        ptoVta: 3,
+        number: 1,
+      });
+      a.on(
+        'POST',
+        `/api/v1/admin/meli/orders/${unbilled[1]!.meliOrderId}/invoice`,
+        { detail: 'ARCA caída.' },
+        502,
+      );
+    });
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Elegir todas las ventas sin facturar de la página' }),
+    );
+    await user.click(screen.getByRole('button', { name: /Facturar seleccionadas/ }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Facturar' }));
+    await settle(3);
+    const posts = api.calls
+      .filter((c) => c.method === 'POST' && c.path.endsWith('/invoice'))
+      .map((c) => c.path);
+    expect(posts).toEqual(unbilled.map((o) => `/api/v1/admin/meli/orders/${o.meliOrderId}/invoice`));
+    const report = screen.getAllByRole('status').find((s) => s.textContent?.includes('facturada'))!;
+    expect(report).toHaveTextContent('1 facturada · 1 no se pudo facturar');
+    expect(report).toHaveTextContent(`#${unbilled[1]!.meliOrderId}: ARCA caída.`);
+    // La que falló queda elegida para reintentar.
+    expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
+  });
+
+  it('sin la facturación lista, cada "Facturar" lleva a configurarla', async () => {
+    await open('ventas', (a) => a.on('GET', '/api/v1/fiscal/readiness', { ready: false }));
+    expect(screen.queryByRole('button', { name: /^Facturar$/ })).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Configurá la facturación/ })[0]).toHaveAttribute(
+      'href',
+      '/configuracion/facturacion',
+    );
   });
 });
 

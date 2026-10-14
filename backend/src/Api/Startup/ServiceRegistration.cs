@@ -22,6 +22,7 @@ using Notifications.Infrastructure;
 using Orders.Infrastructure;
 using Payments.Infrastructure;
 using Purchasing.Infrastructure;
+using Reviews.Infrastructure;
 using Serilog;
 using SharedKernel.Abstractions;
 using Social.Contracts;
@@ -68,6 +69,7 @@ public static class ServiceRegistration
         services.AddThemesModule(configuration);
         services.AddMediaModule(configuration, isProduction);
         services.AddSupportModule(configuration);
+        services.AddReviewsModule(configuration);
         services.AddPurchasingModule(configuration);
         services.AddFinanceModule(configuration);
         services.AddScoped<Api.Finance.LedgerPoster>();
@@ -114,6 +116,9 @@ public static class ServiceRegistration
         // Los carriers (MiCorreo, Zipnova, Andreani) los registra su módulo: AddCheckoutModule.
         if (runPollingWorkers) services.AddHostedService<AbandonedCartWorker>();
         if (runPollingWorkers) services.AddHostedService<FavoriteAlertWorker>();
+        // "Avisame cuando ingrese" y el pedido de reseña unos días después del despacho.
+        if (runPollingWorkers) services.AddHostedService<BackInStockWorker>();
+        if (runPollingWorkers) services.AddHostedService<ReviewRequestWorker>();
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();
         // Diseños programados (ej. una portada de Hot Sale que sale a las 00:00).
         if (runPollingWorkers) services.AddHostedService<Api.Workers.ThemeScheduleWorker>();

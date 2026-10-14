@@ -91,6 +91,8 @@ export const HELP_LINKS = {
   bandeja: { label: 'Más sobre la bandeja' },
   despacho: { label: 'Más sobre el despacho de pedidos' },
   stockBajo: { label: 'Más sobre las alertas de stock bajo' },
+  resenas: { label: 'Más sobre reseñas de productos' },
+  avisoStock: { label: 'Más sobre “Avisame cuando ingrese”' },
   autoEmails: { label: 'Más sobre e-mails automáticos' },
   emailMarketing: { label: 'Más sobre campañas de email' },
   whatsappAuto: { label: 'Más sobre WhatsApp automático' },

@@ -42,4 +42,10 @@ public sealed record ProductDto(
     IReadOnlyList<ProductSpecDto> Specs,
     DateTime CreatedAtUtc,
     // Stock total (suma de variantes). Solo lo llena la búsqueda del storefront; null = desconocido.
-    int? Stock = null);
+    int? Stock = null,
+    // Estrellas de las reseñas aprobadas. Las llenan las lecturas del storefront
+    // (las reseñas viven en otro módulo); null = sin reseñas o la tienda no las muestra.
+    ProductRatingDto? Rating = null);
+
+/// <summary>Promedio (1 decimal) y cantidad de reseñas aprobadas de un producto.</summary>
+public sealed record ProductRatingDto(decimal Average, int Count);

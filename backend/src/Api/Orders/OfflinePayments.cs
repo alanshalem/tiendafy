@@ -143,40 +143,10 @@ public sealed class OfflinePaymentService(
             logger.LogWarning("Reserva {ReservationId} de la orden {OrderId} no se pudo confirmar ({Error}); se descuenta el stock.",
                 item.ReservationId, order.Id, confirm.Error.Code);
             await stock.AdjustAvailableAsync(tenantId, item.VariantId, -item.Quantity,
-                $"Pago registrado de la venta {order.Id.ToString()[..8]}", ct);
+                $"Pago registrado de la venta {order.Label}", ct);
         }
 
         await paidEffects.RunAsync(order, ct: ct);
-        return order;
-    }
-
-    /// <summary>Cancelar desde el panel una transferencia que no va a llegar: el stock vuelve ya.</summary>
-    public async Task<Result<Order>> CancelAsync(TenantId tenantId, Guid orderId, CancellationToken ct)
-    {
-        var order = await orders.GetByIdAsync(tenantId, orderId, ct);
-        if (order is null) return Result.Failure<Order>(Error.NotFound("Order", orderId));
-        // Una orden de Mercado Pago o Payway pendiente puede cobrarse igual
-        // después: cancelarla dejaría un pago entrando a una venta cancelada.
-        if (!order.IsOfflinePayment)
-            return Result.Failure<Order>(Error.Conflict("Order.NotOffline",
-                "Solo se cancelan a mano las ventas por transferencia o efectivo."));
-        if (order.Status == OrderStatus.Cancelled) return order;
-
-        var cancelled = order.CancelUnpaid();
-        if (cancelled.IsFailure) return Result.Failure<Order>(cancelled.Error);
-
-        try
-        {
-            await orders.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Result.Failure<Order>(Error.Conflict("Order.Concurrent",
-                "La venta cambió mientras se cancelaba. Recargá y fijate en qué estado quedó."));
-        }
-
-        await ReleaseAsync(order, ct);
-        await NotifyCancelledAsync(order, ct);
         return order;
     }
 
@@ -201,7 +171,11 @@ public sealed class OfflinePaymentService(
         {
             var claimed = await ordersDb.Orders
                 .Where(o => o.Id == id && o.Status == OrderStatus.PendingPayment)
-                .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, OrderStatus.Cancelled), ct);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(o => o.Status, OrderStatus.Cancelled)
+                    .SetProperty(o => o.CancelledAtUtc, nowUtc)
+                    .SetProperty(o => o.CancelledBy, "sistema")
+                    .SetProperty(o => o.CancelReason, "Venció el plazo para pagar"), ct);
             if (claimed != 1) continue;
 
             var order = await ordersDb.Orders.AsNoTracking().FirstAsync(o => o.Id == id, ct);

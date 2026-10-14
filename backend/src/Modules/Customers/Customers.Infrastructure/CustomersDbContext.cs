@@ -41,6 +41,7 @@ public sealed class CustomersDbContext : DbContext
     public DbSet<CustomerToken> CustomerTokens => Set<CustomerToken>();
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
+    public DbSet<StockAlertSubscription> StockAlerts => Set<StockAlertSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -120,6 +121,19 @@ public sealed class CustomersDbContext : DbContext
             nameof(CustomerAddress.PostalCode),
         })
             ad.Property<string?>(field).HasConversion(pii);
+        // "Avisame cuando ingrese": una pendiente por variante y email (pedirlo
+        // dos veces no manda dos avisos); las ya avisadas quedan como historia.
+        var sa = modelBuilder.Entity<StockAlertSubscription>();
+        sa.ToTable("stock_alert_subscriptions");
+        sa.HasKey(x => x.Id);
+        sa.Property(x => x.Id).ValueGeneratedNever();
+        sa.Property(x => x.Email).HasMaxLength(200).IsRequired();
+        sa.HasIndex(x => new { x.TenantId, x.VariantId, x.Email })
+            .IsUnique()
+            .HasFilter("notified_at_utc IS NULL AND cancelled_at_utc IS NULL");
+        // El worker y la demanda del panel: las pendientes de cada tienda.
+        sa.HasIndex(x => new { x.TenantId, x.NotifiedAtUtc, x.CancelledAtUtc });
+        sa.HasIndex(x => new { x.TenantId, x.ProductId });
 
         // Filtro multi-tenant global en todas las entidades tenant-scoped.
         c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
@@ -129,5 +143,6 @@ public sealed class CustomersDbContext : DbContext
         cm.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         ns.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         ad.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        sa.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

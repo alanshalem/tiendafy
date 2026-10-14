@@ -11,6 +11,7 @@ import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
 import { InitialFallback } from './InitialFallback';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
+import { CardRating, type ProductRating } from './ReviewStars';
 
 // Descuento por transferencia/efectivo del tema (productDetail.cashDiscountPercent).
 // Se provee en StorefrontView; las cards lo usan para el "precio con transferencia".
@@ -32,6 +33,8 @@ export interface StoreProduct {
   stock?: number | null;
   /** La descripción resumida (ver excerptOf). Solo si el producto tiene descripción. */
   excerpt?: string;
+  /** Estrellas de las reseñas aprobadas (null = sin reseñas). */
+  rating?: ProductRating | null;
 }
 
 // Bajo este stock la card muestra "¡Últimas N!" (badge de urgencia).
@@ -169,6 +172,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       >
         {product.name}
       </Link>
+      <CardRating rating={product.rating} />
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
           <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>

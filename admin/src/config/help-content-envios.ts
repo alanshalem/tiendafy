@@ -24,6 +24,21 @@ export const ENVIOS = {
         ],
       },
       {
+        heading: 'Calcular envío en la ficha del producto',
+        paragraphs: [
+          'En la ficha de cada producto, debajo del botón de compra, el comprador pone su código postal y ve cuánto le sale el envío y cuándo le llega, ANTES de ir a pagar. Cotiza con lo mismo que el checkout: tus envíos propios y los correos con cotización en vivo, para la variante y la cantidad elegidas.',
+          'Si tenés un retiro gratis, la ficha lo dice sin pedir nada: “Retiro gratis en …” con la dirección del punto. Cuando el correo informa el plazo, se muestra (“Llega en 3 a 5 días hábiles”); Andreani no lo informa, y no se inventa.',
+          'El código postal queda guardado en el navegador: las demás fichas lo usan solas y el checkout lo trae completado. Zipnova necesita ciudad y provincia, así que cotiza recién en el checkout (la ficha avisa que ahí hay más opciones).',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si un correo no puede cotizar (credenciales vencidas, sin tarifa para ese destino), la ficha muestra lo que sí cotizó; si ninguno puede, dice que las opciones se ven en el checkout. Nunca muestra un error técnico.',
+          },
+        ],
+      },
+      {
         heading: 'Envío gratis como gancho',
         paragraphs: [
           'Hay tres formas de regalar el envío: un medio de envío con precio 0; un medio con “Gratis desde” (cobra su precio, salvo que los productos sumen ese monto o más); o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',

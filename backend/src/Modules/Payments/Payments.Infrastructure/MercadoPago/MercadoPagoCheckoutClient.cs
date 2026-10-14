@@ -199,6 +199,30 @@ public sealed class MercadoPagoCheckoutClient(
             Amount: root.TryGetProperty("amount", out var am) && am.ValueKind == JsonValueKind.Number ? am.GetDecimal() : amount ?? 0m);
     }
 
+    public async Task<Result> ExpirePreferenceAsync(TenantId tenantId, string preferenceId, CancellationToken ct = default)
+    {
+        var tokenResult = await GetSellerTokenAsync(tenantId, ct);
+        if (tokenResult.IsFailure) return Result.Failure(tokenResult.Error);
+
+        // Mercado Pago no borra preferences: se le pone vencimiento ya. Desde
+        // ese momento el link muestra "venció" en vez de dejar pagar.
+        using var req = new HttpRequestMessage(HttpMethod.Put,
+            $"{_o.ApiBaseUrl.TrimEnd('/')}/checkout/preferences/{Uri.EscapeDataString(preferenceId)}");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Value.AccessToken);
+        req.Content = JsonContent.Create(new
+        {
+            expires = true,
+            expiration_date_to = DateTime.UtcNow.AddMinutes(-1).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"),
+        });
+
+        using var resp = await http.SendAsync(req, ct);
+        if (resp.IsSuccessStatusCode) return Result.Success();
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        logger.LogWarning("MercadoPago expire preference {Id} error {Status}: {Body}", preferenceId, (int)resp.StatusCode, json);
+        return Result.Failure(new Error("MercadoPago.ExpireFailed", "No se pudo anular el link de pago en Mercado Pago."));
+    }
+
     /// <summary>Carga la conexión del tenant, refresca el token si está por vencer, y devuelve el access_token descifrado.</summary>
     private async Task<Result<(string AccessToken, MercadoPagoConnection Connection)>> GetSellerTokenAsync(TenantId tenantId, CancellationToken ct)
     {

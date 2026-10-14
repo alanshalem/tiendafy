@@ -60,7 +60,7 @@ describe('ventas: una venta por transferencia', () => {
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar venta' }),
     );
     await settle(2);
-    expect(body(api, 'POST', `/api/v1/orders/${pending.id}/cancel`)).toEqual({});
+    expect(body(api, 'POST', `/api/v1/orders/${pending.id}/cancel`)).toEqual({ reason: null });
   });
 
   it('una pendiente de Mercado Pago no ofrece registrar el pago a mano', async () => {

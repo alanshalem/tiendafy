@@ -62,9 +62,29 @@ public static class MeliDemoFeed
             text,
             status,
             itemId,
+            item = DemoItem(itemId),
             dateCreated = Ago(hoursAgo),
             answer = answer is null ? null : new { text = answer, dateCreated = Ago(hoursAgo + 3) },
         });
+
+    /// <summary>La ficha de la publicación de una pregunta, con la forma de MeliItemSummary.</summary>
+    private static object? DemoItem(string itemId)
+    {
+        var match = Items.FirstOrDefault(i => i.Id == itemId);
+        return match.Id is null
+            ? null
+            : new
+            {
+                id = match.Id,
+                title = match.Title,
+                thumbnail = (string?)null,
+                price = match.Price,
+                currencyId = "ARS",
+                availableQuantity = match.Quantity,
+                permalink = $"https://articulo.mercadolibre.com.ar/{match.Id[..3]}-{match.Id[3..]}",
+                status = match.Status,
+            };
+    }
 
     public static object Claims() => new
     {

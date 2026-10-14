@@ -42,7 +42,8 @@ public sealed class ManualOrderService(
     public const string CurrentAccountMethod = "cuenta_corriente";
 
     public async Task<Result<ManualOrderResult>> CreateAsync(
-        TenantId tenantId, ManualOrderRequest request, string? linkBaseUrl, CancellationToken ct)
+        TenantId tenantId, ManualOrderRequest request, string? linkBaseUrl, CancellationToken ct,
+        string channel = Order.ChannelManual)
     {
         if (request.Items is not { Count: > 0 })
             return Result.Failure<ManualOrderResult>(Error.Validation("Order.Empty", "Agregá al menos un producto."));
@@ -81,6 +82,7 @@ public sealed class ManualOrderService(
             await ReleaseAllAsync(tenantId, reserved, ct);
             return Result.Failure<ManualOrderResult>(order.Error);
         }
+        order.Value.SetChannel(channel);
 
         // Una venta a cuenta corriente necesita saber A QUIÉN se le fía. Sin
         // cliente sería una deuda sin deudor: mejor negarse que crear una venta

@@ -76,7 +76,7 @@ export const EMPEZAR = {
             type: 'checklist',
             items: [
               'Ctrl+K (⌘K en Mac) abre el buscador del panel: escribí el nombre de una pantalla o de un producto y vas directo.',
-              'En Inicio, la tarjeta “Para hacer hoy” junta lo que necesita tu atención: productos que se agotan antes del próximo embarque, ventas sin costo cargado, ventas de Mercado Libre sin facturar, redes para reconectar y posts que fallaron.',
+              'En Inicio, la tarjeta “Para hacer hoy” junta lo que necesita tu atención, cada cosa con su link al listado ya filtrado: arrepentimientos sin atender (con los días que quedan del plazo), ventas para despachar, transferencias por confirmar, preguntas de Mercado Libre sin responder, mensajes de contacto sin leer, ventas de Mercado Libre sin facturar, productos que se agotan antes del próximo embarque, ventas sin costo cargado, redes para reconectar y posts que fallaron.',
               'Los listados recuerdan la búsqueda, el filtro y la página en la dirección: si recargás o volvés atrás no perdés dónde estabas, y podés pasarle el link a alguien del equipo.',
               'Si salís de un formulario con cambios sin guardar, el panel te pregunta antes de descartarlos.',
               'Si se te vence la sesión, el panel te pide la contraseña encima de la pantalla en la que estabas, sin sacarte de ahí.',

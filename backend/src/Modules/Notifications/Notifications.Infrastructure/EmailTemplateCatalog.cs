@@ -40,6 +40,14 @@ public static class EmailTemplateCatalog
             Wrap("Volvió lo que esperabas 🎉",
                 "<p>Hola {{name}}, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
 
+        // Lo pidió el comprador con "Avisame cuando ingrese": por eso sale
+        // encendido (no es promoción, es la respuesta a un pedido).
+        new("aviso-stock", "Promociones", "Avisame cuando ingrese",
+            "Avisa a quien dejó su email en un producto agotado cuando vuelve a haber stock.", true,
+            "Ya ingresó: {{product}}",
+            Wrap("¡Ya ingresó lo que esperabas! 🎉",
+                "<p>Hola, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p>Si todavía lo querés, ahora es el momento.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
+
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
             "Ayuda al cliente a confirmar su cuenta.", true,
             "Confirmá tu cuenta en {{store}}",
@@ -82,6 +90,14 @@ public static class EmailTemplateCatalog
             "Notifica a tu cliente cuando el pedido fue despachado.", true,
             "Despachamos tu pedido #{{order_id}}",
             Wrap("¡Tu pedido está en camino!", "<p>Despachamos tu pedido #{{order_id}}. Pronto lo vas a recibir.</p><p><a href=\"{{tracking_link}}\">Seguí tu envío</a></p>")),
+
+        // Encendido de fábrica (se apaga desde Reseñas o desde acá): las
+        // reseñas casi nunca llegan solas. Sale unos días después del despacho.
+        new("pedir-resena", "Ventas", "Pedido de reseña",
+            "Le pide al comprador que opine de lo que compró, unos días después del despacho.", true,
+            "¿Qué te pareció tu compra en {{store}}?",
+            Wrap("¿Nos contás qué te pareció?",
+                "<p>Hola {{name}}, esperamos que estés disfrutando tu compra.</p>{{items}}<p>Tu opinión ayuda a otros compradores a decidir (y a nosotros a mejorar). Te lleva un minuto:</p><p><a href=\"{{link}}\">Dejar mi reseña</a></p>")),
 
         new("cancelacion-compra", "Ventas", "Cancelación de compra",
             "Notifica cuando un pedido fue cancelado.", false,

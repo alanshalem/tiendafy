@@ -29,6 +29,7 @@ export const PERMISSION_KEYS = [
   'customers.write',
   'support.chat',
   'messages.read',
+  'reviews.manage',
   'discounts.read',
   'discounts.write',
   'campaigns.manage',
@@ -107,6 +108,7 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/productos/inventario': 'inventory.read',
   '/productos/escaner': 'inventory.read',
   '/productos/stock-bajo': 'inventory.read',
+  '/productos/esperando': 'inventory.read',
   '/productos/costos': 'costs.read',
   '/productos/listas-de-precios': 'prices.manage',
   '/compras': 'purchasing.manage',
@@ -115,6 +117,7 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/clientes': 'customers.read',
   '/mensajes': 'messages.read',
   '/posventa': 'support.chat',
+  '/resenas': 'reviews.manage',
 
   '/descuentos': 'discounts.read',
   '/marketing': 'campaigns.manage',

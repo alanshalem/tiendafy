@@ -143,14 +143,8 @@ public static class PaymentOptionsEndpoints
             return Results.Ok(OrderEndpoints.ToDto(result.Value));
         }).RequirePermission(Permission.OrdersCreate);
 
-        group.MapPost("/orders/{id:guid}/cancel", async (
-            Guid id, ITenantContext tenant, OfflinePaymentService offline, CancellationToken ct) =>
-        {
-            var result = await offline.CancelAsync(tenant.TenantId, id, ct);
-            if (result.IsFailure)
-                return result.Error.Type == ErrorType.NotFound ? Results.NotFound() : result.Error.ToProblem();
-            return Results.Ok(OrderEndpoints.ToDto(result.Value));
-        }).RequirePermission(Permission.OrdersCreate);
+        // Cancelar una transferencia que no va a llegar es el cancelar de
+        // cualquier venta pendiente (POST /orders/{id}/cancel): libera el stock.
 
         return group;
     }
