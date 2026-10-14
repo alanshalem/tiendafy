@@ -185,32 +185,38 @@ public static class FinanceEndpoints
 
         // ---- Cuenta corriente ------------------------------------------------
 
-        // Saldos de todos: la pantalla de "quién me debe".
+        // Saldos de todos: la pantalla de "quién me debe", de a una página.
+        // Agrupar, filtrar los saldados y ordenar va en la base: antes se traía
+        // un saldo por contacto a memoria y se mandaban todos al panel.
         finance.MapGet("/balances", async (
             ITenantContext tenant, FinanceDbContext db, PartyDirectory parties, CancellationToken ct,
-            string partyKind = "customer") =>
+            string partyKind = "customer", int? offset = null, int? limit = null) =>
         {
             var tid = tenant.TenantId.Value;
             var kind = ParsePartyKind(partyKind);
 
-            var rows = await db.LedgerEntries.AsNoTracking()
+            var balances = db.LedgerEntries.AsNoTracking()
                 .Where(l => l.TenantId == tid && l.PartyKind == kind)
                 .GroupBy(l => new { l.PartyId, l.Currency })
                 .Select(g => new
                 {
                     partyId = g.Key.PartyId,
                     currency = g.Key.Currency,
-                    debit = g.Where(l => l.Kind == LedgerEntryKind.Debit).Sum(l => (long?)l.AmountMinor) ?? 0,
-                    credit = g.Where(l => l.Kind == LedgerEntryKind.Credit).Sum(l => (long?)l.AmountMinor) ?? 0,
+                    balanceMinor = g.Sum(l => l.Kind == LedgerEntryKind.Debit ? l.AmountMinor : -l.AmountMinor),
                     lastAtUtc = g.Max(l => l.OccurredAtUtc),
                 })
-                .ToListAsync(ct);
+                .Where(r => r.balanceMinor != 0);
 
-            var items = rows
-                .Select(r => new { r.partyId, r.currency, balanceMinor = r.debit - r.credit, r.lastAtUtc })
-                .Where(r => r.balanceMinor != 0)
+            // Las cifras de arriba de la pantalla son de TODOS los saldos, no de
+            // la página: lo que nos deben y lo que debemos, por separado (un neto
+            // solo tapa las dos preguntas).
+            var positive = await balances.Where(r => r.balanceMinor > 0).SumAsync(r => r.balanceMinor, ct);
+            var negative = await balances.Where(r => r.balanceMinor < 0).SumAsync(r => r.balanceMinor, ct);
+
+            var (items, total) = await balances
                 .OrderByDescending(r => Math.Abs(r.balanceMinor))
-                .ToList();
+                .ThenBy(r => r.partyId)
+                .PageAsync(offset, limit, ct);
 
             // El nombre vive en el módulo del contacto, no acá: una lista de
             // GUID con saldo no se puede leer.
@@ -226,7 +232,10 @@ public static class FinanceEndpoints
                     i.balanceMinor,
                     i.lastAtUtc,
                 }),
-                totalMinor = items.Sum(i => i.balanceMinor),
+                total,
+                totalMinor = positive + negative,
+                positiveMinor = positive,
+                negativeMinor = negative,
             });
         });
 
@@ -237,25 +246,42 @@ public static class FinanceEndpoints
             string partyKind = "customer", string? q = null) =>
             Results.Ok(new { items = await parties.SearchAsync(tenant.TenantId.Value, ParsePartyKind(partyKind), q, ct) }));
 
-        // Estado de cuenta de uno: movimientos con saldo acumulado.
+        // Estado de cuenta de uno: movimientos con el saldo después de cada uno,
+        // del más nuevo al más viejo y de a una página (la primera es lo último
+        // que pasó, que es lo que se viene a mirar).
         finance.MapGet("/ledger", async (
             ITenantContext tenant, FinanceDbContext db, PartyDirectory parties, CancellationToken ct,
-            string partyKind = "customer", Guid? partyId = null) =>
+            string partyKind = "customer", Guid? partyId = null, int? offset = null, int? limit = null) =>
         {
             if (partyId is not { } party || party == Guid.Empty) return Error.Validation("Finance.MissingParty", "Falta el cliente o proveedor.").ToProblem();
 
             var tid = tenant.TenantId.Value;
             var kind = ParsePartyKind(partyKind);
 
-            var entries = await db.LedgerEntries.AsNoTracking()
+            var newestFirst = db.LedgerEntries.AsNoTracking()
                 .Where(l => l.TenantId == tid && l.PartyKind == kind && l.PartyId == party)
-                .OrderBy(l => l.OccurredAtUtc).ThenBy(l => l.CreatedAtUtc)
-                .ToListAsync(ct);
+                .OrderByDescending(l => l.OccurredAtUtc).ThenByDescending(l => l.CreatedAtUtc).ThenByDescending(l => l.Id);
 
-            long running = 0;
+            // El saldo de cada fila sale de restarle al saldo de hoy lo que pasó
+            // después de ella: lo de las páginas anteriores (más nuevas) se suma
+            // en la base, sin traer esas filas.
+            var (skip, take) = Paging.Window(offset, limit);
+            var balance = await newestFirst
+                .SumAsync(l => l.Kind == LedgerEntryKind.Debit ? l.AmountMinor : -l.AmountMinor, ct);
+            var newer = skip == 0
+                ? 0
+                : await newestFirst.Take(skip)
+                    .SumAsync(l => l.Kind == LedgerEntryKind.Debit ? l.AmountMinor : -l.AmountMinor, ct);
+            var (entries, total) = await newestFirst.PageAsync(skip, take, ct);
+            var currency = entries.FirstOrDefault()?.Currency
+                ?? await newestFirst.Select(l => l.Currency).FirstOrDefaultAsync(ct)
+                ?? "ARS";
+
+            var running = balance - newer;
             var items = entries.Select(e =>
             {
-                running += e.SignedAmountMinor;
+                var after = running;
+                running -= e.SignedAmountMinor;
                 return new
                 {
                     id = e.Id,
@@ -266,7 +292,7 @@ public static class FinanceEndpoints
                     debitMinor = e.Kind == LedgerEntryKind.Debit ? e.AmountMinor : 0,
                     creditMinor = e.Kind == LedgerEntryKind.Credit ? e.AmountMinor : 0,
                     pendingMinor = e.Kind == LedgerEntryKind.Debit ? e.PendingMinor : 0,
-                    balanceMinor = running,
+                    balanceMinor = after,
                     currency = e.Currency,
                     notes = e.Notes,
                 };
@@ -276,9 +302,10 @@ public static class FinanceEndpoints
             {
                 partyId = party,
                 partyName = await parties.NameAsync(tid, kind, party, ct) ?? "(sin nombre)",
-                balanceMinor = running,
-                currency = entries.FirstOrDefault()?.Currency ?? "ARS",
+                balanceMinor = balance,
+                currency,
                 items,
+                total,
             });
         });
 

@@ -146,6 +146,11 @@ public sealed class SocialFlowTests
         // Filtros del calendario.
         var inRange = await merchant.GetAsync($"/api/v1/admin/social/posts?from={DateTime.UtcNow.AddDays(-1):O}&to={DateTime.UtcNow.AddDays(1):O}&status=Published");
         Assert.Single(inRange.GetProperty("posts").EnumerateArray());
+        Assert.Equal(1, inRange.GetProperty("total").GetInt32());
+        // La bandeja pagina: una página vacía más allá del final, con el total igual.
+        var beyond = await merchant.GetAsync("/api/v1/admin/social/posts?status=Published&limit=1&offset=1");
+        Assert.Empty(beyond.GetProperty("posts").EnumerateArray());
+        Assert.Equal(1, beyond.GetProperty("total").GetInt32());
 
         // Borrar post y cuentas.
         await merchant.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/admin/social/posts/{postId}");

@@ -90,10 +90,10 @@ public static class SupportEndpoints
                 c => c.Id == id && c.TenantId == tenant.TenantId.Value && c.CustomerId == customer.Id, ct);
             if (conv is null) return Results.NotFound();
 
-            var messages = await LoadMessagesAsync(db, storage, conv, ct);
+            var (messages, hasMore) = await LoadMessagesAsync(db, storage, conv, before: null, ShopThreadLimit, ct);
             conv.MarkReadByCustomer();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { conversation = ToDto(conv), items = messages });
+            return Results.Ok(new { conversation = ToDto(conv), items = messages, hasMore });
         });
 
         // Enviar texto.
@@ -141,37 +141,57 @@ public static class SupportEndpoints
     {
         var admin = group.MapGroup("/support").RequirePermission(Permission.SupportChat);
 
-        // Bandeja: todas las conversaciones del tenant, no leídas primero.
+        // Bandeja: las conversaciones del tenant, no leídas primero, de a una
+        // página. Antes eran las 200 primeras y la 201 no aparecía nunca.
         admin.MapGet("/conversations", async (
             ITenantContext tenant, SupportDbContext db, global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
-            CancellationToken ct) =>
+            CancellationToken ct, int? offset = null, int? limit = null) =>
         {
-            var items = await db.Conversations.AsNoTracking()
+            var (items, total) = await db.Conversations.AsNoTracking()
                 .Where(c => c.TenantId == tenant.TenantId.Value)
                 .OrderByDescending(c => c.UnreadForStaff > 0)
                 .ThenByDescending(c => c.LastMessageAtUtc)
-                .Take(200)
-                .ToListAsync(ct);
+                .ThenBy(c => c.Id)
+                .PageAsync(offset, limit, ct, defaultLimit: 25);
             var unreadTotal = await db.Conversations.AsNoTracking()
                 .Where(c => c.TenantId == tenant.TenantId.Value)
                 .SumAsync(c => c.UnreadForStaff, ct);
             var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, items.Select(c => c.OrderId), ct);
-            return Results.Ok(new { items = items.Select(c => WithNumber(c, numbers.GetValueOrDefault(c.OrderId))), unreadTotal });
+            return Results.Ok(new
+            {
+                items = items.Select(c => WithNumber(c, numbers.GetValueOrDefault(c.OrderId))),
+                total,
+                unreadTotal,
+            });
         });
 
+        // El hilo, de a una tanda: los últimos mensajes, y con `before` (el id
+        // del más viejo que ya se ve) la tanda anterior. `hasMore` dice si
+        // queda algo más atrás para el botón "Ver anteriores".
         admin.MapGet("/conversations/{id:guid}/messages", async (
             Guid id, ITenantContext tenant, SupportDbContext db, IMediaStorage storage,
-            global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb, CancellationToken ct) =>
+            global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb, CancellationToken ct,
+            Guid? before = null, int? limit = null) =>
         {
             var conv = await db.Conversations.FirstOrDefaultAsync(
                 c => c.Id == id && c.TenantId == tenant.TenantId.Value, ct);
             if (conv is null) return Results.NotFound();
 
-            var messages = await LoadMessagesAsync(db, storage, conv, ct);
-            conv.MarkReadByStaff();
-            await db.SaveChangesAsync(ct);
+            var (_, take) = Paging.Window(null, limit);
+            var (messages, hasMore) = await LoadMessagesAsync(db, storage, conv, before, take, ct);
+            // Leído es haber abierto el hilo (la última tanda), no ir para atrás.
+            if (before is null)
+            {
+                conv.MarkReadByStaff();
+                await db.SaveChangesAsync(ct);
+            }
             var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, [conv.OrderId], ct);
-            return Results.Ok(new { conversation = WithNumber(conv, numbers.GetValueOrDefault(conv.OrderId)), items = messages });
+            return Results.Ok(new
+            {
+                conversation = WithNumber(conv, numbers.GetValueOrDefault(conv.OrderId)),
+                items = messages,
+                hasMore,
+            });
         });
 
         admin.MapPost("/conversations/{id:guid}/messages", async (
@@ -248,16 +268,39 @@ public static class SupportEndpoints
         return Results.Ok(new { id = msg.Id, msg.CreatedAtUtc });
     }
 
-    private static async Task<List<object>> LoadMessagesAsync(
-        SupportDbContext db, IMediaStorage storage, Conversation conv, CancellationToken ct)
-    {
-        var messages = await db.Messages.AsNoTracking()
-            .Where(m => m.ConversationId == conv.Id)
-            .OrderBy(m => m.CreatedAtUtc)
-            .Take(500)
-            .ToListAsync(ct);
+    /// <summary>
+    /// Lo que ve la tienda del cliente: los últimos 500 mensajes. Antes eran
+    /// los 500 PRIMEROS, y en un hilo largo lo nuevo no aparecía nunca.
+    /// </summary>
+    private const int ShopThreadLimit = 500;
 
-        return [.. messages.Select(m => (object)new
+    /// <summary>
+    /// Los últimos <paramref name="take"/> mensajes del hilo (o los anteriores
+    /// a <paramref name="before"/>), en orden de lectura, y si queda alguno más
+    /// atrás. El corte es por fecha: dos mensajes del mismo hilo en el mismo
+    /// microsegundo no pasan.
+    /// </summary>
+    private static async Task<(List<object> Items, bool HasMore)> LoadMessagesAsync(
+        SupportDbContext db, IMediaStorage storage, Conversation conv, Guid? before, int take, CancellationToken ct)
+    {
+        var query = db.Messages.AsNoTracking().Where(m => m.ConversationId == conv.Id);
+        if (before is { } cursor)
+        {
+            var at = await db.Messages.AsNoTracking()
+                .Where(m => m.Id == cursor && m.ConversationId == conv.Id)
+                .Select(m => (DateTime?)m.CreatedAtUtc)
+                .FirstOrDefaultAsync(ct);
+            if (at is { } t) query = query.Where(m => m.CreatedAtUtc < t);
+        }
+
+        var newestFirst = await query
+            .OrderByDescending(m => m.CreatedAtUtc)
+            .Take(take + 1)
+            .ToListAsync(ct);
+        var hasMore = newestFirst.Count > take;
+        var messages = newestFirst.Take(take).Reverse();
+
+        return ([.. messages.Select(m => (object)new
         {
             m.Id,
             m.IsFromStaff,
@@ -270,7 +313,7 @@ public static class SupportEndpoints
                 url = storage.GetSignedUrl(m.AttachmentKey, SignedUrlLifetime),
             },
             m.CreatedAtUtc,
-        })];
+        })], hasMore);
     }
 
     /// <summary>El número de pedido (#1042) de cada conversación, en una consulta para toda la bandeja.</summary>

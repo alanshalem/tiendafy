@@ -498,19 +498,23 @@ public static class MeliEndpoints
             }
         });
 
-        // Reclamos post-venta (proxy en vivo).
+        // Reclamos post-venta (proxy en vivo), de a una página: ML pagina con
+        // offset/limit y dice el total en `paging`. Antes se pedían los 30 más
+        // nuevos y el resto no existía para el panel.
         sales.MapGet("/claims", async (
-            ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
+            ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct,
+            int? offset = null, int? limit = null) =>
         {
-            if (await IsDemoAsync(db, ct)) return Results.Ok(MeliDemoFeed.Claims());
+            var (skip, take) = Paging.Window(offset, limit, defaultLimit: 25, maxLimit: MeliPageLimit);
+            if (await IsDemoAsync(db, ct)) return Results.Ok(MeliDemoFeed.Claims(skip, take));
 
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
-            if (resolved is null) return Results.Ok(new { claims = Array.Empty<object>() });
+            if (resolved is null) return Results.Ok(new { claims = Array.Empty<object>(), total = 0 });
             var (c, token) = resolved.Value;
 
             try
             {
-                using var doc = await client.GetAsync(token, "/post-purchase/v1/claims/search?limit=30", ct);
+                using var doc = await client.GetAsync(token, $"/post-purchase/v1/claims/search?offset={skip}&limit={take}", ct);
                 var root = doc.RootElement;
                 var claims = root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array
                     ? data.EnumerateArray().Select(cl => (object)new
@@ -523,12 +527,12 @@ public static class MeliEndpoints
                         dateCreated = JsonRead.GetString(cl, "date_created"),
                     }).ToArray()
                     : [];
-                return Results.Ok(new { claims });
+                return Results.Ok(new { claims, total = PagingTotal(root, skip + claims.Length) });
             }
             catch (MeliException)
             {
                 // El recurso de claims varía por site/cuenta: sin reclamos ≠ error del panel.
-                return Results.Ok(new { claims = Array.Empty<object>() });
+                return Results.Ok(new { claims = Array.Empty<object>(), total = 0 });
             }
         });
     }
@@ -567,6 +571,23 @@ public static class MeliEndpoints
         return result;
     }
 
+    /// <summary>
+    /// Lo más que se le pide a Mercado Libre por página: sus búsquedas no dan
+    /// más de 50 resultados por pedido.
+    /// </summary>
+    private const int MeliPageLimit = 50;
+
+    /// <summary>
+    /// El total que informa ML en <c>paging.total</c>. Si no viene (una cuenta
+    /// o un recurso que no lo manda), lo que se sabe: hasta acá.
+    /// </summary>
+    private static int PagingTotal(JsonElement root, int fallback) =>
+        root.ValueKind == JsonValueKind.Object
+        && root.TryGetProperty("paging", out var paging) && paging.ValueKind == JsonValueKind.Object
+        && paging.TryGetProperty("total", out var total) && total.TryGetInt32(out var value)
+            ? value
+            : fallback;
+
     /// <summary>Conexión de la tienda + access token vigente, o null si no está conectada.</summary>
     private static async Task<(MeliConnection Conn, string Token)?> ResolveConnectionAsync(
         MeliDbContext db, MeliTokenService tokens, CancellationToken ct)
@@ -596,25 +617,30 @@ public static class MeliEndpoints
     {
         var items = group.MapGroup("/admin/meli").RequirePermission(Permission.MeliPublish);
 
-        // Publicaciones del vendedor + estado de vínculo con el catálogo local.
+        // Publicaciones del vendedor + estado de vínculo con el catálogo local,
+        // de a una página. Antes se pedían las 50 primeras y la publicación 51
+        // no se podía ni vincular.
         items.MapGet("/items", async (
-            ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
+            ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct,
+            int? offset = null, int? limit = null) =>
         {
+            var (skip, take) = Paging.Window(offset, limit, defaultLimit: 25, maxLimit: MeliPageLimit);
             if (await IsDemoAsync(db, ct))
-                return Results.Ok(MeliDemoFeed.ItemsWithLinks(await db.ItemLinks.AsNoTracking().ToListAsync(ct)));
+                return Results.Ok(MeliDemoFeed.ItemsWithLinks(await db.ItemLinks.AsNoTracking().ToListAsync(ct), skip, take));
 
             var resolved = await ResolveConnectionAsync(db, tokens, ct);
-            if (resolved is null) return Results.Ok(new { items = Array.Empty<object>() });
+            if (resolved is null) return Results.Ok(new { items = Array.Empty<object>(), total = 0 });
             var (c, token) = resolved.Value;
 
             try
             {
                 using var search = await client.GetAsync(token,
-                    $"/users/{c.MeliUserId}/items/search?limit=50", ct);
+                    $"/users/{c.MeliUserId}/items/search?offset={skip}&limit={take}", ct);
                 var ids = search.RootElement.TryGetProperty("results", out var res) && res.ValueKind == JsonValueKind.Array
                     ? res.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrEmpty(s)).ToList()
                     : [];
-                if (ids.Count == 0) return Results.Ok(new { items = Array.Empty<object>() });
+                var total = PagingTotal(search.RootElement, skip + ids.Count);
+                if (ids.Count == 0) return Results.Ok(new { items = Array.Empty<object>(), total });
 
                 var links = await db.ItemLinks.AsNoTracking().ToListAsync(ct);
                 var result = new List<object>();
@@ -651,7 +677,7 @@ public static class MeliEndpoints
                         });
                     }
                 }
-                return Results.Ok(new { items = result });
+                return Results.Ok(new { items = result, total });
             }
             catch (MeliException ex)
             {

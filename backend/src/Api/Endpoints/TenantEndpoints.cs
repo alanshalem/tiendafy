@@ -103,26 +103,28 @@ public static class TenantEndpoints
             return Results.Ok(new { days = window, items });
         }).RequireAuthorization();
 
-        // Sólo las tiendas del usuario autenticado.
-        tenants.MapGet("/", async (ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>
+        // Sólo las tiendas del usuario autenticado, por nombre y de a una página
+        // (con búsqueda por nombre). Antes se pedían de a una a la base y el
+        // panel mostraba las primeras 50 sin forma de ver el resto. Sin límite,
+        // el techo de los listados: el selector de tienda las quiere todas.
+        tenants.MapGet("/", async (
+            ITenancyService service, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct,
+            string? q = null, int? offset = null, int? limit = null) =>
         {
             var userId = user.GetUserId();
             if (userId is null) return Results.Unauthorized();
             var ids = await memberships.TenantIdsForUserAsync(userId.Value, ct);
-            var items = new List<object>();
-            foreach (var id in ids)
-            {
-                var t = await service.GetByIdAsync(id, ct);
-                if (t is not null) items.Add(t);
-            }
+            var (skip, take) = Paging.Window(offset, limit, defaultLimit: Paging.MaxLimit);
+            var (items, total) = await service.PageByIdsAsync([.. ids], q, skip, take, ct);
             // Qué puede hacer con la lista: crear tiendas nuevas, y en cuáles es
             // dueño (editar, archivar, borrar). El panel no ofrece lo demás.
             var owned = await memberships.OwnedTenantIdsAsync(userId.Value, ct);
             return Results.Ok(new
             {
                 items,
+                total,
                 nextCursor = (string?)null,
-                hasMore = false,
+                hasMore = skip + items.Count < total,
                 canCreate = TeamRules.CanCreateStore(ids.Count, owned.Count) is null,
                 manageable = owned,
             });

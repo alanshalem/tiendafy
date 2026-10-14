@@ -191,10 +191,14 @@ public static class SocialEndpoints
     {
         var posts = group.MapGroup("/admin/social/posts").RequirePermission(Permission.SocialPublish);
 
-        // Lista para calendario y bandeja: rango por fecha efectiva (programada o creada).
+        // Lista para calendario y bandeja: rango por fecha efectiva (programada o
+        // creada). El calendario pide un mes (from/to) y la bandeja pagina con
+        // offset/limit; sin límite, el techo de siempre (200), así un mes
+        // cargado entra entero en el calendario.
         posts.MapGet("", async (
             SocialDbContext db, OrdersDbContext ordersDb,
-            ITenantContext tenant, DateTime? from, DateTime? to, string? status, CancellationToken ct) =>
+            ITenantContext tenant, DateTime? from, DateTime? to, string? status, CancellationToken ct,
+            int? offset = null, int? limit = null) =>
         {
             var query = db.Posts.AsNoTracking();
             if (from is { } f) query = query.Where(p => (p.ScheduledAtUtc ?? p.CreatedAtUtc) >= AsUtc(f));
@@ -202,13 +206,19 @@ public static class SocialEndpoints
             if (Enum.TryParse<SocialPostStatus>(status, true, out var st))
                 query = query.Where(p => p.Status == st);
 
-            var rows = await query
+            // El id desempata: dos posts a la misma hora no pueden cambiar de
+            // página entre un pedido y el siguiente.
+            var (rows, total) = await query
                 .OrderByDescending(p => p.ScheduledAtUtc ?? p.CreatedAtUtc)
-                .Take(200)
-                .ToListAsync(ct);
+                .ThenBy(p => p.Id)
+                .PageAsync(offset, limit, ct, defaultLimit: Paging.MaxLimit);
             var accounts = await AccountsByIdAsync(db, rows.SelectMany(p => p.Targets), ct);
             var attribution = await CouponAttributionAsync(ordersDb, tenant.TenantId, rows, ct);
-            return Results.Ok(new { posts = rows.Select(p => PostDto(p, accounts, attribution.GetValueOrDefault(p.Id))) });
+            return Results.Ok(new
+            {
+                posts = rows.Select(p => PostDto(p, accounts, attribution.GetValueOrDefault(p.Id))),
+                total,
+            });
         });
 
         posts.MapPost("", async (

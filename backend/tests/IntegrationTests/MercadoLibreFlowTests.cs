@@ -224,20 +224,29 @@ public sealed class MercadoLibreFlowTests
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/post-purchase/v1/claims/search", new
         {
             data = new[] { new { id = 5001L, status = "opened", stage = "claim", reason_id = "PDD", resource_id = 2000L, date_created = "2026-10-10" } },
+            paging = new { total = 31, offset = 30, limit = 30 },
         });
-        Assert.Single((await merchant.GetAsync("/api/v1/admin/meli/claims")).GetProperty("claims").EnumerateArray());
+        var claims = await merchant.GetAsync("/api/v1/admin/meli/claims?offset=30&limit=30");
+        Assert.Single(claims.GetProperty("claims").EnumerateArray());
+        // El total es el de ML, no el de la página; y la página se le pide a ML.
+        Assert.Equal(31, claims.GetProperty("total").GetInt32());
+        Assert.Contains("offset=30&limit=30", _factory.ExternalHttp.SentTo($"{Api}/post-purchase/v1/claims/search").Last().Uri.Query);
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/post-purchase/v1/claims/search", new { message = "not found" }, HttpStatusCode.NotFound);
         Assert.Empty((await merchant.GetAsync("/api/v1/admin/meli/claims")).GetProperty("claims").EnumerateArray());
 
         // Publicaciones del vendedor (multiget) con su vínculo.
-        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/users/{userId}/items/search", new { results = new[] { "MLA1", "MLA2" } });
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/users/{userId}/items/search",
+            new { results = new[] { "MLA1", "MLA2" }, paging = new { total = 57 } });
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items?ids=", new object[]
         {
             new { code = 200, body = new { id = "MLA1", title = "Remera", status = "active", price = 15000m, available_quantity = 4 } },
             new { code = 404 },
         });
-        var items = await merchant.GetAsync("/api/v1/admin/meli/items");
+        var items = await merchant.GetAsync("/api/v1/admin/meli/items?limit=1000");
         Assert.Single(items.GetProperty("items").EnumerateArray());
+        Assert.Equal(57, items.GetProperty("total").GetInt32());
+        // ML no da más de 50 por búsqueda: el límite se recorta antes de pedir.
+        Assert.Contains("limit=50", _factory.ExternalHttp.SentTo($"{Api}/users/{userId}/items/search").Last().Uri.Query);
 
         // Categoría sugerida y publicar.
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/sites/MLA/domain_discovery/search",

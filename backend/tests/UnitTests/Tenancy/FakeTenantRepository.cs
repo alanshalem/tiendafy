@@ -40,6 +40,17 @@ public sealed class FakeTenantRepository : ITenantRepository
             ordered = ordered.SkipWhile(t => t.Id != afterId.Value).Skip(1);
         return Task.FromResult<IReadOnlyList<Tenant>>(ordered.Take(limit).ToList());
     }
+
+    public Task<(IReadOnlyList<Tenant> Items, int Total)> PageByIdsAsync(
+        IReadOnlyCollection<Guid> ids, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        var matching = _tenants
+            .Where(t => ids.Contains(t.Id))
+            .Where(t => string.IsNullOrWhiteSpace(search) || t.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.Name)
+            .ToList();
+        return Task.FromResult<(IReadOnlyList<Tenant>, int)>(([.. matching.Skip(skip).Take(take)], matching.Count));
+    }
 }
 
 public sealed class FakeUnitOfWork : SharedKernel.Abstractions.IUnitOfWork

@@ -189,6 +189,18 @@ public sealed partial class ShopperFlowTests
 
         var customerView = await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/shop/support/conversations/{conversationId}/messages");
         Assert.Equal(4, customerView.GetProperty("items").GetArrayLength());
+
+        // El panel lee el hilo de a tandas: las últimas, y "Ver anteriores" con
+        // el id del más viejo que ya tiene.
+        var latest = await merchant.GetAsync($"/api/v1/support/conversations/{conversationId}/messages?limit=3");
+        var latestItems = latest.GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(3, latestItems.Count);
+        Assert.True(latest.GetProperty("hasMore").GetBoolean());
+        var older = await merchant.GetAsync(
+            $"/api/v1/support/conversations/{conversationId}/messages?limit=3&before={latestItems[0].GetProperty("id").GetGuid()}");
+        Assert.Equal("¿Cuándo llega?", Assert.Single(older.GetProperty("items").EnumerateArray()).GetProperty("body").GetString());
+        Assert.False(older.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(1, (await merchant.GetAsync("/api/v1/support/conversations?limit=1")).GetProperty("total").GetInt32());
         Assert.Single((await shopper.ExpectJsonAsync(HttpMethod.Get, "/api/v1/shop/support/conversations")).GetProperty("items").EnumerateArray());
 
         var closed = await merchant.PostAsync($"/api/v1/support/conversations/{conversationId}/close", new { });
