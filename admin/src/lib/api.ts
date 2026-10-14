@@ -121,6 +121,20 @@ export const api = {
     if (!res.ok) throw await toApiError(path, res, `Download failed with status ${res.status}`);
     return res.blob();
   },
+  /** Igual que `download`, pero con un POST con cuerpo JSON (remitos de varios pedidos). */
+  downloadPost: async (path: string, body: unknown): Promise<Blob> => {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(activeTenantId ? { 'X-Tenant-Id': activeTenantId } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw await toApiError(path, res, `Download failed with status ${res.status}`);
+    return res.blob();
+  },
 };
 
 export interface UploadProgress {
