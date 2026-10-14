@@ -144,7 +144,7 @@ export interface ProductListConfig {
   installmentsCount: number; // 0 = no mostrar cuotas
   showStockBadge: boolean;
   /** Con qué orden abre el listado. El visitante lo puede cambiar igual. */
-  defaultSort: 'newest' | 'price_asc' | 'price_desc' | 'name';
+  defaultSort: 'newest' | 'price_asc' | 'price_desc' | 'name' | 'best_sellers';
   /** Cuántos productos por página. Más productos = página más lenta en celular. */
   pageSize: number;
   /** Proporción de las fotos en la grilla. Vertical favorece indumentaria. */

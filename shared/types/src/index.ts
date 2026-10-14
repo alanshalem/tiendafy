@@ -28,8 +28,8 @@ export {
   productSourceListingHref,
 } from './product-source';
 // Videos de YouTube, Vimeo e Instagram: qué link se puede embeber y cómo.
-export type { VideoEmbed } from './video-embed';
-export { parseVideoEmbed } from './video-embed';
+export type { VideoEmbed, PlayableVideo } from './video-embed';
+export { parseVideoEmbed, parsePlayableVideo, videoAutoplaySrc, videoThumbnail } from './video-embed';
 
 // Schema de tema del merchant (fuente única para storefront + admin).
 export type {

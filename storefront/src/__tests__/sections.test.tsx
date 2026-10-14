@@ -300,6 +300,18 @@ describe('secciones de la portada', () => {
     expect(sectionsIn(container)).toBe(0);
   });
 
+  it('un tema viejo con dos newsletters dibuja solo el primero (la API ya no deja guardar dos)', () => {
+    render(
+      view([
+        { ...section('newsletter', { title: 'Primero' }), id: 'n1' },
+        { ...section('faq', { title: 'Dudas' }), id: 'f1' },
+        { ...section('newsletter', { title: 'Segundo' }), id: 'n2' },
+      ]),
+    );
+    expect(screen.getByRole('heading', { name: 'Primero' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Segundo' })).not.toBeInTheDocument();
+  });
+
   it('una sección de un tipo que no existe no rompe la portada', () => {
     const { container } = render(view([section('no-existe' as SectionType, {})]));
     expect(sectionsIn(container)).toBe(0);

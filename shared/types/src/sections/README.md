@@ -23,7 +23,9 @@ de ejemplo, límites y palabras de búsqueda. De esa entrada salen:
 1. **Registro**: sumar el tipo a `SECTION_TYPES` (`envelope.ts`) y su entrada a
    `SECTION_REGISTRY` (`registry.ts`) con sus campos (`field.string()`,
    `field.items({...}, max)`, …), `defaults` con contenido de ejemplo que se vea,
-   `limits.maxPerPage` si va una sola, y su tipo en `SectionDataMap`.
+   `limits.maxPerPage` si va una sola (lo respetan el editor, la API al guardar
+   —va en el contrato— y la tienda, que dibuja solo las primeras), y su tipo en
+   `SectionDataMap`.
 2. **Renderer**: `storefront/src/components/store/sections/<tipo>.tsx` (recibe
    `SectionRenderProps<'<tipo>'>` con `data` ya normalizada) y una línea en
    `sections/registry.ts`. Para el título usar `SectionTitle` (h2).

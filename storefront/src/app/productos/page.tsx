@@ -19,6 +19,15 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** ¿Pidió solo las ofertas? (`?onSale=1`, el "Ver todos" de la sección de ofertas). */
+const onSaleOf = (sp: SearchParams) => ['1', 'true'].includes(one(sp.onSale));
+
+/** El título del listado: la categoría, las ofertas, o todo. */
+function listingTitle(category: CategoryDto | undefined, onSale: boolean): string | null {
+  if (category) return onSale ? `${category.name} en oferta` : category.name;
+  return onSale ? 'Ofertas' : null;
+}
+
 /** El número de página pedido (1 si no vino o no es un número). */
 const pageOf = (sp: SearchParams) => Math.max(1, Number.parseInt(one(sp.page) || '1', 10) || 1);
 
@@ -53,7 +62,7 @@ export async function generateMetadata({
   const suffix = page > 1 ? ` (página ${page})` : '';
   return {
     // La plantilla del layout le suma " · <Tienda>".
-    title: `${category?.name ?? 'Productos'}${suffix}`,
+    title: `${listingTitle(category, onSaleOf(sp)) ?? 'Productos'}${suffix}`,
     description: category
       ? `${category.name} en ${tenant.name}. Comprá online con envíos a todo el país.`
       : `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,
@@ -103,6 +112,7 @@ async function Catalog({
   const specs = many(sp.spec);
   const priceMin = Number.parseInt(one(sp.priceMin), 10);
   const priceMax = Number.parseInt(one(sp.priceMax), 10);
+  const onSale = onSaleOf(sp);
 
   // Orden y tamaño de página salen del diseño. El 48 es el techo del backend:
   // pedir más de lo que sirve devolvería una página incompleta sin avisar.
@@ -128,6 +138,7 @@ async function Catalog({
     specs,
     priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
     priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
+    onSale,
   });
 
   const products = result.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
@@ -136,7 +147,7 @@ async function Catalog({
     <main className="min-h-[60vh]">
       <div className="mx-auto max-w-container px-4 pt-8">
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {active?.name ?? 'Todos los productos'}
+          {listingTitle(active, onSale) ?? 'Todos los productos'}
         </h1>
       </div>
       <CatalogBrowser
@@ -156,6 +167,7 @@ async function Catalog({
           specs,
           priceMin: one(sp.priceMin),
           priceMax: one(sp.priceMax),
+          onSale,
         }}
       />
     </main>

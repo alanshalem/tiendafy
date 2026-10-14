@@ -151,8 +151,11 @@ describe('cómo llega al render', () => {
     );
     expect(productSourceListingHref({ kind: 'newest' })).toBe('/productos?sort=newest');
     // El listado no sabe filtrar ofertas ni lo más vendido: el catálogo entero.
-    expect(productSourceListingHref({ kind: 'on-sale' })).toBe('/productos');
-    expect(productSourceListingHref({ kind: 'best-sellers' })).toBe('/productos');
+    expect(productSourceListingHref({ kind: 'on-sale' })).toBe('/productos?onSale=1');
+    expect(productSourceListingHref({ kind: 'on-sale', sort: 'price_asc' })).toBe(
+      '/productos?onSale=1&sort=price_asc',
+    );
+    expect(productSourceListingHref({ kind: 'best-sellers', days: 7 })).toBe('/productos?sort=best_sellers');
     expect(productSourceListingHref({ kind: 'manual', ids: ['a'] })).toBe('/productos');
   });
 

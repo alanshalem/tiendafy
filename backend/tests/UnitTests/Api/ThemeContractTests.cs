@@ -88,6 +88,20 @@ public partial class ThemeContractTests
     }
 
     [Fact]
+    public void Un_solo_popup_newsletter_y_hero_con_video_por_pagina()
+    {
+        string Of(string type, int n, bool visible = true) =>
+            $$"""{ "id": "{{type}}-{{n}}", "type": "{{type}}", "visible": {{(visible ? "true" : "false")}}, "data": {} }""";
+
+        Assert.Empty(ValidateSections($"[{Of("promo-popup", 1)},{Of("newsletter", 1)},{Of("hero-video", 1)},{Of("faq", 1)},{Of("faq", 2)}]"));
+
+        // La segunda cuenta aunque esté oculta, y el error marca esa, no la primera.
+        var errors = ValidateSections($"[{Of("newsletter", 1)},{Of("faq", 1)},{Of("newsletter", 2, visible: false)},{Of("promo-popup", 1)},{Of("promo-popup", 2)},{Of("promo-popup", 3)}]");
+        Assert.Equal(["sections[2].type", "sections[4].type", "sections[5].type"], errors.Select(e => e.Path));
+        Assert.Equal("La sección 3 es otra «Newsletter» y puede haber una sola en la página de inicio: borrá una.", errors[0].Message);
+    }
+
+    [Fact]
     public void Textos_con_largo_maximo_y_listas_con_tope()
     {
         var longTitle = new string('a', ThemeContract.Limit("shortText") + 1);

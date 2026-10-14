@@ -67,6 +67,25 @@ describe('el listado de una categoría', () => {
     expect(new URLSearchParams(searched.path.split('?')[1]).get('category')).toBe(musculacion.id);
   });
 
+  it('el "Ver todos" de ofertas: se titula Ofertas, la API filtra, y la canónica es la del listado', async () => {
+    const m = await meta({ onSale: '1' });
+    expect(m.title).toBe('Ofertas');
+    expect(m.alternates?.canonical).toBe(`${BASE}/productos`);
+    expect((await meta({ onSale: '1', category: musculacion.path })).title).toBe('Musculación en oferta');
+
+    await renderPage(ProductsPage, '/productos?onSale=1&sort=best_sellers');
+    expect(screen.getByRole('heading', { level: 1, name: 'Ofertas' })).toBeInTheDocument();
+    const searched = api.calls.filter((c) => c.path.startsWith('/api/v1/products/search')).at(-1)!;
+    const params = new URLSearchParams(searched.path.split('?')[1]);
+    expect(params.get('onSale')).toBe('true');
+    expect(params.get('sort')).toBe('best_sellers');
+
+    // Cualquier otro valor no filtra (el parámetro no vuelve a la API).
+    await renderPage(ProductsPage, '/productos?onSale=no');
+    const last = api.calls.filter((c) => c.path.startsWith('/api/v1/products/search')).at(-1)!;
+    expect(new URLSearchParams(last.path.split('?')[1]).has('onSale')).toBe(false);
+  });
+
   it('una categoría que no está en el árbol: si es un id pasa tal cual; si no, no filtra', async () => {
     const id = '0f0f0f0f-0000-4000-8000-000000000000';
     await renderPage(ProductsPage, `/productos?category=${id}`);

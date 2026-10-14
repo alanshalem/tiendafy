@@ -1,4 +1,4 @@
-import { parseVideoUrl, VIDEO_RATIOS } from '@tiendafy/types';
+import { parsePlayableVideo, VIDEO_RATIOS, type PlayableVideo } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { Check, Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
@@ -11,13 +11,24 @@ const RATIO_LABELS: Record<(typeof VIDEO_RATIOS)[number], string> = {
   '9:16': 'Vertical, tipo reel (9:16)',
 };
 
+/** Qué entendió el editor del link pegado (con lo mismo que usa la tienda). */
+function linkHint(url: string, parsed: PlayableVideo | null, ratio: string): string {
+  if (!url.trim())
+    return 'Sirven el link de compartir, el de la barra, un Short o un video privado de Vimeo.';
+  if (!parsed) return 'Ese link no es de un video de YouTube o Vimeo.';
+  const what =
+    parsed.kind === 'vimeo' ? 'Video de Vimeo' : parsed.short ? 'Short de YouTube' : 'Video de YouTube';
+  // Un Short en un recuadro horizontal queda con franjas negras a los costados.
+  const vertical =
+    parsed.kind === 'youtube' && parsed.short && ratio !== '9:16'
+      ? ' Es vertical: elegí la proporción "Vertical, tipo reel" para que no quede con franjas.'
+      : '';
+  return `${what} reconocido. Se carga recién cuando alguien lo reproduce.${vertical}`;
+}
+
 export function VideoEditor({ data, set }: SectionEditorProps<'video'>) {
-  const parsed = data.url.trim() ? parseVideoUrl(data.url) : null;
-  const urlHint = !data.url.trim()
-    ? 'Sirven el link de compartir, el de la barra, un Short o un video privado de Vimeo.'
-    : parsed
-      ? `Video de ${parsed.provider === 'youtube' ? 'YouTube' : 'Vimeo'} reconocido. Se carga recién cuando alguien lo reproduce.`
-      : 'Ese link no es de un video de YouTube o Vimeo.';
+  const parsed = data.url.trim() ? parsePlayableVideo(data.url) : null;
+  const urlHint = linkHint(data.url, parsed, data.ratio);
   return (
     <>
       <Field label="De dónde sale el video">

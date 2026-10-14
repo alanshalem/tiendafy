@@ -7,7 +7,9 @@
    m.youtube.com o cualquier otra página terminaba en un recuadro gris
    (la CSP de la tienda solo deja embeber estos sitios). Acá se decide UNA
    vez qué se puede embeber y cómo, para la tienda y para el editor (que
-   avisa mientras se pega el link).
+   avisa mientras se pega el link). Lo usan la sección de Instagram
+   (que también embebe publicaciones) y la sección "Video" (solo YouTube
+   y Vimeo, con fachada hasta que se toca reproducir).
    ============================================================ */
 
 export type VideoEmbed =
@@ -128,4 +130,30 @@ export function parseVideoEmbed(raw: unknown): VideoEmbed | null {
   const url = toUrl(raw);
   if (!url) return null;
   return youtube(url) ?? vimeo(url) ?? instagram(url);
+}
+
+/** Lo que reproduce la sección "Video": YouTube o Vimeo, no una publicación de Instagram. */
+export type PlayableVideo = Extract<VideoEmbed, { kind: 'youtube' | 'vimeo' }>;
+
+/** Un video de YouTube o Vimeo, o null si el link es otra cosa (Instagram incluido). */
+export function parsePlayableVideo(raw: unknown): PlayableVideo | null {
+  const embed = parseVideoEmbed(raw);
+  return embed?.kind === 'youtube' || embed?.kind === 'vimeo' ? embed : null;
+}
+
+/**
+ * El reproductor para cargar recién cuando se toca "reproducir": por eso
+ * arranca solo. Sigue sin cookies (YouTube) y sin seguimiento (Vimeo), y
+ * conserva el minuto de inicio y la clave de un video privado.
+ */
+export function videoAutoplaySrc(video: PlayableVideo): string {
+  const url = new URL(video.src);
+  url.searchParams.set('autoplay', '1');
+  if (video.kind === 'youtube') url.searchParams.set('playsinline', '1');
+  return url.toString();
+}
+
+/** La miniatura pública del video (solo YouTube la tiene sin pedir nada). */
+export function videoThumbnail(video: PlayableVideo): string | null {
+  return video.kind === 'youtube' ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : null;
 }

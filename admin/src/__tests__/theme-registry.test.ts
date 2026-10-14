@@ -20,6 +20,7 @@ import {
   THEME_MIGRATIONS,
   THEME_SCHEMA_VERSION,
   canAddSection,
+  withinPageLimits,
   createSection,
   isRgbTriplet,
   isSafeLink,
@@ -34,6 +35,7 @@ import {
   sectionDefinition,
   sectionDisplayName,
   templateSections,
+  type SectionType,
   type ThemeMigration,
   type ThemeSection,
 } from '@tiendafy/types';
@@ -152,6 +154,17 @@ describe('registro de secciones', () => {
     expect(canAddSection([{ type: 'newsletter' }], 'newsletter')).toBe(false);
     expect(canAddSection([{ type: 'faq' }, { type: 'faq' }], 'faq')).toBe(true);
     expect(MAX_SECTIONS).toBe(40);
+  });
+
+  it('withinPageLimits saca las de más (no la primera) y deja el resto en orden', () => {
+    const page = [
+      { type: 'newsletter', id: 'n1' },
+      { type: 'faq', id: 'f1' },
+      { type: 'newsletter', id: 'n2' },
+      { type: 'faq', id: 'f2' },
+      { type: 'no-existe', id: 'x' },
+    ] as { type: SectionType; id: string }[];
+    expect(withinPageLimits(page).map((s) => s.id)).toEqual(['n1', 'f1', 'f2', 'x']);
   });
 
   it('el nombre propio de la sección manda sobre el del tipo', () => {

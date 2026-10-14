@@ -100,7 +100,41 @@ public static partial class ThemeConfigValidator
             ValidateSection(section, index, ids, errors);
             index++;
         }
+        ValidatePerPageLimits(sections, errors);
         return errors;
+    }
+
+    /// <summary>
+    /// Tipos que van uno solo por página: el pop-up, el newsletter y el hero con
+    /// video. El editor no deja agregar el segundo, pero un tema que llegaba por
+    /// la API sí lo guardaba: dos pop-ups se tapaban entre sí y dos newsletters
+    /// pedían el mail dos veces. Cuentan también las ocultas, como en el editor
+    /// (mostrar una oculta no puede dejar la página en un estado que no se
+    /// guarda). Se marca cada una de más, no la primera.
+    /// </summary>
+    private static void ValidatePerPageLimits(JsonElement sections, List<ThemeValidationError> errors)
+    {
+        var count = new Dictionary<string, int>(StringComparer.Ordinal);
+        var index = 0;
+        foreach (var s in sections.EnumerateArray())
+        {
+            if (s.ValueKind == JsonValueKind.Object
+                && s.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
+                && ThemeContract.TryGetSection(t.GetString()!, out var def)
+                && def.TryGetProperty("maxPerPage", out var maxEl) && maxEl.TryGetInt32(out var max))
+            {
+                var type = t.GetString()!;
+                var seen = count[type] = count.GetValueOrDefault(type) + 1;
+                if (seen > max)
+                {
+                    var label = def.GetProperty("label").GetString();
+                    errors.Add(new($"sections[{index}].type", max == 1
+                        ? $"La sección {index + 1} es otra «{label}» y puede haber una sola en la página de inicio: borrá una."
+                        : $"La sección {index + 1} es otra «{label}» y puede haber hasta {max} en la página de inicio."));
+                }
+            }
+            index++;
+        }
     }
 
     private static void ValidateSection(JsonElement s, int index, HashSet<string> ids, List<ThemeValidationError> errors)

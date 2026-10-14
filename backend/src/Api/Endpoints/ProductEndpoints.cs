@@ -1,10 +1,12 @@
 using Api.Auth;
+using Api.Shop;
 using Catalog.Core;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateProduct;
 using Catalog.Core.Features.UpdateProduct;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Orders.Infrastructure.Persistence;
 using SharedKernel.Abstractions;
 using SharedKernel.Common;
 
@@ -190,6 +192,7 @@ public static partial class ProductEndpoints
             ITenantContext tenant,
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
+            OrdersDbContext ordersDb,
             CancellationToken ct,
             string? q = null,
             Guid? category = null,
@@ -202,7 +205,9 @@ public static partial class ProductEndpoints
             decimal? priceMax = null,
             string? brand = null,
             string[]? option = null,
-            string[]? spec = null) =>
+            string[]? spec = null,
+            // Solo lo que está en oferta: el "Ver todos" de la sección de ofertas.
+            bool onSale = false) =>
         {
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 48);
@@ -212,8 +217,17 @@ public static partial class ProductEndpoints
                 "price_asc" => ProductSort.PriceAsc,
                 "price_desc" => ProductSort.PriceDesc,
                 "name" or "name_asc" => ProductSort.NameAsc,
+                "best_sellers" => ProductSort.BestSellers,
                 _ => ProductSort.Newest,
             };
+
+            // "Más vendidos": el ranking cruza ventas y catálogo, lo arma el Api.
+            // Lo que no entra en el ranking (o una tienda sin ventas) sigue de
+            // lo más nuevo a lo más viejo.
+            var ranking = sortEnum == ProductSort.BestSellers
+                ? await BestSellers.RankAsync(ordersDb, repository, tenant.TenantId,
+                    BestSellers.DefaultDays, BestSellers.ListingDepth, ct)
+                : null;
 
             // Pesos → centavos (unidades menores). Ignora negativos.
             long? ToMinor(decimal? p) => p is > 0 ? (long)Math.Round(p.Value * 100) : null;
@@ -236,7 +250,9 @@ public static partial class ProductEndpoints
                     ToMinor(priceMin), ToMinor(priceMax),
                     string.IsNullOrWhiteSpace(brand) ? null : brand.Trim(),
                     options is { Count: > 0 } ? options : null,
-                    specFilters.Count > 0 ? specFilters : null),
+                    specFilters.Count > 0 ? specFilters : null,
+                    onSale,
+                    ranking),
                 ct);
 
             // Stock por producto (suma de sus variantes) para badges en la card.
@@ -259,6 +275,7 @@ public static partial class ProductEndpoints
                     options = facets.Options.Select(o => new { name = o.Name, values = o.Values }),
                     priceMin = facets.PriceMin,
                     priceMax = facets.PriceMax,
+                    onSale = facets.OnSale,
                     specs = facets.Specs.Select(f => new
                     {
                         definitionId = f.DefinitionId,

@@ -24,6 +24,8 @@ export interface ProductFacets {
   priceMax: number | null;
   /** Puede faltar en una respuesta cacheada de antes de existir el campo. */
   specs?: SpecFacet[];
+  /** Cuántos de la búsqueda están en oferta (sin el filtro de ofertas). Puede faltar, como `specs`. */
+  onSale?: number;
 }
 
 interface ProductsPage {
@@ -141,6 +143,8 @@ interface SearchParams {
   options?: string[]; // valores de opción seleccionados (Color/Talle/…)
   /** Pares `<definitionId>:<valor>` de ficha técnica. */
   specs?: string[];
+  /** Solo lo que está en oferta (precio tachado). */
+  onSale?: boolean;
 }
 
 export async function searchProducts(tenantId: string, params: SearchParams): Promise<ProductSearchResult> {
@@ -154,6 +158,7 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   for (const o of params.options ?? []) qs.append('option', o);
   // Ficha técnica: <definitionId>:<valor>, repetible.
   for (const sp of params.specs ?? []) qs.append('spec', sp);
+  if (params.onSale) qs.set('onSale', 'true');
   qs.set('page', String(params.page ?? 1));
   qs.set('pageSize', String(params.pageSize ?? 24));
 

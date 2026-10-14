@@ -8,9 +8,17 @@ public enum ProductSort
     PriceAsc = 1,
     PriceDesc = 2,
     NameAsc = 3,
+    /// <summary>
+    /// Lo más vendido primero (en el orden de <see cref="ProductSearchFilter.Ranking"/>),
+    /// después el resto, de lo más nuevo a lo más viejo. El ranking lo arma el Api:
+    /// cruza ventas y catálogo.
+    /// </summary>
+    BestSellers = 4,
 }
 
 /// <summary>Filtro de búsqueda del catálogo (storefront): texto, categoría, orden, página + filtros de precio/marca/opciones.</summary>
+/// <param name="OnSale">Solo los que tienen alguna variante con precio tachado mayor al de venta.</param>
+/// <param name="Ranking">Para <see cref="ProductSort.BestSellers"/>: ids del más vendido al menos.</param>
 public sealed record ProductSearchFilter(
     string? Query,
     Guid? CategoryId,
@@ -21,7 +29,9 @@ public sealed record ProductSearchFilter(
     long? PriceMax = null,
     string? Brand = null,
     IReadOnlyList<string>? OptionValues = null,    // valores de opción seleccionados (Color/Talle/…); AND entre ellos
-    IReadOnlyList<SpecFilter>? Specs = null);      // campos de ficha técnica; OR adentro de cada campo, AND entre campos
+    IReadOnlyList<SpecFilter>? Specs = null,       // campos de ficha técnica; OR adentro de cada campo, AND entre campos
+    bool OnSale = false,
+    IReadOnlyList<Guid>? Ranking = null);
 
 /// <summary>
 /// Un campo de ficha técnica con los valores elegidos. Dentro de un campo la
@@ -110,12 +120,17 @@ public sealed record OptionFacet(string Name, IReadOnlyList<string> Values);
 public sealed record SpecFacet(Guid DefinitionId, string Key, string Name, string? Unit, IReadOnlyList<string> Values);
 
 /// <summary>Valores disponibles para armar la barra de filtros del storefront (marcas, opciones, rango de precio, ficha técnica).</summary>
+/// <param name="OnSale">
+/// Cuántos productos de la búsqueda están en oferta (sin contar el filtro de
+/// ofertas): la tienda muestra "Solo ofertas" únicamente si hay alguno.
+/// </param>
 public sealed record ProductFacets(
     IReadOnlyList<string> Brands,
     IReadOnlyList<OptionFacet> Options,
     long? PriceMin,
     long? PriceMax,
-    IReadOnlyList<SpecFacet> Specs);
+    IReadOnlyList<SpecFacet> Specs,
+    int OnSale = 0);
 
 /// <summary>
 /// Puerto de persistencia del catálogo. Filtra por tenant explícitamente

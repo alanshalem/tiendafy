@@ -313,6 +313,14 @@ describe('video', () => {
     expect(latest.url).toBe('youtu.be/dQw4w9WgXcQ');
   });
 
+  it('un Short en un recuadro horizontal sugiere la proporción vertical', async () => {
+    const { user } = await open('video', createSection('video').data);
+    await user.type(screen.getByLabelText('Link del video'), 'https://youtube.com/shorts/dQw4w9WgXcQ');
+    expect(screen.getByText(/Short de YouTube reconocido.*Es vertical/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Proporción'), '9:16');
+    expect(screen.getByText(/Short de YouTube reconocido/)).not.toHaveTextContent('Es vertical');
+  });
+
   it('con un MP4 se sube el archivo y se elige si arranca solo; la proporción para los dos', async () => {
     const { user } = await open('video', createSection('video').data);
     await user.selectOptions(screen.getByLabelText('De dónde sale el video'), 'file');

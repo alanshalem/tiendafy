@@ -1054,6 +1054,22 @@ export function canAddSection(sections: readonly Pick<ThemeSection, 'type'>[], t
   return max === undefined || sections.filter((s) => s.type === type).length < max;
 }
 
+/**
+ * Las secciones sin las que pasan el tope de su tipo (el segundo pop-up, el
+ * segundo newsletter), en el mismo orden. La API ya no deja guardar de más,
+ * pero un tema guardado antes puede tenerlas: la tienda dibuja la primera.
+ */
+export function withinPageLimits<S extends Pick<ThemeSection, 'type'>>(sections: readonly S[]): S[] {
+  const seen = new Map<string, number>();
+  return sections.filter((s) => {
+    const max = sectionDefinition(s.type)?.limits.maxPerPage;
+    if (max === undefined) return true;
+    const n = (seen.get(s.type) ?? 0) + 1;
+    seen.set(s.type, n);
+    return n <= max;
+  });
+}
+
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const randomId = () => Math.random().toString(36).slice(2, 8);
 

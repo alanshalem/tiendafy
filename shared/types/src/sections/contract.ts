@@ -84,7 +84,17 @@ export function buildThemeContract() {
     sections: Object.fromEntries(
       SECTION_TYPES.map((type) => {
         const def = SECTION_REGISTRY[type];
-        return [type, { label: def.label, fields: contractFields(def.fields) }];
+        const { maxPerPage } = def.limits as { maxPerPage?: number };
+        return [
+          type,
+          {
+            label: def.label,
+            // Cuántas de este tipo puede haber en el inicio (un solo pop-up…): el
+            // editor no deja agregar más y la API no deja guardar más.
+            ...(maxPerPage === undefined ? {} : { maxPerPage }),
+            fields: contractFields(def.fields),
+          },
+        ];
       }),
     ),
     defaultConfig: defaultThemeConfig(),

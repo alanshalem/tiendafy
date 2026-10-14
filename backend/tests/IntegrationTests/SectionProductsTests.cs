@@ -146,6 +146,53 @@ public sealed class SectionProductsTests
     }
 
     [Fact]
+    public async Task El_ver_todos_de_ofertas_y_de_mas_vendidos_tiene_su_listado()
+    {
+        // Antes "Ver todos" de estas secciones llevaba al catálogo entero: el
+        // listado no sabía filtrar ofertas ni ordenar por lo más vendido.
+        var merchant = await Merchant.CreateAsync(_factory, "secl");
+        await OfferAsync(merchant, "Oferta vieja", price: 80_00, compareAt: 100_00);
+        await OfferAsync(merchant, "Oferta nueva", price: 50_00, compareAt: 70_00);
+        await OfferAsync(merchant, "Tachado más barato", price: 100_00, compareAt: 90_00);
+        var (_, poco) = await merchant.CreateProductAsync("Poco vendido");
+        var (_, mucho) = await merchant.CreateProductAsync("Muy vendido");
+        await merchant.CreateProductAsync("Nunca vendido");
+        await SellAsync(merchant, mucho, 3);
+        await SellAsync(merchant, poco, 1);
+
+        var shopper = new Shopper(merchant);
+
+        var all = await SearchAsync(shopper, "");
+        Assert.Equal(6, all.GetProperty("total").GetInt32());
+        // Cuántas ofertas hay, para mostrar "Solo ofertas" solo si sirve.
+        Assert.Equal(2, all.GetProperty("facets").GetProperty("onSale").GetInt32());
+
+        var sale = await SearchAsync(shopper, "onSale=true");
+        Assert.Equal(["Oferta nueva", "Oferta vieja"], Names(sale.GetProperty("items").EnumerateArray()));
+        Assert.Equal(2, sale.GetProperty("total").GetInt32());
+        Assert.Equal(2, sale.GetProperty("facets").GetProperty("onSale").GetInt32());
+
+        // Lo vendido primero (por unidades) y después el resto de lo más nuevo
+        // a lo más viejo, paginado sin repetir ni saltear ninguno.
+        var pages = new List<string>();
+        for (var page = 1; page <= 3; page++)
+        {
+            var result = await SearchAsync(shopper, $"sort=best_sellers&pageSize=2&page={page}");
+            Assert.Equal(6, result.GetProperty("total").GetInt32());
+            pages.AddRange(Names(result.GetProperty("items").EnumerateArray()));
+        }
+        Assert.Equal(["Muy vendido", "Poco vendido", "Nunca vendido", "Tachado más barato", "Oferta nueva", "Oferta vieja"], pages);
+
+        // Las dos cosas juntas: ofertas, sin ventas todavía, de la más nueva a la más vieja.
+        Assert.Equal(["Oferta nueva", "Oferta vieja"],
+            Names((await SearchAsync(shopper, "onSale=true&sort=best_sellers")).GetProperty("items").EnumerateArray()));
+
+        // Lo de otra tienda no cuenta.
+        var other = new Shopper(await Merchant.CreateAsync(_factory, "secl2"));
+        Assert.Equal(0, (await SearchAsync(other, "onSale=true")).GetProperty("total").GetInt32());
+    }
+
+    [Fact]
     public async Task Cada_tienda_ve_solo_lo_suyo()
     {
         var a = await Merchant.CreateAsync(_factory, "seca");
@@ -172,6 +219,9 @@ public sealed class SectionProductsTests
     private static async Task<List<JsonElement>> ItemsAsync(Shopper shopper, string query) =>
         [.. (await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/products/section?{query}"))
             .GetProperty("items").EnumerateArray()];
+
+    private static Task<JsonElement> SearchAsync(Shopper shopper, string query) =>
+        shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/products/search?{query}");
 
     private static List<string> Names(IEnumerable<JsonElement> items) =>
         [.. items.Select(i => i.GetProperty("name").GetString()!)];

@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  parseVideoUrl,
-  videoEmbedUrl,
+  parsePlayableVideo,
+  videoAutoplaySrc,
   videoThumbnail,
+  type PlayableVideo,
   type VideoData,
-  type VideoLink,
 } from '@tiendafy/types';
 import { cn } from '@tiendafy/ui';
 import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
@@ -36,14 +36,14 @@ function PlayIcon() {
  * conexiones (y cookies) apenas se carga; así la portada no lo paga si nadie
  * mira el video. Al tocar, entra el iframe (youtube-nocookie) y arranca solo.
  */
-function EmbedFacade({ video, poster, title }: { video: VideoLink; poster: string; title: string }) {
+function EmbedFacade({ video, poster, title }: { video: PlayableVideo; poster: string; title: string }) {
   const [playing, setPlaying] = useState(false);
   const thumb = poster || videoThumbnail(video);
-  const name = title || (video.provider === 'youtube' ? 'Video de YouTube' : 'Video de Vimeo');
+  const name = title || (video.kind === 'youtube' ? 'Video de YouTube' : 'Video de Vimeo');
   if (playing)
     return (
       <iframe
-        src={videoEmbedUrl(video)}
+        src={videoAutoplaySrc(video)}
         title={name}
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen
@@ -146,7 +146,7 @@ function FileVideo({
 /** Video propio (no el de Instagram): YouTube/Vimeo con fachada o un MP4 subido. */
 export function VideoSection({ data }: SectionRenderProps<'video'>) {
   const preview = usePreviewPlaceholders();
-  const embed = data.source === 'link' ? parseVideoUrl(data.url) : null;
+  const embed = data.source === 'link' ? parsePlayableVideo(data.url) : null;
   const file = data.source === 'file' ? data.file : '';
   const hasVideo = !!embed || !!file;
   if (!hasVideo && !preview) return null;

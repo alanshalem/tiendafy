@@ -21,7 +21,7 @@ import { popupSeen } from '../components/store/sections/promo-popup';
 import { ADMIN_ORIGIN } from '../components/store/preview';
 import { nav } from '../test/next';
 import { StoreCategoriesProvider } from '../components/store/CategoryMenu';
-import { EDITOR_MSG, parseVideoUrl, videoEmbedUrl } from '@tiendafy/types';
+import { EDITOR_MSG, parsePlayableVideo, videoAutoplaySrc } from '@tiendafy/types';
 import { useCart } from '../components/store/cart';
 import userEvent from '@testing-library/user-event';
 import { fixture, mockApi } from '../test/api';
@@ -564,26 +564,28 @@ describe('video', () => {
     ['https://m.youtube.com/live/dQw4w9WgXcQ', 'youtube', 'dQw4w9WgXcQ'],
     ['https://vimeo.com/123456789', 'vimeo', '123456789'],
     ['https://vimeo.com/channels/staffpicks/123456789', 'vimeo', '123456789'],
-  ])('reconoce %s', (url, provider, id) => {
-    expect(parseVideoUrl(url)).toMatchObject({ provider, id });
+  ])('reconoce %s', (url, kind, id) => {
+    expect(parsePlayableVideo(url)).toMatchObject({ kind, id });
   });
 
   it('un video privado de Vimeo conserva su clave; lo que no es un video no se embebe', () => {
-    expect(parseVideoUrl('https://vimeo.com/123456789/abcdef1234')).toEqual({
-      provider: 'vimeo',
+    expect(parsePlayableVideo('https://vimeo.com/123456789/abcdef1234')).toMatchObject({
+      kind: 'vimeo',
       id: '123456789',
-      hash: 'abcdef1234',
+      src: 'https://player.vimeo.com/video/123456789?dnt=1&h=abcdef1234',
     });
-    expect(videoEmbedUrl(parseVideoUrl('https://player.vimeo.com/video/42?h=ff00ff')!)).toBe(
-      'https://player.vimeo.com/video/42?autoplay=1&dnt=1&h=ff00ff',
+    expect(videoAutoplaySrc(parsePlayableVideo('https://player.vimeo.com/video/42?h=ff00ff')!)).toBe(
+      'https://player.vimeo.com/video/42?dnt=1&h=ff00ff&autoplay=1',
     );
     for (const bad of [
       'https://malo.com/watch?v=dQw4w9WgXcQ',
       'https://youtube.com/watch?v=corto',
       'javascript:alert(1)',
+      // Una publicación de Instagram se embebe en su sección, no en "Video".
+      'https://www.instagram.com/p/Cx1-ab_C/',
       '',
     ])
-      expect(parseVideoUrl(bad)).toBeNull();
+      expect(parsePlayableVideo(bad)).toBeNull();
   });
 
   it('YouTube no se carga hasta que se toca reproducir; después va sin cookies', async () => {
@@ -600,7 +602,7 @@ describe('video', () => {
     const frame = container.querySelector('iframe')!;
     expect(frame).toHaveAttribute(
       'src',
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0&playsinline=1',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&autoplay=1&playsinline=1',
     );
     expect(frame).toHaveAttribute('title', 'Cómo se arma');
   });

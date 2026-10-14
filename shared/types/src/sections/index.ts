@@ -39,6 +39,7 @@ export {
   sectionDisplayName,
   sectionData,
   canAddSection,
+  withinPageLimits,
   createSection,
   normalizeSection,
   normalizeSections,
@@ -125,5 +126,3 @@ export {
   countdownSpeech,
 } from './countdown';
 export type { CountdownParts } from './countdown';
-export { parseVideoUrl, videoEmbedUrl, videoThumbnail } from './video';
-export type { VideoLink } from './video';

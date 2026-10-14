@@ -127,6 +127,10 @@ describe('listado: buscar y ordenar', () => {
     expect(pushed().params.get('sort')).toBe('price_desc');
 
     await user.click(screen.getByRole('button', { name: /Más nuevos/ }));
+    await user.click(screen.getByRole('button', { name: 'Más vendidos' }));
+    expect(pushed().params.get('sort')).toBe('best_sellers');
+
+    await user.click(screen.getByRole('button', { name: /Más nuevos/ }));
     await user.click(screen.getAllByRole('button', { name: /Más nuevos/ }).at(-1)!);
     expect(pushed().params.has('sort')).toBe(false);
 
@@ -247,6 +251,33 @@ describe('listado: filtros', () => {
     await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
     expect(Object.fromEntries(pushed().params)).toEqual({ q: 'pesa', sort: 'name' });
     expect(screen.getByLabelText('Precio desde')).toHaveValue('');
+  });
+
+  it('"Solo ofertas" aparece si hay ofertas, prende el filtro y se apaga desde ahí o con "Limpiar filtros"', async () => {
+    const user = await show({ facets: { ...FACETS, onSale: 3 } }, '/productos?sort=name&page=2');
+    const toggle = screen.getByRole('switch', { name: /Solo ofertas/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveTextContent('(3)');
+    await user.click(toggle);
+    expect(Object.fromEntries(pushed().params)).toEqual({ sort: 'name', onSale: '1' });
+  });
+
+  it('con el filtro prendido se ve marcado aunque ya no queden ofertas, y se puede sacar', async () => {
+    const user = await show(
+      { current: { ...CURRENT, onSale: true }, facets: { ...FACETS, onSale: 0 } },
+      '/productos?onSale=1&brand=Marca%201',
+    );
+    const toggle = screen.getByRole('switch', { name: /Solo ofertas/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await user.click(toggle);
+    expect(Object.fromEntries(pushed().params)).toEqual({ brand: 'Marca 1' });
+    await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    expect(pushed().params.has('onSale')).toBe(false);
+  });
+
+  it('sin ofertas (o una respuesta vieja sin el conteo) no ofrece el filtro', async () => {
+    await show();
+    expect(screen.queryByRole('switch', { name: /Solo ofertas/ })).not.toBeInTheDocument();
   });
 
   it('el comercio puede apagar cada filtro; las facetas viejas sin specs no rompen', async () => {

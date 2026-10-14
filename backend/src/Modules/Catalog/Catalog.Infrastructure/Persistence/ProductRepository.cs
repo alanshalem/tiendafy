@@ -168,7 +168,14 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             }
         }
 
-        var facets = await BuildFacetsAsync(context, tenantId, baseQuery, ct);
+        // Ofertas: como la categoría, acota la base (las marcas y los precios
+        // del costado son los de las ofertas). El conteo es de antes del
+        // filtro, para saber si mostrar "Solo ofertas".
+        var onSaleIds = await OnSaleIdsAsync(baseQuery, ct);
+        if (filter.OnSale)
+            baseQuery = baseQuery.Where(p => onSaleIds.Contains(p.Id));
+
+        var facets = await BuildFacetsAsync(context, tenantId, baseQuery, ct) with { OnSale = onSaleIds.Count };
 
         // Filtros que SÍ recortan el set mostrado.
         var query = baseQuery;
@@ -198,6 +205,9 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
 
         var total = await query.CountAsync(ct);
 
+        if (filter.Sort == ProductSort.BestSellers && filter.Ranking is { Count: > 0 } ranking)
+            return (await BestSellersPageAsync(query, ranking, filter.Page, filter.PageSize, ct), total, facets);
+
         // Orden por precio = mínimo precio entre las variantes (subconsulta correlacionada).
         query = filter.Sort switch
         {
@@ -213,6 +223,63 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             .ToListAsync(ct);
 
         return (items, total, facets);
+    }
+
+    /// <summary>
+    /// Una página con lo más vendido primero, en el orden del ranking, y
+    /// después el resto de lo más nuevo a lo más viejo. El orden por posición
+    /// en una lista no se traduce a SQL: de lo rankeado se traen solo los ids
+    /// que pasan los filtros (el ranking tiene un tope), se ordenan acá, y la
+    /// página se completa con una consulta del resto si hace falta.
+    /// </summary>
+    private static async Task<IReadOnlyList<Product>> BestSellersPageAsync(
+        IQueryable<Product> query, IReadOnlyList<Guid> ranking, int page, int pageSize, CancellationToken ct)
+    {
+        var position = new Dictionary<Guid, int>();
+        foreach (var id in ranking) position.TryAdd(id, position.Count);
+        var rankedIds = position.Keys.ToList();
+
+        var matching = await query.Where(p => rankedIds.Contains(p.Id)).Select(p => p.Id).ToListAsync(ct);
+        var ordered = matching.OrderBy(id => position[id]).ToList();
+
+        var skip = (page - 1) * pageSize;
+        var headIds = ordered.Skip(skip).Take(pageSize).ToList();
+        var head = headIds.Count > 0
+            ? (await query.Where(p => headIds.Contains(p.Id)).ToListAsync(ct)).ToDictionary(p => p.Id)
+            : [];
+
+        var restTake = pageSize - headIds.Count;
+        var tail = restTake > 0
+            ? await query.Where(p => !rankedIds.Contains(p.Id))
+                .OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id)
+                .Skip(Math.Max(0, skip - ordered.Count)).Take(restTake)
+                .ToListAsync(ct)
+            : [];
+
+        return [.. headIds.Where(head.ContainsKey).Select(id => head[id]), .. tail];
+    }
+
+    /// <summary>
+    /// Ids de los productos de <paramref name="products"/> con alguna variante
+    /// en oferta (precio tachado mayor al de venta). El tachado va serializado
+    /// en texto ("monto|moneda") y no se compara en SQL: se traen solo las
+    /// variantes que lo tienen cargado (id, precio y tachado, nada más) y se
+    /// compara acá.
+    /// </summary>
+    private static async Task<List<Guid>> OnSaleIdsAsync(IQueryable<Product> products, CancellationToken ct)
+    {
+        var priced = await products
+            .SelectMany(p => p.Variants
+                .Where(v => v.CompareAtPrice != null)
+                .Select(v => new { ProductId = p.Id, Price = v.Price.AmountInMinorUnits, v.CompareAtPrice }))
+            .ToListAsync(ct);
+        return
+        [
+            .. priced
+                .Where(v => v.CompareAtPrice is { } cmp && cmp.AmountInMinorUnits > v.Price)
+                .Select(v => v.ProductId)
+                .Distinct(),
+        ];
     }
 
     public async Task<IReadOnlyList<Product>> ListForSectionAsync(
@@ -260,21 +327,9 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
 
             case SectionProductKind.OnSale:
                 {
-                    // El precio tachado va serializado en texto ("monto|moneda") y
-                    // no se compara en SQL: se traen solo las variantes que lo
-                    // tienen cargado (id, precio y tachado, nada más) y se compara
-                    // acá. Antes la tienda filtraba entre los 24 más nuevos, así
-                    // que una oferta vieja nunca aparecía en "Ofertas".
-                    var priced = await sellable
-                        .SelectMany(p => p.Variants
-                            .Where(v => v.CompareAtPrice != null)
-                            .Select(v => new { ProductId = p.Id, Price = v.Price.AmountInMinorUnits, v.CompareAtPrice }))
-                        .ToListAsync(ct);
-                    var onSale = priced
-                        .Where(v => v.CompareAtPrice is { } cmp && cmp.AmountInMinorUnits > v.Price)
-                        .Select(v => v.ProductId)
-                        .Distinct()
-                        .ToList();
+                    // De todo el catálogo: antes la tienda filtraba entre los 24
+                    // más nuevos, así que una oferta vieja nunca aparecía en "Ofertas".
+                    var onSale = await OnSaleIdsAsync(sellable, ct);
                     if (onSale.Count == 0) return [];
                     sellable = sellable.Where(p => onSale.Contains(p.Id));
                     break;

@@ -17,6 +17,12 @@ public static class BestSellers
     public const int MaxDays = 365;
 
     /// <summary>
+    /// Cuántos del ranking ordena el listado con "Más vendidos". Más abajo la
+    /// diferencia es de una o dos unidades y el resto sigue por lo más nuevo.
+    /// </summary>
+    public const int ListingDepth = 500;
+
+    /// <summary>
     /// Ids de productos publicados, del más vendido al menos, hasta
     /// <paramref name="limit"/>. Vacío si en el período no se vendió nada.
     /// </summary>

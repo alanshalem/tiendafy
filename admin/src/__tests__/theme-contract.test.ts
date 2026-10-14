@@ -11,7 +11,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildThemeContract, defaultThemeConfig, normalizeTheme, SECTION_TYPES } from '@tiendafy/types';
+import {
+  buildThemeContract,
+  defaultThemeConfig,
+  HOME_TEMPLATES,
+  normalizeTheme,
+  SECTION_TYPES,
+  templateSections,
+} from '@tiendafy/types';
 
 const CONTRACT = resolve(
   import.meta.dirname,
@@ -39,5 +46,21 @@ describe('contrato del tema con el backend', () => {
     const def = defaultThemeConfig();
     expect(normalizeTheme(JSON.parse(JSON.stringify(def)))).toEqual(def);
     expect(def.sections.length).toBeGreaterThan(0);
+  });
+
+  it('el tema por defecto y las plantillas respetan los topes por página (la API rechazaría guardarlos)', () => {
+    const tops = Object.entries(expected.sections as Record<string, { maxPerPage?: number }>).filter(
+      ([, def]) => def.maxPerPage !== undefined,
+    );
+    expect(tops.map(([type]) => type).sort()).toEqual(['hero-video', 'newsletter', 'promo-popup']);
+    const pages = [
+      { name: 'tema por defecto', types: defaultThemeConfig().sections.map((s) => s.type) },
+      ...HOME_TEMPLATES.map((t) => ({ name: t.name, types: templateSections(t).map((s) => s.type) })),
+    ];
+    for (const page of pages)
+      for (const [type, def] of tops)
+        expect(page.types.filter((t) => t === type).length, `${page.name}: ${type}`).toBeLessThanOrEqual(
+          def.maxPerPage!,
+        );
   });
 });

@@ -118,6 +118,7 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
               { value: 'price_asc', label: 'Menor precio primero' },
               { value: 'price_desc', label: 'Mayor precio primero' },
               { value: 'name', label: 'Nombre A-Z' },
+              { value: 'best_sellers', label: 'Más vendidos primero' },
             ]}
           />
         </Field>

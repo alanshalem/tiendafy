@@ -32,6 +32,7 @@
   "sections": {
     "hero-video": {
       "label": "Hero con video",
+      "maxPerPage": 1,
       "fields": {
         "videoWebm": {
           "kind": "media"
@@ -850,6 +851,7 @@
     },
     "newsletter": {
       "label": "Newsletter",
+      "maxPerPage": 1,
       "fields": {
         "image": {
           "kind": "media"
@@ -973,6 +975,7 @@
     },
     "promo-popup": {
       "label": "Pop-up promocional",
+      "maxPerPage": 1,
       "fields": {
         "image": {
           "kind": "media"

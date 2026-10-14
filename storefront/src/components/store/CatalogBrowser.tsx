@@ -18,6 +18,7 @@ const SORTS: { value: string; label: string }[] = [
   { value: 'price_asc', label: 'Menor precio' },
   { value: 'price_desc', label: 'Mayor precio' },
   { value: 'name', label: 'Nombre A-Z' },
+  { value: 'best_sellers', label: 'Más vendidos' },
 ];
 
 interface Props {
@@ -37,6 +38,8 @@ interface Props {
     specs?: string[];
     priceMin: string;
     priceMax: string;
+    /** Solo ofertas (`?onSale=1`). Puede faltar: sin él, todo el catálogo. */
+    onSale?: boolean;
   };
 }
 
@@ -114,6 +117,7 @@ export function CatalogBrowser({
     navigate({ priceMin: priceMin.trim() || null, priceMax: priceMax.trim() || null, page: null });
 
   const hasFilters = !!(
+    current.onSale ||
     current.brand ||
     current.options.length ||
     specSelection.length ||
@@ -124,7 +128,7 @@ export function CatalogBrowser({
     setPriceMin('');
     setPriceMax('');
     const params = new URLSearchParams(searchParams.toString());
-    for (const k of ['brand', 'option', 'spec', 'priceMin', 'priceMax', 'page']) params.delete(k);
+    for (const k of ['onSale', 'brand', 'option', 'spec', 'priceMin', 'priceMax', 'page']) params.delete(k);
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -191,6 +195,15 @@ export function CatalogBrowser({
                 </button>
               )}
             </form>
+
+            {/* Solo si hay ofertas en lo que se está viendo (o ya está activo, para poder sacarlo). */}
+            {(current.onSale || (facets.onSale ?? 0) > 0) && (
+              <OnSaleToggle
+                on={!!current.onSale}
+                count={facets.onSale ?? 0}
+                onToggle={() => navigate({ onSale: current.onSale ? null : '1', page: null })}
+              />
+            )}
 
             {list.filterCategories && categories.length > 0 && (
               <CategoryFacet
@@ -317,6 +330,34 @@ export function CatalogBrowser({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Solo ofertas": un interruptor que prende o apaga el filtro. Con el número
+ * de ofertas, así se sabe qué se va a ver antes de tocarlo.
+ */
+function OnSaleToggle({ on, count, onToggle }: { on: boolean; count: number; onToggle: () => void }) {
+  return (
+    <div>
+      <FacetTitle>Ofertas</FacetTitle>
+      <button
+        type="button"
+        onClick={onToggle}
+        role="switch"
+        aria-checked={on}
+        className="flex min-h-10 w-full items-center gap-2 rounded-md text-left text-sm hover:text-primary-ink"
+      >
+        <span
+          aria-hidden="true"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${on ? 'border-primary bg-primary text-primary-fg' : 'border-black/25'}`}
+        >
+          {on && <Check className="h-3.5 w-3.5" />}
+        </span>
+        <span className={on ? 'font-semibold' : undefined}>Solo ofertas</span>
+        {count > 0 && <span className="text-fg-muted">({count})</span>}
+      </button>
     </div>
   );
 }

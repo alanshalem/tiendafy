@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { withinPageLimits } from '@tiendafy/types';
 import type { ProductListConfig, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
 import { SectionRenderer, sectionPreviewLabel } from './sections';
@@ -79,7 +80,8 @@ export function HomeSections({
   productList: ProductListConfig;
 }) {
   const preview = useContext(PreviewContext);
-  const visible = sections.filter((s) => s.visible);
+  // Un tema viejo con dos pop-ups o dos newsletters: se dibuja el primero.
+  const visible = withinPageLimits(sections.filter((s) => s.visible));
 
   // En la tienda real no hay altas/bajas en vivo: render directo.
   if (!preview) {

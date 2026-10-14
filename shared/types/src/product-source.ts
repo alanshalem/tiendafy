@@ -189,9 +189,9 @@ export function sectionProductPlan(section: {
 
 /**
  * Adónde lleva "Ver todos" de una sección cuando el comercio no eligió un
- * link: el listado que muestra lo mismo (la categoría, la marca, lo último).
- * Lo que el listado no sabe filtrar —ofertas, lo más vendido, elegidos a
- * mano— va al catálogo entero.
+ * link: el listado que muestra lo mismo (la categoría, la marca, lo último,
+ * las ofertas, lo más vendido primero). Los elegidos a mano no son una lista
+ * que el listado pueda armar: van al catálogo entero.
  */
 export function productSourceListingHref(source: ProductSource): string {
   const sort = 'sort' in source && source.sort ? source.sort : null;
@@ -205,6 +205,10 @@ export function productSourceListingHref(source: ProductSource): string {
     }
     case 'newest':
       return '/productos?sort=newest';
+    case 'on-sale':
+      return sort ? `/productos?onSale=1&sort=${sort}` : '/productos?onSale=1';
+    case 'best-sellers':
+      return '/productos?sort=best_sellers';
     default:
       return '/productos';
   }
