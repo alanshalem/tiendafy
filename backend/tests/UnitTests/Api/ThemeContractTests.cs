@@ -222,6 +222,44 @@ public partial class ThemeContractTests
             e => e.Message.Contains("niveles anidados", StringComparison.Ordinal));
     }
 
+    private static IReadOnlyList<ThemeValidationError> ValidateFooter(string footerJson) =>
+        ThemeConfigValidator.Validate(Parse($$"""{ "colors": {}, "sections": [], "footer": {{footerJson}} }"""));
+
+    [Fact]
+    public void Las_columnas_del_pie_que_arma_el_editor_pasan()
+    {
+        Assert.Empty(ValidateFooter("""
+            {
+              "links": [{ "label": "Viejo", "href": "/productos" }],
+              "instagram": "instagram.com/tienda",
+              "columns": [
+                { "id": "brand", "kind": "social", "hideBrand": true },
+                { "id": "ayuda", "kind": "links", "title": "Ayuda", "withPages": true,
+                  "links": [{ "label": "Envíos", "href": "/paginas/envios" }, { "label": "WhatsApp", "href": "https://wa.me/5491100000000", "newTab": true }, { "label": "", "href": "" }] },
+                { "id": "contact", "kind": "contact" },
+                { "id": "nosotros", "kind": "text", "title": "Quiénes somos", "text": "Desde 1990." },
+                { "id": "newsletter", "kind": "newsletter" }
+              ]
+            }
+            """));
+        // Sin columnas (tema de antes): la tienda las arma sola.
+        Assert.Empty(ValidateFooter("""{ "links": [] }"""));
+    }
+
+    [Theory]
+    [InlineData("""{ "columns": [{ "id": "a", "kind": "links", "links": [{ "label": "x", "href": "javascript:alert(1)" }] }] }""", "no es un link válido")]
+    [InlineData("""{ "links": [{ "label": "x", "href": " java\nscript:alert(1)" }] }""", "no es un link válido")]
+    [InlineData("""{ "facebook": "javascript:alert(1)" }""", "el link de Facebook no es válido")]
+    [InlineData("""{ "columns": [{ "id": "a", "kind": "mapa" }] }""", "tipo que no existe")]
+    [InlineData("""{ "columns": [{ "id": "a", "kind": "contact" }, { "id": "b", "kind": "contact" }] }""", "va una sola vez")]
+    [InlineData("""{ "columns": [{ "id": "a", "kind": "text" }, { "id": "a", "kind": "text" }] }""", "repite el identificador")]
+    [InlineData("""{ "columns": [{ "id": "1", "kind": "text" }, { "id": "2", "kind": "text" }, { "id": "3", "kind": "text" }, { "id": "4", "kind": "text" }, { "id": "5", "kind": "text" }, { "id": "6", "kind": "text" }] }""", "el máximo es 5")]
+    [InlineData("""{ "columns": {} }""", "no son una lista")]
+    public void El_pie_no_guarda_scripts_ni_columnas_que_el_editor_no_arma(string footer, string message)
+    {
+        Assert.Contains(ValidateFooter(footer), e => e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

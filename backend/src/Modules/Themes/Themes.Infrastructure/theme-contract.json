@@ -29,6 +29,26 @@
       "desktop"
     ]
   },
+  "footer": {
+    "kinds": [
+      "social",
+      "links",
+      "pages",
+      "contact",
+      "newsletter",
+      "text"
+    ],
+    "singleKinds": [
+      "social",
+      "pages",
+      "contact",
+      "newsletter"
+    ],
+    "maxColumns": 5,
+    "maxLinks": 12,
+    "title": 60,
+    "text": 600
+  },
   "sections": {
     "hero-video": {
       "label": "Hero con video",
@@ -1453,6 +1473,16 @@
     "footer": {
       "layout": "centered",
       "bg": "",
+      "columns": [
+        {
+          "id": "brand",
+          "kind": "social"
+        },
+        {
+          "id": "contact",
+          "kind": "contact"
+        }
+      ],
       "links": [],
       "text": "",
       "showSocial": true,

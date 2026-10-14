@@ -86,6 +86,9 @@ public static partial class ThemeConfigValidator
             errors.Add(new("schemaVersion", "La versión del diseño no es válida."));
         }
 
+        if (config.TryGetProperty("footer", out var footer) && footer.ValueKind == JsonValueKind.Object)
+            ValidateFooter(footer, errors);
+
         if (!config.TryGetProperty("sections", out var sections) || sections.ValueKind != JsonValueKind.Array)
             return errors;
 
@@ -134,6 +137,108 @@ public static partial class ThemeConfigValidator
                 }
             }
             index++;
+        }
+    }
+
+    /// <summary>Redes del pie: links que se dibujan tal cual en la tienda.</summary>
+    private static readonly (string Key, string Name)[] FooterSocials =
+        [("instagram", "Instagram"), ("facebook", "Facebook"), ("tiktok", "TikTok"), ("youtube", "YouTube"), ("x", "X")];
+
+    /// <summary>
+    /// El pie: sus columnas (tipos, topes, los que van una sola vez) y todos sus
+    /// links. Antes no se miraba nada: un "javascript:" pegado en un link del
+    /// pie o en una red llegaba guardado, y solo lo frenaba la tienda al dibujar.
+    /// Las reglas salen de <see cref="ThemeContract"/> (las mismas del editor).
+    /// Un link vacío pasa: es el que el comercio acaba de agregar y está por
+    /// elegir.
+    /// </summary>
+    private static void ValidateFooter(JsonElement footer, List<ThemeValidationError> errors)
+    {
+        foreach (var (key, name) in FooterSocials)
+            if (footer.TryGetProperty(key, out var social) && social.ValueKind is not JsonValueKind.Null
+                && CheckString(social, ThemeContract.Limit("url"), $"footer.{key}", $"El pie: el link de {name}", errors)
+                && !IsSafe(social.GetString()!, LinkSchemes))
+                errors.Add(new($"footer.{key}", $"El pie: el link de {name} no es válido (usá la dirección de tu perfil)."));
+
+        if (footer.TryGetProperty("links", out var links) && links.ValueKind is not JsonValueKind.Null)
+            ValidateFooterLinks(links, int.MaxValue, "footer.links", "El pie", errors);
+
+        if (!footer.TryGetProperty("columns", out var columns) || columns.ValueKind == JsonValueKind.Null) return;
+        if (columns.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add(new("footer.columns", "Las columnas del pie no son una lista."));
+            return;
+        }
+
+        var rules = ThemeContract.Root.GetProperty("footer");
+        var max = rules.GetProperty("maxColumns").GetInt32();
+        if (columns.GetArrayLength() > max)
+            errors.Add(new("footer.columns", $"El pie tiene {columns.GetArrayLength()} columnas y el máximo es {max}."));
+        var kinds = rules.GetProperty("kinds").EnumerateArray().Select(k => k.GetString()!).ToList();
+        var single = rules.GetProperty("singleKinds").EnumerateArray().Select(k => k.GetString()!).ToHashSet();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var index = 0;
+        foreach (var column in columns.EnumerateArray())
+        {
+            var path = $"footer.columns[{index}]";
+            var where = $"La columna {index + 1} del pie";
+            index++;
+            if (column.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add(new(path, $"{where} no es válida (tiene que ser un objeto)."));
+                continue;
+            }
+            if (!column.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(id.GetString()) || id.GetString()!.Length > MaxIdLength)
+                errors.Add(new($"{path}.id", $"{where} no tiene un identificador válido."));
+            else if (!ids.Add(id.GetString()!))
+                errors.Add(new($"{path}.id", $"{where} repite el identificador de otra columna."));
+
+            var kind = column.TryGetProperty("kind", out var k) && k.ValueKind == JsonValueKind.String ? k.GetString()! : null;
+            if (kind is null || !kinds.Contains(kind))
+            {
+                errors.Add(new($"{path}.kind", $"{where} es de un tipo que no existe."));
+                continue;
+            }
+            if (!seen.Add(kind) && single.Contains(kind))
+                errors.Add(new($"{path}.kind", $"{where} repite un tipo que va una sola vez («{kind}»): borrá una."));
+
+            if (column.TryGetProperty("title", out var title) && title.ValueKind is not JsonValueKind.Null)
+                CheckString(title, rules.GetProperty("title").GetInt32(), $"{path}.title", $"{where}: el título", errors);
+            if (column.TryGetProperty("text", out var text) && text.ValueKind is not JsonValueKind.Null)
+                CheckString(text, rules.GetProperty("text").GetInt32(), $"{path}.text", $"{where}: el texto", errors);
+            if (column.TryGetProperty("links", out var columnLinks) && columnLinks.ValueKind is not JsonValueKind.Null)
+                ValidateFooterLinks(columnLinks, rules.GetProperty("maxLinks").GetInt32(), $"{path}.links", where, errors);
+        }
+    }
+
+    private static void ValidateFooterLinks(JsonElement links, int max, string path, string where, List<ThemeValidationError> errors)
+    {
+        if (links.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add(new(path, $"{where}: los links no son una lista."));
+            return;
+        }
+        if (links.GetArrayLength() > max)
+            errors.Add(new(path, $"{where} tiene {links.GetArrayLength()} links y el máximo es {max}."));
+        var i = 0;
+        foreach (var link in links.EnumerateArray())
+        {
+            var itemPath = $"{path}[{i}]";
+            var what = $"{where}: el link {i + 1}";
+            i++;
+            if (link.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add(new(itemPath, $"{what} no es válido (tiene que ser un objeto)."));
+                continue;
+            }
+            if (link.TryGetProperty("label", out var label) && label.ValueKind is not JsonValueKind.Null)
+                CheckString(label, ThemeContract.Limit("label"), $"{itemPath}.label", $"{what}: el texto", errors);
+            if (link.TryGetProperty("href", out var href) && href.ValueKind is not JsonValueKind.Null
+                && CheckString(href, ThemeContract.Limit("url"), $"{itemPath}.href", what, errors)
+                && !IsSafe(href.GetString()!, LinkSchemes))
+                errors.Add(new($"{itemPath}.href", $"{what} no es un link válido (usá una dirección web, una ruta de la tienda, mailto: o tel:)."));
         }
     }
 

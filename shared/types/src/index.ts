@@ -68,6 +68,19 @@ export type { MoneyDto } from './wire';
 // Opciones globales del tema: menú armable, links del pie y estilo de botones.
 export type { ThemeMenuItemKind, FooterLink, ButtonStyle } from './theme';
 export { BUILTIN_MENU_IDS } from './theme';
+// Columnas del pie: tipos, topes y cómo se arman las de un tema viejo.
+export type { FooterColumn, FooterColumnKind } from './theme';
+export {
+  FOOTER_COLUMNS_MAX,
+  FOOTER_COLUMN_LINKS_MAX,
+  FOOTER_TITLE_MAX,
+  FOOTER_TEXT_MAX,
+  FOOTER_COLUMN_KINDS,
+  FOOTER_SINGLE_KINDS,
+  deriveFooterColumns,
+  footerFlagsFromColumns,
+  footerColumnTitle,
+} from './theme';
 // Links que escribe el comercio: validación y destinos de la tienda.
 export {
   normalizeLink,

@@ -213,24 +213,89 @@ export interface FooterLink {
   newTab?: boolean;
 }
 
+/**
+ * Qué muestra una columna del pie:
+ * - 'social': la marca (logo o nombre y el texto del pie) con los íconos de las redes;
+ * - 'links': links que arma el comercio, con su título;
+ * - 'pages': las páginas de contenido publicadas, solas;
+ * - 'contact': WhatsApp, teléfonos, emails y direcciones del pie;
+ * - 'newsletter': la suscripción a novedades;
+ * - 'text': un texto libre ("Quiénes somos", horarios…).
+ */
+export type FooterColumnKind = 'social' | 'links' | 'pages' | 'contact' | 'newsletter' | 'text';
+
+/**
+ * Una columna del pie. Los datos que ya existían (redes, contactos, texto del
+ * pie, título de novedades) siguen donde estaban: la columna dice DÓNDE se ven,
+ * no los copia. Así cambiar un WhatsApp no obliga a buscar en qué columna quedó.
+ */
+export interface FooterColumn {
+  /** Fijo mientras dura la columna: clave de React, fila abierta del editor y foco del preview. */
+  id: string;
+  kind: FooterColumnKind;
+  /** Título propio. Vacío = el de siempre del tipo (ver footerColumnTitle). */
+  title?: string;
+  /** 'links': los links de la columna, en orden. */
+  links?: FooterLink[];
+  /**
+   * 'links': sumar las páginas de contenido al final. El pie en columnas de
+   * antes juntaba los links propios y las páginas bajo "Información": así un
+   * tema viejo se sigue viendo igual.
+   */
+  withPages?: boolean;
+  /** 'text': el texto libre. */
+  text?: string;
+  /** 'social': sin el logo ni el texto del pie, solo las redes. */
+  hideBrand?: boolean;
+}
+
+/** Tope de columnas: con más, en la compu cada una queda tan angosta que los links se parten. */
+export const FOOTER_COLUMNS_MAX = 5;
+/** Tope de links por columna: un pie no es un mapa del sitio. */
+export const FOOTER_COLUMN_LINKS_MAX = 12;
+export const FOOTER_TITLE_MAX = 60;
+export const FOOTER_TEXT_MAX = 600;
+export const FOOTER_COLUMN_KINDS: readonly FooterColumnKind[] = [
+  'social',
+  'links',
+  'pages',
+  'contact',
+  'newsletter',
+  'text',
+];
+/** Los que tiene sentido una sola vez: dos columnas de contacto mostrarían lo mismo dos veces. */
+export const FOOTER_SINGLE_KINDS: readonly FooterColumnKind[] = ['social', 'pages', 'contact', 'newsletter'];
+
 export interface FooterConfig {
   /**
    * 'centered': todo apilado al centro (el de siempre). 'columns': en columnas
-   * en la compu (marca y redes · links · contacto · novedades), como las
-   * tiendas grandes; en el celular se apila igual.
+   * en la compu, como las tiendas grandes; en el celular se apilan.
    */
   layout: 'centered' | 'columns';
   /** Color de fondo del pie en "R G B". Vacío = el fondo de la tienda. El texto se ajusta solo. */
   bg: string;
-  /** Links propios del comercio, en el orden en que se cargaron. */
+  /**
+   * Qué columnas hay y en qué orden. En 'centered' se apilan en este mismo
+   * orden. Un tema guardado antes de que existieran las arma con
+   * deriveFooterColumns, que reproduce el pie de siempre.
+   */
+  columns: FooterColumn[];
+  /**
+   * Links propios del pie de antes de las columnas. Ya no se editan: solo se
+   * leen para armar la columna "Información" de un tema que no tiene columnas.
+   */
   links: FooterLink[];
   tiktok: string;
   youtube: string;
   /** Perfil de X (ex Twitter). */
   x: string;
-  /** Links a las páginas de contenido publicadas (Cómo comprar, Preguntas…). */
+  /**
+   * ¿Algún lugar del pie muestra las páginas de contenido? Con columnas sale
+   * de ellas (footerFlagsFromColumns); se guarda igual para quien solo mira
+   * esto y para armar las columnas de un tema viejo.
+   */
   showPages: boolean;
-  /** Suscripción a novedades en el pie. */
+  /** ¿El pie pide el email? Igual que showPages: con columnas, sale de ellas. */
   showNewsletter: boolean;
   newsletterTitle: string;
   text: string;
@@ -434,6 +499,11 @@ export const baseTheme: ThemeConfig = {
   footer: {
     layout: 'centered',
     bg: '',
+    // Lo mismo que deriveFooterColumns arma para estos defaults.
+    columns: [
+      { id: 'brand', kind: 'social' },
+      { id: 'contact', kind: 'contact' },
+    ],
     links: [],
     text: '',
     showSocial: true,
@@ -591,6 +661,137 @@ function normalizeFooterLinks(raw: unknown): FooterLink[] {
     .map((l) => ({ label: l.label, href: l.href, ...(l.newTab === true ? { newTab: true } : {}) }));
 }
 
+/**
+ * Las columnas que equivalen al pie de un tema guardado antes de que
+ * existieran, para que se vea EXACTAMENTE igual en las dos disposiciones:
+ *
+ *   marca y redes · Información (links propios + páginas) · contacto · novedades
+ *
+ * En columnas el pie de antes juntaba links y páginas bajo un mismo título:
+ * por eso con las dos cosas sale una sola columna de links con `withPages`.
+ * Centrado ponía las novedades antes del contacto, y apilado se respeta ese
+ * orden. Contacto va siempre: sin datos no se dibuja, igual que antes, y en
+ * cuanto se carga un WhatsApp aparece sin tener que agregar la columna.
+ */
+export function deriveFooterColumns(
+  footer: Pick<FooterConfig, 'layout' | 'links' | 'showPages' | 'showNewsletter'>,
+): FooterColumn[] {
+  const columns: FooterColumn[] = [{ id: 'brand', kind: 'social' }];
+  const links = footer.links ?? [];
+  if (links.length > 0)
+    columns.push({
+      id: 'links',
+      kind: 'links',
+      links: links.slice(0, FOOTER_COLUMN_LINKS_MAX).map((l) => ({ ...l })),
+      ...(footer.showPages ? { withPages: true } : {}),
+    });
+  else if (footer.showPages) columns.push({ id: 'pages', kind: 'pages' });
+  const contact: FooterColumn = { id: 'contact', kind: 'contact' };
+  const news: FooterColumn[] = footer.showNewsletter ? [{ id: 'newsletter', kind: 'newsletter' }] : [];
+  return footer.layout === 'columns' ? [...columns, contact, ...news] : [...columns, ...news, contact];
+}
+
+/**
+ * showPages y showNewsletter según las columnas. Las columnas mandan; los
+ * booleanos se mantienen al día porque hay quien los mira sin saber de
+ * columnas (el aviso de "dos newsletters" en la sección del inicio).
+ */
+export function footerFlagsFromColumns(
+  columns: FooterColumn[],
+): Pick<FooterConfig, 'showPages' | 'showNewsletter'> {
+  return {
+    showPages: columns.some((c) => c.kind === 'pages' || (c.kind === 'links' && !!c.withPages)),
+    showNewsletter: columns.some((c) => c.kind === 'newsletter'),
+  };
+}
+
+/** El título que se ve de una columna: el propio, o el de siempre de su tipo (vacío = sin título). */
+export function footerColumnTitle(
+  column: FooterColumn,
+  footer: Pick<FooterConfig, 'newsletterTitle'>,
+): string {
+  const own = column.title?.trim();
+  if (own) return own;
+  switch (column.kind) {
+    case 'links':
+    case 'pages':
+      return 'Información';
+    case 'contact':
+      return 'Contacto';
+    case 'newsletter':
+      return footer.newsletterTitle?.trim() || 'Recibí novedades';
+    case 'social':
+      // Con la marca, el logo hace de título; sin ella, las redes solas lo necesitan.
+      return column.hideBrand ? 'Seguinos' : '';
+    case 'text':
+      return '';
+  }
+}
+
+/**
+ * Columnas guardadas: descarta lo que no tiene forma, los tipos que van una
+ * sola vez repetidos y lo que pasa del tope. Una lista vacía se respeta (un
+ * pie sin columnas, a propósito); si no hay lista, se arma la equivalente.
+ */
+function normalizeFooterColumns(
+  raw: unknown,
+  footer: Parameters<typeof deriveFooterColumns>[0],
+): FooterColumn[] {
+  if (!Array.isArray(raw)) return deriveFooterColumns(footer);
+  const ids = new Set<string>();
+  const kinds = new Set<FooterColumnKind>();
+  const columns: FooterColumn[] = [];
+  for (const c of raw as Partial<FooterColumn>[]) {
+    if (columns.length >= FOOTER_COLUMNS_MAX) break;
+    if (!c || typeof c !== 'object' || !FOOTER_COLUMN_KINDS.includes(c.kind as FooterColumnKind)) continue;
+    const kind = c.kind as FooterColumnKind;
+    if (FOOTER_SINGLE_KINDS.includes(kind) && kinds.has(kind)) continue;
+    kinds.add(kind);
+    let id = typeof c.id === 'string' && c.id.trim() ? c.id.trim().slice(0, 100) : kind;
+    while (ids.has(id)) id = `${id}-${columns.length}`;
+    ids.add(id);
+    const column: FooterColumn = { id, kind };
+    if (typeof c.title === 'string' && c.title.trim()) column.title = c.title.slice(0, FOOTER_TITLE_MAX);
+    if (kind === 'links') {
+      column.links = normalizeFooterLinks(c.links).slice(0, FOOTER_COLUMN_LINKS_MAX);
+      if (c.withPages === true) column.withPages = true;
+    }
+    if (kind === 'text') column.text = typeof c.text === 'string' ? c.text.slice(0, FOOTER_TEXT_MAX) : '';
+    if (kind === 'social' && c.hideBrand === true) column.hideBrand = true;
+    columns.push(column);
+  }
+  return columns;
+}
+
+function normalizeFooter(raw?: Partial<FooterConfig>): FooterConfig {
+  const base = baseTheme.footer;
+  // Temas guardados antes de que existieran: el pie centrado de siempre.
+  const layout = raw?.layout === 'columns' ? 'columns' : 'centered';
+  const links = normalizeFooterLinks(raw?.links);
+  const columns = normalizeFooterColumns(raw?.columns, {
+    layout,
+    links,
+    showPages: raw?.showPages ?? base.showPages,
+    showNewsletter: raw?.showNewsletter ?? base.showNewsletter,
+  });
+  return {
+    ...base,
+    ...raw,
+    layout,
+    bg: rgbOrEmpty(raw?.bg),
+    columns,
+    ...footerFlagsFromColumns(columns),
+    links,
+    paymentLogos: Array.isArray(raw?.paymentLogos)
+      ? raw.paymentLogos.filter((s) => PAYMENT_LOGO_SLUGS.includes(s))
+      : base.paymentLogos,
+    whatsapps: Array.isArray(raw?.whatsapps) ? raw.whatsapps : base.whatsapps,
+    addresses: Array.isArray(raw?.addresses) ? raw.addresses : base.addresses,
+    phones: Array.isArray(raw?.phones) ? raw.phones : base.phones,
+    emails: Array.isArray(raw?.emails) ? raw.emails : base.emails,
+  };
+}
+
 function normalizeButtons(raw?: Partial<ButtonStyle>): ButtonStyle {
   const base = baseTheme.buttons;
   return {
@@ -662,21 +863,7 @@ export function normalizeTheme(
     productDetail: { ...baseTheme.productDetail, ...raw.productDetail },
     cart: { ...baseTheme.cart, ...raw.cart },
     contact: { ...baseTheme.contact, ...raw.contact },
-    footer: {
-      ...baseTheme.footer,
-      ...raw.footer,
-      // Temas guardados antes de que existieran: el pie centrado de siempre.
-      layout: raw.footer?.layout === 'columns' ? 'columns' : 'centered',
-      bg: rgbOrEmpty(raw.footer?.bg),
-      links: normalizeFooterLinks(raw.footer?.links),
-      paymentLogos: Array.isArray(raw.footer?.paymentLogos)
-        ? raw.footer!.paymentLogos.filter((s) => PAYMENT_LOGO_SLUGS.includes(s))
-        : baseTheme.footer.paymentLogos,
-      whatsapps: Array.isArray(raw.footer?.whatsapps) ? raw.footer!.whatsapps : baseTheme.footer.whatsapps,
-      addresses: Array.isArray(raw.footer?.addresses) ? raw.footer!.addresses : baseTheme.footer.addresses,
-      phones: Array.isArray(raw.footer?.phones) ? raw.footer!.phones : baseTheme.footer.phones,
-      emails: Array.isArray(raw.footer?.emails) ? raw.footer!.emails : baseTheme.footer.emails,
-    },
+    footer: normalizeFooter(raw.footer),
     whatsappButton: {
       ...baseTheme.whatsappButton,
       ...raw.whatsappButton,

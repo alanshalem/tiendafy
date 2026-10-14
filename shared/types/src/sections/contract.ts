@@ -10,7 +10,16 @@
    genera el código; con UPDATE_THEME_CONTRACT=1 lo reescribe.
    ============================================================ */
 
-import { normalizeTheme, type ThemeConfig } from '../theme';
+import {
+  FOOTER_COLUMN_KINDS,
+  FOOTER_COLUMN_LINKS_MAX,
+  FOOTER_COLUMNS_MAX,
+  FOOTER_SINGLE_KINDS,
+  FOOTER_TEXT_MAX,
+  FOOTER_TITLE_MAX,
+  normalizeTheme,
+  type ThemeConfig,
+} from '../theme';
 import {
   SECTION_ALIGNS,
   SECTION_BACKGROUNDS,
@@ -80,6 +89,16 @@ export function buildThemeContract() {
       spacings: SECTION_SPACINGS,
       aligns: SECTION_ALIGNS,
       hideOn: SECTION_HIDE_ON,
+    },
+    // Las columnas del pie: qué tipos hay, cuáles van una sola vez y los topes.
+    // La API rechaza lo que el editor nunca mandaría (y un link "javascript:").
+    footer: {
+      kinds: FOOTER_COLUMN_KINDS,
+      singleKinds: FOOTER_SINGLE_KINDS,
+      maxColumns: FOOTER_COLUMNS_MAX,
+      maxLinks: FOOTER_COLUMN_LINKS_MAX,
+      title: FOOTER_TITLE_MAX,
+      text: FOOTER_TEXT_MAX,
     },
     sections: Object.fromEntries(
       SECTION_TYPES.map((type) => {
