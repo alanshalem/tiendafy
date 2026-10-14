@@ -22,6 +22,8 @@ export default defineConfig({
   projects: [
     // Inicia sesión una vez y guarda el estado (ver tests/auth.setup.ts).
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, dependencies: ['setup'] },
+    // Con E2E_SEED=1 arma la tienda de la corrida (ver tests/seed.setup.ts).
+    { name: 'seed', testMatch: /seed\.setup\.ts/, dependencies: ['setup'] },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, dependencies: ['seed'] },
   ],
 });

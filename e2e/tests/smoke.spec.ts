@@ -1,17 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-import { ADMIN, API, STORE_BASE, fillLogin } from './_helpers';
+import { ADMIN, API, STORE, STORE_BASE, fillLogin, storeUrl } from './_helpers';
 
 /**
  * Smoke: lo mínimo para saber que un despliegue está vivo, en menos de un
  * minuto. Corre solo con `pnpm --filter tiendafy-e2e test --grep @smoke` (o
  * `pnpm test:smoke` desde la raíz), por ejemplo después de cada deploy.
  *
- * No crea nada: solo lee. La tienda es la que diga E2E_SMOKE_STORE (por
- * defecto una de las de dev).
+ * No crea nada: solo lee. La tienda es la que diga E2E_STORE (por defecto
+ * una de las de dev; en CI, la que siembra seed.setup.ts).
  */
-const STORE = process.env.E2E_SMOKE_STORE ?? 'canicari';
-const storeUrl = (path = '/') => `http://${STORE}.${STORE_BASE}${path}`;
 
 test.describe('smoke @smoke', () => {
   test.setTimeout(120_000);
