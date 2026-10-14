@@ -4,7 +4,8 @@ import { StorefrontView } from '@/components/store/StorefrontView';
 import { ProductGridSkeleton } from '@/components/store/Skeletons';
 import { CatalogBrowser } from '@/components/store/CatalogBrowser';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
-import { searchProducts, fetchCategories, toStoreProduct } from '@/lib/catalog';
+import { searchProducts, fetchCategories, toStoreProduct, type CategoryDto } from '@/lib/catalog';
+import { categoryParam, findCategory, readableQuery } from '@/lib/category-url';
 import { resolveTenant } from '@/lib/tenancy';
 import type { StoreProduct } from '@/components/store/sections';
 import { siteBase } from '@/lib/storefront';
@@ -12,20 +13,53 @@ import type { ThemeConfig } from '@/lib/theme';
 
 export const dynamic = 'force-dynamic';
 
-// La página de catálogo es la #2 en importancia SEO de cada tienda: sin esto
-// se titulaba "Tiendafy" (¡ni el nombre del comercio!) y sin canonical.
-export async function generateMetadata(): Promise<Metadata> {
-  const tenant = await resolveTenant();
-  if (!tenant) return { title: 'Productos' };
-  const base = await siteBase();
-  return {
-    title: `Productos · ${tenant.name}`,
-    description: `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,
-    ...(base ? { alternates: { canonical: `${base}/productos` } } : {}),
-  };
+type SearchParams = Record<string, string | string[] | undefined>;
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** El número de página pedido (1 si no vino o no es un número). */
+const pageOf = (sp: SearchParams) => Math.max(1, Number.parseInt(one(sp.page) || '1', 10) || 1);
+
+/**
+ * La URL canónica del listado: la categoría y la página, nada más. El orden,
+ * la búsqueda y los filtros son variantes de la misma lista y no tienen que
+ * competir con ella en Google; cada categoría y cada página siguiente sí son
+ * una lista distinta (antes todo apuntaba a /productos, y Google no indexaba
+ * ninguna categoría).
+ */
+function canonicalPath(category: CategoryDto | undefined, page: number): string {
+  const qs = new URLSearchParams();
+  if (category) qs.set('category', categoryParam(category));
+  if (page > 1) qs.set('page', String(page));
+  const query = readableQuery(qs);
+  return query ? `/productos?${query}` : '/productos';
 }
 
-type SearchParams = Record<string, string | string[] | undefined>;
+// La página de catálogo es la #2 en importancia SEO de cada tienda, y cada
+// categoría es la puerta de entrada de las búsquedas por rubro ("pesas rusas").
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const tenant = await resolveTenant();
+  if (!tenant) return { title: 'Productos' };
+  const sp = await searchParams;
+  const category = findCategory(await fetchCategories(tenant.id).catch(() => []), one(sp.category));
+  const page = pageOf(sp);
+  const base = await siteBase();
+  const suffix = page > 1 ? ` (página ${page})` : '';
+  return {
+    // La plantilla del layout le suma " · <Tienda>".
+    title: `${category?.name ?? 'Productos'}${suffix}`,
+    description: category
+      ? `${category.name} en ${tenant.name}. Comprá online con envíos a todo el país.`
+      : `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,
+    ...(base ? { alternates: { canonical: `${base}${canonicalPath(category, page)}` } } : {}),
+  };
+}
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolved = await resolveStorefrontPage(searchParams);
@@ -59,13 +93,11 @@ async function Catalog({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
   const many = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
 
-  const page = Math.max(1, Number.parseInt(one(sp.page) || '1', 10) || 1);
+  const page = pageOf(sp);
   const sort = one(sp.sort);
   const q = one(sp.q);
-  const category = one(sp.category);
   const brand = one(sp.brand);
   const options = many(sp.option);
   const specs = many(sp.spec);
@@ -77,21 +109,26 @@ async function Catalog({
   const list = theme.productList;
   const pageSize = Math.min(48, Math.max(1, list.pageSize || 24));
 
-  const [result, categories] = await Promise.all([
-    searchProducts(tenantId, {
-      q,
-      category,
-      sort: sort || list.defaultSort,
-      page,
-      pageSize,
-      brand,
-      options,
-      specs,
-      priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
-      priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
-    }),
-    fetchCategories(tenantId),
-  ]);
+  // ?category= trae la ruta ("ropa/remeras") o, en links viejos, el id. La API
+  // filtra por id. Una que no está en el árbol (recién creada, todavía fuera
+  // de la caché) pasa tal cual si es un id; si no, se ignora.
+  const categories = await fetchCategories(tenantId);
+  const raw = one(sp.category);
+  const active = findCategory(categories, raw);
+  const category = active?.id ?? (UUID.test(raw) ? raw : '');
+
+  const result = await searchProducts(tenantId, {
+    q,
+    category,
+    sort: sort || list.defaultSort,
+    page,
+    pageSize,
+    brand,
+    options,
+    specs,
+    priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
+    priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
+  });
 
   const products = result.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
 
@@ -99,7 +136,7 @@ async function Catalog({
     <main className="min-h-[60vh]">
       <div className="mx-auto max-w-container px-4 pt-8">
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-          Todos los productos
+          {active?.name ?? 'Todos los productos'}
         </h1>
       </div>
       <CatalogBrowser

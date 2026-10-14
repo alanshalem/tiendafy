@@ -11,16 +11,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET as sitemap } from '../app/sitemap.xml/route';
 import robots from '../app/robots';
-import NotFound from '../app/not-found';
+import NotFound, { generateMetadata as notFoundMetadata } from '../app/not-found';
+import Unmatched from '../app/[...ruta]/page';
 import ErrorPage from '../app/error';
-import RootLayout from '../app/layout';
+import RootLayout, { generateMetadata as layoutMetadata } from '../app/layout';
 import { proxy } from '../proxy';
 import { ComingSoon } from '../components/store/ComingSoon';
 import { NewsletterForm } from '../components/store/NewsletterForm';
 import { defaultTheme, mergeTheme } from '../lib/theme';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { nav } from '../test/next';
-import { renderPage } from '../test/server';
 import { settle, watchCrashes } from '../test/explore';
 
 // Las fuentes del editor (app/store-fonts.ts): next/font las procesa al
@@ -55,6 +55,21 @@ describe('sitemap y robots', () => {
     if (pageSlug) expect(xml).toContain(`/paginas/${pageSlug}</loc>`);
   });
 
+  it('lista cada categoría con la URL de su listado (la ruta, legible)', async () => {
+    api.on('GET', '/api/v1/categories', {
+      items: [
+        { id: 'c1', name: 'Ropa', parentId: null, path: 'ropa', depth: 1 },
+        { id: 'c2', name: 'Remeras & musculosas', parentId: 'c1', path: 'ropa/remeras&musculosas', depth: 2 },
+      ],
+    });
+    const xml = await (await sitemap()).text();
+    expect(xml).toContain('<loc>http://seed.localhost:3000/productos?category=ropa</loc>');
+    // El & va codificado en la URL: suelto, rompería el XML del sitemap entero.
+    expect(xml).toContain(
+      '<loc>http://seed.localhost:3000/productos?category=ropa/remeras%26musculosas</loc>',
+    );
+  });
+
   it('sin tienda para el host, solo las fijas; sin proto, http en localhost', async () => {
     api.on('GET', '/api/v1/tenants/resolve', {}, 404);
     const xml = await (await sitemap()).text();
@@ -76,9 +91,9 @@ describe('sitemap y robots', () => {
     expect(xml).toContain('<loc>http://seed.localhost:3000/</loc>');
   });
 
-  it('robots apunta al sitemap absoluto y deja afuera checkout y favoritos', async () => {
+  it('robots apunta al sitemap absoluto y no bloquea nada (lo privado va con noindex)', async () => {
     expect(await robots()).toEqual({
-      rules: { userAgent: '*', allow: '/', disallow: ['/checkout', '/favoritos'] },
+      rules: { userAgent: '*', allow: '/' },
       sitemap: 'http://seed.localhost:3000/sitemap.xml',
     });
     nav.at('/', 'tienda.example.com');
@@ -92,10 +107,10 @@ describe('404 y errores', () => {
     expect(res.headers.get('x-middleware-request-x-pathname')).toBe('/viejo/link');
   });
 
-  it('si el comercio cargó una redirección para esa URL, redirige', async () => {
+  it('una URL que no es de ninguna página: si el comercio cargó una redirección, redirige', async () => {
     nav.headers = { 'x-pathname': '/viejo' };
     api.on('GET', '/api/v1/redirects/resolve', { to: '/productos' });
-    await expect(NotFound()).rejects.toThrow('NEXT_REDIRECT /productos');
+    await expect(Unmatched()).rejects.toThrow('NEXT_REDIRECT /productos');
     expect(api.calls.some((c) => c.path === '/api/v1/redirects/resolve?path=%2Fviejo')).toBe(true);
   });
 
@@ -104,18 +119,18 @@ describe('404 y errores', () => {
     ['sin redirección', () => api.on('GET', '/api/v1/redirects/resolve', {}, 404)],
     ['redirección vacía', () => api.on('GET', '/api/v1/redirects/resolve', {})],
     ['sin tienda', () => api.on('GET', '/api/v1/tenants/resolve', {}, 404)],
-  ])('muestra el 404 (%s)', async (name, arrange) => {
+    ['la API caída', () => vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))],
+  ])('si no, es un 404 (%s)', async (name, arrange) => {
     if (name !== 'sin x-pathname') nav.headers = { 'x-pathname': '/no-existe' };
     arrange();
-    await renderPage(NotFound, '/no-existe');
-    expect(screen.getByText('Esta página no existe')).toBeInTheDocument();
+    await expect(Unmatched()).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('una caída de la API no tapa el 404', async () => {
-    nav.headers = { 'x-pathname': '/no-existe' };
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
-    await renderPage(NotFound, '/no-existe');
+  it('la pantalla de 404 solo pinta: Next la arma en cada página, no puede consultar la API', async () => {
+    nav.headers = { 'x-pathname': '/contacto' };
+    render(NotFound());
     expect(screen.getByText('Esta página no existe')).toBeInTheDocument();
+    expect(api.calls).toEqual([]);
   });
 
   it('la pantalla de error ofrece reintentar', async () => {
@@ -123,6 +138,35 @@ describe('404 y errores', () => {
     render(<ErrorPage error={new Error('x')} reset={reset} />);
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(reset).toHaveBeenCalled();
+  });
+
+  it('el 404 se titula con la tienda', async () => {
+    const tenant = fixture<{ name: string }>(`/api/v1/tenants/${fixtureTenantId}`);
+    expect((await notFoundMetadata()).title).toEqual({ absolute: `Página no encontrada · ${tenant.name}` });
+    api.on('GET', '/api/v1/tenants/resolve', {}, 404);
+    expect((await notFoundMetadata()).title).toEqual({ absolute: 'Página no encontrada' });
+  });
+
+  it('el layout raíz pone la plantilla del título con la tienda y su favicon', async () => {
+    const tenant = fixture<{ name: string }>(`/api/v1/tenants/${fixtureTenantId}`);
+    const theme = fixture<Record<string, unknown>>('/api/v1/theme');
+    api.on('GET', '/api/v1/theme', {
+      ...theme,
+      favicon: 'https://cdn.example.com/fav.png',
+      seoDescription: '',
+    });
+    expect(await layoutMetadata()).toEqual({
+      title: { template: `%s · ${tenant.name}`, default: tenant.name },
+      description: `Comprá online en ${tenant.name}.`,
+      icons: { icon: 'https://cdn.example.com/fav.png' },
+    });
+
+    // Sin favicon propio, el de Tiendafy (en public/, no app/: ver layout).
+    api.on('GET', '/api/v1/theme', { ...theme, favicon: '' });
+    expect((await layoutMetadata()).icons).toEqual({ icon: '/icon.svg' });
+
+    api.on('GET', '/api/v1/tenants/resolve', {}, 404);
+    expect((await layoutMetadata()).title).toBe('Tienda online');
   });
 
   it('el layout raíz publica la config de runtime antes que los bundles', () => {

@@ -18,8 +18,9 @@ type StorefrontPage =
 
 export async function resolveStorefrontPage(
   searchParams: Promise<{ preview?: string; pt?: string }>,
+  { products = true }: { products?: boolean } = {},
 ): Promise<StorefrontPage> {
-  const data = await loadStorefront();
+  const data = await loadStorefront({ products });
   if (!data) return { ok: false, fallback: <div className="p-10 text-center">Tienda no encontrada.</div> };
 
   const sp = await searchParams;
@@ -63,7 +64,7 @@ export async function StorefrontPageShell({
   fallback?: ReactNode;
   children: (page: ResolvedPage) => ReactNode | Promise<ReactNode>;
 }) {
-  const resolved = await resolveStorefrontPage(searchParams);
+  const resolved = await resolveStorefrontPage(searchParams, { products: catalogProducts });
   if (!resolved.ok) return resolved.fallback;
   const { data, theme, preview } = resolved;
 
@@ -72,7 +73,7 @@ export async function StorefrontPageShell({
       tenantId={data.tenant.id}
       tenantName={data.tenant.name}
       theme={theme}
-      products={catalogProducts ? data.products : []}
+      products={data.products}
       live={preview}
     >
       <Suspense fallback={fallback}>

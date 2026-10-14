@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { useHoverMenu } from './useHoverMenu';
@@ -8,11 +8,31 @@ import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 
 import { clientJsonTenant } from '@/lib/api-client';
+import { categoryHref } from '@/lib/category-url';
 
-interface Cat {
+export interface Cat {
   id: string;
   name: string;
   parentId: string | null;
+  path?: string;
+}
+
+/**
+ * Las categorías que trajo el servidor (ver StoreCategories, en el layout).
+ * Antes el menú las pedía desde el navegador después de cargar, así que no
+ * estaban en el HTML: Google no veía ningún link a una categoría. null = no
+ * vinieron del servidor (tests, o la API falló): se piden como antes.
+ */
+const StoreCategoriesContext = createContext<Cat[] | null>(null);
+
+export function StoreCategoriesProvider({
+  categories,
+  children,
+}: {
+  categories: Cat[];
+  children: ReactNode;
+}) {
+  return <StoreCategoriesContext.Provider value={categories}>{children}</StoreCategoriesContext.Provider>;
 }
 interface CatNode extends Cat {
   children: CatNode[];
@@ -31,14 +51,18 @@ function buildTree(cats: Cat[]): CatNode[] {
   return roots;
 }
 
-/** Carga las categorías de la tienda como árbol. Compartido desktop + mobile. */
+/** Las categorías de la tienda como árbol. Compartido desktop + mobile. */
 function useCategoryTree(): CatNode[] {
+  const fromServer = useContext(StoreCategoriesContext);
   const { tenantId } = useCart();
-  const [cats, setCats] = useState<Cat[]>([]);
+  const [fetched, setFetched] = useState<Cat[]>([]);
   useEffect(() => {
-    if (!tenantId) return;
-    clientJsonTenant<{ items?: Cat[] }>('/api/v1/categories', tenantId).then((d) => setCats(d?.items ?? []));
-  }, [tenantId]);
+    if (fromServer || !tenantId) return;
+    clientJsonTenant<{ items?: Cat[] }>('/api/v1/categories', tenantId).then((d) =>
+      setFetched(d?.items ?? []),
+    );
+  }, [fromServer, tenantId]);
+  const cats = fromServer ?? fetched;
   return useMemo(() => buildTree(cats), [cats]);
 }
 
@@ -51,7 +75,7 @@ function CatRow({ node, depth, onNavigate }: { node: CatNode; depth: number; onN
     <li>
       <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 0.75}rem` }}>
         <Link
-          href={href(`/productos?category=${node.id}`)}
+          href={href(categoryHref(node))}
           onClick={onNavigate}
           className={`flex-1 py-1.5 text-sm hover:text-primary-ink ${depth === 0 ? 'font-semibold' : 'opacity-80 hover:opacity-100'}`}
         >
@@ -68,8 +92,9 @@ function CatRow({ node, depth, onNavigate }: { node: CatNode; depth: number; onN
           </button>
         )}
       </div>
-      {hasChildren && open && (
-        <ul>
+      {/* Las subcategorías van siempre en el HTML (ocultas hasta expandir): sus links llegan a Google. */}
+      {hasChildren && (
+        <ul hidden={!open}>
           {node.children.map((ch) => (
             <CatRow key={ch.id} node={ch} depth={depth + 1} onNavigate={onNavigate} />
           ))}
@@ -108,14 +133,14 @@ export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
         <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        // `pt-2`: puente transparente para no perder el hover al bajar el mouse.
-        <div className="absolute left-0 top-full z-50 pt-2">
-          <div className="max-h-[75vh] w-64 overflow-y-auto rounded-lg border border-black/10 bg-bg p-3 text-fg shadow-xl">
-            <CategoryTree nodes={tree} onNavigate={close} />
-          </div>
+      {/* Siempre en el HTML, oculto hasta abrir: los links a las categorías tienen
+          que estar en lo que manda el servidor para que Google los encuentre.
+          `pt-2`: puente transparente para no perder el hover al bajar el mouse. */}
+      <div className="absolute left-0 top-full z-50 pt-2" hidden={!open}>
+        <div className="max-h-[75vh] w-64 overflow-y-auto rounded-lg border border-black/10 bg-bg p-3 text-fg shadow-xl">
+          <CategoryTree nodes={tree} onNavigate={close} />
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -15,14 +15,19 @@ export interface StorefrontData {
   products: StoreProduct[];
 }
 
-/** Resuelve tenant + productos mapeados a StoreProduct. Null si no hay tienda. */
-export async function loadStorefront(): Promise<StorefrontData | null> {
+/**
+ * Resuelve tenant + productos mapeados a StoreProduct. Null si no hay tienda.
+ *
+ * `products: false` para las páginas que no muestran catálogo (checkout, el
+ * resultado del pago): antes se pedían igual los 24 primeros y se tiraban.
+ */
+export async function loadStorefront({ products: withProducts = true } = {}): Promise<StorefrontData | null> {
   const tenant = await resolveTenant();
   if (!tenant) return null;
 
   // Tienda no activa (suspendida/cancelada): no tiene sentido traer productos;
   // la página decide qué fallback mostrar según el status.
-  if (tenant.status !== 'ACTIVE') return { tenant, products: [] };
+  if (tenant.status !== 'ACTIVE' || !withProducts) return { tenant, products: [] };
 
   const raw = await fetchActiveProducts(tenant.id);
   const products: StoreProduct[] = toStoreProducts(raw);

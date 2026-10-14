@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { type ProductListConfig, type SectionType, type ThemeSection } from '@/lib/theme';
 import { usePreviewHref } from './preview';
@@ -11,6 +11,7 @@ import { StoreImage } from './StoreImage';
 import { type StoreProduct } from './ProductCard';
 import { MarqueeTrack } from './MarqueeTrack';
 import { NewsletterForm } from './NewsletterForm';
+import { jsonLd as jsonLdHtml } from '@/lib/json-ld';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 import {
   defaultList,
@@ -40,7 +41,18 @@ import type {
 export type { SectionRenderProps } from './section-types';
 export { HomeSections } from './HomeSections';
 
+/**
+ * true en la sección que abre la portada: su imagen es la más grande a la
+ * vista al cargar (el LCP) y va con prioridad. Antes cualquier hero o
+ * carrusel la pedía, aunque estuviera más abajo, y competía con el de arriba.
+ */
+export const LeadSectionContext = createContext(false);
+
+/** Imágenes que no son la de portada: el navegador las pide al acercarse. */
+const LAZY = { loading: 'lazy', decoding: 'async' } as const;
+
 function HeroVideoSection({ section }: SectionRenderProps) {
+  const lead = useContext(LeadSectionContext);
   const href = usePreviewHref();
   const data = section.data as HeroVideoData;
   const { videoWebm: webm, videoMp4: mp4, poster, title, subtitle, buttonText, link } = data;
@@ -67,7 +79,7 @@ function HeroVideoSection({ section }: SectionRenderProps) {
           {mp4 && <source src={mp4} type="video/mp4" />}
         </video>
       ) : poster ? (
-        <StoreImage src={poster} alt="" sizes="100vw" priority className="object-cover" />
+        <StoreImage src={poster} alt="" sizes="100vw" lcp={lead} className="object-cover" />
       ) : null}
 
       <div className={`absolute inset-0 ${overlay}`} />
@@ -100,6 +112,7 @@ function HeroVideoSection({ section }: SectionRenderProps) {
 }
 
 function CarouselSection({ section, storeName }: SectionRenderProps) {
+  const lead = useContext(LeadSectionContext);
   const href = usePreviewHref();
   const data = section.data as CarouselData;
   const images = Array.isArray(data.images) ? data.images : [];
@@ -145,7 +158,7 @@ function CarouselSection({ section, storeName }: SectionRenderProps) {
       </section>
     );
   }
-  return <ImageCarousel images={images} fullHeightMobile={data.fullHeightMobile === true} />;
+  return <ImageCarousel images={images} fullHeightMobile={data.fullHeightMobile === true} lcp={lead} />;
 }
 
 function ProductsSection({ section, products, productList }: SectionRenderProps) {
@@ -176,12 +189,16 @@ function BannerGrid({
   section,
   colsClass,
   aspectClass,
+  sizes,
   caption,
 }: SectionRenderProps & {
   colsClass: string;
   aspectClass: string;
+  /** Ancho con que se ve cada banner, para que next/image elija el tamaño justo. */
+  sizes: string;
   caption: (b: BannerItem) => ReactNode;
 }) {
+  const lead = useContext(LeadSectionContext);
   const data = section.data as BannersData;
   const banners = (Array.isArray(data.banners) ? data.banners : []).filter(
     (b) => b.show !== false && b.image,
@@ -197,11 +214,18 @@ function BannerGrid({
             href={b.link || '#'}
             className={`group relative block overflow-hidden ${full ? '' : 'rounded-lg'}`}
           >
-            <img
-              src={b.image}
-              alt={b.title ?? ''}
-              className={`${aspectClass} w-full object-cover transition-transform group-hover:scale-105`}
-            />
+            {/* next/image y no <img>: el comercio sube la foto como la tiene
+                (a veces un PNG de varios MB) y acá se sirve al tamaño del
+                banner. Lazy salvo que la grilla abra la portada. */}
+            <div className={`relative ${aspectClass} w-full`}>
+              <StoreImage
+                src={b.image!}
+                alt={b.title ?? ''}
+                sizes={full ? '100vw' : sizes}
+                lcp={lead && i === 0}
+                className="object-cover transition-transform group-hover:scale-105"
+              />
+            </div>
             {caption(b)}
           </a>
         ))}
@@ -216,6 +240,7 @@ function PromoBannersSection(props: SectionRenderProps) {
       {...props}
       colsClass="sm:grid-cols-2 lg:grid-cols-3"
       aspectClass="aspect-[16/9]"
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
       caption={(b) =>
         (b.title || b.description) && (
           <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
@@ -234,6 +259,7 @@ function CategoryBannersSection(props: SectionRenderProps) {
       {...props}
       colsClass="sm:grid-cols-3"
       aspectClass="aspect-square"
+      sizes="(max-width: 640px) 100vw, 33vw"
       caption={(b) =>
         b.title && (
           <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-2xl font-black uppercase text-white">
@@ -272,7 +298,7 @@ function ImageTextSection({ section }: SectionRenderProps) {
   if (data.image && !hasText) {
     return (
       <section className="mx-auto max-w-container px-4 py-14">
-        <img src={data.image} alt="" className="mx-auto w-full rounded-lg" />
+        <img src={data.image} alt="" {...LAZY} className="mx-auto w-full rounded-lg" />
       </section>
     );
   }
@@ -282,7 +308,7 @@ function ImageTextSection({ section }: SectionRenderProps) {
     <section
       className={`mx-auto max-w-container items-center gap-8 px-4 py-14 ${data.image ? 'grid md:grid-cols-2' : ''}`}
     >
-      {data.image && <img src={data.image} alt="" className="w-full rounded-lg object-cover" />}
+      {data.image && <img src={data.image} alt="" {...LAZY} className="w-full rounded-lg object-cover" />}
       <div className={light ? 'text-white' : undefined}>
         {data.title && (
           <h3 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -351,7 +377,12 @@ function NewsletterSection({ section }: SectionRenderProps) {
     <section className="bg-black/[0.03]">
       <div className="mx-auto max-w-container px-4 py-14 text-center">
         {data.image && (
-          <img src={data.image} alt="" className="mx-auto mb-5 h-28 w-auto rounded-lg object-cover" />
+          <img
+            src={data.image}
+            alt=""
+            {...LAZY}
+            className="mx-auto mb-5 h-28 w-auto rounded-lg object-cover"
+          />
         )}
         <h3 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {data.title || 'Recibí novedades'}
@@ -458,7 +489,7 @@ function TestimonialsSection({ section }: SectionRenderProps) {
             {/* mt-auto: el pie queda abajo aunque las cards tengan alturas parejas */}
             <figcaption className="mt-5 flex items-center gap-3">
               {t.photo ? (
-                <img src={t.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+                <img src={t.photo} alt="" {...LAZY} className="h-9 w-9 rounded-full object-cover" />
               ) : (
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary-ink">
                   {(t.name || '·').trim().charAt(0).toUpperCase()}
@@ -511,7 +542,7 @@ function FaqSection({ section }: SectionRenderProps) {
           </details>
         ))}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
     </section>
   );
 }
@@ -526,6 +557,7 @@ function BrandsSection({ section }: SectionRenderProps) {
       key={i}
       src={src}
       alt=""
+      {...LAZY}
       className="mx-8 h-10 w-auto shrink-0 object-contain opacity-70 transition-opacity hover:opacity-100 sm:h-12"
     />
   ));

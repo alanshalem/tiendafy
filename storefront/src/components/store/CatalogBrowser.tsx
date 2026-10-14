@@ -1,11 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { buildPageWindow } from '@tiendafy/ui';
 import { colClass, type ProductListConfig } from '@/lib/theme';
 import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
+import { categoryParam, readableQuery } from '@/lib/category-url';
 import { ProductCard, type StoreProduct } from './sections';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
@@ -65,14 +67,24 @@ export function CatalogBrowser({
   const specFacets = facets.specs ?? [];
   const specSelection = current.specs ?? [];
 
-  const navigate = (patch: Record<string, string | null>) => {
+  /**
+   * La URL del listado con estos cambios. Categorías y páginas son links de
+   * verdad (<a href>) y no botones: Google los sigue —antes no veía ninguna
+   * categoría ni la página 2— y se pueden abrir en otra pestaña. Next/Link
+   * igual navega sin recargar.
+   */
+  const hrefWith = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [k, v] of Object.entries(patch)) {
       if (v === null || v === '') params.delete(k);
       else params.set(k, v);
     }
-    router.push(`${pathname}?${params.toString()}`);
+    const query = readableQuery(params);
+    return query ? `${pathname}?${query}` : pathname;
   };
+  const navigate = (patch: Record<string, string | null>) => router.push(hrefWith(patch));
+  // La página 1 no lleva ?page=: es la misma URL que el listado sin paginar.
+  const pageHref = (n: number) => hrefWith({ page: n > 1 ? String(n) : null });
 
   // Opciones (Color/Talle): multi-valor con el param repetible `option`.
   const toggleOption = (value: string) => {
@@ -184,7 +196,7 @@ export function CatalogBrowser({
               <CategoryFacet
                 categories={categories}
                 current={current.category}
-                onSelect={(id) => navigate({ category: id, page: null })}
+                hrefFor={(c) => hrefWith({ category: c ? categoryParam(c) : null, page: null })}
               />
             )}
 
@@ -279,32 +291,28 @@ export function CatalogBrowser({
           )}
 
           {totalPages > 1 && (
-            <nav className="mt-12 flex items-center justify-center gap-1.5">
-              <PageBtn
-                disabled={page <= 1}
-                onClick={() => navigate({ page: String(page - 1) })}
-                ariaLabel="Página anterior"
-              >
+            <nav aria-label="Páginas" className="mt-12 flex items-center justify-center gap-1.5">
+              <PageLink href={page > 1 ? pageHref(page - 1) : null} rel="prev" ariaLabel="Página anterior">
                 <ChevronLeft className="h-4 w-4" />
-              </PageBtn>
+              </PageLink>
               {pageWindow.map((n, i) =>
                 n === null ? (
                   <span key={`gap-${i}`} className="px-1 text-fg-muted">
                     …
                   </span>
                 ) : (
-                  <PageBtn key={n} active={n === page} onClick={() => navigate({ page: String(n) })}>
+                  <PageLink key={n} href={pageHref(n)} active={n === page}>
                     {n}
-                  </PageBtn>
+                  </PageLink>
                 ),
               )}
-              <PageBtn
-                disabled={page >= totalPages}
-                onClick={() => navigate({ page: String(page + 1) })}
+              <PageLink
+                href={page < totalPages ? pageHref(page + 1) : null}
+                rel="next"
                 ariaLabel="Página siguiente"
               >
                 <ChevronRight className="h-4 w-4" />
-              </PageBtn>
+              </PageLink>
             </nav>
           )}
         </div>
@@ -417,6 +425,7 @@ function OptionFacetChips({
 interface CatNode {
   id: string;
   name: string;
+  path: string;
   depth: number;
   children: CatNode[];
 }
@@ -424,7 +433,7 @@ interface CatNode {
 /** Arma el árbol de categorías desde la lista plana (por parentId). */
 function buildCatTree(cats: CategoryDto[]): CatNode[] {
   const byId = new Map<string, CatNode>(
-    cats.map((c) => [c.id, { id: c.id, name: c.name, depth: c.depth, children: [] }]),
+    cats.map((c) => [c.id, { id: c.id, name: c.name, path: c.path, depth: c.depth, children: [] }]),
   );
   const roots: CatNode[] = [];
   for (const c of cats) {
@@ -452,15 +461,19 @@ function ancestorsOf(id: string, cats: CategoryDto[]): string[] {
  * Categorías como acordeón: muestra las principales y se abren las secundarias con
  * el chevron. Mobile colapsa todo; buscador si hay muchas (busca en todo el árbol).
  * La rama de la categoría activa se auto-expande.
+ *
+ * Todas las categorías van en el HTML, también las colapsadas y las que quedan
+ * tras "Ver más" (ocultas con `hidden`): así sus links llegan a Google.
  */
 function CategoryFacet({
   categories,
   current,
-  onSelect,
+  hrefFor,
 }: {
   categories: CategoryDto[];
   current: string;
-  onSelect: (id: string | null) => void;
+  /** El link al listado con esa categoría (null = todas). */
+  hrefFor: (c: CategoryDto | CatNode | null) => string;
 }) {
   const [catsOpen, setCatsOpen] = useState(false); // mobile
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -483,14 +496,16 @@ function CategoryFacet({
     });
 
   const tree = buildCatTree(categories);
-  const rootsShown = showAllRoots ? tree : tree.slice(0, FACET_VISIBLE);
+  const rootsShown = showAllRoots ? tree.length : Math.min(tree.length, FACET_VISIBLE);
   const searchMatches = q ? categories.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : [];
 
-  const renderNode = (node: CatNode) => {
+  // `rootIndex`: la posición entre las principales (las que pasan de
+  // FACET_VISIBLE esperan al "Ver más"). Las hijas no lo llevan.
+  const renderNode = (node: CatNode, rootIndex?: number) => {
     const hasKids = node.children.length > 0;
     const isOpen = expanded.has(node.id);
     return (
-      <li key={node.id}>
+      <li key={node.id} hidden={rootIndex !== undefined && rootIndex >= rootsShown}>
         <div className="flex items-center gap-0.5" style={{ paddingLeft: `${(node.depth - 1) * 0.6}rem` }}>
           {hasKids ? (
             <button
@@ -504,15 +519,19 @@ function CategoryFacet({
           ) : (
             <span className="w-[1.125rem] shrink-0" />
           )}
-          <button
-            onClick={() => onSelect(node.id)}
+          <Link
+            href={hrefFor(node)}
             aria-current={current === node.id || undefined}
             className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
           >
             {node.name}
-          </button>
+          </Link>
         </div>
-        {hasKids && isOpen && <ul className="space-y-0.5">{node.children.map(renderNode)}</ul>}
+        {hasKids && (
+          <ul className="space-y-0.5" hidden={!isOpen}>
+            {node.children.map((ch) => renderNode(ch))}
+          </ul>
+        )}
       </li>
     );
   };
@@ -535,30 +554,30 @@ function CategoryFacet({
         {searchable && <FacetSearch value={q} onChange={setQ} label="Buscar categoría" />}
         <ul className="space-y-0.5 text-sm">
           <li>
-            <button
-              onClick={() => onSelect(null)}
+            <Link
+              href={hrefFor(null)}
               aria-current={!current || undefined}
               className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               Todas
-            </button>
+            </Link>
           </li>
           {q
             ? searchMatches.map((c) => (
                 <li key={c.id}>
-                  <button
-                    onClick={() => onSelect(c.id)}
+                  <Link
+                    href={hrefFor(c)}
                     className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
                   >
                     {c.name}
-                  </button>
+                  </Link>
                 </li>
               ))
-            : rootsShown.map(renderNode)}
+            : tree.map((n, i) => renderNode(n, i))}
         </ul>
         {!q && tree.length > FACET_VISIBLE && (
           <ShowMore
-            hidden={tree.length - rootsShown.length}
+            hidden={tree.length - rootsShown}
             expanded={showAllRoots}
             onToggle={() => setShowAllRoots((v) => !v)}
           />
@@ -657,32 +676,42 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-function PageBtn({
+/** Un número o una flecha del paginado. Sin `href` (primera/última página): deshabilitado. */
+function PageLink({
   children,
+  href,
   active,
-  disabled,
-  onClick,
+  rel,
   ariaLabel,
 }: {
   children: React.ReactNode;
+  href: string | null;
   active?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
+  rel?: string;
   ariaLabel?: string;
 }) {
+  const cls = `flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-sm transition-colors ${
+    active
+      ? 'border-transparent bg-primary font-semibold text-primary-fg'
+      : 'border-black/15 hover:bg-black/5'
+  }`;
+  if (!href) {
+    return (
+      <span role="link" aria-disabled="true" aria-label={ariaLabel} className={`${cls} opacity-30`}>
+        {children}
+      </span>
+    );
+  }
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
+    <Link
+      href={href}
+      rel={rel}
       aria-label={ariaLabel}
-      className={`flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-sm transition-colors disabled:opacity-30 ${
-        active
-          ? 'border-transparent bg-primary font-semibold text-primary-fg'
-          : 'border-black/15 hover:bg-black/5'
-      }`}
+      aria-current={active ? 'page' : undefined}
+      className={cls}
     >
       {children}
-    </button>
+    </Link>
   );
 }
 

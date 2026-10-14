@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { fetchDraftTheme } from '@/lib/theme';
 import { loadStorefront, withReferencedProducts } from '@/lib/storefront';
+import { NOT_INDEXED } from '@/lib/seo';
 
 // Preview del editor: render del DRAFT, con postMessage live.
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Vista previa', robots: NOT_INDEXED };
 
 export default async function PreviewPage({ searchParams }: { searchParams: Promise<{ pt?: string }> }) {
   const data = await loadStorefront();

@@ -104,10 +104,14 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
         {footer.showPaymentLogos && footer.paymentLogos.length > 0 && (
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             {footer.paymentLogos.map((slug) => (
+              // lazy: al pie, nunca a la vista al cargar. Sin esto React los
+              // precargaba desde el <head>, compitiendo con la foto de portada.
               <img
                 key={slug}
                 src={`/payment-logos/${slug}.svg`}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"
               />
             ))}

@@ -18,8 +18,18 @@ import { mockApi } from '../test/api';
 import { PAGES } from '../test/pages';
 import { renderPending } from '../test/server';
 
-/** Lo que el marco de la tienda (encabezado, pie, carrito) necesita del server. */
-const CHROME = [/^\/api\/v1\/tenants\/resolve$/, /^\/api\/v1\/theme(\/|$)/, /^\/api\/v1\/products$/];
+/**
+ * Lo que el marco de la tienda (encabezado, pie, carrito) necesita del server.
+ * Más la ficha del producto o de la página por slug: si no existe, la
+ * respuesta tiene que ser un 404, y eso se decide antes de mandar el marco
+ * (después el status ya salió). Llega de la Data Cache casi siempre.
+ */
+const CHROME = [
+  /^\/api\/v1\/tenants\/resolve$/,
+  /^\/api\/v1\/theme(\/|$)/,
+  /^\/api\/v1\/products$/,
+  /^\/api\/v1\/(products|pages)\/by-slug\//,
+];
 
 /** El home y el preview del editor SON el marco con sus secciones: no tienen parte lenta aparte. */
 const WHOLE_PAGE = new Set(['/', '/preview']);

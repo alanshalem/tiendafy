@@ -44,19 +44,34 @@ function PreviewCartSync() {
   return null;
 }
 
+/** Adonde lleva "Saltar al contenido": lo que hay entre el encabezado y el pie. */
+export const CONTENT_ID = 'contenido';
+
 function Inner({ tenantName, theme, products, children }: Omit<StorefrontViewProps, 'live' | 'tenantId'>) {
   return (
     <div className="min-h-screen overflow-x-clip bg-bg text-fg" style={{ fontFamily: 'var(--font-body)' }}>
+      {/* Lo primero que alcanza el Tab: con teclado o lector de pantalla, saltea
+          la barra de anuncio y el menú entero (invisible hasta tener foco). */}
+      <a
+        href={`#${CONTENT_ID}`}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-primary-fg focus:shadow-lg"
+      >
+        Saltar al contenido
+      </a>
       <PreviewCartSync />
       <Header theme={theme} tenantName={tenantName} />
-      {children ?? (
-        <HomeSections
-          sections={theme.sections}
-          products={products}
-          storeName={tenantName}
-          productList={theme.productList}
-        />
-      )}
+      {/* tabIndex -1: el salto mueve el foco acá (no solo el scroll), así el
+          próximo Tab sigue desde el contenido. Envuelve el <main> de cada página. */}
+      <div id={CONTENT_ID} tabIndex={-1} className="outline-none">
+        {children ?? (
+          <HomeSections
+            sections={theme.sections}
+            products={products}
+            storeName={tenantName}
+            productList={theme.productList}
+          />
+        )}
+      </div>
       <EditableRegion target="footer" label="el pie de página">
         <Footer theme={theme} tenantName={tenantName} />
       </EditableRegion>
@@ -123,9 +138,10 @@ export function StorefrontView({
     };
   }, [live, theme, tenantId, products]);
 
-  // Favicon de la tienda en la pestaña del navegador (y en vivo en el preview).
+  // En la tienda, el favicon sale del servidor (metadata del layout). Acá solo
+  // se cambia en vivo en el preview, cuando el comercio sube otro en el editor.
   useEffect(() => {
-    if (!theme.favicon) return;
+    if (!live || !theme.favicon) return;
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) {
       link = document.createElement('link');
@@ -137,7 +153,7 @@ export function StorefrontView({
     return () => {
       if (link) link.href = previous;
     };
-  }, [theme.favicon]);
+  }, [live, theme.favicon]);
 
   return (
     <div

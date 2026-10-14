@@ -7,7 +7,12 @@ import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
 import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
-import { loadStorefront, siteBase, type StorefrontData } from '@/lib/storefront';
+import { siteBase, type StorefrontData } from '@/lib/storefront';
+import { resolveTenant } from '@/lib/tenancy';
+import { notFoundUnlessRedirected } from '@/lib/redirects';
+import { jsonLd } from '@/lib/json-ld';
+import { productJsonLd as buildProductJsonLd } from '@/lib/product-json-ld';
+import { categoryHref } from '@/lib/category-url';
 import type { ThemeConfig } from '@/lib/theme';
 import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
@@ -17,27 +22,35 @@ import { REVALIDATE } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
+/** La ficha por slug. Misma URL y opciones en la metadata, la página y el contenido: Next la pide una vez. */
+const fetchProduct = (slug: string, tenantId: string) =>
+  apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, tenantId, {
+    next: { revalidate: REVALIDATE.catalog },
+  });
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const data = await loadStorefront();
-  if (!data) return { title: 'Tienda' };
-  const product = await apiGetTenant<{
-    name: string;
-    description: string | null;
-    images: { url: string }[];
-  }>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, { next: { revalidate: REVALIDATE.catalog } }).catch(
-    () => null,
-  );
-  if (!product) return { title: data.tenant.name };
+  const tenant = await resolveTenant();
+  if (!tenant) return { title: 'Tienda' };
+  const product = await fetchProduct(slug, tenant.id).catch(() => undefined);
+  // La API falló: la página va a la pantalla de error; nada que decir acá.
+  if (product === undefined) return {};
+  // El nombre de la tienda lo agrega la plantilla del layout ("… · Tienda").
+  if (!product) return { title: 'Producto no encontrado' };
   const base = await siteBase();
+  const description =
+    product.seoDescription?.trim() ||
+    product.description?.slice(0, 160) ||
+    `${product.name} en ${tenant.name}.`;
   return {
-    title: `${product.name} · ${data.tenant.name}`,
-    description: product.description?.slice(0, 160) ?? `${product.name} en ${data.tenant.name}.`,
+    // El título SEO que cargó el comercio va tal cual; si no, el nombre + la tienda.
+    title: product.seoTitle?.trim() ? { absolute: product.seoTitle.trim() } : product.name,
+    description,
     // Canonical: la URL limpia del producto (sin ?preview ni tracking).
     ...(base ? { alternates: { canonical: `${base}/productos/${slug}` } } : {}),
     openGraph: {
       title: product.name,
-      description: product.description?.slice(0, 160) ?? undefined,
+      description,
       images: product.images[0]?.url ? [product.images[0].url] : [],
     },
   };
@@ -48,6 +61,9 @@ interface ProductDto {
   name: string;
   slug: string;
   description: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  brand?: string | null;
   options: { name: string; values: string[] }[];
   variants: {
     id: string;
@@ -84,6 +100,13 @@ export default async function ProductDetailPage({
   if (!resolved.ok) return resolved.fallback;
   const { data, theme, preview } = resolved;
 
+  // Un producto que no existe (borrado, slug viejo) es un 404 de verdad, no una
+  // página vacía con 200: así Google lo saca del índice. O un 308, si el
+  // comercio dejó una redirección para esta URL. Se pregunta ANTES de empezar
+  // a mandar la página (después el status ya salió). Un 5xx de la API tira y
+  // cae en la pantalla de error: no es "no existe".
+  if (!(await fetchProduct(slug, data.tenant.id))) await notFoundUnlessRedirected();
+
   // El marco de la tienda sale ya; la ficha (producto, relacionados, miga y
   // ficha técnica: lo que tarda) llega después, con su esqueleto en el lugar.
   return (
@@ -113,9 +136,7 @@ async function ProductContent({
   preview: boolean;
 }) {
   // Data cache 30s keyed por tenant (_mt): TTFB decente sin SSR+DB en cada hit.
-  const product = await apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, data.tenant.id, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+  const product = await fetchProduct(slug, data.tenant.id);
 
   // "También te puede gustar": productos de la MISMA categoría del que se está
   // viendo (antes eran siempre los primeros 4 del catálogo). Si la categoría no
@@ -134,7 +155,7 @@ async function ProductContent({
     ? [
         { label: 'Inicio', href: '/' },
         { label: 'Productos', href: '/productos' },
-        ...trail.map((c) => ({ label: c.name, href: `/productos?category=${c.id}` })),
+        ...trail.map((c) => ({ label: c.name, href: categoryHref(c) })),
         { label: product.name },
       ]
     : [];
@@ -154,44 +175,15 @@ async function ProductContent({
       : null;
 
   // Rich results de producto en Google: precio, moneda y disponibilidad.
-  const firstVariant = product?.variants[0];
-  const productJsonLd =
-    product && firstVariant
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'Product',
-          name: product.name,
-          ...(product.description ? { description: product.description.slice(0, 500) } : {}),
-          ...(product.images.length ? { image: product.images.map((i) => i.url) } : {}),
-          ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
-          offers: {
-            '@type': 'Offer',
-            priceCurrency: firstVariant.price.currency,
-            price: (firstVariant.price.amount / 100).toFixed(2), // minor units → pesos
-            // Disponibilidad REAL (datos falsos = perder rich results).
-            // stock null = desconocido → optimista InStock.
-            availability:
-              product.stock === 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
-            ...(base ? { url: `${base}/productos/${product.slug}` } : {}),
-          },
-        }
-      : null;
+  const productJsonLd = product ? buildProductJsonLd(product, base) : null;
 
   return (
     <main className="mx-auto max-w-container px-4 py-8">
       {product && <StoreBreadcrumbs items={crumbs} />}
       {breadcrumbJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbJsonLd)} />
       )}
-      {productJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-        />
-      )}
+      {productJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(productJsonLd)} />}
       {product ? (
         <>
           <ProductDetail
@@ -277,6 +269,7 @@ interface CategoryDto {
   id: string;
   name: string;
   parentId: string | null;
+  path?: string;
 }
 
 /**

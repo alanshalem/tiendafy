@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { EDITOR_MSG } from '@tiendafy/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -97,42 +97,75 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
   );
 }
 
-/** Mobile: panel desplegable con buscador + links (mismos ítems que el desktop). */
-function MobilePanel({
+/** Ids que unen cada botón del celular con lo que abre (aria-controls). */
+const MOBILE_MENU_ID = 'menu-movil';
+const MOBILE_SEARCH_ID = 'buscar-movil';
+
+/**
+ * Mobile: la búsqueda, a la vista con su propio botón en la barra. Antes
+ * vivía adentro del menú hamburguesa, y con el menú apagado el celular no
+ * tenía cómo buscar.
+ */
+function MobileSearch({
   header,
   q,
   setQ,
   submitSearch,
-  navLinks,
-  onClose,
 }: {
   header: ThemeConfig['header'];
   q: string;
   setQ: (v: string) => void;
   submitSearch: (e: React.FormEvent) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  // Se abre para escribir: el foco va directo a la caja.
+  useEffect(() => input.current?.focus(), []);
+  return (
+    <div
+      id={MOBILE_SEARCH_ID}
+      className="border-t border-white/10 px-4 py-3 md:hidden"
+      style={{ background: `rgb(${header.bg})` }}
+    >
+      <form
+        onSubmit={submitSearch}
+        role="search"
+        className="flex items-center gap-1.5 rounded-full bg-white/10 px-3"
+      >
+        <input
+          ref={input}
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar"
+          aria-label="Buscar"
+          enterKeyHint="search"
+          className="h-10 w-full bg-transparent text-base outline-none placeholder:opacity-60"
+          style={{ color: 'currentColor' }}
+        />
+        <button type="submit" aria-label="Buscar" className="-m-2 p-2 opacity-70 hover:opacity-100">
+          <Icon name="search" className="h-4 w-4" />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/** Mobile: panel desplegable con los links (mismos ítems que el desktop). */
+function MobilePanel({
+  header,
+  navLinks,
+  onClose,
+}: {
+  header: ThemeConfig['header'];
   navLinks: { href: string; label: string }[];
   onClose: () => void;
 }) {
   return (
-    <div className="border-t border-white/10 px-4 py-3 md:hidden" style={{ background: `rgb(${header.bg})` }}>
-      {header.showSearch && (
-        <form
-          onSubmit={submitSearch}
-          className="mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3"
-        >
-          <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
-            <Icon name="search" className="h-4 w-4" />
-          </button>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar"
-            aria-label="Buscar"
-            className="h-9 w-full bg-transparent text-sm outline-none placeholder:opacity-60"
-            style={{ color: 'currentColor' }}
-          />
-        </form>
-      )}
+    <div
+      id={MOBILE_MENU_ID}
+      className="border-t border-white/10 px-4 py-3 md:hidden"
+      style={{ background: `rgb(${header.bg})` }}
+    >
       {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
       <nav className="flex flex-col gap-0.5 text-sm">
         <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">
@@ -164,11 +197,13 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const [scrolled, setScrolled] = useState(false);
   const [q, setQ] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [editHover, setEditHover] = useState(false);
 
-  // Cerrar el menú mobile al navegar.
+  // Cerrar el menú y la búsqueda del celular al navegar.
   useEffect(() => {
     setMobileOpen(false);
+    setSearchOpen(false);
   }, [pathname]);
 
   const isHome = pathname === '/' || pathname === '/preview';
@@ -263,11 +298,15 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     </form>
   ) : null;
 
+  // El número del globito no lo lee un lector de pantalla si el botón tiene
+  // aria-label: va en el label ("Abrir carrito, 3 productos").
+  const cartLabel =
+    count > 0 ? `Abrir carrito, ${count} ${count === 1 ? 'producto' : 'productos'}` : 'Abrir carrito';
   const cartBtn = header.showCart ? (
     <button
       onClick={() => setOpen(true)}
       className="relative -m-2.5 inline-flex items-center gap-1.5 p-2.5 text-sm"
-      aria-label="Abrir carrito"
+      aria-label={cartLabel}
     >
       <Icon name="cart" className="h-5 w-5" />
       {header.cartStyle === 'text' && <span className="hidden sm:inline">Carrito</span>}
@@ -383,11 +422,15 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           {/* Mobile: barra compacta con hamburguesa */}
           <div className="flex h-14 items-center justify-between gap-3 md:hidden">
             {header.showTabsMobile ? (
+              // -m-2.5 p-2.5: el ícono mide 24 px pero se toca un área de 44,
+              // sin correr nada (igual que los otros botones del encabezado).
               <button
                 type="button"
                 onClick={() => setMobileOpen((o) => !o)}
                 aria-label="Menú"
-                className="shrink-0 opacity-90 hover:opacity-100"
+                aria-expanded={mobileOpen}
+                aria-controls={MOBILE_MENU_ID}
+                className="-m-2.5 shrink-0 p-2.5 opacity-90 hover:opacity-100"
               >
                 {mobileOpen ? (
                   <Icon name="close" className="h-6 w-6" />
@@ -400,6 +443,18 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
             )}
             {logo}
             <div className="flex shrink-0 items-center gap-3">
+              {header.showSearch && (
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen((o) => !o)}
+                  aria-label="Buscar productos"
+                  aria-expanded={searchOpen}
+                  aria-controls={MOBILE_SEARCH_ID}
+                  className="-m-2.5 inline-flex p-2.5 opacity-90 hover:opacity-100"
+                >
+                  <Icon name="search" className="h-5 w-5" />
+                </button>
+              )}
               {accountBtn}
               {favBtn}
               {cartBtn}
@@ -407,16 +462,12 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           </div>
         </div>
 
-        {/* Mobile: panel desplegable con buscador + links */}
+        {/* Mobile: la búsqueda y el panel con los links */}
+        {header.showSearch && searchOpen && (
+          <MobileSearch header={header} q={q} setQ={setQ} submitSearch={submitSearch} />
+        )}
         {header.showTabsMobile && mobileOpen && (
-          <MobilePanel
-            header={header}
-            q={q}
-            setQ={setQ}
-            submitSearch={submitSearch}
-            navLinks={navLinks}
-            onClose={() => setMobileOpen(false)}
-          />
+          <MobilePanel header={header} navLinks={navLinks} onClose={() => setMobileOpen(false)} />
         )}
       </header>
     </>

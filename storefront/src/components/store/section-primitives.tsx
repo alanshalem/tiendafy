@@ -100,16 +100,27 @@ export function ProductGrid({
   );
 }
 
-/** Carrusel de imágenes del hero (auto-avanza, con puntos). */
-export function ImageCarousel({ images, fullHeightMobile }: { images: string[]; fullHeightMobile: boolean }) {
+/**
+ * Carrusel de imágenes del hero (auto-avanza, con puntos). `lcp`: abre la
+ * portada, y su primera imagen es la más grande a la vista (ver StoreImage).
+ */
+export function ImageCarousel({
+  images,
+  fullHeightMobile,
+  lcp = false,
+}: {
+  images: string[];
+  fullHeightMobile: boolean;
+  lcp?: boolean;
+}) {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (images.length < 2) return;
     const timer = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
     return () => clearInterval(timer);
   }, [images.length]);
-  // next/image en el hero: es el LCP de la home — priority en el primer slide,
-  // srcset responsive y lazy en el resto (antes: <img> crudo sin nada de eso).
+  // next/image en el hero: srcset responsive, prioridad en el primer slide si
+  // abre la portada y lazy en el resto (antes: <img> crudo sin nada de eso).
   const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-[460px]' : 'h-[300px] sm:h-[460px]';
   return (
     <section className="relative overflow-hidden">
@@ -119,7 +130,7 @@ export function ImageCarousel({ images, fullHeightMobile }: { images: string[]; 
       >
         {images.map((src, idx) => (
           <div key={idx} className={`relative ${heightClass} w-full shrink-0`}>
-            <StoreImage src={src} alt="" sizes="100vw" priority={idx === 0} className="object-cover" />
+            <StoreImage src={src} alt="" sizes="100vw" lcp={lcp && idx === 0} className="object-cover" />
           </div>
         ))}
       </div>

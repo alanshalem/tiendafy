@@ -79,6 +79,12 @@ async function show(props: Props = {}, url = '/productos') {
   return user;
 }
 
+/** El destino de un link del listado, ya parseado. */
+const target = (link: HTMLElement) => {
+  const [path, query = ''] = link.getAttribute('href')!.split('?');
+  return { path, params: new URLSearchParams(query) };
+};
+
 /** La última URL a la que navegó el listado, ya parseada. */
 const pushed = () => {
   const url = nav.router.push.mock.calls.at(-1)?.[0] as string;
@@ -133,34 +139,55 @@ describe('listado: buscar y ordenar', () => {
 });
 
 describe('listado: filtros', () => {
-  it('categorías: árbol, ver más, buscador y "Todas"', async () => {
-    const user = await show();
-    expect(screen.queryByRole('button', { name: 'Rubro 8' })).not.toBeInTheDocument(); // más de 8 raíces
+  it('categorías: árbol, ver más, buscador y "Todas", como links de verdad', async () => {
+    const user = await show({}, '/productos?sort=name&page=3');
+    expect(screen.queryByRole('link', { name: 'Rubro 8' })).not.toBeInTheDocument(); // más de 8 raíces
     await user.click(screen.getByRole('button', { name: 'Ver 7 más' }));
-    expect(screen.getByRole('button', { name: 'Rubro 8' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Rubro 8' })).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Ver menos' })[0]!);
 
     await user.click(screen.getAllByRole('button', { name: 'Expandir' })[0]!);
     await user.click(screen.getAllByRole('button', { name: 'Expandir' })[0]!);
-    await user.click(screen.getByRole('button', { name: 'Pesas rusas' }));
-    expect(pushed().params.get('category')).toBe('rusas');
+    // Elegir una categoría vuelve a la página 1 y mantiene el orden.
+    const rusas = target(screen.getByRole('link', { name: 'Pesas rusas' }));
+    expect(rusas.path).toBe('/productos');
+    expect(Object.fromEntries(rusas.params)).toEqual({ sort: 'name', category: 'rusas' });
     await user.click(screen.getAllByRole('button', { name: 'Contraer' })[0]!);
+    expect(screen.queryByRole('link', { name: 'Pesas rusas' })).not.toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('Buscar categoría'), 'rubro 3');
-    await user.click(screen.getByRole('button', { name: 'Rubro 3' }));
-    expect(pushed().params.get('category')).toBe('raiz-3');
+    expect(target(screen.getByRole('link', { name: 'Rubro 3' })).params.get('category')).toBe('raiz-3');
     await user.clear(screen.getByPlaceholderText('Buscar categoría'));
     await user.type(screen.getByPlaceholderText('Buscar categoría'), 'zzz');
     expect(screen.getAllByText('Sin coincidencias.').length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('button', { name: 'Todas' }));
-    expect(pushed().params.has('category')).toBe(false);
+    expect(target(screen.getByRole('link', { name: 'Todas' })).params.has('category')).toBe(false);
     await user.click(screen.getByRole('button', { name: /^Categorías/ })); // abre/cierra en el celular
+  });
+
+  it('todas las categorías van en el HTML, también las colapsadas (Google sigue los links)', async () => {
+    await show();
+    const hrefs = [...document.querySelectorAll('aside a[href*="category="]')].map((a) =>
+      new URLSearchParams(a.getAttribute('href')!.split('?')[1]).get('category'),
+    );
+    expect(hrefs).toEqual(expect.arrayContaining(['fitness', 'pesas', 'rusas', 'raiz-13']));
+  });
+
+  it('el link lleva la ruta de la categoría, con la barra legible', async () => {
+    await show({
+      categories: [
+        { id: 'c1', name: 'Remeras', slug: 'remeras', parentId: null, path: 'ropa/remeras', depth: 1 },
+      ],
+    });
+    expect(screen.getByRole('link', { name: 'Remeras' })).toHaveAttribute(
+      'href',
+      '/productos?category=ropa/remeras',
+    );
   });
 
   it('la categoría activa abre su rama y se ve en el título', async () => {
     await show({ current: { ...CURRENT, category: 'rusas' } });
-    expect(screen.getByRole('button', { name: 'Pesas rusas' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('link', { name: 'Pesas rusas' })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByText(': Pesas rusas')).toBeInTheDocument();
   });
 
@@ -246,21 +273,31 @@ describe('listado: resultados y paginado', () => {
     expect(screen.queryByPlaceholderText('Buscar productos')).not.toBeInTheDocument();
   });
 
-  it('pagina con anterior, siguiente y números (con saltos)', async () => {
-    const user = await show({ page: 5, totalPages: 10 }, '/productos?q=x&page=5');
-    const pager = screen.getByRole('navigation');
+  it('pagina con links: anterior, siguiente y números (con saltos)', async () => {
+    await show({ page: 5, totalPages: 10 }, '/productos?q=x&page=5');
+    const pager = screen.getByRole('navigation', { name: 'Páginas' });
     expect(within(pager).getAllByText('…').length).toBeGreaterThan(0);
-    await user.click(within(pager).getByRole('button', { name: 'Página anterior' }));
-    expect(pushed().params.get('page')).toBe('4');
-    await user.click(within(pager).getByRole('button', { name: 'Página siguiente' }));
-    expect(pushed().params.get('page')).toBe('6');
-    await user.click(within(pager).getByRole('button', { name: '10' }));
-    expect(pushed().params.get('page')).toBe('10');
-    expect(pushed().params.get('q')).toBe('x');
+    const prev = within(pager).getByRole('link', { name: 'Página anterior' });
+    expect(prev).toHaveAttribute('rel', 'prev');
+    expect(target(prev).params.get('page')).toBe('4');
+    expect(target(within(pager).getByRole('link', { name: 'Página siguiente' })).params.get('page')).toBe(
+      '6',
+    );
+    const last = target(within(pager).getByRole('link', { name: '10' }));
+    expect(last.params.get('page')).toBe('10');
+    expect(last.params.get('q')).toBe('x');
+    expect(within(pager).getByRole('link', { name: '5' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('la página 1 no lleva ?page= (es la misma URL que el listado)', async () => {
+    await show({ page: 2, totalPages: 3 }, '/productos?category=pesas&page=2');
+    const first = target(screen.getByRole('link', { name: '1' }));
+    expect(Object.fromEntries(first.params)).toEqual({ category: 'pesas' });
   });
 
   it('en la primera y la última página las flechas no avanzan', async () => {
     await show({ page: 1, totalPages: 2 });
-    expect(screen.getByRole('button', { name: 'Página anterior' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Página anterior' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('link', { name: 'Página anterior' })).not.toHaveAttribute('href');
   });
 });

@@ -143,6 +143,11 @@ describe('favoritos', () => {
   const name = fixture<{ name: string }>('/api/v1/products/:id').name;
 
   it('al entrar, sube los locales y adopta los del servidor', async () => {
+    // Un comprador que ya entró antes (la tienda lo recuerda y valida su sesión).
+    localStorage.setItem(
+      `tiendafy.shop.user.${fixtureTenantId}`,
+      JSON.stringify(fixture('/api/v1/shop/auth/me')),
+    );
     localStorage.setItem(`tiendafy.favorites.${fixtureTenantId}`, JSON.stringify(['local-1']));
     // El merge contesta el set completo de la cuenta (lo mismo que GET /shop/favorites).
     api.on('POST', '/api/v1/shop/favorites/merge', fixture('/api/v1/shop/favorites'));

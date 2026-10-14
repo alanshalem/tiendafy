@@ -1,4 +1,5 @@
 import { apiGetTenant } from './api';
+import { REVALIDATE } from './cache';
 import {
   type ThemeConfig,
   baseTheme,
@@ -43,10 +44,12 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
 }
 
 export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
-  // no-store: tras publicar, el cambio se ve en el primer reload (sin caché ISR
-  // que obligue a recargar dos veces). La home ya es force-dynamic.
+  // Data Cache corta, por tienda (apiGetTenant pone el tenant en la URL). Antes
+  // era no-store y cada vista de página pedía el diseño entero. Lo publicado
+  // tarda hasta REVALIDATE.theme en verse; el borrador del editor no pasa por
+  // acá (fetchDraftTheme, siempre fresco).
   const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, {
-    cache: 'no-store',
+    next: { revalidate: REVALIDATE.theme },
   });
   return mergeTheme(cfg);
 }

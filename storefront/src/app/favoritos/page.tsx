@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { StorefrontPageShell } from '@/lib/storefront-page';
 import { FavoritesList } from '@/components/store/FavoritesList';
+import { NOT_INDEXED } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Mis favoritos', robots: NOT_INDEXED };
 
 export default function FavoritesPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   return (

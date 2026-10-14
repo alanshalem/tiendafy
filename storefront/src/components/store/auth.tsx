@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 
 import { API_URL as API, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
@@ -37,10 +38,36 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+/**
+ * ¿Vale la pena preguntarle a la API si hay sesión? La cookie es HttpOnly y JS
+ * no la ve, así que antes se preguntaba en cada vista de página: un 401 (y un
+ * error en la consola) por cada visitante anónimo, que son casi todos.
+ *
+ * Se pregunta solo si hay motivo: el comprador quedó guardado de un login
+ * anterior, vuelve de entrar con Google (la API le puso la cookie en otra
+ * pestaña de la historia, sin pasar por acá) o está en su cuenta —ahí la
+ * pregunta es la página misma, y además cubre al que cambió la clave con el
+ * link del mail, que también deja la sesión iniciada—.
+ */
+export function shouldAskForSession({
+  cachedUser,
+  pendingGoogle,
+  onAccountPage,
+}: {
+  cachedUser: boolean;
+  pendingGoogle: boolean;
+  onAccountPage: boolean;
+}): boolean {
+  return cachedUser || pendingGoogle || onAccountPage;
+}
+
 export function AuthProvider({ storeKey, children }: { storeKey: string; children: ReactNode }) {
   // Solo cacheamos datos NO sensibles (nombre/email) para pintar rápido; la
   // credencial real es la cookie HttpOnly que pone el backend y que JS no puede leer.
   const userKey = `tiendafy.shop.user.${storeKey}`;
+  // Marca de "salió a entrar con Google": al volver hay que preguntar por la sesión.
+  const googleKey = `tiendafy.shop.google.${storeKey}`;
+  const onAccountPage = (usePathname() ?? '').startsWith('/cuenta');
   const [user, setUser] = useState<ShopUser | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -56,12 +83,22 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
     [userKey],
   );
 
-  // Hidratación: cache optimista + validación contra /me (con la cookie).
+  // Hidratación: cache optimista + validación contra /me (con la cookie), solo
+  // si hay motivo para creer que hay sesión (ver shouldAskForSession).
   useEffect(() => {
     const cached = readJson<ShopUser | null>(userKey, null);
     if (cached) setUser(cached);
     // Migración: limpiar tokens viejos que vivían en localStorage (pre-cookie).
     removeKey(`tiendafy.shop.token.${storeKey}`);
+
+    const pendingGoogle = readJson<number | null>(googleKey, null) !== null;
+    if (!shouldAskForSession({ cachedUser: !!cached, pendingGoogle, onAccountPage })) {
+      setReady(true);
+      return;
+    }
+    // La marca de Google se usa una vez: si el login no se completó, la
+    // próxima vista ya no pregunta.
+    removeKey(googleKey);
 
     fetch(`${API}/api/v1/shop/auth/me`, { headers, credentials: 'include' })
       .then((r) => {
@@ -74,7 +111,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
       .then((u: ShopUser | null) => persistUser(u))
       .catch(() => {})
       .finally(() => setReady(true));
-  }, [storeKey, userKey, headers, persistUser]);
+  }, [storeKey, userKey, googleKey, onAccountPage, headers, persistUser]);
 
   // POST a /shop/auth/* con manejo de error uniforme; persist guarda data.customer.
   const authPost = useCallback(
@@ -113,10 +150,14 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
     persistUser(null);
   }, [headers, persistUser]);
 
+  // Se pide justo antes de navegar a Google: deja la marca para que, a la
+  // vuelta (con la cookie ya puesta por la API), la tienda pregunte por la sesión.
   const googleUrl = useCallback(
-    (returnTo: string) =>
-      `${API}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`,
-    [storeKey],
+    (returnTo: string) => {
+      writeJson(googleKey, Date.now());
+      return `${API}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`;
+    },
+    [storeKey, googleKey],
   );
 
   const value = useMemo<AuthContextValue>(

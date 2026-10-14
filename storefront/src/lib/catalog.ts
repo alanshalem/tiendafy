@@ -57,29 +57,34 @@ interface CursorPage {
  * un sitemap incompleto es mejor que uno vacío.
  */
 export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_URLS): Promise<string[]> {
-  const slugs: string[] = [];
+  // Set: con cada página cacheada por separado, dos páginas vencidas en
+  // momentos distintos pueden repetir un producto que cambió de lugar.
+  const slugs = new Set<string>();
   let after: string | null = null;
 
   do {
     const qs = new URLSearchParams({ status: 'ACTIVE', limit: '100' });
     if (after) qs.set('after', after);
+    // Cada página del cursor queda en la Data Cache una hora: el sitemap se
+    // arma recorriendo todo el catálogo, y antes lo hacía entero en cada pedido.
     const page: CursorPage | null = await apiGetTenant<CursorPage>(`/api/v1/products?${qs}`, tenantId, {
-      cache: 'no-store',
+      next: { revalidate: REVALIDATE.sitemap },
     }).catch(() => null);
     if (!page) break;
 
-    for (const p of page.items) slugs.push(p.slug);
-    after = page.hasMore ? page.nextCursor : null;
-  } while (after && slugs.length < max);
+    for (const p of page.items) slugs.add(p.slug);
+    // Un cursor que se repite cortaría en un bucle infinito: se corta ahí.
+    after = page.hasMore && page.nextCursor !== after ? page.nextCursor : null;
+  } while (after && slugs.size < max);
 
-  return slugs.slice(0, max);
+  return [...slugs].slice(0, max);
 }
 
 /** Un producto por id. Lo usan las secciones que referencian productos
  *  puntuales (destacados/ofertas) que pueden quedar fuera del set inicial. */
 export async function fetchProductById(tenantId: string, id: string): Promise<ProductDto | null> {
   return apiGetTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
-    cache: 'no-store',
+    next: { revalidate: REVALIDATE.catalog },
   });
 }
 
