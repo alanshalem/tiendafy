@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, SlidersHorizontal } from 'lucide-react';
 import { Button, Modal, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { sectionDisplayName, type ThemeConfig } from '@tiendafy/types';
+import { sectionDisplayName, type HeaderPageKind, type ThemeConfig } from '@tiendafy/types';
 import { storefrontUrl } from '../lib/storefront';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../lib/api';
@@ -58,6 +58,25 @@ const AREA_LABELS: Record<string, string> = {
   whatsappButton: 'Botón de WhatsApp',
   customCss: 'CSS personalizado',
 };
+
+/**
+ * Una página de cada tipo para la vista previa del color del encabezado. De
+ * contenido va Contacto (existe siempre); de producto, uno real si hay.
+ */
+function headerPreviewPath(kind: HeaderPageKind, productSlug: string | null): string {
+  switch (kind) {
+    case 'listing':
+      return '/productos?preview=1';
+    case 'product':
+      return productSlug ? `/productos/${productSlug}?preview=1` : '/productos?preview=1';
+    case 'content':
+      return '/contacto?preview=1';
+    case 'checkout':
+      return '/checkout?preview=1';
+    default:
+      return '/preview';
+  }
+}
 
 export function changedAreas(draft: ThemeConfig | null, published: ThemeConfig | null): string[] {
   if (!draft || !published) return [];
@@ -150,8 +169,14 @@ export function ThemeEditorPage() {
   )
     setView('home');
 
+  // Colores del encabezado por página: al tocar uno, la vista previa va a una
+  // página de ese tipo. Vale mientras el panel del encabezado está abierto.
+  const [headerPage, setHeaderPage] = useState<HeaderPageKind | null>(null);
+  if (view !== 'header' && headerPage) setHeaderPage(null);
+
   // El preview sigue al panel abierto: cada sección se ve en su propia página.
   const previewPath = useMemo(() => {
+    if (view === 'header' && headerPage) return headerPreviewPath(headerPage, firstSlug);
     switch (view) {
       case 'products-list':
         return '/productos?preview=1';
@@ -162,7 +187,7 @@ export function ThemeEditorPage() {
       default:
         return '/preview'; // inicio (header, colores, fuentes, secciones, footer…) + carrito
     }
-  }, [view, firstSlug]);
+  }, [view, firstSlug, headerPage]);
   // El token viaja en la URL (?pt=…): el SSR del storefront lo reenvía al backend
   // para poder leer el draft (que no es público).
   const previewUrl = useMemo(() => {
@@ -385,6 +410,7 @@ export function ThemeEditorPage() {
             onHistory={() => setHistoryOpen(true)}
             onCopyFromStore={stores.length > 1 ? () => setCopyOpen(true) : undefined}
             onRemoveSection={removeSectionWithUndo}
+            onHeaderPreviewPage={setHeaderPage}
           />
         </aside>
 

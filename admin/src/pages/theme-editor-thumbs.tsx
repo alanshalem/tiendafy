@@ -135,6 +135,69 @@ export function HeaderThumb({
   );
 }
 
+/**
+ * La barra de anuncio en miniatura, arriba del encabezado: los textos fijos
+ * uno al lado del otro, una fila que se va por los costados (en movimiento) o
+ * uno solo con sus flechas y los puntitos de cuál es (uno por vez).
+ */
+export function AnnouncementThumb({ mode }: { mode: ThemeConfig['announcement']['animation'] }) {
+  const H = 40;
+  const ink = 'fill-surface/90';
+  let content;
+  switch (mode) {
+    case 'marquee':
+      content = (
+        <>
+          {/* Los textos siguen más allá de los bordes: se están moviendo. */}
+          {[-10, 22, 54, 86].map((x) => (
+            <Bar key={x} x={x} y={4.5} w={22} h={2.5} className={ink} />
+          ))}
+          <path d="M60 28 h-24 m5 -3.5 l-5 3.5 l5 3.5" className="fill-none stroke-fg/45" strokeWidth={1.4} />
+        </>
+      );
+      break;
+    case 'rotate':
+      content = (
+        <>
+          <path
+            d="M11 3.5 l-3 2.25 l3 2.25 M85 3.5 l3 2.25 l-3 2.25"
+            className="fill-none stroke-surface/80"
+          />
+          <Bar x={W / 2 - 16} y={4.5} w={32} h={2.5} className={ink} />
+          {/* Cuál de los anuncios se ve: uno por vez. */}
+          {[-6, 0, 6].map((dx) => (
+            <circle
+              key={dx}
+              cx={W / 2 + dx}
+              cy={28}
+              r={1.7}
+              className={dx === -6 ? 'fill-primary' : 'fill-fg/25'}
+            />
+          ))}
+        </>
+      );
+      break;
+    default:
+      content = (
+        <>
+          <Bar x={14} y={4.5} w={30} h={2.5} className={ink} />
+          <circle cx={W / 2} cy={5.75} r={0.9} className="fill-surface/60" />
+          <Bar x={52} y={4.5} w={30} h={2.5} className={ink} />
+        </>
+      );
+  }
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden="true">
+      <rect width={W} height={H} className="fill-fg/[0.05]" />
+      <rect width={W} height={11.5} className="fill-primary" />
+      {/* El encabezado, debajo de la barra. */}
+      <rect y={11.5} width={W} height={9} className="fill-fg/75" />
+      <Bar x={18} y={35} w={60} h={2.5} className="fill-fg/15" />
+      {content}
+    </svg>
+  );
+}
+
 /** El pie en miniatura: todo apilado al centro o en columnas. */
 export function FooterThumb({
   layout,

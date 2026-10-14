@@ -1,16 +1,26 @@
-import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { contrastText, heroUnderHeader, type ThemeConfig } from '@tiendafy/types';
+import {
+  ANNOUNCEMENT_INTERVAL,
+  contrastText,
+  HEADER_PAGE_KINDS,
+  heroUnderHeader,
+  type HeaderPageColor,
+  type HeaderPageKind,
+  type ItemBase,
+  type ThemeConfig,
+} from '@tiendafy/types';
 import { LinkPicker } from '../components/LinkPicker';
 import { MediaUpload } from '../components/upload/MediaUpload';
 import { MenuEditor } from './theme-editor-menu';
-import { HeaderThumb } from './theme-editor-thumbs';
+import { AnnouncementThumb, HeaderThumb } from './theme-editor-thumbs';
+import { ItemListEditor } from './theme-editor/sections/ItemListEditor';
 import {
   BackHeader,
   Field,
   Check,
   Collapsible,
   SegField,
+  Select,
   TextInput,
   ColorRow,
   ContrastNote,
@@ -21,6 +31,39 @@ import {
 } from './theme-editor-inputs';
 
 type Header = ThemeConfig['header'];
+type Announcement = ThemeConfig['announcement'];
+/** Un anuncio, como ítem de la lista del editor (sin nombre propio: ver `renamable`). */
+type AnnouncementItem = Announcement['items'][number] & ItemBase;
+
+/** Las tres formas de mostrar los anuncios, con su dibujito y qué hace cada una. */
+const ANNOUNCEMENT_MODES: { value: Announcement['animation']; label: string; hint: string }[] = [
+  { value: 'static', label: 'Fijo', hint: 'Con varios anuncios, se ven uno al lado del otro.' },
+  {
+    value: 'marquee',
+    label: 'Desplazándose',
+    hint: 'Los anuncios pasan en fila, de derecha a izquierda, sin parar.',
+  },
+  {
+    value: 'rotate',
+    label: 'Uno por vez',
+    hint: 'Se ve un anuncio a la vez y cambia solo al siguiente, con flechas para pasarlos.',
+  },
+];
+
+/** De 3 a 10 segundos: menos no da tiempo a leer; más, nadie espera a ver el siguiente. */
+const INTERVALS = Array.from(
+  { length: ANNOUNCEMENT_INTERVAL.max - ANNOUNCEMENT_INTERVAL.min + 1 },
+  (_, i) => ANNOUNCEMENT_INTERVAL.min + i,
+);
+
+/** Cómo se llama cada tipo de página en el editor. */
+export const HEADER_PAGE_LABELS: Record<HeaderPageKind, string> = {
+  home: 'Inicio',
+  listing: 'Listado y categorías',
+  product: 'Producto',
+  content: 'Páginas de contenido',
+  checkout: 'Checkout (pago)',
+};
 
 const HEADER_PRESETS: QuickStyle<Header>[] = [
   {
@@ -94,32 +137,100 @@ function LevelSample({ level }: { level: Header['transparentLevel'] }) {
   );
 }
 
+/**
+ * Una fila de "Colores por página": la muestra (fondo y "Aa" en el color del
+ * texto que va a tener), "Igual que el general" y, si no lo es, sus colores.
+ * Al apagar "igual", arranca con el fondo general y el texto en automático:
+ * el comercio cambia el fondo y el texto se acomoda solo.
+ */
+function PageColorRow({
+  kind,
+  header,
+  onChange,
+}: {
+  kind: HeaderPageKind;
+  header: Header;
+  onChange: (kind: HeaderPageKind, value: HeaderPageColor | undefined) => void;
+}) {
+  const own = header.pageColors[kind];
+  const label = HEADER_PAGE_LABELS[kind];
+  const bg = own?.bg ?? header.bg;
+  const text = (own ? own.textColor : header.textColor) || contrastText(bg);
+  return (
+    <div role="group" aria-label={label} className="rounded-md border border-border p-2.5">
+      <div className="flex items-center gap-2.5">
+        <span
+          aria-hidden
+          className="flex h-7 w-10 shrink-0 items-center justify-center rounded border border-border-strong text-xs font-bold"
+          style={{ background: `rgb(${bg})`, color: `rgb(${text})` }}
+        >
+          Aa
+        </span>
+        <span className="min-w-0 flex-1 text-sm font-medium text-fg">{label}</span>
+      </div>
+      <div className="mt-2">
+        <Check
+          label="Igual que el general"
+          checked={!own}
+          onChange={(same) => onChange(kind, same ? undefined : { bg: header.bg, textColor: '' })}
+        />
+      </div>
+      {own && (
+        <div className="mt-2.5 space-y-2.5">
+          <ColorRow
+            label="Fondo"
+            value={own.bg}
+            onChange={(v) => onChange(kind, { ...own, bg: v })}
+            fallback="#1b1510"
+          />
+          <ColorRow
+            label="Texto e íconos"
+            value={own.textColor}
+            onChange={(v) => onChange(kind, { ...own, textColor: v })}
+            onAuto={() => onChange(kind, { ...own, textColor: '' })}
+            autoValue={contrastText(own.bg)}
+            fallback="#ffffff"
+          />
+          {own.textColor && <ContrastNote fg={own.textColor} bg={own.bg} label="el menú sobre este fondo" />}
+          {kind === 'home' && header.transparentOnHome && (
+            <p className="text-xs text-fg-muted">
+              Arriba de todo va transparente sobre la foto de portada; este color se ve al bajar.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HeaderPanel({
   theme,
   onBack,
   updateTheme,
+  onPreviewPage,
 }: {
   theme: ThemeConfig;
   onBack: () => void;
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
+  /** Llevar la vista previa a un tipo de página (para ver su color de encabezado). */
+  onPreviewPage?: (kind: HeaderPageKind) => void;
 }) {
   const setH = sectionSetter(updateTheme, 'header');
+  // Sin colores propios (undefined), la página vuelve a usar los generales.
+  const setPageColor = (kind: HeaderPageKind, value: HeaderPageColor | undefined) => {
+    updateTheme((t) => {
+      const pageColors = { ...t.header.pageColors };
+      if (value) pageColors[kind] = value;
+      else delete pageColors[kind];
+      return { ...t, header: { ...t.header, pageColors } };
+    });
+    // Que se vea lo que se está cambiando: la vista previa va a esa página.
+    onPreviewPage?.(kind);
+  };
   const reset = useSectionReset(updateTheme);
   const h = theme.header;
-  // Editar / quitar un anuncio por índice (evita repetir el map/filter en cada campo).
-  const updateItem = (i: number, patch: Partial<ThemeConfig['announcement']['items'][number]>) =>
-    updateTheme((t) => ({
-      ...t,
-      announcement: {
-        ...t.announcement,
-        items: t.announcement.items.map((x, idx) => (idx === i ? { ...x, ...patch } : x)),
-      },
-    }));
-  const removeItem = (i: number) =>
-    updateTheme((t) => ({
-      ...t,
-      announcement: { ...t.announcement, items: t.announcement.items.filter((_, idx) => idx !== i) },
-    }));
+  const setA = sectionSetter(updateTheme, 'announcement');
+  const ann = theme.announcement;
   // Transparente solo se nota sobre una foto o un video de portada.
   const hasHero = heroUnderHeader(theme.sections);
   return (
@@ -207,6 +318,18 @@ export function HeaderPanel({
           />
         </div>
 
+        <Collapsible title="Colores por página" defaultOpen={Object.keys(h.pageColors).length > 0}>
+          <p className="mb-3 text-xs text-fg-muted">
+            Para que el encabezado cambie según dónde esté tu cliente: por ejemplo, oscuro solo en el inicio y
+            claro en el resto. Al cambiar uno, la vista previa va a esa página.
+          </p>
+          <div className="space-y-2">
+            {HEADER_PAGE_KINDS.map((kind) => (
+              <PageColorRow key={kind} kind={kind} header={h} onChange={setPageColor} />
+            ))}
+          </div>
+        </Collapsible>
+
         <div className="space-y-3 border-t border-border pt-4">
           <div className="text-sm font-semibold text-fg">Comportamiento</div>
           <Check
@@ -288,84 +411,84 @@ export function HeaderPanel({
           </div>
         </Collapsible>
 
-        <Collapsible title="Barra de anuncio" defaultOpen={theme.announcement.show}>
+        <Collapsible title="Barra de anuncio" defaultOpen={ann.show}>
           <Check
             label="Mostrar barra de anuncio"
             hint="Una franja arriba de todo con tu promo: envío gratis, cuotas, un cupón."
-            checked={theme.announcement.show}
-            onChange={(v) => updateTheme((t) => ({ ...t, announcement: { ...t.announcement, show: v } }))}
+            checked={ann.show}
+            onChange={(v) => setA({ show: v })}
           />
-          {theme.announcement.show && (
+          {ann.show && (
             <div className="mt-3 space-y-3">
               <SegField
-                label="Animación"
-                columns={2}
-                value={theme.announcement.animation}
-                onChange={(animation) =>
-                  updateTheme((t) => ({ ...t, announcement: { ...t.announcement, animation } }))
-                }
-                options={[
-                  { value: 'static', label: 'Fija, al centro' },
-                  { value: 'marquee', label: 'En movimiento' },
-                ]}
-                hint={
-                  theme.announcement.animation === 'marquee'
-                    ? 'Los anuncios pasan en fila, de derecha a izquierda, sin parar.'
-                    : 'Con varios anuncios, se ven uno al lado del otro.'
-                }
+                label="Cómo se ven los anuncios"
+                value={ann.animation}
+                onChange={(animation) => setA({ animation })}
+                options={ANNOUNCEMENT_MODES.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                  visual: (
+                    <span className="block w-full overflow-hidden rounded">
+                      <AnnouncementThumb mode={m.value} />
+                    </span>
+                  ),
+                }))}
+                hint={ANNOUNCEMENT_MODES.find((m) => m.value === ann.animation)?.hint}
               />
+              {ann.animation === 'rotate' && (
+                <Field
+                  label="Cada cuánto cambia"
+                  hint="Se frena al pasar el mouse o al tocarla, y siempre tiene botón de pausa. Con un solo anuncio queda fijo."
+                >
+                  <Select
+                    value={String(ann.interval)}
+                    onChange={(v) => setA({ interval: Number(v) })}
+                    options={INTERVALS.map((n) => ({ value: String(n), label: `${n} segundos` }))}
+                  />
+                </Field>
+              )}
+              {ann.animation === 'marquee' && (
+                <SegField
+                  label="Velocidad"
+                  value={ann.speed}
+                  onChange={(speed) => setA({ speed })}
+                  options={[
+                    { value: 'slow', label: 'Lenta' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'fast', label: 'Rápida' },
+                  ]}
+                  hint="Se frena al pasar el mouse y tiene botón de pausa."
+                />
+              )}
 
-              <div className="space-y-3">
-                {theme.announcement.items.map((it, i) => (
-                  <div key={i} className="space-y-2 rounded-md border border-border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                        Anuncio {i + 1}
-                      </span>
-                      {theme.announcement.items.length > 1 && (
-                        <button
-                          type="button"
-                          aria-label={`Quitar anuncio ${i + 1}`}
-                          onClick={() => removeItem(i)}
-                          className="flex h-10 w-10 items-center justify-center rounded text-fg-muted hover:bg-danger/10 hover:text-danger"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
+              <ItemListEditor<AnnouncementItem>
+                items={ann.items}
+                onChange={(items) => setA({ items })}
+                createItem={() => ({ text: '', link: '' })}
+                addLabel="Agregar anuncio"
+                listLabel="Anuncios"
+                renamable={false}
+                // El título de cada fila es su texto: es lo que se busca con la vista.
+                itemTitle={(it) => it.text.trim() || `Anuncio ${ann.items.indexOf(it) + 1}`}
+                renderItem={(it, update) => (
+                  <>
                     <Field label="Texto">
                       <TextInput
                         value={it.text}
-                        onChange={(v) => updateItem(i, { text: v })}
+                        onChange={(v) => update({ text: v })}
                         placeholder="10% OFF EN TU PRIMERA COMPRA"
                       />
                     </Field>
                     <LinkPicker
                       label="Link (opcional)"
                       value={it.link}
-                      onChange={(href) => updateItem(i, { link: href })}
+                      onChange={(href) => update({ link: href })}
                       newTab={it.newTab}
-                      onNewTabChange={(v) => updateItem(i, { newTab: v || undefined })}
+                      onNewTabChange={(v) => update({ newTab: v || undefined })}
                     />
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  updateTheme((t) => ({
-                    ...t,
-                    announcement: {
-                      ...t.announcement,
-                      items: [...t.announcement.items, { text: '', link: '' }],
-                    },
-                  }))
-                }
-                className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-              >
-                <Plus className="h-4 w-4" /> Agregar anuncio
-              </button>
+                  </>
+                )}
+              />
             </div>
           )}
         </Collapsible>

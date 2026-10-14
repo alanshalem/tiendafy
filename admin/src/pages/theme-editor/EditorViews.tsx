@@ -1,5 +1,5 @@
 import { useConfirm } from '@tiendafy/ui';
-import { baseTheme, type ThemeConfig } from '@tiendafy/types';
+import { baseTheme, type HeaderPageKind, type ThemeConfig } from '@tiendafy/types';
 import { contrastText } from '../theme-editor-inputs';
 import {
   BorderRadiusPanel,
@@ -39,6 +39,7 @@ export function EditorViews({
   onHistory,
   onCopyFromStore,
   onRemoveSection,
+  onHeaderPreviewPage,
 }: {
   view: string;
   setView: (view: string) => void;
@@ -52,6 +53,8 @@ export function EditorViews({
   onCopyFromStore?: () => void;
   /** Quitar una sección del inicio (con "Deshacer"). */
   onRemoveSection: (id: string) => void;
+  /** Llevar la vista previa a un tipo de página (colores del encabezado por página). */
+  onHeaderPreviewPage?: (kind: HeaderPageKind) => void;
 }) {
   const confirm = useConfirm();
   const toRoot = () => setView('root');
@@ -130,7 +133,7 @@ export function EditorViews({
     case 'radius':
       return <BorderRadiusPanel {...panelProps} />;
     case 'header':
-      return <HeaderPanel {...panelProps} />;
+      return <HeaderPanel {...panelProps} onPreviewPage={onHeaderPreviewPage} />;
     case 'home':
       return <HomePanel {...homeProps} />;
     case 'products-list':

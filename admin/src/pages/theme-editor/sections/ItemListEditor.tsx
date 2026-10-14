@@ -50,6 +50,11 @@ export interface ItemListEditorProps<T extends ItemBase> {
   itemTitle?: (item: T) => string;
   /** Nombre de la lista para los lectores de pantalla ("Preguntas"). */
   listLabel?: string;
+  /**
+   * Ofrecer "Cambiar nombre" en el menú ⋯. Apagado donde el título ya es el
+   * contenido (el texto de un anuncio): un nombre aparte confundiría.
+   */
+  renamable?: boolean;
 }
 
 const derivedTitle = (item: ItemBase): string => {
@@ -95,6 +100,7 @@ export function ItemListEditor<T extends ItemBase>({
   max,
   itemTitle = derivedTitle,
   listLabel,
+  renamable = true,
 }: ItemListEditorProps<T>) {
   const confirm = useConfirm();
   // Los ítems no tienen id propio: se les da una clave estable mientras dura
@@ -254,7 +260,9 @@ export function ItemListEditor<T extends ItemBase>({
                 <ActionMenu
                   label={`Más acciones de «${title}»`}
                   entries={[
-                    { label: 'Cambiar nombre', icon: Pencil, onSelect: () => setRenaming(key) },
+                    ...(renamable
+                      ? [{ label: 'Cambiar nombre', icon: Pencil, onSelect: () => setRenaming(key) }]
+                      : []),
                     {
                       label: 'Duplicar',
                       icon: Copy,
