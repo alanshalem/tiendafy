@@ -21,7 +21,7 @@ import { popupSeen } from '../components/store/sections/promo-popup';
 import { ADMIN_ORIGIN } from '../components/store/preview';
 import { nav } from '../test/next';
 import { StoreCategoriesProvider } from '../components/store/CategoryMenu';
-import { EDITOR_MSG } from '@tiendafy/types';
+import { EDITOR_MSG, parseVideoUrl, videoEmbedUrl } from '@tiendafy/types';
 import { useCart } from '../components/store/cart';
 import userEvent from '@testing-library/user-event';
 import { fixture, mockApi } from '../test/api';
@@ -552,5 +552,107 @@ describe('categorías principales', () => {
     expect(container).toBeEmptyDOMElement();
     rerender(empty(ui(section('category-list', { title: 'Cats' }), { preview: true })));
     expect(screen.getByText(/Todavía no hay categorías/)).toBeInTheDocument();
+  });
+});
+
+describe('video', () => {
+  it.each([
+    ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s', 'youtube', 'dQw4w9WgXcQ'],
+    ['youtu.be/dQw4w9WgXcQ?si=abc', 'youtube', 'dQw4w9WgXcQ'],
+    ['https://youtube.com/shorts/dQw4w9WgXcQ', 'youtube', 'dQw4w9WgXcQ'],
+    ['https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', 'youtube', 'dQw4w9WgXcQ'],
+    ['https://m.youtube.com/live/dQw4w9WgXcQ', 'youtube', 'dQw4w9WgXcQ'],
+    ['https://vimeo.com/123456789', 'vimeo', '123456789'],
+    ['https://vimeo.com/channels/staffpicks/123456789', 'vimeo', '123456789'],
+  ])('reconoce %s', (url, provider, id) => {
+    expect(parseVideoUrl(url)).toMatchObject({ provider, id });
+  });
+
+  it('un video privado de Vimeo conserva su clave; lo que no es un video no se embebe', () => {
+    expect(parseVideoUrl('https://vimeo.com/123456789/abcdef1234')).toEqual({
+      provider: 'vimeo',
+      id: '123456789',
+      hash: 'abcdef1234',
+    });
+    expect(videoEmbedUrl(parseVideoUrl('https://player.vimeo.com/video/42?h=ff00ff')!)).toBe(
+      'https://player.vimeo.com/video/42?autoplay=1&dnt=1&h=ff00ff',
+    );
+    for (const bad of [
+      'https://malo.com/watch?v=dQw4w9WgXcQ',
+      'https://youtube.com/watch?v=corto',
+      'javascript:alert(1)',
+      '',
+    ])
+      expect(parseVideoUrl(bad)).toBeNull();
+  });
+
+  it('YouTube no se carga hasta que se toca reproducir; después va sin cookies', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      ui(section('video', { source: 'link', url: 'https://youtu.be/dQw4w9WgXcQ', title: 'Cómo se arma' })),
+    );
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+    );
+    await user.click(screen.getByRole('button', { name: 'Reproducir: Cómo se arma' }));
+    const frame = container.querySelector('iframe')!;
+    expect(frame).toHaveAttribute(
+      'src',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0&playsinline=1',
+    );
+    expect(frame).toHaveAttribute('title', 'Cómo se arma');
+  });
+
+  it('el MP4 arranca solo y sin sonido, con pausa a mano; con "reducir movimiento" no arranca', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    const mp4 = section('video', { source: 'file', file: 'https://cdn.example.com/v.mp4', ratio: '9:16' });
+    const { container, unmount } = render(ui(mp4));
+    const video = container.querySelector('video')!;
+    expect(video.muted).toBe(true);
+    expect(video.loop).toBe(true);
+    expect(play).toHaveBeenCalled();
+    expect(container.querySelector('.aspect-\\[9\\/16\\]')).not.toBeNull();
+    await act(async () => {
+      video.dispatchEvent(new Event('play'));
+    });
+    await act(async () => {
+      screen.getByRole('button', { name: 'Pausar el video' }).click();
+    });
+    expect(pause).toHaveBeenCalled();
+    unmount();
+
+    play.mockClear();
+    const reduce = vi
+      .spyOn(window, 'matchMedia')
+      .mockImplementation(
+        (q) =>
+          ({
+            matches: q.includes('reduce'),
+            media: q,
+            addEventListener() {},
+            removeEventListener() {},
+          }) as never,
+      );
+    render(ui(mp4));
+    expect(play).not.toHaveBeenCalled();
+    reduce.mockRestore();
+
+    // Sin "reproducir solo": los controles del navegador.
+    const { container: c2 } = render(
+      ui(section('video', { source: 'file', file: 'https://cdn.example.com/v.mp4', autoplay: false })),
+    );
+    expect(c2.querySelector('video')).toHaveAttribute('controls');
+    expect(screen.queryByRole('button', { name: 'Pausar el video' })).not.toBeInTheDocument();
+  });
+
+  it('sin video: nada en la tienda; en el editor, qué falta', () => {
+    const bad = section('video', { source: 'link', url: 'https://malo.com/v' });
+    const { container, rerender } = render(ui(bad));
+    expect(container).toBeEmptyDOMElement();
+    rerender(ui(bad, { preview: true }));
+    expect(screen.getByText('Ese link no es de un video de YouTube o Vimeo.')).toBeInTheDocument();
   });
 });

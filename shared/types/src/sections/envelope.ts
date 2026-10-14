@@ -29,6 +29,7 @@ export const SECTION_TYPES = [
   'promo-popup',
   'rich-text',
   'category-list',
+  'video',
 ] as const;
 
 export type SectionType = (typeof SECTION_TYPES)[number];

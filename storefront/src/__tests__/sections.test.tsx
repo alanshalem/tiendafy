@@ -145,6 +145,16 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     data: { title: 'Por categoría', mode: 'auto', layout: 'carousel' },
     shows: 'Musculación',
   },
+  video: {
+    data: {
+      source: 'link',
+      url: 'https://youtu.be/dQw4w9WgXcQ',
+      title: 'Mirá cómo se usa',
+      buttonText: 'Comprar',
+      link: '/productos',
+    },
+    shows: 'Mirá cómo se usa',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

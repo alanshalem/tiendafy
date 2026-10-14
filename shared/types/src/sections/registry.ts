@@ -365,6 +365,7 @@ export interface SectionDataMap {
   'promo-popup': PromoPopupData;
   'rich-text': RichTextData;
   'category-list': CategoryListData;
+  video: VideoData;
 }
 
 /* ---- El registro ---- */
@@ -734,6 +735,18 @@ export const SECTION_REGISTRY = {
     },
     limits: {},
     keywords: 'categorias rubros colecciones departamentos circulos',
+  }),
+  video: define({
+    type: 'video',
+    label: 'Video',
+    previewLabel: 'el video',
+    description: 'Un video de YouTube, Vimeo o subido por vos, con título y botón.',
+    group: 'Imágenes',
+    wireframe: 'video',
+    fields: videoFields,
+    defaults: { source: 'link', ratio: '16:9', autoplay: true, title: 'Mirá cómo se usa' },
+    limits: {},
+    keywords: 'video youtube vimeo mp4 reel clip pelicula',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

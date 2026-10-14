@@ -300,3 +300,25 @@ describe('categorías principales', () => {
     });
   });
 });
+
+describe('video', () => {
+  it('reconoce el link mientras se pega y avisa si no es de YouTube o Vimeo', async () => {
+    const { user } = await open('video', createSection('video').data);
+    const url = screen.getByLabelText('Link del video');
+    await user.type(url, 'https://malo.com/v');
+    expect(screen.getByText('Ese link no es de un video de YouTube o Vimeo.')).toBeInTheDocument();
+    await user.clear(url);
+    await user.type(url, 'youtu.be/dQw4w9WgXcQ');
+    expect(screen.getByText(/Video de YouTube reconocido/)).toBeInTheDocument();
+    expect(latest.url).toBe('youtu.be/dQw4w9WgXcQ');
+  });
+
+  it('con un MP4 se sube el archivo y se elige si arranca solo; la proporción para los dos', async () => {
+    const { user } = await open('video', createSection('video').data);
+    await user.selectOptions(screen.getByLabelText('De dónde sale el video'), 'file');
+    expect(screen.queryByLabelText('Link del video')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Reproducir solo, sin sonido y en loop'));
+    await user.selectOptions(screen.getByLabelText('Proporción'), '9:16');
+    expect(latest).toMatchObject({ source: 'file', autoplay: false, ratio: '9:16' });
+  });
+});

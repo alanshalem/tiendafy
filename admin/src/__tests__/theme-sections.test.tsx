@@ -36,6 +36,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   'promo-popup': true,
   'rich-text': true,
   'category-list': true,
+  video: true,
 };
 
 let crashes: () => unknown[][];

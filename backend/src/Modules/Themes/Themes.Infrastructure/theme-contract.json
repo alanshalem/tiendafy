@@ -601,6 +601,54 @@
           "max": 200
         }
       }
+    },
+    "video": {
+      "label": "Video",
+      "fields": {
+        "source": {
+          "kind": "enum",
+          "values": [
+            "link",
+            "file"
+          ]
+        },
+        "url": {
+          "kind": "url"
+        },
+        "file": {
+          "kind": "media"
+        },
+        "poster": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "ratio": {
+          "kind": "enum",
+          "values": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3"
+          ]
+        },
+        "autoplay": {
+          "kind": "boolean"
+        }
+      }
     }
   },
   "defaultConfig": {

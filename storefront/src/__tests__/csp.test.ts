@@ -55,4 +55,15 @@ describe('CSP de la tienda', () => {
     expect(keys).not.toContain('content-security-policy');
     expect(keys).toContain('x-content-type-options');
   });
+
+  it('deja lo que usa la sección Video: el reproductor sin cookies de YouTube, Vimeo, sus miniaturas y los MP4', () => {
+    const csp = buildCsp('https://api.x.com');
+    const frames = directive(csp, 'frame-src');
+    expect(frames).toContain('https://www.youtube-nocookie.com');
+    expect(frames).toContain('https://player.vimeo.com');
+    // Nada de comodines: un iframe de cualquier sitio no entra.
+    expect(frames).not.toMatch(/ https: | \*/);
+    expect(directive(csp, 'img-src')).toContain('https:'); // i.ytimg.com (miniatura)
+    expect(directive(csp, 'media-src')).toContain('https:'); // el MP4 subido
+  });
 });
