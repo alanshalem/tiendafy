@@ -116,6 +116,125 @@ describe('pie', () => {
   });
 });
 
+describe('pie: columnas', () => {
+  const kinds = () => current.footer.columns.map((c) => c.kind);
+  const columnsList = () => within(screen.getByRole('list', { name: 'Columnas del pie' }));
+  async function rowAction(user: ReturnType<typeof userEvent.setup>, name: string, action: string) {
+    await user.click(screen.getByRole('button', { name: `Más acciones de «${name}»` }));
+    await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: action }));
+  }
+  const footer = (initial: Partial<ThemeConfig> = {}, onFocusPreview?: (t: string) => void) =>
+    show(
+      (t, u) => <FooterPanel theme={t} updateTheme={u} onBack={() => {}} onFocusPreview={onFocusPreview} />,
+      initial,
+    );
+
+  it('agregar: elegir el tipo (los de una sola vez, apagados), armar sus links y respetar el tope', async () => {
+    const focused: string[] = [];
+    const user = await footer({}, (t) => focused.push(t));
+    // El tema de fábrica: marca y contacto.
+    expect(columnsList().getAllByRole('listitem')).toHaveLength(2);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
+    const picker = within(screen.getByRole('group', { name: 'Tipo de columna' }));
+    expect(picker.getByRole('button', { name: /^Marca y redes · ya está/ })).toBeDisabled();
+    expect(picker.getByRole('button', { name: /^Contacto · ya está/ })).toBeDisabled();
+    await user.click(picker.getByRole('button', { name: /^Links/ }));
+    expect(kinds()).toEqual(['social', 'contact', 'links']);
+    const added = current.footer.columns[2]!;
+    // Se abre sola y se resalta en la vista previa.
+    expect(focused).toEqual([`footer-col:${added.id}`]);
+
+    await user.type(screen.getByRole('textbox', { name: 'Título' }), 'Ayuda');
+    expect(current.footer.columns[2]!.title).toBe('Ayuda');
+    expect(columnsList().getByRole('button', { name: /^Ayuda/, expanded: true })).toBeInTheDocument();
+
+    // Su primer link: el texto y a dónde lleva, con el selector de links.
+    await user.type(screen.getByRole('textbox', { name: 'Texto' }), 'Envíos');
+    await user.click(screen.getByRole('button', { name: /Elegir a dónde lleva/ }));
+    await user.click(
+      within(screen.getByRole('group', { name: 'Tipo de destino' })).getByRole('button', { name: /Página/ }),
+    );
+    await user.click(
+      within(screen.getByRole('list', { name: 'Páginas' })).getByRole('button', { name: 'Contacto' }),
+    );
+    expect(current.footer.columns[2]!.links).toEqual([{ label: 'Envíos', href: '/contacto' }]);
+    await user.click(screen.getByRole('button', { name: 'Agregar link' }));
+    expect(current.footer.columns[2]!.links).toHaveLength(2);
+    await user.click(screen.getByRole('checkbox', { name: /Sumar tus páginas de contenido/ }));
+    expect(current.footer.columns[2]!.withPages).toBe(true);
+    expect(current.footer.showPages).toBe(true);
+
+    // Hasta 5: texto (puede haber varios) y novedades.
+    await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
+    await user.click(screen.getByRole('button', { name: /^Texto/ }));
+    await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
+    await user.click(screen.getByRole('button', { name: /^Suscripción a novedades/ }));
+    expect(kinds()).toEqual(['social', 'contact', 'links', 'text', 'newsletter']);
+    expect(current.footer.showNewsletter).toBe(true);
+    expect(screen.getByRole('button', { name: 'Agregar columna' })).toBeDisabled();
+    expect(screen.getByText(/Llegaste al máximo de 5 columnas/)).toBeInTheDocument();
+  });
+
+  it('mover, cambiar nombre y eliminar desde el menú ⋯', async () => {
+    const user = await footer();
+    await user.click(screen.getByRole('button', { name: 'Más acciones de «Marca y redes»' }));
+    expect(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Mover arriba' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await user.keyboard('{Escape}');
+
+    await rowAction(user, 'Contacto', 'Mover arriba');
+    expect(kinds()).toEqual(['contact', 'social']);
+
+    await rowAction(user, 'Contacto', 'Cambiar nombre');
+    await user.type(screen.getByRole('textbox', { name: 'Nombre de la columna' }), 'Hablanos{Enter}');
+    expect(current.footer.columns[0]!.title).toBe('Hablanos');
+    expect(columnsList().getByRole('button', { name: /^Hablanos/ })).toBeInTheDocument();
+
+    // Eliminar pide confirmación.
+    await rowAction(user, 'Hablanos', 'Eliminar');
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('«Hablanos»');
+    await user.click(within(dialog).getByRole('button', { name: 'Eliminar' }));
+    await settle(2);
+    expect(kinds()).toEqual(['social']);
+  });
+
+  it('el nombre de la columna de novedades es el título de siempre', async () => {
+    const base = normalizeTheme({}).footer;
+    const user = await footer({ footer: { ...base, columns: [{ id: 'n', kind: 'newsletter' }] } });
+    await rowAction(user, 'Recibí novedades y ofertas', 'Cambiar nombre');
+    const name = screen.getByRole('textbox', { name: 'Nombre de la columna' });
+    await user.clear(name);
+    await user.type(name, 'Sumate{Enter}');
+    expect(current.footer.newsletterTitle).toBe('Sumate');
+    expect(current.footer.columns[0]!.title).toBeUndefined();
+  });
+
+  it('"Mínimo" saca las páginas y las novedades, y deja los links que armó el comercio', async () => {
+    const user = await footer({
+      footer: {
+        layout: 'columns',
+        showPages: true,
+        showNewsletter: true,
+        links: [{ label: 'Envíos', href: '/envios' }],
+      } as ThemeConfig['footer'],
+    });
+    expect(kinds()).toEqual(['social', 'links', 'contact', 'newsletter']);
+    await user.click(screen.getByRole('button', { name: /^Mínimo/ }));
+    expect(kinds()).toEqual(['social', 'links', 'contact']);
+    expect(current.footer.columns[1]).toEqual({
+      id: 'links',
+      kind: 'links',
+      links: [{ label: 'Envíos', href: '/envios' }],
+    });
+    expect(current.footer.showPages).toBe(false);
+    expect(current.footer.layout).toBe('centered');
+  });
+});
+
 describe('botón de WhatsApp', () => {
   it('posición, texto al lado y aviso sin número', async () => {
     const user = await show((t, u) => <WhatsAppPanel theme={t} updateTheme={u} onBack={() => {}} />, {
