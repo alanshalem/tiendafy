@@ -62,6 +62,7 @@ export {
   isSafeLink,
   isSafeMedia,
   isPlainObject,
+  isIsoDateTime,
   SHORT_TEXT_MAX,
   LONG_TEXT_MAX,
   URL_MAX,
@@ -73,3 +74,15 @@ export type { ThemeMigration, RawTheme } from './migrations';
 export { HOME_TEMPLATES, templateSections } from './templates';
 export type { HomeTemplate } from './templates';
 export { buildThemeContract, defaultThemeConfig } from './contract';
+export {
+  RICH_TEXT_MAX,
+  RICH_HEADING_LEVELS,
+  RICH_MAX_DEPTH,
+  RICH_NODES,
+  RICH_MARKS,
+  emptyRichDoc,
+  normalizeRichDoc,
+  richDocText,
+  richDocFromText,
+} from './rich-text';
+export type { RichDoc, RichBlock, RichInline, RichListItem, RichMark, RichHeadingLevel } from './rich-text';

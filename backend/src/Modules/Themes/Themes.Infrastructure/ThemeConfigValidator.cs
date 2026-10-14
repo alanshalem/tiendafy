@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -52,6 +53,25 @@ public static partial class ThemeConfigValidator
         ["items"] = "los ítems",
         ["label"] = "el nombre",
         ["icon"] = "el ícono",
+        ["endsAt"] = "la fecha en que termina",
+        ["whenEnded"] = "qué pasa cuando termina",
+        ["endedText"] = "el mensaje cuando termina",
+        ["productId"] = "el producto",
+        ["categoryId"] = "la categoría",
+        ["badge"] = "la etiqueta",
+        ["mobileImage"] = "la imagen para celular",
+        ["couponCode"] = "el cupón",
+        ["trigger"] = "cuándo aparece",
+        ["delaySeconds"] = "los segundos de espera",
+        ["frequency"] = "cada cuánto aparece",
+        ["frequencyDays"] = "los días entre apariciones",
+        ["body"] = "el texto",
+        ["count"] = "la cantidad",
+        ["columnsDesktop"] = "las columnas en computadora",
+        ["columnsMobile"] = "las columnas en celular",
+        ["blocks"] = "los bloques",
+        ["url"] = "el link del video",
+        ["file"] = "el video",
     };
 
     public static IReadOnlyList<ThemeValidationError> Validate(JsonElement config)
@@ -189,8 +209,147 @@ public static partial class ThemeConfigValidator
             case "items":
                 ValidateItems(spec, value, path, what, errors);
                 break;
+            case "number":
+                ValidateNumber(spec, value, path, what, errors);
+                break;
+            case "datetime":
+                if (CheckString(value, MaxDateTimeLength, path, what, errors) && !IsDateTime(value.GetString()!))
+                    errors.Add(new(path, $"{what} no es una fecha y hora válida."));
+                break;
+            case "richtext":
+                ValidateRichText(spec, value, path, what, errors);
+                break;
         }
     }
+
+    private const int MaxDateTimeLength = 40;
+
+    private static void ValidateNumber(JsonElement spec, JsonElement value, string path, string what, List<ThemeValidationError> errors)
+    {
+        var min = spec.GetProperty("min").GetInt32();
+        var max = spec.GetProperty("max").GetInt32();
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var n)
+            && n == Math.Floor(n) && n >= min && n <= max)
+            return;
+        errors.Add(new(path, $"{what} tiene que ser un número entero entre {min} y {max}."));
+    }
+
+    /// <summary>
+    /// Vacío (sin fecha) o ISO 8601 completo, con zona: lo que guarda el editor
+    /// (siempre en UTC). Una fecha sin zona se leería distinto según el servidor.
+    /// </summary>
+    private static bool IsDateTime(string value) =>
+        value.Length == 0
+        || (IsoDateTimeRegex().IsMatch(value)
+            && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _));
+
+    /// <summary>Nodos del texto con formato que se aceptan (ver rich-text.ts en shared/types).</summary>
+    private static readonly HashSet<string> RichBlocks = ["paragraph", "heading", "bulletList", "orderedList", "blockquote"];
+    private static readonly HashSet<string> RichInlines = ["text", "hardBreak"];
+    private static readonly HashSet<string> RichMarks = ["bold", "italic", "link"];
+    private const int RichMaxDepth = 6;
+
+    /// <summary>
+    /// Texto con formato: un árbol con una lista cerrada de nodos y marcas, con
+    /// tope de tamaño. La tienda lo dibuja con esa misma lista (nunca como
+    /// HTML), pero guardar algo de más igual se rechaza: el editor no tiene por
+    /// qué mandar un nodo que no conoce, y un link "javascript:" no se guarda.
+    /// </summary>
+    private static void ValidateRichText(JsonElement spec, JsonElement value, string path, string what, List<ThemeValidationError> errors)
+    {
+        if (RichType(value) != "doc")
+        {
+            errors.Add(new(path, $"{what} no es un texto con formato válido."));
+            return;
+        }
+        var max = spec.GetProperty("max").GetInt32();
+        var length = value.GetRawText().Length;
+        if (length > max)
+        {
+            errors.Add(new(path, $"{what} es demasiado largo ({length} caracteres con su formato y el máximo es {max})."));
+            return;
+        }
+        if (Content(value) is { } content && RichBlocksProblem(content, 1) is { } problem)
+            errors.Add(new(path, $"{what} {problem}"));
+    }
+
+    private static JsonElement? Content(JsonElement node) =>
+        node.TryGetProperty("content", out var c) && c.ValueKind is not JsonValueKind.Null ? c : null;
+
+    /// <summary>El primer problema de una lista de bloques, o null si está bien.</summary>
+    private static string? RichBlocksProblem(JsonElement blocks, int depth)
+    {
+        if (blocks.ValueKind != JsonValueKind.Array) return "no es un texto con formato válido.";
+        if (depth > RichMaxDepth) return $"tiene más de {RichMaxDepth} niveles anidados.";
+        foreach (var node in blocks.EnumerateArray())
+        {
+            var type = RichType(node);
+            if (type is null || !RichBlocks.Contains(type))
+                return $"tiene un elemento que no se puede guardar («{type ?? "?"}»).";
+            var content = Content(node);
+            var problem = type switch
+            {
+                "paragraph" => content is { } p ? RichInlineProblem(p) : null,
+                "heading" => !IsHeadingLevel(node)
+                    ? "tiene un título de un nivel que no existe."
+                    : content is { } h ? RichInlineProblem(h) : null,
+                "bulletList" or "orderedList" => content is { } items ? RichItemsProblem(items, depth) : "tiene una lista vacía.",
+                _ => content is { } q ? RichBlocksProblem(q, depth + 1) : "tiene una cita vacía.",
+            };
+            if (problem is not null) return problem;
+        }
+        return null;
+    }
+
+    private static bool IsHeadingLevel(JsonElement node) =>
+        node.TryGetProperty("attrs", out var attrs) && attrs.ValueKind == JsonValueKind.Object
+        && attrs.TryGetProperty("level", out var level) && level.ValueKind == JsonValueKind.Number
+        && level.TryGetInt32(out var l) && l is >= 2 and <= 4;
+
+    private static string? RichItemsProblem(JsonElement items, int depth)
+    {
+        if (items.ValueKind != JsonValueKind.Array) return "tiene una lista que no es válida.";
+        foreach (var item in items.EnumerateArray())
+        {
+            if (RichType(item) != "listItem") return "tiene una lista con un elemento que no es válido.";
+            if (Content(item) is { } c && RichBlocksProblem(c, depth + 1) is { } problem) return problem;
+        }
+        return null;
+    }
+
+    private static string? RichInlineProblem(JsonElement inline)
+    {
+        if (inline.ValueKind != JsonValueKind.Array) return "tiene un párrafo que no es válido.";
+        foreach (var node in inline.EnumerateArray())
+        {
+            var type = RichType(node);
+            if (type is null || !RichInlines.Contains(type))
+                return $"tiene un elemento que no se puede guardar («{type ?? "?"}»).";
+            if (type == "hardBreak") continue;
+            if (!node.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.String)
+                return "tiene un texto que no es válido.";
+            if (!node.TryGetProperty("marks", out var marks) || marks.ValueKind == JsonValueKind.Null) continue;
+            if (marks.ValueKind != JsonValueKind.Array) return "tiene un formato que no es válido.";
+            foreach (var mark in marks.EnumerateArray())
+            {
+                var m = RichType(mark);
+                if (m is null || !RichMarks.Contains(m)) return $"tiene un formato que no se puede guardar («{m ?? "?"}»).";
+                if (m == "link" && !IsSafeRichLink(mark))
+                    return "tiene un link que no es válido (usá una dirección web, una ruta de la tienda, mailto: o tel:).";
+            }
+        }
+        return null;
+    }
+
+    private static bool IsSafeRichLink(JsonElement mark) =>
+        mark.TryGetProperty("attrs", out var attrs) && attrs.ValueKind == JsonValueKind.Object
+        && attrs.TryGetProperty("href", out var h) && h.ValueKind == JsonValueKind.String
+        && h.GetString()!.Length <= ThemeContract.Limit("url") && IsSafe(h.GetString()!, LinkSchemes);
+
+    private static string? RichType(JsonElement node) =>
+        node.ValueKind == JsonValueKind.Object && node.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
+            ? t.GetString()
+            : null;
 
     private static void ValidateStrings(JsonElement spec, JsonElement value, string path, string what, List<ThemeValidationError> errors)
     {
@@ -290,4 +449,7 @@ public static partial class ThemeConfigValidator
 
     [GeneratedRegex(@"^(\d{1,3}) (\d{1,3}) (\d{1,3})$")]
     private static partial Regex RgbRegex();
+
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,7})?)?(Z|[+-]\d{2}:\d{2})$")]
+    private static partial Regex IsoDateTimeRegex();
 }
