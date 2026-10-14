@@ -959,7 +959,7 @@ describe('checkout: envío gratis desde un monto', () => {
 });
 
 describe('checkout: comprador con sesión', () => {
-  it('arranca con sus datos y la dirección de su última compra, sin pisar lo que ya escribió', async () => {
+  it('arranca con su email y su dirección guardada, sin pisar lo que ya escribió', async () => {
     store({ methods: { ...fixture('/api/v1/shipping/methods'), items: [DELIVERY] } });
     localStorage.setItem(
       `tiendafy.shop.user.${fixtureTenantId}`,
@@ -967,13 +967,24 @@ describe('checkout: comprador con sesión', () => {
     );
     sessionStorage.setItem(buyerStorageKey(fixtureTenantId), JSON.stringify({ phone: '1100000000' }));
     api.on('GET', '/api/v1/shop/auth/me', { id: 'c1', name: 'Ana García', email: 'ana@example.com' });
-    api.on('GET', '/api/v1/shop/checkout-prefill', {
-      email: 'ana@example.com',
-      name: 'Ana',
-      lastName: 'García',
-      phone: '1155554444',
-      docNumber: '30111222',
-      address: { street: 'Corrientes', streetNumber: '1234', apartment: '3B', city: 'CABA', zip: '1043' },
+    api.on('GET', '/api/v1/shop/addresses/', {
+      items: [
+        {
+          id: 'a1',
+          label: 'Casa',
+          name: 'Ana',
+          lastName: 'García',
+          phone: '1155554444',
+          doc: '30111222',
+          street: 'Corrientes',
+          streetNumber: '1234',
+          apartment: '3B',
+          city: 'CABA',
+          province: 'C',
+          zip: '1043',
+          isDefault: true,
+        },
+      ],
     });
     const user = await open();
     await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));

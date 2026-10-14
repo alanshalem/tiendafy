@@ -14,6 +14,7 @@ import { InitialFallback } from './InitialFallback';
 import { PreviewContext, usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { useStoreOffers } from './store-offers-context';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import {
   fetchVariantSnapshots,
@@ -645,6 +646,7 @@ export function CartDrawer({
                 <span>Subtotal</span>
                 <span className="tabular-nums">{formatMoney(finalTotal, currency)}</span>
               </div>
+              <PriceWithoutTaxes amount={finalTotal} currency={currency} className="text-right" />
               <p className="mb-3 text-xs text-fg-muted">
                 {threshold > 0 && remaining === 0
                   ? `Envío gratis${offers?.freeShipping?.methodName ? ` con ${offers.freeShipping.methodName}` : ''}.`

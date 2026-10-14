@@ -1,4 +1,3 @@
-using Api.Endpoints;
 using Checkout.Core.Domain;
 using Orders.Core.Domain;
 using SharedKernel.Common;
@@ -112,23 +111,5 @@ public class OrderOfflinePaymentTests
         Assert.True(options.Offers(OfflinePaymentMethod.Transfer, isPickup: false));
         Assert.True(options.Offers(OfflinePaymentMethod.Cash, isPickup: true));
         Assert.False(options.Offers(OfflinePaymentMethod.Cash, isPickup: false));
-    }
-
-    [Theory]
-    [InlineData("San Martín 123, 4B, Córdoba, CP 5000", "San Martín", "123", "4B", "Córdoba", "5000")]
-    [InlineData("Av. Corrientes 1234, CABA, CP 1043", "Av. Corrientes", "1234", "", "CABA", "1043")]
-    [InlineData("Sin número, Rosario", "Sin número", "", "", "Rosario", "")]
-    public void La_ultima_direccion_se_desarma_para_completar_el_checkout(
-        string line, string street, string number, string apartment, string city, string zip)
-    {
-        var a = ShopCheckoutPrefillEndpoints.ParseAddress(line);
-        Assert.Equal((street, number, apartment, city, zip), (a.Street, a.StreetNumber, a.Apartment, a.City, a.Zip));
-    }
-
-    [Fact]
-    public void El_apellido_es_la_ultima_palabra()
-    {
-        Assert.Equal(("Ana María", "Pérez"), ShopCheckoutPrefillEndpoints.SplitName("Ana María Pérez"));
-        Assert.Equal(("Ana", (string?)null), ShopCheckoutPrefillEndpoints.SplitName("Ana"));
     }
 }

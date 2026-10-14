@@ -71,7 +71,6 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "PUT /api/v1/shop/favorites/{productId:guid}",
             "DELETE /api/v1/shop/favorites/{productId:guid}",
             "GET /api/v1/shop/orders",
-            "GET /api/v1/shop/checkout-prefill",
             "GET /api/v1/shop/orders/{id:guid}",
             "GET /api/v1/shop/orders/{id:guid}/invoice.pdf",
             "GET /api/v1/shop/addresses/",

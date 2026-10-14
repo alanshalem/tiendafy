@@ -41,6 +41,8 @@ import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
 import { CheckoutSkeleton } from './CheckoutSkeleton';
 import { useAuth } from './auth';
 import type { StoreOffers } from '@/lib/store-offers';
+import { defaultAddress, fetchSavedAddresses } from '@/lib/addresses';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 
 interface ShippingOption {
   id: string;
@@ -127,16 +129,6 @@ const METHOD_LABEL: Record<PayMethod, string> = {
 export interface CheckoutContact {
   whatsapp?: string | null;
   email?: string | null;
-}
-
-/** Lo que devuelve /shop/checkout-prefill para un comprador con sesión. */
-interface Prefill {
-  email?: string | null;
-  name?: string | null;
-  lastName?: string | null;
-  phone?: string | null;
-  docNumber?: string | null;
-  address?: { street: string; streetNumber: string; apartment: string; city: string; zip: string } | null;
 }
 
 // Tope de espera de cada pedido a la API: un servidor que no contesta no puede
@@ -286,36 +278,40 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
     }
   }, [tenantId]);
 
-  // Comprador con sesión: arranca con sus datos y la dirección de su última
-  // compra con envío. Solo completa lo que está vacío: lo que ya escribió en
-  // esta pestaña (o trajo de un intento anterior) manda.
+  // Comprador con sesión: arranca con su email de la cuenta y su dirección
+  // guardada (la predeterminada, de Mi cuenta). Solo completa lo que está
+  // vacío: lo que ya escribió en esta pestaña (o trajo de un intento anterior)
+  // manda.
   const prefilled = useRef(false);
   useEffect(() => {
     if (!user || prefilled.current) return;
     prefilled.current = true;
-    fetch(`${API}/api/v1/shop/checkout-prefill`, {
-      headers: tenantHeaders(tenantId),
-      credentials: 'include',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    })
-      .then((r) => (r.ok ? (r.json() as Promise<Prefill>) : null))
-      .then((p) => {
-        if (!p) return;
-        const found: Partial<Buyer> = {
-          email: p.email ?? '',
-          name: p.name ?? '',
-          lastName: p.lastName ?? '',
-          phone: p.phone ?? '',
-          doc: p.docNumber ?? '',
-          ...(p.address ?? {}),
-        };
-        const next = { ...buyerRef.current };
-        for (const key of FIELD_ORDER) {
-          const value = found[key];
-          if (value && !next[key].trim()) next[key] = value;
-        }
-        buyerRef.current = next;
-        setBuyer(next);
+    const [first = '', ...rest] = user.name.trim().split(/\s+/);
+    const fill = (found: Partial<Buyer>) => {
+      const next = { ...buyerRef.current };
+      for (const key of FIELD_ORDER) {
+        const value = found[key];
+        if (value && !next[key].trim()) next[key] = value;
+      }
+      buyerRef.current = next;
+      setBuyer(next);
+    };
+    fill({ email: user.email, name: first, lastName: rest.join(' ') });
+    fetchSavedAddresses(tenantId)
+      .then((items) => {
+        const a = defaultAddress(items);
+        if (!a) return;
+        fill({
+          name: a.name,
+          lastName: a.lastName ?? '',
+          phone: a.phone ?? '',
+          doc: a.doc ?? '',
+          street: a.street,
+          streetNumber: a.streetNumber,
+          apartment: a.apartment ?? '',
+          city: a.city,
+          zip: a.zip,
+        });
       })
       .catch(() => undefined);
   }, [user, tenantId]);
@@ -1540,6 +1536,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
               <span>Total</span>
               <span className="tabular-nums">{formatMoney(total, currency)}</span>
             </div>
+            <PriceWithoutTaxes amount={total} currency={currency} className="text-right" />
           </div>
 
           {!coupon && (
