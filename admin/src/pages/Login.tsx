@@ -30,7 +30,9 @@ function AuthField({ label, ...input }: { label: string } & InputHTMLAttributes<
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+    // `main`: sin él la pantalla de entrada no tenía región principal y un
+    // lector de pantalla no podía saltar directo al formulario.
+    <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-7 shadow-card">
         <div className="mb-6 flex items-center gap-2.5">
           <LogoMark className="h-9 w-9" />
@@ -38,7 +40,7 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
         {children}
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -366,14 +368,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-subtle">
-        <Spinner inline size={24} className="text-fg-muted" />
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-bg-subtle">
+        <Spinner inline size={24} label="Cargando" className="text-fg-muted" />
+      </main>
     );
   }
   if (!user && unreachable) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
+      <main className="flex min-h-screen items-center justify-center bg-bg-subtle px-4">
         <div role="alert" className="max-w-sm text-center">
           <p className="text-base font-semibold text-fg">No pudimos conectar con el servidor</p>
           <p className="mt-1 text-sm text-fg-muted">
@@ -387,7 +389,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
             Reintentar
           </button>
         </div>
-      </div>
+      </main>
     );
   }
   if (!user) return <Login />;

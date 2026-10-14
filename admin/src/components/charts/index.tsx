@@ -80,10 +80,11 @@ export function ChartCard({
   return (
     <div className={cn(SETTINGS_CARD, className)}>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+        {/* h2: va directo debajo del h1 de la página; con h3 se salteaba un nivel. */}
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
           {title}
           {info && <InfoDot info={info} />}
-        </h3>
+        </h2>
         {action}
       </div>
       {children}

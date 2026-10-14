@@ -16,7 +16,7 @@ export function Pagination({
   const win = buildPageWindow(page, totalPages);
 
   return (
-    <nav className="flex items-center justify-center gap-1.5 pt-3">
+    <nav aria-label="Páginas" className="flex items-center justify-center gap-1.5 pt-3">
       <Btn disabled={page <= 1} onClick={() => onPage(page - 1)} label="Anterior">
         <ChevronLeft className="h-4 w-4" />
       </Btn>

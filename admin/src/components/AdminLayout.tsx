@@ -142,7 +142,8 @@ export function AdminLayout() {
         <span className="text-lg font-bold">tiendafy</span>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      {/* Con nombre: con el paginador eran dos "navegación" iguales para un lector de pantalla. */}
+      <nav aria-label="Menú principal" className="flex-1 space-y-5 overflow-y-auto p-3">
         {visibleSections.map((section) => (
           <div key={section.heading ?? 'top'}>
             {section.heading && (

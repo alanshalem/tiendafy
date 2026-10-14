@@ -28,7 +28,7 @@ export function SettingsLayout() {
         <span className="text-sm font-bold">Configuración</span>
       </button>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      <nav aria-label="Secciones de configuración" className="flex-1 space-y-5 overflow-y-auto p-3">
         {visibleGroups.map((group) => (
           <div key={group.heading}>
             <div className="px-3 pb-1.5 text-3xs font-bold uppercase tracking-widest text-accent-fg/65">
