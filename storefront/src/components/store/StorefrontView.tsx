@@ -123,9 +123,10 @@ export function StorefrontView({
     };
   }, [live, theme, tenantId, products]);
 
-  // Favicon de la tienda en la pestaña del navegador (y en vivo en el preview).
+  // En la tienda, el favicon sale del servidor (metadata del layout). Acá solo
+  // se cambia en vivo en el preview, cuando el comercio sube otro en el editor.
   useEffect(() => {
-    if (!theme.favicon) return;
+    if (!live || !theme.favicon) return;
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) {
       link = document.createElement('link');
@@ -137,7 +138,7 @@ export function StorefrontView({
     return () => {
       if (link) link.href = previous;
     };
-  }, [theme.favicon]);
+  }, [live, theme.favicon]);
 
   return (
     <div

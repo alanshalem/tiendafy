@@ -3,7 +3,8 @@
  * borrador del tema por postMessage SOLO desde el origin del panel, enfoca la
  * sección que se está editando, abre el carrito cuando se edita el carrito y
  * trae al vuelo un producto destacado recién elegido. Fuera del editor, la
- * misma vista pone el favicon, el CSS propio (saneado) y el botón de WhatsApp.
+ * misma vista pone el CSS propio (saneado) y el botón de WhatsApp; el favicon
+ * lo pone el servidor (metadata del layout) y acá solo cambia en vivo.
  */
 import { act, screen } from '@testing-library/react';
 import { render } from '@testing-library/react';
@@ -53,6 +54,14 @@ afterEach(() => {
 });
 
 describe('vista previa del editor', () => {
+  it('el favicon que sube el comercio se ve en vivo', async () => {
+    view({ live: true, theme: { ...theme, favicon: 'https://cdn.example.com/favicon.png' } });
+    await settle(2);
+    expect(document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href).toBe(
+      'https://cdn.example.com/favicon.png',
+    );
+  });
+
   it('aplica el borrador que manda el panel, y solo el del panel', async () => {
     view({ live: true });
     await settle(2);
@@ -139,7 +148,7 @@ describe('vista previa del editor', () => {
 });
 
 describe('la tienda publicada', () => {
-  it('favicon, CSS propio saneado y botón de WhatsApp', async () => {
+  it('CSS propio saneado y botón de WhatsApp (el favicon ya vino del servidor)', async () => {
     const { unmount } = view({
       theme: {
         ...theme,
@@ -154,9 +163,7 @@ describe('la tienda publicada', () => {
       },
     });
     await settle(2);
-    expect(document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href).toBe(
-      'https://cdn.example.com/favicon.png',
-    );
+    expect(document.querySelector('link[rel="icon"]')).toBeNull();
     // El <style> de la tienda (el setup de los tests agrega otro en el <head>).
     const css = document.querySelector('body style')!.innerHTML;
     expect(css).toContain('color: red');

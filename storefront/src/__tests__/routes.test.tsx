@@ -11,9 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET as sitemap } from '../app/sitemap.xml/route';
 import robots from '../app/robots';
-import NotFound from '../app/not-found';
+import NotFound, { generateMetadata as notFoundMetadata } from '../app/not-found';
 import ErrorPage from '../app/error';
-import RootLayout from '../app/layout';
+import RootLayout, { generateMetadata as layoutMetadata } from '../app/layout';
 import { proxy } from '../proxy';
 import { ComingSoon } from '../components/store/ComingSoon';
 import { NewsletterForm } from '../components/store/NewsletterForm';
@@ -76,9 +76,9 @@ describe('sitemap y robots', () => {
     expect(xml).toContain('<loc>http://seed.localhost:3000/</loc>');
   });
 
-  it('robots apunta al sitemap absoluto y deja afuera checkout y favoritos', async () => {
+  it('robots apunta al sitemap absoluto y no bloquea nada (lo privado va con noindex)', async () => {
     expect(await robots()).toEqual({
-      rules: { userAgent: '*', allow: '/', disallow: ['/checkout', '/favoritos'] },
+      rules: { userAgent: '*', allow: '/' },
       sitemap: 'http://seed.localhost:3000/sitemap.xml',
     });
     nav.at('/', 'tienda.example.com');
@@ -123,6 +123,35 @@ describe('404 y errores', () => {
     render(<ErrorPage error={new Error('x')} reset={reset} />);
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(reset).toHaveBeenCalled();
+  });
+
+  it('el 404 se titula con la tienda', async () => {
+    const tenant = fixture<{ name: string }>(`/api/v1/tenants/${fixtureTenantId}`);
+    expect((await notFoundMetadata()).title).toEqual({ absolute: `Página no encontrada · ${tenant.name}` });
+    api.on('GET', '/api/v1/tenants/resolve', {}, 404);
+    expect((await notFoundMetadata()).title).toEqual({ absolute: 'Página no encontrada' });
+  });
+
+  it('el layout raíz pone la plantilla del título con la tienda y su favicon', async () => {
+    const tenant = fixture<{ name: string }>(`/api/v1/tenants/${fixtureTenantId}`);
+    const theme = fixture<Record<string, unknown>>('/api/v1/theme');
+    api.on('GET', '/api/v1/theme', {
+      ...theme,
+      favicon: 'https://cdn.example.com/fav.png',
+      seoDescription: '',
+    });
+    expect(await layoutMetadata()).toEqual({
+      title: { template: `%s · ${tenant.name}`, default: tenant.name },
+      description: `Comprá online en ${tenant.name}.`,
+      icons: { icon: 'https://cdn.example.com/fav.png' },
+    });
+
+    // Sin favicon propio, el de Tiendafy (en public/, no app/: ver layout).
+    api.on('GET', '/api/v1/theme', { ...theme, favicon: '' });
+    expect((await layoutMetadata()).icons).toEqual({ icon: '/icon.svg' });
+
+    api.on('GET', '/api/v1/tenants/resolve', {}, 404);
+    expect((await layoutMetadata()).title).toBe('Tienda online');
   });
 
   it('el layout raíz publica la config de runtime antes que los bundles', () => {

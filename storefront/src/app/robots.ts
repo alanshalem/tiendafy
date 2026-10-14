@@ -9,10 +9,12 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const host = (await headers()).get('host') ?? 'localhost:3000';
   const proto = host.includes('localhost') ? 'http' : 'https';
   return {
+    // Sin Disallow: el checkout, la cuenta, los favoritos y la vista previa
+    // llevan meta robots noindex (ver lib/seo.ts). Bloqueados acá, Google no
+    // podía leer ese noindex.
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/checkout', '/favoritos'],
     },
     sitemap: `${proto}://${host}/sitemap.xml`,
   };
