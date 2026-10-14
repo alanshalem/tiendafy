@@ -45,7 +45,9 @@ function Column({ item, center }: { item: IconColumnItem; center: boolean }) {
           href={href}
           className="mt-auto inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-2 hover:opacity-80"
         >
-          {item.title ? `Ver más sobre ${item.title}` : 'Ver más'}
+          Ver más
+          {/* El destino completo, para quien no ve la columna entera. */}
+          {item.title && <span className="sr-only">{` sobre ${item.title}`}</span>}
         </StoreLink>
       )}
     </div>
