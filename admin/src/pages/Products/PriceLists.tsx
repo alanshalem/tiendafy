@@ -13,6 +13,7 @@ import {
   useToast,
   EmptyList,
   PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -463,8 +464,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
             </p>
           )}
         </div>
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar en la lista"
           className="w-64"
           value={search}

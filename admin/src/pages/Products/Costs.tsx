@@ -1,7 +1,18 @@
 import { useState, useId } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Modal, Select, useConfirm, useToast, Spinner, PageHeader } from '@tiendafy/ui';
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Select,
+  useConfirm,
+  useToast,
+  Spinner,
+  PageHeader,
+  SearchInput,
+} from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
@@ -186,8 +197,7 @@ export function CostsPage() {
 
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar en costos"
             placeholder="Buscar por producto o SKU…"
             value={search}

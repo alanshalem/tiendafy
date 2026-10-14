@@ -18,6 +18,7 @@ import {
   type BadgeVariant,
   EmptyList,
   PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -223,8 +224,7 @@ function QuoteList({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar presupuestos"
           className="w-64"
           value={search}

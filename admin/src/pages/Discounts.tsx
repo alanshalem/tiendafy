@@ -17,6 +17,7 @@ import {
   useToast,
   type BadgeVariant,
   type TableColumn,
+  SearchInput,
 } from '@tiendafy/ui';
 import { formatMoney, formatDate } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -237,8 +238,7 @@ export function DiscountsPage() {
         />
       ) : (
         <Card flush>
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar cupón por código"
             placeholder="Buscar cupón por código…"
             className="mb-3"

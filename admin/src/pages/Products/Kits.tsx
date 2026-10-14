@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2 } from 'lucide-react';
-import { Button, Card, Input, useToast, PageHeader } from '@tiendafy/ui';
+import { Button, Card, Input, useToast, PageHeader, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { replaceAt } from '../../lib/arrays';
 import { api, errMsg } from '../../lib/api';
@@ -119,8 +119,7 @@ export function KitsPage() {
             </div>
           </Card>
 
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar kits"
             placeholder="Buscar kit por nombre, SKU o componente…"
             value={listSearch}

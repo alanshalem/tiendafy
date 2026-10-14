@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
-import { Badge, cn, Input, useToast, EmptyList, PageHeader, Tabs } from '@tiendafy/ui';
+import { Badge, cn, useToast, EmptyList, PageHeader, Tabs, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -125,8 +125,7 @@ export function MessagesPage() {
         onChange={(id) => list.set({ filtro: id, pagina: page })}
       />
 
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar mensajes"
         placeholder="Buscar por nombre, email o texto del mensaje…"
         className="mb-3"

@@ -15,6 +15,7 @@ import {
   EmptyList,
   PageHeader,
   Tabs,
+  SearchInput,
 } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
@@ -173,8 +174,7 @@ export function ReviewsPage() {
       )}
 
       <div className="mb-3 flex flex-wrap gap-2">
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Buscar reseñas"
           placeholder="Buscar por producto, texto o email…"
           className="min-w-0 flex-1"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, MessageSquare, Search, Send, X } from 'lucide-react';
+import { FileText, MessageSquare, Send, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
   useConfirm,
   useToast,
   type BadgeVariant,
+  SearchInput,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -306,17 +307,13 @@ export function VentasTab() {
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[14rem] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-          <Input
-            type="search"
-            aria-label="Buscar ventas de Mercado Libre"
-            className="pl-8"
-            placeholder="Buscar por comprador, número de venta o producto…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          className="min-w-[14rem] flex-1"
+          aria-label="Buscar ventas de Mercado Libre"
+          placeholder="Buscar por comprador, número de venta o producto…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <div className="w-full sm:w-52">
           <Select
             aria-label="Filtrar ventas de Mercado Libre"

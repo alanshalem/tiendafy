@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Badge, Button, Card, Input, useToast, PageHeader } from '@tiendafy/ui';
+import { Badge, Button, Card, Input, useToast, PageHeader, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
@@ -250,8 +250,7 @@ export function InventoryPage() {
         </div>
       )}
 
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar en el inventario"
         placeholder="Buscar por producto o SKU…"
         value={search}

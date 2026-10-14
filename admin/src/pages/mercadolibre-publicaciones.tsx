@@ -5,13 +5,13 @@ import {
   Button,
   cn,
   EmptyList,
-  Input,
   Modal,
   Select,
   Spinner,
   useConfirm,
   useToast,
   type BadgeVariant,
+  SearchInput,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useProductSearch } from '../lib/useProductSearch';
@@ -412,8 +412,7 @@ function ProductFinder({
 
   return (
     <div>
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => onSearch(e.target.value)}

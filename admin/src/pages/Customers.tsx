@@ -10,7 +10,6 @@ import {
   Pencil,
   Trash2,
   Plus,
-  Search,
   UserPlus,
   UserRound,
 } from 'lucide-react';
@@ -28,6 +27,7 @@ import {
   type TableColumn,
   Spinner,
   PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -380,13 +380,10 @@ export function CustomersPage() {
             e.preventDefault();
             list.set({ q: term }, { replace: true });
           }}
-          className="relative min-w-[14rem] flex-1 sm:max-w-xs"
+          className="min-w-[14rem] flex-1 sm:max-w-xs"
         >
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar clientes"
-            className="pl-8"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Nombre, email o teléfono"

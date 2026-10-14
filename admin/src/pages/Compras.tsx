@@ -14,6 +14,7 @@ import {
   useConfirm,
   useToast,
   PageHeader,
+  SearchInput,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -201,8 +202,7 @@ function ComprasList({
         <>
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
-              <Input
-                type="search"
+              <SearchInput
                 aria-label="Buscar compras"
                 placeholder="Buscar por proveedor o referencia…"
                 value={search}

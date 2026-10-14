@@ -12,7 +12,7 @@ import {
   X as XIcon,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
+import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast, SearchInput } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
@@ -475,8 +475,7 @@ function CatalogImagePicker({
 
   return (
     <Modal open onClose={onClose} title="Imagen del catálogo" size="lg">
-      <Input
-        type="search"
+      <SearchInput
         aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => setSearch(e.target.value)}

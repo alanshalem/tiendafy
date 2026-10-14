@@ -6,7 +6,6 @@ import {
   Checkbox,
   clickableRowProps,
   cn,
-  Input,
   Select,
   useToast,
   useConfirm,
@@ -15,6 +14,7 @@ import {
   EmptyList,
   PageHeader,
   Button,
+  SearchInput,
 } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -652,17 +652,12 @@ function OrderFilters({
     'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary';
   return (
     <div className="mb-2 space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-        <Input
-          type="search"
-          aria-label="Buscar ventas"
-          className="pl-8"
-          placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-        />
-      </div>
+      <SearchInput
+        aria-label="Buscar ventas"
+        placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
+        value={search}
+        onChange={(e) => onSearch(e.target.value)}
+      />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Select
           aria-label="Filtrar por estado"

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Input } from '@tiendafy/ui';
+import { SearchInput } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { Z_ANCHORED } from '../lib/styles';
 import { variantLabel, type CatalogProduct } from '../lib/products';
@@ -51,8 +51,7 @@ export function VariantPicker({
 
   return (
     <div className="relative">
-      <Input
-        type="search"
+      <SearchInput
         aria-label={placeholder}
         placeholder={placeholder}
         value={search}

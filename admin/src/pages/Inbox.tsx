@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Inbox as InboxIcon, MessagesSquare } from 'lucide-react';
-import { cn, Input, Select, Spinner, PageHeader, Tabs } from '@tiendafy/ui';
+import { cn, Select, Spinner, PageHeader, Tabs, SearchInput } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -161,8 +161,7 @@ export function InboxPage() {
           />
         </div>
         <div className="min-w-[12rem] flex-1">
-          <Input
-            type="search"
+          <SearchInput
             aria-label="Buscar en la bandeja"
             placeholder="Buscar por nombre, email o texto…"
             value={search}

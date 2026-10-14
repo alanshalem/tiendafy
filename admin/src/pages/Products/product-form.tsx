@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Sparkles } from 'lucide-react';
-import { FormField, Input, Textarea, useToast, Spinner } from '@tiendafy/ui';
+import { FormField, Input, Textarea, useToast, Spinner, SearchInput } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { foldText } from '../../lib/text';
@@ -124,8 +124,7 @@ export function CategoriesSection({
           {/* Con pocas categorías el buscador sobra; con sesenta, encontrar
               "Discos" a ojo entre todas era lo más lento de cargar un producto. */}
           {items.length > CATEGORY_SEARCH_FROM && (
-            <Input
-              type="search"
+            <SearchInput
               aria-label="Buscar categoría"
               placeholder="Buscar categoría…"
               value={query}

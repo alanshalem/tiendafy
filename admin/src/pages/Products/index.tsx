@@ -1,8 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Search, Trash2, Upload, X } from 'lucide-react';
-import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast } from '@tiendafy/ui';
+import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast, SearchInput } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -440,17 +440,13 @@ export function ProductsPage() {
         <>
           {/* Toolbar búsqueda + filtros + orden */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[16rem]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-              <input
-                type="search"
-                aria-label="Buscar productos"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, SKU o tags"
-                className="h-10 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            <SearchInput
+              className="min-w-[16rem] flex-1"
+              aria-label="Buscar productos"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, SKU o tags"
+            />
             <button
               type="button"
               onClick={() => {
