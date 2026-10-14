@@ -1,0 +1,217 @@
+# E2E con Playwright contra el stack entero levantado en el runner: Postgres
+# (servicio), la API (.NET, Development: migraciones al arrancar y el admin
+# del seed) y los builds de producción del storefront y el panel.
+#
+# Un workflow propio y no un job de frontend-ci: el e2e se rompe igual con un
+# cambio del backend que con uno del panel, y frontend-ci no corre cuando solo
+# se toca backend/. Hasta oct-2026 Playwright no corría en ningún CI y la suite
+# estuvo rota días sin que nadie lo viera.
+#
+# La base arranca vacía y la llena el propio e2e (E2E_SEED=1 → tests/seed.setup.ts):
+# una tienda fija con catálogo, transferencia, envío y la demo de ventas del
+# backend. Ninguna pasarela de pago se toca: el camino crítico paga por
+# transferencia.
+name: E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'storefront/**'
+      - 'admin/**'
+      - 'shared/**'
+      - 'e2e/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'storefront/**'
+      - 'admin/**'
+      - 'shared/**'
+      - 'e2e/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/e2e.yml'
+
+  # A mano desde Actions, para re-verificar main sin tener que tocar código.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push nuevo al mismo PR deja sin sentido la corrida anterior.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tiendafy
+          POSTGRES_PASSWORD: tiendafy
+          POSTGRES_DB: tiendafy
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tiendafy"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Los puertos de siempre del dev: son los defaults de e2e/tests/_helpers.ts.
+      API_URL: http://localhost:5080
+      NEXT_PUBLIC_API_URL: http://localhost:5080
+      NEXT_PUBLIC_ADMIN_ORIGIN: http://localhost:5173
+      VITE_API_URL: http://localhost:5080
+      VITE_STOREFRONT_ORIGIN: http://{sub}.localhost:3000
+      PLATFORM_BASE_DOMAIN: localhost
+      # La tienda que siembra el e2e (y la que atiende localhost:3000 pelado).
+      E2E_STORE: e2etienda
+      PRIMARY_STORE_SUBDOMAIN: e2etienda
+      E2E_SEED: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # ---------------------------------------------------------------- API
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Caché de NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/**/*.csproj', 'backend/Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Build de la API
+        run: dotnet build backend/src/Api/Api.csproj --configuration Release
+
+      # Arranca ya: aplica las migraciones mientras se compilan los frontends.
+      # Development a propósito: crea el admin del seed y expone /dev/demo-seed
+      # y la purga de tiendas que usa el camino crítico para no dejar rastro.
+      - name: Arrancar la API
+        working-directory: backend/src/Api
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://localhost:5080
+          # Sin MinIO: el e2e no sube fotos.
+          Media__EnsureBucketOnStartup: 'false'
+          # El storefront de producción no trae el secreto de dev por defecto.
+          Storefront__RevalidateUrl: http://localhost:3000/internal/revalidate
+          Storefront__RevalidateSecret: e2e-revalidate-secret
+        run: nohup dotnet run --configuration Release --no-build --no-launch-profile > "$RUNNER_TEMP/api.log" 2>&1 &
+
+      # ---------------------------------------------------------- Frontends
+      - uses: pnpm/action-setup@v6.0.9
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Caché del build de Next
+        uses: actions/cache@v4
+        with:
+          path: storefront/.next/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('storefront/src/**', 'shared/**') }}
+          restore-keys: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      # Builds de producción y no los dev servers: sin compilar cada ruta en la
+      # primera visita, los tiempos son estables y no hacen falta márgenes de
+      # 60 s por página.
+      - name: Build storefront
+        run: pnpm --filter ./storefront run build
+
+      - name: Build admin
+        run: pnpm --filter ./admin run build
+
+      - name: Arrancar storefront y panel
+        env:
+          REVALIDATE_SECRET: e2e-revalidate-secret
+        run: |
+          nohup pnpm --filter ./storefront exec next start -p 3000 > "$RUNNER_TEMP/storefront.log" 2>&1 &
+          nohup pnpm --filter ./admin exec vite preview --port 5173 --strictPort > "$RUNNER_TEMP/admin.log" 2>&1 &
+
+      # ------------------------------------------------------------ Playwright
+      - name: Versión de Playwright
+        id: pw
+        working-directory: e2e
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Caché de Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+
+      # Solo Chromium (headless shell). Las dependencias del sistema van siempre:
+      # la caché guarda el navegador, no los paquetes de apt.
+      - name: Instalar Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter tiendafy-e2e exec playwright install --with-deps --only-shell chromium
+
+      - name: Dependencias de Chromium
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter tiendafy-e2e exec playwright install-deps chromium
+
+      - name: Esperar el stack
+        run: |
+          # El storefront vale con cualquier respuesta: la tienda de localhost:3000
+          # todavía no existe (la siembra el e2e) y su portada da 404.
+          wait_for() {
+            for _ in $(seq 1 90); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$2" || true)
+              if [ "$code" != "000" ] && { [ "$3" = any ] || [ "$code" = 200 ]; }; then
+                echo "$1 listo ($code)"; return 0
+              fi
+              sleep 2
+            done
+            echo "::error::$1 no respondió en $2"; return 1
+          }
+          wait_for API http://localhost:5080/health
+          wait_for Storefront http://localhost:3000/ any
+          wait_for Panel http://localhost:5173/
+
+      - name: Playwright
+        run: pnpm --filter tiendafy-e2e exec playwright test
+
+      # ----------------------------------------------------- Si algo falló
+      - name: Logs del stack
+        if: failure()
+        run: |
+          for f in api storefront admin; do
+            echo "::group::$f.log (últimas 200 líneas)"
+            tail -n 200 "$RUNNER_TEMP/$f.log" || true
+            echo "::endgroup::"
+          done
+
+      - name: Subir reporte, trazas y capturas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            ${{ runner.temp }}/*.log
+          retention-days: 7

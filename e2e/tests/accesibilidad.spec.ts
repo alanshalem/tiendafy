@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ADMIN, ADMIN_STATE, STORE_BASE } from './_helpers';
+import { ADMIN, ADMIN_STATE, storeUrl } from './_helpers';
 
 /**
  * Accesibilidad en un navegador de verdad, con axe-core. Complementa a los
@@ -12,8 +12,6 @@ import { ADMIN, ADMIN_STATE, STORE_BASE } from './_helpers';
  * en la tienda, con los colores que eligió el comercio (el texto sobre su
  * color se elige solo para que se lea).
  */
-const STORE = process.env.E2E_SMOKE_STORE ?? 'canicari';
-const storeUrl = (path = '/') => `http://${STORE}.${STORE_BASE}${path}`;
 const AXE = require.resolve('axe-core/axe.min.js');
 
 interface Violation {

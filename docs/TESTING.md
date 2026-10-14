@@ -19,13 +19,19 @@ un solo lugar para cada cosa compartida (fixtures, explorador, accesibilidad).
 | **Exploratorios ("monkey")** | Cada pantalla/página: aprieta cada botón, completa cada formulario con valores válidos, abre cada diálogo. Nada puede romperse | `interactions.test.tsx` (admin y tienda) | (parte de vitest) | ✅ |
 | **Accesibilidad (jsdom)** | axe-core (WCAG 2.1 A/AA sin layout) en cada pantalla, cada página y **cada diálogo que abre el explorador** | `a11y.test.tsx` + `interactions.test.tsx` | (parte de vitest) | ✅ |
 | **Regresión** | Cada bug que encontraron los tests tiene su test, que falla sin el arreglo | En el test de cada área (buscar "regresión") | (todo lo anterior) | ✅ |
-| **E2E** | El camino que factura (tienda → producto → carrito → checkout), pantallas críticas del panel | `e2e/tests` | `pnpm test:e2e` con el stack levantado | — |
-| **Smoke e2e** | Un despliegue está vivo: API, tienda por host, catálogo, sitemap/robots, login | `e2e/tests/smoke.spec.ts` (`@smoke`) | `pnpm test:smoke` | — |
-| **Accesibilidad (navegador)** | axe en Chromium, con contraste de color | `e2e/tests/accesibilidad.spec.ts` | (parte del e2e) | — |
+| **E2E** | El camino que factura (tienda → producto → checkout → pedido por transferencia → pago registrado en el panel, con envío gratis desde un monto), 404 y buscador predictivo, filtros en el celular, "en construcción" y token de vista previa, pantallas críticas del panel | `e2e/tests` | `pnpm test:e2e` con el stack levantado | ✅ (workflow E2E) |
+| **Smoke e2e** | Un despliegue está vivo: API, tienda por host, catálogo, sitemap/robots, login | `e2e/tests/smoke.spec.ts` (`@smoke`) | `pnpm test:smoke` | ✅ (parte del e2e) |
+| **Accesibilidad (navegador)** | axe en Chromium, con contraste de color | `e2e/tests/accesibilidad.spec.ts` | (parte del e2e) | ✅ (parte del e2e) |
 | **Carga y protección** | Usuarios virtuales recorriendo la tienda (p50/p95/p99); el rate limit corta el abuso con 429 | `scripts/load-test.mjs` | `pnpm test:load` / `pnpm test:load -- --mode protection` | — |
 
-Los e2e, el smoke y la carga necesitan el stack levantado (`.\dev-up.ps1`):
-no corren en CI. En desarrollo todo llega desde 127.0.0.1 (navegador,
+Los e2e, el smoke y la carga necesitan el stack levantado (`.\dev-up.ps1`).
+El e2e corre además en CI (`.github/workflows/e2e.yml`): Postgres como
+servicio, la API en Development y los builds de producción del storefront y
+el panel, sobre una base vacía que siembra `e2e/tests/seed.setup.ts`
+(`E2E_SEED=1`: una tienda fija con catálogo, transferencia, envío y la demo de
+ventas). Para correrlo contra otro stack: `E2E_API_URL`, `E2E_ADMIN_URL`,
+`E2E_STORE_DOMAIN` y `E2E_STORE`. Ninguna pasarela de pago se toca: el camino
+crítico paga por transferencia. En desarrollo todo llega desde 127.0.0.1 (navegador,
 storefront, panel, e2e), así que el techo global de pedidos es 5000/min en
 `appsettings.Development.json`; con el de producción (300/min) una corrida
 completa del e2e lo agotaba y fallaba al azar.

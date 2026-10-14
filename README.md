@@ -117,7 +117,7 @@ backend/     API .NET (src/Api) + 20 módulos (src/Modules/{Tenancy,Catalog,Orde
 storefront/  Next.js multi-tenant (la tienda que ve el comprador)
 admin/       SPA del panel del merchant (incluye el centro de ayuda en /ayuda)
 shared/      Paquetes pnpm compartidos (types, ui, design-system)
-e2e/         Tests Playwright punta a punta (contra el stack de dev)
+e2e/         Tests Playwright punta a punta (contra el stack de dev; en CI, workflow E2E)
 infra/       Docker compose (dev/app/prod), Caddy, nginx
 docs/        Documentación
 ```
