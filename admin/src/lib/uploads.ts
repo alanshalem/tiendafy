@@ -92,6 +92,16 @@ export const UPLOADS = {
     tip: 'Cuadrado y simple: se ve muy chico en la pestaña del navegador.',
     heavyBytes: 200 * 1024,
   },
+  // El QR de "Data Fiscal" de ARCA para el pie de la tienda: se muestra chico,
+  // pero tiene que poder escanearse.
+  dataFiscalQr: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 240, height: 240 },
+    fit: 'contain',
+    tip: 'La imagen del QR que te da ARCA, recortada y sin bordes: tiene que poder escanearse.',
+    heavyBytes: 200 * 1024,
+  },
   shareImage: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,

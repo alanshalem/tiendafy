@@ -29,8 +29,15 @@ export function useMediaQuery(query: string): boolean {
   );
 }
 
-/** Teléfono: por debajo del breakpoint `md` de Tailwind (768 px). */
+/**
+ * Teléfono: por debajo del breakpoint `md` de Tailwind (768 px). Una tabla de
+ * seis columnas en 390 px mostraba Número, Fecha y Cliente, y el total y el
+ * estado —lo que se mira primero— quedaban fuera de la pantalla.
+ */
 export const MOBILE_QUERY = '(max-width: 767px)';
 
-/** ¿Es una pantalla de teléfono? Ver {@link useMediaQuery}. */
+/** ¿Es una pantalla de teléfono? Se dibuja una sola de las dos vistas (tabla o tarjetas), no las dos. */
 export const useIsMobile = (): boolean => useMediaQuery(MOBILE_QUERY);
+
+/** El mismo corte con el nombre que usan Ventas y Mercado Libre. */
+export const useIsNarrow = useIsMobile;

@@ -24,6 +24,21 @@ export const ENVIOS = {
         ],
       },
       {
+        heading: 'Calcular envío en la ficha del producto',
+        paragraphs: [
+          'En la ficha de cada producto, debajo del botón de compra, el comprador pone su código postal y ve cuánto le sale el envío y cuándo le llega, ANTES de ir a pagar. Cotiza con lo mismo que el checkout: tus envíos propios y los correos con cotización en vivo, para la variante y la cantidad elegidas.',
+          'Si tenés un retiro gratis, la ficha lo dice sin pedir nada: “Retiro gratis en …” con la dirección del punto. Cuando el correo informa el plazo, se muestra (“Llega en 3 a 5 días hábiles”); Andreani no lo informa, y no se inventa.',
+          'El código postal queda guardado en el navegador: las demás fichas lo usan solas y el checkout lo trae completado. Zipnova necesita ciudad y provincia, así que cotiza recién en el checkout (la ficha avisa que ahí hay más opciones).',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si un correo no puede cotizar (credenciales vencidas, sin tarifa para ese destino), la ficha muestra lo que sí cotizó; si ninguno puede, dice que las opciones se ven en el checkout. Nunca muestra un error técnico.',
+          },
+        ],
+      },
+      {
         heading: 'Envío gratis como gancho',
         paragraphs: [
           'Hay dos formas de regalar el envío: un medio de envío con precio 0, o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',
@@ -357,6 +372,61 @@ export const ENVIOS = {
         paragraphs: [
           'Andreani no publica la lista completa de estados que puede informar, así que traducimos los que conocemos y mostramos “Sin novedades” cuando aparece uno que no reconocemos. En ese caso no le avisamos nada al comprador: preferimos no decirle algo que no entendemos del todo.',
           'El detalle completo del recorrido siempre lo ves en “Seguimiento”, tal como lo informa Andreani.',
+        ],
+      },
+    ],
+  },
+
+  despacho: {
+    title: 'Despacho de pedidos',
+    intro:
+      'Para cuando hay muchos pedidos juntos: la cola de lo cobrado sin despachar, una sola lista de picking, las etiquetas y los remitos en un PDF, y despachar escaneando para que no salga nada equivocado.',
+    category: 'Envíos',
+    keywords: [
+      'picking',
+      'fulfillment',
+      'preparar pedidos',
+      'etiquetas',
+      'remito',
+      'packing slip',
+      'expedición',
+    ],
+    sections: [
+      {
+        heading: 'La cola de pedidos para preparar',
+        paragraphs: [
+          'Lista todo lo cobrado y sin despachar, lo más viejo primero (es lo que más espera el comprador). Filtrá por carrier —Andreani, Zipnova, Correo Argentino, retiro en el local o envío propio— y por fecha de cobro.',
+          'Elegí los pedidos que vas a preparar juntos y usá las acciones de arriba.',
+        ],
+        blocks: [{ type: 'path', segments: ['Ventas', 'Despacho'] }],
+      },
+      {
+        heading: 'Lista de picking',
+        paragraphs: [
+          'Una línea por producto con el total a juntar, la ubicación en el depósito y para qué pedidos va. Viene ordenada por ubicación: es el recorrido por las estanterías. “Imprimir” la saca en una hoja limpia, con un casillero para tildar.',
+          'Los pedidos que ya no están para despachar (otra persona los despachó, o tienen un reembolso) quedan afuera, con el motivo.',
+        ],
+      },
+      {
+        heading: 'Etiquetas y remitos',
+        paragraphs: [
+          'Etiquetas junta en un solo PDF las de Andreani y Zipnova de los pedidos elegidos, y te dice cuáles no tienen: los que todavía no tienen envío creado (se crea desde la venta) y los de Correo Argentino, que no entrega la etiqueta por sistema y se imprime desde MiCorreo.',
+          'Remitos arma una hoja por pedido con lo que va en la caja (sin precios: puede ser un regalo), la ubicación de cada producto y un QR para escanear el pedido.',
+        ],
+      },
+      {
+        heading: 'Despachar escaneando',
+        steps: [
+          'Escaneá el QR del remito o el número de la etiqueta (#A1B2C3D4). También podés tocar “Escanear” en un pedido de la cola.',
+          'Escaneá cada producto al meterlo en la caja: la lista marca lo juntado, y si algo no va en ese pedido o sobra, avisa en el momento.',
+          'Con todo completo, cargá el seguimiento (si el envío ya está creado con el carrier, viene cargado) y tocá “Despachar”. El comprador recibe el aviso como siempre.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Antes de despachar, el sistema vuelve a contar lo escaneado contra lo vendido: si falta, sobra o hay un producto de otro pedido, no lo despacha y te dice qué pasó. Lo de esta tanda queda anotado al costado, con los errores.',
+          },
         ],
       },
     ],

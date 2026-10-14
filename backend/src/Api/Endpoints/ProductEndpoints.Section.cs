@@ -31,6 +31,7 @@ public static partial class ProductEndpoints
             IProductRepository repository,
             OrdersDbContext ordersDb,
             Inventory.Core.Domain.IStockRepository stockRepository,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct,
             string? kind = null,
             string? ids = null,
@@ -89,11 +90,14 @@ public static partial class ProductEndpoints
                     .ToDictionary(s => s.VariantId, s => s.Available)
                 : new Dictionary<Guid, int>();
 
+            var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, items.Select(p => p.Id).ToList(), ct);
+
             return Results.Ok(new
             {
                 items = items.Select(p => p.ToDto() with
                 {
                     Stock = p.Variants.Sum(v => stockByVariant.GetValueOrDefault(v.Id)),
+                    Rating = ratings.GetValueOrDefault(p.Id),
                 }),
             });
         });

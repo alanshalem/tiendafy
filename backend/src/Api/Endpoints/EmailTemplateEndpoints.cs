@@ -40,14 +40,29 @@ public static class EmailTemplateEndpoints
             var emailPer1000 = NotificationCosts.EmailUsdPer1000(cfg);
             var waPerMessage = cfg.GetValue("Notifications:WhatsAppCostUsdPerMessage", 0.034m);
 
+            // Las campañas no pasan por NotificationEvents (son otro circuito):
+            // sin sumarlas, la tarjeta decía "0 enviados este mes" con una
+            // campaña de 1.200 emails recién salida. Se cuentan aparte —los
+            // avisos automáticos y las campañas se leen distinto— y el costo
+            // estimado suma las dos cosas, porque el proveedor cobra las dos.
+            var campaigns = await db.EmailCampaigns.AsNoTracking()
+                .Where(c => c.TenantId == tid && c.SentCount > 0)
+                .GroupBy(c => (c.SentAtUtc ?? c.CreatedAtUtc) >= monthStart)
+                .Select(g => new { EsteMes = g.Key, Sent = g.Sum(c => c.SentCount) })
+                .ToListAsync(ct);
+            var campaignsMonth = campaigns.Where(c => c.EsteMes).Sum(c => c.Sent);
+            var campaignsTotal = campaigns.Sum(c => c.Sent);
+
             return Results.Ok(new
             {
                 email = new
                 {
                     month = Mes("email"),
                     total = Total("email"),
+                    campaignsMonth,
+                    campaignsTotal,
                     unitUsdPer1000 = emailPer1000,
-                    estimatedMonthUsd = Math.Round(Mes("email") * emailPer1000 / 1000m, 2),
+                    estimatedMonthUsd = Math.Round((Mes("email") + campaignsMonth) * emailPer1000 / 1000m, 2),
                 },
                 whatsapp = new
                 {
@@ -118,7 +133,8 @@ public static class EmailTemplateEndpoints
             {
                 ["store"] = branding.StoreName,
                 ["name"] = "Juan Pérez",
-                ["order_id"] = "a1b2c3d4-0000-0000-0000-000000000000",
+                ["order_id"] = "1042",
+                ["tracking_link"] = "#",
                 ["total"] = "ARS 45.381",
                 ["email"] = "cliente@ejemplo.com",
                 ["link"] = "#",

@@ -61,6 +61,54 @@ export const CLIENTES = {
     ],
   },
 
+  bandeja: {
+    title: 'Bandeja',
+    intro:
+      'Todo lo que te escriben, en un solo lugar: los mensajes del formulario de contacto, el chat posventa y las preguntas y mensajes de Mercado Libre. Asignás, respondés y archivás sin saltar de pantalla.',
+    category: 'Clientes y comunicación',
+    keywords: ['inbox', 'mensajes', 'consultas', 'preguntas', 'atención al cliente', 'asignar'],
+    sections: [
+      {
+        heading: 'Una lista para todos los canales',
+        paragraphs: [
+          'A la izquierda, las conversaciones de todos los canales, las más recientes arriba y las sin leer en negrita; a la derecha, la que abrís. En el celular se alternan: tocás una conversación y “Volver” te lleva a la lista.',
+          'Ves solo los canales que tu rol puede atender: quien atiende Mercado Libre pero no lee el formulario de contacto ve la bandeja sin contacto.',
+          'La bandeja se actualiza sola cada medio minuto mientras la tenés a la vista, y el número al lado de “Bandeja” en el menú te dice cuánto hay sin leer aunque estés en otra pantalla.',
+        ],
+        blocks: [{ type: 'path', segments: ['Bandeja'] }],
+      },
+      {
+        heading: 'Responder sin salir de la bandeja',
+        paragraphs: [
+          'Cada canal responde por donde siempre: el chat posventa le llega al comprador en su cuenta, el mensaje de contacto se contesta por email (las respuestas del cliente te llegan a vos) y en Mercado Libre la respuesta sale publicada.',
+          'Las preguntas de Mercado Libre muestran la publicación —foto, título, precio y stock—, así contestás sin abrir Mercado Libre.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Enter no publica',
+            text: 'Una respuesta a una pregunta de Mercado Libre es pública y no se puede editar, y un email no se puede volver atrás: en esos canales Enter es un salto de línea y se manda con el botón o con Ctrl+Enter. Solo el chat posventa envía con Enter.',
+          },
+        ],
+      },
+      {
+        heading: 'Asignar, marcar y archivar',
+        paragraphs: [
+          'Asigná cada conversación a alguien del equipo para que no la contesten dos personas (o nadie). Solo aparecen quienes pueden atender ese canal según Roles y permisos. “Tomarla” te la asigna a vos, y la solapa “Mías” junta las tuyas.',
+          'Abrir una conversación la marca leída (también en su pantalla de siempre). Si querés volver a mirarla después, “No leída”.',
+          'Archivar la saca de la lista hasta que el cliente vuelva a escribir: ahí reaparece sola, sin leer. Lo archivado se ve en la solapa “Archivadas”.',
+        ],
+      },
+      {
+        heading: 'Y las pantallas de siempre',
+        paragraphs: [
+          'Mensajes de contacto, Chat posventa y Mercado Libre siguen andando igual: la bandeja lee de ellas, no las reemplaza.',
+        ],
+      },
+    ],
+  },
+
   posventa: {
     title: 'Chat posventa',
     intro: 'Un chat por pedido entre tu tienda y el comprador, con fotos y archivos adjuntos.',
@@ -70,7 +118,7 @@ export const CLIENTES = {
         heading: 'Cómo funciona',
         paragraphs: [
           'El cliente, desde su cuenta → Mis pedidos, toca “Consultar sobre este pedido” y abre un chat ligado a esa compra. Puede escribir y adjuntar fotos (JPG/PNG) o PDF de hasta 10 MB.',
-          'Vos respondés desde Chat posventa en el menú: una bandeja con todas las conversaciones, las no leídas primero y con contador.',
+          'Vos respondés desde Chat posventa en el menú —una lista con todas las conversaciones, las no leídas primero y con contador— o desde la Bandeja, junto con el resto de los canales.',
         ],
         blocks: [{ type: 'path', segments: ['Chat posventa'] }],
       },
@@ -147,7 +195,8 @@ export const CLIENTES = {
             rows: [
               ['{{store}}', 'El nombre de tu tienda'],
               ['{{name}}', 'El nombre del cliente'],
-              ['{{order_id}}', 'El número del pedido'],
+              ['{{order_id}}', 'El número del pedido, sin el # (ej. 1042)'],
+              ['{{tracking_link}}', 'El link a “Seguí tu pedido” de esa compra (abre sin pedir datos)'],
               ['{{total}}', 'El total pagado'],
               ['{{items}}', 'La tabla de productos con fotos y precios'],
               ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],
@@ -186,7 +235,7 @@ export const CLIENTES = {
       {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
-          'Arriba de esta pantalla, el panel “Uso del mes” te muestra cuántos emails salieron este mes, el total histórico y un costo estimado. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
+          'Arriba de esta pantalla, el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de compra, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
         ],
       },
     ],
@@ -539,6 +588,52 @@ export const CLIENTES = {
         heading: 'Si una red falla',
         paragraphs: [
           'Cada red es independiente: si una publicación falla en X, lo de Facebook e Instagram sale igual. El post queda “Con errores” y en su detalle ves exactamente qué red falló y por qué (token vencido, límite de la red, imagen inválida). Reconectás la cuenta o corregís el post, y lo volvés a programar.',
+        ],
+      },
+    ],
+  },
+  resenas: {
+    title: 'Reseñas de productos',
+    intro: 'Las opiniones con estrellas y fotos de quienes te compraron, en la ficha de cada producto.',
+    category: 'Clientes y comunicación',
+    keywords: ['opiniones', 'estrellas', 'valoraciones', 'reviews', 'comentarios', 'calificaciones'],
+    sections: [
+      {
+        heading: 'Solo opina quien compró',
+        paragraphs: [
+          'Una reseña nace siempre de una compra despachada: el comprador la escribe desde el link del email que le pedimos la opinión, o desde el detalle de su compra en “Mi cuenta”. Puede opinar una vez por cada producto de cada compra, con estrellas (1 a 5), un título, el texto y hasta 4 fotos.',
+          'Por eso todas dicen “Compra verificada”. En la tienda se firma con el nombre y la inicial del apellido (“Ana P.”): nunca el apellido entero ni el email.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Vos moderás, no redactás',
+            text: 'Desde el panel podés aprobar, ocultar y responder, pero no escribir ni editar una reseña: las estrellas y el texto son del comprador. Es lo que hace que valgan algo.',
+          },
+        ],
+      },
+      {
+        heading: 'Moderar',
+        paragraphs: [
+          'En Reseñas ves las pendientes, las aprobadas y las ocultas. De fábrica, las de 4 y 5 estrellas se publican solas y las demás esperan que las mires: aprobala para que se vea, u ocultala si no corresponde (no habla del producto, insulta, tiene datos personales).',
+          'La respuesta de la tienda se publica debajo de la reseña. Contestar una opinión negativa con una solución vende más que ocultarla.',
+          'Cualquier visitante puede denunciar una reseña. Cuando tres personas distintas la denuncian, sale de la tienda y vuelve a Pendientes marcada como “Denunciada”, para que decidas vos.',
+        ],
+        blocks: [{ type: 'path', segments: ['Reseñas'] }],
+      },
+      {
+        heading: 'Configuración',
+        paragraphs: [
+          'Con “Configuración” en Reseñas elegís desde cuántas estrellas se aprueban solas (o que pasen todas por vos), si la tienda muestra las reseñas, y el email que pide la opinión: si sale y cuántos días después del despacho (de fábrica, 7).',
+          'El email sale una sola vez por compra, respeta a quien se dio de baja de tus emails y trae su link de baja. Su texto se edita en Configuración → E-mails automáticos (“Pedido de reseña”).',
+        ],
+      },
+      {
+        heading: 'Dónde se ven',
+        paragraphs: [
+          'En la ficha: las estrellas y la cantidad junto al nombre, y más abajo la sección “Opiniones” con el promedio, cuántas hay de cada estrella (se tocan para filtrar), las fotos en grande y el orden por “Más útiles” o “Más recientes”. En los listados, las estrellas aparecen debajo del nombre de cada producto.',
+          'Google también las lee: el promedio y las primeras reseñas van en los datos estructurados de la ficha, y pueden aparecer como estrellas en el resultado de búsqueda.',
         ],
       },
     ],

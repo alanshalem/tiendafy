@@ -8,7 +8,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { ListStats } from '../components/stats/ListStats';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -24,6 +24,8 @@ import { CustomerModal, withCustomerDefaults, type Customer } from './Customers'
 
 interface ProfileOrder {
   id: string;
+  /** El número de la tienda ("#1042"); una API anterior no lo manda. */
+  number?: number | null;
   status: string;
   createdAtUtc: string;
   paidAtUtc: string | null;
@@ -282,7 +284,7 @@ function OrdersTimeline({
                       to={`/ventas?order=${o.id}`}
                       className="font-mono text-sm font-semibold text-primary hover:underline"
                     >
-                      {orderNumber(o.id)}
+                      {orderLabel(o)}
                     </Link>
                     <span className="ml-2 text-xs text-fg-muted">{formatDateTime(o.createdAtUtc)}</span>
                     <p className="truncate text-sm text-fg-muted">

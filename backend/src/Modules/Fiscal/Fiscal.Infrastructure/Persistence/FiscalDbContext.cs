@@ -25,6 +25,7 @@ public sealed class FiscalDbContext : DbContext
     public DbSet<FiscalDocument> Documents => Set<FiscalDocument>();
     public DbSet<FiscalSequence> Sequences => Set<FiscalSequence>();
     public DbSet<FiscalEmissionJob> EmissionJobs => Set<FiscalEmissionJob>();
+    public DbSet<StoreLegalInfo> LegalInfo => Set<StoreLegalInfo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -119,5 +120,21 @@ public sealed class FiscalDbContext : DbContext
         seq.Property(x => x.CbteTipo).HasConversion<int>();
         seq.HasIndex(x => new { x.TenantId, x.Environment, x.PtoVta, x.CbteTipo }).IsUnique();
         seq.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+
+        var legal = modelBuilder.Entity<StoreLegalInfo>();
+        legal.ToTable("store_legal_info");
+        legal.HasKey(x => x.Id);
+        legal.Property(x => x.Id).ValueGeneratedNever();
+        legal.HasIndex(x => x.TenantId).IsUnique();
+        legal.Property(x => x.LegalName).HasMaxLength(200);
+        legal.Property(x => x.Cuit).HasMaxLength(11);
+        legal.Property(x => x.Address).HasMaxLength(300);
+        legal.Property(x => x.Condition).HasConversion<string>().HasMaxLength(30);
+        legal.Property(x => x.VatRatePercent).HasPrecision(5, 2);
+        legal.Property(x => x.OtherNationalTaxesPercent).HasPrecision(5, 2);
+        legal.Property(x => x.DataFiscalUrl).HasMaxLength(500);
+        legal.Property(x => x.DataFiscalImageUrl).HasMaxLength(500);
+        legal.Ignore(x => x.TaxDivisor);
+        legal.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

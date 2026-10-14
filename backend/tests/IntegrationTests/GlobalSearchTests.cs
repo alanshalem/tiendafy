@@ -44,9 +44,14 @@ public sealed class GlobalSearchTests(ApiFactory factory)
         Assert.Single(Group(laura, "suppliers"));
         Assert.Single(Group(laura, "purchaseOrders"));
 
-        // Por número de venta, con el numeral como se copia de la tabla.
-        var number = "#" + orderId.ToString("N")[..8].ToUpperInvariant();
-        Assert.Equal(orderId, Assert.Single(Group(await SearchAsync(merchant, number), "orders")).GetProperty("id").GetGuid());
+        // Por número de venta, con el numeral como se copia de la tabla, y por
+        // el id corto de las etiquetas viejas.
+        var number = order.GetProperty("number").GetInt32();
+        var byNumber = Assert.Single(Group(await SearchAsync(merchant, $"#{number}"), "orders"));
+        Assert.Equal(orderId, byNumber.GetProperty("id").GetGuid());
+        Assert.StartsWith($"#{number} · ", byNumber.GetProperty("title").GetString());
+        var shortId = "#" + orderId.ToString("N")[..8].ToUpperInvariant();
+        Assert.Equal(orderId, Assert.Single(Group(await SearchAsync(merchant, shortId), "orders")).GetProperty("id").GetGuid());
 
         // Por SKU: dice cuál coincidió.
         var bySku = Assert.Single(Group(await SearchAsync(merchant, "man-hex"), "products"));

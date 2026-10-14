@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -9,13 +10,15 @@ import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
 import { formatNumber } from '../lib/format';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { UPLOADS, describe } from '../lib/uploads';
 import { UploadBar, UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
 
 interface Conversation {
   id: string;
   orderId: string;
+  /** Número de la venta (#1042); null si la API no lo encontró. */
+  orderNumber?: number | null;
   customerEmail: string;
   status: 'OPEN' | 'CLOSED';
   unreadForStaff: number;
@@ -102,6 +105,8 @@ export function SupportChatPage() {
   useEffect(() => {
     if (!store) return;
     const t = setInterval(() => {
+      // Con la pestaña oculta no se pregunta nada: nadie está mirando.
+      if (document.hidden) return;
       loadConvs();
       if (selected) loadMessages(selected);
     }, POLL_MS);
@@ -126,11 +131,11 @@ export function SupportChatPage() {
     // El pedido de la conversación, con el mismo número que ve el comprador.
     // Antes se mandaba el principio del id de la CONVERSACIÓN como si fuera
     // el del pedido.
-    const orderId = convs.find((c) => c.id === selected)?.orderId;
+    const conv = convs.find((c) => c.id === selected);
     try {
       const r = await api.post<{ text: string }>('/api/v1/ai/support-reply', {
         message: lastFromCustomer.body,
-        orderSummary: orderId ? `Pedido ${orderNumber(orderId)}` : null,
+        orderSummary: conv ? `Pedido ${orderLabel({ id: conv.orderId, number: conv.orderNumber })}` : null,
       });
       setText(r.text);
     } catch (err) {
@@ -208,6 +213,12 @@ export function SupportChatPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
+        <Link
+          to="/bandeja?canal=posventa"
+          className="ml-auto mr-3 text-sm font-medium text-primary hover:underline"
+        >
+          Ver en la Bandeja
+        </Link>
         <button
           onClick={loadConvs}
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
@@ -290,7 +301,8 @@ export function SupportChatPage() {
                     )}
                   </div>
                   <p className="text-xs text-fg-muted">
-                    Pedido {orderNumber(c.orderId)} · {formatDateTime(c.lastMessageAtUtc)}
+                    Pedido {orderLabel({ id: c.orderId, number: c.orderNumber })} ·{' '}
+                    {formatDateTime(c.lastMessageAtUtc)}
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
@@ -321,7 +333,14 @@ export function SupportChatPage() {
                     ← Volver
                   </button>
                   <span className="text-sm font-semibold text-fg">{current.customerEmail}</span>
-                  <span className="ml-2 text-xs text-fg-muted">Pedido {orderNumber(current.orderId)}</span>
+                  {/* El pedido abre la venta (en la lista de la izquierda va como
+                      texto: es parte de un botón y no puede llevar otro link adentro). */}
+                  <Link
+                    to={`/ventas?order=${current.orderId}`}
+                    className="ml-2 text-xs font-medium text-primary hover:underline"
+                  >
+                    Pedido {orderLabel({ id: current.orderId, number: current.orderNumber })}
+                  </Link>
                 </div>
                 {current.status === 'OPEN' && (
                   <button

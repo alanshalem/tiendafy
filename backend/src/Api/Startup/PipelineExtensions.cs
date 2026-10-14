@@ -76,8 +76,15 @@ public static class PipelineExtensions
         apiV1.MapShopAuthEndpoints();
         apiV1.MapShopFavoritesEndpoints();
         apiV1.MapShopOrdersEndpoints();
+        apiV1.MapStoreLegalEndpoints();
+        apiV1.MapReviewEndpoints();
+        apiV1.MapBackInStockEndpoints();
         apiV1.MapContactEndpoints();
         apiV1.MapMembersEndpoints();
+        apiV1.MapHomeEndpoints();
+        apiV1.MapInboxEndpoints();
+        apiV1.MapFulfillmentEndpoints();
+        apiV1.MapStockAlertEndpoints();
 
         // Herramientas de desarrollo (sembrar datos de demo). Fuera de
         // Development estas rutas directamente no existen.

@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Shop;
+using Api.Storefront;
 using Catalog.Core;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateProduct;
@@ -16,7 +17,9 @@ public static partial class ProductEndpoints
 {
     public static RouteGroupBuilder MapProductEndpoints(this RouteGroupBuilder group)
     {
-        var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
+        // Toda escritura del catálogo (precios, stock, fotos, estado) se ve en la tienda al toque.
+        var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite)
+            .RevalidatesStorefront(StorefrontScope.Catalog);
 
         products.MapPost("/", async (
             CreateProductRequest request,
@@ -193,6 +196,7 @@ public static partial class ProductEndpoints
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
             OrdersDbContext ordersDb,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct,
             string? q = null,
             Guid? category = null,
@@ -261,10 +265,12 @@ public static partial class ProductEndpoints
                 ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
                 : new Dictionary<Guid, int>();
             int StockFor(Product p) => p.Variants.Sum(v => stockByVariant.TryGetValue(v.Id, out var a) ? a : 0);
+            // Estrellas para la card (reseñas aprobadas).
+            var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, items.Select(p => p.Id).ToList(), ct);
 
             return Results.Ok(new
             {
-                items = items.Select(p => p.ToDto() with { Stock = StockFor(p) }),
+                items = items.Select(p => p.ToDto() with { Stock = StockFor(p), Rating = ratings.GetValueOrDefault(p.Id) }),
                 total,
                 page,
                 pageSize,
@@ -516,6 +522,7 @@ public static partial class ProductEndpoints
             ITenantContext tenant,
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct) =>
         {
             var product = await repository.GetBySlugAsync(tenant.TenantId, slug, ct);
@@ -533,10 +540,14 @@ public static partial class ProductEndpoints
                     .ToDictionary(s => s.VariantId, s => s.Available)
                 : new Dictionary<Guid, int>();
 
+            // Estrellas junto al precio y el aggregateRating del JSON-LD.
+            var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, [product.Id], ct);
+
             var dto = product.ToDto();
             return Results.Ok(dto with
             {
                 Stock = byVariant.Values.Sum(),
+                Rating = ratings.GetValueOrDefault(product.Id),
                 Variants = dto.Variants.Select(v => v with { Available = byVariant.GetValueOrDefault(v.Id) }).ToList(),
             });
         });
@@ -579,7 +590,7 @@ public static partial class ProductEndpoints
     /// </summary>
     private static void MapSpecDefinitions(RouteGroupBuilder group)
     {
-        var specs = group.MapGroup("/spec-definitions").RequireTenant();
+        var specs = group.MapGroup("/spec-definitions").RequireTenant().RevalidatesStorefront(StorefrontScope.Catalog);
 
         // Público: el storefront necesita el nombre y la unidad de cada campo
         // para mostrar la ficha. No hay nada privado acá.

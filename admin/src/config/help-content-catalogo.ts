@@ -137,6 +137,7 @@ export const CATALOGO = {
           'Escaneá cada producto al meterlo en la caja: la lista marca en verde lo juntado.',
           'Si escaneás algo que NO va en ese pedido, la alerta salta antes de despachar — se acabó mandar el disco de 15 kg en vez del de 25.',
           'Con todo verificado aparece “Pedido completo y verificado.”: cargá el número de seguimiento si lo tenés y tocá “Marcar enviada”. El comprador recibe el aviso en el momento, sin pasar por la computadora.',
+          'Para muchos pedidos juntos (picking de varios, etiquetas y remitos en lote) está Ventas › Despacho.',
         ],
         blocks: [
           {
@@ -408,6 +409,83 @@ export const CATALOGO = {
             text: 'La lectura automática necesita la clave de IA cargada en la plataforma. Sin ella el botón no aparece, igual que el resto de las sugerencias con IA del panel.',
           },
         ],
+      },
+    ],
+  },
+
+  stockBajo: {
+    title: 'Stock bajo y alertas',
+    intro:
+      'Te avisamos cuando un producto cruza su punto de reposición: lo que queda no alcanza para vender hasta que llegue la próxima compra. Una vez por cruce, con el pedido sugerido.',
+    category: 'Catálogo',
+    keywords: [
+      'alerta de stock',
+      'reposición',
+      'punto de pedido',
+      'quiebre de stock',
+      'faltantes',
+      'stock mínimo',
+    ],
+    sections: [
+      {
+        heading: 'Cuándo un producto está bajo',
+        paragraphs: [
+          'Con la misma cuenta que Compras › Reposición: lo que se vendió en los últimos 60 días (en la tienda, en Mercado Libre y como parte de kits) contra lo que tarda en llegar una compra más un colchón de 30 días. Para un importador, “quedan 5” no dice nada: importa si alcanzan hasta el próximo embarque.',
+          'Además podés ponerle a un producto un mínimo propio (“avisame con 10 o menos”), que avisa aunque no se haya vendido: sirve para lo nuevo o lo de temporada.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Stock bajo'] }],
+      },
+      {
+        heading: 'La pantalla Stock bajo',
+        paragraphs: [
+          'Lista lo que está bajo ahora, lo que se agota primero arriba, con cuánto pedir. “Armar orden de compra” abre Compras con esos productos y cantidades cargados (o solo los que tildes): revisás, ponés el proveedor y la guardás.',
+          'Desde ahí también cambiás el mínimo de un producto o lo silenciás (lo que se discontinúa no tiene que avisar nunca). El número al lado de “Stock bajo” en el menú es cuántos hay.',
+        ],
+      },
+      {
+        heading: 'Los avisos por email',
+        paragraphs: [
+          'En Configuración › Alertas de stock elegís: sin avisos (lo de fábrica), al toque cuando un producto cruza, o un resumen por día a la hora que quieras.',
+          'Se avisa una vez por cruce: mientras siga bajo, no se repite. Cuando se repone y vuelve a bajar, es otro aviso.',
+          'Lo reciben quienes tienen el permiso “Compras e importaciones”. Cada persona puede darse de baja desde la pantalla Stock bajo, y los emails en la lista de bajas de la tienda no reciben nada.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Alertas de stock'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'No hay aviso por WhatsApp: el WhatsApp automático de la tienda le escribe al comprador con plantillas aprobadas por Meta, no al equipo.',
+          },
+        ],
+      },
+    ],
+  },
+  avisoStock: {
+    title: 'Avisame cuando ingrese',
+    intro: 'Quien encuentra un producto agotado deja su email, y le avisamos cuando vuelve a haber stock.',
+    category: 'Catálogo',
+    keywords: ['sin stock', 'agotado', 'reposición', 'back in stock', 'lista de espera', 'notificar stock'],
+    sections: [
+      {
+        heading: 'Cómo funciona',
+        paragraphs: [
+          'En la ficha de una variante agotada, en lugar de un botón de compra muerto, el comprador ve “Avisame cuando ingrese”: deja su email (no hace falta cuenta) y listo.',
+          'Cuando esa variante vuelve a tener stock —por un ajuste en Inventario, una compra recibida, una reserva que venció o Mercado Libre—, le llega un solo email con el link al producto. Cada pedido de aviso se usa una vez, y el email trae un link para dejar de esperar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'El email es la plantilla “Avisame cuando ingrese” de Configuración → E-mails automáticos: viene encendida (lo pidió el comprador) y su texto se puede editar.',
+          },
+        ],
+      },
+      {
+        heading: 'La demanda que no veías',
+        paragraphs: [
+          'En Productos → Avisame cuando ingrese ves cuánta gente espera cada producto y variante, desde cuándo y cuánto stock hay hoy: es la lista de compras que te está pidiendo la tienda. En la edición de cada producto también aparece cuántas personas lo esperan.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Avisame cuando ingrese'] }],
       },
     ],
   },

@@ -10,7 +10,7 @@ public enum OrderStatus
     Failed = 2,         // pago rechazado
     Cancelled = 3,      // cancelada (expiró / usuario abandonó)
     Refunded = 4,       // reembolsada por el total tras estar pagada
-    Fulfilled = 5,      // entregada (módulo de fulfillment, futuro)
+    Fulfilled = 5,      // despachada (o, si se retira, lista para retirar); no hay "entregada"
     ChargedBack = 6,    // contracargo / disputa del comprador
     PartiallyRefunded = 7, // reembolso parcial acumulado < total
 }
@@ -47,7 +47,33 @@ public static class OrderStatuses
 /// </summary>
 public sealed class Order : AggregateRoot
 {
+    /// <summary>
+    /// Número de pedido de la tienda: 1001, 1002, … correlativo POR TIENDA. Es
+    /// lo que el comprador dicta por teléfono o pega en un WhatsApp; el UUID
+    /// sigue siendo la identidad (y el external_reference de los pagos). Lo
+    /// asigna la persistencia al insertar (ver OrdersDbContext): 0 = todavía
+    /// no se guardó.
+    /// </summary>
+    public int Number { get; private set; }
+
+    /// <summary>Venta del checkout de la tienda online.</summary>
+    public const string ChannelWeb = "web";
+
+    /// <summary>Venta cargada a mano en el panel (mostrador, WhatsApp, teléfono).</summary>
+    public const string ChannelManual = "manual";
+
+    /// <summary>Presupuesto aceptado que se convirtió en venta.</summary>
+    public const string ChannelQuote = "quote";
+
     public Guid CheckoutSessionId { get; private set; }
+
+    /// <summary>
+    /// Por dónde entró la venta. Se guarda al nacer y no se deduce después:
+    /// adivinarlo por el id del pago o por la nota se rompía en cuanto una
+    /// venta manual se cobraba con link (queda con un pago de Mercado Pago,
+    /// igual que una del checkout).
+    /// </summary>
+    public string Channel { get; private set; } = ChannelWeb;
     public OrderStatus Status { get; private set; }
     public string Currency { get; private set; } = null!;
     public string BuyerEmail { get; private set; } = null!;
@@ -77,6 +103,15 @@ public sealed class Order : AggregateRoot
     public DateTime? PaidAtUtc { get; private set; }
     public string? Tracking { get; private set; }
     public DateTime? FulfilledAtUtc { get; private set; }
+
+    /// <summary>
+    /// Cuándo, quién y por qué se canceló a mano una venta pendiente. Una
+    /// cancelación libera stock y anula el link de pago: sin rastro, después
+    /// nadie sabe por qué una venta "desapareció" de lo pendiente.
+    /// </summary>
+    public DateTime? CancelledAtUtc { get; private set; }
+    public string? CancelledBy { get; private set; }
+    public string? CancelReason { get; private set; }
 
     private readonly List<OrderItem> _items = [];
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
@@ -119,6 +154,22 @@ public sealed class Order : AggregateRoot
 
         return order;
     }
+
+    /// <summary>
+    /// La persistencia le da el número al insertar. Una sola vez: un número ya
+    /// asignado no se pisa nunca (está impreso en etiquetas y en mails).
+    /// </summary>
+    public void AssignNumber(int number)
+    {
+        if (Number == 0 && number > 0) Number = number;
+    }
+
+    /// <summary>
+    /// Cómo se nombra el pedido ante una persona: "#1042". Una orden sin
+    /// número todavía (en memoria, sin guardar) cae al principio del id, que
+    /// es lo que se mostraba antes.
+    /// </summary>
+    public string Label => OrderLabel.For(Number, Id);
 
     /// <summary>
     /// Comisión REAL cobrada por Mercado Pago en este pago (transaction_amount −
@@ -210,6 +261,36 @@ public sealed class Order : AggregateRoot
     {
         if (Status == OrderStatus.PendingPayment) Status = OrderStatus.Cancelled;
     }
+
+    /// <summary>De dónde vino la venta (ver <see cref="Channel"/>). Valores fuera de la lista quedan en web.</summary>
+    public void SetChannel(string channel) =>
+        Channel = channel is ChannelManual or ChannelQuote ? channel : ChannelWeb;
+
+    /// <summary>
+    /// Cancelación a mano de una venta que nunca se cobró (el link de pago que
+    /// no se pagó, el cliente que se arrepintió antes de pagar). Una venta
+    /// cobrada no se cancela: se reembolsa, que es lo que devuelve la plata.
+    /// </summary>
+    public Result Cancel(string cancelledBy, string? reason)
+    {
+        var allowed = EnsureCancellable();
+        if (allowed.IsFailure) return allowed;
+
+        Status = OrderStatus.Cancelled;
+        CancelledAtUtc = DateTime.UtcNow;
+        CancelledBy = Text.Clip(cancelledBy, 200) ?? "admin";
+        CancelReason = Text.Clip(reason, 300);
+        return Result.Success();
+    }
+
+    /// <summary>Si se puede cancelar, sin cancelarla: para chequear antes de tocar el link de pago.</summary>
+    public Result EnsureCancellable() => Status switch
+    {
+        OrderStatus.PendingPayment => Result.Success(),
+        OrderStatus.Cancelled => Result.Failure(Error.Conflict("Order.AlreadyCancelled", "Esta venta ya estaba cancelada.")),
+        _ => Result.Failure(Error.Conflict("Order.NotCancellable",
+            "Solo se cancela una venta pendiente de pago. Si ya se cobró, reembolsala.")),
+    };
 
     /// <summary>Marca como despachada/entregada (Paid → Fulfilled). Guarda el tracking opcional.</summary>
     public Result MarkFulfilled(string? tracking)
@@ -308,6 +389,31 @@ public sealed class OrderItem
     }
 
     public Money LineTotal => UnitPrice * Quantity;
+}
+
+/// <summary>El nombre visible de un pedido, para quien solo tiene el número y el id.</summary>
+public static class OrderLabel
+{
+    /// <summary>Primer número de cada tienda: un "#1" parece de prueba.</summary>
+    public const int FirstNumber = 1001;
+
+    public static string For(int number, Guid id) =>
+        number > 0 ? $"#{number}" : $"#{id.ToString("N")[..8].ToUpperInvariant()}";
+
+    /// <summary>
+    /// Lee un número de pedido como lo escribe una persona: "1042", "#1042",
+    /// "Pedido #1042 ". Null si no es un número.
+    /// </summary>
+    public static int? ParseNumber(string? text)
+    {
+        var t = text?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        var hash = t.LastIndexOf('#');
+        if (hash >= 0) t = t[(hash + 1)..].Trim();
+        return int.TryParse(t, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0
+            ? n
+            : null;
+    }
 }
 
 /// <summary>Errores de reembolso compartidos entre el dominio y el pre-chequeo del endpoint.</summary>

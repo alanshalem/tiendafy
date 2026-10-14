@@ -74,6 +74,9 @@ async function show(props: Props = {}) {
   return { user, ...view };
 }
 
+/** La línea de stock de la ficha (el punto de color va aparte del texto). */
+const stockLine = () => document.querySelector('[data-stock-line]');
+
 const cart = () => JSON.parse(localStorage.getItem(cartStorageKey(fixtureTenantId)) ?? '[]') as CartLine[];
 
 let crashes: () => unknown[][];
@@ -195,7 +198,7 @@ describe('ficha de producto: comprar', () => {
     });
     // Rojo / S está agotado: abre en Rojo / M, que tiene 3.
     expect(screen.getByText('SKU: REM-R-M')).toBeInTheDocument();
-    expect(screen.getByText('● ¡Últimas 3 unidades!')).toBeInTheDocument();
+    expect(stockLine()).toHaveTextContent('¡Últimas 3 unidades!');
     // S con Rojo no tiene stock: se tacha y lo dice al lector de pantalla.
     expect(screen.getByRole('button', { name: 'S (sin stock)' })).toBeInTheDocument();
 
@@ -208,18 +211,18 @@ describe('ficha de producto: comprar', () => {
     expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-m', quantity: 3 });
 
     await user.click(screen.getByRole('button', { name: 'S (sin stock)' }));
-    expect(screen.getByText('● Sin stock')).toBeInTheDocument();
+    expect(stockLine()).toHaveTextContent('Sin stock');
     expect(screen.getByRole('status')).toHaveTextContent('Sin stock por ahora.');
     for (const b of screen.getAllByRole('button', { name: 'Sin stock' })) expect(b).toBeDisabled();
 
     // Azul / S tiene de sobra.
     await user.click(screen.getByRole('button', { name: 'Azul' }));
-    expect(screen.getByText('● En stock')).toBeInTheDocument();
+    expect(stockLine()).toHaveTextContent('En stock');
   });
 
   it('sin el stock de cada variante usa el del producto: con una sola variante es el suyo', async () => {
     await show({ options: [], variants: [{ ...VARIANTS[0]!, optionValues: [] }], stock: 1 });
-    expect(screen.getByText('● ¡Última unidad!')).toBeInTheDocument();
+    expect(stockLine()).toHaveTextContent('¡Última unidad!');
     expect(screen.getByRole('button', { name: 'Sumar' })).toBeDisabled();
   });
 
@@ -231,7 +234,7 @@ describe('ficha de producto: comprar', () => {
 
   it('sin dato de stock no inventa nada: no muestra la línea y deja comprar', async () => {
     await show({ variants: VARIANTS.map((v) => ({ ...v, available: null })) });
-    expect(screen.queryByText(/● /)).not.toBeInTheDocument();
+    expect(stockLine()).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Comprar ahora' })).toBeEnabled();
   });
 });
@@ -240,7 +243,7 @@ describe('ficha de producto: lo que muestra', () => {
   it('cuotas, precio en efectivo, stock, WhatsApp con el producto y medios de pago', async () => {
     const { container } = await show({ variants: VARIANTS.map((v) => ({ ...v, available: 40 })) });
     expect(screen.getByText(/3 cuotas sin interés de/)).toBeInTheDocument();
-    expect(screen.getByText('● En stock')).toBeInTheDocument();
+    expect(stockLine()).toHaveTextContent('En stock');
     const wa = screen.getByRole('link', { name: /Consultar por este producto/ });
     expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/5491155554444\?text=/);
     expect(decodeURIComponent(wa.getAttribute('href')!)).toContain('«Remera»');
@@ -262,7 +265,7 @@ describe('ficha de producto: lo que muestra', () => {
     });
     expect(screen.queryByText(/cuotas sin interés/)).not.toBeInTheDocument();
     expect(screen.queryByText(/SKU/)).not.toBeInTheDocument();
-    expect(screen.queryByText('● En stock')).not.toBeInTheDocument();
+    expect(stockLine()).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Consultar/ })).not.toBeInTheDocument();
   });
 

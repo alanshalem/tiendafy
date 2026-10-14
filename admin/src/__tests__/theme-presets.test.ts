@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, normalizeTheme } from '@tiendafy/types';
-import { presetToConfig, themePresets } from '../lib/themePresets';
+import { baseTheme, contrastRatio, normalizeTheme } from '@tiendafy/types';
+import { applyPreset, presetToConfig, themePresets } from '../lib/themePresets';
 
 /** Carpeta publica de la vitrina, que es quien sirve los assets de marca. */
 const PUBLICO = resolve(import.meta.dirname, '../../../storefront/public');
@@ -171,6 +171,17 @@ describe('presets de marca', () => {
         contrastRatio(header.textColor, header.bg),
         `${preset.id}: el menú no se lee sobre la barra calculada`,
       ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('"Usar este diseño" no toca si el menú se ve en el celular', () => {
+    // Es una decisión de la tienda: el preset la ponía en false y los
+    // visitantes del celular se quedaban sin menú.
+    for (const preset of themePresets) {
+      for (const showTabsMobile of [true, false]) {
+        const current = { ...baseTheme, header: { ...baseTheme.header, showTabsMobile } };
+        expect(applyPreset(current, preset).header.showTabsMobile, preset.id).toBe(showTabsMobile);
+      }
     }
   });
 

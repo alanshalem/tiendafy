@@ -254,7 +254,7 @@ export const LEGAL = {
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. La solapa “Arrepentimientos” de Mensajes de contacto existe para que ninguna se pierda entre las consultas comunes.',
+            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. La solapa “Arrepentimientos” de Mensajes de contacto existe para que ninguna se pierda entre las consultas comunes, y en Inicio, “Para hacer hoy” muestra las que siguen sin leer con los días que quedan (el panel cuenta 10 días corridos desde la solicitud). Si el comprador no dejó número de pedido, el mensaje trae un link a sus compras, buscadas por su email.',
           },
         ],
       },
@@ -305,7 +305,72 @@ export const LEGAL = {
                 'Ley 24.240',
                 'Mostrá precios con impuestos y una política de cambios clara',
               ],
+              [
+                'Precio sin impuestos nacionales',
+                'Ley 27.743 y Res. SIC 4/2025',
+                'Sale solo debajo de cada precio; revisá tu condición en Configuración → Datos legales',
+              ],
+              [
+                'Quién vende y QR de Data Fiscal',
+                'Ley 24.240 y ARCA',
+                'Cargalos en Datos legales y aparecen en el pie de la tienda',
+              ],
             ],
+          },
+        ],
+      },
+    ],
+  },
+
+  datosLegales: {
+    title: 'Datos legales y precio sin impuestos nacionales',
+    intro:
+      'Quién vende (razón social, CUIT, domicilio y el QR de Data Fiscal) y la leyenda “Precio sin impuestos nacionales” que pide la ley debajo de cada precio.',
+    category: 'Legal y facturación',
+    keywords: [
+      'transparencia fiscal',
+      'IVA contenido',
+      'precio neto',
+      'data fiscal',
+      'qr afip',
+      'cuit en el pie',
+    ],
+    sections: [
+      {
+        heading: 'Dónde se cargan',
+        blocks: [{ type: 'path', segments: ['Configuración', 'Datos legales'] }],
+        paragraphs: [
+          'Si ya configuraste la facturación electrónica, la razón social, el CUIT y la condición se toman de ahí mientras no cargues otros: no hace falta escribirlos dos veces.',
+        ],
+      },
+      {
+        heading: 'Quién vende, en el pie de la tienda',
+        paragraphs: [
+          'La razón social, el CUIT y el domicilio aparecen en el renglón legal del pie, junto a los links de Términos, Privacidad y el Botón de arrepentimiento.',
+          'El QR de “Data Fiscal” lo da ARCA con tu clave fiscal (formulario 960/D). Podés pegar el link del QR o subir la imagen: si cargás los dos, se ve la imagen y al tocarla abre el link.',
+        ],
+      },
+      {
+        heading: 'Precio sin impuestos nacionales',
+        paragraphs: [
+          'La Ley 27.743 creó el régimen de transparencia fiscal al consumidor, y la Resolución 4/2025 de la Secretaría de Industria y Comercio pide mostrar, debajo del precio final y con letra más chica, el precio sin IVA ni otros impuestos nacionales indirectos. La tienda lo hace sola en la ficha de cada producto y en los listados.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Condición', 'Cómo se calcula', 'Ejemplo con un precio de $12.100'],
+            rows: [
+              ['Responsable Inscripto (IVA 21 %)', 'Precio ÷ 1,21', '$10.000'],
+              ['Responsable Inscripto (IVA 10,5 %)', 'Precio ÷ 1,105', '$10.950'],
+              ['Monotributo', 'No discrimina IVA: el mismo precio', '$12.100'],
+              ['Exento', 'No cobra IVA: el mismo precio', '$12.100'],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Confirmalo con tu contador',
+            text: 'La alícuota es una sola para toda la tienda: si vendés productos con IVA distinto (10,5 % y 21 %) elegí la que corresponde a la mayoría y consultá cómo informar el resto. Si sos monotributista, preguntale si te conviene mostrar la leyenda (con el mismo precio) o apagarla. Impuestos internos u otros nacionales se suman en “Otros impuestos nacionales”.',
           },
         ],
       },

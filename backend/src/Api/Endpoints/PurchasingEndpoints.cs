@@ -215,10 +215,6 @@ public static class PurchasingEndpoints
             });
         });
 
-        // Reposición con lead time: para un importador, "stock bajo" avisa tarde.
-        // Cobertura (stock / venta diaria de 60 días) vs lead time + colchón.
-        // La demanda suma TODO lo que consume stock: ventas de la tienda,
-        // ventas de Mercado Libre (vía vínculos) y componentes de kits.
         // Comprobante del proveedor. Se puede cargar en cualquier estado: la
         // factura suele llegar después de la mercadería, y el contador la
         // necesita igual.
@@ -340,100 +336,20 @@ public static class PurchasingEndpoints
             return Results.File(bytes, "text/csv", $"libro-iva-compras-{year}-{month:00}.csv");
         });
 
+        // Reposición con lead time (ver ReorderSignal): la misma cuenta que usan
+        // las alertas de stock bajo, para que el aviso y esta pantalla coincidan.
         purchasing.MapGet("/reorder-suggestions", async (
-            ITenantContext tenant, OrdersDbContext ordersDb, PurchasingDbContext purchasingDb,
-            Catalog.Infrastructure.Persistence.CatalogDbContext catalogDb,
-            MercadoLibre.Infrastructure.MeliDbContext meliDb,
-            IStockRepository stock, ICatalogCheckoutQuery catalog, CancellationToken ct,
+            ITenantContext tenant, Api.Purchasing.ReorderSignal signal, CancellationToken ct,
             int? leadTimeDays = null) =>
         {
-            const int windowDays = 60;
-            const int bufferDays = 30;
-            var since = DateTime.UtcNow.AddDays(-windowDays);
-
-            // Lead time: el pedido explícito, o el de la última OC recibida, o 60.
-            var lead = leadTimeDays
-                ?? await purchasingDb.PurchaseOrders.AsNoTracking()
-                    .Where(p => p.LeadTimeDays != null && p.Status == PurchaseOrderStatus.Received)
-                    .OrderByDescending(p => p.ReceivedAtUtc)
-                    .Select(p => p.LeadTimeDays)
-                    .FirstOrDefaultAsync(ct)
-                ?? 60;
-
-            var sold = (await ordersDb.Orders.AsNoTracking()
-                    .Where(o => o.TenantId == tenant.TenantId && OrderStatuses.Earning.Contains(o.Status) && o.CreatedAtUtc >= since)
-                    .ToListAsync(ct))
-                .SelectMany(o => o.Items)
-                .GroupBy(i => i.VariantId)
-                .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-
-            // Ventas de Mercado Libre: descuentan el mismo stock (unificado),
-            // así que son la misma demanda — mapeadas a variantes por vínculo.
-            var links = await meliDb.ItemLinks.AsNoTracking().ToListAsync(ct);
-            if (links.Count > 0)
+            var result = await signal.SuggestionsAsync(tenant.TenantId, leadTimeDays, ct);
+            return Results.Ok(new
             {
-                var resolver = MercadoLibre.Infrastructure.MeliLinkResolver.From(links);
-                var meliOrders = await meliDb.Orders.AsNoTracking()
-                    .Where(o => o.Status == "paid" && o.DateCreatedUtc >= since)
-                    .ToListAsync(ct);
-                foreach (var order in meliOrders)
-                {
-                    foreach (var item in Api.Meli.MeliSyncService.ParseSnapshot(order.ItemsJson))
-                    {
-                        if (resolver.TryResolve(item.ItemId, item.VariationId, out var vid))
-                            sold[vid] = sold.GetValueOrDefault(vid) + item.Quantity;
-                    }
-                }
-            }
-
-            // Kits: vender el kit consume sus componentes, pero esa demanda no
-            // figura como venta de la variante componente — se expande acá.
-            var kitIds = sold.Keys.ToList();
-            var kitComponents = await catalogDb.KitComponents.AsNoTracking()
-                .Where(k => kitIds.Contains(k.KitVariantId))
-                .ToListAsync(ct);
-            if (kitComponents.Count > 0)
-            {
-                var kitQty = sold.ToDictionary(kv => kv.Key, kv => kv.Value); // snapshot pre-expansión
-                foreach (var component in kitComponents)
-                    sold[component.ComponentVariantId] =
-                        sold.GetValueOrDefault(component.ComponentVariantId)
-                        + component.Quantity * kitQty[component.KitVariantId];
-            }
-
-            if (sold.Count == 0) return Results.Ok(new { leadTimeDays = lead, items = Array.Empty<object>() });
-
-            var stockByVariant = (await stock.GetByVariantsAsync(tenant.TenantId, sold.Keys.ToList(), ct))
-                .ToDictionary(s => s.VariantId, s => s.Available);
-            var variants = (await catalog.GetVariantsAsync(tenant.TenantId.Value, sold.Keys.ToList(), ct))
-                .ToDictionary(v => v.VariantId);
-
-            var suggestions = sold
-                .Select(kv =>
-                {
-                    var perDay = kv.Value / (decimal)windowDays;
-                    var available = stockByVariant.GetValueOrDefault(kv.Key);
-                    var coverageDays = perDay > 0 ? (int)Math.Floor(available / perDay) : int.MaxValue;
-                    var suggestedQty = (int)Math.Ceiling(perDay * (lead + bufferDays)) - available;
-                    return new { kv.Key, perDay, available, coverageDays, suggestedQty };
-                })
-                .Where(x => x.coverageDays < lead + bufferDays && x.suggestedQty > 0)
-                .OrderBy(x => x.coverageDays)
-                .Take(100)
-                .Select(x => new
-                {
-                    variantId = x.Key,
-                    product = variants.TryGetValue(x.Key, out var v) ? v.ProductName : "(producto)",
-                    variant = variants.TryGetValue(x.Key, out var v2) ? v2.VariantDescription : "",
-                    sku = variants.TryGetValue(x.Key, out var v3) ? v3.Sku : "",
-                    unitsPerDay = Math.Round(x.perDay, 2),
-                    available = x.available,
-                    coverageDays = x.coverageDays,
-                    suggestedQty = x.suggestedQty,
-                })
-                .ToList();
-
-            return Results.Ok(new { leadTimeDays = lead, windowDays, bufferDays, items = suggestions });
+                leadTimeDays = result.LeadTimeDays,
+                windowDays = result.WindowDays,
+                bufferDays = result.BufferDays,
+                items = result.Items,
+            });
         });
 
         return group;

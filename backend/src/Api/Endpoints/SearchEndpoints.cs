@@ -64,17 +64,22 @@ public static class SearchEndpoints
     }
 
     /// <summary>
-    /// Ventas por número ("#A1B2C3D4", con o sin numeral: es el principio del
-    /// id), email o nombre del comprador. Igual que el buscador de Ventas.
+    /// Ventas por número ("#1042", con o sin numeral), por el id corto de las
+    /// etiquetas viejas ("#A1B2C3D4"), email o nombre del comprador. Igual que
+    /// el buscador de Ventas.
     /// </summary>
     private static async Task<List<SearchHit>> OrdersAsync(
         OrdersDbContext db, SharedKernel.Common.TenantId tenantId, string text, int take, CancellationToken ct)
     {
         var plain = text.TrimStart('#').Trim();
         var term = $"%{plain}%";
+        // "1042" o "#1042" es ESE pedido (exacto, como en Ventas); el id corto
+        // de las etiquetas viejas sigue valiendo.
+        var number = global::Orders.Core.Domain.OrderLabel.ParseNumber(text);
         var rows = await db.Orders.AsNoTracking()
             .Where(o => o.TenantId == tenantId)
-            .Where(o => EF.Functions.ILike(o.BuyerEmail, term)
+            .Where(o => (number != null && o.Number == number)
+                || EF.Functions.ILike(o.BuyerEmail, term)
                 || (o.BuyerName != null && EF.Functions.ILike(o.BuyerName, term))
                 || EF.Functions.ILike(o.Id.ToString(), $"{plain}%"))
             .OrderByDescending(o => o.CreatedAtUtc)
@@ -83,7 +88,7 @@ public static class SearchEndpoints
 
         return rows.Select(o => new SearchHit(
             o.Id,
-            $"#{o.Id.ToString("N")[..8].ToUpperInvariant()} · {o.BuyerName ?? o.BuyerEmail}",
+            $"{o.Label} · {o.BuyerName ?? o.BuyerEmail}",
             o.Status.ToString().ToUpperInvariant(),
             AmountMinor: o.Total.AmountInMinorUnits,
             Currency: o.Currency,

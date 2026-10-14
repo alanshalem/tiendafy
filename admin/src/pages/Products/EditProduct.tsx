@@ -9,6 +9,7 @@ import { api, errMsg } from '../../lib/api';
 import { fetchStock, isStockChanged } from '../../lib/products';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
+import { ProductWaitingNotice } from './StockAlerts';
 import { type SpecValues } from './SpecFields';
 import { StickyFormBar } from './StickyFormBar';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -389,7 +390,11 @@ export function EditProductPage() {
     <div className="space-y-4 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Editar producto</h1>
-        <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {/* "Avisame cuando ingrese": cuánta gente espera este producto. */}
+          <ProductWaitingNotice productId={product.id} />
+          <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
+        </div>
       </div>
 
       {/* En pantallas anchas, lo principal a la izquierda y lo que se toca poco

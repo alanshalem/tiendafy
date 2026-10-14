@@ -58,19 +58,29 @@ public static class OrderEmail
     /// <summary>Variables para sustituir en las plantillas editables de email.
     /// Los escalares se HTML-encodean (un nombre/tienda con &lt;script&gt; no debe
     /// ejecutarse); solo `items` es HTML confiable (armado con Enc() adentro).</summary>
+    /// <remarks>
+    /// {{order_id}} es el NÚMERO de pedido de la tienda ("1042"), sin el
+    /// numeral: las plantillas ya escriben "#{{order_id}}". Antes era el UUID
+    /// entero ("Recibimos tu pedido #3f2a…-…"), que nadie puede dictar por
+    /// teléfono; las plantillas que el comercio ya editó pasan solas al número.
+    /// {{tracking_link}} es la página "Seguí tu pedido" de ese pedido, con un
+    /// link firmado que la abre sin pedir email ni número.
+    /// </remarks>
     public static IReadOnlyDictionary<string, string> OrderVars(
-        Order o, string storeName, IReadOnlyDictionary<Guid, string>? imageByVariant = null) => new Dictionary<string, string>
+        Order o, string storeName, IReadOnlyDictionary<Guid, string>? imageByVariant = null,
+        string? trackingLink = null) => new Dictionary<string, string>
         {
             ["store"] = Enc(storeName),
             ["name"] = Enc(o.BuyerName),
-            ["order_id"] = Enc(o.Id.ToString()),
+            ["order_id"] = Enc(o.Label.TrimStart('#')),
             ["total"] = Enc(MoneyFormat.ForNotification(o.Total)),
             ["items"] = ItemsTable(o, imageByVariant),
             ["email"] = Enc(o.BuyerEmail),
+            ["tracking_link"] = Enc(trackingLink ?? "#"),
         };
 
     public static string Refund(Order o) =>
         $@"<h2 style='margin:0 0 12px;font-size:20px'>Tu compra fue reembolsada</h2>
-<p>Procesamos el reembolso de tu orden por {MoneyFormat.ForNotification(o.Total)}.</p>
-<p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Orden {o.Id}</p>";
+<p>Procesamos el reembolso de tu pedido por {MoneyFormat.ForNotification(o.Total)}.</p>
+<p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Pedido {Enc(o.Label)}</p>";
 }

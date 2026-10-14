@@ -26,7 +26,7 @@ describe('mapa canónico de estados de venta', () => {
 
   it('orderStatusLabel traduce estados conocidos', () => {
     expect(orderStatusLabel('PAID')).toBe('Pagada');
-    expect(orderStatusLabel('FULFILLED')).toBe('Entregada');
+    expect(orderStatusLabel('FULFILLED')).toBe('Enviada');
     expect(orderStatusLabel('PARTIALLYREFUNDED')).toBe('Reembolso parcial');
   });
 

@@ -14,6 +14,7 @@ using Notifications.Infrastructure;
 using Orders.Infrastructure.Persistence;
 using Payments.Infrastructure.Persistence;
 using Purchasing.Infrastructure;
+using Reviews.Infrastructure;
 using Social.Infrastructure;
 using Support.Infrastructure;
 using Tenancy.Infrastructure.Persistence;
@@ -60,6 +61,7 @@ public static class DatabaseMigrator
         await MigrateAsync<FinanceDbContext>(sp, logger);
         await MigrateAsync<MeliDbContext>(sp, logger);
         await MigrateAsync<SocialDbContext>(sp, logger);
+        await MigrateAsync<ReviewsDbContext>(sp, logger);
 
         // Relleno de una sola vez: la migración que crea el resumen de compras
         // de los clientes lo deja en cero, y las fichas viejas mostrarían "0

@@ -39,6 +39,7 @@ public sealed class CustomerProfileTests(ApiFactory factory)
         Assert.Equal(2, orders.Count);
         // La más nueva primero, con lo necesario para linkearla a Ventas.
         Assert.Equal(second, orders[0].GetProperty("id").GetGuid());
+        Assert.True(orders[0].GetProperty("number").GetInt32() > orders[1].GetProperty("number").GetInt32());
         Assert.Equal("PAID", orders[0].GetProperty("status").GetString());
         Assert.Equal(10_000_00, orders[0].GetProperty("totalMinor").GetInt64());
     }

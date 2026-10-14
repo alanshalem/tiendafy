@@ -10,6 +10,8 @@ import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
 import { InitialFallback } from './InitialFallback';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
+import { CardRating, type ProductRating } from './ReviewStars';
 
 // Descuento por transferencia/efectivo del tema (productDetail.cashDiscountPercent).
 // Se provee en StorefrontView; las cards lo usan para el "precio con transferencia".
@@ -31,6 +33,8 @@ export interface StoreProduct {
   stock?: number | null;
   /** La descripción resumida (ver excerptOf). Solo si el producto tiene descripción. */
   excerpt?: string;
+  /** Estrellas de las reseñas aprobadas (null = sin reseñas). */
+  rating?: ProductRating | null;
 }
 
 // Bajo este stock la card muestra "¡Últimas N!" (badge de urgencia).
@@ -168,6 +172,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       >
         {product.name}
       </Link>
+      <CardRating rating={product.rating} />
       {list.showPrice && (
         <div className="mt-0.5 text-sm">
           <span className={`font-semibold ${onSale ? 'text-red-600' : ''}`}>
@@ -180,6 +185,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           )}
         </div>
       )}
+      {list.showPrice && <PriceWithoutTaxes amount={product.priceAmount} currency={product.currency} />}
       {list.showPrice && list.showCashPrice && cashPct > 0 && (
         <div className="text-xs font-semibold text-green-700">
           {formatMoney(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con

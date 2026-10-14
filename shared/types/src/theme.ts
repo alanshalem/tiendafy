@@ -348,9 +348,13 @@ export interface FooterConfig {
 
 /**
  * Catálogo de logos de medios de pago / bancos disponibles.
- * `slug` = nombre del archivo en /payment-logos/<slug>.svg (servido por
+ * `slug` = nombre del archivo en /payment-logos/<slug>.webp (servido por
  * storefront y admin desde sus carpetas public). Fuente única para el
  * selector del admin y el render del footer.
+ *
+ * Son WebP de 240x120 (3x del tamaño al que se dibujan, ~28 px de alto):
+ * los SVG originales venían de Canva con un PNG gigante embebido y pesaban
+ * 16 MB entre todos. Un test de cada app falla si alguno pasa de 30 KB.
  */
 export interface PaymentLogo {
   slug: string;
@@ -378,6 +382,13 @@ export const PAYMENT_LOGOS: PaymentLogo[] = [
 ];
 /** Slugs válidos (para filtrar selecciones viejas/erróneas). */
 export const PAYMENT_LOGO_SLUGS: string[] = PAYMENT_LOGOS.map((l) => l.slug);
+/** Tamaño intrínseco de los archivos: va en width/height del <img> para que
+ *  el navegador reserve el lugar antes de bajarlos (sin saltos de layout). */
+export const PAYMENT_LOGO_SIZE = { width: 240, height: 120 } as const;
+export const paymentLogoSrc = (slug: string): string => `/payment-logos/${slug}.webp`;
+/** Nombre legible para el alt: el logo informa con qué se puede pagar. */
+export const paymentLogoLabel = (slug: string): string =>
+  PAYMENT_LOGOS.find((l) => l.slug === slug)?.label ?? slug;
 
 /** Estilo de bordes global (cards, botones, imágenes, inputs). */
 export type BorderRadiusStyle = 'rounded' | 'soft' | 'sharp';

@@ -18,6 +18,7 @@ const RedirectsPage = lazyPage(() => import('./pages/Settings/Redirects'), 'Redi
 const TrackingPage = lazyPage(() => import('./pages/Settings/Tracking'), 'TrackingPage');
 const SpecFieldsPage = lazyPage(() => import('./pages/Settings/SpecFields'), 'SpecFieldsPage');
 const FiscalInvoicingPage = lazyPage(() => import('./pages/Settings/FiscalInvoicing'), 'FiscalInvoicingPage');
+const LegalInfoPage = lazyPage(() => import('./pages/Settings/LegalInfo'), 'LegalInfoPage');
 const DomainsPage = lazyPage(() => import('./pages/Settings/Domains'), 'DomainsPage');
 const UsersNotificationsPage = lazyPage(
   () => import('./pages/Settings/UsersNotifications'),
@@ -48,6 +49,12 @@ const CustomersPage = lazyPage(() => import('./pages/Customers'), 'CustomersPage
 const CustomerProfilePage = lazyPage(() => import('./pages/CustomerProfile'), 'CustomerProfilePage');
 const MessagesPage = lazyPage(() => import('./pages/Messages'), 'MessagesPage');
 const SupportChatPage = lazyPage(() => import('./pages/SupportChat'), 'SupportChatPage');
+const InboxPage = lazyPage(() => import('./pages/Inbox'), 'InboxPage');
+const DespachoPage = lazyPage(() => import('./pages/Despacho'), 'DespachoPage');
+const StockBajoPage = lazyPage(() => import('./pages/Products/StockBajo'), 'StockBajoPage');
+const StockAlertsPage = lazyPage(() => import('./pages/Settings/StockAlerts'), 'StockAlertsPage');
+const ReviewsPage = lazyPage(() => import('./pages/Reviews'), 'ReviewsPage');
+const BackInStockPage = lazyPage(() => import('./pages/Products/StockAlerts'), 'StockAlertsPage');
 const OrdersPage = lazyPage(() => import('./pages/Orders'), 'OrdersPage');
 const AbandonedCartsPage = lazyPage(() => import('./pages/AbandonedCarts'), 'AbandonedCartsPage');
 const PresupuestosPage = lazyPage(() => import('./pages/Presupuestos'), 'PresupuestosPage');
@@ -103,7 +110,9 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/compras', el: <ComprasPage /> },
   { path: '/proveedores', el: <ProveedoresPage /> },
   { path: '/productos/escaner', el: <ScannerPage /> },
+  { path: '/productos/stock-bajo', el: <StockBajoPage /> },
   { path: '/productos/kits', el: <KitsPage /> },
+  { path: '/productos/esperando', el: <BackInStockPage /> },
 
   // Tienda online
   { path: '/canales/tienda-online', el: <ThemeEditorPage /> },
@@ -112,6 +121,8 @@ const MAIN_ROUTES: AppRoute[] = [
   // Ventas y el resto del panel
   { path: '/ventas', el: <OrdersPage /> },
   { path: '/ventas/carritos', el: <AbandonedCartsPage /> },
+  { path: '/ventas/despacho', el: <DespachoPage /> },
+  { path: '/bandeja', el: <InboxPage /> },
   { path: '/presupuestos', el: <PresupuestosPage /> },
   { path: '/descuentos', el: <DiscountsPage /> },
   { path: '/marketing', el: <MarketingPage /> },
@@ -125,6 +136,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/cuentas-corrientes', el: <CuentasCorrientesPage /> },
   { path: '/mensajes', el: <MessagesPage /> },
   { path: '/posventa', el: <SupportChatPage /> },
+  { path: '/resenas', el: <ReviewsPage /> },
   { path: '/paginas', el: <PagesPage /> },
   { path: '/tenants', el: <TenantsPage /> },
 ];
@@ -138,12 +150,14 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'whatsapp-automatico', el: <WhatsAppAutoPage /> },
   { path: 'opciones-del-checkout', el: <CheckoutOptionsPage /> },
   { path: 'facturacion', el: <FiscalInvoicingPage /> },
+  { path: 'datos-legales', el: <LegalInfoPage /> },
   { path: 'usuarios', el: <UsersNotificationsPage /> },
   { path: 'roles', el: <RolesPage /> },
   { path: 'dominios', el: <DomainsPage /> },
   { path: 'redirecciones', el: <RedirectsPage /> },
   { path: 'medicion', el: <TrackingPage /> },
   { path: 'ficha-tecnica', el: <SpecFieldsPage /> },
+  { path: 'alertas-de-stock', el: <StockAlertsPage /> },
 ];
 
 /**

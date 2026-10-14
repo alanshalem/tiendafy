@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Download, Loader2, Package, Plus, RefreshCw, Search, Truck, X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, Download, Loader2, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
 import {
   Checkbox,
   clickableRowProps,
@@ -16,15 +16,18 @@ import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { formatDateTime, formatMoney, formatNumber } from '../lib/format';
+import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
-import { orderNumber } from '../lib/orderNumber';
+import { ORDER_CHANNEL, ORDER_PAYMENT, ORDER_SHIPPING, refundEffect, toOptions } from '../lib/orderFacets';
+import { orderLabel } from '../lib/orderNumber';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
+import { useIsNarrow } from '../lib/useMediaQuery';
 import { HelpLink } from '../components/HelpLink';
 import { ManualSaleModal } from './orders-manual';
 import { RefundDialog } from './orders-refund';
-import { OrderDetail, OrderStatusPill } from './orders-detail';
+import { OrderDetail, OrderStatusPill, ShippingPill, type OrderActions } from './orders-detail';
+import { BulkReportPanel, OrdersBulkBar, type BulkReport } from './orders-bulk';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
@@ -40,6 +43,8 @@ interface OrderItem {
   unitPrice: Money;
 }
 export interface Order {
+  /** Número de la tienda (#1042). */
+  number?: number;
   id: string;
   status: string;
   buyerEmail: string;
@@ -54,11 +59,21 @@ export interface Order {
   shippingAddress: string | null;
   currency: string;
   paymentId: string | null;
+  preferenceId?: string | null;
   couponCode: string | null;
   createdAtUtc: string;
   paidAtUtc: string | null;
   tracking: string | null;
   fulfilledAtUtc: string | null;
+  /** web | manual | quote (lib/orderFacets). */
+  channel?: string;
+  /** online | cash | transfer | cuenta_corriente; null = sin cobrar. */
+  paymentMethod?: string | null;
+  /** por-despachar | por-preparar | enviada | lista-para-retirar; null = no aplica. */
+  shippingStatus?: string | null;
+  cancelledAtUtc?: string | null;
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
   subtotal: Money;
   discount: Money;
   total: Money;
@@ -85,8 +100,13 @@ const PAGE_SIZE = 25;
 /** Ventana de las métricas del encabezado, en días. */
 const STATS_DAYS = 30;
 
-/** Búsqueda, estado y página del listado: viven en la URL (ver useListParams). */
-const LIST_DEFAULTS = { q: '', estado: '', pagina: 1 };
+/**
+ * Búsqueda, filtros y página del listado: viven en la URL (ver
+ * useListParams), así el Inicio puede mandar a "las que hay que despachar" o
+ * "las transferencias por confirmar" con un link.
+ */
+const LIST_DEFAULTS = { q: '', estado: '', desde: '', hasta: '', canal: '', envio: '', cobro: '', pagina: 1 };
+type ListValues = typeof LIST_DEFAULTS;
 
 interface SalesStats {
   currency: string;
@@ -95,23 +115,16 @@ interface SalesStats {
   averageOrder: number;
 }
 
-interface BulkFulfillResult {
-  fulfilled: number;
-  skipped: number;
-  failed: number;
-  results: {
-    id: string;
-    number: string;
-    result: 'fulfilled' | 'skipped' | 'failed';
-    reason: string | null;
-  }[];
-}
-
 /** Los parámetros que entiende el listado (y el export, que trae lo mismo). */
-function listQuery(q: string, status: string) {
+function listQuery(v: ListValues) {
   const params = new URLSearchParams();
-  if (q.trim()) params.set('q', q.trim());
-  if (status) params.set('status', status);
+  if (v.q.trim()) params.set('q', v.q.trim());
+  if (v.estado) params.set('status', v.estado);
+  if (v.desde) params.set('from', v.desde);
+  if (v.hasta) params.set('to', v.hasta);
+  if (v.canal) params.set('channel', v.canal);
+  if (v.envio) params.set('shipping', v.envio);
+  if (v.cobro) params.set('payment', v.cobro);
   return params;
 }
 
@@ -122,22 +135,25 @@ export function OrdersPage() {
   const canFulfill = can('orders.fulfill');
   const canRefund = can('orders.refund');
   const canEmit = can('fiscal.emit');
+  const canCancel = can('orders.create') || canRefund;
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
+  const narrow = useIsNarrow();
   const [manualOpen, setManualOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const list = useListParams(LIST_DEFAULTS);
-  const { q, estado: statusFilter, pagina: page } = list.values;
+  const { estado: statusFilter, pagina: page } = list.values;
   const [search, setSearch] = useListSearch(list);
 
-  // La búsqueda y el filtro viajan al servidor: con miles de ventas, filtrar
-  // solo lo que ya está en pantalla es no encontrar nada. Con React Query, una
-  // página ya vista vuelve al instante y al cambiar de página se sigue viendo
-  // la anterior hasta que llega la nueva (sin el parpadeo del esqueleto).
-  const params = listQuery(q, statusFilter);
+  // La búsqueda y los filtros viajan al servidor: con miles de ventas,
+  // filtrar solo lo que ya está en pantalla es no encontrar nada. Con React
+  // Query, una página ya vista vuelve al instante y al cambiar de página se
+  // sigue viendo la anterior hasta que llega la nueva (sin el parpadeo del
+  // esqueleto).
+  const params = listQuery(list.values);
   params.set('limit', String(PAGE_SIZE));
   params.set('offset', String((page - 1) * PAGE_SIZE));
   const ordersQuery = useQuery({
@@ -225,7 +241,7 @@ export function OrdersPage() {
       if (
         !(await confirm({
           title: 'Confirmar reembolso',
-          message: `¿Reembolsar ${label} a ${o.buyerEmail}? Esto devuelve el dinero en Mercado Pago y no se puede deshacer.`,
+          message: `¿Reembolsar ${label} a ${o.buyerEmail}? ${refundEffect(o.paymentMethod, o.paymentId)} No se puede deshacer.`,
           confirmLabel: 'Reembolsar',
           variant: 'danger',
         }))
@@ -245,6 +261,39 @@ export function OrdersPage() {
       }
     },
     [load, confirm, toast],
+  );
+
+  // Una venta que nunca se cobró (el link de pago que no se pagó): se cancela
+  // para liberar el stock y anular el link. El motivo queda en la venta.
+  const cancel = useCallback(
+    async (o: Order) => {
+      const reason = await prompt({
+        title: `Cancelar la venta ${orderLabel(o)}`,
+        message:
+          'Se anula el link de pago (si tiene), se libera el stock reservado y la venta queda cancelada. No se puede deshacer. Motivo (opcional):',
+        placeholder: 'Ej: no pagó, se arrepintió',
+        confirmLabel: 'Cancelar venta',
+      });
+      if (reason === null) return;
+      setBusy(o.id);
+      try {
+        const r = await api.post<{ linkExpired: boolean }>(`/api/v1/orders/${o.id}/cancel`, {
+          reason: reason.trim() || null,
+        });
+        toast(
+          o.preferenceId && !r.linkExpired
+            ? 'Venta cancelada y stock liberado. No pudimos anular el link en Mercado Pago: si el cliente paga igual, la venta queda cancelada y vas a tener que devolverle la plata desde Mercado Pago.'
+            : 'Venta cancelada: stock liberado y link de pago anulado.',
+          { variant: o.preferenceId && !r.linkExpired ? 'error' : 'success' },
+        );
+        await load();
+      } catch (e) {
+        toast(errMsg(e, 'No se pudo cancelar la venta.'), { variant: 'error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [load, prompt, toast],
   );
 
   // Deep-link desde Mensajes o Presupuestos: /ventas?order=<id> abre esa venta.
@@ -269,59 +318,34 @@ export function OrdersPage() {
   const focused = !focusInPage ? focusQuery.data : undefined;
 
   // ---- Selección y acciones en lote
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkResult, setBulkResult] = useState<BulkFulfillResult | null>(null);
-  const toggleSelect = (id: string) =>
+  // Se guardan las ventas (no solo los ids): los remitos y la facturación en
+  // lote necesitan sus datos aunque la selección cruce páginas.
+  const [selected, setSelected] = useState<Map<string, Order>>(new Map());
+  const [bulkReport, setBulkReport] = useState<BulkReport | null>(null);
+  const toggleSelect = (o: Order) =>
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      if (next.has(o.id)) next.delete(o.id);
+      else next.set(o.id, o);
       return next;
     });
   const selectedOnPage = orders.filter((o) => selected.has(o.id)).length;
   const allPageSelected = orders.length > 0 && selectedOnPage === orders.length;
   const toggleSelectAll = () =>
     setSelected((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       for (const o of orders) {
         if (allPageSelected) next.delete(o.id);
-        else next.add(o.id);
+        else next.set(o.id, o);
       }
       return next;
     });
-
-  const bulkFulfill = async () => {
-    const ids = [...selected];
-    const ok = await confirm({
-      title: `Marcar ${ids.length} ${ids.length === 1 ? 'venta' : 'ventas'} como enviadas`,
-      message:
-        'Le avisamos a cada comprador (a los que retiran en el local, que su pedido está listo). Va sin código de seguimiento: si hace falta, se carga después en cada venta. Las que no estén cobradas o ya estén enviadas quedan como están.',
-      confirmLabel: 'Marcar enviadas',
-    });
-    if (!ok) return;
-    setBulkBusy(true);
-    try {
-      const res = await api.post<BulkFulfillResult>('/api/v1/orders/bulk/fulfill', { ids });
-      setBulkResult(res);
-      // Las que salieron (o ya estaban) dejan de estar elegidas; las que
-      // fallaron quedan, para reintentarlas o revisarlas.
-      const failed = new Set(res.results.filter((r) => r.result === 'failed').map((r) => r.id));
-      setSelected((prev) => new Set([...prev].filter((id) => failed.has(id))));
-      toast(bulkSummary(res), { variant: res.failed > 0 ? 'error' : 'success' });
-      await load();
-    } catch (e) {
-      toast(errMsg(e, 'No se pudieron marcar las ventas.'), { variant: 'error' });
-    } finally {
-      setBulkBusy(false);
-    }
-  };
 
   const [exporting, setExporting] = useState(false);
   const exportCsv = async () => {
     setExporting(true);
     try {
-      const filters = listQuery(q, statusFilter).toString();
+      const filters = listQuery(list.values).toString();
       const blob = await api.download(`/api/v1/orders/export${filters ? `?${filters}` : ''}`);
       downloadBlob(blob, `ventas-${store?.subdomain ?? 'tienda'}.csv`);
     } catch (e) {
@@ -369,16 +393,19 @@ export function OrdersPage() {
       : []),
   ];
 
-  const rowProps = {
+  const actions: OrderActions = {
     canFulfill,
     canRefund,
     canEmit,
+    canCancel,
     onFulfill: fulfill,
     onRefund: setRefunding,
+    onCancel: cancel,
   };
 
   return (
-    <div>
+    // Lugar para la barra de lo elegido, que en el celular va fija abajo.
+    <div className={cn(selected.size > 0 && 'pb-44 sm:pb-0')}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Ventas</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -395,7 +422,7 @@ export function OrdersPage() {
             type="button"
             onClick={exportCsv}
             disabled={exporting || total === 0}
-            title="Descarga las ventas de este listado (con la búsqueda y el filtro puestos) en un CSV para Excel."
+            title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
           >
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{' '}
@@ -418,71 +445,40 @@ export function OrdersPage() {
         </div>
       )}
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[16rem] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-          <Input
-            type="search"
-            aria-label="Buscar ventas"
-            className="pl-8"
-            placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="w-52">
-          <Select
-            aria-label="Filtrar por estado"
-            value={statusFilter}
-            onChange={(e) => list.set({ estado: e.target.value })}
-            options={[
-              { value: '', label: 'Todos los estados' },
-              ...Object.entries(ORDER_STATUS).map(([value, meta]) => ({ value, label: meta.label })),
-            ]}
-          />
-        </div>
-        {total > 0 && (
-          <span className="text-xs text-fg-subtle">
-            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
-          </span>
-        )}
-      </div>
+      <OrderFilters
+        values={list.values}
+        search={search}
+        onSearch={setSearch}
+        onChange={(patch) => list.set(patch)}
+        showMeliLink={can('meli.operate')}
+      />
+      {total > 0 && (
+        <p className="mb-3 text-xs text-fg-subtle">
+          {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
+        </p>
+      )}
 
       {focusOrder && !focusInPage && ordersQuery.isSuccess && (
         <FocusedOrder
           order={focused}
           loading={focusQuery.isPending && focusQuery.fetchStatus !== 'idle'}
           busy={!!focused && busy === focused.id}
-          {...rowProps}
+          {...actions}
         />
       )}
 
-      {bulkResult && <BulkResultPanel result={bulkResult} onClose={() => setBulkResult(null)} />}
+      {bulkReport && <BulkReportPanel report={bulkReport} onClose={() => setBulkReport(null)} />}
 
-      {canFulfill && selected.size > 0 && (
-        <div className="sticky top-[calc(var(--header-height)+0.5rem)] z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-xl">
-          <span className="text-sm font-semibold text-primary">
-            {selected.size} {selected.size === 1 ? 'seleccionada' : 'seleccionadas'}
-          </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={bulkBusy}
-              onClick={bulkFulfill}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-50"
-            >
-              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />} Marcar
-              como enviadas
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-fg-muted hover:text-fg"
-            >
-              <X className="h-4 w-4" /> Deseleccionar
-            </button>
-          </div>
-        </div>
+      {selected.size > 0 && (
+        <OrdersBulkBar
+          selected={[...selected.values()]}
+          canFulfill={canFulfill}
+          canEmit={canEmit}
+          onReport={setBulkReport}
+          onKeepSelected={(keep) => setSelected((prev) => new Map([...prev].filter(([id]) => keep.has(id))))}
+          onClear={() => setSelected(new Map())}
+          reload={load}
+        />
       )}
 
       {firstLoad ? (
@@ -525,12 +521,30 @@ export function OrdersPage() {
             <p className="text-xs">Cuando un cliente pague con Mercado Pago, la orden aparece acá.</p>
           </div>
         )
+      ) : narrow ? (
+        // Celular: una tarjeta por venta con lo que se mira primero (número,
+        // cliente, total, estado) y la acción principal, en vez de una tabla
+        // que dejaba el total y el estado fuera de la pantalla.
+        <div className={cn('space-y-2', ordersQuery.isPlaceholderData && 'opacity-60 transition-opacity')}>
+          {orders.map((o) => (
+            <OrderCard
+              key={o.id}
+              order={o}
+              open={expanded === o.id}
+              onToggle={() => setExpanded(expanded === o.id ? null : o.id)}
+              selected={selected.has(o.id)}
+              onSelect={() => toggleSelect(o)}
+              busy={busy === o.id}
+              {...actions}
+            />
+          ))}
+        </div>
       ) : (
         <>
           <StatusLegend
             items={[
               { dot: 'bg-warning', text: 'Pendiente: esperando el pago' },
-              { dot: 'bg-success', text: 'Pagada / Entregada: cobrada' },
+              { dot: 'bg-success', text: 'Pagada / Enviada: cobrada' },
               { dot: 'bg-info', text: 'Reembolsada' },
               { dot: 'bg-danger', text: 'Fallida / Contracargo' },
               { dot: 'bg-fg-subtle', text: 'Cancelada' },
@@ -541,21 +555,20 @@ export function OrdersPage() {
               <table className="w-full text-sm" aria-busy={ordersQuery.isPlaceholderData || undefined}>
                 <thead className={TABLE_HEAD_STICKY}>
                   <tr className="border-b border-border text-left text-xs text-fg-muted">
-                    {canFulfill && (
-                      <th className="w-10 px-3 py-2.5">
-                        <Checkbox
-                          checked={allPageSelected}
-                          indeterminate={selectedOnPage > 0 && !allPageSelected}
-                          onChange={toggleSelectAll}
-                          aria-label="Seleccionar todas las ventas de la página"
-                        />
-                      </th>
-                    )}
+                    <th className="w-10 px-3 py-2.5">
+                      <Checkbox
+                        checked={allPageSelected}
+                        indeterminate={selectedOnPage > 0 && !allPageSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Seleccionar todas las ventas de la página"
+                      />
+                    </th>
                     <th className="px-4 py-2.5 font-medium">Número</th>
                     <th className="px-4 py-2.5 font-medium">Fecha</th>
                     <th className="px-4 py-2.5 font-medium">Cliente</th>
                     <th className="px-4 py-2.5 text-right font-medium">Total</th>
                     <th className="px-4 py-2.5 font-medium">Estado</th>
+                    <th className="px-4 py-2.5 font-medium">Envío</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -565,11 +578,10 @@ export function OrdersPage() {
                       order={o}
                       open={expanded === o.id}
                       onToggle={() => setExpanded(expanded === o.id ? null : o.id)}
-                      selectable={canFulfill}
                       selected={selected.has(o.id)}
-                      onSelect={() => toggleSelect(o.id)}
+                      onSelect={() => toggleSelect(o)}
                       busy={busy === o.id}
-                      {...rowProps}
+                      {...actions}
                     />
                   ))}
                 </tbody>
@@ -603,13 +615,113 @@ export function OrdersPage() {
   );
 }
 
-interface RowActions {
-  canFulfill: boolean;
-  canRefund: boolean;
-  canEmit: boolean;
-  onFulfill: (o: Order) => void;
-  onRefund: (o: Order) => void;
+// ---- Filtros -------------------------------------------------------------------
+
+/**
+ * Buscar, estado, fechas, canal, envío y cobro. Todo va en la URL y al
+ * servidor; las fechas son días de Argentina ("hasta el 14" incluye el 14).
+ */
+function OrderFilters({
+  values,
+  search,
+  onSearch,
+  onChange,
+  showMeliLink,
+}: {
+  values: ListValues;
+  search: string;
+  onSearch: (text: string) => void;
+  onChange: (patch: Partial<ListValues>) => void;
+  showMeliLink: boolean;
+}) {
+  const dateCls =
+    'h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary';
+  return (
+    <div className="mb-2 space-y-2">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+        <Input
+          type="search"
+          aria-label="Buscar ventas"
+          className="pl-8"
+          placeholder="Buscar por email, nombre o número (#A1B2C3D4)…"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <Select
+          aria-label="Filtrar por estado"
+          value={values.estado}
+          onChange={(e) => onChange({ estado: e.target.value })}
+          options={[
+            { value: '', label: 'Todos los estados' },
+            ...Object.entries(ORDER_STATUS).map(([value, meta]) => ({ value, label: meta.label })),
+          ]}
+        />
+        <Select
+          aria-label="Filtrar por canal"
+          value={values.canal}
+          onChange={(e) => onChange({ canal: e.target.value })}
+          options={toOptions(ORDER_CHANNEL, 'Todos los canales')}
+        />
+        <Select
+          aria-label="Filtrar por envío"
+          value={values.envio}
+          onChange={(e) => onChange({ envio: e.target.value })}
+          options={toOptions(ORDER_SHIPPING, 'Cualquier envío')}
+        />
+        <Select
+          aria-label="Filtrar por cobro"
+          value={values.cobro}
+          onChange={(e) => onChange({ cobro: e.target.value })}
+          options={toOptions(ORDER_PAYMENT, 'Cualquier cobro')}
+        />
+        {/* Con el rótulo a la vista: un "dd/mm/aaaa" vacío no dice si es desde o hasta. */}
+        <label className="relative block">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+            Desde
+          </span>
+          <input
+            type="date"
+            aria-label="Desde"
+            title="Ventas desde este día"
+            value={values.desde}
+            max={values.hasta || undefined}
+            onChange={(e) => onChange({ desde: e.target.value })}
+            className={dateCls}
+          />
+        </label>
+        <label className="relative block">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+            Hasta (incluido)
+          </span>
+          <input
+            type="date"
+            aria-label="Hasta"
+            title="Ventas hasta este día (incluido)"
+            value={values.hasta}
+            min={values.desde || undefined}
+            onChange={(e) => onChange({ hasta: e.target.value })}
+            className={dateCls}
+          />
+        </label>
+      </div>
+      {showMeliLink && values.canal && (
+        <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
+          <Store className="h-3.5 w-3.5" aria-hidden="true" /> Las ventas de Mercado Libre tienen su propio
+          listado:{' '}
+          <Link to="/mercadolibre?tab=ventas" className="font-medium text-primary hover:underline">
+            Mercado Libre › Ventas
+          </Link>
+          .
+        </p>
+      )}
+    </div>
+  );
 }
+
+// ---- Filas y tarjetas ----------------------------------------------------------
 
 /**
  * Una venta del listado y, desplegado, su detalle. El número es un botón: con
@@ -620,7 +732,6 @@ function OrderRow({
   order: o,
   open,
   onToggle,
-  selectable,
   selected,
   onSelect,
   busy,
@@ -629,14 +740,12 @@ function OrderRow({
   order: Order;
   open: boolean;
   onToggle: () => void;
-  selectable: boolean;
   selected: boolean;
   onSelect: () => void;
   busy: boolean;
-} & RowActions) {
+} & OrderActions) {
   const detailId = `venta-${o.id}`;
   const row = clickableRowProps(onToggle, { focusable: false });
-  const columns = selectable ? 6 : 5;
   return (
     <Fragment>
       <tr
@@ -647,42 +756,118 @@ function OrderRow({
           selected && 'bg-primary/5',
         )}
       >
-        {selectable && (
-          <td className="w-10 px-3 py-3">
-            <Checkbox
-              checked={selected}
-              onChange={onSelect}
-              aria-label={`Seleccionar la venta ${orderNumber(o.id)}`}
-            />
-          </td>
-        )}
+        <td className="w-10 px-3 py-3">
+          <Checkbox
+            checked={selected}
+            onChange={onSelect}
+            aria-label={`Seleccionar la venta ${orderLabel(o)}`}
+          />
+        </td>
         <td className="whitespace-nowrap px-4 py-3">
           <button
             type="button"
             onClick={onToggle}
             aria-expanded={open}
             aria-controls={open ? detailId : undefined}
-            aria-label={`Venta ${orderNumber(o.id)}: ${open ? 'ocultar' : 'ver'} detalle`}
+            aria-label={`Venta ${orderLabel(o)}: ${open ? 'ocultar' : 'ver'} detalle`}
             className="rounded font-mono text-xs font-semibold text-fg hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            {orderNumber(o.id)}
+            {orderLabel(o)}
           </button>
         </td>
-        <td className="px-4 py-3 text-fg-muted">{formatDateTime(o.createdAtUtc)}</td>
+        <td className="whitespace-nowrap px-4 py-3 text-fg-muted">{formatDateTime(o.createdAtUtc)}</td>
         <td className="px-4 py-3 text-fg">{o.buyerEmail}</td>
-        <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg">{money(o.total)}</td>
+        <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-fg">
+          {money(o.total)}
+        </td>
         <td className="px-4 py-3">
           <OrderStatusPill order={o} />
+        </td>
+        <td className="px-4 py-3">
+          <ShippingPill order={o} />
         </td>
       </tr>
       {open && (
         <tr id={detailId} className="border-b border-border bg-bg-muted/40">
-          <td colSpan={columns} className="px-4 py-3">
+          <td colSpan={7} className="px-4 py-3">
             <OrderDetail order={o} busy={busy} {...actions} />
           </td>
         </tr>
       )}
     </Fragment>
+  );
+}
+
+/** La venta en el celular: número, cliente, total, estado y la acción del momento. */
+function OrderCard({
+  order: o,
+  open,
+  onToggle,
+  selected,
+  onSelect,
+  busy,
+  ...actions
+}: {
+  order: Order;
+  open: boolean;
+  onToggle: () => void;
+  selected: boolean;
+  onSelect: () => void;
+  busy: boolean;
+} & OrderActions) {
+  const detailId = `venta-${o.id}`;
+  const canShip = o.status === 'PAID' && actions.canFulfill;
+  return (
+    <article
+      aria-label={`Venta ${orderLabel(o)}`}
+      className={cn(
+        'rounded-lg border bg-surface p-3 shadow-card',
+        selected ? 'border-primary/50 bg-primary/5' : 'border-border',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Checkbox
+          checked={selected}
+          onChange={onSelect}
+          aria-label={`Seleccionar la venta ${orderLabel(o)}`}
+          className="mt-0.5"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={open ? detailId : undefined}
+          aria-label={`Venta ${orderLabel(o)}: ${open ? 'ocultar' : 'ver'} detalle`}
+          className="min-w-0 flex-1 text-left"
+        >
+          <span className="flex items-baseline justify-between gap-2">
+            <span className="font-mono text-xs font-semibold text-fg">{orderLabel(o)}</span>
+            <span className="text-base font-semibold tabular-nums text-fg">{money(o.total)}</span>
+          </span>
+          <span className="mt-0.5 block truncate text-sm text-fg">{o.buyerName || o.buyerEmail}</span>
+          <span className="block text-xs text-fg-subtle">{formatDate(o.createdAtUtc)}</span>
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-8">
+        <OrderStatusPill order={o} />
+        {o.shippingStatus && <ShippingPill order={o} />}
+        {canShip && !open && (
+          <button
+            type="button"
+            onClick={() => actions.onFulfill(o)}
+            disabled={busy}
+            className="ml-auto inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg disabled:opacity-50"
+          >
+            {o.isPickup ? 'Lista para retirar' : 'Marcar enviada'}
+          </button>
+        )}
+      </div>
+      {open && (
+        <div id={detailId} className="mt-3 border-t border-border pt-3">
+          <OrderDetail order={o} busy={busy} {...actions} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -692,7 +877,7 @@ function FocusedOrder({
   loading,
   busy,
   ...actions
-}: { order: Order | undefined; loading: boolean; busy: boolean } & RowActions) {
+}: { order: Order | undefined; loading: boolean; busy: boolean } & OrderActions) {
   if (loading) {
     return (
       <div className="mb-4 rounded-lg border border-border bg-surface">
@@ -709,11 +894,11 @@ function FocusedOrder({
   }
   return (
     <section
-      aria-label={`Venta ${orderNumber(order.id)}`}
+      aria-label={`Venta ${orderLabel(order)}`}
       className="mb-4 rounded-lg border border-primary/40 bg-surface p-4"
     >
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-mono font-semibold text-fg">{orderNumber(order.id)}</span>
+        <span className="font-mono font-semibold text-fg">{orderLabel(order)}</span>
         <span className="text-fg-muted">
           {formatDateTime(order.createdAtUtc)} · {order.buyerEmail} · {money(order.total)}
         </span>
@@ -722,50 +907,5 @@ function FocusedOrder({
       </div>
       <OrderDetail order={order} busy={busy} {...actions} />
     </section>
-  );
-}
-
-/** "3 marcadas como enviadas · 1 ya estaba · 2 no se pudieron" */
-function bulkSummary(r: BulkFulfillResult): string {
-  const parts = [
-    `${r.fulfilled} ${r.fulfilled === 1 ? 'marcada' : 'marcadas'} como ${r.fulfilled === 1 ? 'enviada' : 'enviadas'}`,
-  ];
-  if (r.skipped > 0) parts.push(`${r.skipped} ya ${r.skipped === 1 ? 'estaba enviada' : 'estaban enviadas'}`);
-  if (r.failed > 0) parts.push(`${r.failed} no se ${r.failed === 1 ? 'pudo' : 'pudieron'} marcar`);
-  return parts.join(' · ');
-}
-
-/** Lo que pasó con el lote, con el motivo de cada una que no salió. */
-function BulkResultPanel({ result, onClose }: { result: BulkFulfillResult; onClose: () => void }) {
-  const failed = result.results.filter((r) => r.result === 'failed');
-  return (
-    <div
-      role="status"
-      className={cn(
-        'mb-3 rounded-lg border px-4 py-3 text-sm',
-        failed.length > 0 ? 'border-warning/40 bg-warning-bg' : 'border-success/40 bg-success/5',
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="font-medium text-fg">{bulkSummary(result)}.</p>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar el resumen"
-          className="rounded p-0.5 text-fg-muted hover:text-fg"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      {failed.length > 0 && (
-        <ul className="mt-1.5 space-y-0.5 text-fg-muted">
-          {failed.map((r) => (
-            <li key={r.id}>
-              <span className="font-mono font-semibold text-fg">{r.number}</span>: {r.reason}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }

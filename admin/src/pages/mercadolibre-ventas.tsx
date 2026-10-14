@@ -1,23 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Loader2, MessageSquare, Send } from 'lucide-react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText, Loader2, MessageSquare, Search, Send, X } from 'lucide-react';
 import {
   Badge,
   Button,
+  Checkbox,
   EmptyList,
   Input,
   Modal,
+  Select,
   Spinner,
   StatCard,
+  cn,
   useConfirm,
   useToast,
   type BadgeVariant,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
+import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { StatusLegend } from '../components/StatusLegend';
+import { SetupInvoicingLink } from '../components/SetupInvoicingLink';
+import { LoadError } from '../components/LoadError';
 import { fecha, moneyMajor } from './mercadolibre-shared';
+import { BulkReportPanel, type BulkReport } from './orders-bulk';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
-import { usePageParam } from '../lib/useListParams';
+import { useListParams, useListSearch } from '../lib/useListParams';
+import { useFiscalReady } from '../lib/useFiscalReady';
+import { useIsNarrow } from '../lib/useMediaQuery';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -73,69 +84,209 @@ const LEGEND = [
   { dot: 'bg-fg-subtle', text: '✓ Stock aplicado: ya descontó stock local' },
 ];
 
+/** Los mismos valores que entiende la API (MeliOrderFilters). */
+const ESTADOS = [
+  { value: '', label: 'Todas las ventas' },
+  { value: 'sin-facturar', label: 'Sin facturar' },
+  { value: 'facturadas', label: 'Facturadas' },
+  { value: 'pagadas', label: 'Pagadas' },
+  { value: 'pendientes', label: 'Esperando el pago' },
+  { value: 'canceladas', label: 'Canceladas' },
+];
+
+/** Cobrada, con importe y sin comprobante: lo que se puede facturar. */
+const isInvoiceable = (o: MeliOrder) =>
+  (o.status === 'paid' || o.status === 'partially_refunded') &&
+  !o.fiscalDocumentId &&
+  (o.paidAmount > 0 || o.totalAmount > 0);
+
+const amountOf = (o: MeliOrder) => (o.paidAmount > 0 ? o.paidAmount : o.totalAmount);
+
 // ---- Ventas ------------------------------------------------------------------
 
 /** Ventas de ML por página. */
 const PAGE_SIZE = 25;
 
+/**
+ * Búsqueda, estado y página en la URL (el Inicio manda a "sin facturar" con
+ * un link). La página tiene nombre propio: la pantalla de Mercado Libre tiene
+ * varias pestañas y cada listado guarda lo suyo.
+ */
+const LIST_DEFAULTS = { q: '', estado: '', 'pagina-ventas': 1 };
+
+type RowState = { state: 'working' } | { state: 'done' } | { state: 'failed'; reason: string };
+
 export function VentasTab() {
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+  const { can } = usePermissions();
+  const canEmit = can('fiscal.emit');
+  const fiscalReady = useFiscalReady();
+  const narrow = useIsNarrow();
   const { toast } = useToast();
   const confirm = useConfirm();
-  const [orders, setOrders] = useState<MeliOrder[] | null>(null);
-  const [stats, setStats] = useState<MeliStats | null>(null);
   const [chatOrder, setChatOrder] = useState<MeliOrder | null>(null);
-  const [invoicing, setInvoicing] = useState<number | null>(null);
-  // La página va en la URL (ver usePageParam), con nombre propio: la pantalla
-  // de Mercado Libre tiene varias pestañas y cada listado guarda lo suyo.
-  const [page, setPage] = usePageParam('pagina-ventas');
-  const [total, setTotal] = useState(0);
+
+  const list = useListParams(LIST_DEFAULTS, { pageKey: 'pagina-ventas' });
+  const page = list.values['pagina-ventas'];
+  const [search, setSearch] = useListSearch(list);
+
+  const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+  if (list.values.q.trim()) params.set('q', list.values.q.trim());
+  if (list.values.estado) params.set('estado', list.values.estado);
+
+  // Un error al cargar se ve (LoadError del panel), no queda en "cargando".
+  const ordersQuery = useQuery({
+    queryKey: ['meli-orders', store?.id, params.toString()],
+    queryFn: () => api.get<{ items: MeliOrder[]; total: number }>(`/api/v1/admin/meli/orders?${params}`),
+    enabled: !!store,
+    placeholderData: keepPreviousData,
+  });
+  const { data: stats } = useQuery({
+    queryKey: ['meli-stats', store?.id, 30],
+    queryFn: () => api.get<MeliStats>('/api/v1/admin/meli/stats?days=30'),
+    enabled: !!store,
+    retry: false,
+  });
+  const orders = ordersQuery.data?.items ?? null;
+  const total = ordersQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // Facturación ARCA de la venta ML (consumidor final, camino de emisión manual).
-  const invoice = async (o: MeliOrder) => {
-    const ok = await confirm({
-      title: 'Emitir comprobante ARCA',
-      message: `Se factura la venta de ${o.buyerNickname || 'ML'} por ${moneyMajor(o.paidAmount > 0 ? o.paidAmount : o.totalAmount, o.currencyId)} a consumidor final. La emisión es real y queda registrada en ARCA.`,
-      confirmLabel: 'Facturar',
+  // Lo que se va facturando en esta pantalla: se ve en la fila al instante,
+  // sin esperar a recargar el listado.
+  const [rows, setRows] = useState<Record<number, RowState>>({});
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [progress, setProgress] = useState<string | null>(null);
+  const [report, setReport] = useState<BulkReport | null>(null);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['meli-orders', store?.id] });
+
+  const invoiceable = (orders ?? []).filter((o) => isInvoiceable(o) && rows[o.meliOrderId]?.state !== 'done');
+  const allSelected = invoiceable.length > 0 && invoiceable.every((o) => selected.has(o.meliOrderId));
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    if (!ok) return;
-    setInvoicing(o.meliOrderId);
+
+  /** Factura una venta y deja el resultado en su fila. */
+  const invoiceOne = async (o: MeliOrder): Promise<BulkReport['items'][number]> => {
+    const number = `#${o.meliOrderId}`;
+    setRows((r) => ({ ...r, [o.meliOrderId]: { state: 'working' } }));
     try {
       const r = await api.post<{ cae: string | null; ptoVta: number; number: number }>(
         `/api/v1/admin/meli/orders/${o.meliOrderId}/invoice`,
         {},
       );
-      toast(
-        `Comprobante ${String(r.ptoVta).padStart(4, '0')}-${String(r.number).padStart(8, '0')} emitido (CAE ${r.cae ?? '—'})`,
-        {
-          variant: 'success',
-        },
-      );
-      setOrders(
-        (prev) =>
-          prev?.map((x) => (x.meliOrderId === o.meliOrderId ? { ...x, fiscalDocumentId: 'ok' } : x)) ?? null,
-      );
+      setRows((prev) => ({ ...prev, [o.meliOrderId]: { state: 'done' } }));
+      return {
+        id: String(o.meliOrderId),
+        number,
+        result: 'ok',
+        reason: `Comprobante ${String(r.ptoVta).padStart(4, '0')}-${String(r.number).padStart(8, '0')} emitido (CAE ${r.cae ?? '—'})`,
+      };
     } catch (err) {
-      toast(errMsg(err, 'No se pudo facturar la venta.'), { variant: 'error' });
-    } finally {
-      setInvoicing(null);
+      const reason = errMsg(err, 'No se pudo facturar la venta.');
+      // Ya facturada (otra persona, o la automática): no es un error para reintentar.
+      const already = /ya tiene comprobante/i.test(reason);
+      setRows((prev) => ({
+        ...prev,
+        [o.meliOrderId]: already ? { state: 'done' } : { state: 'failed', reason },
+      }));
+      return { id: String(o.meliOrderId), number, result: already ? 'skipped' : 'failed', reason };
     }
   };
 
-  useEffect(() => {
-    api
-      .get<{ items: MeliOrder[]; total: number }>(
-        `/api/v1/admin/meli/orders?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
-      )
-      .then((r) => {
-        setOrders(r.items);
-        setTotal(r.total ?? 0);
-      });
-    api
-      .get<MeliStats>('/api/v1/admin/meli/stats?days=30')
-      .then(setStats)
-      .catch(() => undefined);
-  }, [page]);
+  // Facturación ARCA de una venta ML (consumidor final, camino de emisión manual).
+  const invoice = async (o: MeliOrder) => {
+    const ok = await confirm({
+      title: 'Emitir comprobante ARCA',
+      message: `Se factura la venta de ${o.buyerNickname || 'ML'} por ${moneyMajor(amountOf(o), o.currencyId)} a consumidor final. La emisión es real y queda registrada en ARCA.`,
+      confirmLabel: 'Facturar',
+    });
+    if (!ok) return;
+    const result = await invoiceOne(o);
+    toast(result.reason!, {
+      variant: result.result === 'failed' ? 'error' : 'success',
+    });
+    if (result.result !== 'failed') await refresh();
+  };
+
+  // De a una y en orden, con el avance a la vista. El backend no factura dos
+  // veces la misma venta (si ya tiene comprobante, contesta "ya facturada"),
+  // así que cortar a la mitad y volver a empezar no duplica nada.
+  const invoiceSelected = async () => {
+    const chosen = (orders ?? []).filter((o) => selected.has(o.meliOrderId));
+    const ok = await confirm({
+      title: `Facturar ${chosen.length} ${chosen.length === 1 ? 'venta' : 'ventas'} de Mercado Libre`,
+      message: `Se emite un comprobante ARCA real, a consumidor final, por cada una (${moneyMajor(
+        chosen.reduce((sum, o) => sum + amountOf(o), 0),
+        chosen[0]?.currencyId ?? 'ARS',
+      )} en total). Se facturan de a una: podés seguir el avance en la tabla.`,
+      confirmLabel: 'Facturar',
+    });
+    if (!ok) return;
+    const items: BulkReport['items'] = [];
+    for (const [index, o] of chosen.entries()) {
+      setProgress(`Facturando ${index + 1} de ${chosen.length}…`);
+      items.push(await invoiceOne(o));
+    }
+    setProgress(null);
+    const done = items.filter((i) => i.result === 'ok').length;
+    const skipped = items.filter((i) => i.result === 'skipped').length;
+    const failed = items.filter((i) => i.result === 'failed').length;
+    const summary = [
+      `${done} ${done === 1 ? 'facturada' : 'facturadas'}`,
+      ...(skipped > 0 ? [`${skipped} ya ${skipped === 1 ? 'estaba facturada' : 'estaban facturadas'}`] : []),
+      ...(failed > 0 ? [`${failed} no se ${failed === 1 ? 'pudo' : 'pudieron'} facturar`] : []),
+    ].join(' · ');
+    setReport({ summary, items: items.map((i) => (i.result === 'ok' ? { ...i, reason: null } : i)) });
+    // Quedan elegidas las que fallaron, para reintentarlas.
+    setSelected(new Set(items.filter((i) => i.result === 'failed').map((i) => Number(i.id))));
+    toast(summary, { variant: failed > 0 ? 'error' : 'success' });
+    await refresh();
+  };
+
+  const invoiceAction = (o: MeliOrder, compact = false) => {
+    const row = rows[o.meliOrderId];
+    if (o.fiscalDocumentId || row?.state === 'done') return <Badge variant="success">Facturada</Badge>;
+    if (!isInvoiceable(o) || !canEmit) return null;
+    if (!fiscalReady) return <SetupInvoicingLink compact />;
+    return (
+      <Button
+        variant="secondary"
+        size={compact ? 'sm' : undefined}
+        disabled={row?.state === 'working' || !!progress}
+        onClick={() => invoice(o)}
+      >
+        {row?.state === 'working' ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <FileText className="h-4 w-4" />
+        )}{' '}
+        Facturar
+      </Button>
+    );
+  };
+
+  const statusBadges = (o: MeliOrder) => {
+    const st = ORDER_STATUS[o.status] ?? { label: o.status, variant: 'neutral' as BadgeVariant };
+    const row = rows[o.meliOrderId];
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant={st.variant}>{st.label}</Badge>
+        {o.stockApplied && <Badge variant="neutral">✓ Stock aplicado</Badge>}
+        {row?.state === 'failed' && (
+          <span className="text-xs text-danger" title={row.reason}>
+            No se facturó: {row.reason}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const selectable = canEmit && fiscalReady;
 
   return (
     <div>
@@ -159,13 +310,75 @@ export function VentasTab() {
         </div>
       )}
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[14rem] flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+          <Input
+            type="search"
+            aria-label="Buscar ventas de Mercado Libre"
+            className="pl-8"
+            placeholder="Buscar por comprador, número de venta o producto…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-52">
+          <Select
+            aria-label="Filtrar ventas de Mercado Libre"
+            value={list.values.estado}
+            onChange={(e) => list.set({ estado: e.target.value })}
+            options={ESTADOS}
+          />
+        </div>
+        {canEmit && !fiscalReady && list.values.estado === 'sin-facturar' && <SetupInvoicingLink />}
+      </div>
+
+      {report && <BulkReportPanel report={report} onClose={() => setReport(null)} />}
+
+      {selectable && selected.size > 0 && (
+        <div className="sticky top-[calc(var(--header-height)+0.5rem)] z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-xl">
+          <span className="text-sm font-semibold text-primary" aria-live="polite">
+            {selected.size} {selected.size === 1 ? 'seleccionada' : 'seleccionadas'}
+            {progress && <span className="ml-2 font-normal text-fg-muted">{progress}</span>}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={invoiceSelected} disabled={!!progress}>
+              {progress ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}{' '}
+              Facturar seleccionadas
+            </Button>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={!!progress}>
+              <X className="h-4 w-4" /> Deseleccionar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {orders === null ? (
-        <Spinner />
+        ordersQuery.isError ? (
+          // Una caída se ve y se reintenta (antes quedaba en el spinner para siempre).
+          <LoadError
+            title="No se pudieron cargar las ventas de Mercado Libre."
+            error={ordersQuery.error}
+            onRetry={() => void ordersQuery.refetch()}
+            retrying={ordersQuery.isFetching}
+          />
+        ) : (
+          <Spinner />
+        )
       ) : orders.length === 0 ? (
-        <EmptyList>
-          Todavía no hay ventas de Mercado Libre. Se importan solas con cada venta nueva (o desde
-          Configuración → Mercado Libre → Importar últimas ventas).
-        </EmptyList>
+        list.filtered ? (
+          <EmptyList>
+            Ninguna venta coincide con la búsqueda o el filtro.{' '}
+            <button type="button" onClick={list.reset} className="font-medium text-primary hover:underline">
+              Limpiar
+            </button>
+          </EmptyList>
+        ) : (
+          <EmptyList>
+            Todavía no hay ventas de Mercado Libre. Se importan solas con cada venta nueva (o desde
+            Configuración → Mercado Libre → Importar últimas ventas).
+          </EmptyList>
+        )
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -176,72 +389,121 @@ export function VentasTab() {
               </span>
             )}
           </div>
-          <div className={`${TABLE_SCROLL_X} rounded-lg border border-border bg-surface shadow-card`}>
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className={TABLE_HEAD_STICKY}>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Comprador</th>
-                  <th className="px-4 py-3">Productos</th>
-                  <th className="px-4 py-3">Total</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {orders.map((o) => {
-                  const st = ORDER_STATUS[o.status] ?? {
-                    label: o.status,
-                    variant: 'neutral' as BadgeVariant,
-                  };
-                  return (
-                    <tr key={o.meliOrderId}>
-                      <td className="px-4 py-3 text-fg-muted">{fecha(o.dateCreatedUtc)}</td>
+          {narrow ? (
+            // Celular: tarjetas con lo que se mira (comprador, total, estado)
+            // y las acciones a mano, en vez de una tabla de 760 px.
+            <div className="space-y-2">
+              {orders.map((o) => (
+                <article
+                  key={o.meliOrderId}
+                  aria-label={`Venta de Mercado Libre ${o.meliOrderId}`}
+                  className={cn(
+                    'rounded-lg border bg-surface p-3 shadow-card',
+                    selected.has(o.meliOrderId) ? 'border-primary/50 bg-primary/5' : 'border-border',
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    {selectable && isInvoiceable(o) && rows[o.meliOrderId]?.state !== 'done' && (
+                      <Checkbox
+                        checked={selected.has(o.meliOrderId)}
+                        onChange={() => toggle(o.meliOrderId)}
+                        aria-label={`Elegir la venta ${o.meliOrderId} para facturar`}
+                        className="mt-0.5"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate font-medium text-fg">{o.buyerNickname || '—'}</span>
+                        <span className="text-base font-semibold tabular-nums text-fg">
+                          {moneyMajor(o.totalAmount, o.currencyId)}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-fg-muted">
+                        {o.items.map((i) => `${i.quantity}× ${i.title}`).join(' · ') || '—'}
+                      </p>
+                      <p className="text-xs text-fg-subtle">{fecha(o.dateCreatedUtc)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2">{statusBadges(o)}</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {invoiceAction(o, true)}
+                    <Button variant="secondary" size="sm" onClick={() => setChatOrder(o)}>
+                      <MessageSquare className="h-4 w-4" /> Mensajes
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className={`${TABLE_SCROLL_X} rounded-lg border border-border bg-surface shadow-card`}>
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className={TABLE_HEAD_STICKY}>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-fg-subtle">
+                    {selectable && (
+                      <th className="w-10 px-3 py-3">
+                        <Checkbox
+                          checked={allSelected}
+                          indeterminate={!allSelected && invoiceable.some((o) => selected.has(o.meliOrderId))}
+                          disabled={invoiceable.length === 0}
+                          onChange={() =>
+                            setSelected(
+                              allSelected ? new Set() : new Set(invoiceable.map((o) => o.meliOrderId)),
+                            )
+                          }
+                          aria-label="Elegir todas las ventas sin facturar de la página"
+                        />
+                      </th>
+                    )}
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Comprador</th>
+                    <th className="px-4 py-3">Productos</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {orders.map((o) => (
+                    <tr key={o.meliOrderId} className={cn(selected.has(o.meliOrderId) && 'bg-primary/5')}>
+                      {selectable && (
+                        <td className="w-10 px-3 py-3">
+                          {isInvoiceable(o) && rows[o.meliOrderId]?.state !== 'done' && (
+                            <Checkbox
+                              checked={selected.has(o.meliOrderId)}
+                              onChange={() => toggle(o.meliOrderId)}
+                              aria-label={`Elegir la venta ${o.meliOrderId} para facturar`}
+                            />
+                          )}
+                        </td>
+                      )}
+                      <td className="whitespace-nowrap px-4 py-3 text-fg-muted">{fecha(o.dateCreatedUtc)}</td>
                       <td className="px-4 py-3 font-medium text-fg">{o.buyerNickname || '—'}</td>
                       <td className="max-w-[280px] px-4 py-3 text-fg-muted">
                         {o.items.map((i) => `${i.quantity}× ${i.title}`).join(' · ') || '—'}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-fg">
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-fg">
                         {moneyMajor(o.totalAmount, o.currencyId)}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant={st.variant}>{st.label}</Badge>
-                          {o.stockApplied && <Badge variant="neutral">✓ Stock aplicado</Badge>}
-                        </div>
-                      </td>
+                      <td className="px-4 py-3">{statusBadges(o)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {o.fiscalDocumentId ? (
-                            <Badge variant="success">Facturada</Badge>
-                          ) : (
-                            o.status === 'paid' && (
-                              <Button
-                                variant="secondary"
-                                disabled={invoicing === o.meliOrderId}
-                                onClick={() => invoice(o)}
-                              >
-                                {invoicing === o.meliOrderId ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <FileText className="h-4 w-4" />
-                                )}{' '}
-                                Facturar
-                              </Button>
-                            )
-                          )}
+                          {invoiceAction(o)}
                           <Button variant="secondary" onClick={() => setChatOrder(o)}>
                             <MessageSquare className="h-4 w-4" /> Mensajes
                           </Button>
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <Pagination
+            page={Math.min(page, totalPages)}
+            totalPages={totalPages}
+            onPage={(p) => list.set({ 'pagina-ventas': p })}
+          />
         </>
       )}
 

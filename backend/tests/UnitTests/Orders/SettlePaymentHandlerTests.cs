@@ -20,10 +20,12 @@ public class SettlePaymentHandlerTests
         public int Saves;
         public Task<Order?> GetByIdAsync(TenantId tenantId, Guid id, CancellationToken ct = default) => Task.FromResult(order);
         public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) => Task.FromResult(order);
+        public Task<Order?> GetByNumberAsync(TenantId tenantId, int number, CancellationToken ct = default) => Task.FromResult(order);
         public Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Order>>([]);
-        public Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default) =>
+        public Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(TenantId tenantId, int limit, int offset, OrderListFilter filter, CancellationToken ct = default) =>
             Task.FromResult<(IReadOnlyList<Order>, int)>(([], 0));
-        public IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, string? search, string? status) => AsyncEnumerable.Empty<Order>();
+        public IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, OrderListFilter filter) => AsyncEnumerable.Empty<Order>();
+        public Task<int> CountAsync(TenantId tenantId, OrderListFilter filter, CancellationToken ct = default) => Task.FromResult(0);
         public Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Order>>([]);
         public Task AddAsync(Order order, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) { Saves++; return Task.CompletedTask; }

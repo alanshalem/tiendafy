@@ -30,6 +30,9 @@ services:
       Media__SecretKey: minioadmin
       # La API corre migraciones idempotentes en el arranque.
       Database__MigrateOnStartup: 'true'
+      # Aviso al storefront por la red de compose. Secreto de demo local, no de producción.
+      Storefront__RevalidateUrl: 'http://storefront:3000/internal/revalidate'
+      Storefront__RevalidateSecret: dev-revalidate-secret
     ports:
       - '127.0.0.1:5080:8080'
     depends_on:
@@ -54,6 +57,8 @@ services:
       PLATFORM_BASE_DOMAIN: localhost
       # El dominio pelado es la tienda de la empresa, no un catálogo de tiendas.
       PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-puenteoriente}
+      # El mismo que Storefront__RevalidateSecret de la API.
+      REVALIDATE_SECRET: dev-revalidate-secret
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:

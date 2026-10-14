@@ -7,6 +7,7 @@ import { type ThemeConfig } from '@/lib/theme';
 import { usePublishedPages } from './PagesNav';
 import { usePreviewHref } from './preview';
 import { NewsletterForm } from './NewsletterForm';
+import { SellerIdentity } from './StoreLegalInfo';
 import { StoreLink } from './StoreLink';
 import { useMediaQuery } from './use-media';
 import { cn } from '@tiendafy/ui';
@@ -14,6 +15,9 @@ import {
   contrastText,
   footerColumnTitle,
   mixRgb,
+  PAYMENT_LOGO_SIZE,
+  paymentLogoLabel,
+  paymentLogoSrc,
   safeHref,
   type FooterColumn,
   type FooterLink,
@@ -137,6 +141,7 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
             <div className="flex flex-wrap items-center gap-x-4 text-xs text-fg-muted">
               <LegalLinks />
               <span className="py-2">© {tenantName}</span>
+              <SellerIdentity />
             </div>
           </div>
         </div>
@@ -163,6 +168,9 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           <LegalLinks />
         </div>
         <div className="mt-3 text-center text-xs text-fg-muted">© {tenantName}</div>
+        <div className="mt-1 flex justify-center text-center text-xs text-fg-muted">
+          <SellerIdentity />
+        </div>
       </div>
     </footer>
   );
@@ -474,8 +482,10 @@ function PaymentLogos({ footer, className }: { footer: FooterConfig; className: 
         // precargaba desde el <head>, compitiendo con la foto de portada.
         <img
           key={slug}
-          src={`/payment-logos/${slug}.svg`}
-          alt=""
+          src={paymentLogoSrc(slug)}
+          alt={paymentLogoLabel(slug)}
+          width={PAYMENT_LOGO_SIZE.width}
+          height={PAYMENT_LOGO_SIZE.height}
           loading="lazy"
           decoding="async"
           className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"
@@ -503,6 +513,11 @@ function LegalLinks() {
       <span aria-hidden>·</span>
       <Link href="/arrepentimiento" className="inline-block py-2 font-semibold hover:underline">
         Botón de arrepentimiento
+      </Link>
+      <span aria-hidden>·</span>
+      {/* Quien compró sin cuenta no tiene otra puerta para ver su pedido. */}
+      <Link href="/seguimiento" className="inline-block py-2 hover:underline">
+        Seguí tu pedido
       </Link>
     </>
   );

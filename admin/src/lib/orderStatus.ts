@@ -17,7 +17,7 @@ export const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
   REFUNDED: { label: 'Reembolsada', cls: tone.info },
   PARTIALLYREFUNDED: { label: 'Reembolso parcial', cls: tone.info },
   CHARGEDBACK: { label: 'Contracargo', cls: tone.danger },
-  FULFILLED: { label: 'Entregada', cls: tone.success },
+  FULFILLED: { label: 'Enviada', cls: tone.success },
 };
 
 export const orderStatusLabel = (status: string): string => ORDER_STATUS[status]?.label ?? status;

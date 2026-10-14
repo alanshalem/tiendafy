@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
@@ -7,7 +8,7 @@ import { api, errMsg } from '../../lib/api';
 import { fetchStock, isStockChanged, type StockItem } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
-import { orderNumber } from '../../lib/orderNumber';
+import { orderLabel } from '../../lib/orderNumber';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
@@ -27,6 +28,7 @@ interface CodeHit {
 }
 
 interface OrderLite {
+  number?: number;
   id: string;
   status: string;
   buyerEmail: string;
@@ -439,6 +441,16 @@ function PickingTab() {
       <p className="text-sm text-fg-muted">
         Elegí un pedido pagado y escaneá cada producto al empaquetarlo: si agarrás el equivocado, suena la
         alarma antes de despachar.
+        {can('orders.fulfill') && (
+          <>
+            {' '}
+            ¿Muchos pedidos juntos?{' '}
+            <Link to="/ventas/despacho" className="font-medium text-primary hover:underline">
+              Despacho
+            </Link>{' '}
+            arma el picking, las etiquetas y los remitos de todos.
+          </>
+        )}
       </p>
       <select
         aria-label="Pedido a preparar"
@@ -452,7 +464,7 @@ function PickingTab() {
         <option value="">Pedidos pagados sin despachar ({pending.length})…</option>
         {pending.map((o) => (
           <option key={o.id} value={o.id}>
-            {orderNumber(o.id)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
+            {orderLabel(o)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
           </option>
         ))}
       </select>

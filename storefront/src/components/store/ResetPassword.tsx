@@ -24,16 +24,20 @@ export function ResetPassword() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = await fetch(`${API}/api/v1/shop/auth/reset`, {
-      method: 'POST',
-      headers: tenantHeaders(tenantId, true),
-      credentials: 'include',
-      body: JSON.stringify({ token, password }),
-    });
-    setBusy(false);
-    if (res.ok) setDone(true);
-    else {
-      setError(await problemMessage(res, 'El link no es válido o expiró. Pedí uno nuevo.'));
+    try {
+      const res = await fetch(`${API}/api/v1/shop/auth/reset`, {
+        method: 'POST',
+        headers: tenantHeaders(tenantId, true),
+        credentials: 'include',
+        body: JSON.stringify({ token, password }),
+      });
+      if (res.ok) setDone(true);
+      else setError(await problemMessage(res, 'El link no es válido o expiró. Pedí uno nuevo.'));
+    } catch {
+      // Sin conexión: antes el botón quedaba girando para siempre.
+      setError('No pudimos conectarnos. Revisá tu conexión y probá de nuevo.');
+    } finally {
+      setBusy(false);
     }
   };
 

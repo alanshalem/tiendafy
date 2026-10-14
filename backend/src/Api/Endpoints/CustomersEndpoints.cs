@@ -125,6 +125,7 @@ public static class CustomersEndpoints
                     ? orders.Take(ProfileOrdersLimit).Select(o => new
                     {
                         id = o.Id,
+                        number = o.Number,
                         status = o.Status.ToString().ToUpperInvariant(),
                         createdAtUtc = o.CreatedAtUtc,
                         paidAtUtc = o.PaidAtUtc,

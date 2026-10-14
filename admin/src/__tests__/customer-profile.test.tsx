@@ -50,6 +50,7 @@ const PROFILE = {
   orders: [
     {
       id: ORDER_ID,
+      number: 1042,
       status: 'PAID',
       createdAtUtc: '2026-09-01T12:00:00Z',
       paidAtUtc: '2026-09-01T12:05:00Z',
@@ -154,7 +155,7 @@ describe('clientes: ficha', () => {
     await open(`/clientes/${ANA.id}`, 'Ana Gómez');
     expect(screen.getByText('Ticket promedio')).toBeInTheDocument();
     expect(screen.getByText(/15\.000/)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: '#ABCDEF12' });
+    const link = screen.getByRole('link', { name: '#1042' });
     expect(link).toHaveAttribute('href', `/ventas?order=${ORDER_ID}`);
     expect(screen.getByText(/Mancuerna 10 kg y 1 producto más/)).toBeInTheDocument();
   });

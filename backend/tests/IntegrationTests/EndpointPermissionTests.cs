@@ -39,6 +39,8 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/shipping/correo/quote",
             "POST /api/v1/shipping/zipnova/quote",
             "POST /api/v1/track",
+            "GET /api/v1/store/legal", // razón social, CUIT, Data Fiscal y la leyenda de precios: obligatorios a la vista
+            "POST /api/v1/shop/track-order", // "Seguí tu pedido": email + número o link firmado, con límite de intentos
         ],
         ["El checkout del comprador (la sesión es el id del checkout)"] =
         [
@@ -67,6 +69,13 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "PUT /api/v1/shop/favorites/{productId:guid}",
             "DELETE /api/v1/shop/favorites/{productId:guid}",
             "GET /api/v1/shop/orders",
+            "GET /api/v1/shop/orders/{id:guid}",
+            "GET /api/v1/shop/orders/{id:guid}/invoice.pdf",
+            "GET /api/v1/shop/addresses/",
+            "POST /api/v1/shop/addresses/",
+            "PUT /api/v1/shop/addresses/{id:guid}",
+            "POST /api/v1/shop/addresses/{id:guid}/default",
+            "DELETE /api/v1/shop/addresses/{id:guid}",
             "GET /api/v1/shop/support/conversations",
             "GET /api/v1/shop/support/conversations/{id:guid}/messages",
             "POST /api/v1/shop/support/conversations",
@@ -77,6 +86,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
         [
             "GET /api/v1/orders/{id:guid}",
             "GET /api/v1/orders/{id:guid}/status",
+            "GET /api/v1/orders/{id:guid}/summary", // la página de gracias: sin teléfono ni DNI
         ],
         ["Entrar al panel: login, registro y la propia cuenta"] =
         [
@@ -119,6 +129,22 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "GET /api/v1/marketing/o.gif",
             "GET /api/v1/marketing/unsubscribe",
             "POST /api/v1/marketing/unsubscribe",
+        ],
+        ["Reseñas: las lee cualquiera; se escriben solo con el link firmado de una venta despachada; votos y denuncias con límite por IP"] =
+        [
+            "GET /api/v1/reviews/products/{productId:guid}",
+            "GET /api/v1/reviews/invite",
+            "POST /api/v1/reviews/",
+            "POST /api/v1/reviews/photos",
+            "POST /api/v1/reviews/{id:guid}/helpful",
+            "POST /api/v1/reviews/{id:guid}/report",
+            "GET /api/v1/shop/orders/{orderId:guid}/review-invite",
+        ],
+        ["\"Avisame cuando ingrese\": la suscripción desde la tienda y la baja desde el email (firmada)"] =
+        [
+            "POST /api/v1/back-in-stock/",
+            "GET /api/v1/back-in-stock/unsubscribe",
+            "POST /api/v1/back-in-stock/unsubscribe",
         ],
         ["Solo dice si la IA está configurada en la plataforma"] =
         [

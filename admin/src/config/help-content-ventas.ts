@@ -203,7 +203,8 @@ export const VENTAS = {
         heading: 'El ciclo de una venta',
         paragraphs: [
           'Cuando un cliente paga, la orden aparece en Ventas como “Pagada” (la confirmación llega por Mercado Pago automáticamente, aunque el cliente cierre el navegador).',
-          'Al expandir una venta ves los productos, los datos del comprador (nombre, teléfono, DNI/CUIT), la dirección de entrega, el medio de envío elegido, las notas del pedido y el pago asociado.',
+          'Al expandir una venta ves los productos, el cliente (nombre, email, teléfono, DNI/CUIT y el link “Ver en Clientes” a su ficha), el envío (medio, dirección, seguimiento y en qué anda), la forma de cobro, por dónde entró la venta y las notas del pedido.',
+          'Una venta “Enviada” es una que despachaste (o marcaste enviada): el sistema no se entera de cuándo la recibe el comprador, por eso no dice “Entregada”.',
         ],
         blocks: [
           {
@@ -216,7 +217,9 @@ export const VENTAS = {
       {
         heading: 'El número de venta, buscar y exportar',
         paragraphs: [
-          'Cada venta tiene un número corto, como #A1B2C3D4: es el mismo que recibe el comprador, el que va en la etiqueta del correo y el del CSV. Buscá por ese número, por email o por nombre, y filtrá por estado. La búsqueda, el filtro y la página quedan en la dirección: si recargás o volvés atrás no se pierden, y podés pasarle el link a alguien del equipo.',
+          'Cada venta tiene un número corto, como #A1B2C3D4: es el mismo que recibe el comprador, el que va en la etiqueta del correo y el del CSV. Buscá por ese número, por email o por nombre, y filtrá por estado, por fechas (desde / hasta, días completos), por canal (tienda online, venta manual o presupuesto), por envío (por despachar, enviada, lista para retirar…) y por forma de cobro (pago online, efectivo, transferencia, cuenta corriente). La búsqueda, los filtros y la página quedan en la dirección: si recargás o volvés atrás no se pierden, y podés pasarle el link a alguien del equipo.',
+          'La columna “Envío” dice en qué anda cada venta cobrada: por despachar, enviada, para preparar el retiro o lista para retirar. Las ventas de Mercado Libre tienen su propio listado, en Canales de venta → Mercado Libre → Ventas.',
+          'En el celular, cada venta es una tarjeta con el número, el cliente, el total, el estado y la acción del momento (por ejemplo “Marcar enviada”). Tocala para ver el detalle.',
           'Arriba ves lo facturado y las ventas de los últimos 30 días, y “Por despachar”: tocalo y la lista se filtra a las ventas pagadas que falta enviar.',
           '“Exportar” baja un CSV, listo para Excel, con las ventas que estás viendo (respeta la búsqueda y el filtro): número, fecha, estado, comprador, productos, montos, envío, seguimiento, cupón y de dónde vino la venta.',
         ],
@@ -245,11 +248,15 @@ export const VENTAS = {
         ],
       },
       {
-        heading: 'Marcar varias como enviadas',
+        heading: 'Trabajar con varias ventas a la vez',
         steps: [
-          'Tildá las ventas en la lista: aparece una barra con “N seleccionadas”.',
-          'Tocá “Marcar como enviadas” y confirmá (hasta 100 por vez).',
-          'Cada comprador recibe su aviso. Las que no estaban pagadas o ya estaban enviadas se saltean, y al final ves cuáles no se pudieron y por qué.',
+          'Tildá las ventas en la lista (o todas las de la página): aparece una barra con “N seleccionadas”. La selección se mantiene aunque cambies de página.',
+          '“Marcar como enviadas” (hasta 100 por vez): cada comprador recibe su aviso. Las que no estaban pagadas o ya estaban enviadas se saltean.',
+          '“Etiquetas” junta en un solo PDF las etiquetas de las ventas que ya tienen un envío de carrier generado (el mismo PDF que arma Despacho). Las que no tienen envío, o cuyo carrier no da etiqueta, se listan con el motivo.',
+          '“Remitos” baja un PDF con un remito por venta, para imprimir y meter en la caja.',
+          '“Facturar” emite la factura de cada venta cobrada, de a una; las que ya tenían factura no se vuelven a facturar. Si la facturación todavía no está configurada, el botón dice “Configurá la facturación”.',
+          '“Exportar” baja un CSV solo con las ventas elegidas.',
+          'Al terminar cada acción ves cuáles salieron y cuáles no, con el motivo; las que fallaron quedan tildadas para reintentar.',
         ],
         blocks: [
           {
@@ -266,7 +273,7 @@ export const VENTAS = {
         ],
         steps: [
           'Agregá los productos buscando por nombre o SKU, con la cantidad. El precio sale solo (de la lista de precios del cliente si tiene una); lo podés cambiar línea por línea.',
-          'Cargá el nombre del cliente, o elegilo de la agenda.',
+          'En “Cliente” escribí el nombre: abajo aparecen los de la agenda que coinciden. Elegir uno trae su email, su teléfono y su lista de precios; si no está, “Crear … en la agenda” lo da de alta ahí mismo. Si no elegís ninguno, el nombre queda solo en esta venta.',
           'Elegí el cobro: Efectivo o Transferencia (la venta queda pagada), Link de pago (Mercado Pago), o Cuenta corriente (queda debiendo).',
           'Escribí una nota si hace falta (“retira el sábado”) y confirmá.',
         ],
@@ -276,7 +283,7 @@ export const VENTAS = {
             items: [
               {
                 term: 'Link de pago (Mercado Pago)',
-                def: 'Necesita el email del comprador. Te damos el link para copiar y mandárselo; la venta queda pendiente y se marca pagada sola cuando paga.',
+                def: 'Necesita el email del comprador. Te damos el link para copiar y mandárselo; la venta queda pendiente y se marca pagada sola cuando paga. Si no paga, abrí la venta y tocá “Cancelar venta”.',
               },
               {
                 term: 'Cuenta corriente',
@@ -294,7 +301,7 @@ export const VENTAS = {
       {
         heading: 'Reembolsos totales y parciales',
         paragraphs: [
-          'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional). El dinero vuelve por Mercado Pago y la orden pasa a “Reembolsada” o “Reembolso parcial”.',
+          'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional), y la orden pasa a “Reembolsada” o “Reembolso parcial”. Qué pasa con la plata depende de cómo se cobró, y el diálogo te lo dice antes de confirmar: si se pagó online, vuelve por Mercado Pago; si fue en efectivo o por transferencia, la devolvés vos; si fue en cuenta corriente, se le baja la deuda al cliente.',
           'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo. Cuando la venta queda reembolsada del todo, al comprador le llega el aviso de cancelación y, si tenía factura, sale sola la nota de crédito.',
         ],
         blocks: [
@@ -320,9 +327,16 @@ export const VENTAS = {
         blocks: [
           {
             type: 'callout',
-            tone: 'warning',
-            text: 'Si la venta era en cuenta corriente, el reembolso no baja la deuda del cliente: corregila con un “Ajuste” en Cuentas corrientes.',
+            tone: 'info',
+            text: 'Si la venta era en cuenta corriente, no hay plata que devolver: el reembolso le baja la deuda al cliente por ese importe. En Cuentas corrientes queda como una nota de crédito con el motivo, y la venta deja de figurar pendiente por lo devuelto. Si el cliente ya la había pagado, le queda saldo a favor.',
           },
+        ],
+      },
+      {
+        heading: 'Cancelar una venta que no se cobró',
+        paragraphs: [
+          'Una venta pendiente de pago (por ejemplo, un link de Mercado Pago que el cliente nunca pagó) se cancela desde su detalle con “Cancelar venta”. Podés dejar un motivo.',
+          'Al cancelarla se anula el link de pago (deja de aceptar pagos), se libera el stock que tenía reservado y queda escrito quién la canceló, cuándo y por qué. Una venta ya cobrada no se cancela: se reembolsa.',
         ],
       },
       {
@@ -556,8 +570,8 @@ export const VENTAS = {
         blocks: [
           {
             type: 'callout',
-            tone: 'warning',
-            text: 'Los precios viajan junto con el stock: para que se sincronicen, tené prendido también “Sincronizar stock”.',
+            tone: 'info',
+            text: 'Precio y stock son independientes: podés sincronizar solo los precios (y manejar el stock de ML a mano), solo el stock, o los dos. Cada uno actúa sobre las publicaciones vinculadas y se actualiza cada cinco minutos.',
           },
         ],
       },
@@ -565,6 +579,15 @@ export const VENTAS = {
         heading: 'Facturar las ventas de Mercado Libre',
         paragraphs: [
           'Con “Facturar automáticamente las ventas de ML” (necesita la facturación electrónica configurada) cada venta pagada que llega de ML sale con su comprobante de ARCA a consumidor final. Si está apagado, o ARCA rechazó alguna, en la pestaña Ventas del canal tocás “Facturar” en cada una. Las facturadas quedan marcadas “Facturada”.',
+          'Para varias a la vez: filtrá “Sin facturar”, tildá las ventas (o todas las de la página) y tocá “Facturar seleccionadas”. Se facturan de a una, ves el avance y al final cuáles salieron y cuáles no (con el motivo); las que fallaron quedan tildadas para reintentar. Una venta ya facturada nunca se factura dos veces.',
+          'El buscador de la pestaña encuentra por comprador, número de venta o producto. En Inicio, “Para hacer hoy” te dice cuántas ventas de ML hay sin facturar y te lleva directo a ese filtro.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Mientras la facturación electrónica no esté lista (datos del emisor, certificado y punto de venta), en lugar de “Facturar” vas a ver “Configurá la facturación”, que te lleva a Configuración → Facturación. Pasa lo mismo en Ventas.',
+          },
         ],
       },
       {
@@ -590,7 +613,8 @@ export const VENTAS = {
             items: [
               'La conversación posventa la inicia SIEMPRE el comprador; vos respondés.',
               'Los mensajes tienen un máximo de 350 caracteres.',
-              'Responder preguntas rápido mejora tu reputación como vendedor (y tus ventas). El botón con destellos al lado de cada pregunta sugiere una respuesta con IA, que editás antes de mandar.',
+              'Responder preguntas rápido mejora tu reputación como vendedor (y tus ventas). Cada pregunta muestra de qué publicación es, con foto, precio y stock. El botón con destellos sugiere una respuesta con IA, que editás antes de mandar.',
+              'La respuesta es pública y no se puede editar: Enter hace un salto de línea, y se publica con “Publicar respuesta” o con Ctrl + Enter (⌘ + Enter en Mac).',
               'Todo lo que escribas pasa por la moderación de Mercado Libre: nada de datos de contacto ni links externos.',
             ],
           },
@@ -731,6 +755,56 @@ export const VENTAS = {
               },
             ],
           },
+        ],
+      },
+    ],
+  },
+
+  seguimiento: {
+    title: 'Números de pedido, “Seguí tu pedido” y la cuenta del comprador',
+    intro:
+      'Cada venta tiene un número corto de tu tienda (#1001, #1002…) y el comprador puede ver en qué está su pedido, con cuenta o sin ella.',
+    category: 'Ventas y pagos',
+    keywords: [
+      'número de orden',
+      'nro de pedido',
+      'tracking',
+      'estado del pedido',
+      'mis pedidos',
+      'direcciones',
+    ],
+    sections: [
+      {
+        heading: 'El número de pedido',
+        paragraphs: [
+          'Las ventas se numeran solas, en orden y por tienda, empezando en #1001. Es el número que ve el comprador en la página de gracias, en los mails y en WhatsApp, el que se imprime en la etiqueta de Correo Argentino y el que trae la planilla de ventas.',
+          'En Ventas podés buscar por número: “1042” o “#1042” trae ese pedido exacto. Las ventas de antes de la numeración recibieron su número en el orden en que se hicieron; el código viejo de 8 letras (el de las etiquetas anteriores) se sigue encontrando.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si editaste los mails automáticos, {{order_id}} ahora es el número de pedido (sin el #) y {{tracking_link}} es el link a “Seguí tu pedido” de esa compra.',
+          },
+        ],
+      },
+      {
+        heading: 'Seguí tu pedido (sin cuenta)',
+        paragraphs: [
+          'En /seguimiento el comprador escribe el email con el que compró y el número de pedido, y ve los pasos (recibido, pago acreditado, despachado o listo para retirar, entregado), el link del correo para seguir el envío y el detalle de la compra. Los mails de confirmación traen un link que lo abre directo, sin escribir nada.',
+          'El link está en el pie de la tienda, en “Mi cuenta” y en los mails. Si el email o el número no coinciden, la respuesta es siempre la misma: nadie puede averiguar quién compró en tu tienda probando emails. Y hay un tope de intentos por conexión.',
+        ],
+      },
+      {
+        heading: 'El link del correo',
+        paragraphs: [
+          'Con los envíos creados desde el panel (Andreani, Zipnova) el link sale solo. Si cargás el seguimiento a mano al despachar, se arma para Correo Argentino (cuando el medio de envío dice “Correo” o el número tiene el formato CP123456789AR) y para Andreani; también podés pegar directamente el link del correo.',
+        ],
+      },
+      {
+        heading: 'La cuenta del comprador',
+        paragraphs: [
+          'Con cuenta, el comprador ve todos sus pedidos con su número y el seguimiento, entra al detalle de cada uno (factura en PDF si está emitida, “Volver a comprar”, el chat posventa y el Botón de arrepentimiento con el número ya cargado) y guarda sus direcciones con una predeterminada, que el checkout usa para completarse solo.',
         ],
       },
     ],

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Api.Storefront;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Media.Infrastructure;
@@ -15,6 +16,7 @@ public sealed partial class ProductImageImportWorker(
     ImageImportQueue queue,
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
+    IStorefrontRevalidator storefront,
     ILogger<ProductImageImportWorker> logger) : ImportQueueWorker<ImageImportJob>(queue, logger)
 {
 
@@ -91,6 +93,8 @@ public sealed partial class ProductImageImportWorker(
 
         job.Status = ImportStatus.Completed;
         job.FinishedAtUtc = DateTime.UtcNow;
+        // Las fotos nuevas, en la tienda al toque (el endpoint avisó antes de subirlas).
+        _ = storefront.RevalidateAsync(job.TenantId, StorefrontScope.Catalog);
         logger.LogInformation("Import imágenes {JobId} listo: {Images} imágenes en {Products} productos, {Unmatched} sin match",
             job.Id, job.ImagesAdded, job.MatchedProducts, job.UnmatchedFiles);
     }

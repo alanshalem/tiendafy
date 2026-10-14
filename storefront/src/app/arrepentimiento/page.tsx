@@ -5,12 +5,18 @@ import { RepentanceForm } from '@/components/store/RepentanceForm';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Botón de arrepentimiento' };
 
-/** Botón de Arrepentimiento — obligatorio en AR (Res. 424/2020). */
-export default function ArrepentimientoPage({
+/**
+ * Botón de Arrepentimiento — obligatorio en AR (Res. 424/2020). `?pedido=`
+ * llega desde "Seguí tu pedido" o el detalle de la cuenta con el número ya puesto.
+ */
+export default async function ArrepentimientoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ preview?: string; pt?: string }>;
+  searchParams: Promise<{ preview?: string; pt?: string; pedido?: string }>;
 }) {
+  const { pedido } = await searchParams;
+  const initialOrder =
+    pedido && /^#?\d{1,9}$/.test(pedido.trim()) ? `#${pedido.trim().replace(/^#/, '')}` : '';
   return (
     <StorefrontPageShell searchParams={searchParams}>
       {() => (
@@ -24,7 +30,7 @@ export default function ArrepentimientoPage({
             sin costo alguno (art. 34, Ley 24.240 y Resolución 424/2020). Completá este formulario y la tienda
             va a coordinar con vos la devolución y el reintegro del pago.
           </p>
-          <RepentanceForm />
+          <RepentanceForm initialOrder={initialOrder} />
         </main>
       )}
     </StorefrontPageShell>

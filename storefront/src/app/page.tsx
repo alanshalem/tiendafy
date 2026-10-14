@@ -1,6 +1,6 @@
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
-import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
+import { fetchPublishedTheme, resolvePageTheme } from '@/lib/theme';
 import { loadStorefront, siteBase, loadHomeSectionProducts } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { jsonLd } from '@/lib/json-ld';
@@ -44,11 +44,7 @@ export default async function HomePage({
   if (data.tenant.status === 'CANCELED') return <StoreDeleted />;
   if (data.tenant.status === 'SUSPENDED') return <StoreSuspended name={data.tenant.name} />;
 
-  const sp = await searchParams;
-  const preview = sp.preview === '1';
-  const theme = preview
-    ? await fetchDraftTheme(data.tenant.id, sp.pt)
-    : await fetchPublishedTheme(data.tenant.id);
+  const { theme, preview } = await resolvePageTheme(data.tenant.id, await searchParams);
 
   if (!preview && theme.comingSoon.enabled)
     return <ComingSoon theme={theme} tenantName={data.tenant.name} tenantId={data.tenant.id} />;
