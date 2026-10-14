@@ -16,6 +16,7 @@ import {
   useConfirm,
   useToast,
   type BadgeVariant,
+  EmptyList,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -249,18 +250,14 @@ function QuoteList({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <FileText className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">
-            {debounced || status ? 'Ningún presupuesto coincide' : 'Todavía no hiciste presupuestos'}
-          </p>
-          {!debounced && !status && (
-            <p className="mt-1 text-sm text-fg-muted">
-              Sirve para cotizarle a un revendedor y que, cuando conteste que sí, la venta salga sola con esos
-              precios. Si el cliente tiene lista de precios asignada, los precios se cargan de ahí.
-            </p>
-          )}
-        </div>
+        <EmptyList
+          icon={<FileText />}
+          title={debounced || status ? 'Ningún presupuesto coincide' : 'Todavía no hiciste presupuestos'}
+        >
+          {!debounced &&
+            !status &&
+            'Sirve para cotizarle a un revendedor y que, cuando conteste que sí, la venta salga sola con esos precios. Si el cliente tiene lista de precios asignada, los precios se cargan de ahí.'}
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>

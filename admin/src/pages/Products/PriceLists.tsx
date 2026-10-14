@@ -1,7 +1,18 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea, useConfirm, useToast } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+  useConfirm,
+  useToast,
+  EmptyList,
+} from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
@@ -132,15 +143,11 @@ function ListsOverview({ onOpen }: { onOpen: (list: PriceListRow) => void }) {
       </div>
 
       {lists.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <Tags className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">Todavía no hay listas de precios</p>
-          <p className="mt-1 text-sm text-fg-muted">
-            El precio que cargás en cada producto es el que ve todo el mundo. Creá una lista —&ldquo;Mayorista
-            −30%&rdquo;, por ejemplo— y asignásela a los clientes que corresponda desde su ficha: las ventas
-            manuales van a usar ese precio solas.
-          </p>
-        </div>
+        <EmptyList icon={<Tags />} title="Todavía no hay listas de precios">
+          El precio que cargás en cada producto es el que ve todo el mundo. Creá una lista —&ldquo;Mayorista
+          −30%&rdquo;, por ejemplo— y asignásela a los clientes que corresponda desde su ficha: las ventas
+          manuales van a usar ese precio solas.
+        </EmptyList>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {lists.map((l) => (
@@ -470,11 +477,11 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-sm text-fg-muted">
+        <EmptyList>
           {debounced
             ? 'Ningún producto coincide con la búsqueda.'
             : 'Todavía no hay productos en el catálogo.'}
-        </div>
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>

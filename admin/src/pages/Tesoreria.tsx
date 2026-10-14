@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftRight, Banknote, Landmark, Plus, Wallet } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea, useToast } from '@tiendafy/ui';
+import { Badge, Button, FormField, Input, Modal, Select, Textarea, useToast, EmptyList } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
@@ -121,14 +121,10 @@ function AccountsGrid({ accounts }: { accounts: FinanceAccount[] }) {
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-        <Wallet className="mx-auto h-8 w-8 text-fg-subtle" />
-        <p className="mt-2 text-sm font-medium">Todavía no cargaste ninguna caja ni cuenta bancaria</p>
-        <p className="mt-1 text-sm text-fg-muted">
-          Creá al menos una para poder registrar cobros y pagos. Si arrancás con plata en la caja, ponela como
-          saldo inicial.
-        </p>
-      </div>
+      <EmptyList icon={<Wallet />} title="Todavía no cargaste ninguna caja ni cuenta bancaria">
+        Creá al menos una para poder registrar cobros y pagos. Si arrancás con plata en la caja, ponela como
+        saldo inicial.
+      </EmptyList>
     );
   }
 
@@ -330,9 +326,7 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
       </div>
 
       {(data?.items ?? []).length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-fg-muted">
-          Todavía no hay movimientos en esta cuenta.
-        </div>
+        <EmptyList className="p-8">Todavía no hay movimientos en esta cuenta.</EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>

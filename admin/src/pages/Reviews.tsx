@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Check, EyeOff, Flag, MessageSquareReply, Settings2, Star, ThumbsUp } from 'lucide-react';
-import { Badge, Button, cn, Input, Modal, Select, Switch, Textarea, useToast } from '@tiendafy/ui';
+import { Badge, Button, cn, Input, Modal, Select, Switch, Textarea, useToast, EmptyList } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -212,14 +212,11 @@ export function ReviewsPage() {
           <TableSkeleton label="Cargando reseñas…" />
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center text-fg-muted">
-          <Star className="h-8 w-8 opacity-50" />
-          <p>
-            {tab === 'pending'
-              ? 'No hay reseñas esperando revisión. 🎉'
-              : 'Todavía no hay reseñas acá. Llegan solas: le pedimos la opinión a cada comprador unos días después del despacho.'}
-          </p>
-        </div>
+        <EmptyList icon={<Star />}>
+          {tab === 'pending'
+            ? 'No hay reseñas esperando revisión. 🎉'
+            : 'Todavía no hay reseñas acá. Llegan solas: le pedimos la opinión a cada comprador unos días después del despacho.'}
+        </EmptyList>
       ) : (
         <div className="space-y-3">
           {items.map((r) => (

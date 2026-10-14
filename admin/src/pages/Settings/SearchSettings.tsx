@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { Badge, Button, Input, useConfirm, useToast, Spinner } from '@tiendafy/ui';
+import { Badge, Button, Input, useConfirm, useToast, Spinner, EmptyList } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -186,9 +186,9 @@ export function SearchSettingsPage() {
                 ))}
               </ul>
               {rows.length === 0 && (
-                <p className="mt-4 rounded-lg border border-dashed border-border py-6 text-center text-sm text-fg-muted">
+                <EmptyList className="mt-4 p-6">
                   Sin sinónimos: la tienda busca exactamente lo que escriben.
-                </p>
+                </EmptyList>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => addRow()}>

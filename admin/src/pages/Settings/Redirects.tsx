@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { Trash2 } from 'lucide-react';
-import { Button, Input, useConfirm, useToast, Spinner } from '@tiendafy/ui';
+import { Button, Input, useConfirm, useToast, Spinner, EmptyList } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -126,10 +126,10 @@ export function RedirectsPage() {
         {loadError && <p className="mt-4 text-sm text-danger">{loadError}</p>}
 
         {items && items.length === 0 && (
-          <p className="mt-4 rounded-lg border border-dashed border-border py-8 text-center text-sm text-fg-muted">
+          <EmptyList className="mt-4 p-8">
             Todavía no hay ninguna. Creá una cada vez que cambies o borres una dirección que ya estaba
             publicada.
-          </p>
+          </EmptyList>
         )}
 
         {items && items.length > 0 && (

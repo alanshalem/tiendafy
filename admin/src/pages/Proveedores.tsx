@@ -13,6 +13,7 @@ import {
   Textarea,
   useToast,
   Spinner,
+  EmptyList,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -217,18 +218,13 @@ function SupplierList({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <Truck className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">
-            {debounced ? 'Ningún proveedor coincide con la búsqueda' : 'Todavía no cargaste proveedores'}
-          </p>
-          {!debounced && (
-            <p className="mt-1 text-sm text-fg-muted">
-              Cargá uno y después vas a poder elegirlo al armar una orden de compra, y ver ahí mismo su cuenta
-              corriente.
-            </p>
-          )}
-        </div>
+        <EmptyList
+          icon={<Truck />}
+          title={debounced ? 'Ningún proveedor coincide con la búsqueda' : 'Todavía no cargaste proveedores'}
+        >
+          {!debounced &&
+            'Cargá uno y después vas a poder elegirlo al armar una orden de compra, y ver ahí mismo su cuenta corriente.'}
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>
@@ -383,10 +379,10 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <div className="space-y-2">
         <h2 className="font-medium">Órdenes de compra</h2>
         {data.purchases.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-fg-muted">
+          <EmptyList className="p-8">
             Todavía no hay compras asociadas a este proveedor. Al crear una orden de compra, elegilo en el
             selector de proveedor.
-          </div>
+          </EmptyList>
         ) : (
           <div className={TABLE_CARD}>
             <div className={TABLE_SCROLL_X}>

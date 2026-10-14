@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Download, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
+import { Download, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
 import {
   Checkbox,
   clickableRowProps,
@@ -12,6 +12,7 @@ import {
   useConfirm,
   usePrompt,
   Spinner,
+  EmptyList,
 } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -34,6 +35,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats, type ListStat } from '../components/stats/ListStats';
 import { TableSkeleton } from '../components/Skeleton';
+import { LoadError } from '../components/LoadError';
 
 interface OrderItem {
   variantId: string;
@@ -518,26 +520,15 @@ export function OrdersPage() {
           <TableSkeleton rows={8} label="Cargando ventas…" />
         </div>
       ) : failedLoad ? (
-        <div
-          role="alert"
-          className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-danger/40 py-16 text-center text-fg-muted"
-        >
-          <AlertTriangle className="h-8 w-8 text-danger" />
-          <p className="text-fg">No se pudieron cargar las ventas.</p>
-          <p className="text-xs">{errMsg(ordersQuery.error, 'Revisá la conexión y probá de nuevo.')}</p>
-          <button
-            type="button"
-            onClick={() => ordersQuery.refetch()}
-            className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-          >
-            <RefreshCw className="h-4 w-4" /> Reintentar
-          </button>
-        </div>
+        <LoadError
+          title="No se pudieron cargar las ventas."
+          error={ordersQuery.error}
+          onRetry={() => ordersQuery.refetch()}
+          retrying={ordersQuery.isFetching}
+        />
       ) : orders.length === 0 ? (
         filtered ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-            <Search className="h-8 w-8 opacity-50" />
-            <p>Ninguna venta coincide con la búsqueda o el filtro.</p>
+          <EmptyList icon={<Search />} title="Ninguna venta coincide con la búsqueda o el filtro.">
             <button
               type="button"
               onClick={list.reset}
@@ -545,13 +536,11 @@ export function OrdersPage() {
             >
               Limpiar búsqueda y filtros
             </button>
-          </div>
+          </EmptyList>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-            <Package className="h-8 w-8 opacity-50" />
-            <p>Todavía no hay ventas.</p>
-            <p className="text-xs">Cuando un cliente pague con Mercado Pago, la orden aparece acá.</p>
-          </div>
+          <EmptyList icon={<Package />} title="Todavía no hay ventas.">
+            Cuando un cliente pague con Mercado Pago, la orden aparece acá.
+          </EmptyList>
         )
       ) : narrow ? (
         // Celular: una tarjeta por venta con lo que se mira primero (número,

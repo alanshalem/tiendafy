@@ -9,6 +9,7 @@ import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '..
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
 import { usePageParam } from '../lib/useListParams';
+import { EmptyList } from '@tiendafy/ui';
 
 interface Abandoned {
   count: number;
@@ -71,10 +72,7 @@ export function AbandonedCartsPage() {
           <TableSkeleton label="Cargando carritos…" />
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-          <ShoppingCart className="h-8 w-8 opacity-50" />
-          <p>Nada abandonado por ahora. ¡Bien ahí!</p>
-        </div>
+        <EmptyList icon={<ShoppingCart />}>Nada abandonado por ahora. ¡Bien ahí!</EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>

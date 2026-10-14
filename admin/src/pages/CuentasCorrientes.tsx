@@ -13,6 +13,7 @@ import {
   Textarea,
   useConfirm,
   useToast,
+  EmptyList,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -225,17 +226,14 @@ function BalancesList({
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center">
-          <Users className="mx-auto h-8 w-8 text-fg-subtle" />
-          <p className="mt-2 text-sm font-medium">
-            Ningún {kind === 'customer' ? 'cliente' : 'proveedor'} tiene saldo pendiente
-          </p>
-          <p className="mt-1 text-sm text-fg-muted">
-            {kind === 'customer'
-              ? 'Las ventas con medio de pago "Cuenta corriente" aparecen acá solas. También podés cargar un saldo inicial con un ajuste.'
-              : 'Las facturas que cargás en una orden de compra aparecen acá solas. También podés cargar un saldo inicial con un ajuste.'}
-          </p>
-        </div>
+        <EmptyList
+          icon={<Users />}
+          title={`Ningún ${kind === 'customer' ? 'cliente' : 'proveedor'} tiene saldo pendiente`}
+        >
+          {kind === 'customer'
+            ? 'Las ventas con medio de pago "Cuenta corriente" aparecen acá solas. También podés cargar un saldo inicial con un ajuste.'
+            : 'Las facturas que cargás en una orden de compra aparecen acá solas. También podés cargar un saldo inicial con un ajuste.'}
+        </EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>
@@ -342,9 +340,7 @@ function PartyStatement({
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-sm text-fg-muted">
-          Sin movimientos.
-        </div>
+        <EmptyList>Sin movimientos.</EmptyList>
       ) : (
         <div className={TABLE_CARD}>
           <div className={TABLE_SCROLL_X}>

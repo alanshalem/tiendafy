@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
-import { Badge, cn, Input, useToast } from '@tiendafy/ui';
+import { Badge, cn, Input, useToast, EmptyList } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -151,14 +151,11 @@ export function MessagesPage() {
           <TableSkeleton label="Cargando mensajes…" />
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center text-fg-muted">
-          <Mail className="h-8 w-8 opacity-50" />
-          <p>
-            {filter === 'repentance'
-              ? 'Sin solicitudes de arrepentimiento. 🎉'
-              : 'Todavía no recibiste mensajes.'}
-          </p>
-        </div>
+        <EmptyList icon={<Mail />}>
+          {filter === 'repentance'
+            ? 'Sin solicitudes de arrepentimiento. 🎉'
+            : 'Todavía no recibiste mensajes.'}
+        </EmptyList>
       ) : (
         <div className="space-y-3">
           {items.map((m) => {

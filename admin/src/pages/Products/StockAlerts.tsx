@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
-import { Badge, Table, type TableColumn } from '@tiendafy/ui';
+import { Badge, Table, type TableColumn, EmptyList } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -113,10 +113,7 @@ export function StockAlertsPage() {
           <TableSkeleton label="Cargando la demanda…" />
         </div>
       ) : (data?.items.length ?? 0) === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center text-fg-muted">
-          <Bell className="h-8 w-8 opacity-50" />
-          <p>Nadie está esperando un producto agotado.</p>
-        </div>
+        <EmptyList icon={<Bell />}>Nadie está esperando un producto agotado.</EmptyList>
       ) : (
         <Table columns={columns} rows={data!.items} rowKey={(r) => r.variantId} />
       )}
