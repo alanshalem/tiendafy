@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SectionPanel } from '../pages/theme-editor/sections/SectionPanel';
-import { mockApi } from '../test/api';
+import { fixture, mockApi } from '../test/api';
 import { renderWithProviders } from '../test/render';
 
 const user = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
@@ -77,14 +77,106 @@ describe('todos los campos tienen etiqueta', () => {
     'info-bar': { items: [{ icon: 'card', title: 'T' }] },
     testimonials: { items: [{ quote: 'Q', name: 'N' }] },
   };
-  it.each(['faq', 'info-bar', 'instagram', 'testimonials', 'newsletter', 'institutional'] as SectionType[])(
-    '%s',
-    async (type) => {
-      await mount(type, ONE_ITEM[type] ?? {});
-      // Una lista de un solo ítem arranca abierta: sus campos también cuentan.
-      expect(unlabelled()).toEqual([]);
-    },
-  );
+  it.each([
+    'featured',
+    'new-products',
+    'sale-products',
+    'faq',
+    'info-bar',
+    'instagram',
+    'testimonials',
+    'newsletter',
+    'institutional',
+  ] as SectionType[])('%s', async (type) => {
+    await mount(type, ONE_ITEM[type] ?? {});
+    // Una lista de un solo ítem arranca abierta: sus campos también cuentan.
+    expect(unlabelled()).toEqual([]);
+  });
+});
+
+describe('secciones de productos', () => {
+  it('sin nada guardado muestra el origen por defecto de su tipo', async () => {
+    await mount('featured');
+    expect(screen.getByLabelText('Qué productos mostrar')).toHaveValue('best-sellers');
+  });
+
+  it('una sección vieja (solo productIds) aparece como "Elegidos a mano"', async () => {
+    const [a] = fixture<{ items: { id: string; name: string }[] }>('/api/v1/products').items;
+    await mount('featured', { productIds: [a!.id] });
+    expect(screen.getByLabelText('Qué productos mostrar')).toHaveValue('manual');
+    expect(await screen.findByText(a!.name)).toBeInTheDocument();
+    // La cantidad la dan los elegidos: no se pide.
+    expect(screen.queryByLabelText(/Cantidad de productos/)).toBeNull();
+  });
+
+  it('de una categoría: elegirla, con o sin subcategorías, y el orden', async () => {
+    const u = user();
+    const cat = fixture<{ items: { id: string; name: string }[] }>('/api/v1/categories').items[0]!;
+    await mount('featured');
+    await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'category');
+    // Todavía sin categoría: el editor la sigue mostrando como "categoría".
+    expect(screen.getByLabelText('Qué productos mostrar')).toHaveValue('category');
+    expect(last.source).toEqual({ kind: 'category', categoryId: '' });
+
+    const select = screen.getByLabelText('Categoría');
+    await waitFor(() => expect(within(select).getByRole('option', { name: cat.name })).toBeInTheDocument());
+    await u.selectOptions(select, cat.id);
+    expect(last.source).toEqual({ kind: 'category', categoryId: cat.id });
+
+    await u.click(screen.getByLabelText('Incluir sus subcategorías'));
+    expect(last.source).toEqual({ kind: 'category', categoryId: cat.id, includeChildren: false });
+    await u.selectOptions(screen.getByLabelText('Orden'), 'price_asc');
+    expect(last.source).toMatchObject({ sort: 'price_asc', includeChildren: false });
+  });
+
+  it('marca, más vendidos (días) y cantidad, con sus topes', async () => {
+    const u = user();
+    await mount('new-products');
+    await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'brand');
+    await u.type(screen.getByLabelText('Marca'), 'Acme');
+    expect(last.source).toEqual({ kind: 'brand', brand: 'Acme' });
+
+    await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'best-sellers');
+    const days = screen.getByLabelText(/Vendidos en los últimos/);
+    await u.clear(days);
+    await u.type(days, '9999');
+    expect(last.source).toEqual({ kind: 'best-sellers', days: 365 });
+
+    const limit = screen.getByLabelText(/Cantidad de productos/);
+    await u.clear(limit);
+    await u.type(limit, '99');
+    expect(last.limit).toBe(24);
+  });
+
+  it('grilla o carrusel, columnas, subtítulo y "Ver todos" con su destino automático', async () => {
+    const u = user();
+    await mount('sale-products');
+    await u.selectOptions(screen.getByLabelText('Cómo se muestran'), 'grid');
+    expect(last.carousel).toBe(false);
+    await u.selectOptions(screen.getByLabelText('Columnas en computadora'), '5');
+    await u.selectOptions(screen.getByLabelText('Columnas en el celular'), '1');
+    expect(last).toMatchObject({ columns: '5', mobileColumns: '1' });
+    await u.type(screen.getByLabelText('Subtítulo (opcional)'), 'Hasta agotar stock');
+    expect(last.subtitle).toBe('Hasta agotar stock');
+
+    await u.click(screen.getByLabelText('Mostrar el link "Ver todos"'));
+    expect(last.viewAll).toBe(true);
+    expect(screen.getByText(/va a el listado de todos los productos/)).toBeInTheDocument();
+    await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'newest');
+    expect(screen.getByText(/\/productos\?sort=newest/)).toBeInTheDocument();
+  });
+
+  it('elegidos a mano: lo elegido va al origen y a productIds (la forma de antes)', async () => {
+    const u = user();
+    const [, b] = fixture<{ items: { id: string; name: string }[] }>('/api/v1/products').items;
+    await mount('featured');
+    await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'manual');
+    expect(last.source).toEqual({ kind: 'manual', ids: [] });
+    await u.type(screen.getByLabelText('Productos elegidos'), b!.name.slice(0, 4));
+    await u.click(await screen.findByRole('button', { name: b!.name }, { timeout: 3000 }));
+    expect(last.source).toEqual({ kind: 'manual', ids: [b!.id] });
+    expect(last.productIds).toEqual([b!.id]);
+  });
 });
 
 describe('preguntas frecuentes', () => {

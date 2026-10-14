@@ -25,6 +25,7 @@ export {
   productSourceQuery,
   defaultProductSource,
   sectionProductPlan,
+  productSourceListingHref,
 } from './product-source';
 // Videos de YouTube, Vimeo e Instagram: qué link se puede embeber y cómo.
 export type { VideoEmbed } from './video-embed';

@@ -57,10 +57,115 @@ function home(
   );
 }
 
+const names = (root: HTMLElement) =>
+  within(root)
+    .queryAllByText(/^Producto \d$/)
+    .map((e) => e.textContent);
+
 beforeEach(() => {
   mockApi();
 });
 afterEach(() => vi.restoreAllMocks());
+
+describe('secciones de productos', () => {
+  it('muestra lo resuelto para la sección (por id), no lo de la lista general', () => {
+    const { container } = home([section('featured', { title: 'Lo mejor' }, { id: 'dest' })], {
+      resolved: { dest: [product(9, { name: 'Producto 9' }), product(8, { name: 'Producto 8' })] },
+    });
+    expect(names(container)).toEqual(['Producto 9', 'Producto 8']);
+  });
+
+  it('datos viejos (solo productIds), sin respuesta de la API: los elegidos, en su orden', () => {
+    const { container } = home([section('featured', { productIds: ['p-4', 'p-2', 'no-existe'] })]);
+    expect(names(container)).toEqual(['Producto 4', 'Producto 2']);
+  });
+
+  it('sin respuesta de la API: ofertas usa las de la lista general, el resto los primeros', () => {
+    const { container, unmount } = home([section('sale-products', {})]);
+    expect(names(container)).toEqual(['Producto 3']);
+    unmount();
+    const other = home([section('new-products', { limit: 2 })]);
+    expect(names(other.container)).toEqual(['Producto 1', 'Producto 2']);
+  });
+
+  it('sin productos: en la tienda no se dibuja; en la vista previa dice por qué', () => {
+    const empty = section('featured', { title: 'Vacía', source: { kind: 'category', categoryId: 'c1' } });
+    const { container, unmount } = home([empty], { resolved: { 's-featured': [] } });
+    expect(screen.queryByText('Vacía')).not.toBeInTheDocument();
+    expect(container.querySelector('main section')).toBeNull();
+    unmount();
+    home([empty], { resolved: { 's-featured': [] }, preview: true });
+    expect(screen.getByText(/Esta categoría no tiene productos publicados/)).toBeInTheDocument();
+  });
+
+  it('título vacío oculta el encabezado; subtítulo respeta los saltos de línea', () => {
+    home([section('featured', { title: '', subtitle: 'Línea uno\nLínea dos' })], {
+      resolved: { 's-featured': [product(1)] },
+    });
+    expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+    const sub = screen.getByText(/Línea uno/);
+    expect(sub.textContent).toBe('Línea uno\nLínea dos');
+    expect(sub).toHaveClass('whitespace-pre-line');
+  });
+
+  it('columnas propias de la grilla (escritorio y celular); "auto" sigue al listado', () => {
+    const { container, unmount } = home(
+      [section('featured', { carousel: false, columns: '5', mobileColumns: '1' })],
+      { resolved: { 's-featured': [product(1), product(2)] } },
+    );
+    const grid = container.querySelector('.grid')!;
+    expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-3', 'lg:grid-cols-5');
+    unmount();
+    const auto = home([section('featured', { carousel: false })], {
+      resolved: { 's-featured': [product(1)] },
+    });
+    expect(auto.container.querySelector('.grid')).toHaveClass('grid-cols-2', 'lg:grid-cols-4');
+  });
+
+  it('en carrusel, el ancho de las cards sale de las columnas (antes era fijo)', () => {
+    const { container } = home([section('featured', { carousel: true, columns: '3', mobileColumns: '2' })], {
+      resolved: { 's-featured': [product(1), product(2), product(3)] },
+    });
+    const card = container.querySelector('.snap-x > div')!;
+    expect(card.className).toContain('w-[calc((100%-1rem)/2.25)]');
+    expect(card.className).toContain('sm:w-[calc((100%-2.5rem)/3)]');
+    expect(card.className).not.toContain('w-40');
+  });
+
+  it('"Ver todos" automático lleva al listado del origen; uno propio manda', () => {
+    const cat = section('featured', {
+      title: 'Remeras',
+      viewAll: true,
+      source: { kind: 'category', categoryId: 'c-1' },
+    });
+    const { unmount } = home([cat], { resolved: { 's-featured': [product(1)] } });
+    expect(screen.getByRole('link', { name: /Ver todos/ })).toHaveAttribute(
+      'href',
+      '/productos?category=c-1',
+    );
+    unmount();
+
+    home(
+      [
+        section('new-products', {
+          viewAll: true,
+          viewAllText: 'Ver la colección',
+          viewAllLink: '/paginas/coleccion',
+        }),
+      ],
+      { resolved: { 's-new-products': [product(1)] } },
+    );
+    expect(screen.getByRole('link', { name: /Ver la colección/ })).toHaveAttribute(
+      'href',
+      '/paginas/coleccion',
+    );
+  });
+
+  it('"Ver todos" apagado (datos viejos) no aparece', () => {
+    home([section('new-products', {})], { resolved: { 's-new-products': [product(1)] } });
+    expect(screen.queryByRole('link', { name: /Ver todos/ })).toBeNull();
+  });
+});
 
 describe('preguntas frecuentes', () => {
   const long = 'https://una-direccion-larguisima.example.com/' + 'x'.repeat(200);

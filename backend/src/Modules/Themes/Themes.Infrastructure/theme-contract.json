@@ -171,6 +171,38 @@
         },
         "carousel": {
           "kind": "boolean"
+        },
+        "subtitle": {
+          "kind": "text",
+          "max": 2000
+        },
+        "columns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "mobileColumns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "1",
+            "2"
+          ]
+        },
+        "viewAll": {
+          "kind": "boolean"
+        },
+        "viewAllText": {
+          "kind": "string",
+          "max": 200
+        },
+        "viewAllLink": {
+          "kind": "url"
         }
       }
     },
@@ -188,6 +220,38 @@
         },
         "carousel": {
           "kind": "boolean"
+        },
+        "subtitle": {
+          "kind": "text",
+          "max": 2000
+        },
+        "columns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "mobileColumns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "1",
+            "2"
+          ]
+        },
+        "viewAll": {
+          "kind": "boolean"
+        },
+        "viewAllText": {
+          "kind": "string",
+          "max": 200
+        },
+        "viewAllLink": {
+          "kind": "url"
         }
       }
     },
@@ -205,6 +269,38 @@
         },
         "carousel": {
           "kind": "boolean"
+        },
+        "subtitle": {
+          "kind": "text",
+          "max": 2000
+        },
+        "columns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "mobileColumns": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "1",
+            "2"
+          ]
+        },
+        "viewAll": {
+          "kind": "boolean"
+        },
+        "viewAllText": {
+          "kind": "string",
+          "max": 200
+        },
+        "viewAllLink": {
+          "kind": "url"
         }
       }
     },
@@ -528,7 +624,13 @@
         "data": {
           "title": "Destacados",
           "carousel": true,
-          "productIds": []
+          "productIds": [],
+          "subtitle": "",
+          "columns": "auto",
+          "mobileColumns": "auto",
+          "viewAll": false,
+          "viewAllText": "",
+          "viewAllLink": ""
         }
       },
       {

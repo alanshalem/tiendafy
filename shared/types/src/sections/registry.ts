@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { field, normalizeFields, type DataOf, type FieldsSpec } from './schema';
+import type { ProductSource } from '../product-source';
 import {
   isSectionType,
   normalizeHideOn,
@@ -92,12 +93,32 @@ const carouselFields = {
   fullHeightMobile: field.boolean(false),
 } as const;
 
-/** Destacados, recién llegados y ofertas comparten forma; cambia el título por defecto. */
+/**
+ * Columnas propias de una sección de productos. 'auto' = las del listado
+ * (Diseño → Listado de productos), que es lo que hacían todas antes.
+ */
+export const PRODUCT_SECTION_COLUMNS = ['auto', '2', '3', '4', '5'] as const;
+export const PRODUCT_SECTION_MOBILE_COLUMNS = ['auto', '1', '2'] as const;
+
+/**
+ * Destacados, recién llegados y ofertas comparten forma; cambia el título por
+ * defecto. De dónde salen los productos (`source`) y cuántos (`limit`) no son
+ * campos del esquema: los lee `sectionProductPlan` (product-source.ts), que
+ * también entiende los `productIds` de antes.
+ */
 const productsFields = (title: string) =>
   ({
     title: field.string(title),
     productIds: field.strings('id', 60),
     carousel: field.boolean(true),
+    subtitle: field.text(),
+    columns: field.enum(PRODUCT_SECTION_COLUMNS, 'auto'),
+    mobileColumns: field.enum(PRODUCT_SECTION_MOBILE_COLUMNS, 'auto'),
+    /** Link "Ver todos" al lado del título. */
+    viewAll: field.boolean(false),
+    viewAllText: field.string(),
+    /** Vacío = automático: el listado que corresponde al origen (categoría, marca, lo nuevo). */
+    viewAllLink: field.url(),
   }) as const;
 
 const bannerItem = {
@@ -208,7 +229,12 @@ const brandsFields = {
 
 export type HeroVideoData = DataOf<typeof heroVideoFields>;
 export type CarouselData = DataOf<typeof carouselFields>;
-export type ProductsData = DataOf<ReturnType<typeof productsFields>>;
+export type ProductsData = DataOf<ReturnType<typeof productsFields>> & {
+  /** Origen de los productos. Crudo (lo escribió una persona): leer con `sectionProductPlan`. */
+  source?: ProductSource;
+  /** Cuántos (1–24). Crudo: leer con `sectionProductPlan` o `clampProductLimit`. */
+  limit?: number;
+};
 export type BannersData = DataOf<typeof bannersFields>;
 export type BannerItem = BannersData['banners'][number];
 export type InstitutionalData = DataOf<typeof institutionalFields>;
@@ -341,11 +367,11 @@ export const SECTION_REGISTRY = {
     type: 'featured',
     label: 'Productos destacados',
     previewLabel: 'los destacados',
-    description: 'Los productos que elijas, en grilla o carrusel.',
+    description: 'Lo más vendido, una categoría, una marca o los que elijas, en grilla o carrusel.',
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Destacados'),
-    defaults: { title: 'Destacados', carousel: true, productIds: [] },
+    defaults: { title: 'Destacados', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'destacados elegidos vitrina grilla',
   }),
@@ -357,7 +383,7 @@ export const SECTION_REGISTRY = {
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Recién llegados'),
-    defaults: { title: 'Recién llegados', carousel: true, productIds: [] },
+    defaults: { title: 'Recién llegados', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'nuevos novedades recien llegados ultimos',
   }),
@@ -369,7 +395,7 @@ export const SECTION_REGISTRY = {
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Ofertas'),
-    defaults: { title: 'Ofertas', carousel: true, productIds: [] },
+    defaults: { title: 'Ofertas', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'ofertas descuentos rebajas sale liquidacion',
   }),
