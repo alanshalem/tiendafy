@@ -9,6 +9,8 @@ import { NotificationUsage } from '../../components/NotificationUsage';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDate } from '../../lib/format';
+import { useModalFormGuard } from '../../lib/useUnsavedChanges';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import { Helper } from './Helper';
 import { TemplateGrid } from './TemplateGrid';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
@@ -290,6 +292,12 @@ function ConnectionForm({
   const [phoneNumberId, setPhoneNumberId] = useState(initialPhoneNumberId);
   const [accessToken, setAccessToken] = useState('');
   const [displayPhoneNumber, setDisplayPhoneNumber] = useState(initialDisplayPhoneNumber);
+  // El token nunca vuelve del servidor: escrito, ya es algo que se pierde.
+  useUnsavedInScope(
+    phoneNumberId !== initialPhoneNumberId ||
+      accessToken !== '' ||
+      displayPhoneNumber !== initialDisplayPhoneNumber,
+  );
 
   const connect = useMutation({
     mutationFn: () =>
@@ -405,6 +413,7 @@ function TestModal({ onClose }: { onClose: () => void }) {
   const fid = useId();
   const { toast } = useToast();
   const [to, setTo] = useState('');
+  const { dirty, close } = useModalFormGuard(to.trim(), onClose);
 
   const test = useMutation({
     mutationFn: () => api.post<{ sent: boolean; to: string }>('/api/v1/whatsapp/test', { to: to.trim() }),
@@ -421,10 +430,11 @@ function TestModal({ onClose }: { onClose: () => void }) {
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Enviar mensaje de prueba"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={() => canSend && test.mutate()} disabled={!canSend} loading={test.isPending}>
@@ -473,16 +483,18 @@ function TemplateModal({
   // Otra plantilla, otro formulario: lo vuelve a montar la key de quien lo abre.
   const [name, setName] = useState(template.metaTemplateName);
   const [lang, setLang] = useState(template.languageCode || 'es_AR');
+  const { dirty, close } = useModalFormGuard({ name, lang }, onClose);
 
   return (
     <Modal
       open
       size="lg"
       onClose={onClose}
+      dirty={dirty}
       title={`Configurar: ${template.label}`}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cancelar
           </Button>
           <Button onClick={() => onSave(name.trim(), lang.trim() || 'es_AR')} loading={saving}>

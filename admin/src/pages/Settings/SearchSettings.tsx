@@ -10,6 +10,7 @@ import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 interface SearchSettings {
   synonyms: string[][];
@@ -97,6 +98,7 @@ export function SearchSettingsPage() {
   });
 
   const dirty = !same(rows, saved);
+  useUnsavedInScope(dirty);
 
   const addRow = (text = '') => {
     setRows((r) => [...r, { key: nextKey.current++, text }]);

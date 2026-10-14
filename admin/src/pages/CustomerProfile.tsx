@@ -9,6 +9,7 @@ import { usePermissions } from '../context/PermissionsContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { orderLabel } from '../lib/orderNumber';
+import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { ORDER_STATUS } from '../lib/orderStatus';
 import { ListStats } from '../components/stats/ListStats';
 import { NoStoreSelected } from '../components/NoStoreSelected';
@@ -370,6 +371,9 @@ function NotesAndTags({
     .map((t) => t.tag)
     .filter((t) => !customer.tags.some((x) => x.toLowerCase() === t.toLowerCase()));
   const notesChanged = notes.trim() !== (customer.notes ?? '').trim();
+  // Las notas se guardan con su botón: escritas y sin guardar, salir de la
+  // ficha pregunta. Al guardar se recarga el cliente y dejan de ser cambio.
+  useUnsavedChanges(canEdit && notesChanged);
 
   return (
     <Card>

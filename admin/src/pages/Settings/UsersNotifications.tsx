@@ -15,6 +15,7 @@ import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
 import { ListCard, ListCardList } from '../../components/ListCards';
 import { useIsMobile } from '../../lib/useMediaQuery';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import {
   OWNER,
   ROLE_BADGE,
@@ -75,6 +76,8 @@ export function UsersNotificationsPage() {
   const [name, setName] = useState('');
   const [role, setRole] = useState('vendedor');
   const [editingPermissions, setEditingPermissions] = useState<Member | null>(null);
+  // El alta a medio escribir (el form arranca vacío y con el rol vendedor).
+  useUnsavedInScope(adding && (email.trim() !== '' || name.trim() !== '' || role !== 'vendedor'));
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['members'] });

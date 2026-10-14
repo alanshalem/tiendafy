@@ -8,6 +8,8 @@ import { formatDateTime } from '../../lib/format';
 import { Helper } from './Helper';
 import { ConnectedBadge, ConnectionLoading } from './ConnectionBits';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useFormDirty } from '../../lib/useUnsavedChanges';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 
 type Environment = 'SANDBOX' | 'PRODUCTION';
 
@@ -65,6 +67,13 @@ export function PaywayConnect() {
     },
     () => setConn(null),
   );
+  // Cada carga (también la que sigue a guardar) trae un `conn` nuevo y es la
+  // nueva base: lo guardado deja de contar como cambio.
+  const dirty = useFormDirty(
+    { siteId, environment, publicKey, privateKey, baseUrlOverride, establishmentName, installments },
+    conn,
+  );
+  useUnsavedInScope(dirty && !readOnly);
 
   const save = async () => {
     setBusy(true);

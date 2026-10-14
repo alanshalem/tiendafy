@@ -8,6 +8,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { LogoMark } from '../../components/LogoMark';
 import { FIXED_BAR_PADDING } from '../../lib/styles';
 import { PanelShell } from '../../components/PanelShell';
+import { UnsavedChangesScope } from '../../lib/unsavedScope';
 
 export function SettingsLayout() {
   const navigate = useNavigate();
@@ -75,7 +76,11 @@ export function SettingsLayout() {
         </>
       }
     >
-      <Outlet />
+      {/* Cada pantalla de Configuración avisa si tiene cambios sin guardar
+          (useUnsavedInScope): salir al menú o a otra pantalla pregunta. */}
+      <UnsavedChangesScope>
+        <Outlet />
+      </UnsavedChangesScope>
     </PanelShell>
   );
 }

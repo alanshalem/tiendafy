@@ -180,6 +180,25 @@ describe('clientes: ficha', () => {
     );
   });
 
+  it('las notas escritas y sin guardar no se pierden por salir de la ficha', async () => {
+    const { user } = await open(`/clientes/${ANA.id}`, 'Ana Gómez');
+    const notes = screen.getByRole('textbox', { name: 'Notas internas' });
+    await user.type(notes, ' los viernes');
+    await user.click(screen.getAllByRole('link', { name: 'Clientes' })[0]!);
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByRole('textbox', { name: 'Notas internas' })).toHaveValue(
+      'Paga en efectivo los viernes',
+    );
+
+    // Volver a dejarlas como estaban no es un cambio: sale sin preguntar.
+    await user.clear(notes);
+    await user.type(notes, 'Paga en efectivo');
+    await user.click(screen.getAllByRole('link', { name: 'Clientes' })[0]!);
+    expect(await screen.findByRole('heading', { name: 'Clientes' })).toBeInTheDocument();
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
+  });
+
   it('guarda notas y etiquetas sin abrir el formulario', async () => {
     const { api, user } = await open(`/clientes/${ANA.id}`, 'Ana Gómez');
     const notes = screen.getByRole('textbox', { name: 'Notas internas' });

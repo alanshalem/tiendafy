@@ -8,6 +8,7 @@ import { SaveBar, SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD, SETTINGS_COLUMNS } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useUnsavedInScope } from '../../lib/unsavedScope';
 import { TableSkeleton } from '../../components/Skeleton';
 
 interface CheckoutSettings {
@@ -47,15 +48,19 @@ export function CheckoutOptionsPage() {
 
   const [value, setValue] = useState<CheckoutSettings>(DEFAULTS);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState<CheckoutSettings>(DEFAULTS);
   const [saving, setSaving] = useState(false);
+  // Contra lo último guardado, no "se tocó algo": volver un campo a como
+  // estaba no deja la barra de guardar ni el aviso al salir.
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved);
+  useUnsavedInScope(dirty);
 
   const { loading, reload: load } = useServerLoad(
     store?.id ?? null,
     () => api.get<CheckoutSettings>('/api/v1/admin/checkout/settings'),
     (d) => {
       setValue({ ...DEFAULTS, ...d });
-      setDirty(false);
+      setSaved({ ...DEFAULTS, ...d });
       setLoadError(null);
     },
     (err) => setLoadError(errMsg(err, 'No se pudieron cargar las opciones del checkout.')),
@@ -63,7 +68,6 @@ export function CheckoutOptionsPage() {
 
   const update = (patch: Partial<CheckoutSettings>) => {
     setValue((v) => ({ ...v, ...patch }));
-    setDirty(true);
   };
 
   const save = async () => {
@@ -71,7 +75,7 @@ export function CheckoutOptionsPage() {
     try {
       const saved = await api.put<CheckoutSettings>('/api/v1/admin/checkout/settings', value);
       setValue({ ...DEFAULTS, ...saved });
-      setDirty(false);
+      setSaved({ ...DEFAULTS, ...saved });
       toast('Opciones del checkout guardadas', { variant: 'success' });
     } catch (err) {
       toast(errMsg(err, 'No se pudieron guardar las opciones.'), { variant: 'error' });
