@@ -15,7 +15,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { storePublicUrl } from '../../lib/storefront';
 import { EmptyState } from '../../components/EmptyState';
-import { HelpLink } from '../../components/HelpLink';
+import { SHOW_HELP_LINKS } from '../../config/features';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { useFlipList } from '../../lib/useFlip';
 import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
@@ -300,9 +300,20 @@ export function CategoriesPage() {
         </div>
       )}
 
-      <p className="inline-flex w-full items-center justify-center gap-1 text-center text-sm text-primary">
-        Más sobre crear y organizar categorías <ExternalLink className="h-3.5 w-3.5" />
-      </p>
+      {/* Era un <p> con cara de link que no llevaba a ningún lado. El manual
+          no tiene un artículo propio de categorías: se cuentan en el de
+          productos, así que va ahí (y reemplaza al "Más sobre productos" que
+          había abajo, que llevaba al mismo lugar). */}
+      {SHOW_HELP_LINKS && (
+        <a
+          href="/ayuda/productos"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex w-full items-center justify-center gap-1 text-center text-sm font-medium text-primary hover:underline"
+        >
+          Más sobre crear y organizar categorías <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      )}
 
       {/* Barra de cambios sin guardar */}
       {dirty && (
@@ -345,7 +356,6 @@ export function CategoriesPage() {
           saving={renameMut.isPending}
         />
       )}
-      <HelpLink id="productos" />
     </div>
   );
 }

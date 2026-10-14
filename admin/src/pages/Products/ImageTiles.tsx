@@ -127,15 +127,6 @@ export function PhotoTile({
   );
 }
 
-/** El arreglo con el elemento `from` cambiado de lugar con su vecino (-1 izquierda, +1 derecha). */
-export function moveItem<T>(list: T[], from: number, step: -1 | 1): T[] {
-  const to = from + step;
-  if (from < 0 || to < 0 || to >= list.length) return list;
-  const next = list.slice();
-  [next[from], next[to]] = [next[to]!, next[from]!];
-  return next;
-}
-
 /** Una foto que está subiendo: su vista previa con el brillo de carga y el avance. */
 export function UploadingThumb({
   src,

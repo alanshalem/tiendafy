@@ -25,7 +25,8 @@ import {
   toShippingDraft,
   type ShippingDraft,
 } from './product-form';
-import { AddImagesTile, PhotoTile, UploadingThumb, moveItem } from './ImageTiles';
+import { AddImagesTile, PhotoTile, UploadingThumb } from './ImageTiles';
+import { moveItem } from '../../lib/arrays';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { ScreenSkeleton } from '../../components/Skeleton';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
@@ -241,7 +242,8 @@ export function EditProductPage() {
 
   // Las flechas hacen lo mismo que el arrastre, de a un lugar.
   const moveImage = (imageId: string, step: -1 | 1) => {
-    const next = moveItem(imageOrder, imageOrder.indexOf(imageId), step);
+    const from = imageOrder.indexOf(imageId);
+    const next = moveItem(imageOrder, from, from + step);
     if (next === imageOrder) return;
     setImageOrder(next);
     reorder.mutate(next);

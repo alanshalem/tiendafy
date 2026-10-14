@@ -8,7 +8,8 @@ import { api, errMsg } from '../../lib/api';
 import { toDomainPrice, toCents, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { StickyFormBar } from './StickyFormBar';
-import { AddImagesTile, PhotoTile, UploadingThumb, moveItem } from './ImageTiles';
+import { AddImagesTile, PhotoTile, UploadingThumb } from './ImageTiles';
+import { moveItem } from '../../lib/arrays';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { type SpecValues } from './SpecFields';
 import {
@@ -342,9 +343,9 @@ export function NewProductPage() {
                     src={src}
                     cover={i === 0}
                     onRemove={() => setFiles((f) => f.filter((_, idx) => idx !== i))}
-                    onMoveLeft={i > 0 ? () => setFiles((f) => moveItem(f, i, -1)) : undefined}
+                    onMoveLeft={i > 0 ? () => setFiles((f) => moveItem(f, i, i - 1)) : undefined}
                     onMoveRight={
-                      i < previews.length - 1 ? () => setFiles((f) => moveItem(f, i, 1)) : undefined
+                      i < previews.length - 1 ? () => setFiles((f) => moveItem(f, i, i + 1)) : undefined
                     }
                   />
                 ),
