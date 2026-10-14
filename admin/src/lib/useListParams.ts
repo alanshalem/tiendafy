@@ -92,12 +92,16 @@ export function useListParams<D extends Record<string, ListParamValue>>(
   const keys = useMemo(() => Object.keys(defaults), [defaults]);
   const hasAny = keys.some((k) => params.has(k));
 
-  // Lo guardado se lee una sola vez, al entrar. Si la URL ya trae parámetros,
-  // mandan ellos (un link compartido no se pisa con lo de esta pestaña).
-  const [restore, setRestore] = useState(() => (storageKey && !hasAny ? readStored(storageKey) : null));
-  // En cuanto la URL tiene parámetros, lo restaurado ya cumplió (se ajusta al
-  // dibujar, no en un efecto).
-  if (restore !== null && hasAny) setRestore(null);
+  // Lo guardado se lee al entrar (o cuando aparece la clave: la tienda activa
+  // puede llegar un instante después). Si la URL ya trae parámetros, mandan
+  // ellos: un link compartido no se pisa con lo de esta pestaña.
+  const pending = () => (storageKey && !hasAny ? readStored(storageKey) : null);
+  const [restoreState, setRestoreState] = useState(() => ({ key: storageKey, value: pending() }));
+  // Se ajusta al dibujar, no en un efecto: otra clave vuelve a leer, y en
+  // cuanto la URL tiene parámetros lo restaurado ya cumplió.
+  if (restoreState.key !== storageKey) setRestoreState({ key: storageKey, value: pending() });
+  else if (restoreState.value !== null && hasAny) setRestoreState({ key: storageKey, value: null });
+  const restore = restoreState.key === storageKey && !hasAny ? restoreState.value : null;
 
   useEffect(() => {
     if (restore === null) return;
@@ -189,6 +193,18 @@ export function useSearchText(
   }, [text, value, delayMs]);
 
   return [text, setText];
+}
+
+const PAGE_ONLY = { pagina: 1 };
+
+/**
+ * Solo la página, en la URL: para los listados que no tienen filtros. Uno por
+ * pantalla (si una pantalla tuviera dos paginados, se pisarían `?pagina=`).
+ */
+export function usePageParam(): [number, (page: number) => void] {
+  const { values, set } = useListParams(PAGE_ONLY);
+  const setPage = useCallback((pagina: number) => set({ pagina }), [set]);
+  return [values.pagina, setPage];
 }
 
 /** El buscador de un listado: `useSearchText` sobre el parámetro `key` (por defecto `q`). */

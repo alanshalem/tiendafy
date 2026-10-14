@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   KpiCard,
   StatsPageHeader,
   StatsToolbar,
-  defaultStatsRange,
   rangeLabel,
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
+import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
 import { formatDayShort, formatNumber } from '../../lib/format';
@@ -27,7 +26,7 @@ interface Visits {
 
 export function StatsVisitsPage() {
   const { store } = useStore();
-  const [range, setRange] = useState(defaultStatsRange('Últimos 7 días'));
+  const { range, setRange } = useStatsRange('Últimos 7 días');
   const { data, isLoading } = useQuery({
     queryKey: ['stats-visits', store?.id, range.from, range.to],
     queryFn: () => api.get<Visits>(`/api/v1/stats/visits?${rangeQuery(range)}`),

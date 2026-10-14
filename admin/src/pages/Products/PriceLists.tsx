@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { Badge, Button, FormField, Input, Modal, Select, Textarea, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
@@ -9,7 +9,8 @@ import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
-import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { useListParams, useListSearch, useRecordParam } from '../../lib/useListParams';
+import { ScreenSkeleton } from '../../components/Skeleton';
 import { parseMoneyInput } from '../../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
@@ -49,18 +50,39 @@ const ROUNDING_LABEL: Record<string, string> = {
 
 const PRICES_PAGE_SIZE = 50;
 
+/** Búsqueda y página de los precios de una lista, en la URL (ver useListParams). */
+const PRICES_DEFAULTS = { q: '', pagina: 1 };
+
 export function PriceListsPage() {
   const { store } = useStore();
-  const [openList, setOpenList] = useState<PriceListRow | null>(null);
+  // La lista abierta va en la URL (?lista=<id>): Atrás vuelve a las listas y
+  // los precios de una lista se pueden linkear. Sale de la misma consulta que
+  // las tarjetas (misma clave: la caché la comparte).
+  const record = useRecordParam('lista');
+  const { data, isPending } = useQuery({
+    queryKey: ['price-lists', store?.id],
+    queryFn: () => api.get<{ items: PriceListRow[] }>('/api/v1/price-lists'),
+    enabled: !!store && !!record.id,
+  });
+  const openList = record.id ? data?.items.find((l) => l.id === record.id) : undefined;
 
   if (!store) return <NoStoreSelected />;
 
   return (
     <div className="space-y-4">
-      {openList ? (
-        <ListPrices list={openList} onBack={() => setOpenList(null)} />
+      {!record.id ? (
+        <ListsOverview onOpen={(l) => record.open(l.id)} />
+      ) : openList ? (
+        <ListPrices key={openList.id} list={openList} onBack={record.close} />
+      ) : isPending ? (
+        <ScreenSkeleton label="Cargando la lista…" />
       ) : (
-        <ListsOverview onOpen={setOpenList} />
+        <p role="status" className="rounded-lg bg-warning-bg px-3 py-2 text-sm text-warning">
+          Esa lista de precios no existe o ya se borró.{' '}
+          <button type="button" onClick={record.close} className="font-medium underline">
+            Ver las listas
+          </button>
+        </p>
       )}
     </div>
   );
@@ -350,10 +372,12 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
   const { store } = useStore();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const params = useListParams(PRICES_DEFAULTS);
+  const [search, setSearch] = useListSearch(params, 'q', 300);
+  const page = params.values.pagina;
+  const setPage = (p: number) => params.set({ pagina: p });
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const debounced = useDebouncedValue(search, 300).trim();
+  const debounced = params.values.q.trim();
 
   const { data } = useQuery({
     queryKey: ['price-list-prices', store?.id, list.id, debounced, page],
@@ -368,7 +392,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
       );
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const savePrice = useMutation({
@@ -436,12 +460,11 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
           )}
         </div>
         <Input
+          type="search"
+          aria-label="Buscar en la lista"
           className="w-64"
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por nombre o SKU..."
         />
       </div>

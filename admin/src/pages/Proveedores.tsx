@@ -1,8 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Truck } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Textarea, useToast } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  clickableRowProps,
+  cn,
+  FormField,
+  Input,
+  Modal,
+  Textarea,
+  useToast,
+} from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
@@ -10,7 +20,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
-import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { ScreenSkeleton } from '../components/Skeleton';
 
 // ---------------------------------------------------------------- Tipos wire
@@ -62,16 +72,21 @@ const PO_STATUS: Record<string, string> = {
 
 export function ProveedoresPage() {
   const { store } = useStore();
-  const [selected, setSelected] = useState<string | null>(null);
+  // La ficha abierta va en la URL (?proveedor=<id>): Atrás vuelve a la lista
+  // en vez de salir de Proveedores, y la ficha se puede linkear.
+  const record = useRecordParam('proveedor');
 
   if (!store) return <NoStoreSelected />;
 
   return (
     <div className="space-y-4">
-      {selected ? (
-        <SupplierDetailView id={selected} onBack={() => setSelected(null)} />
+      {record.id ? (
+        <SupplierDetailView key={record.id} id={record.id} onBack={record.close} />
       ) : (
-        <SupplierList onOpen={setSelected} />
+        <SupplierList
+          onOpen={record.open}
+          recordLink={(id) => ({ search: record.searchFor(id), state: record.linkState })}
+        />
       )}
     </div>
   );
@@ -79,12 +94,23 @@ export function ProveedoresPage() {
 
 // ------------------------------------------------------------------- Listado
 
-function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
+/** Búsqueda y "mostrar inactivos", en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', inactivos: false };
+
+function SupplierList({
+  onOpen,
+  recordLink,
+}: {
+  onOpen: (id: string) => void;
+  /** Adónde lleva el link de cada proveedor (la misma lista con ?proveedor=<id>). */
+  recordLink: (id: string) => { search: string; state: unknown };
+}) {
   const { store } = useStore();
-  const [search, setSearch] = useState('');
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list, 'q', 300);
+  const includeInactive = list.values.inactivos;
   const [creating, setCreating] = useState(false);
-  const debounced = useDebouncedValue(search, 300).trim();
+  const debounced = list.values.q.trim();
 
   const { data } = useQuery({
     queryKey: ['suppliers', store?.id, debounced, includeInactive],
@@ -137,6 +163,8 @@ function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
+          type="search"
+          aria-label="Buscar proveedores"
           className="w-64"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -146,7 +174,7 @@ function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
           <input
             type="checkbox"
             checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
+            onChange={(e) => list.set({ inactivos: e.target.checked })}
           />
           Mostrar inactivos
         </label>
@@ -178,40 +206,54 @@ function SupplierList({ onOpen }: { onOpen: (id: string) => void }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((s) => (
-                  <tr key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer hover:bg-bg-muted">
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{s.name}</span>
-                        {!s.active && <Badge variant="neutral">Inactivo</Badge>}
-                      </div>
-                      {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{s.taxId ?? '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                      {s.purchaseCount > 0 ? s.purchaseCount : '—'}
-                      {s.lastPurchaseAtUtc && (
-                        <div className="text-xs text-fg-subtle">última {formatDate(s.lastPurchaseAtUtc)}</div>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-right">
-                      {s.balanceMinor === 0 ? (
-                        <span className="text-fg-subtle">Al día</span>
-                      ) : (
-                        <>
-                          <div
-                            className={`font-medium tabular-nums ${s.balanceMinor < 0 ? 'text-danger' : 'text-success'}`}
+                {rows.map((s) => {
+                  // El nombre es un link de verdad (Tab, Enter, abrir en otra
+                  // pestaña); el resto de la fila responde al mouse.
+                  const row = clickableRowProps(() => onOpen(s.id), { focusable: false });
+                  const link = recordLink(s.id);
+                  return (
+                    <tr key={s.id} {...row} className={cn('hover:bg-bg-muted', row.className)}>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            to={{ search: link.search }}
+                            state={link.state}
+                            className="font-medium hover:underline"
                           >
-                            {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
-                          </div>
+                            {s.name}
+                          </Link>
+                          {!s.active && <Badge variant="neutral">Inactivo</Badge>}
+                        </div>
+                        {s.email && <div className="text-xs text-fg-subtle">{s.email}</div>}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">{s.taxId ?? '—'}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                        {s.purchaseCount > 0 ? s.purchaseCount : '—'}
+                        {s.lastPurchaseAtUtc && (
                           <div className="text-xs text-fg-subtle">
-                            {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
+                            última {formatDate(s.lastPurchaseAtUtc)}
                           </div>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right">
+                        {s.balanceMinor === 0 ? (
+                          <span className="text-fg-subtle">Al día</span>
+                        ) : (
+                          <>
+                            <div
+                              className={`font-medium tabular-nums ${s.balanceMinor < 0 ? 'text-danger' : 'text-success'}`}
+                            >
+                              {formatMoney(Math.abs(s.balanceMinor), 'ARS')}
+                            </div>
+                            <div className="text-xs text-fg-subtle">
+                              {s.balanceMinor < 0 ? 'le debemos' : 'a favor'}
+                            </div>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -324,7 +366,12 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <tbody className="divide-y divide-border">
                   {data.purchases.map((p) => (
                     <tr key={p.id}>
-                      <td className="px-4 py-2">{p.reference ?? '—'}</td>
+                      <td className="px-4 py-2">
+                        {/* Cada compra abre su ficha en Compras (?orden=<id>). */}
+                        <Link to={`/compras?orden=${p.id}`} className="text-primary hover:underline">
+                          {p.reference ?? 'Sin referencia'}
+                        </Link>
+                      </td>
                       <td className="px-4 py-2">
                         <Badge variant="neutral">{PO_STATUS[p.status] ?? p.status}</Badge>
                       </td>

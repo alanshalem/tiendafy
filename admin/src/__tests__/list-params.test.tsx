@@ -50,8 +50,8 @@ function List({ storageKey }: { storageKey?: string }) {
   );
 }
 
-function renderAt(path: string, ui = <List />, extra?: React.ReactNode) {
-  return render(
+function tree(path: string, ui: React.ReactNode, extra?: React.ReactNode) {
+  return (
     <MemoryRouter initialEntries={['/inicio', path]} initialIndex={1}>
       <Routes>
         <Route
@@ -66,8 +66,12 @@ function renderAt(path: string, ui = <List />, extra?: React.ReactNode) {
           }
         />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderAt(path: string, ui: React.ReactNode = <List />, extra?: React.ReactNode) {
+  return render(tree(path, ui, extra));
 }
 
 const where = () => screen.getByTestId('where').textContent;
@@ -138,6 +142,14 @@ describe('useListParams', () => {
     second.unmount();
     renderAt('/productos', <List storageKey="productos" />);
     expect(where()).toBe('/productos');
+  });
+
+  it('si la clave llega después (la tienda carga un instante más tarde), igual restaura', () => {
+    renderAt('/productos?estado=draft', <List storageKey="productos" />).unmount();
+    const view = renderAt('/productos', <List />);
+    expect(where()).toBe('/productos');
+    view.rerender(tree('/productos', <List storageKey="productos" />));
+    expect(where()).toBe('/productos?estado=draft');
   });
 
   it('un link con parámetros manda sobre lo recordado', () => {

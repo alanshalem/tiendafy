@@ -163,6 +163,39 @@ describe('listado de productos: en masa', () => {
   });
 });
 
+describe('listado de productos: la URL', () => {
+  it('filtros, orden y página salen de la URL y la pestaña los recuerda al volver sin nada', async () => {
+    const api = mockApi();
+    const view = renderApp('/productos?estado=draft&falta=image&ordenar=nameAsc&pagina=2&estado2=x');
+    await screen.findByText(first.name);
+    await settle(2);
+    let params = lastList(api);
+    expect(params.get('status')).toBe('DRAFT');
+    expect(params.get('missingImage')).toBe('true');
+    expect(params.get('sort')).toBe('nameAsc');
+    expect(params.get('offset')).toBe('20');
+    expect(screen.getByRole('combobox', { name: 'Ordenar productos' })).toHaveValue('nameAsc');
+    view.unmount();
+
+    // Como al volver de editar un producto: "/productos" a secas.
+    renderApp('/productos');
+    await screen.findByText(first.name);
+    await settle(2);
+    params = lastList(api);
+    expect(params.get('status')).toBe('DRAFT');
+    expect(params.get('offset')).toBe('20');
+  });
+
+  it('un valor inventado en la URL no llega a la API', async () => {
+    const api = mockApi();
+    renderApp('/productos?estado=borrado&stock=muchisimo');
+    await screen.findByText(first.name);
+    await settle(2);
+    expect(lastList(api).get('status')).toBeNull();
+    expect(lastList(api).get('stock')).toBeNull();
+  });
+});
+
 /** El "Filtrar" de la barra (el panel lateral tiene otro para aplicar). */
 const filterButton = () => screen.getByRole('button', { name: /^Filtrar/ });
 

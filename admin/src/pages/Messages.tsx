@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
 import { Badge, cn, Input } from '@tiendafy/ui';
@@ -10,6 +10,7 @@ import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { formatDateTime } from '@tiendafy/types';
 import { TableSkeleton } from '../components/Skeleton';
+import { useListParams } from '../lib/useListParams';
 
 interface ContactMessage {
   id: string;
@@ -38,12 +39,19 @@ const FILTERS = [
   { id: 'repentance', label: 'Arrepentimientos' },
 ] as const;
 
+/**
+ * Pestaña y página, en la URL (ver useListParams). La búsqueda no: filtra
+ * los mensajes de la página que se está viendo, al instante.
+ */
+const LIST_DEFAULTS = { filtro: 'todos', pagina: 1 };
+
 export function MessagesPage() {
   const { store } = useStore();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todos');
+  const list = useListParams(LIST_DEFAULTS);
+  const filter = list.values.filtro === 'repentance' ? 'repentance' : 'todos';
+  const page = list.values.pagina;
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
     queryKey: ['contact-messages', store?.id, page],
     queryFn: () =>
@@ -51,6 +59,7 @@ export function MessagesPage() {
         `/api/v1/contact/messages?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
@@ -99,7 +108,8 @@ export function MessagesPage() {
           <button
             key={f.id}
             type="button"
-            onClick={() => setFilter(f.id)}
+            // La pestaña filtra la página que se ve: no la cambia.
+            onClick={() => list.set({ filtro: f.id, pagina: page })}
             className={cn(
               '-mb-px border-b-2 px-4 pb-2.5 font-medium',
               filter === f.id
@@ -118,6 +128,8 @@ export function MessagesPage() {
       </div>
 
       <Input
+        type="search"
+        aria-label="Buscar mensajes"
         placeholder="Buscar por nombre, email o texto del mensaje…"
         className="mb-3"
         value={search}
@@ -211,7 +223,11 @@ export function MessagesPage() {
           })}
         </div>
       )}
-      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+      <Pagination
+        page={Math.min(page, totalPages)}
+        totalPages={totalPages}
+        onPage={(p) => list.set({ filtro: filter, pagina: p })}
+      />
 
       {/* Acá caen también las solicitudes del Botón de Arrepentimiento → guía legal. */}
       <HelpLink id="legal" />

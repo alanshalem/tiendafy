@@ -1,7 +1,6 @@
 import { useState, useId } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Loader2, TrendingUp } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -11,7 +10,7 @@ import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
 import { useCatalogHealth } from './queries';
-import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { useListParams, useListSearch } from '../../lib/useListParams';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -33,6 +32,9 @@ interface VariantCost {
 /** Productos por página. */
 const PAGE_SIZE = 20;
 
+/** Búsqueda, "sin costo" y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', sinCosto: false, pagina: 1 };
+
 export function CostsPage() {
   const { can } = usePermissions();
   // El costo se guarda en el producto; repreciar es cambiar precios en masa.
@@ -43,17 +45,17 @@ export function CostsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState('');
   const [repriceOpen, setRepriceOpen] = useState(false);
 
   // Se entra acá desde la métrica "sin costo cargado" de Productos, que manda
   // ?sinCosto=1. El filtro se resuelve en la base: sobre miles de productos,
   // buscar a ojo cuáles faltan es exactamente el trabajo que evita el atajo.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const onlyMissing = searchParams.get('sinCosto') === '1';
-
-  const [page, setPage] = useState(1);
-  const q = useDebouncedValue(search).trim();
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const onlyMissing = list.values.sinCosto;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
+  const q = list.values.q.trim();
 
   // Una página del catálogo por request, con la búsqueda hecha en la base:
   // antes se traía el catálogo COMPLETO (de a 100 por request) para filtrar y
@@ -70,6 +72,7 @@ export function CostsPage() {
       return api.get<{ items: CatalogProduct[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   const items = data?.items ?? [];
@@ -144,10 +147,7 @@ export function CostsPage() {
           </span>
           <button
             type="button"
-            onClick={() => {
-              setSearchParams({});
-              setPage(1);
-            }}
+            onClick={() => list.set({ sinCosto: false })}
             className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
           >
             Ver todos
@@ -179,10 +179,7 @@ export function CostsPage() {
               label: 'Falta cargar',
               value: formatNumber(health.variantsWithoutCost),
               hint: 'Variantes sin costo. Cargalas acá o con la columna «Costo» del CSV.',
-              onClick: () => {
-                setSearchParams(onlyMissing ? {} : { sinCosto: '1' });
-                setPage(1);
-              },
+              onClick: () => list.set({ sinCosto: !onlyMissing }),
               active: onlyMissing,
             },
           ]}
@@ -192,12 +189,11 @@ export function CostsPage() {
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">
           <Input
+            type="search"
+            aria-label="Buscar en costos"
             placeholder="Buscar por producto o SKU…"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         {canReprice && (

@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   KpiCard,
   StatsPageHeader,
   StatsToolbar,
-  defaultStatsRange,
   rangeLabel,
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
+import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, DonutChart, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
@@ -27,7 +26,7 @@ interface Sales {
 
 export function StatsSalesPage() {
   const { store } = useStore();
-  const [range, setRange] = useState(defaultStatsRange());
+  const { range, setRange } = useStatsRange();
   const { data, isLoading } = useQuery({
     queryKey: ['stats-sales', store?.id, range.from, range.to],
     queryFn: () => api.get<Sales>(`/api/v1/stats/sales?${rangeQuery(range)}`),

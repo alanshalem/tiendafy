@@ -1,12 +1,7 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import {
-  KpiCard,
-  StatsPageHeader,
-  StatsToolbar,
-  defaultStatsRange,
-} from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
 import { api } from '../../lib/api';
@@ -53,7 +48,7 @@ const SOURCE_LABEL: Record<string, string> = {
  */
 export function StatsOverviewPage() {
   const { store } = useStore();
-  const [range, setRange] = useState(defaultStatsRange());
+  const { range, setRange } = useStatsRange();
   const days = Math.max(
     1,
     Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 86_400_000) + 1,

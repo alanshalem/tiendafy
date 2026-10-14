@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
@@ -9,7 +9,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
 import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination } from '../../components/Pagination';
-import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { useListParams, useListSearch } from '../../lib/useListParams';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
@@ -45,10 +45,46 @@ const SORTS = {
   'Nombre Z-A': 'nameDesc',
 } as const;
 
-type SortLabel = keyof typeof SORTS;
+type SortValue = (typeof SORTS)[keyof typeof SORTS];
+const SORT_VALUES: readonly string[] = Object.values(SORTS);
 
 /** Productos por página. */
 const PAGE_SIZE = 20;
+
+/**
+ * Los parámetros del listado en la URL. Los filtros van con nombre propio
+ * (y no como los del panel de filtros) para que la URL se lea:
+ * /productos?estado=draft&falta=image.
+ */
+const LIST_DEFAULTS = {
+  q: '',
+  ordenar: 'newest' as SortValue,
+  pagina: 1,
+  categoria: defaultFilters.category,
+  stock: defaultFilters.stock as string,
+  promo: defaultFilters.priceType as string,
+  estado: defaultFilters.status as string,
+  falta: defaultFilters.missing as string,
+};
+
+/** Solo lo que el panel conoce: una URL tocada a mano no mete valores raros. */
+function oneOf<T extends string>(value: string, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+}
+
+function filtersFrom(v: typeof LIST_DEFAULTS): ProductFilters {
+  return {
+    category: v.categoria,
+    stock: oneOf(v.stock, ['all', 'in', 'out'], defaultFilters.stock),
+    priceType: oneOf(v.promo, ['all', 'promo', 'noPromo'], defaultFilters.priceType),
+    status: oneOf(v.estado, ['all', 'active', 'draft', 'archived'], defaultFilters.status),
+    missing: oneOf(v.falta, ['all', 'image'], defaultFilters.missing),
+  };
+}
+
+function paramsFrom(f: ProductFilters): Partial<typeof LIST_DEFAULTS> {
+  return { categoria: f.category, stock: f.stock, promo: f.priceType, estado: f.status, falta: f.missing };
+}
 
 /** Cómo se lee el filtro puesto, para el cartel de arriba de la tabla. */
 const FILTER_LABEL: Record<string, string> = {
@@ -70,26 +106,29 @@ export function ProductsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortLabel>('Más nuevo');
+  // Búsqueda, filtros, orden y página viven en la URL y la pestaña los
+  // recuerda: después de editar un producto, la ficha vuelve a "/productos"
+  // y el listado reaparece como estaba (página y filtros), no en la página 1.
+  const list = useListParams(LIST_DEFAULTS, { storageKey: store ? `productos:${store.id}` : null });
+  const [search, setSearch] = useListSearch(list);
+  const filters = filtersFrom(list.values);
+  const sort = SORT_VALUES.includes(list.values.ordenar as SortValue)
+    ? (list.values.ordenar as SortValue)
+    : LIST_DEFAULTS.ordenar;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
+  const setFilters = (f: ProductFilters) => list.set(paramsFrom(f));
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
-  const [page, setPage] = useState(1);
 
   /**
    * Volver a tocar la misma métrica saca el filtro: es el gesto que espera
    * cualquiera que la usó para mirar y quiere volver al listado completo.
    */
-  const toggleFilter = <K extends keyof ProductFilters>(key: K, value: ProductFilters[K]) => {
-    setFilters((current) => ({
-      ...current,
-      [key]: current[key] === value ? defaultFilters[key] : value,
-    }));
-    setPage(1);
-  };
+  const toggleFilter = <K extends keyof ProductFilters>(key: K, value: ProductFilters[K]) =>
+    setFilters({ ...filters, [key]: filters[key] === value ? defaultFilters[key] : value });
   const [draftFilters, setDraftFilters] = useState<ProductFilters>(defaultFilters);
 
-  const debouncedSearch = useDebouncedValue(search, 350).trim();
+  const debouncedSearch = list.values.q.trim();
 
   // Una página por request, con búsqueda, filtros y orden resueltos en la base.
   // Antes se traía el catálogo COMPLETO al navegador para filtrar y paginar acá:
@@ -103,7 +142,7 @@ export function ProductsPage() {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
         offset: String((page - 1) * PAGE_SIZE),
-        sort: SORTS[sort],
+        sort,
       });
       if (debouncedSearch) params.set('q', debouncedSearch);
       if (filters.category) params.set('categoryId', filters.category);
@@ -114,7 +153,7 @@ export function ProductsPage() {
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const pageItems = useMemo(() => data?.items ?? [], [data]);
@@ -358,7 +397,7 @@ export function ProductsPage() {
           body="Cargá tu primer producto con precio, fotos y descripción. En cuanto lo publiques, aparece en tu tienda."
           action={{
             label: 'Agregar mi primer producto',
-            onClick: () => (window.location.href = '/productos/nuevo'),
+            onClick: () => navigate('/productos/nuevo'),
           }}
         />
       ) : (
@@ -368,11 +407,10 @@ export function ProductsPage() {
             <div className="relative flex-1 min-w-[16rem]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
               <input
+                type="search"
+                aria-label="Buscar productos"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nombre, SKU o tags"
                 className="h-10 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
@@ -395,15 +433,12 @@ export function ProductsPage() {
             <select
               aria-label="Ordenar productos"
               value={sort}
-              onChange={(e) => {
-                setSort(e.target.value as SortLabel);
-                setPage(1);
-              }}
+              onChange={(e) => list.set({ ordenar: e.target.value as SortValue })}
               className="h-10 appearance-none rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {Object.keys(SORTS).map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {Object.entries(SORTS).map(([label, value]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -538,11 +573,7 @@ export function ProductsPage() {
                         <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSearch('');
-                            setFilters(defaultFilters);
-                            setPage(1);
-                          }}
+                          onClick={() => list.set({ q: '', ...paramsFrom(defaultFilters) })}
                           className="mt-2 text-sm font-medium text-primary hover:underline"
                         >
                           Limpiar búsqueda y filtros
@@ -620,6 +651,7 @@ export function ProductsPage() {
           Para confirmar, escribí <span className="font-mono font-semibold">ELIMINAR</span>:
         </p>
         <input
+          aria-label="Escribí ELIMINAR para confirmar"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder="ELIMINAR"

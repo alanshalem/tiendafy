@@ -15,4 +15,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   localStorage.clear();
+  // Los listados recuerdan sus filtros en la pestaña (useListParams): sin
+  // esto, un test heredaría los filtros que dejó el anterior.
+  sessionStorage.clear();
 });

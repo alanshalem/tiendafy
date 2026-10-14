@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -9,7 +9,7 @@ import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
 import { formatMoney, formatNumber } from '../../lib/format';
-import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { useListParams, useListSearch } from '../../lib/useListParams';
 import { HelpLink } from '../../components/HelpLink';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -38,6 +38,9 @@ const LOW_STOCK = 5;
 /** Recorte del listado. Lo resuelve la base: la tabla muestra una página. */
 type StockFilter = 'all' | 'out' | 'low';
 
+/** Búsqueda, recorte de stock y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', stock: 'all', pagina: 1 };
+
 const STOCK_LABEL: Record<Exclude<StockFilter, 'all'>, string> = {
   out: 'Sin stock',
   low: `Quedan ${LOW_STOCK} o menos`,
@@ -61,17 +64,18 @@ export function InventoryPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState('');
-
-  const [page, setPage] = useState(1);
-  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-  const q = useDebouncedValue(search).trim();
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
+  const stockFilter: StockFilter =
+    list.values.stock === 'out' || list.values.stock === 'low' ? list.values.stock : 'all';
+  const setStockFilter = (next: StockFilter) => list.set({ stock: next });
+  const q = list.values.q.trim();
 
   // Volver a tocar la misma métrica saca el filtro.
-  const toggleStock = (next: Exclude<StockFilter, 'all'>) => {
-    setStockFilter((current) => (current === next ? 'all' : next));
-    setPage(1);
-  };
+  const toggleStock = (next: Exclude<StockFilter, 'all'>) =>
+    setStockFilter(stockFilter === next ? 'all' : next);
 
   // Una página del catálogo por request, con la búsqueda en la base: antes se
   // traía el catálogo COMPLETO para filtrar y paginar en el navegador (y con
@@ -91,6 +95,7 @@ export function InventoryPage() {
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   // Resumen del depósito completo, no de la página: la tabla muestra 20
@@ -209,10 +214,7 @@ export function InventoryPage() {
           </span>
           <button
             type="button"
-            onClick={() => {
-              setStockFilter('all');
-              setPage(1);
-            }}
+            onClick={() => setStockFilter('all')}
             className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg hover:bg-bg-muted"
           >
             Ver todo
@@ -221,12 +223,11 @@ export function InventoryPage() {
       )}
 
       <Input
+        type="search"
+        aria-label="Buscar en el inventario"
         placeholder="Buscar por producto o SKU…"
         value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
+        onChange={(e) => setSearch(e.target.value)}
       />
 
       <Card flush>
