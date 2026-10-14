@@ -11,6 +11,7 @@ import { AccountButton } from '../components/store/AccountButton';
 import { AccountDashboard } from '../components/store/AccountDashboard';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
+import { nav } from '../test/next';
 import { renderInStore } from '../test/store';
 
 interface Me {
@@ -35,6 +36,11 @@ let crashes: () => unknown[][];
 
 /** Sin sesión: /me contesta 401, como sin cookie. */
 const anonymous = () => api.on('GET', '/api/v1/shop/auth/me', { title: 'Unauthorized' }, 401);
+
+/** El comprador que ya entró antes: la tienda lo guardó (nombre y email, no la credencial). */
+const remembered = () => localStorage.setItem(`tiendafy.shop.user.${fixtureTenantId}`, JSON.stringify(me));
+
+const askedForSession = () => api.calls.filter((c) => c.path.startsWith('/api/v1/shop/auth/me')).length;
 
 async function show(ui: React.ReactNode) {
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
@@ -166,7 +172,46 @@ describe('si no se puede preguntar por la sesión', () => {
   });
 });
 
+describe('preguntar por la sesión solo si hay motivo', () => {
+  it('un visitante anónimo no le pregunta a la API (ni un 401 por vista de página)', async () => {
+    anonymous();
+    await show(<AccountButton />);
+    expect(askedForSession()).toBe(0);
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
+  });
+
+  it('el comprador que ya entró antes sí: se valida su cookie', async () => {
+    remembered();
+    await show(<AccountButton />);
+    expect(askedForSession()).toBe(1);
+  });
+
+  it('en su cuenta se pregunta siempre (p. ej. al volver del link de cambio de clave)', async () => {
+    nav.at('/cuenta');
+    await show(<AccountButton />);
+    expect(askedForSession()).toBe(1);
+    expect(screen.getByRole('button', { name: 'Mi cuenta' })).toBeInTheDocument();
+  });
+
+  it('al volver de entrar con Google pregunta una vez, y la marca no queda', async () => {
+    api.on('GET', '/api/v1/shop/auth/google/configured', { configured: true });
+    anonymous();
+    const user = await show(<AccountButton />);
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    await user.click(await screen.findByRole('button', { name: /Continuar con Google/ }));
+    expect(localStorage.getItem(`tiendafy.shop.google.${fixtureTenantId}`)).not.toBeNull();
+
+    // La vuelta: la API ya puso la cookie y /me contesta con el comprador.
+    api.on('GET', '/api/v1/shop/auth/me', me);
+    await show(<AccountButton />);
+    expect(askedForSession()).toBe(1);
+    expect(localStorage.getItem(`tiendafy.shop.google.${fixtureTenantId}`)).toBeNull();
+  });
+});
+
 describe('con la sesión iniciada', () => {
+  beforeEach(() => remembered());
+
   it('el menú lleva a la cuenta y a favoritos, se cierra afuera y cierra la sesión', async () => {
     const user = await show(
       <>
@@ -233,6 +278,8 @@ describe('con la sesión iniciada', () => {
 });
 
 describe('chat posventa', () => {
+  beforeEach(() => remembered());
+
   async function openChat() {
     const user = await show(<AccountDashboard />);
     api.on('POST', '/api/v1/shop/support/conversations', thread.conversation);
