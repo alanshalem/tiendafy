@@ -181,9 +181,11 @@ async function ProductContent({
   // navegador y el JSON-LD lleva las mismas que se ven. Si falla, la ficha
   // sale igual (la sección las pide sola).
   const reviews = product
-    ? await apiGetTenant<ReviewsPage>(reviewsPath(product.id), data.tenant.id, {
-        next: { revalidate: REVALIDATE.catalog },
-      }).catch(() => null)
+    ? await apiGetTenant<ReviewsPage>(
+        reviewsPath(product.id),
+        data.tenant.id,
+        cacheFor('catalog', data.tenant.id),
+      ).catch(() => null)
     : null;
 
   // Rich results de producto en Google: precio, moneda y disponibilidad (y las

@@ -217,7 +217,7 @@ export const CLIENTES = {
       {
         heading: 'Cuánto cuesta y cómo seguirlo',
         paragraphs: [
-          'Arriba de esta pantalla, el panel “Uso del mes” te muestra cuántos emails salieron este mes, el total histórico y un costo estimado. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
+          'Arriba de esta pantalla, el panel “Uso del mes” te muestra, por separado, los avisos automáticos del mes (confirmación de compra, envío, carritos abandonados) y lo enviado por campañas, el total histórico y un costo estimado que suma los dos. La estimación usa una tarifa de referencia (Resend Pro ≈ US$ 0,40 cada 1.000 emails); el costo real depende del plan contratado — los primeros miles del mes suelen entrar en el plan gratuito.',
         ],
       },
     ],

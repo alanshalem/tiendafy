@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { Button, Checkbox, Modal, cn } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
+import { refundEffect } from '../lib/orderFacets';
 import { money, type Order, type RefundRecord } from './Orders';
 
 /** Modal de reembolso: total o parcial con monto y motivo, más historial. */
@@ -65,6 +66,10 @@ export function RefundDialog({
     >
       <p className="text-sm text-fg-muted">
         {order.buyerEmail} · disponible {formatMoney(refundable, order.currency)}
+      </p>
+      {/* Qué pasa con la plata depende de cómo se cobró: no siempre vuelve por Mercado Pago. */}
+      <p className="mt-2 rounded-md bg-bg-muted px-3 py-2 text-sm text-fg">
+        {refundEffect(order.paymentMethod, order.paymentId)}
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-2">

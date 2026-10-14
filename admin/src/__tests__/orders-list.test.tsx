@@ -230,15 +230,146 @@ describe('ventas: marcar enviadas en lote', () => {
     expect(screen.queryByText('1 seleccionada')).toBeNull();
   });
 
-  it('sin permiso de despachar no hay selección', async () => {
+  it('sin permiso de despachar se elige igual (para exportar), pero no se marca ni se imprimen etiquetas ni remitos', async () => {
     const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
-    await openOrders('/ventas', (a) => {
+    const { user } = await openOrders('/ventas', (a) => {
       a.on('GET', '/api/v1/orders', { items: [paid], total: 1 });
       a.on('GET', '/api/v1/me/permissions', {
         ...perms,
         permissions: perms.permissions.filter((p) => p !== 'orders.fulfill'),
       });
     });
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${short(paid.id)}` }));
+    expect(screen.queryByRole('button', { name: /Marcar como enviadas/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Etiquetas/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Remitos/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Exportar/ })).toHaveLength(2); // el del listado y el de la selección
+  });
+});
+
+describe('ventas: filtros', () => {
+  it('fechas, canal, envío y cobro salen de la URL y van al servidor', async () => {
+    const { api, user } = await openOrders(
+      '/ventas?desde=2026-10-01&hasta=2026-10-14&canal=manual&envio=por-despachar&cobro=transfer',
+    );
+    const last = listCalls(api).at(-1)!.path;
+    expect(last).toContain('from=2026-10-01');
+    expect(last).toContain('to=2026-10-14');
+    expect(last).toContain('channel=manual');
+    expect(last).toContain('shipping=por-despachar');
+    expect(last).toContain('payment=transfer');
+    expect(screen.getByRole('combobox', { name: 'Filtrar por canal' })).toHaveValue('manual');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por cobro' }), 'cash');
+    await settle(2);
+    expect(listCalls(api).at(-1)!.path).toContain('payment=cash');
+  });
+
+  it('la tabla tiene la columna de envío', async () => {
+    await openOrders('/ventas', (a) =>
+      a.on('GET', '/api/v1/orders', { items: [{ ...paid, shippingStatus: 'por-despachar' }], total: 1 }),
+    );
+    expect(screen.getByRole('columnheader', { name: 'Envío' })).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('Por despachar')).toBeInTheDocument();
+  });
+});
+
+describe('ventas: más acciones en lote', () => {
+  async function selectBoth(setup?: (api: MockApi) => void) {
+    const ctx = await openOrders('/ventas', (a) => {
+      a.on('GET', '/api/v1/orders', { items: [paid, other], total: 2 });
+      setup?.(a);
+    });
+    await ctx.user.click(screen.getByRole('checkbox', { name: 'Seleccionar todas las ventas de la página' }));
+    return ctx;
+  }
+
+  it('exporta solo las elegidas', async () => {
+    const { api, user } = await selectBoth((a) => a.on('GET', '/api/v1/orders/export', 'csv'));
+    const bar = screen.getByText('2 seleccionadas').parentElement!;
+    await user.click(within(bar).getByRole('button', { name: /Exportar/ }));
+    await waitFor(() => expect(download).toHaveBeenCalled());
+    const call = api.calls.find((c) => c.path.startsWith('/api/v1/orders/export'))!;
+    expect(call.path).toBe(`/api/v1/orders/export?ids=${paid.id},${other.id}`);
+  });
+
+  it('factura de a una las cobradas y cuenta qué pasó con cada una', async () => {
+    const { api, user } = await selectBoth((a) => {
+      a.on('GET', '/api/v1/fiscal/readiness', { ready: true });
+      a.on('POST', `/api/v1/orders/${paid.id}/invoice`, { authorized: true, cae: '1' });
+    });
+    await user.click(screen.getByRole('button', { name: /^Facturar$/ }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Facturar' }));
+    await settle(3);
+    const posts = api.calls.filter((c) => c.method === 'POST' && c.path.endsWith('/invoice'));
+    expect(posts.map((p) => p.path)).toEqual(
+      [paid, other]
+        .filter((o) => o.status === 'PAID' || o.status === 'FULFILLED')
+        .map((o) => `/api/v1/orders/${o.id}/invoice`),
+    );
+    expect(screen.getAllByRole('status').some((s) => /facturada/.test(s.textContent ?? ''))).toBe(true);
+  });
+
+  it('etiquetas: un solo PDF de Despacho, y avisa cuáles no tienen envío', async () => {
+    const { api, user } = await selectBoth((a) =>
+      a.on('POST', '/api/v1/fulfillment/labels', {
+        results: [
+          { orderId: paid.id, number: short(paid.id), carrier: 'zipnova', status: 'ok', reason: null },
+          { orderId: other.id, number: short(other.id), carrier: null, status: 'sin-envio', reason: null },
+        ],
+        ok: 1,
+        missing: 1,
+        fileName: 'etiquetas.pdf',
+        pdfBase64: btoa('%PDF-1.4'),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /Etiquetas/ }));
+    await settle(3);
+    expect(api.calls.find((c) => c.path === '/api/v1/fulfillment/labels')!.body).toEqual({
+      orderIds: [paid.id, other.id],
+    });
+    expect(download).toHaveBeenCalledTimes(1);
+    const report = screen.getAllByRole('status').find((s) => s.textContent?.includes('etiqueta'))!;
+    expect(report).toHaveTextContent(`${short(other.id)}: No tiene un envío generado`);
+  });
+
+  it('remitos: el PDF de Despacho con las elegidas', async () => {
+    const { api, user } = await selectBoth((a) => a.on('POST', '/api/v1/fulfillment/packing-slips', 'pdf'));
+    await user.click(screen.getByRole('button', { name: /Remitos/ }));
+    await waitFor(() => expect(download).toHaveBeenCalled());
+    expect(api.calls.find((c) => c.path === '/api/v1/fulfillment/packing-slips')!.body).toEqual({
+      orderIds: [paid.id, other.id],
+    });
+  });
+
+  it('sin la facturación lista, en vez de "Facturar" lleva a configurarla', async () => {
+    await selectBoth((a) => a.on('GET', '/api/v1/fiscal/readiness', { ready: false }));
+    expect(screen.queryByRole('button', { name: /^Facturar$/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /Configurá la facturación/ })).toHaveAttribute(
+      'href',
+      '/configuracion/facturacion',
+    );
+  });
+});
+
+describe('ventas: en el celular', () => {
+  it('cada venta es una tarjeta con total, estado y la acción principal', async () => {
+    const mm = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('max-width'),
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+    await openOrders('/ventas', (a) => a.on('GET', '/api/v1/orders', { items: [paid], total: 1 }));
+    expect(screen.queryByRole('table')).toBeNull();
+    const card = screen.getByRole('article', { name: `Venta ${short(paid.id)}` });
+    expect(within(card).getByText('Pagada')).toBeInTheDocument();
+    expect(
+      within(card).getByRole('button', { name: /Marcar enviada|Lista para retirar/ }),
+    ).toBeInTheDocument();
+    mm.mockRestore();
   });
 });

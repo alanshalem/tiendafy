@@ -23,6 +23,17 @@ public static class FiscalEndpoints
     {
         var fiscal = group.MapGroup("/fiscal").RequirePermission(Permission.FiscalConfig);
 
+        // ¿Se puede facturar ya? Lo preguntan las pantallas que tienen un botón
+        // "Facturar" (Ventas, Mercado Libre, Inicio) para no ofrecerlo cuando
+        // apretarlo solo puede dar error: sin emisor, certificado activo y un
+        // punto de venta, ARCA ni se llama. Sin secretos ni datos fiscales: lo
+        // ve quien ve ventas, aunque no pueda tocar la configuración.
+        group.MapGet("/fiscal/readiness", async (ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
+        {
+            var r = await FiscalReadiness.CheckAsync(db, tenant.TenantId.Value, ct);
+            return Results.Ok(new { ready = r.Ready, issuer = r.Issuer, certificate = r.Certificate, pointOfSale = r.PointOfSale });
+        }).RequireAnyPermission(Permission.OrdersRead, Permission.MeliOperate, Permission.FiscalEmit, Permission.FiscalConfig);
+
         // --- Configuración del emisor -------------------------------------------------
         fiscal.MapGet("/config", async (ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
         {

@@ -62,6 +62,68 @@ public sealed class OrderListTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Filtra_por_canal_cobro_envio_y_fechas_y_exporta_solo_lo_elegido()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "ofil");
+        var cash = await SaleAsync(merchant, "efectivo@test.local", "Efectivo");
+        var (_, variantId) = await merchant.CreateProductAsync("Producto transferencia", 10_000_00);
+        var transfer = (await merchant.PostAsync("/api/v1/orders/manual", new
+        {
+            items = new[] { new { variantId, quantity = 1 } },
+            paymentMethod = "transfer",
+            buyerEmail = "transfer@test.local",
+        })).GetProperty("id").GetGuid();
+        await merchant.PostAsync($"/api/v1/orders/{transfer}/fulfill", new { tracking = "AR-77" });
+
+        // Una venta que vino de un presupuesto aceptado.
+        var (_, quoted) = await merchant.CreateProductAsync("Producto presupuestado", 5_000_00);
+        var quote = await merchant.PostAsync("/api/v1/quotes", new
+        {
+            customerName = "Empresa",
+            items = new[] { new { variantId = quoted, quantity = 1, unitPriceMinor = 5_000_00 } },
+        });
+        var fromQuote = (await merchant.PostAsync($"/api/v1/quotes/{quote.GetProperty("id").GetGuid()}/accept", new { paymentMethod = "cash" }))
+            .GetProperty("orderId").GetGuid();
+
+        Task<Guid[]> ListAsync(string query) =>
+            merchant.GetAsync($"/api/v1/orders?limit=25&offset=0&{query}").ContinueWith(t => Ids(t.Result));
+
+        Assert.Equal([fromQuote], await ListAsync("channel=quote"));
+        Assert.Equal(new[] { transfer, cash }.Order(), (await ListAsync("channel=manual")).Order());
+        Assert.Empty(await ListAsync("channel=web"));
+        Assert.Equal([transfer], await ListAsync("payment=transfer"));
+        Assert.Equal(new[] { fromQuote, cash }.Order(), (await ListAsync("payment=cash")).Order());
+        Assert.Empty(await ListAsync("payment=online"));
+        Assert.Equal([transfer], await ListAsync("shipping=enviada"));
+        Assert.Equal(new[] { fromQuote, cash }.Order(), (await ListAsync("shipping=por-despachar")).Order());
+
+        // Fechas en días de Argentina: hoy entra entero; mañana, nada.
+        var today = DateTime.UtcNow.AddHours(-3).ToString("yyyy-MM-dd");
+        var tomorrow = DateTime.UtcNow.AddHours(-3).AddDays(1).ToString("yyyy-MM-dd");
+        Assert.Equal(3, (await ListAsync($"from={today}&to={today}")).Length);
+        Assert.Empty(await ListAsync($"from={tomorrow}"));
+
+        // Lo que dice cada venta de sí misma.
+        var sent = await merchant.GetAsync($"/api/v1/orders/{transfer}");
+        Assert.Equal("manual", sent.GetProperty("channel").GetString());
+        Assert.Equal("transfer", sent.GetProperty("paymentMethod").GetString());
+        Assert.Equal("enviada", sent.GetProperty("shippingStatus").GetString());
+
+        // Exportar la selección: solo esas, con canal y cobro.
+        var csv = await CsvAsync(merchant, $"/api/v1/orders/export?ids={transfer},{fromQuote},no-es-un-id");
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(3, lines.Length);
+        Assert.EndsWith("Canal;Cobro", lines[0].TrimEnd('\r'));
+        Assert.Contains("Venta manual;Transferencia", csv);
+        Assert.Contains("Presupuesto;Efectivo", csv);
+        Assert.Contains(";Enviada;", csv); // despachada, no "Entregada"
+        // Ids que no son de nadie no bajan todo el listado.
+        Assert.Single(CsvLines(await CsvAsync(merchant, "/api/v1/orders/export?ids=basura")));
+    }
+
+    private static string[] CsvLines(string csv) => csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+    [Fact]
     public async Task El_export_trae_lo_filtrado_de_esta_tienda_y_neutraliza_formulas()
     {
         var merchant = await Merchant.CreateAsync(factory, "oexp");

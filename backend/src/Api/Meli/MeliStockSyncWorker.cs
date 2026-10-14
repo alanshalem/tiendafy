@@ -28,9 +28,13 @@ public sealed class MeliStockSyncWorker(
         var db = sp.GetRequiredService<MeliDbContext>();
 
         var connections = await db.Connections.IgnoreQueryFilters().AsNoTracking()
+            // Stock y precio son interruptores independientes: alcanza con uno
+            // prendido para que la tienda entre en la pasada. Antes solo entraba
+            // con el de stock, y "Sincronizar precios" solo no hacía nada: la
+            // repreciación nunca llegaba a ML.
             // Una cuenta de ejemplo no tiene token real: empujarle stock termina
             // en 401 y en un reintento cada cinco minutos, para siempre.
-            .Where(c => c.StockSyncEnabled && !c.IsDemo)
+            .Where(c => (c.StockSyncEnabled || c.PriceSyncEnabled) && !c.IsDemo)
             .ToListAsync(ct);
 
         foreach (var connection in connections)
@@ -46,8 +50,13 @@ public sealed class MeliStockSyncWorker(
     private async Task SyncTenantAsync(
         IServiceProvider sp, MeliDbContext db, MeliConnection connection, CancellationToken ct)
     {
+        // Cada vínculo empuja solo lo que la tienda tiene prendido: el
+        // interruptor de la conexión manda sobre el de la publicación.
+        var syncStock = connection.StockSyncEnabled;
+        var syncPrice = connection.PriceSyncEnabled;
         var links = await db.ItemLinks.IgnoreQueryFilters()
-            .Where(l => l.TenantId == connection.TenantId && (l.SyncStock || l.SyncPrice))
+            .Where(l => l.TenantId == connection.TenantId
+                && ((syncStock && l.SyncStock) || (syncPrice && l.SyncPrice)))
             .ToListAsync(ct);
         if (links.Count == 0) return;
 
@@ -66,10 +75,10 @@ public sealed class MeliStockSyncWorker(
             // venta, así que se publica stock − buffer para absorber la ventana.
             var available = Math.Max(
                 0, availableByVariant.GetValueOrDefault(link.VariantId, 0) - connection.StockBufferUnits);
-            var pushStock = link.SyncStock && link.LastPushedQty != available;
+            var pushStock = syncStock && link.SyncStock && link.LastPushedQty != available;
 
             long? priceMinor = null;
-            if (link.SyncPrice && priceByVariant.TryGetValue(link.VariantId, out var localMinor) && localMinor > 0)
+            if (syncPrice && link.SyncPrice && priceByVariant.TryGetValue(link.VariantId, out var localMinor) && localMinor > 0)
             {
                 var target = MeliPricing.ForChannel(localMinor, connection.PriceMarkupPct);
                 if (link.LastPushedPriceMinor != target) priceMinor = target;
