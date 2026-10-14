@@ -57,6 +57,13 @@ function contentSummary(section: ThemeSection): string {
   const items = entries.find(([k, v]) => kindOf(k, v) === 'items' && Array.isArray(v));
   if (items) {
     const list = (items[1] as unknown[]).filter(isRecord);
+    // Diapositivas o logos (ítems que son una imagen): "Ítem 1, Ítem 2" no dice
+    // nada, se cuentan como imágenes, como cuando eran una lista de URLs.
+    const spec = def?.fields[items[0]];
+    const ofImages = spec?.kind === 'items' && 'image' in spec.fields;
+    const unnamed = list.every((it, i) => itemDisplayTitle(it as ItemBase, i) === `Ítem ${i + 1}`);
+    if (ofImages && unnamed)
+      return list.length > 0 ? plural(list.length, 'imagen', 'imágenes') : 'Sin imágenes todavía';
     if (list.length === 0) return 'Sin ítems todavía';
     const names = list
       .slice(0, 2)
