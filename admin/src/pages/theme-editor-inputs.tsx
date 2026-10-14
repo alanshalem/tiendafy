@@ -174,7 +174,18 @@ export function BackHeader({
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  after,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  /** Algo entre el control y la ayuda (un contador de largo): `children` tiene que ser el control solo. */
+  after?: ReactNode;
+  children: ReactNode;
+}) {
   // Asocia programáticamente el <label> con su control: genera un id y lo
   // reenvía al hijo (TextInput/TextArea/Select/… aceptan `id`). Solo agrega
   // atributos: no cambia el render visual.
@@ -187,6 +198,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
         {label}
       </label>
       {el ? cloneElement(el, { id: controlId }) : children}
+      {after}
       {hint && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
     </div>
   );
@@ -403,8 +415,9 @@ export function Check({
   /** Para qué sirve, debajo (alineado con el texto, no con la casilla). */
   hint?: string;
 }) {
+  // Toda la fila se toca, con 40 px de alto: el cuadradito solo (16 px) se erraba con el dedo.
   const box = (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
       <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>

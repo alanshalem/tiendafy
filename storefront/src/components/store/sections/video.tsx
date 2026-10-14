@@ -36,9 +36,24 @@ function PlayIcon() {
  * conexiones (y cookies) apenas se carga; así la portada no lo paga si nadie
  * mira el video. Al tocar, entra el iframe (youtube-nocookie) y arranca solo.
  */
-function EmbedFacade({ video, poster, title }: { video: PlayableVideo; poster: string; title: string }) {
+function EmbedFacade({
+  video,
+  poster,
+  title,
+  ratio,
+}: {
+  video: PlayableVideo;
+  poster: string;
+  title: string;
+  ratio: VideoData['ratio'];
+}) {
   const [playing, setPlaying] = useState(false);
   const thumb = poster || videoThumbnail(video);
+  // La miniatura de YouTube (hqdefault, 4:3) trae las franjas negras de un
+  // video 16:9 adentro de la imagen. En 16:9 el recorte las saca solo; en
+  // vertical, cuadrado o 4:3 se veían arriba y abajo. Se agranda la imagen
+  // lo justo para dejarlas afuera (no en los Shorts: ahí son a los costados).
+  const cropBars = !poster && video.kind === 'youtube' && !video.short && ratio !== '16:9';
   const name = title || (video.kind === 'youtube' ? 'Video de YouTube' : 'Video de Vimeo');
   if (playing)
     return (
@@ -58,12 +73,14 @@ function EmbedFacade({ video, poster, title }: { video: PlayableVideo; poster: s
       className="group absolute inset-0 flex h-full w-full items-center justify-center bg-black"
     >
       {thumb && (
-        <StoreImage
-          src={thumb}
-          alt=""
-          sizes="(max-width: 768px) 100vw, 56rem"
-          className="object-cover opacity-90"
-        />
+        <span className={cn('absolute inset-x-0', cropBars ? '-inset-y-[16.7%]' : 'inset-y-0')}>
+          <StoreImage
+            src={thumb}
+            alt=""
+            sizes="(max-width: 768px) 100vw, 56rem"
+            className="object-cover opacity-90"
+          />
+        </span>
       )}
       <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-black/70 text-white shadow-lg transition-transform group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none">
         <PlayIcon />
@@ -159,9 +176,9 @@ export function VideoSection({ data }: SectionRenderProps<'video'>) {
           {data.text && <p className="mt-2 whitespace-pre-line text-fg-muted">{data.text}</p>}
         </div>
       )}
-      <div className={cn('relative mx-auto w-full overflow-hidden rounded-lg bg-black/5', RATIO[data.ratio])}>
+      <div className={cn('relative mx-auto w-full overflow-hidden rounded-lg bg-fg/5', RATIO[data.ratio])}>
         {embed ? (
-          <EmbedFacade video={embed} poster={data.poster} title={data.title} />
+          <EmbedFacade video={embed} poster={data.poster} title={data.title} ratio={data.ratio} />
         ) : file ? (
           <FileVideo src={file} poster={data.poster} autoplay={data.autoplay} title={data.title} />
         ) : (

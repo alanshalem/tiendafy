@@ -79,7 +79,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
           href={embed.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-black/10 p-8 text-center transition-transform hover:scale-[1.01]"
+          className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-fg/10 p-8 text-center transition-transform hover:scale-[1.01]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -122,7 +122,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
 
   return (
     <Frame data={data}>
-      <div className={cn('overflow-hidden rounded-lg bg-black/5', aspectOf(data, embed))}>
+      <div className={cn('overflow-hidden rounded-lg bg-fg/5', aspectOf(data, embed))}>
         <iframe
           src={embed.src}
           className="h-full w-full"

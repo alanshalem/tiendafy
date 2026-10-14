@@ -1,10 +1,10 @@
 import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
-import { TriangleAlert } from 'lucide-react';
+import { ChevronDown, ImagePlus, TriangleAlert } from 'lucide-react';
 import { Checkbox, cn } from '@tiendafy/ui';
 import { TEXT_POSITIONS, type Overlay, type TextPosition } from '@tiendafy/types';
 import { MediaUploadList } from '../../../components/upload/MediaUpload';
 import type { UploadKind } from '../../../lib/uploads';
-import { Field, Select } from '../../theme-editor-inputs';
+import { ChoiceGroup } from './choice-group';
 
 /*
  * Piezas de los editores de las secciones de imágenes (hero, carrusel,
@@ -106,9 +106,27 @@ export function OverlayField({
   label?: string;
 }) {
   return (
-    <Field label={label}>
-      <Select value={value} onChange={(v) => onChange(v as Overlay)} options={OVERLAY_OPTIONS} />
-    </Field>
+    <ChoiceGroup
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={OVERLAY_OPTIONS.map((o) => ({ ...o, icon: <OverlayIcon level={o.value} /> }))}
+    />
+  );
+}
+
+const OVERLAY_ALPHA: Record<Overlay, number> = { none: 0, light: 0.2, medium: 0.4, strong: 0.6 };
+
+/** Una "foto" (montañas) con el velo de ese nivel encima: se ve cuánto oscurece. */
+function OverlayIcon({ level }: { level: Overlay }) {
+  return (
+    <svg viewBox="0 0 28 20" width="28" height="20" aria-hidden>
+      <rect x="1" y="1" width="26" height="18" rx="2" fill="#cbd5e1" />
+      <path d="M1 17l8-8 6 6 4-4 8 8v0H1z" fill="#94a3b8" />
+      <circle cx="20" cy="6" r="2.5" fill="#f8fafc" />
+      <rect x="1" y="1" width="26" height="18" rx="2" fill="#000" fillOpacity={OVERLAY_ALPHA[level]} />
+      <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" strokeOpacity=".4" />
+    </svg>
   );
 }
 
@@ -180,12 +198,16 @@ export function BulkImageAdd<T>({
     latest.current = items;
   });
   if (items.length >= max) return null;
+  // Una acción secundaria, debajo del "Agregar…" (el recuadro punteado): un
+  // link con ícono, no otra caja que compita con él.
   return (
-    <details className="rounded-md border border-dashed border-border-strong">
-      <summary className="flex min-h-10 cursor-pointer items-center px-3 text-sm font-medium text-primary">
+    <details className="group -mt-1">
+      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-md px-1 text-sm font-medium text-primary hover:underline [&::-webkit-details-marker]:hidden">
+        <ImagePlus className="h-4 w-4" aria-hidden />
         {label}
+        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <div className="p-2 pt-0">
+      <div className="mt-1 rounded-md border border-border p-2">
         <MediaUploadList
           kind={kind}
           values={[]}

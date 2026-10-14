@@ -11,14 +11,17 @@ import type { ProductsData, SectionRenderProps } from '../section-types';
  * (la API no respondió): lo elegido a mano que esté en la lista general, o
  * los primeros del catálogo (en ofertas, los que tienen precio tachado).
  */
-function fallbackProducts(
+export function fallbackProducts(
   type: string,
   source: ProductSource,
   products: StoreProduct[],
   limit: number,
 ): StoreProduct[] {
   if (source.kind === 'manual') return pickProducts(products, source.ids).slice(0, limit);
-  const pool = type === 'sale-products' ? products.filter((p) => p.compareAtAmount) : products;
+  const onSale = type === 'sale-products' || source.kind === 'on-sale';
+  const pool = onSale
+    ? products.filter((p) => p.compareAtAmount && p.compareAtAmount > p.priceAmount)
+    : products;
   return pool.slice(0, limit);
 }
 
@@ -31,7 +34,7 @@ function viewAllOf(data: ProductsData, source: ProductSource) {
   };
 }
 
-const EMPTY_BY_KIND: Record<ProductSource['kind'], string> = {
+export const EMPTY_BY_KIND: Record<ProductSource['kind'], string> = {
   manual: 'Todavía no elegiste productos para esta sección.',
   category: 'Esta categoría no tiene productos publicados.',
   brand: 'No hay productos publicados de esta marca.',

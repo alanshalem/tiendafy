@@ -16,6 +16,8 @@ import { useStore } from '../../../context/StoreContext';
 import { api } from '../../../lib/api';
 import { Check, Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
 import { ProductPicker } from '../../theme-editor-pickers';
+import { ChoiceGroup, ColumnsIcon, LayoutIcon, type Choice } from './choice-group';
+import { NumberField } from './section-pickers';
 import type { SectionEditorProps } from './types';
 
 type ProductsType = 'featured' | 'new-products' | 'sale-products';
@@ -36,9 +38,14 @@ const SORTS: { value: ProductSourceSort; label: string }[] = [
   { value: 'name', label: 'Nombre (A–Z)' },
 ];
 
-const LAYOUTS = [
-  { value: 'carousel', label: 'Carrusel (se desliza)' },
-  { value: 'grid', label: 'Grilla' },
+const LAYOUTS: Choice<'carousel' | 'grid'>[] = [
+  {
+    value: 'carousel',
+    label: 'Carrusel',
+    title: 'Carrusel (se desliza)',
+    icon: <LayoutIcon layout="carousel" />,
+  },
+  { value: 'grid', label: 'Grilla', icon: <LayoutIcon layout="grid" /> },
 ];
 
 interface CategoryDto {
@@ -104,23 +111,22 @@ function editingSource(raw: unknown, planned: ProductSource): ProductSource {
 }
 
 /** Cómo se lee el destino automático de "Ver todos" en el editor. */
-function autoViewAllLabel(source: ProductSource): string {
+export function autoViewAllLabel(source: ProductSource): string {
   switch (source.kind) {
     case 'category':
-      return 'el listado de la categoría';
+      return 'al listado de la categoría';
     case 'brand':
-      return 'el listado de la marca';
+      return 'al listado de la marca';
     case 'newest':
-      return 'el listado, con lo más nuevo primero';
+      return 'al listado, con lo más nuevo primero';
+    case 'on-sale':
+      return 'al listado de los productos en oferta';
+    case 'best-sellers':
+      return 'al listado, con lo más vendido primero';
     default:
-      return 'el listado de todos los productos';
+      return 'al listado de todos los productos';
   }
 }
-
-const clampInt = (raw: string, min: number, max: number, fallback: number) => {
-  const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
-};
 
 /**
  * Destacados, recién llegados y ofertas: el mismo editor. Qué productos van
@@ -131,7 +137,7 @@ const clampInt = (raw: string, min: number, max: number, fallback: number) => {
  * una sección vieja con `productIds` aparece como "Elegidos a mano" y una sin
  * nada, con el origen por defecto de su tipo.
  */
-export function ProductsEditor({ section, data, set }: SectionEditorProps<ProductsType>) {
+export function ProductsEditor({ section, data, set, theme }: SectionEditorProps<ProductsType>) {
   const type = section.type as ProductsType;
   const plan = sectionProductPlan(section)!;
   const source = editingSource(data.source, plan.source);
@@ -147,14 +153,27 @@ export function ProductsEditor({ section, data, set }: SectionEditorProps<Produc
   const brands = useBrands(source.kind === 'brand');
   const sortable = source.kind === 'category' || source.kind === 'brand' || source.kind === 'on-sale';
 
-  const columnsOptions = [
-    { value: 'auto', label: 'Como el listado de productos' },
-    ...['2', '3', '4', '5'].map((n) => ({ value: n, label: `${n} columnas` })),
+  const listColumns = theme?.productList.columns ?? 4;
+  const listMobileColumns = theme?.productList.mobileColumns ?? 2;
+  const auto = (n: number) => ({
+    value: 'auto' as const,
+    label: 'Auto',
+    title: 'Como el listado de productos',
+    icon: <ColumnsIcon n={n} />,
+  });
+  const columnsOptions: Choice<ProductsData['columns']>[] = [
+    auto(listColumns),
+    ...(['2', '3', '4', '5'] as const).map((n) => ({
+      value: n,
+      label: n,
+      title: `${n} por fila`,
+      icon: <ColumnsIcon n={Number(n)} />,
+    })),
   ];
-  const mobileOptions = [
-    { value: 'auto', label: 'Como el listado de productos' },
-    { value: '1', label: '1 columna (foto grande)' },
-    { value: '2', label: '2 columnas' },
+  const mobileOptions: Choice<ProductsData['mobileColumns']>[] = [
+    auto(listMobileColumns),
+    { value: '1', label: '1', title: '1 por fila (foto grande)', icon: <ColumnsIcon n={1} /> },
+    { value: '2', label: '2', title: '2 por fila', icon: <ColumnsIcon n={2} /> },
   ];
 
   return (
@@ -236,21 +255,15 @@ export function ProductsEditor({ section, data, set }: SectionEditorProps<Produc
       )}
 
       {source.kind === 'best-sellers' && (
-        <Field
-          label="Vendidos en los últimos (días)"
+        <NumberField
+          label="Vendidos en los últimos"
+          suffix="días"
           hint="Si todavía no hay ventas, se muestran los más nuevos."
-        >
-          <TextInput
-            type="number"
-            value={String(source.days ?? BEST_SELLERS_DAYS.default)}
-            onChange={(v) =>
-              setSource({
-                kind: 'best-sellers',
-                days: clampInt(v, BEST_SELLERS_DAYS.min, BEST_SELLERS_DAYS.max, BEST_SELLERS_DAYS.default),
-              })
-            }
-          />
-        </Field>
+          value={source.days ?? BEST_SELLERS_DAYS.default}
+          min={BEST_SELLERS_DAYS.min}
+          max={BEST_SELLERS_DAYS.max}
+          onChange={(days) => setSource({ kind: 'best-sellers', days })}
+        />
       )}
 
       {sortable && (
@@ -264,45 +277,44 @@ export function ProductsEditor({ section, data, set }: SectionEditorProps<Produc
       )}
 
       {source.kind !== 'manual' && (
-        <Field label={`Cantidad de productos (${PRODUCT_SOURCE_LIMIT.min} a ${PRODUCT_SOURCE_LIMIT.max})`}>
-          <TextInput
-            type="number"
-            value={String(plan.limit)}
-            onChange={(v) =>
-              set({
-                limit: clampInt(
-                  v,
-                  PRODUCT_SOURCE_LIMIT.min,
-                  PRODUCT_SOURCE_LIMIT.max,
-                  PRODUCT_SOURCE_LIMIT.default,
-                ),
-              })
-            }
-          />
-        </Field>
+        <NumberField
+          label={`Cantidad de productos (${PRODUCT_SOURCE_LIMIT.min} a ${PRODUCT_SOURCE_LIMIT.max})`}
+          value={plan.limit}
+          min={PRODUCT_SOURCE_LIMIT.min}
+          max={PRODUCT_SOURCE_LIMIT.max}
+          onChange={(limit) => set({ limit })}
+        />
       )}
 
-      <Field label="Cómo se muestran">
-        <Select
-          value={data.carousel ? 'carousel' : 'grid'}
-          onChange={(v) => set({ carousel: v === 'carousel' })}
-          options={LAYOUTS}
-        />
-      </Field>
-      <Field label="Columnas en computadora">
-        <Select
-          value={data.columns}
-          onChange={(v) => set({ columns: v as ProductsData['columns'] })}
-          options={columnsOptions}
-        />
-      </Field>
-      <Field label="Columnas en el celular">
-        <Select
-          value={data.mobileColumns}
-          onChange={(v) => set({ mobileColumns: v as ProductsData['mobileColumns'] })}
-          options={mobileOptions}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Cómo se muestran"
+        value={data.carousel ? 'carousel' : 'grid'}
+        onChange={(v) => set({ carousel: v === 'carousel' })}
+        options={LAYOUTS}
+      />
+      <ChoiceGroup
+        label="Por fila en computadora"
+        hint={
+          data.columns === 'auto'
+            ? `«Auto» usa las del listado de productos (${listColumns} por fila).`
+            : undefined
+        }
+        value={data.columns}
+        onChange={(columns) => set({ columns })}
+        options={columnsOptions}
+        columns={5}
+      />
+      <ChoiceGroup
+        label="Por fila en el celular"
+        hint={
+          data.mobileColumns === 'auto'
+            ? `«Auto» usa las del listado de productos (${listMobileColumns} por fila).`
+            : undefined
+        }
+        value={data.mobileColumns}
+        onChange={(mobileColumns) => set({ mobileColumns })}
+        options={mobileOptions}
+      />
 
       <Check
         label='Mostrar el link "Ver todos"'
@@ -325,7 +337,7 @@ export function ProductsEditor({ section, data, set }: SectionEditorProps<Produc
             hint={
               data.viewAllLink
                 ? 'Sacá el link para que vaya solo al listado que corresponde.'
-                : `Sin elegir nada, va a ${autoViewAllLabel(plan.source)} (${productSourceListingHref(plan.source)}).`
+                : `Sin elegir nada, va ${autoViewAllLabel(plan.source)} (${productSourceListingHref(plan.source)}).`
             }
           />
         </>

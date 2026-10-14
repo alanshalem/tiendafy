@@ -38,7 +38,7 @@ export function NewsletterSection({ data }: SectionRenderProps<'newsletter'>) {
     </div>
   );
   return (
-    <section className={cn(!style?.background && 'bg-black/[0.03]')}>
+    <section className={cn(!style?.background && 'bg-fg/[0.03]')}>
       {split ? (
         // La imagen acompaña, no manda: dos quintos del ancho y el bloque no
         // pasa de 1024 px (a todo el ancho, una foto 4:3 ocupaba la pantalla).

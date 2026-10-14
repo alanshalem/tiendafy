@@ -16,6 +16,20 @@ import {
   type QuickStyle,
 } from './theme-editor-inputs';
 import { MediaUpload } from '../components/upload/MediaUpload';
+import { ChoiceGroup, ColumnsIcon, RatioIcon } from './theme-editor/sections/choice-group';
+
+type ListConfig = ThemeConfig['productList'];
+
+/** Una tarjeta de producto: suelta (foto y texto) o dentro de un recuadro. */
+function CardStyleIcon({ boxed }: { boxed: boolean }) {
+  return (
+    <svg viewBox="0 0 28 20" width="28" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      {boxed && <rect x="5" y="0.75" width="18" height="18.5" rx="2" />}
+      <rect x="8" y="3" width="12" height="9" rx="1" fill="currentColor" stroke="none" opacity=".55" />
+      <path d="M8 14.5h9M8 17h5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export type PanelProps = {
   theme: ThemeConfig;
@@ -133,51 +147,62 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
             options={[12, 24, 48].map((n) => ({ value: String(n), label: `${n} productos` }))}
           />
         </Field>
-        <Field label="Productos por fila en la computadora">
-          <Select
-            value={String(theme.productList.columns)}
-            onChange={(v) => set({ columns: Number(v) })}
-            options={[
-              { value: '2', label: '2 columnas' },
-              { value: '3', label: '3 columnas' },
-              { value: '4', label: '4 columnas' },
-            ]}
-          />
-        </Field>
-        <Field
+        <ChoiceGroup
+          label="Productos por fila en la computadora"
+          value={String(theme.productList.columns)}
+          onChange={(v) => set({ columns: Number(v) })}
+          options={['2', '3', '4'].map((n) => ({
+            value: n,
+            label: n,
+            title: `${n} por fila`,
+            icon: <ColumnsIcon n={Number(n)} />,
+          }))}
+        />
+        <ChoiceGroup
           label="Productos por fila en el celular"
           hint="Con 1 cada foto ocupa todo el ancho: luce más, pero hay que scrollear más."
-        >
-          <Select
-            value={String(theme.productList.mobileColumns ?? 2)}
-            onChange={(v) => set({ mobileColumns: v === '1' ? 1 : 2 })}
-            options={[
-              { value: '2', label: '2 columnas' },
-              { value: '1', label: '1 columna (foto grande)' },
-            ]}
-          />
-        </Field>
-        <Field label="Proporción de las fotos" hint="Vertical le queda bien a la indumentaria.">
-          <Select
-            value={theme.productList.imageRatio}
-            onChange={(v) => set({ imageRatio: v as ThemeConfig['productList']['imageRatio'] })}
-            options={[
-              { value: 'square', label: 'Cuadrada (1:1)' },
-              { value: 'portrait', label: 'Vertical (3:4)' },
-              { value: 'wide', label: 'Apaisada (4:3)' },
-            ]}
-          />
-        </Field>
-        <Field label="Presentación de cada producto">
-          <Select
-            value={theme.productList.cardStyle}
-            onChange={(v) => set({ cardStyle: v as ThemeConfig['productList']['cardStyle'] })}
-            options={[
-              { value: 'plain', label: 'Suelto sobre el fondo' },
-              { value: 'boxed', label: 'Dentro de una tarjeta' },
-            ]}
-          />
-        </Field>
+          value={String(theme.productList.mobileColumns ?? 2)}
+          onChange={(v) => set({ mobileColumns: v === '1' ? 1 : 2 })}
+          options={[
+            { value: '1', label: '1', title: '1 por fila (foto grande)', icon: <ColumnsIcon n={1} /> },
+            { value: '2', label: '2', title: '2 por fila', icon: <ColumnsIcon n={2} /> },
+          ]}
+        />
+        <ChoiceGroup
+          label="Proporción de las fotos"
+          hint="Vertical le queda bien a la indumentaria."
+          value={theme.productList.imageRatio}
+          onChange={(imageRatio: ListConfig['imageRatio']) => set({ imageRatio })}
+          options={[
+            { value: 'square', label: 'Cuadrada', title: 'Cuadrada (1:1)', icon: <RatioIcon ratio="1x1" /> },
+            {
+              value: 'portrait',
+              label: 'Vertical',
+              title: 'Vertical (3:4)',
+              icon: <RatioIcon ratio="3x4" />,
+            },
+            { value: 'wide', label: 'Apaisada', title: 'Apaisada (4:3)', icon: <RatioIcon ratio="4x3" /> },
+          ]}
+        />
+        <ChoiceGroup
+          label="Presentación de cada producto"
+          value={theme.productList.cardStyle}
+          onChange={(cardStyle: ListConfig['cardStyle']) => set({ cardStyle })}
+          options={[
+            {
+              value: 'plain',
+              label: 'Suelto',
+              title: 'Suelto sobre el fondo',
+              icon: <CardStyleIcon boxed={false} />,
+            },
+            {
+              value: 'boxed',
+              label: 'En tarjeta',
+              title: 'Dentro de una tarjeta',
+              icon: <CardStyleIcon boxed />,
+            },
+          ]}
+        />
         <Check
           label="Mostrar precio"
           checked={theme.productList.showPrice}
@@ -357,7 +382,7 @@ const GALLERY_STYLES: { value: GalleryStyle; label: string; desc: string }[] = [
   {
     value: 'stacked',
     label: 'Apilada',
-    desc: 'Todas las fotos grandes, una debajo de la otra. Ideal para indumentaria y productos con detalles.',
+    desc: 'Todas las fotos grandes, una debajo de la otra, y la info acompaña al bajar. En celulares se deslizan de costado. Ideal para indumentaria.',
   },
 ];
 

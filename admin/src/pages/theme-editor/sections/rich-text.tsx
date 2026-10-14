@@ -3,7 +3,8 @@ import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { Bone } from '../../../components/Skeleton';
 import { lazyComponent } from '../../../lib/lazyPage';
-import { Field, Select, TextInput } from '../../theme-editor-inputs';
+import { Field, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, SideIcon } from './choice-group';
 import type { SectionEditorProps } from './types';
 
 // Tiptap pesa ~130 KB comprimido: se baja recién cuando se abre esta sección.
@@ -39,17 +40,27 @@ export function RichTextSectionEditor({ data, set }: SectionEditorProps<'rich-te
         <MediaUpload kind="sectionImage" value={data.image} onChange={(image) => set({ image })} />
       </Field>
       {data.image && (
-        <Field label="Dónde va la imagen" hint="En celulares siempre va arriba del texto.">
-          <Select
-            value={data.imagePosition}
-            onChange={(v) => set({ imagePosition: v as typeof data.imagePosition })}
-            options={[
-              { value: 'left', label: 'A la izquierda' },
-              { value: 'right', label: 'A la derecha' },
-              { value: 'top', label: 'Arriba' },
-            ]}
-          />
-        </Field>
+        <ChoiceGroup
+          label="Dónde va la imagen"
+          hint="En celulares siempre va arriba del texto."
+          value={data.imagePosition}
+          onChange={(imagePosition) => set({ imagePosition })}
+          options={[
+            {
+              value: 'left',
+              label: 'Izquierda',
+              title: 'A la izquierda del texto',
+              icon: <SideIcon image="left" />,
+            },
+            {
+              value: 'right',
+              label: 'Derecha',
+              title: 'A la derecha del texto',
+              icon: <SideIcon image="right" />,
+            },
+            { value: 'top', label: 'Arriba', title: 'Arriba del texto', icon: <SideIcon image="top" /> },
+          ]}
+        />
       )}
       <Field label="Texto del botón (opcional)">
         <TextInput value={data.buttonText} onChange={(v) => set({ buttonText: v })} />

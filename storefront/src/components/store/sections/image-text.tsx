@@ -5,8 +5,8 @@ import { contrastText, type ImageTextData } from '@tiendafy/types';
 import { cn } from '@tiendafy/ui';
 import { MOBILE_MEDIA, StoreImage } from '../StoreImage';
 import { StoreLink } from '../StoreLink';
-import { SectionTitle } from '../section-primitives';
-import { useSectionStyle } from '../section-context';
+import { ImagePlaceholder, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { useDarkPage, useSectionStyle } from '../section-context';
 import type { SectionRenderProps } from '../section-types';
 import { RATIO_CLASS } from './image-overlay';
 
@@ -83,7 +83,11 @@ function SectionImage({ data, sizes }: { data: ImageTextData; sizes: string }) {
  */
 function useNeedsDarkPanel(data: ImageTextData): boolean {
   const style = useSectionStyle();
+  const darkPage = useDarkPage();
   if (data.textColor !== 'light' || data.textBackground === 'dark') return false;
+  // Sobre una tienda oscura el texto claro ya se lee: va el fondo elegido.
+  // (Con fondo propio claro en la sección, sí hace falta el recuadro.)
+  if (darkPage && style?.background !== 'custom') return false;
   const darkSection =
     style?.background === 'custom' &&
     !!style.backgroundColor &&
@@ -93,9 +97,14 @@ function useNeedsDarkPanel(data: ImageTextData): boolean {
 
 export function ImageTextSection({ data }: SectionRenderProps<'image-text'>) {
   const forceDark = useNeedsDarkPanel(data);
+  const placeholders = usePreviewPlaceholders();
   if (!data.image && !data.title) return null;
 
   const hasText = !!(data.title || data.description || (data.buttonText && data.link));
+  // En el editor, sin foto todavía se ve su lugar (con la forma elegida): si
+  // no, la sección recién agregada era un texto suelto y no se entendía
+  // dónde iba la imagen ni qué cambiaban sus opciones.
+  const slot = !!data.image || placeholders;
 
   // Solo imagen (sin texto): a todo el ancho del contenedor, centrada — no media
   // columna a la izquierda. Sirve para banners de cualquier proporción.
@@ -114,8 +123,8 @@ export function ImageTextSection({ data }: SectionRenderProps<'image-text'>) {
       className={cn(
         PANEL[panel],
         light && 'text-white',
-        data.image && (data.mobileOrder === 'text' ? 'order-1' : 'order-2'),
-        data.image && (data.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'),
+        slot && (data.mobileOrder === 'text' ? 'order-1' : 'order-2'),
+        slot && (data.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'),
       )}
     >
       {data.title && <SectionTitle className="text-2xl font-bold sm:text-3xl">{data.title}</SectionTitle>}
@@ -144,17 +153,28 @@ export function ImageTextSection({ data }: SectionRenderProps<'image-text'>) {
     <section
       className={cn(
         'mx-auto max-w-container px-4 py-14',
-        data.image && `grid gap-8 md:grid-cols-2 md:gap-12 ${V_ALIGN[data.verticalAlign]}`,
+        slot && `grid gap-8 md:grid-cols-2 md:gap-12 ${V_ALIGN[data.verticalAlign]}`,
       )}
     >
-      {data.image && (
+      {slot && (
         <div
           className={cn(
             data.mobileOrder === 'text' ? 'order-2' : 'order-1',
             data.imagePosition === 'right' ? 'md:order-2' : 'md:order-1',
           )}
         >
-          <SectionImage data={data} sizes="(max-width: 767px) 100vw, 640px" />
+          {data.image ? (
+            <SectionImage data={data} sizes="(max-width: 767px) 100vw, 640px" />
+          ) : (
+            <div
+              className={cn(
+                'w-full overflow-hidden rounded-lg',
+                RATIO_CLASS[data.ratio] || RATIO_CLASS['4x3'],
+              )}
+            >
+              <ImagePlaceholder />
+            </div>
+          )}
         </div>
       )}
       {text}

@@ -4,6 +4,7 @@ import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
 import { loadStorefront, siteBase, loadHomeSectionProducts } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { jsonLd } from '@/lib/json-ld';
+import { homeSeoDescription, homeSeoTitle } from '@tiendafy/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,8 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   // El merchant define su título/descripción SEO en el editor (Identidad);
   // sin eso, un default con la marca — nunca el nombre pelado compitiendo
   // con el mismo texto que todas las demás tiendas.
-  const title = theme?.seoTitle?.trim() || `${tenant.name} — Tienda online`;
-  const description =
-    theme?.seoDescription?.trim() || `Comprá online en ${tenant.name}. Envíos a todo el país y pago seguro.`;
+  const title = homeSeoTitle(theme?.seoTitle, tenant.name);
+  const description = homeSeoDescription(theme?.seoDescription, tenant.name);
   const base = await siteBase();
   return {
     // La plantilla del layout ("… · Tienda") no aplica a la portada: es del

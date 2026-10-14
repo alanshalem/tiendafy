@@ -37,9 +37,14 @@ export const OPTION_INDEX: OptionEntry[] = [
     label: 'Título para buscadores',
     view: 'logo',
     panel: 'Identidad',
-    keywords: 'google seo posicionamiento',
+    keywords: 'google seo posicionamiento vista previa resultado',
   },
-  { label: 'Descripción para buscadores', view: 'logo', panel: 'Identidad', keywords: 'google seo meta' },
+  {
+    label: 'Descripción para buscadores',
+    view: 'logo',
+    panel: 'Identidad',
+    keywords: 'google seo meta vista previa resultado',
+  },
 
   { label: 'Color principal', view: 'colors', panel: 'Colores', keywords: 'botones marca primario' },
   { label: 'Color de acento', view: 'colors', panel: 'Colores', keywords: 'secundario' },

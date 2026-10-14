@@ -56,17 +56,17 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
   const soldOut = product.stock != null && product.stock <= 0;
   return (
     <div
-      className={`group flex h-full flex-col ${
+      // text-left: "Alineación de los títulos: centrados" de una sección de
+      // productos centraba también el nombre y el precio de cada card.
+      className={`group flex h-full flex-col text-left ${
         // "boxed" separa cada producto del fondo: se nota cuando las fotos son
         // recortadas o de fondo blanco y si no se pierden contra la página.
-        boxed
-          ? 'rounded-lg border border-black/10 bg-bg p-2.5 shadow-sm transition-shadow hover:shadow-md'
-          : ''
+        boxed ? 'rounded-lg border border-fg/10 bg-bg p-2.5 shadow-sm transition-shadow hover:shadow-md' : ''
       }`}
     >
       <Link
         href={link}
-        className={`relative block w-full overflow-hidden rounded-lg bg-black/5 ${
+        className={`relative block w-full overflow-hidden rounded-lg bg-fg/5 ${
           ratioClass[list.imageRatio] ?? ratioClass.square
         }`}
       >
@@ -203,7 +203,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           <button
             type="button"
             disabled
-            className="mt-3 flex min-h-10 w-full cursor-not-allowed items-center justify-center rounded-md bg-black/10 px-2 text-xs font-semibold text-fg-muted"
+            className="mt-3 flex min-h-10 w-full cursor-not-allowed items-center justify-center rounded-md bg-fg/10 px-2 text-xs font-semibold text-fg-muted"
           >
             Sin stock
           </button>

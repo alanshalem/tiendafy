@@ -6,6 +6,7 @@
  */
 import { baseTheme, type SectionType, type ThemeConfig, type ThemeSection } from '@tiendafy/types';
 import { screen, waitFor, within } from '@testing-library/react';
+import { radio } from '../test/choice';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -151,17 +152,20 @@ describe('secciones de productos', () => {
   it('grilla o carrusel, columnas, subtítulo y "Ver todos" con su destino automático', async () => {
     const u = user();
     await mount('sale-products');
-    await u.selectOptions(screen.getByLabelText('Cómo se muestran'), 'grid');
+    await u.click(radio('Cómo se muestran', 'Grilla'));
     expect(last.carousel).toBe(false);
-    await u.selectOptions(screen.getByLabelText('Columnas en computadora'), '5');
-    await u.selectOptions(screen.getByLabelText('Columnas en el celular'), '1');
+    await u.click(radio('Por fila en computadora', '5 por fila'));
+    await u.click(radio('Por fila en el celular', '1 por fila (foto grande)'));
     expect(last).toMatchObject({ columns: '5', mobileColumns: '1' });
     await u.type(screen.getByLabelText('Subtítulo (opcional)'), 'Hasta agotar stock');
     expect(last.subtitle).toBe('Hasta agotar stock');
 
     await u.click(screen.getByLabelText('Mostrar el link "Ver todos"'));
     expect(last.viewAll).toBe(true);
-    expect(screen.getByText(/va a el listado de todos los productos/)).toBeInTheDocument();
+    // Ofertas: el destino automático es el listado de ofertas, y lo dice.
+    expect(
+      screen.getByText(/va al listado de los productos en oferta \(\/productos\?onSale=1\)/),
+    ).toBeInTheDocument();
     await u.selectOptions(screen.getByLabelText('Qué productos mostrar'), 'newest');
     expect(screen.getByText(/\/productos\?sort=newest/)).toBeInTheDocument();
   });
@@ -214,7 +218,7 @@ describe('barra de información', () => {
       ],
     });
     expect(screen.getByRole('button', { name: 'Cambios' })).toBeInTheDocument();
-    await u.selectOptions(screen.getByLabelText('En el celular'), 'carousel');
+    await u.click(radio('En el celular', 'Deslizando de costado'));
     expect(last.mobileLayout).toBe('carousel');
   });
 });
@@ -229,7 +233,7 @@ describe('Instagram / video', () => {
     await u.clear(input);
     await u.type(input, 'https://youtube.com/shorts/dQw4w9WgXcQ');
     expect(screen.getByRole('status')).toHaveTextContent('Short de YouTube');
-    await u.selectOptions(screen.getByLabelText('Proporción del video'), '1:1');
+    await u.click(radio('Proporción del video', 'Cuadrado (1:1)'));
     expect(last.aspect).toBe('1:1');
   });
 });
@@ -247,7 +251,7 @@ describe('newsletter', () => {
     expect(screen.queryByRole('note')).toBeNull();
     await u.type(screen.getByLabelText('Mensaje al suscribirse'), 'Gracias');
     await u.type(screen.getByLabelText('Letra chica (opcional)'), 'Baja cuando quieras');
-    await u.selectOptions(screen.getByLabelText('Cómo se acomoda'), 'split');
+    await u.click(radio('Cómo se acomoda', 'Imagen al costado'));
     expect(last).toMatchObject({
       successMessage: 'Gracias',
       legalText: 'Baja cuando quieras',
@@ -262,7 +266,7 @@ describe('testimonios', () => {
     await mount('testimonials', { items: [{ quote: 'Muy bueno', name: 'Ana' }] });
     await u.selectOptions(screen.getByLabelText('Estrellas'), '5');
     expect((last.items as { rating: string }[])[0]!.rating).toBe('5');
-    await u.selectOptions(screen.getByLabelText('Cómo se muestran'), 'carousel');
+    await u.click(radio('Cómo se muestran', 'Carrusel (se deslizan)'));
     expect(last.layout).toBe('carousel');
   });
 });

@@ -2,11 +2,15 @@ import { SECTION_REGISTRY, type IconColumnItem } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, ColumnsIcon, LayoutIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
-import { NumberField } from './section-pickers';
 import type { SectionEditorProps } from './types';
 
 const FIELDS = SECTION_REGISTRY['icon-columns'].fields;
+const DESKTOP_COLUMNS = Array.from(
+  { length: FIELDS.columnsDesktop.max - FIELDS.columnsDesktop.min + 1 },
+  (_, i) => FIELDS.columnsDesktop.min + i,
+);
 
 /** Los íconos del kit de la tienda (se dibujan con el estilo de íconos elegido en Diseño). */
 const ICONS: { value: IconColumnItem['icon']; label: string }[] = [
@@ -62,24 +66,39 @@ export function IconColumnsEditor({ data, set }: SectionEditorProps<'icon-column
           </>
         )}
       />
-      <NumberField
-        label="Columnas en computadora"
-        value={data.columnsDesktop}
-        min={FIELDS.columnsDesktop.min}
-        max={FIELDS.columnsDesktop.max}
-        onChange={(columnsDesktop) => set({ columnsDesktop })}
+      <ChoiceGroup
+        label="Por fila en computadora"
+        value={String(data.columnsDesktop)}
+        onChange={(v) => set({ columnsDesktop: Number(v) })}
+        options={DESKTOP_COLUMNS.map((n) => ({
+          value: String(n),
+          label: String(n),
+          title: `${n} por fila`,
+          icon: <ColumnsIcon n={n} />,
+        }))}
+        columns={DESKTOP_COLUMNS.length}
       />
-      <Field label="En celular" hint="La alineación (centro o izquierda) está en «Diseño de la sección».">
-        <Select
-          value={data.mobile}
-          onChange={(v) => set({ mobile: v as typeof data.mobile })}
-          options={[
-            { value: '1', label: 'Una debajo de la otra' },
-            { value: '2', label: 'De a dos' },
-            { value: 'swipe', label: 'Deslizando de costado' },
-          ]}
-        />
-      </Field>
+      <ChoiceGroup
+        label="En celular"
+        hint="La alineación (centro o izquierda) está en «Diseño de la sección»."
+        value={data.mobile}
+        onChange={(mobile) => set({ mobile })}
+        options={[
+          {
+            value: '1',
+            label: 'Apiladas',
+            title: 'Una debajo de la otra',
+            icon: <LayoutIcon layout="stack" />,
+          },
+          { value: '2', label: 'De a dos', icon: <ColumnsIcon n={2} /> },
+          {
+            value: 'swipe',
+            label: 'Deslizando',
+            title: 'Deslizando de costado',
+            icon: <LayoutIcon layout="carousel" />,
+          },
+        ]}
+      />
     </>
   );
 }

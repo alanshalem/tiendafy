@@ -1,24 +1,48 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
+import { AlignCenter, AlignLeft, ChevronDown, Monitor, MonitorSmartphone, Smartphone } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import type { SectionStyle, ThemeSection } from '@tiendafy/types';
-import { ColorRow, Field, Select } from '../../theme-editor-inputs';
+import { ColorRow } from '../../theme-editor-inputs';
+import { ChoiceGroup, type Choice } from './choice-group';
 
 /** Lo que cambia SectionStyleFields: el estilo y en qué dispositivos se ve. */
 export type SectionEnvelopePatch = Pick<ThemeSection, 'style' | 'hideOn'>;
 
-const DEVICE_OPTIONS = [
-  { value: 'all', label: 'Celulares y computadoras' },
-  { value: 'mobile-only', label: 'Solo en celulares' },
-  { value: 'desktop-only', label: 'Solo en computadoras' },
+const ICON = 'h-5 w-5';
+const DEVICE_OPTIONS: Choice<'all' | 'mobile-only' | 'desktop-only'>[] = [
+  {
+    value: 'all',
+    label: 'Todos',
+    title: 'Celulares y computadoras',
+    icon: <MonitorSmartphone className={ICON} />,
+  },
+  {
+    value: 'mobile-only',
+    label: 'Celular',
+    title: 'Solo en celulares',
+    icon: <Smartphone className={ICON} />,
+  },
+  {
+    value: 'desktop-only',
+    label: 'Computadora',
+    title: 'Solo en computadoras',
+    icon: <Monitor className={ICON} />,
+  },
 ];
-const SPACING_OPTIONS = [
-  { value: '', label: 'Normal' },
-  { value: 'none', label: 'Sin espacio' },
+const SPACING_OPTIONS: Choice<'' | NonNullable<SectionStyle['paddingTop']>>[] = [
+  { value: '', label: 'Normal', title: 'Normal (como viene la sección)' },
+  { value: 'none', label: 'Nada', title: 'Sin espacio' },
   { value: 'sm', label: 'Chico' },
-  { value: 'md', label: 'Mediano' },
+  { value: 'md', label: 'Medio', title: 'Mediano' },
   { value: 'lg', label: 'Grande' },
 ];
+
+/** Una muestra del fondo: el color de la página, gris, el de la marca o uno propio. */
+function Swatch({ className, style }: { className?: string; style?: CSSProperties }) {
+  return (
+    <span className={cn('block h-5 w-7 rounded border border-border-strong', className)} style={style} />
+  );
+}
 
 /** Sin claves vacías: un estilo sin nada es `undefined` (la sección como fue diseñada). */
 function cleanStyle(style: SectionStyle): SectionStyle | undefined {
@@ -44,10 +68,13 @@ export function SectionStyleFields({
   section,
   onChange,
   defaultOpen = false,
+  showAlign = true,
 }: {
   section: Pick<ThemeSection, 'style' | 'hideOn'>;
   onChange: (patch: SectionEnvelopePatch) => void;
   defaultOpen?: boolean;
+  /** Sin título (un carrusel, la barra de envíos), alinear los títulos no cambia nada: no se ofrece. */
+  showAlign?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const style = section.style ?? {};
@@ -72,35 +99,56 @@ export function SectionStyleFields({
       </button>
       {open && (
         <div className="space-y-4 border-t border-border p-3">
-          <Field label="Mostrar en">
-            <Select
-              value={device}
-              onChange={(v) =>
-                onChange({
-                  style: section.style,
-                  hideOn: v === 'mobile-only' ? 'desktop' : v === 'desktop-only' ? 'mobile' : undefined,
-                })
-              }
-              options={DEVICE_OPTIONS}
-            />
-          </Field>
-          <Field label="Fondo">
-            <Select
-              value={style.background ?? 'none'}
-              onChange={(v) =>
-                setStyle({
-                  background: v as SectionStyle['background'],
-                  backgroundColor: v === 'custom' ? (style.backgroundColor ?? '245 245 245') : undefined,
-                })
-              }
-              options={[
-                { value: 'none', label: 'Sin fondo' },
-                { value: 'subtle', label: 'Gris suave' },
-                { value: 'accent', label: 'Color de la marca, tenue' },
-                { value: 'custom', label: 'Otro color' },
-              ]}
-            />
-          </Field>
+          <ChoiceGroup
+            label="Mostrar en"
+            value={device}
+            onChange={(v) =>
+              onChange({
+                style: section.style,
+                hideOn: v === 'mobile-only' ? 'desktop' : v === 'desktop-only' ? 'mobile' : undefined,
+              })
+            }
+            options={DEVICE_OPTIONS}
+          />
+          <ChoiceGroup
+            label="Fondo"
+            value={style.background ?? 'none'}
+            onChange={(v) =>
+              setStyle({
+                background: v,
+                backgroundColor: v === 'custom' ? (style.backgroundColor ?? '245 245 245') : undefined,
+              })
+            }
+            options={[
+              {
+                value: 'none',
+                label: 'Ninguno',
+                title: 'Sin fondo',
+                icon: <Swatch className="bg-surface" />,
+              },
+              { value: 'subtle', label: 'Gris', title: 'Gris suave', icon: <Swatch className="bg-fg/10" /> },
+              {
+                value: 'accent',
+                label: 'Marca',
+                title: 'Color de la marca, tenue',
+                icon: <Swatch className="bg-primary/20" />,
+              },
+              {
+                value: 'custom',
+                label: 'Otro',
+                title: 'Otro color',
+                icon: (
+                  <Swatch
+                    style={{
+                      background: style.backgroundColor
+                        ? `rgb(${style.backgroundColor})`
+                        : 'conic-gradient(#f87171, #facc15, #4ade80, #60a5fa, #c084fc, #f87171)',
+                    }}
+                  />
+                ),
+              },
+            ]}
+          />
           {style.background === 'custom' && (
             <ColorRow
               label="Color del fondo"
@@ -110,35 +158,42 @@ export function SectionStyleFields({
               onChange={(rgb) => setStyle({ backgroundColor: rgb })}
             />
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Espacio arriba">
-              <Select
-                value={style.paddingTop ?? ''}
-                onChange={(v) => setStyle({ paddingTop: (v || undefined) as SectionStyle['paddingTop'] })}
-                options={SPACING_OPTIONS}
-              />
-            </Field>
-            <Field label="Espacio abajo">
-              <Select
-                value={style.paddingBottom ?? ''}
-                onChange={(v) =>
-                  setStyle({ paddingBottom: (v || undefined) as SectionStyle['paddingBottom'] })
-                }
-                options={SPACING_OPTIONS}
-              />
-            </Field>
-          </div>
-          <Field label="Alineación de los títulos">
-            <Select
+          <ChoiceGroup
+            label="Espacio arriba"
+            value={style.paddingTop ?? ''}
+            onChange={(v) => setStyle({ paddingTop: v || undefined })}
+            options={SPACING_OPTIONS}
+            columns={5}
+          />
+          <ChoiceGroup
+            label="Espacio abajo"
+            value={style.paddingBottom ?? ''}
+            onChange={(v) => setStyle({ paddingBottom: v || undefined })}
+            options={SPACING_OPTIONS}
+            columns={5}
+          />
+          {showAlign && (
+            <ChoiceGroup
+              label="Alineación de los títulos"
               value={style.align ?? ''}
-              onChange={(v) => setStyle({ align: (v || undefined) as SectionStyle['align'] })}
+              onChange={(v) => setStyle({ align: v || undefined })}
               options={[
-                { value: '', label: 'Como viene' },
-                { value: 'left', label: 'A la izquierda' },
-                { value: 'center', label: 'Centrados' },
+                { value: '', label: 'Como viene', title: 'Como viene la sección' },
+                {
+                  value: 'left',
+                  label: 'Izquierda',
+                  title: 'A la izquierda',
+                  icon: <AlignLeft className={ICON} />,
+                },
+                {
+                  value: 'center',
+                  label: 'Centro',
+                  title: 'Centrados',
+                  icon: <AlignCenter className={ICON} />,
+                },
               ]}
             />
-          </Field>
+          )}
         </div>
       )}
     </div>

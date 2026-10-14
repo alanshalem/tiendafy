@@ -271,24 +271,24 @@ describe('panel de una sección', () => {
     expect('name' in spy.mock.lastCall![0]).toBe(false);
 
     await u.click(screen.getByRole('button', { name: 'Diseño de la sección', expanded: false }));
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Mostrar en' }), 'Solo en celulares');
+    // Las opciones son selectores visuales (radios con dibujito), no listas desplegables.
+    const pick = (group: string, option: string) =>
+      u.click(within(screen.getByRole('radiogroup', { name: group })).getByRole('radio', { name: option }));
+    await pick('Mostrar en', 'Solo en celulares');
     expect(spy.mock.lastCall![0].hideOn).toBe('desktop');
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Mostrar en' }), 'Solo en computadoras');
+    await pick('Mostrar en', 'Solo en computadoras');
     expect(spy.mock.lastCall![0].hideOn).toBe('mobile');
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Fondo' }), 'Otro color');
+    await pick('Fondo', 'Otro color');
     expect(spy.mock.lastCall![0].style).toEqual({ background: 'custom', backgroundColor: '245 245 245' });
     expect(screen.getByLabelText('Color del fondo')).toBeInTheDocument();
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Espacio arriba' }), 'Grande');
-    await u.selectOptions(
-      screen.getByRole('combobox', { name: 'Alineación de los títulos' }),
-      'A la izquierda',
-    );
+    await pick('Espacio arriba', 'Grande');
+    await pick('Alineación de los títulos', 'A la izquierda');
     expect(spy.mock.lastCall![0].style).toMatchObject({ paddingTop: 'lg', align: 'left' });
     // Volver todo a "como viene" deja la sección sin estilo.
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Fondo' }), 'Sin fondo');
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Espacio arriba' }), 'Normal');
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Alineación de los títulos' }), 'Como viene');
-    await u.selectOptions(screen.getByRole('combobox', { name: 'Mostrar en' }), 'Celulares y computadoras');
+    await pick('Fondo', 'Sin fondo');
+    await pick('Espacio arriba', 'Normal (como viene la sección)');
+    await pick('Alineación de los títulos', 'Como viene la sección');
+    await pick('Mostrar en', 'Celulares y computadoras');
     expect(spy.mock.lastCall![0].style).toBeUndefined();
     expect(spy.mock.lastCall![0].hideOn).toBeUndefined();
   });

@@ -3,19 +3,50 @@ import { LinkPicker } from '../../../components/LinkPicker';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { imageTextIdeal } from '../../../lib/uploads';
 import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
-import { EditorWarning, ratioOptions } from './image-fields';
+import { ChoiceGroup, RatioIcon, SideIcon } from './choice-group';
+import { EditorWarning, RATIO_LABEL } from './image-fields';
 import type { SectionEditorProps } from './types';
 
 type D = ImageTextData;
 
-export function ImageTextEditor({ section, data, set }: SectionEditorProps<'image-text'>) {
+const RATIOS: D['ratio'][] = ['original', '16x9', '4x3', '1x1', '4x5', '3x4'];
+
+/** Dibujito de un botón: relleno, con borde o un link subrayado. */
+function ButtonIcon({ style }: { style: D['buttonStyle'] }) {
+  return (
+    <svg viewBox="0 0 28 20" width="28" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      {style === 'solid' && (
+        <rect x="3" y="6" width="22" height="8" rx="2" fill="currentColor" opacity=".55" />
+      )}
+      {style === 'outline' && <rect x="3" y="6" width="22" height="8" rx="2" />}
+      {style === 'link' && <path d="M6 13h16" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
+/** El texto va arriba, al medio o abajo respecto de la imagen. */
+function VAlignIcon({ at }: { at: D['verticalAlign'] }) {
+  const y = at === 'top' ? 4 : at === 'center' ? 9 : 14;
+  return (
+    <svg viewBox="0 0 28 20" width="28" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="2" width="11" height="16" rx="1" fill="currentColor" stroke="none" opacity=".55" />
+      <path d={`M16 ${y}h9M16 ${y + 3}h6`} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function ImageTextEditor({ section, data, set, theme }: SectionEditorProps<'image-text'>) {
   const alone = !data.title && !data.description && !data.buttonText;
   const ideal = imageTextIdeal(data.ratio, alone);
-  // Texto claro sobre la página (sin recuadro oscuro): la tienda le pone uno
-  // oscuro para que se lea. Se avisa para que no sorprenda.
-  const bg = section.style?.background === 'custom' ? section.style.backgroundColor : undefined;
+  // Texto claro sobre una página clara (sin recuadro oscuro): la tienda le
+  // pone uno oscuro para que se lea. Se avisa para que no sorprenda. Sobre
+  // una tienda oscura no hace falta (lo mismo decide la tienda).
+  const custom = section.style?.background === 'custom';
+  const bg = custom ? section.style?.backgroundColor : undefined;
   const darkSection = !!bg && contrastText(bg) === '255 255 255';
-  const autoDark = data.textColor === 'light' && data.textBackground !== 'dark' && !darkSection;
+  const darkPage = !!theme && contrastText(theme.colors.bg) === '255 255 255';
+  const autoDark =
+    data.textColor === 'light' && data.textBackground !== 'dark' && !darkSection && !(darkPage && !custom);
   return (
     <>
       <Field label="Imagen">
@@ -41,13 +72,18 @@ export function ImageTextEditor({ section, data, set }: SectionEditorProps<'imag
       <Field label="Texto alternativo" hint="Qué muestra la foto. Lo leen los lectores de pantalla y Google.">
         <TextInput value={data.alt} onChange={(v) => set({ alt: v })} />
       </Field>
-      <Field label="Forma de la imagen">
-        <Select
-          value={data.ratio}
-          onChange={(v) => set({ ratio: v as D['ratio'] })}
-          options={ratioOptions(['original', '16x9', '4x3', '1x1', '4x5', '3x4'])}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Forma de la imagen"
+        value={data.ratio}
+        onChange={(ratio) => set({ ratio })}
+        options={RATIOS.map((r) => ({
+          value: r,
+          label: r === 'original' ? 'Original' : r.replace('x', ':'),
+          title: RATIO_LABEL[r],
+          icon: <RatioIcon ratio={r} />,
+        }))}
+        columns={3}
+      />
 
       <Field label="Título">
         <TextInput value={data.title} onChange={(v) => set({ title: v })} />
@@ -68,55 +104,82 @@ export function ImageTextEditor({ section, data, set }: SectionEditorProps<'imag
             onNewTabChange={(newTab) => set({ newTab })}
           />
           {!data.link && <EditorWarning>El botón aparece cuando le elegís un link.</EditorWarning>}
-          <Field label="Estilo del botón">
-            <Select
-              value={data.buttonStyle}
-              onChange={(v) => set({ buttonStyle: v as D['buttonStyle'] })}
-              options={[
-                { value: 'solid', label: 'Relleno' },
-                { value: 'outline', label: 'Con borde' },
-                { value: 'link', label: 'Link subrayado' },
-              ]}
-            />
-          </Field>
+          <ChoiceGroup
+            label="Estilo del botón"
+            value={data.buttonStyle}
+            onChange={(buttonStyle) => set({ buttonStyle })}
+            options={[
+              { value: 'solid', label: 'Relleno', icon: <ButtonIcon style="solid" /> },
+              { value: 'outline', label: 'Con borde', icon: <ButtonIcon style="outline" /> },
+              { value: 'link', label: 'Link', title: 'Link subrayado', icon: <ButtonIcon style="link" /> },
+            ]}
+          />
         </>
       )}
 
-      {data.image && (
-        <>
-          <Field label="Imagen en computadora">
-            <Select
-              value={data.imagePosition}
-              onChange={(v) => set({ imagePosition: v as D['imagePosition'] })}
-              options={[
-                { value: 'left', label: 'A la izquierda del texto' },
-                { value: 'right', label: 'A la derecha del texto' },
-              ]}
-            />
-          </Field>
-          <Field label="En celular va primero">
-            <Select
-              value={data.mobileOrder}
-              onChange={(v) => set({ mobileOrder: v as D['mobileOrder'] })}
-              options={[
-                { value: 'image', label: 'La imagen' },
-                { value: 'text', label: 'El texto' },
-              ]}
-            />
-          </Field>
-          <Field label="Texto respecto de la imagen">
-            <Select
-              value={data.verticalAlign}
-              onChange={(v) => set({ verticalAlign: v as D['verticalAlign'] })}
-              options={[
-                { value: 'top', label: 'Arriba' },
-                { value: 'center', label: 'Al medio' },
-                { value: 'bottom', label: 'Abajo' },
-              ]}
-            />
-          </Field>
-        </>
-      )}
+      <ChoiceGroup
+        label="Imagen en computadora"
+        value={data.imagePosition}
+        onChange={(imagePosition) => set({ imagePosition })}
+        options={[
+          {
+            value: 'left',
+            label: 'Izquierda',
+            title: 'A la izquierda del texto',
+            icon: <SideIcon image="left" />,
+          },
+          {
+            value: 'right',
+            label: 'Derecha',
+            title: 'A la derecha del texto',
+            icon: <SideIcon image="right" />,
+          },
+        ]}
+      />
+      <ChoiceGroup
+        label="En celular va primero"
+        value={data.mobileOrder}
+        onChange={(mobileOrder) => set({ mobileOrder })}
+        options={[
+          { value: 'image', label: 'La imagen', icon: <SideIcon image="top" /> },
+          {
+            value: 'text',
+            label: 'El texto',
+            icon: (
+              <svg
+                viewBox="0 0 28 20"
+                width="28"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M8 3.5h12M8 7h8" strokeLinecap="round" />
+                <rect
+                  x="7"
+                  y="10"
+                  width="14"
+                  height="8"
+                  rx="1"
+                  fill="currentColor"
+                  stroke="none"
+                  opacity=".55"
+                />
+              </svg>
+            ),
+          },
+        ]}
+      />
+      <ChoiceGroup
+        label="Texto respecto de la imagen"
+        value={data.verticalAlign}
+        onChange={(verticalAlign) => set({ verticalAlign })}
+        options={[
+          { value: 'top', label: 'Arriba', icon: <VAlignIcon at="top" /> },
+          { value: 'center', label: 'Al medio', icon: <VAlignIcon at="center" /> },
+          { value: 'bottom', label: 'Abajo', icon: <VAlignIcon at="bottom" /> },
+        ]}
+      />
       <Field label="Fondo del texto">
         <Select
           value={data.textBackground}
