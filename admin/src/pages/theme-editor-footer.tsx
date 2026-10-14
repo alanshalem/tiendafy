@@ -1,5 +1,7 @@
+import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { PAYMENT_LOGOS, type ThemeConfig } from '@tiendafy/types';
+import { PAYMENT_LOGOS, type FooterLink, type ThemeConfig } from '@tiendafy/types';
+import { LinkPicker } from '../components/LinkPicker';
 import {
   BackHeader,
   Field,
@@ -81,6 +83,7 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
             </Field>
           </>
         )}
+        <FooterLinksEditor links={theme.footer.links ?? []} onChange={(links) => set({ links })} />
         <Check
           label="Mostrar links a tus páginas de contenido"
           checked={theme.footer.showPages}
@@ -153,6 +156,69 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Links propios del pie: Envíos, Mayoristas, un catálogo en PDF… Antes el pie
+ * solo tenía las páginas de contenido y las legales: cualquier otro destino
+ * no tenía dónde ir.
+ */
+function FooterLinksEditor({
+  links,
+  onChange,
+}: {
+  links: FooterLink[];
+  onChange: (v: FooterLink[]) => void;
+}) {
+  const update = (i: number, patch: Partial<FooterLink>) =>
+    onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  return (
+    <div className="border-t border-border pt-4">
+      <div className="mb-1 text-sm font-semibold text-fg">Links del pie</div>
+      <p className="mb-3 text-xs text-fg-muted">
+        Cualquier destino: una categoría, un producto, una página o un sitio de afuera.
+      </p>
+      <div className="space-y-3">
+        {links.map((l, i) => (
+          <div key={i} className="space-y-2 rounded-md border border-border p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+                Link {i + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(links.filter((_, idx) => idx !== i))}
+                aria-label={`Quitar link ${i + 1}`}
+                className="flex h-10 w-10 items-center justify-center rounded text-fg-muted hover:bg-danger/10 hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <Field label="Texto">
+              <TextInput value={l.label} onChange={(v) => update(i, { label: v })} placeholder="Envíos" />
+            </Field>
+            <LinkPicker
+              label="A dónde lleva"
+              value={l.href}
+              onChange={(href, pick) =>
+                // Sin texto todavía: se propone el nombre de lo elegido.
+                update(i, { href, ...(!l.label.trim() && pick?.label ? { label: pick.label } : {}) })
+              }
+              newTab={l.newTab}
+              onNewTabChange={(v) => update(i, { newTab: v || undefined })}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange([...links, { label: '', href: '' }])}
+        className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      >
+        <Plus className="h-4 w-4" /> Agregar link
+      </button>
     </div>
   );
 }

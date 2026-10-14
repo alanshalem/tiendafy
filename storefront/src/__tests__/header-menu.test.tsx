@@ -156,6 +156,12 @@ describe('buildHeaderMenu', () => {
     expect(buildHeaderMenu([saved], []).map((i) => i.id)).not.toContain('page:vieja');
     // Sin destino guardado, recién aparece con la lista.
     expect(buildHeaderMenu([{ id: 'page:x', visible: true }], null).map((i) => i.id)).not.toContain('page:x');
+    // Con destino pero sin nombre tampoco: un "Página" que después cambia sería un salto.
+    expect(
+      buildHeaderMenu([{ id: 'page:y', visible: true, kind: 'page', href: '/paginas/y' }], null).map(
+        (i) => i.id,
+      ),
+    ).not.toContain('page:y');
   });
 
   it('anidado: los hijos cuelgan del padre; padre oculto se los lleva; huérfano sube', () => {

@@ -62,9 +62,11 @@ export function buildHeaderMenu(prefs: ThemeMenuItem[], pages: PublishedPage[] |
     if (kind === 'page') {
       const live = pageById.get(pref.id);
       if (live) return { id: pref.id, label: label || live.title, href: pageHref(live) };
-      // Todavía no llegó la lista: lo guardado (si lo hay) ya sirve para el HTML del servidor.
+      // Todavía no llegó la lista: lo guardado (destino y nombre) ya sirve para
+      // el HTML del servidor. Sin nombre no: un "Página" que después cambia se
+      // vería como un salto.
       const href = pages === null ? safeHref(pref.href) : undefined;
-      return href ? { id: pref.id, label: label || 'Página', href } : null;
+      return href && label ? { id: pref.id, label, href } : null;
     }
     const href = safeHref(pref.href);
     if (!href) return null;
