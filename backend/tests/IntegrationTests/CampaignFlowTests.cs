@@ -91,6 +91,12 @@ public sealed partial class CampaignFlowTests
         await RunUntilAsync(id, "sent");
         // Ana también recibió la confirmación de su compra: se busca la campaña.
         var mail = Assert.Single(_factory.ExternalHttp.EmailsTo(ana), m => m.Subject.StartsWith("Novedades"));
+
+        // El uso del mes cuenta la campaña aparte de los avisos automáticos
+        // (antes decía "0 enviados" con la campaña recién salida).
+        var usage = (await merchant.GetAsync("/api/v1/notifications/usage")).GetProperty("email");
+        Assert.True(usage.GetProperty("campaignsMonth").GetInt32() >= 1);
+        Assert.Equal(usage.GetProperty("campaignsMonth").GetInt32(), usage.GetProperty("campaignsTotal").GetInt32());
         Assert.Equal(merchant.TenantId.ToString(), mail.TenantTag); // para atribuir rebotes
 
         // Abre (pixel), hace click (redirect al destino) y se da de baja.

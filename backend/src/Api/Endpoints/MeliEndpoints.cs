@@ -231,13 +231,17 @@ public static class MeliEndpoints
         }).RequireAnyPermission(Permission.MeliOperate, Permission.MeliPublish);
 
         // Ventas del cache local (rápido; el webhook + refresh lo mantienen al día).
+        // Busca por comprador, número de venta o producto, y filtra por estado
+        // de cobro y de facturación (ver MeliOrderFilters).
         sales.MapGet("/orders", async (
-            ITenantContext tenant, MeliDbContext db, int? offset, int? limit, CancellationToken ct) =>
+            ITenantContext tenant, MeliDbContext db, int? offset, int? limit, string? q, string? estado,
+            CancellationToken ct) =>
         {
             var take = Math.Clamp(limit ?? 25, 1, 100);
             var skip = Math.Max(0, offset ?? 0);
 
-            var query = db.Orders.AsNoTracking().OrderByDescending(o => o.DateCreatedUtc);
+            var query = MeliOrderFilters.Apply(db, q, estado)
+                .OrderByDescending(o => o.DateCreatedUtc);
             var total = await query.CountAsync(ct);
             var rows = await query.Skip(skip).Take(take).ToListAsync(ct);
 
@@ -302,19 +306,32 @@ public static class MeliEndpoints
                 using var doc = await client.GetAsync(token,
                     $"/questions/search?seller_id={c.MeliUserId}&api_version=4&sort_fields=date_created&sort_types=DESC&limit=50{filter}", ct);
                 var root = doc.RootElement;
-                var questions = root.TryGetProperty("questions", out var qs) && qs.ValueKind == JsonValueKind.Array
-                    ? qs.EnumerateArray().Select(q => (object)new
+                var raw = root.TryGetProperty("questions", out var qs) && qs.ValueKind == JsonValueKind.Array
+                    ? qs.EnumerateArray().ToList()
+                    : [];
+
+                // Contestar sin ver de qué publicación es obliga a abrir ML en
+                // otra pestaña: se trae título, foto, precio y stock de cada
+                // publicación (de a 20 por pedido, el tope del multiget).
+                var items = await ItemSummariesAsync(client, token,
+                    raw.Select(q => JsonRead.GetString(q, "item_id")), ct);
+
+                var questions = raw.Select(q =>
+                {
+                    var itemId = JsonRead.GetString(q, "item_id");
+                    return (object)new
                     {
                         id = q.TryGetProperty("id", out var id) ? id.GetInt64() : 0,
                         text = JsonRead.GetString(q, "text"),
                         status = JsonRead.GetString(q, "status"),
-                        itemId = JsonRead.GetString(q, "item_id"),
+                        itemId,
+                        item = itemId is not null ? items.GetValueOrDefault(itemId) : null,
                         dateCreated = JsonRead.GetString(q, "date_created"),
                         answer = q.TryGetProperty("answer", out var a) && a.ValueKind == JsonValueKind.Object
                             ? new { text = JsonRead.GetString(a, "text"), dateCreated = JsonRead.GetString(a, "date_created") }
                             : null,
-                    }).ToArray()
-                    : [];
+                    };
+                }).ToArray();
                 return Results.Ok(new
                 {
                     total = root.TryGetProperty("total", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : questions.Length,
@@ -514,6 +531,40 @@ public static class MeliEndpoints
                 return Results.Ok(new { claims = Array.Empty<object>() });
             }
         });
+    }
+
+    /// <summary>
+    /// Título, foto, precio y stock de las publicaciones pedidas, por id. Es
+    /// un agregado para mostrar: si ML no contesta, las preguntas salen igual
+    /// (sin la ficha) en vez de dejar la pantalla en error.
+    /// </summary>
+    private static async Task<Dictionary<string, MeliItemSummary>> ItemSummariesAsync(
+        MeliClient client, string token, IEnumerable<string?> itemIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, MeliItemSummary>(StringComparer.OrdinalIgnoreCase);
+        var ids = itemIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id!)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var chunk in ids.Chunk(20))
+        {
+            try
+            {
+                using var doc = await client.GetAsync(token,
+                    $"/items?ids={string.Join(',', chunk)}&attributes=id,title,thumbnail,price,currency_id,available_quantity,permalink,status",
+                    ct);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
+                foreach (var wrapper in doc.RootElement.EnumerateArray())
+                {
+                    if (!wrapper.TryGetProperty("body", out var item) || item.ValueKind != JsonValueKind.Object) continue;
+                    var summary = MeliItemSummary.From(item);
+                    if (summary is not null) result[summary.Id] = summary;
+                }
+            }
+            catch (MeliException)
+            {
+                // Sin la ficha de estas publicaciones; las preguntas siguen.
+            }
+        }
+        return result;
     }
 
     /// <summary>Conexión de la tienda + access token vigente, o null si no está conectada.</summary>
@@ -814,6 +865,28 @@ public sealed record MeliSettingsRequest(
     bool StockSyncEnabled, int? StockBufferUnits = null, bool? AutoInvoiceEnabled = null,
     bool? PriceSyncEnabled = null, decimal? PriceMarkupPct = null);
 public sealed record MeliAnswerRequest(string Text);
+
+/// <summary>Lo que el panel muestra de una publicación al lado de una pregunta.</summary>
+public sealed record MeliItemSummary(
+    string Id, string? Title, string? Thumbnail, decimal Price, string? CurrencyId,
+    int AvailableQuantity, string? Permalink, string? Status)
+{
+    public static MeliItemSummary? From(JsonElement item)
+    {
+        var id = JsonRead.GetString(item, "id");
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        return new MeliItemSummary(
+            id,
+            JsonRead.GetString(item, "title"),
+            // ML todavía devuelve miniaturas por http: el panel corre en https.
+            JsonRead.GetString(item, "thumbnail")?.Replace("http://", "https://", StringComparison.Ordinal),
+            JsonRead.GetDecimal(item, "price"),
+            JsonRead.GetString(item, "currency_id"),
+            JsonRead.GetInt32(item, "available_quantity"),
+            JsonRead.GetString(item, "permalink"),
+            JsonRead.GetString(item, "status"));
+    }
+}
 public sealed record MeliSendMessageRequest(string Text);
 public sealed record MeliLinkRequest(Guid ProductId, Guid VariantId, long? MeliVariationId, string? Title);
 public sealed record MeliPublishRequest(string? CategoryId, Guid? VariantId, string? ListingTypeId);

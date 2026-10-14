@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Web;
 using Api.Meli;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -170,9 +171,22 @@ public sealed class MercadoLibreFlowTests
                       answer = (object?)new { text = "Sí", date_created = "2026-10-10" } },
             },
         });
+        // Sin la ficha de la publicación (ML no contesta el multiget), la pregunta sale igual.
         var questions = await merchant.GetAsync("/api/v1/admin/meli/questions?status=UNANSWERED");
         Assert.Equal(1, questions.GetProperty("total").GetInt32());
         Assert.Contains("status=UNANSWERED", _factory.ExternalHttp.SentTo($"{Api}/questions/search").Last().Uri.Query);
+        Assert.Equal(JsonValueKind.Null, questions.GetProperty("questions")[0].GetProperty("item").ValueKind);
+
+        // Con la ficha: título, foto (en https), precio y stock al lado de la pregunta.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/items?ids=MLA1", new object[]
+        {
+            new { code = 200, body = new { id = "MLA1", title = "Remera lisa", thumbnail = "http://http2.mlstatic.com/remera.jpg", price = 15000m, currency_id = "ARS", available_quantity = 4 } },
+        });
+        var withItem = (await merchant.GetAsync("/api/v1/admin/meli/questions?status=UNANSWERED")).GetProperty("questions")[0].GetProperty("item");
+        Assert.Equal("Remera lisa", withItem.GetProperty("title").GetString());
+        Assert.Equal("https://http2.mlstatic.com/remera.jpg", withItem.GetProperty("thumbnail").GetString());
+        Assert.Equal(4, withItem.GetProperty("availableQuantity").GetInt32());
+        Assert.Equal(1, (await merchant.GetAsync("/api/v1/home/todo")).GetProperty("mercadoLibre").GetProperty("unanswered").GetInt32());
 
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post,
             "/api/v1/admin/meli/questions/123/answer", new { text = " " })).StatusCode);
@@ -365,11 +379,28 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
         Assert.Contains("10015", await rejected.Content.ReadAsStringAsync());
 
+        // Antes de facturar: una sin facturar (la de importe cero no cuenta),
+        // con el mismo número en el filtro de la pestaña y en el Inicio.
+        Task<long[]> ListAsync(string query) => merchant.GetAsync($"/api/v1/admin/meli/orders?limit=25&{query}")
+            .ContinueWith(t => t.Result.GetProperty("items").EnumerateArray().Select(o => o.GetProperty("meliOrderId").GetInt64()).ToArray());
+        Assert.Equal([paid], await ListAsync("estado=sin-facturar"));
+        Assert.Equal(1, (await merchant.GetAsync("/api/v1/home/todo")).GetProperty("mercadoLibre").GetProperty("unbilled").GetInt32());
+        Assert.Equal([unpaid], await ListAsync("estado=pendientes"));
+        // Búsqueda por comprador, por número de venta y por producto.
+        Assert.Equal(3, (await ListAsync("q=comprador_ml")).Length);
+        Assert.Equal([paid], await ListAsync($"q={paid}"));
+        Assert.Equal(3, (await ListAsync("q=remera")).Length);
+        Assert.Empty(await ListAsync("q=heladera"));
+
         // Autoriza: vuelve el CAE, y la misma venta no se factura dos veces.
         var invoice = await merchant.PostAsync($"/api/v1/admin/meli/orders/{paid}/invoice", new { });
         Assert.False(string.IsNullOrEmpty(invoice.GetProperty("cae").GetString()));
         Assert.Equal(3, invoice.GetProperty("ptoVta").GetInt32());
         Assert.Equal(HttpStatusCode.Conflict, (await Invoice(paid)).StatusCode);
+
+        Assert.Empty(await ListAsync("estado=sin-facturar"));
+        Assert.Equal([paid], await ListAsync("estado=facturadas"));
+        Assert.Equal(0, (await merchant.GetAsync("/api/v1/home/todo")).GetProperty("mercadoLibre").GetProperty("unbilled").GetInt32());
     }
 
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>
