@@ -1,7 +1,7 @@
 import { cn } from '@tiendafy/ui';
 import { useId } from 'react';
 import { baseTheme, contrastText, readableOn, type ThemeConfig } from '@tiendafy/types';
-import { BackHeader, INPUT_BASE, useSectionReset } from './theme-editor-inputs';
+import { BackHeader, INPUT_BASE, SegGroup, useSectionReset } from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
 
 export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
@@ -264,44 +264,6 @@ export function CssPanel({ theme, onBack, updateTheme }: PanelProps) {
           className={`w-full p-3 font-mono text-xs ${INPUT_BASE}`}
         />
       </div>
-    </div>
-  );
-}
-
-const SEG_COLS = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2' } as const;
-
-/** Grupo de opciones tipo segmented (3 botones; 4 van en dos filas: el panel es angosto). */
-function SegGroup<T extends string>({
-  value,
-  options,
-  onChange,
-  columns = 3,
-  labelledBy,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-  columns?: 2 | 3 | 4;
-  labelledBy?: string;
-}) {
-  return (
-    <div className={cn('grid gap-2', SEG_COLS[columns])} role="group" aria-labelledby={labelledBy}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={cn(
-            'min-h-10 rounded-lg border px-2 py-2 text-xs font-medium transition',
-            value === o.value
-              ? 'border-primary text-primary ring-2 ring-primary/30'
-              : 'border-border text-fg hover:border-border-strong',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }

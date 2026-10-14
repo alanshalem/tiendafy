@@ -1,7 +1,7 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
-import { EDITOR_MSG } from '@tiendafy/types';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { EDITOR_MSG, contrastText, heroUnderHeader } from '@tiendafy/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Pencil } from 'lucide-react';
@@ -19,7 +19,27 @@ import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
 import { MarqueeTrack } from './MarqueeTrack';
 
-const logoSizeClass = { sm: 'text-base', md: 'text-lg', lg: 'text-2xl' };
+/**
+ * Tamaños del logo: cada paso tiene que notarse. Antes iban de 16 a 24 px de
+ * texto (y de 24 a 40 de imagen) y "chico" y "predeterminado" se confundían.
+ * En el celular, un escalón menos: la barra mide 56 px.
+ */
+const LOGO_TEXT = { sm: 'text-base md:text-lg', md: 'text-lg md:text-2xl', lg: 'text-xl md:text-3xl' };
+const LOGO_IMG = { sm: 'h-6 md:h-7', md: 'h-8 md:h-10', lg: 'h-10 md:h-14' };
+
+/** `useLayoutEffect` avisa en el render del servidor; ahí no hay nada que medir. */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+/**
+ * Fondo del encabezado mientras está transparente sobre la portada. Un velo
+ * oscuro arriba, siempre: sin él, una foto clara se comía el menú blanco. Los
+ * niveles "leve" y "medio" suman el color del encabezado.
+ */
+function transparentBackground(header: ThemeConfig['header']): string {
+  const veil = 'linear-gradient(to bottom, rgb(0 0 0 / 0.4), rgb(0 0 0 / 0))';
+  const alpha = header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
+  return alpha > 0 ? `${veil}, rgb(${header.bg} / ${alpha})` : veil;
+}
 
 /** Badge numérico (carrito / favoritos) sobre el ícono del header. */
 function CountBadge({ count }: { count: number }) {
@@ -118,13 +138,13 @@ function MobileSearch({
   return (
     <div
       id={MOBILE_SEARCH_ID}
-      className="border-t border-white/10 px-4 py-3 md:hidden"
+      className="border-t border-current/10 px-4 py-3 md:hidden"
       style={{ background: `rgb(${header.bg})` }}
     >
       <form
         onSubmit={submitSearch}
         role="search"
-        className="flex items-center gap-1.5 rounded-full bg-white/10 px-3"
+        className="flex items-center gap-1.5 rounded-full bg-current/10 px-3"
       >
         <input
           ref={input}
@@ -179,7 +199,7 @@ function MobileGroup({ item, onClose }: { item: NavItem; onClose: () => void }) 
           <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       </div>
-      <div id={groupId} hidden={!open} className="border-l border-white/15 pb-1 pl-3">
+      <div id={groupId} hidden={!open} className="border-l border-current/15 pb-1 pl-3">
         {item.categoryId && <CategoryBranchMobile categoryId={item.categoryId} onNavigate={onClose} />}
         {item.children?.map((child) => (
           <StoreLink
@@ -214,7 +234,7 @@ function MobilePanel({
   return (
     <div
       id={MOBILE_MENU_ID}
-      className="border-t border-white/10 px-4 py-3 md:hidden"
+      className="border-t border-current/10 px-4 py-3 md:hidden"
       style={{ background: `rgb(${header.bg})` }}
     >
       <nav aria-label="Menú" className="flex flex-col gap-0.5 text-sm">
@@ -251,23 +271,49 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   }, [pathname]);
 
   const isHome = pathname === '/' || pathname === '/preview';
-  const transparent = header.transparentOnHome && isHome && !scrolled;
+  // Transparente solo encima de una foto o un video de portada: sobre el fondo
+  // liso de la tienda el menú (blanco) no se leía, y el encabezado desaparecía.
+  // El encabezado se superpone a la portada (no la empuja hacia abajo).
+  const overlay = header.transparentOnHome && isHome && heroUnderHeader(theme.sections);
+  const transparent = overlay && !scrolled;
 
   useEffect(() => {
-    if (!header.transparentOnHome) return;
+    if (!overlay) return;
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [header.transparentOnHome]);
+  }, [overlay]);
 
-  const textColor = header.textColor ? `rgb(${header.textColor})` : '#fff';
-  // Nivel de transparencia elegible: 'full' = totalmente transparente; 'light'/'medium' dejan un tinte del color del header.
-  const transparentAlpha =
-    header.transparentLevel === 'medium' ? 0.5 : header.transparentLevel === 'light' ? 0.25 : 0;
-  const bg = transparent ? `rgb(${header.bg} / ${transparentAlpha})` : `rgb(${header.bg})`;
-  const borderClass =
-    header.border === 'line' ? 'border-b border-white/15' : header.border === 'shadow' ? 'shadow-lg' : '';
+  // Superpuesto: el contenido sube lo que mide el encabezado. Hasta medirlo
+  // (en el HTML del servidor) va el alto de la barra simple.
+  const headerRef = useRef<HTMLElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  useIsomorphicLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!overlay || !el) return;
+    const measure = () => setHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [overlay]);
+
+  // Sin color elegido, el que se lee sobre el fondo (antes: blanco siempre, y
+  // un encabezado claro quedaba con el menú invisible). Sobre la foto, blanco.
+  const textColor = transparent ? '#fff' : `rgb(${header.textColor || contrastText(header.bg)})`;
+  const bg = transparent ? transparentBackground(header) : `rgb(${header.bg})`;
+  // La línea es del color del texto (antes blanca: en un encabezado claro no se veía).
+  const borderClass = transparent
+    ? ''
+    : header.border === 'line'
+      ? 'border-b border-current/15'
+      : header.border === 'shadow'
+        ? 'shadow-lg'
+        : '';
+  // Logo propio para la foto (suele ser la versión blanca); si no hay, el de siempre.
+  const logoSrc = transparent && header.transparentLogo ? header.transparentLogo : theme.logo;
+  const size = header.logoSize in LOGO_IMG ? header.logoSize : 'md';
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,15 +322,15 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
 
   const logo = (
     <Link href={href('/')} className="flex min-w-0 items-center gap-2">
-      {theme.logo ? (
+      {logoSrc ? (
         <img
-          src={theme.logo}
+          src={logoSrc}
           alt={tenantName}
-          className={header.logoSize === 'lg' ? 'h-10' : header.logoSize === 'sm' ? 'h-6' : 'h-8'}
+          className={`${LOGO_IMG[size]} w-auto max-w-[45vw] object-contain md:max-w-[16rem]`}
         />
       ) : (
         <span
-          className={`truncate font-bold ${logoSizeClass[header.logoSize]}`}
+          className={`truncate font-bold leading-tight ${LOGO_TEXT[size]}`}
           style={{ fontFamily: 'var(--font-heading)' }}
         >
           {tenantName}
@@ -300,11 +346,11 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const pages = usePublishedPagesState();
   const navItems = buildHeaderMenu(header.menu ?? [], pages);
 
-  const navFor = (align: 'center' | 'start') => <HeaderNav align={align} items={navItems} />;
+  const navFor = (align: 'center' | 'start' | 'end') => <HeaderNav align={align} items={navItems} />;
   const nav = navFor('center');
 
   const search = header.showSearch ? (
-    <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3">
+    <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-current/10 px-3">
       <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
         <Icon name="search" className="h-4 w-4" />
       </button>
@@ -391,7 +437,8 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
         <div className="flex min-h-16 items-center justify-between gap-4 py-2">
           {logo}
           <div className="flex min-w-0 flex-1 items-center justify-end gap-6">
-            {nav}
+            {/* 'end': el menú pegado a los íconos. Centrado (como antes) era igual al clásico. */}
+            {navFor('end')}
             <div className="shrink-0">{icons}</div>
           </div>
         </div>
@@ -411,14 +458,23 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     <>
       <AnnouncementBar ann={theme.announcement} preview={preview} />
       <header
+        ref={headerRef}
         data-tf-focus="header"
         className={cn(
           header.sticky && 'sticky top-0 z-40',
-          !header.sticky && preview && 'relative',
+          !header.sticky && (preview || overlay) && 'relative',
+          !header.sticky && overlay && 'z-40',
+          overlay && height === null && '-mb-14 md:-mb-16',
+          // Sobre una foto clara, una sombra mínima despega el menú blanco.
+          transparent && '[text-shadow:0_1px_3px_rgb(0_0_0/0.45)]',
           borderClass,
           'transition-colors',
         )}
-        style={{ background: bg, color: textColor }}
+        style={{
+          background: bg,
+          color: textColor,
+          ...(overlay && height !== null ? { marginBottom: -height } : {}),
+        }}
         onMouseEnter={preview ? () => setEditHover(true) : undefined}
         onMouseLeave={preview ? () => setEditHover(false) : undefined}
       >

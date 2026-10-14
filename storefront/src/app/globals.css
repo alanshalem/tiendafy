@@ -83,6 +83,14 @@ html {
   animation: tf-focus-flash 1.4s ease-out;
 }
 
+/* En el celular, la ficha de producto tiene la barra de comprar fija abajo: el
+   botón de WhatsApp se sube para no tapar "Agregar al carrito". */
+@media (max-width: 767px) {
+  body:has([data-tf-buybar]) [data-tf-focus='whatsapp'] {
+    margin-bottom: 4.5rem;
+  }
+}
+
 @keyframes tf-shimmer {
   100% {
     transform: translateX(100%);

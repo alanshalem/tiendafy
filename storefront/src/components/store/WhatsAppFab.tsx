@@ -4,6 +4,9 @@
  * Botón flotante de WhatsApp. Al pasar el mouse (sólo desktop) abre un mini-chat
  * con estética WhatsApp que previsualiza el mensaje que el cliente va a enviar.
  * En mobile no hay hover: tocar el botón abre WhatsApp directo.
+ *
+ * Va abajo a la derecha o a la izquierda, y puede llevar un texto al lado
+ * ("¿Te ayudamos?"): el ícono solo no le dice a todos que ahí se pregunta.
  */
 export function WhatsAppFab({
   phone,
@@ -11,13 +14,19 @@ export function WhatsAppFab({
   storeName,
   logo,
   showPreview,
+  position = 'right',
+  label = '',
 }: {
   phone: string;
   message: string;
   storeName: string;
   logo?: string;
   showPreview: boolean;
+  position?: 'right' | 'left';
+  label?: string;
 }) {
+  const left = position === 'left';
+  const caption = label.trim();
   const tel = phone.replace(/\D/g, '');
   const text = message || '';
   const href = `https://wa.me/${tel}?text=${encodeURIComponent(text)}`;
@@ -28,12 +37,13 @@ export function WhatsAppFab({
     // su alto en --tf-consent-h y el botón se corre para no taparle el
     // "Aceptar". Sin el aviso la variable no existe y queda donde siempre.
     <div
-      className="group fixed right-5 z-[70]"
+      data-tf-focus="whatsapp"
+      className={`group fixed z-[45] ${left ? 'left-5' : 'right-5'}`}
       style={{ bottom: 'calc(1.25rem + var(--tf-consent-h, 0px))' }}
     >
       {showPreview && (
         <div
-          className="pointer-events-none invisible absolute bottom-[4.5rem] right-0 w-[19rem] translate-y-2 overflow-hidden rounded-2xl opacity-0 shadow-2xl ring-1 ring-black/10 transition-all duration-200 md:group-hover:pointer-events-auto md:group-hover:visible md:group-hover:translate-y-0 md:group-hover:opacity-100"
+          className={`pointer-events-none invisible absolute bottom-[4.5rem] ${left ? 'left-0' : 'right-0'} w-[19rem] translate-y-2 overflow-hidden rounded-2xl opacity-0 shadow-2xl ring-1 ring-black/10 transition-all duration-200 md:group-hover:pointer-events-auto md:group-hover:visible md:group-hover:translate-y-0 md:group-hover:opacity-100`}
           role="dialog"
           aria-label="Vista previa de WhatsApp"
         >
@@ -88,11 +98,14 @@ export function WhatsAppFab({
         href={href}
         target="_blank"
         rel="noreferrer"
-        aria-label="Escribinos por WhatsApp"
-        className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-110"
+        aria-label={caption ? `${caption} (WhatsApp)` : 'Escribinos por WhatsApp'}
+        className={`flex h-14 items-center justify-center gap-2 rounded-full text-white shadow-lg transition-transform ${
+          caption ? 'max-w-[calc(100vw-2.5rem)] pl-3.5 pr-5 hover:scale-105' : 'w-14 hover:scale-110'
+        }`}
         style={{ background: '#25D366' }}
       >
-        <WaGlyph className="h-8 w-8" />
+        <WaGlyph className={caption ? 'h-7 w-7 shrink-0' : 'h-8 w-8'} />
+        {caption && <span className="truncate text-sm font-semibold">{caption}</span>}
       </a>
     </div>
   );

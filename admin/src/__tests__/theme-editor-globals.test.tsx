@@ -50,6 +50,26 @@ async function show(render: (t: ThemeConfig, u: Update) => ReactNode, initial: P
 const menuOf = (t: ThemeConfig) => t.header.menu;
 const ids = () => menuOf(current).map((m) => m.id);
 const items = () => within(screen.getByRole('list', { name: 'Ítems del menú' }));
+/** Los botones que abren cada ítem (no los ⋯ ni el ojo). */
+const rowToggles = () =>
+  items()
+    .getAllByRole('button', { expanded: false })
+    .filter(
+      (b) => b.hasAttribute('aria-controls') && !b.getAttribute('aria-label')?.startsWith('Más acciones'),
+    );
+/** Una acción del menú ⋯ de un ítem. */
+async function rowAction(user: ReturnType<typeof userEvent.setup>, label: string, action: string | RegExp) {
+  await user.click(screen.getByRole('button', { name: `Más acciones de «${label}»` }));
+  await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: action }));
+}
+/** ¿El menú ⋯ de un ítem ofrece esta acción? (y la cierra) */
+async function rowOffers(user: ReturnType<typeof userEvent.setup>, label: string, action: string | RegExp) {
+  await user.click(screen.getByRole('button', { name: `Más acciones de «${label}»` }));
+  const found = within(screen.getByRole('menu')).queryByRole('menuitem', { name: action });
+  const enabled = !!found && found.getAttribute('aria-disabled') !== 'true';
+  await user.keyboard('{Escape}');
+  return { found: !!found, enabled };
+}
 
 let crashes: () => unknown[][];
 beforeEach(() => {
@@ -66,9 +86,7 @@ const menuEditor = (t: ThemeConfig, u: Update) => <MenuEditor theme={t} updateTh
 describe('menú del encabezado', () => {
   it('muestra los fijos y las páginas publicadas, en el orden guardado (formato viejo incluido)', async () => {
     await show(menuEditor, { header: { ...baseTheme.header, menu: [{ id: 'contact', visible: true }] } });
-    const labels = items()
-      .getAllByRole('button', { expanded: false })
-      .map((b) => b.textContent);
+    const labels = rowToggles().map((b) => b.textContent);
     expect(labels[0]).toMatch(/^Contacto/);
     expect(labels.join('|')).toMatch(/Inicio.*Productos.*Categorías/);
     for (const p of published) expect(items().getByText(p.title)).toBeInTheDocument();
@@ -76,11 +94,11 @@ describe('menú del encabezado', () => {
 
   it('ordenar, ocultar y renombrar guardan la lista entera', async () => {
     const user = await show(menuEditor);
-    await user.click(items().getByRole('button', { name: 'Bajar Inicio' }));
+    await rowAction(user, 'Inicio', 'Mover abajo');
     expect(ids().slice(0, 2)).toEqual(['products', 'home']);
-    await user.click(items().getByRole('button', { name: 'Subir Inicio' }));
+    await rowAction(user, 'Inicio', 'Mover arriba');
     expect(ids().slice(0, 2)).toEqual(['home', 'products']);
-    expect(items().getByRole('button', { name: 'Subir Inicio' })).toBeDisabled();
+    expect((await rowOffers(user, 'Inicio', 'Mover arriba')).enabled).toBe(false);
 
     await user.click(items().getByRole('button', { name: 'Ocultar Contacto' }));
     expect(menuOf(current).find((m) => m.id === 'contact')?.visible).toBe(false);
@@ -93,7 +111,7 @@ describe('menú del encabezado', () => {
     await user.type(name, 'Tienda');
     expect(menuOf(current).find((m) => m.id === 'products')?.label).toBe('Tienda');
     // Un fijo no se quita ni cambia de destino.
-    expect(screen.queryByRole('button', { name: /Quitar del menú/ })).not.toBeInTheDocument();
+    expect((await rowOffers(user, 'Tienda', /Quitar del menú/)).found).toBe(false);
     expect(screen.queryByRole('group', { name: 'Destino' })).not.toBeInTheDocument();
   });
 
@@ -135,8 +153,8 @@ describe('menú del encabezado', () => {
     expect(link.id).toMatch(/^link:/);
 
     // El de arriba es una página publicada: se puede anidar.
-    const above = items().getAllByRole('button', { expanded: false }).at(-1)!.textContent!;
-    await user.click(screen.getByRole('button', { name: /Meter dentro de/ }));
+    const above = rowToggles().at(-1)!.textContent!;
+    await rowAction(user, 'cking.com.ar', /Meter dentro de/);
     expect(menuOf(current).find((m) => m.id === link.id)?.parent).toMatch(/^page:/);
     expect(
       screen.getByRole('list', { name: new RegExp(`Dentro de ${above.replace(/Página$/, '')}`) }),
@@ -146,10 +164,10 @@ describe('menú del encabezado', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Abrir en pestaña nueva' }));
     expect(menuOf(current).find((m) => m.id === link.id)?.newTab).toBe(true);
 
-    await user.click(screen.getByRole('button', { name: /Sacar al primer nivel/ }));
+    await rowAction(user, 'cking.com.ar', /Sacar al primer nivel/);
     expect(menuOf(current).find((m) => m.id === link.id)?.parent).toBeUndefined();
 
-    await user.click(screen.getByRole('button', { name: /Quitar del menú/ }));
+    await rowAction(user, 'cking.com.ar', /Quitar del menú/);
     expect(ids()).not.toContain(link.id);
   });
 
@@ -160,14 +178,13 @@ describe('menú del encabezado', () => {
       { id: 'link:h2', visible: true, kind: 'link', label: 'Hijo dos', href: '/c', parent: 'link:padre' },
     ];
     const user = await show(menuEditor, { header: { ...baseTheme.header, menu } });
-    const inside = within(screen.getByRole('list', { name: 'Dentro de Padre' }));
-    expect(inside.getByRole('button', { name: 'Subir Hijo uno' })).toBeDisabled();
-    await user.click(inside.getByRole('button', { name: 'Bajar Hijo uno' }));
+    expect(screen.getByRole('list', { name: 'Dentro de Padre' })).toBeInTheDocument();
+    expect((await rowOffers(user, 'Hijo uno', 'Mover arriba')).enabled).toBe(false);
+    await rowAction(user, 'Hijo uno', 'Mover abajo');
     expect(ids().slice(0, 3)).toEqual(['link:padre', 'link:h2', 'link:h1']);
     // Quien tiene hijos no se puede meter dentro de otro.
-    await user.click(items().getByRole('button', { name: /^Padre/ }));
-    expect(screen.queryByRole('button', { name: /Meter dentro de/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Quitar del menú/ }));
+    expect((await rowOffers(user, 'Padre', /Meter dentro de/)).found).toBe(false);
+    await rowAction(user, 'Padre', /Quitar del menú/);
     expect(
       menuOf(current)
         .filter((m) => m.id.startsWith('link:h'))
@@ -239,7 +256,8 @@ describe('barra de anuncio y pie', () => {
     const user = await show((t, u) => <HeaderPanel theme={t} updateTheme={u} onBack={() => {}} />, {
       announcement: { show: true, animation: 'static', items: [{ text: 'Envío gratis', link: '' }] },
     });
-    await user.click(screen.getByRole('button', { name: 'Barra de anuncio' }));
+    // Con la barra prendida, su bloque ya viene abierto.
+    expect(screen.getByRole('button', { name: 'Barra de anuncio' })).toHaveAttribute('aria-expanded', 'true');
     const picker = screen.getByRole('group', { name: 'Link (opcional)' });
     await user.click(within(picker).getByRole('button', { name: /Elegir a dónde lleva/ }));
     await user.click(within(picker).getByRole('button', { name: /^Página$/ }));

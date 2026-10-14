@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
-  ChevronUp,
   CornerDownRight,
   CornerLeftUp,
   Eye,
@@ -19,6 +20,7 @@ import {
 } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { ActionMenu, type ActionMenuEntry } from '../components/ActionMenu';
 import { LinkPicker, type LinkPick } from '../components/LinkPicker';
 import { INPUT_BASE } from './theme-editor-inputs';
 
@@ -33,6 +35,11 @@ import { INPUT_BASE } from './theme-editor-inputs';
 
    El orden no es sólo estético: lo que no entra a lo ancho del encabezado se
    va a un desplegable "Más", así que lo de arriba es lo que queda a la vista.
+
+   Cada fila es como las de secciones e ítems: el nombre (hasta dos renglones)
+   con su tipo abajo, el ojo, y un menú ⋯ con mover, anidar y quitar. Antes
+   la fila llevaba el tipo, la flecha de abrir, subir, bajar y el ojo en el
+   mismo renglón y el nombre quedaba en "Cómo co…".
 
    Se guarda la lista entera cada vez (el storefront igual agrega al final lo
    que falte): mantener un orden parcial y adivinar dónde entra lo que falta
@@ -210,72 +217,109 @@ export function MenuEditor({
     setExpanded(item.id);
   };
 
+  /** El menú ⋯ de una fila: mover entre sus hermanos, anidar y quitar. */
+  const actionsOf = (
+    item: ThemeMenuItem,
+    siblings: ThemeMenuItem[],
+    index: number,
+    child: boolean,
+  ): ActionMenuEntry[] => {
+    const kind = kindOf(item);
+    const prevTop = !child ? tops[index - 1] : undefined;
+    const canIndent =
+      !child && !!prevTop && canParent(prevTop) && canParent(item) && childrenOf(item.id).length === 0;
+    // Los fijos y las páginas publicadas existen siempre: se ocultan, no se quitan.
+    const removable = kind !== 'builtin' && !(kind === 'page' && !item.href);
+    const entries: ActionMenuEntry[] = [
+      { label: 'Mover arriba', icon: ArrowUp, onSelect: () => move(item, -1), disabled: index === 0 },
+      {
+        label: 'Mover abajo',
+        icon: ArrowDown,
+        onSelect: () => move(item, 1),
+        disabled: index === siblings.length - 1,
+      },
+    ];
+    if (canIndent)
+      entries.push({
+        label: `Meter dentro de «${labelOf(prevTop!)}»`,
+        icon: CornerDownRight,
+        onSelect: () => indent(item),
+      });
+    if (child)
+      entries.push({ label: 'Sacar al primer nivel', icon: CornerLeftUp, onSelect: () => outdent(item) });
+    if (removable)
+      entries.push(
+        { type: 'separator' },
+        { label: 'Quitar del menú', icon: Trash2, onSelect: () => remove(item), danger: true },
+      );
+    return entries;
+  };
+
   const renderRow = (item: ThemeMenuItem, siblings: ThemeMenuItem[], index: number, child: boolean) => {
     const label = labelOf(item);
     const kind = kindOf(item);
     const open = expanded === item.id;
     const editorId = `menu-item-${item.id.replace(/[^\w-]/g, '-')}`;
-    const prevTop = !child ? tops[index - 1] : undefined;
-    const canIndent =
-      !child && !!prevTop && canParent(prevTop) && canParent(item) && childrenOf(item.id).length === 0;
     return (
       <li key={item.id} className={cn(child && 'ml-5')}>
-        <div className="flex items-center rounded-md border border-border bg-surface">
+        <div
+          className={cn(
+            'flex min-h-12 items-center gap-0.5 rounded-lg border bg-surface pr-1 transition-colors',
+            open ? 'border-primary/50 bg-primary/5' : 'border-border hover:bg-bg-muted/60',
+          )}
+        >
           <button
             type="button"
             onClick={() => setExpanded(open ? null : item.id)}
             aria-expanded={open}
             aria-controls={editorId}
-            className="flex min-h-10 min-w-0 flex-1 items-center gap-1.5 px-2 text-left"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {child && <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-fg-subtle" aria-hidden />}
-            <span
-              className={cn(
-                'min-w-0 flex-1 truncate text-sm',
-                !item.visible && 'text-fg-subtle line-through',
-              )}
-            >
-              {label}
-            </span>
-            <span className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-wide text-fg-subtle">
-              {KIND_LABEL[kind]}
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span
+                className={cn(
+                  'line-clamp-2 break-words text-sm font-medium leading-snug',
+                  item.visible ? 'text-fg' : 'text-fg-subtle line-through',
+                )}
+              >
+                {label}
+              </span>
+              <span className="text-xs text-fg-muted">
+                {KIND_LABEL[kind]}
+                {!item.visible && ' · Oculto'}
+              </span>
             </span>
             <ChevronDown
-              className={cn('h-4 w-4 shrink-0 text-fg-muted transition-transform', open && 'rotate-180')}
+              className={cn(
+                'h-4 w-4 shrink-0 text-fg-subtle transition-transform motion-reduce:transition-none',
+                open && 'rotate-180',
+              )}
               aria-hidden
             />
-          </button>
-          <button
-            type="button"
-            onClick={() => move(item, -1)}
-            disabled={index === 0}
-            aria-label={`Subir ${label}`}
-            className={ICON_BTN}
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => move(item, 1)}
-            disabled={index === siblings.length - 1}
-            aria-label={`Bajar ${label}`}
-            className={ICON_BTN}
-          >
-            <ChevronDown className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => patch(item.id, { visible: !item.visible })}
             aria-label={item.visible ? `Ocultar ${label}` : `Mostrar ${label}`}
             aria-pressed={!item.visible}
+            title={item.visible ? 'Visible. Tocá para ocultarlo.' : 'Oculto. Tocá para mostrarlo.'}
             className={ICON_BTN}
           >
-            {item.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {item.visible ? (
+              <Eye className="h-4 w-4" aria-hidden />
+            ) : (
+              <EyeOff className="h-4 w-4" aria-hidden />
+            )}
           </button>
+          <ActionMenu
+            label={`Más acciones de «${label}»`}
+            entries={actionsOf(item, siblings, index, child)}
+          />
         </div>
 
         {open && (
-          <div id={editorId} className="mt-1 space-y-3 rounded-md border border-border bg-bg-muted/40 p-3">
+          <div id={editorId} className="mt-1 space-y-3 rounded-lg border border-border bg-bg-muted/40 p-3">
             <div>
               <label htmlFor={`${editorId}-name`} className="mb-1.5 block text-sm font-medium text-fg">
                 Nombre en el menú
@@ -324,41 +368,11 @@ export function MenuEditor({
                 </span>
               </label>
             )}
-
-            <div className="flex flex-wrap gap-2">
-              {canIndent && (
-                <button
-                  type="button"
-                  onClick={() => indent(item)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border px-3 text-sm hover:bg-bg-muted"
-                >
-                  <CornerDownRight className="h-4 w-4" /> Meter dentro de «{labelOf(prevTop!)}»
-                </button>
-              )}
-              {child && (
-                <button
-                  type="button"
-                  onClick={() => outdent(item)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border px-3 text-sm hover:bg-bg-muted"
-                >
-                  <CornerLeftUp className="h-4 w-4" /> Sacar al primer nivel
-                </button>
-              )}
-              {kind !== 'builtin' && !(kind === 'page' && !item.href) && (
-                <button
-                  type="button"
-                  onClick={() => remove(item)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm text-danger hover:bg-danger/10"
-                >
-                  <Trash2 className="h-4 w-4" /> Quitar del menú
-                </button>
-              )}
-            </div>
           </div>
         )}
 
         {!child && childrenOf(item.id).length > 0 && (
-          <ul className="mt-1 space-y-1" aria-label={`Dentro de ${label}`}>
+          <ul className="mt-1.5 space-y-1.5" aria-label={`Dentro de ${label}`}>
             {childrenOf(item.id).map((c, i, list) => renderRow(c, list, i, true))}
           </ul>
         )}
@@ -370,9 +384,9 @@ export function MenuEditor({
     <div>
       <p className="mb-2 text-xs text-fg-muted">
         Arriba va lo más importante: cuando no entran todos, los últimos pasan a un desplegable «Más». Tocá un
-        ítem para renombrarlo, cambiar a dónde lleva o meterlo dentro de otro.
+        ítem para renombrarlo o cambiar a dónde lleva; con ⋯ lo movés, lo metés dentro de otro o lo quitás.
       </p>
-      <ul className="space-y-1" aria-label="Ítems del menú">
+      <ul className="space-y-1.5" aria-label="Ítems del menú">
         {tops.map((t, i) => renderRow(t, tops, i, false))}
       </ul>
 
@@ -389,9 +403,9 @@ export function MenuEditor({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            className="flex h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm font-medium text-primary hover:border-primary/50 hover:bg-primary/5"
           >
-            <Plus className="h-4 w-4" /> Agregar al menú
+            <Plus className="h-4 w-4" aria-hidden /> Agregar al menú
           </button>
         )}
       </div>

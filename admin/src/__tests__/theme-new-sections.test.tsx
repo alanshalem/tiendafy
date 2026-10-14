@@ -377,7 +377,7 @@ describe('collage', () => {
   it('cada bloque elige qué muestra; el producto entra al plan de la sección', async () => {
     const { user } = await open('collage', createSection('collage').data);
     // Los bloques arrancan plegados: se abren tocando su nombre.
-    await user.click(screen.getByRole('button', { name: /Más vendidos/, expanded: false }));
+    await user.click(screen.getByRole('button', { name: /^Más vendidos/, expanded: false }));
     await user.selectOptions(screen.getByLabelText('Qué muestra'), 'product');
     await user.type(screen.getByLabelText('Buscar un producto'), 'banco');
     await settle(4);
@@ -389,7 +389,7 @@ describe('collage', () => {
       limit: 1,
     });
 
-    await user.click(screen.getByRole('button', { name: /Ofertas/, expanded: false }));
+    await user.click(screen.getByRole('button', { name: /^Ofertas/, expanded: false }));
     const kinds = screen.getAllByLabelText('Qué muestra');
     await user.selectOptions(kinds[kinds.length - 1]!, 'category');
     await settle(2);

@@ -12,6 +12,7 @@ import {
   sectionSetter,
   useSectionReset,
   QuickStyles,
+  SegField,
   type QuickStyle,
 } from './theme-editor-inputs';
 import { MediaUpload } from '../components/upload/MediaUpload';
@@ -419,6 +420,19 @@ function GalleryStylePicker({
   );
 }
 
+/** Muestra del diseño de la página en construcción: texto al centro, o imagen y texto. */
+function ComingSoonSample({ split = false }: { split?: boolean }) {
+  return (
+    <span className="flex h-7 w-12 overflow-hidden rounded-sm border border-fg/20 bg-fg/5" aria-hidden>
+      {split && <span className="w-1/2 bg-[#5d6878]" />}
+      <span className="flex flex-1 flex-col items-center justify-center gap-0.5">
+        <span className="h-1 w-5 rounded-full bg-fg/50" />
+        <span className="h-0.5 w-4 rounded-full bg-fg/25" />
+      </span>
+    </span>
+  );
+}
+
 export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
   const set = sectionSetter(updateTheme, 'comingSoon');
   const reset = useSectionReset(updateTheme);
@@ -436,9 +450,9 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
           onChange={(v) => set({ enabled: v })}
         />
         <p className="text-xs text-fg-muted">
-          Mientras esté activo, los visitantes ven una página de “Próximamente” en lugar de la tienda. Vos
-          podés seguir viéndola y editándola con la vista previa. Acordate de <strong>publicar</strong> para
-          que el cambio se aplique.
+          Mientras esté activo, los visitantes ven esta página en lugar de la tienda (es la que ves ahora en
+          la vista previa). Vos seguís viendo y editando la tienda desde acá. Acordate de{' '}
+          <strong>publicar</strong> para que el cambio se aplique.
         </p>
         <Field label="Título">
           <TextInput
@@ -448,7 +462,8 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
           />
         </Field>
         <Field label="Mensaje">
-          <TextInput
+          <TextArea
+            rows={2}
             value={theme.comingSoon.message}
             onChange={(v) => set({ message: v })}
             placeholder="Volvemos muy pronto con la tienda."
@@ -463,16 +478,21 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
         </Field>
         <p className="-mt-2 text-xs text-fg-muted">El cartelito sobre el título. Vacío, no se muestra.</p>
 
-        <Field label="Diseño">
-          <Select
-            value={theme.comingSoon.layout}
-            onChange={(v) => set({ layout: v === 'split' ? 'split' : 'centered' })}
-            options={[
-              { value: 'centered', label: 'Centrado' },
-              { value: 'dividido', label: 'Dividido (imagen al costado)' },
-            ].map((o) => ({ value: o.value === 'dividido' ? 'split' : o.value, label: o.label }))}
-          />
-        </Field>
+        <SegField
+          label="Diseño"
+          columns={2}
+          value={theme.comingSoon.layout}
+          onChange={(layout) => set({ layout })}
+          options={[
+            { value: 'centered', label: 'Centrado', visual: <ComingSoonSample /> },
+            { value: 'split', label: 'Imagen al costado', visual: <ComingSoonSample split /> },
+          ]}
+          hint={
+            theme.comingSoon.layout === 'split' && !theme.comingSoon.image
+              ? 'Imagen al costado necesita una imagen: sin ella se ve centrado.'
+              : undefined
+          }
+        />
 
         <Field label="Imagen">
           <MediaUpload
@@ -514,7 +534,7 @@ export function ComingSoonPanel({ theme, onBack, updateTheme }: PanelProps) {
           onChange={(v) => set({ showSocial: v })}
         />
         <p className="-mt-2 text-xs text-fg-muted">
-          Las de Información de contacto. Mientras la tienda no abre, son el único lugar a donde mandar a
+          Las que cargaste en «Pie de página». Mientras la tienda no abre, son el único lugar a donde mandar a
           quien llegó.
         </p>
 
@@ -540,7 +560,10 @@ export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
       <BackHeader title="Carrito de compras" onBack={onBack} onReset={reset('cart', 'el carrito')} />
       <div className="space-y-4 p-4">
         <QuickStyles presets={CART_PRESETS} current={theme.cart} onApply={set} />
-        <Field label="Texto del botón de checkout">
+        <p className="text-xs text-fg-muted">
+          La vista previa abre el carrito con un producto de muestra, así ves cada opción.
+        </p>
+        <Field label="Texto del botón para pagar">
           <TextInput
             value={theme.cart.checkoutButtonText}
             onChange={(v) => set({ checkoutButtonText: v })}

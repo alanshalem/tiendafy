@@ -58,32 +58,50 @@ export function usePreviewBridge(previewOrigin: string, view: string, callbacks:
     [previewOrigin],
   );
 
-  // El preview avisa cuando está listo → mandamos el tema actual (+ estado del carrito).
+  // La página de "en construcción" en lugar de la tienda, mientras su panel está abierto.
+  const postComingSoon = useCallback(
+    (show: boolean) => {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: EDITOR_MSG.previewComingSoon, show },
+        previewOrigin || '*',
+      );
+    },
+    [previewOrigin],
+  );
+
+  // El preview avisa cuando está listo → mandamos el tema actual (+ carrito y "en construcción").
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.origin !== previewOrigin) return; // solo mensajes del propio preview
       if (e.data?.type === EDITOR_MSG.previewReady) {
         cb.current.onReady();
         postCart(view === 'cart');
+        if (view === 'coming-soon') postComingSoon(true);
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [postCart, view, previewOrigin]);
+  }, [postCart, postComingSoon, view, previewOrigin]);
 
   // Al abrir el panel "Carrito", abrir el drawer en el preview (y cerrarlo al salir).
   useEffect(() => {
     postCart(view === 'cart');
   }, [view, postCart]);
 
-  // Al abrir un panel, resaltar su sección en el preview (scroll + flash). Solo aplica
-  // a lo que se ve en el home: encabezado, pie y secciones del inicio.
+  // "Tienda en construcción": sin esto, sus opciones no se veían en ningún lado.
+  useEffect(() => {
+    postComingSoon(view === 'coming-soon');
+  }, [view, postComingSoon]);
+
+  // Al abrir un panel, resaltar su parte en el preview (scroll + flash): encabezado,
+  // pie, botón de WhatsApp y secciones del inicio.
   useEffect(() => {
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
     let msg: { type: string; target?: string; sectionId?: string } | null = null;
     if (view === 'header') msg = { type: EDITOR_MSG.focusSection, target: 'header' };
     else if (view === 'footer') msg = { type: EDITOR_MSG.focusSection, target: 'footer' };
+    else if (view === 'whatsapp') msg = { type: EDITOR_MSG.focusSection, target: 'whatsapp' };
     else if (view.startsWith('home:'))
       msg = { type: EDITOR_MSG.focusSection, target: 'section', sectionId: view.slice(5) };
     if (msg) win.postMessage(msg, previewOrigin || '*');

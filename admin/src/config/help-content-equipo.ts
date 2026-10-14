@@ -9,7 +9,7 @@ export const EQUIPO = {
       {
         heading: 'Agregar a alguien',
         steps: [
-          'En Configuración → Usuarios, tocá “Agregar”, poné su email y elegí el rol.',
+          'En Configuración → Usuarios, tocá “Agregar usuario”, poné su email (y su nombre, si querés), elegí el rol y tocá “Agregar”.',
           'Si todavía no tenía cuenta, se la creamos: le llega un email para definir su contraseña.',
           'Listo: al entrar al panel ve solo las secciones y acciones que tiene habilitadas.',
         ],
@@ -80,10 +80,18 @@ export const EQUIPO = {
         heading: 'Excepciones para una persona',
         steps: [
           'Si a alguien puntual le hace falta algo que su rol no trae (o al revés), no hace falta cambiarle el rol.',
-          'En Configuración → Usuarios, tocá el botón de permisos de su fila y tildá o destildá.',
+          'En Configuración → Usuarios, tocá el botón “Permisos de esta persona” de su fila, tildá o destildá y guardá.',
           'Esa persona queda marcada como “Personalizado”. “Volver a lo del rol” le saca las excepciones.',
           'Si le cambiás el rol, las excepciones se borran: eran para el puesto anterior.',
         ],
+      },
+      {
+        heading: 'Varias tiendas: Mis tiendas',
+        paragraphs: [
+          'En Plataforma → Mis tiendas ves todas las tiendas del grupo con lo que vendió cada una en los últimos 30 días, y entrás a cualquiera. Para cambiar de tienda sin salir de lo que estás haciendo, usá el selector de tienda de arriba.',
+          'Crear una tienda nueva (“Crear tienda”: nombre y dirección) es de dueños. Editar, archivar o eliminar una, solo de su dueño. Eliminar pide escribir el nombre de la tienda para confirmar; los datos no se borran, pero la tienda deja de estar accesible y solo se recupera pidiéndolo a soporte.',
+        ],
+        blocks: [{ type: 'path', segments: ['Plataforma', 'Mis tiendas'] }],
       },
       {
         heading: 'Reglas de seguridad',
@@ -97,7 +105,7 @@ export const EQUIPO = {
               'Solo un dueño puede nombrar o modificar dueños, y la tienda nunca queda sin dueño.',
               'Crear tiendas nuevas es de dueños; editar, archivar o borrar una tienda, solo de su dueño.',
               'Nadie se cambia sus propios permisos.',
-              'Cada cambio queda en el registro de actividad (Configuración → Usuarios): quién, qué y cuándo.',
+              'Cada cambio queda en “Actividad del equipo”, al pie de Configuración → Usuarios: quién, qué y cuándo.',
             ],
           },
         ],

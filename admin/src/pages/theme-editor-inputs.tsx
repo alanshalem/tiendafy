@@ -1,6 +1,6 @@
 import { Checkbox, cn, useConfirm } from '@tiendafy/ui';
-import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
-import { ChevronLeft, Plus, X } from 'lucide-react';
+import { useId, useState, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
+import { ChevronDown, ChevronLeft, Plus, X } from 'lucide-react';
 import { LONG_TEXT_MAX, SHORT_TEXT_MAX, URL_MAX, type ThemeConfig, baseTheme } from '@tiendafy/types';
 
 /** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
@@ -62,6 +62,8 @@ export interface QuickStyle<T> {
   recommended?: boolean;
   /** Solo los campos que define el estilo; el resto queda como esté. */
   patch: Partial<T>;
+  /** Miniatura de cómo queda (opcional): el nombre solo no dice mucho. */
+  thumb?: ReactNode;
 }
 
 /**
@@ -95,12 +97,14 @@ export function QuickStyles<T extends object>({
             onClick={() => onApply(p.patch)}
             aria-pressed={matches(p.patch)}
             className={cn(
-              'relative rounded-lg border px-3 py-2.5 text-sm font-medium transition',
+              'relative rounded-lg border text-sm font-medium transition',
+              p.thumb ? 'p-1.5 pb-2' : 'px-3 py-2.5',
               matches(p.patch)
                 ? 'border-primary text-primary ring-2 ring-primary/30'
                 : 'border-border text-fg hover:border-border-strong',
             )}
           >
+            {p.thumb && <span className="mb-1.5 block overflow-hidden rounded">{p.thumb}</span>}
             {p.name}
             {p.recommended && (
               <span className="absolute -top-2 right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[0.6rem] font-semibold text-primary-fg">
@@ -246,26 +250,143 @@ export function ColorRow({
   value,
   onChange,
   fallback,
+  onAuto,
+  autoLabel = 'Automático',
+  autoValue,
+  autoHint,
 }: {
   label: string;
   hint?: string;
   value: string;
   onChange: (raw: string) => void;
+  /** Hex que muestra el selector mientras el valor está vacío (= automático). */
   fallback: string;
+  /**
+   * El color admite "automático" (valor vacío): con valor, un botón para
+   * volver a automático; sin valor, se dice que lo es. Antes un color vacío
+   * se veía igual que uno elegido y no había forma de volver atrás.
+   */
+  onAuto?: () => void;
+  autoLabel?: string;
+  /** El color "R G B" que se usa en automático: el selector lo muestra mientras el valor está vacío. */
+  autoValue?: string;
+  /** Lo que se lee debajo mientras está en automático. */
+  autoHint?: string;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div>
+      <div className="min-w-0">
         <div className="text-sm font-medium text-fg">{label}</div>
         {hint && <p className="text-xs text-fg-muted">{hint}</p>}
+        {onAuto &&
+          (value ? (
+            <button
+              type="button"
+              onClick={onAuto}
+              className="mt-0.5 text-xs font-medium text-primary hover:underline"
+            >
+              Volver a {autoLabel.toLowerCase()}
+            </button>
+          ) : (
+            <p className="mt-0.5 text-xs text-fg-muted">{autoHint ?? `${autoLabel}: el que mejor se lee`}</p>
+          ))}
       </div>
       <input
         type="color"
         aria-label={label}
-        value={rgbToHex(value, fallback)}
+        value={rgbToHex(value || autoValue || '', fallback)}
         onChange={(e) => onChange(hexToRgb(e.target.value))}
         className="h-8 w-12 shrink-0 cursor-pointer rounded border border-border-strong"
       />
+    </div>
+  );
+}
+
+/** Sección plegable para paneles largos: título clickeable + cuerpo. */
+export function Collapsible({
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-sm font-semibold text-fg"
+      >
+        {title}
+        <ChevronDown className={cn('h-4 w-4 text-fg-muted transition-transform', open ? 'rotate-180' : '')} />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
+const SEG_COLS = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2' } as const;
+
+/**
+ * Grupo de opciones tipo segmented (3 botones; 4 van en dos filas: el panel
+ * es angosto). Cada opción puede llevar un dibujito (`visual`) cuando lo que
+ * se elige se ve: un tamaño, un borde, una disposición.
+ */
+export function SegGroup<T extends string>({
+  value,
+  options,
+  onChange,
+  columns = 3,
+  labelledBy,
+}: {
+  value: T;
+  options: { value: T; label: string; visual?: ReactNode }[];
+  onChange: (v: T) => void;
+  columns?: 2 | 3 | 4;
+  labelledBy?: string;
+}) {
+  return (
+    <div className={cn('grid gap-2', SEG_COLS[columns])} role="group" aria-labelledby={labelledBy}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            'min-h-10 rounded-lg border px-2 py-2 text-xs font-medium transition',
+            o.visual && 'flex flex-col items-center justify-end gap-1.5',
+            value === o.value
+              ? 'border-primary text-primary ring-2 ring-primary/30'
+              : 'border-border text-fg hover:border-border-strong',
+          )}
+        >
+          {o.visual}
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Un selector con nombre arriba (como Field) para un SegGroup. */
+export function SegField<T extends string>({
+  label,
+  hint,
+  ...seg
+}: { label: string; hint?: string } & Parameters<typeof SegGroup<T>>[0]) {
+  const id = useId();
+  return (
+    <div>
+      <div id={id} className="mb-1.5 text-sm font-medium text-fg">
+        {label}
+      </div>
+      <SegGroup labelledBy={id} {...seg} />
+      {hint && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
     </div>
   );
 }
@@ -274,17 +395,27 @@ export function Check({
   label,
   checked,
   onChange,
+  hint,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Para qué sirve, debajo (alineado con el texto, no con la casilla). */
+  hint?: string;
 }) {
   // Toda la fila se toca, con 40 px de alto: el cuadradito solo (16 px) se erraba con el dedo.
-  return (
+  const box = (
     <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
       <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
+  );
+  if (!hint) return box;
+  return (
+    <div>
+      {box}
+      <p className="mt-0.5 pl-6 text-xs text-fg-muted">{hint}</p>
+    </div>
   );
 }
 

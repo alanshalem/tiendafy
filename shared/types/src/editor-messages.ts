@@ -14,6 +14,12 @@ export const EDITOR_MSG = {
   focusSection: 'tiendafy:focus-section',
   /** admin → iframe: abrir/cerrar el drawer del carrito. */
   previewCart: 'tiendafy:preview-cart',
+  /**
+   * admin → iframe: mostrar (o dejar de mostrar) la página de "tienda en
+   * construcción" en lugar de la tienda, mientras su panel está abierto. El
+   * visitante la ve; quien edita, si no fuera por esto, nunca.
+   */
+  previewComingSoon: 'tiendafy:preview-coming-soon',
   /** iframe → admin: el preview terminó de montar y escucha mensajes. */
   previewReady: 'tiendafy:preview-ready',
 } as const;

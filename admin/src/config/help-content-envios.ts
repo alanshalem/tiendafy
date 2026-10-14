@@ -11,7 +11,7 @@ export const ENVIOS = {
         steps: [
           'En Configuración → Medios de envío, tocá “Agregar medio de envío”.',
           'Elegí el tipo: Envío a domicilio (el cliente carga su dirección) o Retiro en punto (vos cargás la dirección y horarios del punto).',
-          'Definí el precio (0 = gratis) y un plazo visible, ej: “Llega en 3 a 5 días hábiles”.',
+          'Definí el precio (0 = gratis) y, si querés, un plazo o descripción visible, ej: “Llega en 3 a 5 días hábiles”.',
           'Guardá. Aparece al instante en el checkout de tu tienda.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío'] }],
@@ -26,7 +26,29 @@ export const ENVIOS = {
       {
         heading: 'Envío gratis como gancho',
         paragraphs: [
-          'Creá un método con precio 0 (“Envío gratis a partir de $X” en la descripción) y activá la barra de envío gratis desde el editor de diseño (sección Carrito): le muestra al cliente cuánto le falta y sube el ticket promedio.',
+          'Hay dos formas de regalar el envío: un medio de envío con precio 0, o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',
+          'Para empujar el ticket, prendé la barra de envío gratis en el editor de diseño (Carrito de compras → “Mostrar barra de envío gratis”) con tu mínimo: le muestra al cliente cuánto le falta.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'La barra solo informa: no cambia lo que cobra el checkout. Si prometés envío gratis desde cierto monto, tiene que haber un medio o un cupón que lo cumpla.',
+          },
+        ],
+      },
+      {
+        heading: 'Peso y medidas de tus productos',
+        paragraphs: [
+          'Los correos con cotización en vivo cobran por peso y por tamaño. Cada producto tiene, en su sección de envío, “Peso del paquete (kg)” y las medidas en cm (largo, ancho y alto) del paquete de UNA unidad, listo para despachar. Al cargar un producto nuevo valen para todas sus variantes; después se ajustan variante por variante. También van en la planilla de importación.',
+          'Al cotizar, cada unidad del carrito viaja con su peso y sus medidas. Lo que un producto no tenga cargado sale del paquete por defecto de cada correo, que se configura en esta misma pantalla. Las tres medidas van juntas: o las cargás todas o ninguna.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Empezá por los productos grandes o pesados: son los que más se alejan del paquete por defecto, y donde una cotización mal hecha te cuesta plata.',
+          },
         ],
       },
       {
@@ -90,7 +112,7 @@ export const ENVIOS = {
           'En Configuración → Medios de envío, tocá “Configurar” en la tarjeta de Correo Argentino.',
           'Pegá el userToken y el passwordToken. Se guardan cifrados y nunca se vuelven a mostrar.',
           'Cargá el código postal desde donde despachás.',
-          'Definí el paquete estimado por unidad (peso y medidas): la cotización multiplica por la cantidad de productos del carrito. Límites de Correo: 25 kg y 150 cm por lado.',
+          'Definí el paquete estimado por unidad (peso y medidas): se usa para los productos que no tienen su peso y sus medidas cargados. Límites de Correo: 25 kg y 150 cm por lado.',
           'Elegí qué ofrecer: domicilio, sucursal o ambos. Guardá y tocá “Probar cotización” para validar todo con datos reales.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Correo Argentino'] }],
@@ -132,13 +154,13 @@ export const ENVIOS = {
         heading: 'Quién paga qué',
         paragraphs: [
           'El costo del envío lo cobrás VOS en la venta (va sumado al total que paga el comprador por Mercado Pago). Después vos le pagás a Correo el envío real al generar la etiqueta en MiCorreo.',
-          'Si el paquete estimado está bien configurado, queda neutro. Si tus productos varían mucho de peso, ajustá el paquete por defecto o asumí la diferencia como costo.',
+          'Si el peso y las medidas de tus productos están bien cargados, queda neutro. Los productos sin esos datos cotizan con el paquete por defecto: si varían mucho de tamaño, cargales los suyos.',
         ],
       },
       {
         heading: 'Cómo se calcula el paquete',
         paragraphs: [
-          'Los productos todavía no tienen peso propio, así que la cotización usa el paquete estimado por unidad que configuraste: peso × cantidad, apilados en alto. Si tus productos varían mucho de tamaño, configurá el promedio y ajustá el envío real en MiCorreo al despachar.',
+          'La cotización usa el peso y las medidas de cada producto del carrito, tal como los cargaste en el producto (o en cada variante). Lo que un producto no tenga cargado sale del paquete estimado por unidad que configuraste acá. Mirá “Peso y medidas de tus productos” en el artículo Medios de envío.',
           'Si un carrito supera los límites de Correo (25 kg / 150 cm), el checkout lo avisa y el comprador puede elegir otro medio de envío o coordinar con vos.',
         ],
       },
@@ -173,7 +195,7 @@ export const ENVIOS = {
           'Pegá el API Token y el API Secret. Se guardan cifrados y nunca se vuelven a mostrar.',
           'Elegí el país de tu cuenta (define a qué servidor de Zipnova se habla) y cargá el número de cuenta.',
           'Origen: dejalo vacío para usar el origen por defecto de tu cuenta Zipnova, o poné el ID de una ubicación puntual.',
-          'Definí el paquete estimado por unidad (peso y medidas en cm) y guardá.',
+          'Definí el paquete estimado por unidad (peso y medidas en cm), para los productos que no tengan los suyos, y guardá.',
           'Usá “Probar cotización”: cotizar es gratis y valida todo el circuito con datos reales.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de envío', 'Zipnova'] }],
@@ -257,7 +279,7 @@ export const ENVIOS = {
           'Cargá usuario y contraseña. La contraseña se guarda cifrada y no se vuelve a mostrar.',
           'Poné el código de cliente y los contratos que tengas.',
           'Completá los datos del remitente y la dirección desde donde despachás: van en cada envío que generes.',
-          'Definí el paquete estimado por unidad (peso y medidas) y guardá.',
+          'Definí el paquete por unidad (peso y medidas), para los productos que no tengan los suyos, y guardá.',
           'Tocá “Probar conexión” para verificar que Andreani te reconoce.',
         ],
         blocks: [
@@ -273,7 +295,7 @@ export const ENVIOS = {
         heading: 'Las medidas cambian el precio tanto como el peso',
         paragraphs: [
           'Andreani cobra por el mayor entre el peso real del paquete y su “peso volumétrico”, que sale de las medidas. Una caja grande y liviana puede costar más que una chica y pesada.',
-          'Por eso el paquete que configurás no es un detalle: si ponés medidas más grandes que las reales, vas a cotizarle de más al comprador; si las ponés más chicas, la diferencia la vas a pagar vos.',
+          'Por eso las medidas de tus productos (y el paquete por defecto, para los que no las tienen) no son un detalle: si ponés medidas más grandes que las reales, vas a cotizarle de más al comprador; si las ponés más chicas, la diferencia la vas a pagar vos.',
         ],
         blocks: [
           {

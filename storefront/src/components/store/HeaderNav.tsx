@@ -19,6 +19,9 @@ const GAP = 20;
 const hasDropdown = (item: NavItem) =>
   item.kind === 'categories' || !!item.categoryId || (item.children?.length ?? 0) > 0;
 
+/** Dónde se apoyan los ítems: al centro (clásico), contra el logo o contra los íconos. */
+const JUSTIFY = { center: 'justify-center', start: 'justify-start', end: 'justify-end' } as const;
+
 /**
  * Menú del encabezado en UNA sola línea.
  *
@@ -35,7 +38,7 @@ const hasDropdown = (item: NavItem) =>
  * En el servidor se dibujan TODOS (todavía no hay nada que medir): los links
  * del menú, incluidos los de los desplegables, llegan en el HTML.
  */
-export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align?: 'center' | 'start' }) {
+export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align?: keyof typeof JUSTIFY }) {
   const navRef = useRef<HTMLElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(items.length);
@@ -86,9 +89,7 @@ export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align
       // Sin `overflow-hidden`: recortaría el propio desplegable de "Más", que
       // cuelga por fuera del menú. Lo que sobra se resuelve cambiando qué se
       // dibuja, no tapándolo.
-      className={`relative flex min-w-0 flex-1 items-center gap-x-5 whitespace-nowrap text-sm ${
-        align === 'center' ? 'justify-center' : 'justify-start'
-      }`}
+      className={`relative flex min-w-0 flex-1 items-center gap-x-5 whitespace-nowrap text-sm ${JUSTIFY[align]}`}
     >
       {/* Medidor: una copia fiel de cada ítem, fuera de la vista. Sin esto no
           hay forma de saber cuánto ocupa un nombre sin dibujarlo. */}

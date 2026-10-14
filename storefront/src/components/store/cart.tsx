@@ -11,7 +11,7 @@ import { track, type TrackItem } from '@/lib/track';
 import Image from 'next/image';
 import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
-import { usePreviewHref } from './preview';
+import { PreviewContext, usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import {
@@ -254,18 +254,53 @@ interface Suggested {
   variantCount?: number;
 }
 
-export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; suggested?: Suggested[] }) {
+/** El producto de muestra del carrito en la vista previa (ver CartDrawer). */
+export function sampleCartLine(product?: Suggested): CartLine {
+  return product
+    ? {
+        variantId: product.variantId,
+        productName: product.name,
+        variantLabel: product.variantLabel,
+        priceAmount: product.priceAmount,
+        currency: product.currency,
+        image: product.image,
+        quantity: 1,
+      }
+    : {
+        variantId: 'muestra',
+        productName: 'Producto de ejemplo',
+        variantLabel: '',
+        priceAmount: 1250000,
+        currency: 'ARS',
+        image: null,
+        quantity: 1,
+      };
+}
+
+const noop = () => {};
+
+export function CartDrawer({
+  cart,
+  suggested: all = [],
+  sample,
+}: {
+  cart?: CartConfig;
+  suggested?: Suggested[];
+  /** Vista previa: el producto con el que se muestra el carrito si está vacío. */
+  sample?: Suggested;
+}) {
   // Un sugerido agotado no se ofrece; uno con varias variantes lleva a su
   // ficha (agregar "la primera" era venderle un talle que no eligió).
   const suggested = all.filter((s) => !(s.stock != null && s.stock <= 0));
   const href = usePreviewHref();
+  const preview = useContext(PreviewContext);
   const {
-    lines,
+    lines: realLines,
     open,
     setOpen,
-    setQty,
-    remove,
-    totalAmount,
+    setQty: realSetQty,
+    remove: realRemove,
+    totalAmount: realTotal,
     currency,
     add,
     tenantId,
@@ -276,6 +311,15 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
     availability,
     beginCheckout,
   } = useCart();
+  // En la vista previa del editor el carrito suele estar vacío, y vacío no
+  // muestra nada de lo que se configura (cupón, sugeridos, envío gratis,
+  // mensaje, texto del botón): parecía que esas opciones no hacían nada. Se
+  // muestra con un producto de muestra, sin tocar el carrito de verdad.
+  const sampleLines = preview && realLines.length === 0 ? [sampleCartLine(sample ?? all[0])] : null;
+  const lines = sampleLines ?? realLines;
+  const totalAmount = sampleLines ? sampleLines[0]!.priceAmount : realTotal;
+  const setQty = sampleLines ? noop : realSetQty;
+  const remove = sampleLines ? noop : realRemove;
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
@@ -303,7 +347,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
   // Cada vez que se abre, los precios y el stock se traen de nuevo: lo
   // guardado es de cuando se agregó, quizás hace días.
   useEffect(() => {
-    if (open && lines.length > 0) void refreshPrices();
+    if (open && realLines.length > 0) void refreshPrices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -336,10 +380,10 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
   // si el carrito quedó vacío, el cupón se descarta con él.
   useEffect(() => {
     if (!coupon) return;
-    if (lines.length === 0) setCoupon(null);
+    if (realLines.length === 0) setCoupon(null);
     else validateCoupon(coupon.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalAmount, lines.length]);
+  }, [realTotal, realLines.length]);
 
   const discount = coupon?.discount ?? 0;
   const finalTotal = Math.max(0, totalAmount - discount);
@@ -409,6 +453,11 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
           <>
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
               <PriceChangeNotice changes={priceChanges} />
+              {sampleLines && (
+                <p className="rounded-md bg-fg/5 px-3 py-2 text-xs text-fg-muted">
+                  Vista previa con un producto de muestra: así se ve el carrito con algo adentro.
+                </p>
+              )}
               {lines.map((l) => (
                 <div key={l.variantId} className="flex gap-3 border-b border-black/10 pb-3">
                   {l.image ? (
@@ -583,7 +632,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                 <span className="tabular-nums">{formatMoney(finalTotal, currency)}</span>
               </div>
               {cart?.notice && (
-                <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>
+                <p className="mb-3 rounded-md bg-fg/5 px-3 py-2 text-xs text-fg-muted">{cart.notice}</p>
               )}
               {blocked && (
                 <p className="mb-2 text-xs font-medium text-red-600">

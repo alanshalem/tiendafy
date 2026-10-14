@@ -345,7 +345,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
       {
         to: '/configuracion/opciones-del-checkout',
         label: 'Opciones del checkout',
-        desc: 'Qué pide y muestra el proceso de compra: datos, cuotas, condiciones.',
+        desc: 'Qué pide y muestra el proceso de compra: datos del comprador, nota, mensaje final y diseño.',
         icon: ShoppingCart,
       },
     ],

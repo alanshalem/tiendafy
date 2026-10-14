@@ -47,6 +47,13 @@ export interface HelpArticle {
   intro: string;
   /** Agrupa los artículos en el índice del centro de ayuda. */
   category: HelpCategory;
+  /**
+   * Palabras con las que alguien busca este tema y que el texto no dice tal
+   * cual: sinónimos ("slider" por carrusel), nombres de otras plataformas o
+   * formas de escribirlo ("popup" sin guion). No se muestran: solo alimentan
+   * el buscador del índice.
+   */
+  keywords?: string[];
   sections: HelpSection[];
 }
 
@@ -58,6 +65,8 @@ import { ENVIOS } from './help-content-envios';
 import { CATALOGO } from './help-content-catalogo';
 import { FINANZAS } from './help-content-finanzas';
 import { CLIENTES } from './help-content-clientes';
+import { DISENO } from './help-content-diseno';
+import { SECCIONES } from './help-content-secciones';
 import { TIENDA } from './help-content-tienda';
 import { EQUIPO } from './help-content-equipo';
 import { PLATAFORMA } from './help-content-plataforma';
@@ -94,6 +103,9 @@ export const HELP_CONTENT: Record<HelpLinkId, HelpArticle> = withBrand({
   ...CATALOGO,
   ...FINANZAS,
   ...CLIENTES,
+  // El editor de diseño primero: es lo primero que se busca de "Tu tienda online".
+  ...DISENO,
+  ...SECCIONES,
   ...TIENDA,
   ...EQUIPO,
   ...PLATAFORMA,
