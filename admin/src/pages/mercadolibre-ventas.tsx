@@ -14,6 +14,7 @@ import {
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { StatusLegend } from '../components/StatusLegend';
+import { LoadError } from '../components/LoadError';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
@@ -89,6 +90,8 @@ export function VentasTab() {
   // de Mercado Libre tiene varias pestañas y cada listado guarda lo suyo.
   const [page, setPage] = usePageParam('pagina-ventas');
   const [total, setTotal] = useState(0);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Facturación ARCA de la venta ML (consumidor final, camino de emisión manual).
@@ -123,6 +126,7 @@ export function VentasTab() {
   };
 
   useEffect(() => {
+    setLoadError(null);
     api
       .get<{ items: MeliOrder[]; total: number }>(
         `/api/v1/admin/meli/orders?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
@@ -130,12 +134,15 @@ export function VentasTab() {
       .then((r) => {
         setOrders(r.items);
         setTotal(r.total ?? 0);
-      });
+      })
+      // Sin esto una caída quedaba en el spinner para siempre (y como error
+      // sin atajar en la consola).
+      .catch(setLoadError);
     api
       .get<MeliStats>('/api/v1/admin/meli/stats?days=30')
       .then(setStats)
       .catch(() => undefined);
-  }, [page]);
+  }, [page, reloadKey]);
 
   return (
     <div>
@@ -159,7 +166,13 @@ export function VentasTab() {
         </div>
       )}
 
-      {orders === null ? (
+      {loadError ? (
+        <LoadError
+          title="No se pudieron cargar las ventas de Mercado Libre."
+          error={loadError}
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
+      ) : orders === null ? (
         <Spinner />
       ) : orders.length === 0 ? (
         <EmptyList>
