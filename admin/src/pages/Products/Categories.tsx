@@ -22,6 +22,7 @@ import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
 import { TableSkeleton } from '../../components/Skeleton';
 import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
+import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 
 interface CategoryDto {
   id: string;
@@ -98,10 +99,11 @@ export function CategoriesPage() {
     setOrder(readSavedOrder(storageKey));
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['categories', store?.id],
     queryFn: () => api.get<CategoriesResponse>('/api/v1/categories'),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
   const categories = useMemo(() => data?.items ?? [], [data]);
 
@@ -237,7 +239,9 @@ export function CategoriesPage() {
     return <NoStoreSelected />;
   }
 
-  const isEmpty = !isLoading && categories.length === 0;
+  // Un error no es un catálogo sin categorías (invitaba a crearlas de nuevo).
+  const loadFailed = isError && !data;
+  const isEmpty = !isLoading && !loadFailed && categories.length === 0;
 
   return (
     <div className="space-y-4 pb-20">
@@ -256,7 +260,14 @@ export function CategoriesPage() {
         )}
       </div>
 
-      {isEmpty ? (
+      {loadFailed ? (
+        <LoadError
+          title="No se pudieron cargar las categorías."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      ) : isEmpty ? (
         <EmptyState
           kicker="Categorías"
           title="Organizá tu catálogo"

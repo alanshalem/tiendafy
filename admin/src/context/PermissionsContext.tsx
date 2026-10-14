@@ -4,6 +4,7 @@ import { Home, Loader2, ShieldOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { satisfies, type Perm, type PermRequirement } from '../lib/access';
 import { useStore } from './StoreContext';
+import { NoStoreSelected } from '../components/NoStoreSelected';
 
 /** Respuesta de GET /api/v1/me/permissions (rol + claves efectivas en la tienda activa). */
 interface MePermissionsDto {
@@ -87,6 +88,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
  */
 export function RequirePerm({ perm, children }: { perm: PermRequirement; children: ReactNode }) {
   const { can, loading } = usePermissions();
+  // Sin la lista de tiendas no hay permisos que mirar: no es "no tenés permiso".
+  const { loadError } = useStore();
+  if (loadError) return <NoStoreSelected />;
 
   if (loading) {
     return (

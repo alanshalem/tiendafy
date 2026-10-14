@@ -4,6 +4,7 @@ import { Info, KeyRound, MessageCircle, Send, Unplug } from 'lucide-react';
 import { Button, Input, Modal, Switch, useConfirm, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
+import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 import { NotificationUsage } from '../../components/NotificationUsage';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -42,18 +43,24 @@ export function WhatsAppAutoPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<WaTpl | null>(null);
 
-  const { data: conn, isLoading: loadingConn } = useQuery({
+  // Un error al leer la conexión no es "sin conectar": eso mostraba el form
+  // para volver a cargar las credenciales de Meta, que ya estaban.
+  const connQ = useQuery({
     queryKey: ['whatsapp-connection', store?.id],
     queryFn: () => api.get<ConnectionDto>('/api/v1/whatsapp/connection'),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
+  const { data: conn, isLoading: loadingConn } = connQ;
   const connected = conn?.connected ?? false;
 
-  const { data, isLoading: loadingTpls } = useQuery({
+  const tplQ = useQuery({
     queryKey: ['whatsapp-templates', store?.id],
     queryFn: () => api.get<{ items: WaTpl[] }>('/api/v1/whatsapp/templates'),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
+  const { data, isLoading: loadingTpls } = tplQ;
   const items = data?.items ?? [];
 
   const save = useMutation({
@@ -82,7 +89,16 @@ export function WhatsAppAutoPage() {
 
       <NotificationUsage channel="whatsapp" />
 
-      <ConnectionCard conn={conn ?? null} loading={loadingConn} />
+      {connQ.isError && !conn ? (
+        <LoadError
+          title="No se pudo cargar la conexión con WhatsApp."
+          error={connQ.error}
+          onRetry={() => void connQ.refetch()}
+          retrying={connQ.isFetching}
+        />
+      ) : (
+        <ConnectionCard conn={conn ?? null} loading={loadingConn} />
+      )}
 
       {/* Aviso: los cuerpos de mensaje los aprueba Meta como plantillas */}
       <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-info/30 bg-info-bg/60 p-3.5 text-sm text-fg">
@@ -98,6 +114,14 @@ export function WhatsAppAutoPage() {
           <div className="rounded-lg border border-border bg-surface">
             <TableSkeleton rows={4} label="Cargando mensajes…" />
           </div>
+        )}
+        {tplQ.isError && !data && (
+          <LoadError
+            title="No se pudieron cargar los mensajes automáticos."
+            error={tplQ.error}
+            onRetry={() => void tplQ.refetch()}
+            retrying={tplQ.isFetching}
+          />
         )}
         <TemplateGrid
           groups={GROUPS}

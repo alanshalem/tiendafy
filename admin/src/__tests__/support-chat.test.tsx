@@ -122,9 +122,10 @@ describe('chat posventa: la bandeja', () => {
     expect(conversation(closed.customerEmail)).toBeInTheDocument();
   });
 
-  it('sin consultas (o si la bandeja no carga) lo explica; Actualizar vuelve a pedir', async () => {
+  it('si la bandeja no carga lo dice (no "sin consultas"); Actualizar vuelve a pedir', async () => {
     const { api, user } = await openChat((a) => a.on('GET', CONVS, {}, 500));
-    expect(screen.getByText('Sin consultas todavía.')).toBeInTheDocument();
+    expect(screen.getByText('No se pudieron cargar las consultas.')).toBeInTheDocument();
+    expect(screen.queryByText('Sin consultas todavía.')).not.toBeInTheDocument();
     api.on('GET', CONVS, { items: CONVERSATIONS });
     await user.click(screen.getByRole('button', { name: /Actualizar/ }));
     expect(

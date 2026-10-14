@@ -4,6 +4,7 @@ import { cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
+import { LoadError } from '../components/LoadError';
 import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
@@ -54,16 +55,21 @@ export function SupportChatPage() {
   const [suggesting, setSuggesting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Un pedido fallido ya no devuelve una bandeja vacía: con el polling cada
+  // 8 s, un corte vaciaba la bandeja y mostraba "Sin consultas todavía".
+  // Ahora se queda lo último que llegó y se avisa.
+  const [loadError, setLoadError] = useState<unknown>(null);
   const fetchConvs = useCallback(
     () =>
       api
         .get<{ items: Conversation[] }>('/api/v1/support/conversations')
-        .then((d) => d.items ?? [])
-        .catch(() => [] as Conversation[]),
+        .then((d) => ({ items: d.items ?? [], error: null as unknown }))
+        .catch((error: unknown) => ({ items: null, error: error ?? true })),
     [],
   );
-  const showConvs = useCallback((items: Conversation[]) => {
-    setConvs(items);
+  const showConvs = useCallback((r: { items: Conversation[] | null; error: unknown }) => {
+    if (r.items) setConvs(r.items);
+    setLoadError(r.error);
     setLoading(false);
   }, []);
   const loadConvs = useCallback(async () => showConvs(await fetchConvs()), [fetchConvs, showConvs]);
@@ -85,7 +91,7 @@ export function SupportChatPage() {
   useEffect(() => {
     if (!store) return;
     let current = true;
-    fetchConvs().then((items) => current && showConvs(items));
+    fetchConvs().then((r) => current && showConvs(r));
     return () => {
       current = false;
     };
@@ -237,10 +243,22 @@ export function SupportChatPage() {
       <div className="grid h-[calc(100vh-180px)] min-h-[420px] grid-cols-1 overflow-hidden rounded-lg border border-border bg-surface shadow-card md:grid-cols-[320px_1fr]">
         {/* Bandeja */}
         <div className={cn('overflow-y-auto border-border md:border-r', selected && 'hidden md:block')}>
+          {loadError !== null && convs.length > 0 && (
+            <p role="status" className="border-b border-border bg-warning-bg px-4 py-2 text-xs text-warning">
+              No se pudo actualizar la bandeja: se muestra la última que llegó. Se reintenta solo.
+            </p>
+          )}
           {loading ? (
             <div className="flex items-center gap-2 p-4 text-sm text-fg-muted">
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
             </div>
+          ) : loadError !== null && convs.length === 0 ? (
+            <LoadError
+              className="m-3"
+              title="No se pudieron cargar las consultas."
+              error={loadError}
+              onRetry={() => void loadConvs()}
+            />
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg-muted">
               <MessageCircle className="h-8 w-8 opacity-50" />

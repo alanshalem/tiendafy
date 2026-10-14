@@ -14,6 +14,7 @@ import { PermissionsProvider } from '../context/PermissionsContext';
 import { StoreProvider } from '../context/StoreContext';
 import { AuthGate } from '../pages/Login';
 import { preloadPages } from '../lib/lazyPage';
+import { QueryErrorToasts } from '../components/QueryErrorToasts';
 
 // Las pantallas se bajan recién al abrirse (lib/lazyPage). En los tests se
 // bajan todas antes: un import lento no tiene que parecer una pantalla que no
@@ -48,6 +49,7 @@ export function Providers({ children, path = '/' }: { children: ReactNode; path?
   return (
     <QueryClientProvider client={client}>
       <ToastProvider>
+        <QueryErrorToasts />
         <ConfirmProvider>
           <PromptProvider>
             <AuthProvider>

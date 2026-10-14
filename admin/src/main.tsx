@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, ConfirmProvider, PromptProvider } from '@tiendafy/ui';
 import App from './App';
 import { BRAND } from './lib/runtime';
@@ -15,6 +15,8 @@ import { AuthProvider } from './context/AuthContext';
 import { AuthGate } from './pages/Login';
 import { applyMode, getInitialMode } from './lib/themeMode';
 import { runtime } from './lib/runtime';
+import { createQueryClient } from './lib/queryClient';
+import { QueryErrorToasts } from './components/QueryErrorToasts';
 import './index.css';
 
 // Sentry: activo solo si hay DSN (servidor). Sin DSN = cero overhead en dev.
@@ -29,11 +31,7 @@ if (runtime.sentryDsn) {
 // Aplicar el modo guardado antes del primer render (evita flash).
 applyMode(getInitialMode());
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
-  },
-});
+const queryClient = createQueryClient();
 
 // Router "de datos" con una sola ruta comodín que dibuja la tabla de rutas de
 // App (<Routes>): con BrowserRouter no existe useBlocker, y sin él no hay
@@ -45,6 +43,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
+        <QueryErrorToasts />
         <ConfirmProvider>
           <PromptProvider>
             <AuthProvider>

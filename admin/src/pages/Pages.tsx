@@ -25,6 +25,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { HelpLink } from '../components/HelpLink';
 import { TableSkeleton } from '../components/Skeleton';
+import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
 interface PageDto {
@@ -45,10 +46,11 @@ export function PagesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<PageDto | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['pages', store?.id],
     queryFn: () => api.get<{ items: PageDto[] }>('/api/v1/pages'),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
   const pages = data?.items ?? [];
 
@@ -138,6 +140,14 @@ export function PagesPage() {
         <Card>
           <TableSkeleton label="Cargando páginas…" />
         </Card>
+      ) : isError && !data ? (
+        // Un error no es "creá tu primera página": se terminaban duplicando.
+        <LoadError
+          title="No se pudieron cargar las páginas."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
       ) : pages.length === 0 ? (
         <EmptyState
           kicker="Páginas"

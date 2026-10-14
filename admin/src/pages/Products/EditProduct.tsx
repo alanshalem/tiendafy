@@ -27,6 +27,7 @@ import {
 import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { ScreenSkeleton } from '../../components/Skeleton';
+import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
 
 interface VariantDto {
@@ -66,18 +67,22 @@ export function EditProductPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: product, isLoading } = useQuery({
+  const productQ = useQuery({
     queryKey: ['product', id],
     queryFn: () => api.get<ProductDto>(`/api/v1/products/${id}`),
     enabled: !!id && !!store,
+    meta: ERROR_SHOWN,
   });
+  const { data: product, isLoading } = productQ;
 
   const variantIds = useMemo(() => product?.variants.map((v) => v.id) ?? [], [product]);
-  const { data: stockData } = useQuery({
+  const stockQ = useQuery({
     queryKey: ['inventory', store?.id, 'product', variantIds.join(',')],
     queryFn: () => api.get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantIds.join(',')}`),
     enabled: variantIds.length > 0,
+    meta: ERROR_SHOWN,
   });
+  const stockData = stockQ.data;
 
   // Estado del form (se inicializa al cargar el producto).
   const [name, setName] = useState('');
@@ -338,6 +343,15 @@ export function EditProductPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   if (!store) return <NoStoreSelected />;
+  if (productQ.isError && !product)
+    return (
+      <LoadError
+        title="No se pudo cargar el producto."
+        error={productQ.error}
+        onRetry={() => void productQ.refetch()}
+        retrying={productQ.isFetching}
+      />
+    );
   if (isLoading || !product) return <ScreenSkeleton label="Cargando producto…" />;
 
   const shippingInvalid = product.variants.some(
@@ -412,6 +426,18 @@ export function EditProductPage() {
             title={multi ? 'Variantes' : 'Precio, stock y envío'}
             hint={multi ? 'Precio, stock, código de barras y paquete de cada una.' : undefined}
           >
+            {/* Sin el stock actual, el campo vacío parecería "sin stock". Igual
+                se puede cargar uno: el backend lo compara contra 0 y, si había
+                otro, avisa con el real. */}
+            {stockQ.isError && !stockData && (
+              <LoadError
+                className="mb-4"
+                title="No se pudo cargar el stock actual."
+                error={stockQ.error}
+                onRetry={() => void stockQ.refetch()}
+                retrying={stockQ.isFetching}
+              />
+            )}
             <div className="space-y-4">
               {product.variants.map((v) => {
                 const label = v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku;

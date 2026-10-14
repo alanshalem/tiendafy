@@ -25,6 +25,7 @@ import { HelpLink } from '../components/HelpLink';
 import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
+import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
@@ -76,13 +77,14 @@ export function DiscountsPage() {
   const [editing, setEditing] = useState<Coupon | null>(null);
 
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['coupons', store?.id, page],
     queryFn: () =>
       api.get<{ items: Coupon[]; total: number }>(
         `/api/v1/coupons?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   const [search, setSearch] = useState('');
@@ -210,6 +212,13 @@ export function DiscountsPage() {
         <Card>
           <TableSkeleton label="Cargando cupones…" />
         </Card>
+      ) : isError && !data ? (
+        <LoadError
+          title="No se pudieron cargar los cupones."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
       ) : coupons.length === 0 ? (
         <EmptyState
           kicker="Descuentos"

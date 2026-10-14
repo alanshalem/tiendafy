@@ -368,13 +368,14 @@ describe('redes: vuelta del OAuth', () => {
     expect(await screen.findByText('No se pudo conectar la cuenta. Probá de nuevo.')).toBeInTheDocument();
   });
 
-  it('si la API de redes no responde, la pantalla igual carga', async () => {
+  it('si la API de redes no responde, la pantalla carga y lo dice (no "conectá tu primera cuenta")', async () => {
     const { user } = await openRedes((a) => {
       a.on('GET', ACCOUNTS, {}, 500);
       a.on('GET', POSTS, {}, 500);
       a.on('GET', '/api/v1/admin/social/channels', {}, 500);
     });
     await user.click(tab('Cuentas'));
-    expect(screen.getByText(/Conectá tu primera cuenta/)).toBeInTheDocument();
+    expect(screen.getByText('No se pudieron cargar las redes sociales.')).toBeInTheDocument();
+    expect(screen.queryByText(/Conectá tu primera cuenta/)).not.toBeInTheDocument();
   });
 });

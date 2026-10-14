@@ -3,11 +3,17 @@ import { CheckCircle2 } from 'lucide-react';
 import { Button, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { LoadError } from '../../components/LoadError';
 
 /** Config mínima que la card necesita para pintar estado. */
 export interface CarrierConfigBase {
   configured: boolean;
   active?: boolean;
+  /**
+   * No se pudo leer la config. Antes se mostraba como "sin configurar" e
+   * invitaba a volver a cargar credenciales que ya estaban cargadas.
+   */
+  loadError?: unknown;
 }
 
 /** Carga la config del carrier y expone load() para refrescar tras guardar/desconectar. */
@@ -19,7 +25,7 @@ export function useCarrierConfig<T extends CarrierConfigBase>(url: string) {
     api
       .get<T>(url)
       .then(setConfig)
-      .catch(() => setConfig({ configured: false } as T));
+      .catch((error: unknown) => setConfig({ configured: false, loadError: error ?? true } as T));
   }, [url]);
 
   useEffect(() => {
@@ -74,6 +80,18 @@ export function CarrierCard({
       toast(errMsg(err, 'No se pudo desconectar.'), { variant: 'error' });
     }
   };
+
+  // Sin saber cómo está, no se ofrece configurar ni desconectar: se reintenta.
+  // (onDone es el load() de useCarrierConfig en las tres tarjetas.)
+  if (config.loadError)
+    return (
+      <LoadError
+        className={className}
+        title={`No se pudo cargar la configuración de ${title}.`}
+        error={config.loadError}
+        onRetry={disconnect.onDone}
+      />
+    );
 
   return (
     <div className={`${className ?? ''} rounded-lg border border-border bg-surface p-4 shadow-card`}>
