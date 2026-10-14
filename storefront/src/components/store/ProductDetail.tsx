@@ -23,6 +23,7 @@ import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import type { MoneyDto } from '@tiendafy/types';
 import { INPUT_LIGHT_10 } from './styles';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 
 interface Variant {
   id: string;
@@ -328,6 +329,7 @@ export function ProductDetail({
             </span>
           )}
         </div>
+        <PriceWithoutTaxes amount={shown.price.amount} currency={shown.price.currency} />
         {cashPrice !== null && (
           <div className="mt-1">
             <span className="text-xl font-bold text-primary-ink">

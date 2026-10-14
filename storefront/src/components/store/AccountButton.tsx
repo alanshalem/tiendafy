@@ -96,9 +96,16 @@ export function AccountButton() {
   );
 }
 
-function AuthModal({ onClose }: { onClose: () => void }) {
+/** Entrar, registrarse o recuperar la clave. También lo abre "Mi cuenta" sin sesión. */
+export function AuthModal({
+  onClose,
+  initialMode = 'login',
+}: {
+  onClose: () => void;
+  initialMode?: 'login' | 'register';
+}) {
   const { login, register, forgot, googleUrl } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
