@@ -99,16 +99,16 @@ describe('editor de diseño: guardar y publicar', () => {
     expect(JSON.stringify(drafts(api).at(-1)!.body)).not.toContain('marca abcdef');
   });
 
-  it('Ctrl+Z deshace y Ctrl+Shift+Z / Ctrl+Y rehacen (paso por paso, fuera de los campos)', async () => {
+  it('Ctrl+Z deshace y Ctrl+Shift+Z / Ctrl+Y rehacen (lo tipeado de corrido es un solo paso)', async () => {
     const { api, user } = await openEditor();
     const field = await changeCss(user, '/* fin */');
     const css = () => (drafts(api).at(-1)!.body as { customCss: string }).customCss;
     await waitFor(() => expect(css()).toBe('/* fin */'), { timeout: 3000 });
     (field as HTMLTextAreaElement).blur();
 
-    // Cada tecla fue un paso: deshacer saca el último carácter.
+    // Las teclas seguidas en el mismo campo se juntan: deshacer vuelve a como estaba antes de tipear.
     await user.keyboard('{Control>}z{/Control}');
-    await waitFor(() => expect(css()).toBe('/* fin *'), { timeout: 3000 });
+    await waitFor(() => expect(css()).toBe(''), { timeout: 3000 });
     await user.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
     await waitFor(() => expect(css()).toBe('/* fin */'), { timeout: 3000 });
     await user.keyboard('{Control>}z{/Control}');

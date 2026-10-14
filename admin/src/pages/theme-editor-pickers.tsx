@@ -3,7 +3,7 @@ import { GripVertical, X, Plus } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { moveItem } from '../lib/arrays';
 import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
-import { Field, TextInput, Select, INPUT_BASE } from './theme-editor-inputs';
+import { INPUT_BASE } from './theme-editor-inputs';
 
 interface PickProduct {
   id: string;
@@ -159,80 +159,6 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
         {value.length > 0 ? 'Arrastrá para reordenar. ' : ''}Si no elegís ninguno, se muestran
         automáticamente.
       </p>
-    </div>
-  );
-}
-
-const INFO_ICONS = [
-  { value: 'shipping', label: 'Envíos' },
-  { value: 'card', label: 'Tarjetas de crédito' },
-  { value: 'security', label: 'Seguridad' },
-  { value: 'gift', label: 'Regalo / Promo' },
-  { value: 'support', label: 'Atención' },
-  { value: 'returns', label: 'Cambios' },
-];
-
-export interface InfoItem {
-  icon?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-}
-export function InfoBarEditor({ items, onChange }: { items: InfoItem[]; onChange: (v: InfoItem[]) => void }) {
-  const list = items.length > 0 ? items : [{ icon: 'shipping' }, { icon: 'card' }, { icon: 'security' }];
-  const update = (i: number, patch: InfoItem) =>
-    onChange(list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  return (
-    <div className="space-y-4">
-      {list.map((it, i) => (
-        <div key={i} className="rounded-md border border-border p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-              Banner {i + 1}
-            </span>
-            {list.length > 1 && (
-              <button
-                onClick={() => onChange(list.filter((_, idx) => idx !== i))}
-                className="text-xs text-danger hover:underline"
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Field label="Ícono">
-              <Select
-                value={it.icon ?? 'shipping'}
-                onChange={(v) => update(i, { icon: v })}
-                options={INFO_ICONS}
-              />
-            </Field>
-            <TextInput
-              value={it.title ?? ''}
-              onChange={(v) => update(i, { title: v })}
-              placeholder="Título"
-            />
-            <TextInput
-              value={it.description ?? ''}
-              onChange={(v) => update(i, { description: v })}
-              placeholder="Descripción"
-            />
-            <TextInput
-              value={it.link ?? ''}
-              onChange={(v) => update(i, { link: v })}
-              placeholder="Link (opcional)"
-            />
-          </div>
-        </div>
-      ))}
-      {list.length < 4 && (
-        <button
-          onClick={() => onChange([...list, { icon: 'shipping' }])}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-        >
-          <Plus className="h-4 w-4" /> Agregar banner
-        </button>
-      )}
     </div>
   );
 }
