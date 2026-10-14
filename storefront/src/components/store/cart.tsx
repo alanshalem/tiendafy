@@ -11,6 +11,16 @@ import { InitialFallback } from './InitialFallback';
 import { usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
+import {
+  fetchVariantSnapshots,
+  issueText,
+  lineIssue,
+  mergePriceChanges,
+  reprice,
+  type Availability,
+  type LineIssue,
+  type PriceChange,
+} from '@/lib/cart-pricing';
 
 export { cartStorageKey, couponStorageKey };
 
@@ -43,6 +53,16 @@ interface CartContextValue {
   remove: (variantId: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
+  /** Trae precio y stock vigentes y actualiza las líneas (ver lib/cart-pricing). */
+  refreshPrices: () => Promise<void>;
+  /** Precios que cambiaron desde que se agregaron, para avisarle al comprador. */
+  priceChanges: PriceChange[];
+  /** Lo que impide comprar cada línea (agotada, despublicada, menos stock). */
+  issues: Record<string, LineIssue>;
+  /** true si alguna línea tiene un problema: no se puede seguir a pagar. */
+  blocked: boolean;
+  /** Unidades por variante según la última consulta (null = no se consultó). */
+  availability: Availability | null;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -97,9 +117,31 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
     setLines(next);
   };
 
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
+  const [availability, setAvailability] = useState<Availability | null>(null);
+
+  // Se aplica sobre las líneas de ESE momento (no las de cuando salió el
+  // pedido): si mientras tanto el comprador cambió una cantidad, se respeta.
+  const refreshPrices = async () => {
+    const snapshots = await fetchVariantSnapshots(
+      storeKey,
+      current.current.map((l) => l.variantId),
+    );
+    if (!snapshots) return;
+    const result = reprice(current.current, snapshots);
+    if (result.changes.length > 0) mutate(() => result.lines);
+    setPriceChanges((prev) => mergePriceChanges(prev, result.changes));
+    setAvailability(result.availability);
+  };
+
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((s, l) => s + l.quantity, 0);
     const totalAmount = lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0);
+    const issues: Record<string, LineIssue> = {};
+    for (const l of lines) {
+      const issue = lineIssue(l, availability);
+      if (issue) issues[l.variantId] = issue;
+    }
     return {
       lines,
       hydrated,
@@ -109,6 +151,12 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       tenantId: storeKey,
       open,
       setOpen,
+      refreshPrices,
+      // Solo de lo que sigue en el carrito.
+      priceChanges: priceChanges.filter((c) => lines.some((l) => l.variantId === c.variantId)),
+      issues,
+      blocked: Object.keys(issues).length > 0,
+      availability,
       add: (line, qty = 1) =>
         mutate((prev) => {
           const existing = prev.find((l) => l.variantId === line.variantId);
@@ -128,9 +176,39 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       remove: (variantId) => mutate((prev) => prev.filter((l) => l.variantId !== variantId)),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, hydrated, open, storeKey]);
+  }, [lines, hydrated, open, storeKey, priceChanges, availability]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+/** "El precio de X cambió de $A a $B": lo que el comprador tiene que ver antes de pagar. */
+export function PriceChangeNotice({
+  changes,
+  className = '',
+}: {
+  changes: PriceChange[];
+  className?: string;
+}) {
+  if (changes.length === 0) return null;
+  return (
+    <div
+      role="status"
+      className={`space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 ${className}`}
+    >
+      {changes.map((c) => (
+        <p key={c.variantId}>
+          El precio de <strong>{c.productName}</strong> cambió de {formatMoney(c.from, c.currency)} a{' '}
+          {formatMoney(c.to, c.currency)}.
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** El problema de una línea (agotada, despublicada, menos stock), si tiene. */
+export function LineIssueText({ issue }: { issue: LineIssue | undefined }) {
+  if (!issue) return null;
+  return <p className="mt-1 text-xs font-medium text-red-600">{issueText(issue)}</p>;
 }
 
 interface CartConfig {
@@ -159,7 +237,22 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
   // ficha (agregar "la primera" era venderle un talle que no eligió).
   const suggested = all.filter((s) => !(s.stock != null && s.stock <= 0));
   const href = usePreviewHref();
-  const { lines, open, setOpen, setQty, remove, totalAmount, currency, add, tenantId } = useCart();
+  const {
+    lines,
+    open,
+    setOpen,
+    setQty,
+    remove,
+    totalAmount,
+    currency,
+    add,
+    tenantId,
+    refreshPrices,
+    priceChanges,
+    issues,
+    blocked,
+    availability,
+  } = useCart();
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
@@ -183,6 +276,13 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
 
   // A11y: enfoca el drawer al abrir, atrapa el Tab dentro y restaura el foco al cerrar.
   const drawerRef = useFocusTrap<HTMLElement>(open);
+
+  // Cada vez que se abre, los precios y el stock se traen de nuevo: lo
+  // guardado es de cuando se agregó, quizás hace días.
+  useEffect(() => {
+    if (open && lines.length > 0) void refreshPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Cerrar con Escape (consistente con los otros modales del storefront).
   useEffect(() => {
@@ -285,6 +385,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
         ) : (
           <>
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+              <PriceChangeNotice changes={priceChanges} />
               {lines.map((l) => (
                 <div key={l.variantId} className="flex gap-3 border-b border-black/10 pb-3">
                   {l.image ? (
@@ -310,7 +411,9 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                       <button
                         onClick={() => setQty(l.variantId, l.quantity + 1)}
                         aria-label="Sumar"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                        // Con el stock a la vista, no deja pedir más de lo que hay.
+                        disabled={l.quantity >= (availability?.[l.variantId] ?? Infinity)}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15 disabled:opacity-40"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -321,6 +424,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                         Quitar
                       </button>
                     </div>
+                    <LineIssueText issue={issues[l.variantId]} />
                   </div>
                   <div className="text-sm font-semibold tabular-nums">
                     {formatMoney(l.priceAmount * l.quantity, l.currency)}
@@ -439,11 +543,17 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
               {cart?.notice && (
                 <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>
               )}
+              {blocked && (
+                <p className="mb-2 text-xs font-medium text-red-600">
+                  Revisá los productos marcados para poder seguir.
+                </p>
+              )}
               <button
                 onClick={() => {
                   window.location.href = '/checkout';
                 }}
-                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg"
+                disabled={blocked}
+                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {cart?.checkoutButtonText || 'Iniciar compra'}
               </button>

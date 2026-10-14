@@ -190,6 +190,54 @@ describe('checkout: antes de empezar', () => {
   });
 });
 
+describe('checkout: precios y stock de hoy', () => {
+  const current = (amount: number, available = 10) => ({
+    items: [{ variantId: LINE.variantId, price: { amount, currency: 'ARS' }, available }],
+  });
+
+  it('si el precio cambió desde que se agregó, lo avisa y cobra con el nuevo', async () => {
+    store({
+      payway: { enabled: true, publicKey: 'pk', baseUrl: 'https://pw', siteId: '1', installmentOptions: [1] },
+    });
+    api.on('GET', '/api/v1/products/variants', current(180_000));
+    const user = await open();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /El precio de Taladro cambió de .*1\.500.* a .*1\.800/,
+    );
+    // El total y el formulario de pago se arman con el precio nuevo.
+    expect(JSON.parse(localStorage.getItem(cartStorageKey(fixtureTenantId))!)[0].priceAmount).toBe(180_000);
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
+    expect(screen.getByRole('button', { name: /Pagar .*3\.600.* con Payway/ })).toBeInTheDocument();
+  });
+
+  it('una línea sin stock bloquea el pago hasta quitarla', async () => {
+    store({
+      cart: [LINE, { ...LINE, variantId: '55555555-5555-5555-5555-555555555555', productName: 'Mecha' }],
+    });
+    api.on('GET', '/api/v1/products/variants', current(150_000, 1)); // Mecha ya no se vende; quedan 1 de 2
+    const user = await open();
+    expect(screen.getByRole('alert')).toHaveTextContent(/ya no están disponibles/);
+    expect(screen.getByText('Ya no está a la venta. Quitalo para seguir.')).toBeInTheDocument();
+    expect(screen.getByText('Queda 1 sola unidad. Bajá la cantidad para seguir.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeDisabled();
+
+    await user.click(screen.getAllByRole('button', { name: 'Quitar' })[1]!);
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+    expect(screen.getByText('Tu carrito está vacío.')).toBeInTheDocument();
+  });
+
+  it('si no se puede verificar, sigue con lo guardado (el cobro usa igual el precio vigente)', async () => {
+    store();
+    offline('/products/variants');
+    const user = await open();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await deliverAndContinue(user);
+    expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
+  });
+});
+
 describe('checkout: paso de entrega', () => {
   it('valida cada dato en orden antes de pasar al pago', async () => {
     store({ methods: { items: [DELIVERY] }, settings: { requireDocument: true } });
@@ -340,20 +388,18 @@ describe('checkout: pago', () => {
     expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toMatchObject({ orderId: ORDER });
   });
 
-  it('el Brick: en proceso va a "pendiente" sin vaciar el carrito; rechazado lo dice ahí mismo', async () => {
+  it.each([
+    ['in_process', 'va a "pendiente"', `/checkout/pending?order=${ORDER}`],
+    ['rejected', 'lo dice ahí mismo', null],
+  ])('el Brick %s: %s y no vacía el carrito', async (status, _, goes) => {
     store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'in_process' });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status });
     const user = await open();
     await deliverAndContinue(user);
     await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
     await settle(3);
-    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/pending?order=${ORDER}`);
-    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
-
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'rejected' });
-    await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
-    await settle(3);
-    expect(screen.getAllByText(/rechaz|no se pudo|fall/i).length).toBeGreaterThan(0);
+    if (goes) expect(browser.goTo).toHaveBeenCalledWith(goes);
+    else expect(screen.getAllByText(/rechaz|no se pudo|fall/i).length).toBeGreaterThan(0);
     expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 

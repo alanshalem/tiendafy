@@ -448,6 +448,49 @@ public static partial class ProductEndpoints
             return Results.NoContent();
         });
 
+        // Storefront: precio y stock VIGENTES de las variantes del carrito. El
+        // carrito guarda el precio del momento en que se agregó, y el checkout
+        // cobra el de hoy: sin esto el comprador veía un total y pagaba otro.
+        // Solo variantes de productos publicados de esta tienda (una que ya no
+        // se vende no aparece), y sin el costo, que nunca sale al navegador.
+        products.MapGet("/variants", async (
+            ITenantContext tenant,
+            Catalog.Contracts.ICatalogCheckoutQuery catalog,
+            Inventory.Core.Domain.IStockRepository stockRepository,
+            CancellationToken ct,
+            string? ids = null) =>
+        {
+            var wanted = (ids ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(x => Guid.TryParse(x, out var g) ? g : Guid.Empty)
+                .Where(g => g != Guid.Empty)
+                .Distinct()
+                .Take(100)
+                .ToList();
+            if (wanted.Count == 0) return Results.Ok(new { items = Array.Empty<object>() });
+
+            var variants = (await catalog.GetVariantsAsync(tenant.TenantId.Value, wanted, ct))
+                .Where(v => v.ProductIsActive)
+                .ToList();
+            var stock = variants.Count > 0
+                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variants.Select(v => v.VariantId).ToList(), ct))
+                    .ToDictionary(s => s.VariantId, s => s.Available)
+                : new Dictionary<Guid, int>();
+
+            return Results.Ok(new
+            {
+                items = variants.Select(v => new
+                {
+                    variantId = v.VariantId,
+                    productName = v.ProductName,
+                    variantLabel = v.VariantDescription,
+                    price = v.Price,
+                    // Sin fila de stock = 0, igual que la reserva del checkout.
+                    available = stock.GetValueOrDefault(v.VariantId),
+                }),
+            });
+        });
+
         // Storefront: detalle por slug (solo productos publicados).
         products.MapGet("/by-slug/{slug}", async (
             string slug,

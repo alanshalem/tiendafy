@@ -225,6 +225,52 @@ describe('carrito', () => {
     expect(screen.queryByRole('button', { name: 'Sumar' })).not.toBeInTheDocument();
   });
 
+  it('al abrirse trae el precio de hoy, lo guarda y avisa qué cambió', async () => {
+    api.on('GET', '/api/v1/products/variants', {
+      items: [{ variantId: 'v-1', price: { amount: 45_000_00, currency: 'ARS' }, available: 1 }],
+    });
+    const user = await show();
+    await settle(1);
+    const d = within(drawer());
+    expect(d.getByRole('status')).toHaveTextContent(
+      /El precio de Mancuerna cambió de .*40\.000.* a .*45\.000/,
+    );
+    expect(saved()[0]!.priceAmount).toBe(45_000_00);
+    expect(api.calls.some((c) => c.path === '/api/v1/products/variants?ids=v-1')).toBe(true);
+    // Queda 1: no deja sumar más de lo que hay.
+    expect(d.getByRole('button', { name: 'Sumar' })).toBeDisabled();
+    expect(d.getByRole('button', { name: 'Ir a pagar' })).toBeEnabled();
+    await user.click(d.getByRole('button', { name: 'Restar' }));
+    expect(saved()).toEqual([]);
+  });
+
+  it('una línea agotada o despublicada se marca y no deja seguir hasta quitarla', async () => {
+    api.on('GET', '/api/v1/products/variants', {
+      items: [{ variantId: 'v-1', price: { amount: 40_000_00, currency: 'ARS' }, available: 0 }],
+    });
+    const user = await show([LINE, { ...LINE, variantId: 'v-9', productName: 'Barra' }]);
+    await settle(1);
+    const d = within(drawer());
+    expect(d.getByText('Se quedó sin stock. Quitalo para seguir.')).toBeInTheDocument();
+    expect(d.getByText('Ya no está a la venta. Quitalo para seguir.')).toBeInTheDocument();
+    expect(d.getByText('Revisá los productos marcados para poder seguir.')).toBeInTheDocument();
+    expect(d.getByRole('button', { name: 'Ir a pagar' })).toBeDisabled();
+    expect(d.queryByRole('status')).not.toBeInTheDocument(); // ningún precio cambió
+
+    const [first, second] = d.getAllByRole('button', { name: 'Quitar' });
+    await user.click(second!);
+    await user.click(first!);
+    expect(saved()).toEqual([]);
+  });
+
+  it('si no se puede verificar, sigue con lo guardado sin bloquear', async () => {
+    api.on('GET', '/api/v1/products/variants', {}, 503);
+    await show();
+    await settle(1);
+    expect(within(drawer()).getByRole('button', { name: 'Ir a pagar' })).toBeEnabled();
+    expect(saved()[0]!.priceAmount).toBe(LINE.priceAmount);
+  });
+
   it('si otra pestaña cambia el carrito guardado, este se entera', async () => {
     const user = await show();
     await user.keyboard('{Escape}');

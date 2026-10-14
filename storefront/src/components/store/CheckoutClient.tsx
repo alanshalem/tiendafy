@@ -9,7 +9,7 @@ import { CheckoutResult } from './CheckoutResult';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
-import { cartStorageKey, couponStorageKey, type CartLine, type StoredCoupon } from './cart';
+import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { finishPurchase } from '@/lib/cart-storage';
 import { hardNavigate } from '@/lib/navigation';
@@ -115,8 +115,9 @@ type Mode = 'PRO' | 'API';
 type Step = 'entrega' | 'pago';
 
 export function CheckoutClient({ tenantId }: { tenantId: string }) {
-  const [lines, setLines] = useState<CartLine[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  // El carrito es el de la tienda (el mismo del ícono): así lo que se reprecia
+  // o se quita acá se ve en todos lados.
+  const { lines, hydrated, refreshPrices, priceChanges, issues, blocked, remove } = useCart();
   const [mode, setMode] = useState<Mode | null>(null);
   const [pubKey, setPubKey] = useState<string | null>(null);
   const [payway, setPayway] = useState<PaywayPublicConfig | null>(null);
@@ -171,16 +172,24 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<'success' | 'pending' | 'failure' | null>(null);
+  const [result, setResult] = useState<'failure' | null>(null);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    setLines(readJson<CartLine[]>(cartStorageKey(tenantId), []));
     // El cupón que el comprador aplicó en el carrito llega hasta acá; igual se
     // revalida contra el servidor antes de cobrar (nunca se confía en el dato
     // guardado en el navegador).
     setCoupon(readJson<StoredCoupon | null>(couponStorageKey(tenantId), null));
-    setHydrated(true);
   }, [tenantId]);
+
+  // Precio y stock de hoy, antes de mostrar un total: el carrito guarda los
+  // de cuando se agregó cada cosa, y el cobro sale por los vigentes.
+  const repriced = useRef(false);
+  useEffect(() => {
+    if (repriced.current || !hydrated || lines.length === 0) return;
+    repriced.current = true;
+    void refreshPrices();
+  }, [hydrated, lines.length, refreshPrices]);
 
   useEffect(() => {
     const headers = tenantHeaders(tenantId);
@@ -383,10 +392,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   // El cupón que vino del carrito se revalida con el subtotal real de esta
   // compra: si venció o ya no llega al mínimo, se cae acá y no en el cobro.
-  const revalidated = useRef(false);
+  // Y otra vez si el subtotal cambia (un precio actualizado, una línea quitada).
+  const validatedFor = useRef<number | null>(null);
   useEffect(() => {
-    if (revalidated.current || !hydrated || !coupon || subtotal <= 0) return;
-    revalidated.current = true;
+    if (!hydrated || !coupon || subtotal <= 0 || validatedFor.current === subtotal) return;
+    validatedFor.current = subtotal;
     applyCoupon(coupon.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, coupon, subtotal]);
@@ -478,6 +488,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
    * carga medición, a propósito). Carga completa: "listo" arranca de cero.
    */
   const finish = (orderId: string, kind: 'success' | 'pending') => {
+    // Mientras carga "listo": sin esto, el carrito recién vaciado mostraba un
+    // instante "Tu carrito está vacío" justo después de pagar.
+    setLeaving(true);
     if (kind === 'success') finishPurchase(tenantId, orderId);
     hardNavigate(`/checkout/${kind}?order=${encodeURIComponent(orderId)}`);
   };
@@ -623,7 +636,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
 
-  if (!hydrated || mode === null || shippingOptions === null)
+  if (leaving || !hydrated || mode === null || shippingOptions === null)
     return (
       <main className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin opacity-50" />
@@ -666,6 +679,14 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         <div className="h-px flex-1 bg-black/20" />
         <StepDot label="Pago" state={step === 'pago' ? 'current' : 'todo'} />
       </div>
+
+      <PriceChangeNotice changes={priceChanges} className="mx-auto mb-6 max-w-5xl text-sm" />
+      {blocked && (
+        <p role="alert" className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+          Algunos productos de tu carrito ya no están disponibles como los agregaste. Revisalos en el resumen
+          para poder pagar.
+        </p>
+      )}
 
       <div className={settings.singleColumn ? 'grid gap-8' : 'grid gap-8 lg:grid-cols-[1fr_360px]'}>
         <div>
@@ -1021,7 +1042,8 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
               <button
                 onClick={continueToPago}
-                className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg sm:max-w-xs"
+                disabled={blocked}
+                className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-xs"
               >
                 Continuar para el pago
               </button>
@@ -1123,7 +1145,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 </div>
               )}
 
-              {payway && method === 'payway' ? (
+              {blocked ? (
+                // Ningún medio de pago mientras haya algo que no se puede vender:
+                // el cobro fallaría igual, pero después de pedir la tarjeta.
+                <p className="text-sm text-red-700">
+                  Quitá los productos marcados en el resumen para poder pagar.
+                </p>
+              ) : payway && method === 'payway' ? (
                 <PaywayCardForm
                   config={payway}
                   amountLabel={formatMoney(total, currency)}
@@ -1163,13 +1191,27 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         {/* Resumen del pedido */}
         <aside className="h-fit rounded-lg border border-black/10 p-4 text-sm lg:sticky lg:top-6">
           {lines.map((l) => (
-            <div key={l.variantId} className="flex items-center gap-3 py-1.5">
-              {l.image && <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />}
-              <span className="flex-1">
-                {l.productName}
-                {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}
-              </span>
-              <span className="tabular-nums">{formatMoney(l.priceAmount * l.quantity, l.currency)}</span>
+            <div key={l.variantId} className="py-1.5">
+              <div className="flex items-center gap-3">
+                {l.image && <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />}
+                <span className="flex-1">
+                  {l.productName}
+                  {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}
+                </span>
+                <span className="tabular-nums">{formatMoney(l.priceAmount * l.quantity, l.currency)}</span>
+              </div>
+              {issues[l.variantId] && (
+                <div className="flex items-start justify-between gap-2">
+                  <LineIssueText issue={issues[l.variantId]} />
+                  <button
+                    type="button"
+                    onClick={() => remove(l.variantId)}
+                    className="mt-1 shrink-0 text-xs font-semibold text-red-600 underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
