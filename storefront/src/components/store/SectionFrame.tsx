@@ -1,10 +1,10 @@
 'use client';
 
 import { Component, Suspense, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
-import * as Sentry from '@sentry/nextjs';
 import { contrastText, mixRgb } from '@tiendafy/types';
 import type { SectionSpacing, ThemeSection } from '@/lib/theme';
 import { SectionStyleContext } from './section-context';
+import { reportError } from '@/lib/report-error';
 
 /*
  * El marco de cada sección del inicio: aplica lo que es común a todas
@@ -71,7 +71,7 @@ class SectionErrorBoundary extends Component<{ type: string; children: ReactNode
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    Sentry.captureException(error, {
+    reportError(error, {
       tags: { area: 'home-section', sectionType: this.props.type },
       extra: { componentStack: info.componentStack },
     });
