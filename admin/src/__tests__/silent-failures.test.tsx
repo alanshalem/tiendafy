@@ -31,7 +31,7 @@ describe('fallas que antes no se veían', () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderApp('/mensajes');
     await settle(4);
-    await user.click(screen.getAllByRole('button', { name: /Leído/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /Marcar como leído/ })[0]!);
     expect(await screen.findByText('No se pudo marcar como leído.')).toBeInTheDocument();
   });
 });
