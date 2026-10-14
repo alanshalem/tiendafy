@@ -45,7 +45,11 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
             new { name = "Moto", kind = "delivery", price = 1_500m })).GetProperty("id").GetGuid();
         await merchant.PostAsync("/api/v1/coupons", new
         {
-            code = "TRA10", type = "percent", value = 10, minPurchase = 0L, active = true,
+            code = "TRA10",
+            type = "percent",
+            value = 10,
+            minPurchase = 0L,
+            active = true,
         });
 
         var shopper = new Shopper(merchant);
@@ -252,14 +256,23 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         // Prender la transferencia sin cuenta no se puede.
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Put, "/api/v1/admin/payments/options", new
         {
-            transferEnabled = true, discountPercent = 10, accountHolder = "X", holdHours = 24,
-            cashOnPickupEnabled = false, installmentsMax = 0,
+            transferEnabled = true,
+            discountPercent = 10,
+            accountHolder = "X",
+            holdHours = 24,
+            cashOnPickupEnabled = false,
+            installmentsMax = 0,
         })).StatusCode);
         // Un CBU tiene 22 números.
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Put, "/api/v1/admin/payments/options", new
         {
-            transferEnabled = true, discountPercent = 10, accountHolder = "X", cbu = "123", holdHours = 24,
-            cashOnPickupEnabled = false, installmentsMax = 0,
+            transferEnabled = true,
+            discountPercent = 10,
+            accountHolder = "X",
+            cbu = "123",
+            holdHours = 24,
+            cashOnPickupEnabled = false,
+            installmentsMax = 0,
         })).StatusCode);
 
         var saved = await merchant.PutAsync("/api/v1/admin/payments/options", TransferOptions(discountPercent: 15));
