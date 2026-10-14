@@ -480,7 +480,7 @@ export const DISENO = {
         steps: [
           'Tocá “Agregar al menú” y elegí qué agregar: una categoría, un producto, una página o cualquier link.',
           'Tocá un ítem para cambiarle el nombre (“Nombre en el menú”) o a dónde lleva.',
-          'Ordená con las flechas de subir y bajar. Para armar un submenú, usá “Meter dentro de «…»” (un solo nivel) y “Sacar al primer nivel” para deshacerlo.',
+          'Cada ítem tiene su menú ⋯: “Mover arriba”, “Mover abajo”, “Meter dentro de «…»” para armar un submenú (un solo nivel), “Sacar al primer nivel” para deshacerlo y “Quitar del menú” (los fijos y las páginas se ocultan con el ojo, no se quitan).',
           'En una categoría, prendé “Mostrar subcategorías”: en la computadora abre un menú grande con las subcategorías en columnas (un mega-menú) y en el celular una lista desplegable.',
         ],
         blocks: [
