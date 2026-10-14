@@ -102,7 +102,7 @@ describe('secciones de productos de la portada', () => {
   it('la vista previa del editor arranca con lo resuelto en el servidor', async () => {
     api.on('GET', '/api/v1/theme/draft', { ...theme, sections });
     sectionsByKind({ 'best-sellers': [], newest: ['Lo último'], 'on-sale': ['Rebajado'] });
-    await renderPage(PreviewPage, '/preview');
+    await renderPage(PreviewPage, '/preview?pt=tok-firmado');
     // Destacados sin ventas todavía: lo último.
     expect(within(grid('Lo que más sale')).getByText('Lo último')).toBeInTheDocument();
     expect(within(grid('Ofertas de verdad')).getByText('Rebajado')).toBeInTheDocument();

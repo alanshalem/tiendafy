@@ -191,6 +191,8 @@ export function CampaignModal({
       campaign
         ? api.put<Campaign>(`/api/v1/admin/campaigns/${campaign.id}`, buildPayload())
         : api.post<Campaign>('/api/v1/admin/campaigns', buildPayload()),
+    // Cada uso (borrador, prueba, envío) avisa el error con su propio mensaje.
+    meta: { errorShown: true },
   });
 
   const saveDraft = () =>

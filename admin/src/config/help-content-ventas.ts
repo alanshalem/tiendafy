@@ -252,8 +252,8 @@ export const VENTAS = {
         steps: [
           'Tildá las ventas en la lista (o todas las de la página): aparece una barra con “N seleccionadas”. La selección se mantiene aunque cambies de página.',
           '“Marcar como enviadas” (hasta 100 por vez): cada comprador recibe su aviso. Las que no estaban pagadas o ya estaban enviadas se saltean.',
-          '“Etiquetas” baja la etiqueta de cada venta que ya tiene un envío de Zipnova o Andreani generado. Las que no tienen envío se listan para que lo generes desde su detalle.',
-          '“Remitos” abre una hoja por venta para imprimir y meter en la caja: a quién va, a dónde, qué lleva (cantidad, producto y SKU, sin precios) y una columna para tildar al armar el paquete.',
+          '“Etiquetas” junta en un solo PDF las etiquetas de las ventas que ya tienen un envío de carrier generado (el mismo PDF que arma Despacho). Las que no tienen envío, o cuyo carrier no da etiqueta, se listan con el motivo.',
+          '“Remitos” baja un PDF con un remito por venta, para imprimir y meter en la caja.',
           '“Facturar” emite la factura de cada venta cobrada, de a una; las que ya tenían factura no se vuelven a facturar. Si la facturación todavía no está configurada, el botón dice “Configurá la facturación”.',
           '“Exportar” baja un CSV solo con las ventas elegidas.',
           'Al terminar cada acción ves cuáles salieron y cuáles no, con el motivo; las que fallaron quedan tildadas para reintentar.',

@@ -16,6 +16,10 @@ public sealed class PurchasingDbContext : DbContext
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<StockAlertSettings> StockAlertSettings => Set<StockAlertSettings>();
+    public DbSet<StockAlertRule> StockAlertRules => Set<StockAlertRule>();
+    public DbSet<StockAlertState> StockAlertStates => Set<StockAlertState>();
+    public DbSet<StockAlertOptOut> StockAlertOptOuts => Set<StockAlertOptOut>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,5 +80,41 @@ public sealed class PurchasingDbContext : DbContext
 
         po.Navigation(p => p.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
         po.Navigation(p => p.Expenses).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Alertas de stock bajo (ver StockAlert.cs).
+        var settings = modelBuilder.Entity<StockAlertSettings>();
+        settings.ToTable("stock_alert_settings");
+        settings.HasKey(s => s.Id);
+        settings.Property(s => s.Id).ValueGeneratedNever();
+        settings.Property(s => s.Mode).HasMaxLength(12).IsRequired();
+        settings.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        settings.HasIndex(s => s.TenantId).IsUnique();
+        // El worker cruza tiendas buscando las que tienen la pasada vencida.
+        settings.HasIndex(s => new { s.Mode, s.NextRunAtUtc });
+
+        var rule = modelBuilder.Entity<StockAlertRule>();
+        rule.ToTable("stock_alert_rules");
+        rule.HasKey(r => r.Id);
+        rule.Property(r => r.Id).ValueGeneratedNever();
+        rule.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        rule.HasIndex(r => new { r.TenantId, r.VariantId }).IsUnique();
+        rule.Ignore(r => r.IsDefault);
+
+        var state = modelBuilder.Entity<StockAlertState>();
+        state.ToTable("stock_alert_states");
+        state.HasKey(s => s.Id);
+        state.Property(s => s.Id).ValueGeneratedNever();
+        state.Property(s => s.Reason).HasMaxLength(12);
+        state.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        state.HasIndex(s => new { s.TenantId, s.VariantId }).IsUnique();
+        state.HasIndex(s => new { s.TenantId, s.IsLow });
+        state.Ignore(s => s.PendingNotification);
+
+        var optOut = modelBuilder.Entity<StockAlertOptOut>();
+        optOut.ToTable("stock_alert_opt_outs");
+        optOut.HasKey(o => o.Id);
+        optOut.Property(o => o.Id).ValueGeneratedNever();
+        optOut.HasQueryFilter(o => !_filterByTenant || o.TenantId == _tenantGuid);
+        optOut.HasIndex(o => new { o.TenantId, o.UserId }).IsUnique();
     }
 }

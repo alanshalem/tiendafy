@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Mail, MailOpen, Scale } from 'lucide-react';
-import { Badge, cn, Input } from '@tiendafy/ui';
+import { Badge, cn, Input, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
-import { api } from '../lib/api';
+import { api, errMsg } from '../lib/api';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
@@ -48,6 +48,7 @@ const LIST_DEFAULTS = { filtro: 'todos', pagina: 1 };
 export function MessagesPage() {
   const { store } = useStore();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const list = useListParams(LIST_DEFAULTS);
   const filter = list.values.filtro === 'repentance' ? 'repentance' : 'todos';
   const page = list.values.pagina;
@@ -64,8 +65,13 @@ export function MessagesPage() {
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   const markRead = async (id: string) => {
-    await api.post(`/api/v1/contact/messages/${id}/read`, {});
-    qc.invalidateQueries({ queryKey: ['contact-messages', store?.id] });
+    try {
+      await api.post(`/api/v1/contact/messages/${id}/read`, {});
+      qc.invalidateQueries({ queryKey: ['contact-messages', store?.id] });
+    } catch (e) {
+      // Antes la promesa rechazada quedaba sin atajar y el botón no decía nada.
+      toast(errMsg(e, 'No se pudo marcar como leído.'), { variant: 'error' });
+    }
   };
 
   if (!store) return <NoStoreSelected />;
@@ -100,6 +106,10 @@ export function MessagesPage() {
             </span>
           )}
           {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
+          {/* La bandeja junta esto con el chat posventa y Mercado Libre, y deja contestar por email. */}
+          <Link to="/bandeja?canal=contacto" className="text-sm font-medium text-primary hover:underline">
+            Responder desde la Bandeja
+          </Link>
         </div>
       </div>
 

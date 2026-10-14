@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
@@ -439,6 +440,16 @@ function PickingTab() {
       <p className="text-sm text-fg-muted">
         Elegí un pedido pagado y escaneá cada producto al empaquetarlo: si agarrás el equivocado, suena la
         alarma antes de despachar.
+        {can('orders.fulfill') && (
+          <>
+            {' '}
+            ¿Muchos pedidos juntos?{' '}
+            <Link to="/ventas/despacho" className="font-medium text-primary hover:underline">
+              Despacho
+            </Link>{' '}
+            arma el picking, las etiquetas y los remitos de todos.
+          </>
+        )}
       </p>
       <select
         aria-label="Pedido a preparar"

@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGetTenant = vi.hoisted(() => vi.fn());
 vi.mock('../api', () => ({ apiGetTenant }));
-vi.mock('../cache', () => ({ REVALIDATE: { catalog: 30, sitemap: 3600 } }));
 
 const pagina = (desde: number, n: number, hayMas: boolean) => ({
   items: Array.from({ length: n }, (_, i) => ({ slug: `p-${desde + i}` })),
@@ -41,7 +40,8 @@ describe('fetchAllActiveSlugs', () => {
     apiGetTenant.mockResolvedValueOnce(pagina(0, 3, false));
     const { fetchAllActiveSlugs } = await import('../catalog');
     await fetchAllActiveSlugs('t1');
-    expect(apiGetTenant.mock.calls[0]![2]).toEqual({ next: { revalidate: 3600 } });
+    // Con la etiqueta del catálogo: un cambio de productos la vence antes.
+    expect(apiGetTenant.mock.calls[0]![2]).toEqual({ next: { revalidate: 3600, tags: ['catalog:t1'] } });
   });
 
   it('no repite un producto que aparece en dos páginas', async () => {

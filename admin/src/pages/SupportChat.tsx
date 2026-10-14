@@ -103,6 +103,8 @@ export function SupportChatPage() {
   useEffect(() => {
     if (!store) return;
     const t = setInterval(() => {
+      // Con la pestaña oculta no se pregunta nada: nadie está mirando.
+      if (document.hidden) return;
       loadConvs();
       if (selected) loadMessages(selected);
     }, POLL_MS);
@@ -209,6 +211,12 @@ export function SupportChatPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
+        <Link
+          to="/bandeja?canal=posventa"
+          className="ml-auto mr-3 text-sm font-medium text-primary hover:underline"
+        >
+          Ver en la Bandeja
+        </Link>
         <button
           onClick={loadConvs}
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"

@@ -76,7 +76,7 @@ export const DISENO = {
           {
             type: 'callout',
             tone: 'info',
-            text: 'Después de publicar, la tienda puede tardar hasta medio minuto en mostrar el diseño nuevo a todos los visitantes. Si no lo ves enseguida, recargá en un ratito.',
+            text: 'Lo que publicás se ve en la tienda al recargarla: la tienda se entera en el momento. Lo mismo con los productos, precios, stock y categorías. Si alguna vez no lo ves, recargá en medio minuto: la tienda igual se pone al día sola.',
           },
         ],
       },

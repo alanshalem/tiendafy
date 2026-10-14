@@ -1,13 +1,13 @@
 import { Suspense, type ReactNode } from 'react';
 import { loadStorefront, type StorefrontData } from './storefront';
-import { fetchDraftTheme, fetchPublishedTheme, type ThemeConfig } from './theme';
+import { resolvePageTheme, type ThemeConfig } from './theme';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { PageSkeleton } from '@/components/store/Skeletons';
 
 /**
  * Resuelve lo común de toda página interna del storefront: tienda + tema
- * (draft si `?preview=1`) + el gate de "tienda en construcción". Devuelve un
+ * (draft si `?preview=1` con token válido) + el gate de "tienda en construcción". Devuelve un
  * `fallback` listo para renderizar, o los datos resueltos.
  *
  * La home (`/`) NO usa esto: tiene branches propios (eliminada / suspendida).
@@ -23,11 +23,7 @@ export async function resolveStorefrontPage(
   const data = await loadStorefront({ products });
   if (!data) return { ok: false, fallback: <div className="p-10 text-center">Tienda no encontrada.</div> };
 
-  const sp = await searchParams;
-  const preview = sp.preview === '1';
-  const theme = preview
-    ? await fetchDraftTheme(data.tenant.id, sp.pt)
-    : await fetchPublishedTheme(data.tenant.id);
+  const { theme, preview } = await resolvePageTheme(data.tenant.id, await searchParams);
 
   if (!preview && theme.comingSoon.enabled) {
     return {

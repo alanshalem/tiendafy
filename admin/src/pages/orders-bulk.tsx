@@ -3,7 +3,7 @@ import { Download, FileText, Loader2, Printer, Tag, Truck, X } from 'lucide-reac
 import { cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
-import { formatDateTime } from '../lib/format';
+import { base64ToBlob, type LabelBatch } from '../lib/fulfillment';
 import { orderNumber } from '../lib/orderNumber';
 import { useFiscalReady } from '../lib/useFiscalReady';
 import { SetupInvoicingLink } from '../components/SetupInvoicingLink';
@@ -59,7 +59,6 @@ function countSummary(items: BulkReport['items'], done: [string, string], skippe
  */
 export function OrdersBulkBar({
   selected,
-  storeName,
   canFulfill,
   canEmit,
   onReport,
@@ -68,7 +67,6 @@ export function OrdersBulkBar({
   reload,
 }: {
   selected: Order[];
-  storeName: string;
   canFulfill: boolean;
   canEmit: boolean;
   onReport: (report: BulkReport) => void;
@@ -80,7 +78,7 @@ export function OrdersBulkBar({
   const { toast } = useToast();
   const confirm = useConfirm();
   const fiscalReady = useFiscalReady();
-  const [busy, setBusy] = useState<null | 'fulfill' | 'labels' | 'invoice' | 'export'>(null);
+  const [busy, setBusy] = useState<null | 'fulfill' | 'labels' | 'slips' | 'invoice' | 'export'>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const ids = selected.map((o) => o.id);
   const count = selected.length;
@@ -119,65 +117,47 @@ export function OrdersBulkBar({
     }
   };
 
-  // Etiquetas: las que ya generó un carrier con etiqueta descargable (Zipnova
-  // o Andreani). Una venta sin envío generado no tiene etiqueta que imprimir:
-  // se avisa cuál, para generarla desde su detalle.
+  // Etiquetas: las de los carriers que ya tienen envío generado, juntas en un
+  // solo PDF (lo arma Despacho, el mismo que usa el depósito). Las que no
+  // tienen envío o cuyo carrier no da etiqueta se listan con el motivo.
   const labels = async () => {
     setBusy('labels');
-    const items: BulkReport['items'] = [];
     try {
-      for (const [index, o] of selected.entries()) {
-        setProgress(`Etiqueta ${index + 1} de ${count}…`);
-        const number = orderNumber(o.id);
-        if (o.isPickup) {
-          items.push({
-            id: o.id,
-            number,
-            result: 'skipped',
-            reason: 'Se retira en el local: no lleva etiqueta.',
-          });
-          continue;
-        }
-        try {
-          const label = await findLabel(o.id);
-          if (!label) {
-            items.push({
-              id: o.id,
-              number,
-              result: 'failed',
-              reason: 'No tiene un envío de Zipnova o Andreani generado: generalo desde su detalle.',
-            });
-            continue;
-          }
-          const blob = await api.download(label.path);
-          downloadBlob(blob, `etiqueta-${number.slice(1)}-${label.carrier}.pdf`);
-          items.push({ id: o.id, number, result: 'ok', reason: null });
-        } catch (e) {
-          items.push({
-            id: o.id,
-            number,
-            result: 'failed',
-            reason: errMsg(e, 'No se pudo bajar la etiqueta.'),
-          });
-        }
-      }
+      const batch = await api.post<LabelBatch>('/api/v1/fulfillment/labels', { orderIds: ids });
+      if (batch.pdfBase64 && batch.fileName)
+        downloadBlob(base64ToBlob(batch.pdfBase64, 'application/pdf'), batch.fileName);
+      const items: BulkReport['items'] = batch.results.map((r) => ({
+        id: r.orderId,
+        number: r.number,
+        result: r.status === 'ok' ? 'ok' : r.status === 'error' ? 'failed' : 'skipped',
+        reason:
+          r.reason ??
+          (r.status === 'sin-envio' ? 'No tiene un envío generado: generalo desde su detalle.' : null),
+      }));
       const report = {
-        summary: countSummary(items, ['etiqueta bajada', 'etiquetas bajadas'], 'se retiran'),
+        summary: countSummary(items, ['etiqueta en el PDF', 'etiquetas en el PDF'], 'sin etiqueta'),
         items,
       };
       onReport(report);
-      toast(report.summary, { variant: items.some((i) => i.result === 'failed') ? 'error' : 'success' });
+      toast(report.summary, { variant: batch.ok === 0 ? 'error' : 'success' });
+    } catch (e) {
+      toast(errMsg(e, 'No se pudieron armar las etiquetas.'), { variant: 'error' });
     } finally {
-      setProgress(null);
       setBusy(null);
     }
   };
 
-  const slips = () => {
-    if (!printPackingSlips(selected, storeName))
-      toast('El navegador bloqueó la ventana de impresión: permití las ventanas emergentes para el panel.', {
-        variant: 'error',
-      });
+  // Remitos: una hoja por venta para meter en la caja (PDF de Despacho).
+  const slips = async () => {
+    setBusy('slips');
+    try {
+      const blob = await api.downloadPost('/api/v1/fulfillment/packing-slips', { orderIds: ids });
+      downloadBlob(blob, `remitos-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      toast(errMsg(e, 'No se pudieron armar los remitos.'), { variant: 'error' });
+    } finally {
+      setBusy(null);
+    }
   };
 
   // Facturar de a una, en orden: el emisor ya no factura dos veces la misma
@@ -286,9 +266,16 @@ export function OrdersBulkBar({
             Etiquetas
           </button>
         )}
-        <button type="button" disabled={!!busy} onClick={slips} className={button}>
-          <Printer className="h-4 w-4" /> Remitos
-        </button>
+        {canFulfill && (
+          <button type="button" disabled={!!busy} onClick={slips} className={button}>
+            {busy === 'slips' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4" />
+            )}{' '}
+            Remitos
+          </button>
+        )}
         {canEmit &&
           (fiscalReady ? (
             <button type="button" disabled={!!busy} onClick={invoice} className={button}>
@@ -320,18 +307,6 @@ export function OrdersBulkBar({
       </div>
     </div>
   );
-}
-
-/** La etiqueta de un carrier ya generada para la venta, si hay una. */
-async function findLabel(orderId: string): Promise<{ carrier: string; path: string } | null> {
-  for (const carrier of ['zipnova', 'andreani']) {
-    const state = await api
-      .get<{ exists?: boolean }>(`/api/v1/admin/orders/${orderId}/${carrier}-shipment`)
-      .catch(() => null);
-    if (state && state.exists !== false)
-      return { carrier, path: `/api/v1/admin/orders/${orderId}/${carrier}-label` };
-  }
-  return null;
 }
 
 /** Lo que pasó con el lote, con el motivo de cada una que no salió. */
@@ -368,77 +343,4 @@ export function BulkReportPanel({ report, onClose }: { report: BulkReport; onClo
       )}
     </div>
   );
-}
-
-// ---- Remitos -----------------------------------------------------------------
-
-const esc = (s: string | null | undefined) =>
-  (s ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
-  );
-
-/**
- * Remitos para armar los paquetes: uno por hoja, con a quién va, a dónde y
- * qué lleva (sin precios: el remito viaja dentro de la caja). Es HTML
- * imprimible en una ventana aparte; el navegador ofrece imprimir o guardar
- * como PDF. Devuelve false si el navegador bloqueó la ventana.
- */
-export function printPackingSlips(orders: Order[], storeName: string): boolean {
-  // La ventana se abre en el mismo click (sin esperar nada antes): si no,
-  // el navegador la toma por una ventana emergente y la bloquea.
-  const win = window.open('', '_blank');
-  if (!win) return false;
-
-  const slips = orders
-    .map((o) => {
-      const rows = o.items
-        .map(
-          (i) =>
-            `<tr><td class="qty">${i.quantity}</td><td>${esc(i.productName)}${
-              i.variantDescription ? ` <span class="muted">· ${esc(i.variantDescription)}</span>` : ''
-            }</td><td class="sku">${esc(i.sku)}</td><td class="check"></td></tr>`,
-        )
-        .join('');
-      const units = o.items.reduce((sum, i) => sum + i.quantity, 0);
-      const destination = o.isPickup
-        ? `<p><strong>Retira en el local</strong>${o.shippingMethod ? ` · ${esc(o.shippingMethod)}` : ''}</p>`
-        : `<p>${esc(o.shippingAddress) || '<span class="muted">Sin dirección cargada</span>'}</p>${
-            o.shippingMethod ? `<p class="muted">${esc(o.shippingMethod)}</p>` : ''
-          }`;
-      return `<section class="slip">
-  <header><div><h1>Remito ${esc(orderNumber(o.id))}</h1><p class="muted">${esc(storeName)} · ${esc(
-    formatDateTime(o.createdAtUtc),
-  )}</p></div></header>
-  <div class="cols">
-    <div><h2>Para</h2><p><strong>${esc(o.buyerName || o.buyerEmail)}</strong></p>
-      ${o.buyerPhone ? `<p>${esc(o.buyerPhone)}</p>` : ''}${o.docNumber ? `<p>DNI/CUIT ${esc(o.docNumber)}</p>` : ''}</div>
-    <div><h2>${o.isPickup ? 'Entrega' : 'Envío'}</h2>${destination}${
-      o.tracking ? `<p>Seguimiento: ${esc(o.tracking)}</p>` : ''
-    }</div>
-  </div>
-  <table><thead><tr><th>Cant.</th><th>Producto</th><th>SKU</th><th>✓</th></tr></thead><tbody>${rows}</tbody></table>
-  <p class="total">${units} ${units === 1 ? 'unidad' : 'unidades'}</p>
-  ${o.notes ? `<p class="notes">Nota: ${esc(o.notes)}</p>` : ''}
-</section>`;
-    })
-    .join('');
-
-  win.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8">
-<title>Remitos (${orders.length})</title>
-<style>
-  body { font: 13px/1.45 system-ui, sans-serif; color: #111; margin: 0; }
-  .slip { padding: 24px 28px; page-break-after: always; break-after: page; }
-  .slip:last-child { page-break-after: auto; break-after: auto; }
-  h1 { font-size: 20px; margin: 0; } h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #555; margin: 0 0 4px; }
-  p { margin: 2px 0; } .muted { color: #666; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
-  table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; vertical-align: top; }
-  th { font-size: 11px; text-transform: uppercase; color: #555; } .qty { width: 48px; font-weight: 700; } .sku { font-family: ui-monospace, monospace; font-size: 12px; } .check { width: 28px; }
-  .total { margin-top: 10px; font-weight: 600; } .notes { margin-top: 10px; font-style: italic; }
-</style></head><body>${slips}</body></html>`);
-  win.document.close();
-  win.focus();
-  win.print();
-  return true;
 }

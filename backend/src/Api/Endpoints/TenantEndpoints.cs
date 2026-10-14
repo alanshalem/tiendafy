@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Api.Auth;
+using Api.Storefront;
 using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Abstractions;
@@ -15,7 +16,9 @@ public static class TenantEndpoints
 {
     public static RouteGroupBuilder MapTenantEndpoints(this RouteGroupBuilder group)
     {
-        var tenants = group.MapGroup("/tenants");
+        // Suspender, eliminar o cambiar el dominio de una tienda cambia qué
+        // atiende cada host: el storefront tiene que dejar de usar lo cacheado.
+        var tenants = group.MapGroup("/tenants").RevalidatesStorefront(StorefrontScope.Tenant);
 
         // Crear tienda: el usuario autenticado queda como dueño (membresía).
         tenants.MapPost("/", async (CreateTenantRequest request, CreateTenantHandler handler, ClaimsPrincipal user, IMembershipService memberships, CancellationToken ct) =>

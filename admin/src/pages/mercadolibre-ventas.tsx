@@ -21,6 +21,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { StatusLegend } from '../components/StatusLegend';
 import { SetupInvoicingLink } from '../components/SetupInvoicingLink';
+import { LoadError } from '../components/LoadError';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { BulkReportPanel, type BulkReport } from './orders-bulk';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
@@ -354,9 +355,13 @@ export function VentasTab() {
 
       {orders === null ? (
         ordersQuery.isError ? (
-          <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
-            {errMsg(ordersQuery.error, 'No se pudieron cargar las ventas de Mercado Libre.')}
-          </p>
+          // Una caída se ve y se reintenta (antes quedaba en el spinner para siempre).
+          <LoadError
+            title="No se pudieron cargar las ventas de Mercado Libre."
+            error={ordersQuery.error}
+            onRetry={() => void ordersQuery.refetch()}
+            retrying={ordersQuery.isFetching}
+          />
         ) : (
           <Spinner />
         )

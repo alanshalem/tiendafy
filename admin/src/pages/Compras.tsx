@@ -1,5 +1,5 @@
 import { useState, useId } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Package, Plus, Ship } from 'lucide-react';
 import {
@@ -42,8 +42,12 @@ export function ComprasPage() {
   // vez de salir de Compras, recargar no la cierra y se puede linkear (la
   // ficha de un proveedor lleva directo a cada una de sus compras).
   const record = useRecordParam('orden');
-  // Items precargados al armar una OC desde las sugerencias de reposición.
-  const [draftItems, setDraftItems] = useState<FormItem[] | null>(null);
+  // Items precargados al armar una OC desde las sugerencias de reposición
+  // (acá mismo o desde Productos › Stock bajo, que los manda en el state).
+  const location = useLocation();
+  const [draftItems, setDraftItems] = useState<FormItem[] | null>(
+    () => (location.state as { draftItems?: FormItem[] } | null)?.draftItems ?? null,
+  );
 
   if (!store) return <NoStoreSelected />;
 

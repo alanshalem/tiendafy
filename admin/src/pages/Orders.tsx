@@ -470,7 +470,6 @@ export function OrdersPage() {
       {selected.size > 0 && (
         <OrdersBulkBar
           selected={[...selected.values()]}
-          storeName={store?.name ?? ''}
           canFulfill={canFulfill}
           canEmit={canEmit}
           onReport={setBulkReport}

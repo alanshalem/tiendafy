@@ -230,7 +230,7 @@ describe('ventas: marcar enviadas en lote', () => {
     expect(screen.queryByText('1 seleccionada')).toBeNull();
   });
 
-  it('sin permiso de despachar se elige igual (para remitos y exportar), pero no se marca ni se imprimen etiquetas', async () => {
+  it('sin permiso de despachar se elige igual (para exportar), pero no se marca ni se imprimen etiquetas ni remitos', async () => {
     const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
     const { user } = await openOrders('/ventas', (a) => {
       a.on('GET', '/api/v1/orders', { items: [paid], total: 1 });
@@ -242,7 +242,8 @@ describe('ventas: marcar enviadas en lote', () => {
     await user.click(screen.getByRole('checkbox', { name: `Seleccionar la venta ${short(paid.id)}` }));
     expect(screen.queryByRole('button', { name: /Marcar como enviadas/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Etiquetas/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /Remitos/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Remitos/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Exportar/ })).toHaveLength(2); // el del listado y el de la selección
   });
 });
 
@@ -309,6 +310,38 @@ describe('ventas: más acciones en lote', () => {
     expect(screen.getAllByRole('status').some((s) => /facturada/.test(s.textContent ?? ''))).toBe(true);
   });
 
+  it('etiquetas: un solo PDF de Despacho, y avisa cuáles no tienen envío', async () => {
+    const { api, user } = await selectBoth((a) =>
+      a.on('POST', '/api/v1/fulfillment/labels', {
+        results: [
+          { orderId: paid.id, number: short(paid.id), carrier: 'zipnova', status: 'ok', reason: null },
+          { orderId: other.id, number: short(other.id), carrier: null, status: 'sin-envio', reason: null },
+        ],
+        ok: 1,
+        missing: 1,
+        fileName: 'etiquetas.pdf',
+        pdfBase64: btoa('%PDF-1.4'),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /Etiquetas/ }));
+    await settle(3);
+    expect(api.calls.find((c) => c.path === '/api/v1/fulfillment/labels')!.body).toEqual({
+      orderIds: [paid.id, other.id],
+    });
+    expect(download).toHaveBeenCalledTimes(1);
+    const report = screen.getAllByRole('status').find((s) => s.textContent?.includes('etiqueta'))!;
+    expect(report).toHaveTextContent(`${short(other.id)}: No tiene un envío generado`);
+  });
+
+  it('remitos: el PDF de Despacho con las elegidas', async () => {
+    const { api, user } = await selectBoth((a) => a.on('POST', '/api/v1/fulfillment/packing-slips', 'pdf'));
+    await user.click(screen.getByRole('button', { name: /Remitos/ }));
+    await waitFor(() => expect(download).toHaveBeenCalled());
+    expect(api.calls.find((c) => c.path === '/api/v1/fulfillment/packing-slips')!.body).toEqual({
+      orderIds: [paid.id, other.id],
+    });
+  });
+
   it('sin la facturación lista, en vez de "Facturar" lleva a configurarla', async () => {
     await selectBoth((a) => a.on('GET', '/api/v1/fiscal/readiness', { ready: false }));
     expect(screen.queryByRole('button', { name: /^Facturar$/ })).toBeNull();
@@ -316,33 +349,6 @@ describe('ventas: más acciones en lote', () => {
       'href',
       '/configuracion/facturacion',
     );
-  });
-
-  it('remitos: arma una hoja imprimible por venta', async () => {
-    const doc = { write: vi.fn(), close: vi.fn() };
-    const popup = { document: doc, focus: vi.fn(), print: vi.fn() };
-    const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
-    const { user } = await selectBoth();
-    await user.click(screen.getByRole('button', { name: /Remitos/ }));
-    const html = String(doc.write.mock.calls[0]![0]);
-    expect(html.match(/class="slip"/g)).toHaveLength(2);
-    expect(html).toContain(`Remito ${short(paid.id)}`);
-    expect(popup.print).toHaveBeenCalled();
-    open.mockRestore();
-  });
-
-  it('etiquetas: baja las que ya tienen envío y avisa cuáles no', async () => {
-    const { user } = await selectBoth((a) => {
-      a.on('GET', `/api/v1/admin/orders/${paid.id}/zipnova-shipment`, { exists: true, shipmentId: 'z1' });
-      a.on('GET', `/api/v1/admin/orders/${paid.id}/zipnova-label`, 'pdf');
-      a.on('GET', `/api/v1/admin/orders/${other.id}/zipnova-shipment`, { exists: false });
-      a.on('GET', `/api/v1/admin/orders/${other.id}/andreani-shipment`, { exists: false });
-    });
-    await user.click(screen.getByRole('button', { name: /Etiquetas/ }));
-    await settle(3);
-    expect(download).toHaveBeenCalledTimes(1);
-    const report = screen.getAllByRole('status').find((s) => s.textContent?.includes('etiqueta'))!;
-    expect(report).toHaveTextContent(`${short(other.id)}: No tiene un envío`);
   });
 });
 

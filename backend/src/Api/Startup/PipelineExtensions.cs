@@ -78,6 +78,9 @@ public static class PipelineExtensions
         apiV1.MapContactEndpoints();
         apiV1.MapMembersEndpoints();
         apiV1.MapHomeEndpoints();
+        apiV1.MapInboxEndpoints();
+        apiV1.MapFulfillmentEndpoints();
+        apiV1.MapStockAlertEndpoints();
 
         // Herramientas de desarrollo (sembrar datos de demo). Fuera de
         // Development estas rutas directamente no existen.

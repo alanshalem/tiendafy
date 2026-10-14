@@ -26,6 +26,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     public const string ResendEmails = "https://api.resend.com/emails";
 
+    /// <summary>Adónde avisa la API para que el storefront vence su caché (ver StorefrontRevalidationTests).</summary>
+    public const string StorefrontRevalidate = "http://storefront.test/internal/revalidate";
+    public const string StorefrontRevalidateSecret = "test-revalidate-secret";
+
     public ApiFactory()
     {
         // Los emails salen por Resend de verdad (el camino de producción, con
@@ -33,6 +37,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // quiera probar un rechazo pisa esta respuesta y la restaura.
         AcceptAllEmails();
         AcceptAllUploads();
+        ExternalHttp.OnJson(HttpMethod.Post, StorefrontRevalidate, new { revalidated = Array.Empty<string>() });
     }
 
     public void AcceptAllEmails() => ExternalHttp.OnJson(HttpMethod.Post, ResendEmails, new { id = "re_test" });
@@ -91,6 +96,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Ai:ApiKey", "sk-ant-test");
         builder.UseSetting("Email:ResendApiKey", "re_test_key");
         builder.UseSetting("Email:WebhookSecret", ResendWebhookSecret);
+        builder.UseSetting("Storefront:RevalidateUrl", StorefrontRevalidate);
+        builder.UseSetting("Storefront:RevalidateSecret", StorefrontRevalidateSecret);
 
         // Ningún test sale a internet: todos los HttpClient de la API (los
         // tipados de cada integración incluidos) terminan en el fake. La

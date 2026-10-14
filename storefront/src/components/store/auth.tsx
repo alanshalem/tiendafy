@@ -116,12 +116,16 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   // POST a /shop/auth/* con manejo de error uniforme; persist guarda data.customer.
   const authPost = useCallback(
     async (path: string, body: unknown, persist = false): Promise<AuthResult> => {
+      // Un corte de red rechaza el fetch: se devuelve como cualquier otro
+      // error, así los formularios lo muestran y sueltan el botón en vez de
+      // que la excepción les llegue sin atajar.
       const res = await fetch(`${API}/api/v1/shop/auth/${path}`, {
         method: 'POST',
         headers,
         credentials: 'include',
         body: JSON.stringify(body),
-      });
+      }).catch(() => null);
+      if (!res) return { ok: false, error: 'No pudimos conectarnos. Revisá tu conexión y probá de nuevo.' };
       if (!res.ok) return { ok: false, error: await problemMessage(res, 'Algo salió mal. Probá de nuevo.') };
       if (persist) persistUser((await res.json()).customer);
       return { ok: true };
