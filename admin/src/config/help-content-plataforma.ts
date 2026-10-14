@@ -168,7 +168,7 @@ export const PLATAFORMA = {
               'Facturación con el certificado de producción, no el de pruebas',
               'Emails llegando de verdad: dominio del remitente verificado',
               'Dominio propio apuntado y con certificado emitido',
-              'Un segundo dueño cargado en Usuarios y permisos',
+              'Un segundo dueño cargado en Configuración → Usuarios',
               'Datos de contacto, términos y política de devoluciones publicados',
             ],
           },
@@ -1150,7 +1150,7 @@ export const PLATAFORMA = {
         heading: 'Sumar una tienda nueva',
         steps: [
           'Crearla desde Mis tiendas. El subdominio funciona solo si el DNS comodín está puesto.',
-          'Cargar a su dueño en Usuarios y permisos, y agregar un segundo dueño.',
+          'Cargar a su dueño en Configuración → Usuarios, y agregar un segundo dueño.',
           'Conectar el cobro y configurar al menos un medio de envío.',
           'Cargar el certificado de facturación, si va a facturar.',
           'Apuntar el dominio propio, si tiene.',

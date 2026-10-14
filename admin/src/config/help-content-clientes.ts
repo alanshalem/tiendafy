@@ -15,9 +15,30 @@ export const CLIENTES = {
       {
         heading: 'El panel de Clientes',
         paragraphs: [
-          'En Clientes ves y buscás a todas las personas registradas y a quienes te escribieron. Los roles vendedor, finanzas y soporte pueden consultarlos; editar requiere administrador.',
+          'En Clientes ves y buscás tu agenda: nombre, email, teléfono y dirección. Cada venta pagada crea o actualiza sola la ficha del comprador, así la agenda se arma vendiendo.',
+          'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo). En la ficha también van notas y la lista de precios que le corresponde.',
         ],
-        blocks: [{ type: 'path', segments: ['Clientes'] }],
+        blocks: [
+          { type: 'path', segments: ['Clientes'] },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: '¿Tenías ventas de antes?',
+            text: '“Traer de mis ventas” recorre tus ventas anteriores y crea la ficha de cada comprador que todavía no estaba en la agenda.',
+          },
+        ],
+      },
+      {
+        heading: 'Lista de precios del cliente',
+        paragraphs: [
+          'Si a un cliente le asignás una lista de precios (por ejemplo “Mayorista”), las ventas manuales y los presupuestos que le hagas usan esos precios solos. La tienda online sigue mostrando el precio de lista. Más en el artículo “Listas de precios”.',
+        ],
+      },
+      {
+        heading: 'Exportar',
+        paragraphs: [
+          '“Exportar” baja la agenda en un CSV que se abre directo en Excel. Lo que te debe cada cliente no está acá: está en Tesorería → Cuentas corrientes.',
+        ],
       },
     ],
   },
@@ -47,6 +68,13 @@ export const CLIENTES = {
           'Cuando la consulta se resuelve, cerrá la conversación. Si el cliente vuelve a escribir, se reabre sola — no se pierde nada.',
         ],
       },
+      {
+        heading: 'Una respuesta sugerida con IA',
+        paragraphs: [
+          'Al lado del campo para responder está “Sugerir con IA”: escribe un borrador de respuesta con lo que dice la conversación y el pedido. Lo revisás, lo corregís y recién ahí lo mandás — nunca sale nada solo.',
+          'Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
+        ],
+      },
     ],
   },
 
@@ -57,11 +85,21 @@ export const CLIENTES = {
     sections: [
       {
         heading: 'Qué se envía',
-        paragraphs: [
-          'Confirmación de compra y de pago, pedido en camino (con seguimiento), listo para retirar, cancelación/reembolso, bienvenida y verificación de cuenta, recuperación de contraseña y carritos abandonados. Activás cada uno por separado.',
-        ],
+        paragraphs: ['Están agrupados en tres. Activás cada uno por separado.'],
         blocks: [
           { type: 'path', segments: ['Configuración', 'E-mails automáticos'] },
+          {
+            type: 'table',
+            headers: ['Grupo', 'Emails'],
+            rows: [
+              [
+                'Ventas',
+                'Confirmación de compra, Confirmación de pago, Lista para retirar (cuando despachás un pedido de retiro), Confirmación de envío (con seguimiento), Cancelación de compra y Factura',
+              ],
+              ['Cuenta de usuarios', 'Activación de cuenta, Cambio de contraseña y Bienvenida'],
+              ['Promociones', 'Carritos abandonados, Bajó un favorito y Volvió un favorito'],
+            ],
+          },
           {
             type: 'demo',
             demo: 'switch',
@@ -95,7 +133,23 @@ export const CLIENTES = {
               ['{{total}}', 'El total pagado'],
               ['{{items}}', 'La tabla de productos con fotos y precios'],
               ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],
+              ['{{product}}', 'El producto favorito (solo en los avisos de favoritos)'],
+              ['{{price}}', 'Su precio nuevo (solo en los avisos de favoritos)'],
             ],
+          },
+        ],
+      },
+      {
+        heading: 'Avisos de favoritos',
+        paragraphs: [
+          'Tus clientes con cuenta pueden guardar productos en Favoritos. Si activás “Bajó un favorito”, les llega un email cuando un producto que guardaron baja de precio (al menos un 5%); con “Volvió un favorito”, cuando un producto que estaba sin stock vuelve a tener. El sistema los revisa cada media hora, y manda como mucho un aviso por día por cada favorito.',
+          'Vienen apagados: los prendés vos. Son emails de promoción, así que quien se dio de baja de tus novedades no los recibe.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Desde Email marketing también podés armar una campaña para quienes tienen un producto en favoritos: la audiencia más caliente que existe.',
           },
         ],
       },
@@ -136,15 +190,16 @@ export const CLIENTES = {
           {
             type: 'demo',
             demo: 'campaignStatuses',
-            caption: 'Los estados por los que pasa una campaña, tal como se ven en la lista de Marketing.',
+            caption:
+              'Los estados por los que pasa una campaña, tal como se ven en la lista de Email marketing.',
           },
         ],
       },
       {
         heading: 'Crear y enviar una campaña',
         steps: [
-          'En Marketing → Nueva campaña, escribí el asunto y el contenido. La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu logo y colores.',
-          'Elegí la audiencia y afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo. O elegí destinatarios uno por uno. El conteo se actualiza en vivo.',
+          'En Email marketing → Nueva campaña, escribí el asunto y el contenido. La vista previa de la derecha es EXACTAMENTE lo que recibe el cliente, con tu logo y colores.',
+          'Elegí la audiencia: compradores (compraron alguna vez), todos los contactos con email, suscriptores a novedades (los que dejaron su email en el newsletter, el pie o la página de “en construcción”) o una selección manual. Afinala con filtros: cuánto gastó, cuántas compras hizo, si compró hace poco o está inactivo, si compró alguno de ciertos productos o si los tiene en favoritos. El conteo se actualiza en vivo.',
           'Sumá productos destacados: se muestran como tarjetas con foto, precio y link a tu tienda.',
           'Asociá un cupón (opcional): después el detalle te dice cuántas ventas y cuánta plata generó la campaña.',
           'Enviate una prueba, y después Enviar ahora o Programar para una fecha y hora.',
@@ -153,7 +208,7 @@ export const CLIENTES = {
       {
         heading: 'Segmentar bien vale oro',
         paragraphs: [
-          'Ejemplos que funcionan: “gastó más de $100.000” con un cupón VIP; “sin comprar hace 90 días” con un incentivo de vuelta; “compró en los últimos 30 días” para lanzamientos. Un email relevante a 200 personas rinde más que uno genérico a 2.000 — y quema menos tu lista.',
+          'Ejemplos que funcionan: “gastó más de $100.000” con un cupón VIP; “sin comprar hace 90 días” con un incentivo de vuelta; “compró en los últimos 30 días” para lanzamientos; “compró alguno de estos productos” para venderle el accesorio; “lo tiene en favoritos” cuando ese producto entra en oferta. Un email relevante a 200 personas rinde más que uno genérico a 2.000 — y quema menos tu lista.',
         ],
       },
       {
@@ -192,7 +247,7 @@ export const CLIENTES = {
             type: 'callout',
             tone: 'warning',
             title: 'Requisitos de plataforma en producción',
-            text: 'El tracking de aperturas/clicks y los links de baja necesitan PublicApiBaseUrl configurada en el servidor, y la supresión automática de rebotes necesita el webhook de Resend. El detalle está en la sección “Para quien administra la plataforma” del artículo de E-mails automáticos.',
+            text: 'El tracking de aperturas/clicks y los links de baja necesitan PublicApiBaseUrl configurada en el servidor, y la supresión automática de rebotes necesita el webhook de Resend. El detalle está en el centro de ayuda, en Administrar la plataforma → Qué conseguir y dónde se carga cada cosa.',
           },
         ],
       },
@@ -238,6 +293,7 @@ export const CLIENTES = {
       {
         heading: 'Qué conviene activar',
         paragraphs: [
+          'Los tipos de mensaje disponibles son: Confirmación de compra, Confirmación de pago, Pedido en camino, Listo para retirar, Reembolso / cancelación y Carritos abandonados.',
           'Los transaccionales rinden oro: confirmación de pago, pedido en camino (con seguimiento) y listo para retirar. El de carritos abandonados es marketing para Meta: usalo con moderación y solo con clientes que marcaron “Quiero recibir novedades” — abusar degrada la calidad de tu número y Meta te limita el volumen.',
         ],
       },
@@ -284,17 +340,29 @@ export const CLIENTES = {
       },
       {
         heading: 'Qué cargar',
+        paragraphs: [
+          'Se cargan en el editor de diseño: Canales de venta → Tienda online → Contacto (en el grupo 5 · Conversión y contacto).',
+        ],
         steps: [
           'Email de la tienda (puede ser distinto al de tu login).',
           'Dirección del local o showroom.',
           'Teléfono de contacto.',
-          'Un texto informativo opcional (horarios, aclaraciones).',
+          'WhatsApp.',
+          'Si querés, prendé “Mostrar formulario de contacto” para que te escriban desde la tienda: los mensajes llegan a Mensajes de contacto.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Canales de venta', 'Tienda online', 'Contacto'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Como todo lo del editor de diseño, se guarda en el borrador y se ve en la tienda cuando tocás “Publicar cambios”.',
+          },
         ],
       },
       {
         heading: '¿Dónde aparece?',
         paragraphs: [
-          'En la página de Contacto de tu tienda y en el pie de página, para que cualquier comprador pueda verlos.',
+          'Los datos del panel Contacto se muestran en la página de Contacto de tu tienda. Los del pie de página se cargan aparte, en el panel Pie de página → Contacto en el pie, y ahí podés poner varios WhatsApp, direcciones, teléfonos y emails. Cargalos en los dos lugares para que cualquier comprador los encuentre.',
         ],
       },
     ],
@@ -306,25 +374,33 @@ export const CLIENTES = {
     category: 'Clientes y comunicación',
     sections: [
       {
-        heading: 'Cargá tu número',
+        heading: 'Activalo',
+        steps: [
+          'En Canales de venta → Tienda online, abrí Botón de WhatsApp (grupo 5 · Conversión y contacto).',
+          'Tildá “Mostrar botón de WhatsApp” y cargá el número de WhatsApp.',
+          'Escribí el “Mensaje inicial”: es el texto que le aparece ya escrito al cliente cuando abre el chat. Hay “Mensajes listos” para elegir uno y ajustarlo.',
+          'Tocá “Publicar cambios”. El botón aparece abajo a la derecha en tu tienda.',
+        ],
+        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Botón de WhatsApp'] }],
+      },
+      {
+        heading: 'Cargá bien el número',
         paragraphs: [
-          'Ingresá el número con código de país y sin el “+”. Para Argentina el formato es: 54 + 9 (celular) + característica + número.',
+          'Con código de país y de área: para Argentina, 54 + 9 (celular) + característica + número. Los espacios y el “+” no molestan.',
+          'Con “Vista previa al pasar el mouse”, en la computadora el botón muestra un mini chat antes de abrir WhatsApp.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'tip',
             title: 'Ejemplo',
-            text: 'Para el 11 2345-6789 (CABA, celular) se carga: 5491123456789.',
+            text: 'Para el 11 2345-6789 (CABA, celular) se carga: +54 9 11 2345 6789.',
           },
-        ],
-      },
-      {
-        heading: 'Activalo',
-        steps: [
-          'Tildá “Mostrar un botón flotante en la tienda”.',
-          'Tocá Guardar.',
-          'Aparece abajo a la derecha en tu tienda y abre el chat de WhatsApp con un mensaje predefinido.',
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El mismo número usa el botón “Consultar por este producto” de la página de cada producto, si lo prendés en Detalle de producto.',
+          },
         ],
       },
     ],
@@ -332,20 +408,27 @@ export const CLIENTES = {
 
   customerMessage: {
     title: 'Mensaje para clientes',
-    intro: 'Mostrá un mensaje informativo a tus compradores en momentos clave.',
+    intro: 'Mostrá un aviso a tus compradores en el carrito, y otro al terminar la compra.',
     category: 'Clientes y comunicación',
     sections: [
       {
-        heading: '¿Para qué?',
+        heading: 'En el carrito',
         paragraphs: [
-          'Sirve para avisos como demoras, horarios de despacho, promociones o aclaraciones. Aparece durante el checkout y en el seguimiento del pedido.',
+          'Sirve para avisos como demoras, horarios de despacho, promociones o aclaraciones. Se carga en el editor de diseño, en Carrito de compras → “Mensaje para clientes”, y se muestra en el carrito. Vacío, no se muestra. Como todo el diseño, sale a la tienda cuando publicás.',
+        ],
+        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Carrito de compras'] }],
+      },
+      {
+        heading: 'Al terminar la compra',
+        paragraphs: [
+          'Para un mensaje en la pantalla final, junto a la confirmación del pago (“Despachamos en 24 hs hábiles”), usá “Mensaje al terminar la compra” en Configuración → Opciones del checkout. No aparece si el pago se rechaza.',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Opciones del checkout'] }],
       },
       {
-        heading: 'Tiempos de entrega',
+        heading: 'Plazos de entrega',
         paragraphs: [
-          'Si preferís no comprometerte con plazos, podés ocultar los tiempos de entrega de cada medio de envío.',
+          'El plazo que ve el comprador en cada medio de envío es el texto que le pusiste a ese medio (“Llega en 3 a 5 días hábiles”). Si no querés comprometerte con plazos, dejá ese campo vacío. Los correos con cotización en vivo muestran el plazo que informa cada correo.',
         ],
       },
     ],
@@ -376,7 +459,10 @@ export const CLIENTES = {
                 'Calendario',
                 'Todo el mes de un vistazo: borradores, programados, publicados y fallidos por día',
               ],
-              ['Imágenes del catálogo', 'Adjuntás la foto de un producto sin salir del composer'],
+              [
+                'Imágenes del catálogo',
+                'Adjuntás la foto de un producto sin salir del composer, y se agrega el link para comprarlo',
+              ],
               [
                 'Resultado por red',
                 'Cada post muestra el link a lo publicado en cada red, o el error si una falló',
@@ -420,6 +506,13 @@ export const CLIENTES = {
             tone: 'tip',
             text: 'El contador de caracteres usa el límite más chico de las redes elegidas (X: 280, Instagram: 2.200, Facebook: 5.000, Telegram: 4.096). Instagram además exige al menos una imagen — el composer te avisa antes de publicar.',
           },
+        ],
+      },
+      {
+        heading: 'Mejorar el texto con IA, y medir lo que vende',
+        paragraphs: [
+          '“Mejorar con IA” reescribe tu borrador con tono vendedor, sin perder el link ni el cupón que hayas puesto. Es un punto de partida: lo revisás antes de programar. Si no ves el botón, la plataforma no tiene cargada la clave de IA.',
+          'Cuando sumás la foto de un producto del catálogo, el post suma también el link a ese producto con una marca de origen, así que las visitas y las ventas que traen aparecen como “Redes sociales” en Estadísticas (Visión general → De dónde llegan tus ventas, y Visitas → Fuentes de tráfico). Si además le ponés un cupón al post, el Reporte de cupones te dice cuánto vendió.',
         ],
       },
       {

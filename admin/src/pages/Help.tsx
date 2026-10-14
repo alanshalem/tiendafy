@@ -16,6 +16,8 @@ import {
   Globe,
   Info,
   KeyRound,
+  LayoutGrid,
+  LayoutTemplate,
   LifeBuoy,
   Lightbulb,
   Mail,
@@ -26,6 +28,7 @@ import {
   OctagonAlert,
   Package,
   Palette,
+  PanelTop,
   Phone,
   Receipt,
   Rocket,
@@ -77,6 +80,9 @@ const ICONS: Partial<Record<HelpLinkId, typeof BookOpen>> = {
   whatsapp: Phone,
   customerMessage: MessageSquare,
   tema: Palette,
+  temaInicio: LayoutTemplate,
+  temaSecciones: LayoutGrid,
+  temaPaginas: PanelTop,
   paginas: FileText,
   estadisticas: BarChart3,
   users: Users,
@@ -178,12 +184,14 @@ function blockText(b: HelpBlock): string {
   }
 }
 
-/** ¿El artículo matchea la búsqueda? (título, intro, headings, texto y bloques). */
+/** ¿El artículo matchea la búsqueda? (título, intro, palabras clave, headings, texto y bloques). */
 function matches(article: HelpArticle, q: string): boolean {
   // Sin tildes de los dos lados: "envios" tiene que encontrar "envíos".
   const needle = foldText(q.trim());
   if (!needle) return true;
-  const haystack = foldText([article.title, article.intro, ...sectionTexts(article)].join(' '));
+  const haystack = foldText(
+    [article.title, article.intro, ...(article.keywords ?? []), ...sectionTexts(article)].join(' '),
+  );
   return needle.split(/\s+/).every((word) => haystack.includes(word));
 }
 

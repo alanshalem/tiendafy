@@ -286,8 +286,8 @@ function ConfigModal({
             <Package className="h-4 w-4 text-fg-muted" /> Paquete estimado por unidad
           </div>
           <p className="mt-0.5 text-xs text-fg-muted">
-            Como los productos no tienen peso propio, la cotización estima: peso × cantidad, apilados en alto.
-            Límites de Correo: 25 kg y 150 cm por lado.
+            Se usa para los productos que no tienen cargados su peso y sus medidas: uno por unidad. Límites de
+            Correo: 25 kg y 150 cm por lado.
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div>

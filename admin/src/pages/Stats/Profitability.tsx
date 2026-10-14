@@ -309,7 +309,7 @@ export function StatsProfitabilityPage() {
                     Costo con el valor actual de las variantes vinculadas ({data.meli.unitsLinked} de{' '}
                     {data.meli.unitsTotal} unidades con vínculo).
                     {data.meli.unitsWithFee === 0 &&
-                      ' La comisión de ML aparece al resincronizar ventas (Mercado Libre → Actualizar).'}
+                      ' La comisión de ML aparece al resincronizar ventas (Configuración → Mercado Libre → Importar últimas ventas).'}
                   </p>
                 </ChartCard>
               )}

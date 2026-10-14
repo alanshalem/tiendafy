@@ -87,14 +87,42 @@ export const LEGAL = {
       {
         heading: 'Paso 5 — Preferencias de emisión',
         paragraphs: [
-          'Elegí si la factura se emite sola (recomendado) y cuándo: al confirmarse el pago o al despachar el pedido. También podés definir el punto de venta por defecto y el umbral de consumidor final (por encima de ese monto, la factura exige DNI/CUIT del comprador — el checkout ya se lo pide).',
+          'Con “Facturar automáticamente cada venta” (recomendado) elegís cuándo se factura: al acreditarse el pago o al despachar el pedido. También definís el punto de venta por defecto.',
+          'Por encima del umbral de ARCA para consumidor final (hoy $10.000.000, RG 5.700/2025) la factura exige el DNI o CUIT del comprador. No hace falta configurarlo: el sistema ya lo tiene, y si vendés montos así, pedí el DNI/CUIT como obligatorio en Opciones del checkout.',
+        ],
+      },
+      {
+        heading: 'Facturar una venta a mano',
+        paragraphs: [
+          'Si una venta no se facturó sola (la facturación automática estaba apagada, o es una venta vieja), abrí la venta y en el recuadro “Facturación (ARCA)” tocá “Facturar ahora”. Si la automática falló, el botón es “Reintentar”, y “PDF” descarga la factura o la nota de crédito.',
+          'En el diálogo cargás el DNI o CUIT del comprador (vacío = consumidor final sin identificar). Con un CUIT, “Consultar en ARCA” trae del padrón el nombre, el domicilio y la condición frente al IVA, y con eso sale el tipo de factura correcto. Si no elegís condición, a una sociedad le sale Factura A y a una persona, B.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El número solo no alcanza: un CUIL y el CUIT de un monotributista tienen la misma forma. Por eso, sin otro dato, a una persona se la factura como consumidor final. Si es Responsable Inscripto y te pide Factura A, tocá “Consultar en ARCA” o elegí su condición antes de facturar.',
+          },
+        ],
+      },
+      {
+        heading: 'Ventas de Mercado Libre',
+        paragraphs: [
+          'Las ventas que llegan de Mercado Libre también se facturan desde acá. En Configuración → Mercado Libre, “Facturar automáticamente las ventas de ML” emite el comprobante de cada venta pagada, a consumidor final. Si está apagado, o ARCA rechazó alguna, en Canales de venta → Mercado Libre → Ventas tenés el botón “Facturar” en cada una, y las ya facturadas se marcan “Facturada”.',
+        ],
+      },
+      {
+        heading: 'Libro de IVA ventas',
+        paragraphs: [
+          'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total y CAE). Es lo que te pide tu contador.',
+          'El de compras sale de Compras e importaciones, con el botón “Libro de IVA”.',
         ],
       },
       {
         heading: 'Probar y pasar a Producción',
         steps: [
           'Con todo configurado en Homologación, hacete una compra de prueba y verificá que la venta muestre su factura con CAE.',
-          'Descargá el PDF desde el detalle de la venta (panel Facturación).',
+          'Descargá el PDF desde el detalle de la venta (recuadro “Facturación (ARCA)”).',
           'Cuando funcione, repetí el certificado para el ambiente Producción (ARCA usa certificados separados) y cambiá el ambiente. Desde ahí, facturas reales.',
         ],
         blocks: [
@@ -108,7 +136,7 @@ export const LEGAL = {
       {
         heading: 'Reembolsos y notas de crédito',
         paragraphs: [
-          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada, Tiendafy la emite automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
+          'Las facturas aprobadas no se borran (ARCA no lo permite): se compensan con una Nota de Crédito, la “factura al revés”. Si reembolsás una venta facturada y queda devuelta del todo, Tiendafy la emite automáticamente — el círculo fiscal queda cerrado sin trámites manuales.',
         ],
       },
       {
@@ -213,20 +241,20 @@ export const LEGAL = {
       {
         heading: 'Datos de contacto visibles',
         paragraphs: [
-          'La Resolución 104/2005 de Defensa del Consumidor exige mostrar email, dirección y teléfono reales. Cargalos en Configuración → Opciones del checkout → Información de contacto: aparecen en la página de Contacto y en el pie de tu tienda.',
+          'La Resolución 104/2005 de Defensa del Consumidor exige mostrar email, dirección y teléfono reales. Cargalos en el editor de diseño (Canales de venta → Tienda online): en el panel Contacto, para la página de Contacto, y en Pie de página → Contacto en el pie, para el pie de tu tienda.',
         ],
       },
       {
         heading: 'Botón de arrepentimiento',
         paragraphs: [
           'La Resolución 424/2020 obliga a ofrecer un “Botón de Arrepentimiento” accesible desde la home: el comprador puede revocar la compra dentro de los 10 días corridos de recibida, sin costo.',
-          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa: la solicitud llega a Mensajes marcada con la etiqueta roja “Arrepentimiento” (hay un filtro para verlas juntas), el comprador recibe un email de acuse con su número de constancia, y si informó un número de pedido válido, el mensaje trae el botón “Ver venta” para hacer el reembolso ahí mismo.',
+          'Tu tienda ya lo incluye automáticamente en el pie de página. Cuando un cliente lo usa: la solicitud llega a Mensajes de contacto marcada con la etiqueta roja “Arrepentimiento” (la solapa “Arrepentimientos” las junta), el comprador recibe un email de acuse con su número de constancia, y si informó un número de pedido válido, el mensaje trae el link “Ver venta (reembolsar desde ahí)” para hacer el reembolso en el momento.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. El filtro “Arrepentimientos” de Mensajes existe para que ninguna se pierda entre las consultas comunes.',
+            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. La solapa “Arrepentimientos” de Mensajes de contacto existe para que ninguna se pierda entre las consultas comunes.',
           },
         ],
       },
@@ -264,7 +292,7 @@ export const LEGAL = {
               [
                 'Botón de arrepentimiento',
                 'Res. 424/2020',
-                'Ya está en el pie de tu tienda; las solicitudes llegan a Mensajes',
+                'Ya está en el pie de tu tienda; las solicitudes llegan a Mensajes de contacto',
               ],
               [
                 'Términos y privacidad',
