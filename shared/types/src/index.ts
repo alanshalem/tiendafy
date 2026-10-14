@@ -36,3 +36,16 @@ export { contrastText, contrastRatio, mixRgb, readableOn } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
 export type { FontOptionValue } from './fonts';
 export type { MoneyDto } from './wire';
+// Links que escribe el comercio: validación y destinos de la tienda.
+export {
+  normalizeLink,
+  safeHref,
+  isExternalHref,
+  describeLink,
+  whatsappLink,
+  productLink,
+  pageLink,
+  categoryLink,
+  STORE_PAGES,
+} from './links';
+export type { LinkKind, NormalizedLink, LinkTarget } from './links';
