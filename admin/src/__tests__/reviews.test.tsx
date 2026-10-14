@@ -117,7 +117,7 @@ describe('reseñas: la bandeja', () => {
     const { api, user } = await open('/resenas', 'Reseñas', (a) => {
       a.on('GET', '/api/v1/admin/reviews', LIST);
       a.on('GET', '/api/v1/admin/reviews/settings', settings);
-      a.on('PUT', '/api/v1/admin/reviews/settings', (body) => body);
+      a.on('PUT', '/api/v1/admin/reviews/settings', (body: unknown) => body);
     });
     await user.click(screen.getByRole('button', { name: /Configuración/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Configuración de reseñas' });
