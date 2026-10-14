@@ -26,14 +26,15 @@ export const ENVIOS = {
       {
         heading: 'Envío gratis como gancho',
         paragraphs: [
-          'Hay dos formas de regalar el envío: un medio de envío con precio 0, o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',
-          'Para empujar el ticket, prendé la barra de envío gratis en el editor de diseño (Carrito de compras → “Mostrar barra de envío gratis”) con tu mínimo: le muestra al cliente cuánto le falta.',
+          'Hay tres formas de regalar el envío: un medio de envío con precio 0; un medio con “Gratis desde” (cobra su precio, salvo que los productos sumen ese monto o más); o un cupón de tipo “Envío gratis”, que deja el envío en $0 sea cual sea el medio que elija el comprador.',
+          '“Gratis desde” se carga al crear o editar el medio. Se compara con lo que suman los productos antes de cupones y descuentos por transferencia, así el comprador no pierde el envío gratis por elegir cómo pagar. Lo aplica el servidor al cobrar, no solo la pantalla.',
+          'Para empujar el ticket, prendé la barra de envío gratis en el editor de diseño (Carrito de compras → “Mostrar barra de envío gratis”): toma el “Gratis desde” más bajo de tus medios activos y le muestra al cliente cuánto le falta.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'warning',
-            text: 'La barra solo informa: no cambia lo que cobra el checkout. Si prometés envío gratis desde cierto monto, tiene que haber un medio o un cupón que lo cumpla.',
+            text: 'El monto que tenía cargado el diseño ya no se usa: la barra prometía un envío gratis que el checkout no daba. Si lo tenías, cargalo como “Gratis desde” en el medio que corresponda; sin ningún medio con monto, la barra no se muestra.',
           },
         ],
       },

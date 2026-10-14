@@ -1,4 +1,4 @@
-import { Loader2, PackageCheck, Truck, Undo2 } from 'lucide-react';
+import { Banknote, Loader2, PackageCheck, Truck, Undo2, XCircle } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
@@ -31,6 +31,9 @@ export function OrderDetail({
   canEmit,
   onFulfill,
   onRefund,
+  canRegisterPayment = false,
+  onRegisterPayment,
+  onCancelUnpaid,
 }: {
   order: Order;
   busy: boolean;
@@ -39,7 +42,14 @@ export function OrderDetail({
   canEmit: boolean;
   onFulfill: (o: Order) => void;
   onRefund: (o: Order) => void;
+  /** Transferencia o efectivo: registrar el pago y cancelar (permiso de cargar ventas). */
+  canRegisterPayment?: boolean;
+  onRegisterPayment?: (o: Order) => void;
+  onCancelUnpaid?: (o: Order) => void;
 }) {
+  const offline = o.paymentProvider === 'transfer' || o.paymentProvider === 'cash';
+  const methodDiscount = o.paymentMethodDiscount?.amount ?? 0;
+  const couponDiscount = (o.discount?.amount ?? 0) - methodDiscount;
   return (
     <div className="space-y-1.5">
       <div className="text-xs font-semibold text-fg-muted">Venta {orderNumber(o.id)}</div>
@@ -54,10 +64,18 @@ export function OrderDetail({
           </span>
         </div>
       ))}
-      {o.discount && o.discount.amount > 0 && (
+      {o.discount && couponDiscount > 0 && (
         <div className="flex justify-between text-xs text-green-600">
           <span>Descuento{o.couponCode ? ` (${o.couponCode})` : ''}</span>
-          <span className="tabular-nums">- {money(o.discount)}</span>
+          <span className="tabular-nums">
+            - {money({ amount: couponDiscount, currency: o.discount.currency })}
+          </span>
+        </div>
+      )}
+      {o.paymentMethodDiscount && methodDiscount > 0 && (
+        <div className="flex justify-between text-xs text-green-600">
+          <span>Descuento por {o.paymentProvider === 'cash' ? 'pago en efectivo' : 'transferencia'}</span>
+          <span className="tabular-nums">- {money(o.paymentMethodDiscount)}</span>
         </div>
       )}
       {o.shipping && o.shipping.amount > 0 && (
@@ -75,9 +93,50 @@ export function OrderDetail({
         </div>
       )}
       {o.notes && <div className="text-xs italic text-fg-subtle">Nota: {o.notes}</div>}
+      {offline && o.status === 'PENDINGPAYMENT' && (
+        <div className="mt-1 rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-xs text-warning">
+          {o.paymentProvider === 'cash' ? 'Paga en efectivo al retirar' : 'Paga por transferencia'}: falta
+          registrar el pago
+          {o.paymentDueAtUtc ? `. Si no, se cancela sola el ${formatDateTime(o.paymentDueAtUtc)}.` : '.'}
+        </div>
+      )}
+      {offline &&
+        o.status === 'PENDINGPAYMENT' &&
+        canRegisterPayment &&
+        (onRegisterPayment || onCancelUnpaid) && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {onRegisterPayment && (
+              <button
+                type="button"
+                onClick={() => onRegisterPayment(o)}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Banknote className="h-3.5 w-3.5" />
+                )}{' '}
+                Registrar pago
+              </button>
+            )}
+            {onCancelUnpaid && (
+              <button
+                type="button"
+                onClick={() => onCancelUnpaid(o)}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+              >
+                <XCircle className="h-3.5 w-3.5" /> Cancelar venta
+              </button>
+            )}
+          </div>
+        )}
       {o.paymentId && (
         <div className="pt-1 text-xs text-fg-subtle">
-          Pago MP #{o.paymentId}
+          {o.paymentId.startsWith('manual-')
+            ? `Pago registrado a mano (${o.paymentId === 'manual-cash' ? 'efectivo' : o.paymentId === 'manual-transfer' ? 'transferencia' : o.paymentId.slice(7)})`
+            : `Pago MP #${o.paymentId}`}
           {o.paidAtUtc ? ` · ${formatDateTime(o.paidAtUtc)}` : ''}
         </div>
       )}

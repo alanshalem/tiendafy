@@ -13,6 +13,7 @@ export const VENTAS = {
           'Mercado Pago se conecta en un clic desde el panel y cobra con tarjeta, saldo, transferencia y efectivo. Es lo más rápido para arrancar y lo que más formas de pago le da al comprador.',
           'Payway (ex Decidir) cobra solo con tarjeta, pero el comprador nunca sale de tu tienda y las condiciones las negociás vos. El alta la hace un ejecutivo comercial, así que lleva más tiempo.',
           'No son excluyentes: con los dos activos, el checkout muestra las dos opciones.',
+          'Además podés cobrar por transferencia (con descuento) o en efectivo al retirar, sin pasarela: ver “Transferencia, efectivo y cuotas sin interés”.',
         ],
       },
       {

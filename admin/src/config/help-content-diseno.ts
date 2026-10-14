@@ -580,14 +580,16 @@ export const DISENO = {
         heading: 'Detalle de producto',
         paragraphs: [
           'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra (y la información del producto acompaña al bajar), ideal para indumentaria y productos con detalles. En el celular, la apilada se desliza de costado para que el precio y el botón de compra no queden lejos.',
-          'Además elegís si se muestran el SKU, el stock, los productos relacionados, los logos de medios de pago, las cuotas sin interés, un descuento pagando en efectivo y el botón “Consultar por este producto”, que abre WhatsApp con el número del Botón de WhatsApp.',
+          'Además elegís si se muestran el SKU, el stock, los productos relacionados, los logos de medios de pago y el botón “Consultar por este producto”, que abre WhatsApp con el número del Botón de WhatsApp.',
+          'El precio con transferencia y las cuotas sin interés ya no se cargan acá: se configuran en Configuración → Medios de pago (Transferencia, efectivo y cuotas), porque el checkout los tiene que cobrar. La ficha y el listado los muestran solos.',
         ],
       },
       {
         heading: 'Carrito de compras',
         paragraphs: [
           'Estilos rápidos: Directo o Con incentivos. Mientras el panel está abierto, la vista previa abre el carrito con un producto de muestra, así ves cada opción. Elegís el texto del botón para pagar, si se muestran productos sugeridos, el botón “Seguir comprando” y el campo de cupón, y un mensaje para tus clientes.',
-          '“Mostrar barra de envío gratis” le dice al cliente cuánto le falta para llegar al envío gratis, a partir del mínimo que cargues. La barra solo informa: el envío gratis tiene que existir en tus medios de envío o en un cupón.',
+          '“Mostrar barra de envío gratis” le dice al cliente cuánto le falta para llegar al envío gratis. El monto sale del “Gratis desde” de tus medios de envío (con varios, el más bajo), que es lo que cobra el checkout; si ningún medio lo tiene, la barra no aparece.',
+          'El total del carrito dice “Subtotal”: el envío se elige y se suma en el checkout.',
         ],
       },
       {

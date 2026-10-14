@@ -53,7 +53,13 @@ export interface Order {
   isPickup?: boolean;
   shippingAddress: string | null;
   currency: string;
+  /** mercadopago | payway | transfer | cash (los dos últimos se cobran a mano). */
+  paymentProvider?: string;
   paymentId: string | null;
+  /** Transferencia/efectivo: hasta cuándo se guarda el stock esperando el pago. */
+  paymentDueAtUtc?: string | null;
+  /** La parte de `discount` que vino de pagar por transferencia o en efectivo. */
+  paymentMethodDiscount?: Money | null;
   couponCode: string | null;
   createdAtUtc: string;
   paidAtUtc: string | null;
@@ -122,6 +128,7 @@ export function OrdersPage() {
   const canFulfill = can('orders.fulfill');
   const canRefund = can('orders.refund');
   const canEmit = can('fiscal.emit');
+  const canRegisterPayment = can('orders.create');
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
@@ -215,6 +222,54 @@ export function OrdersPage() {
       }
     },
     [confirm, load, prompt, toast],
+  );
+
+  // Transferencia o efectivo: el pago lo registra el comercio cuando ve la
+  // plata; cancelar devuelve el stock reservado.
+  const registerPayment = useCallback(
+    async (o: Order) => {
+      const ok = await confirm({
+        title: 'Registrar pago',
+        message: `¿Ya recibiste ${money(o.total)} de ${o.buyerName || o.buyerEmail}? La venta pasa a pagada, se descuenta el stock y le avisamos al comprador.`,
+        confirmLabel: 'Registrar pago',
+      });
+      if (!ok) return;
+      setBusy(o.id);
+      try {
+        await api.post(`/api/v1/orders/${o.id}/mark-paid`, {});
+        toast('Pago registrado', { variant: 'success' });
+        await load();
+      } catch (e) {
+        toast(errMsg(e, 'No se pudo registrar el pago.'), { variant: 'error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [confirm, load, toast],
+  );
+
+  const cancelUnpaid = useCallback(
+    async (o: Order) => {
+      const ok = await confirm({
+        title: 'Cancelar venta',
+        message:
+          'El stock reservado vuelve a estar a la venta. Si el comprador transfiere después, vas a tener que devolverle la plata a mano.',
+        confirmLabel: 'Cancelar venta',
+        variant: 'danger',
+      });
+      if (!ok) return;
+      setBusy(o.id);
+      try {
+        await api.post(`/api/v1/orders/${o.id}/cancel`, {});
+        toast('Venta cancelada', { variant: 'success' });
+        await load();
+      } catch (e) {
+        toast(errMsg(e, 'No se pudo cancelar la venta.'), { variant: 'error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [confirm, load, toast],
   );
 
   const [refunding, setRefunding] = useState<Order | null>(null);
@@ -375,6 +430,9 @@ export function OrdersPage() {
     canEmit,
     onFulfill: fulfill,
     onRefund: setRefunding,
+    canRegisterPayment,
+    onRegisterPayment: registerPayment,
+    onCancelUnpaid: cancelUnpaid,
   };
 
   return (
@@ -609,6 +667,9 @@ interface RowActions {
   canEmit: boolean;
   onFulfill: (o: Order) => void;
   onRefund: (o: Order) => void;
+  canRegisterPayment?: boolean;
+  onRegisterPayment?: (o: Order) => void;
+  onCancelUnpaid?: (o: Order) => void;
 }
 
 /**
