@@ -1,21 +1,29 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp, Copy, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Copy, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { cn, useConfirm } from '@tiendafy/ui';
 import { LABEL_MAX, type ItemBase } from '@tiendafy/types';
 import { moveItem } from '../../../lib/arrays';
+import { ActionMenu } from '../../../components/ActionMenu';
 import { DragHandle, SortableList } from '../../../components/SortableList';
 import { INPUT_BASE } from '../../theme-editor-inputs';
 
 /**
  * Editor genérico de una lista de ítems dentro de una sección (banners,
- * preguntas, testimonios…). Cada ítem es una tarjeta plegable con:
+ * preguntas, testimonios…). Cada ítem es una tarjeta plegable, como las filas
+ * de secciones del inicio:
+ *
+ *   [manija] [foto o número] Título ……………………… [⌄] [⋯]
+ *
  *   - título: el nombre que le puso el comercio, o el que se deriva del
  *     contenido (título, nombre, pregunta), o "Ítem N";
- *   - renombrar en el lugar (solo cambia cómo se ve en el editor);
- *   - reordenar arrastrando (mouse, dedo o teclado) y con flechas;
- *   - duplicar, y eliminar con confirmación;
+ *   - la foto del ítem en miniatura (si tiene), así se reconoce sin abrirlo;
+ *   - menú ⋯: cambiar nombre (en el lugar, solo cambia cómo se ve en el
+ *     editor), duplicar, mover arriba o abajo, y eliminar con confirmación;
+ *   - reordenar también arrastrando (mouse, dedo o teclado);
  *   - agregar, respetando el máximo del registro.
- * Todos los botones miden 40 px: se usan con el dedo.
+ * Antes la fila llevaba la flecha de desplegar a la izquierda y dos flechas
+ * de mover a la derecha: tres flechas que hacían cosas distintas, y el título
+ * se cortaba en cuanto aparecía la barra de scroll. Todo mide 40 px.
  *
  * El formulario de cada ítem lo pone quien lo usa (`renderItem`):
  *
@@ -68,8 +76,15 @@ const newKey = () => `item-${++keySeq}`;
 /** Claves de una lista que llegó de afuera: deterministas, para poder calcularlas al dibujar. */
 const freshKeys = (gen: number, n: number) => Array.from({ length: n }, (_, i) => `g${gen}-${i}`);
 
-const ICON_BUTTON =
-  'flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-bg-muted hover:text-fg disabled:pointer-events-none disabled:opacity-30';
+/** La primera foto del ítem (banner, diapositiva, testimonio, logo), para la miniatura. */
+function itemImage(item: ItemBase): string | null {
+  const it = item as Record<string, unknown>;
+  for (const key of ['image', 'photo', 'logo', 'mobileImage']) {
+    const v = it[key];
+    if (typeof v === 'string' && /^(https?:\/\/|\/)/.test(v.trim())) return v.trim();
+  }
+  return null;
+}
 
 export function ItemListEditor<T extends ItemBase>({
   items,
@@ -172,16 +187,23 @@ export function ItemListEditor<T extends ItemBase>({
           const expanded = open.has(key);
           const title = titleOf(item, index);
           const bodyId = `${key}-body`;
+          const image = itemImage(item);
           return (
             <div
               className={cn(
-                'rounded-md border border-border bg-surface',
+                'overflow-hidden rounded-lg border bg-surface transition-colors',
+                expanded ? 'border-primary/50' : 'border-border',
                 isDragging && 'shadow-lg ring-2 ring-primary/30',
               )}
             >
-              <div className="flex items-center gap-0.5 pr-1">
+              <div
+                className={cn(
+                  'flex min-h-12 items-center gap-0.5 pr-1 transition-colors',
+                  expanded ? 'bg-primary/5' : 'hover:bg-bg-muted/60',
+                )}
+              >
                 <DragHandle handle={handle} label={`Mover «${title}»`}>
-                  <GripVertical className="h-4 w-4" />
+                  <GripVertical className="h-4 w-4" aria-hidden />
                 </DragHandle>
                 {renaming === key ? (
                   <RenameInput
@@ -191,6 +213,7 @@ export function ItemListEditor<T extends ItemBase>({
                       if (value !== null) rename(index, value);
                       setRenaming(null);
                     }}
+                    className="mr-1"
                   />
                 ) : (
                   <button
@@ -198,51 +221,68 @@ export function ItemListEditor<T extends ItemBase>({
                     onClick={() => toggle(key)}
                     aria-expanded={expanded}
                     aria-controls={bodyId}
-                    className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 text-left text-sm font-medium text-fg hover:bg-bg-muted"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
+                    {image ? (
+                      <img
+                        src={image}
+                        alt=""
+                        loading="lazy"
+                        className="h-7 w-7 shrink-0 rounded border border-border bg-bg-muted object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-bg-muted text-xs font-semibold tabular-nums text-fg-muted"
+                      >
+                        {index + 1}
+                      </span>
+                    )}
+                    {/* Hasta dos renglones: con la manija, la foto y el menú, un renglón cortaba casi todo. */}
+                    <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug text-fg">
+                      {title}
+                    </span>
                     <ChevronDown
                       className={cn(
-                        'h-4 w-4 shrink-0 text-fg-subtle transition-transform',
-                        !expanded && '-rotate-90',
+                        'h-4 w-4 shrink-0 text-fg-subtle transition-transform motion-reduce:transition-none',
+                        expanded && 'rotate-180',
                       )}
                       aria-hidden
                     />
-                    <span className="truncate">{title}</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => move(index, index - 1)}
-                  disabled={index === 0}
-                  aria-label={`Subir «${title}»`}
-                  className={ICON_BUTTON}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(index, index + 1)}
-                  disabled={index === items.length - 1}
-                  aria-label={`Bajar «${title}»`}
-                  className={ICON_BUTTON}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
+                <ActionMenu
+                  label={`Más acciones de «${title}»`}
+                  entries={[
+                    { label: 'Cambiar nombre', icon: Pencil, onSelect: () => setRenaming(key) },
+                    {
+                      label: 'Duplicar',
+                      icon: Copy,
+                      onSelect: () => duplicate(index),
+                      disabled: full,
+                      hint: full ? `Llegaste al máximo de ${max}.` : undefined,
+                    },
+                    { type: 'separator' },
+                    {
+                      label: 'Mover arriba',
+                      icon: ArrowUp,
+                      onSelect: () => move(index, index - 1),
+                      disabled: index === 0,
+                    },
+                    {
+                      label: 'Mover abajo',
+                      icon: ArrowDown,
+                      onSelect: () => move(index, index + 1),
+                      disabled: index === items.length - 1,
+                    },
+                    { type: 'separator' },
+                    { label: 'Eliminar', icon: Trash2, onSelect: () => void remove(index), danger: true },
+                  ]}
+                />
               </div>
               {expanded && (
                 <div id={bodyId} className="space-y-3 border-t border-border p-3">
                   {renderItem(item, update(index), index)}
-                  <div className="flex flex-wrap gap-1 border-t border-border pt-2">
-                    <ActionButton onClick={() => setRenaming(key)} icon={Pencil}>
-                      Renombrar
-                    </ActionButton>
-                    <ActionButton onClick={() => duplicate(index)} icon={Copy} disabled={full}>
-                      Duplicar
-                    </ActionButton>
-                    <ActionButton onClick={() => void remove(index)} icon={Trash2} danger>
-                      Eliminar
-                    </ActionButton>
-                  </div>
                 </div>
               )}
             </div>
@@ -253,40 +293,12 @@ export function ItemListEditor<T extends ItemBase>({
         type="button"
         onClick={add}
         disabled={full}
-        className="inline-flex h-10 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-40"
+        className="flex h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm font-medium text-primary hover:border-primary/50 hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40"
       >
-        <Plus className="h-4 w-4" /> {addLabel}
+        <Plus className="h-4 w-4" aria-hidden /> {addLabel}
       </button>
       {full && <p className="text-xs text-fg-subtle">Llegaste al máximo de {max}.</p>}
     </div>
-  );
-}
-
-function ActionButton({
-  onClick,
-  icon: Icon,
-  disabled,
-  danger,
-  children,
-}: {
-  onClick: () => void;
-  icon: typeof Pencil;
-  disabled?: boolean;
-  danger?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'inline-flex h-10 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium hover:bg-bg-muted disabled:pointer-events-none disabled:opacity-40',
-        danger ? 'text-danger' : 'text-fg-muted hover:text-fg',
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" aria-hidden /> {children}
-    </button>
   );
 }
 

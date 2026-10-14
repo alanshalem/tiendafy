@@ -1,8 +1,6 @@
 import {
   Check as CheckIcon,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Code,
   Construction,
   Copy,
@@ -14,13 +12,15 @@ import {
   List,
   MessageCircle,
   Package,
+  Paintbrush,
   Palette,
+  PanelBottom,
+  PanelTop,
   Phone,
   Search as SearchIcon,
   Sparkles,
   ShoppingCart,
   ShoppingBag,
-  Square,
   Type,
   type LucideIcon,
 } from 'lucide-react';
@@ -86,11 +86,11 @@ export function RootNav({
       <NavRow icon={Type} label="Tipo de letra" onClick={() => onNavigate('fonts')} />
 
       <GroupLabel>2 · Estilo global</GroupLabel>
-      <NavRow icon={Square} label="Estilo y movimiento" onClick={() => onNavigate('radius')} />
+      <NavRow icon={Paintbrush} label="Estilo y movimiento" onClick={() => onNavigate('radius')} />
 
       <GroupLabel>3 · Estructura de la tienda</GroupLabel>
-      <NavRow icon={ChevronUp} label="Encabezado" onClick={() => onNavigate('header')} />
-      <NavRow icon={ChevronDown} label="Pie de página" onClick={() => onNavigate('footer')} />
+      <NavRow icon={PanelTop} label="Encabezado" onClick={() => onNavigate('header')} />
+      <NavRow icon={PanelBottom} label="Pie de página" onClick={() => onNavigate('footer')} />
 
       <GroupLabel>4 · Contenido</GroupLabel>
       <NavRow icon={Home} label="Página de inicio" onClick={() => onNavigate('home')} />

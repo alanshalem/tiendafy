@@ -366,7 +366,9 @@ export function ThemeEditorPage() {
           id={EDITOR_PANEL_ID}
           aria-label="Opciones del diseño"
           className={cn(
-            'w-full shrink-0 overflow-y-auto border-border bg-surface md:block md:w-80 md:border-r',
+            // El lugar de la barra de scroll queda reservado: antes, al desplegar
+            // algo largo aparecía la barra y el panel entero se angostaba.
+            'w-full shrink-0 overflow-y-auto border-border bg-surface [scrollbar-gutter:stable] [scrollbar-width:thin] md:block md:w-80 md:border-r',
             mobileTab === 'preview' && 'hidden',
             panelCollapsed && 'md:hidden',
           )}

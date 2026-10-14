@@ -150,27 +150,37 @@ describe('editor de listas de ítems', () => {
     renderWithProviders(<FaqList initial={[q('Primera'), q('Segunda')]} spy={spy} />);
     const group = await screen.findByRole('group', { name: 'Preguntas' });
 
-    // Reordenar con el teclado: foco en "Bajar" y Enter.
-    within(group).getByRole('button', { name: 'Bajar «Primera»' }).focus();
-    await u.keyboard('{Enter}');
+    // Las acciones van en el menú ⋯ de cada fila, como en las secciones del inicio.
+    const act = async (title: string, action: string) => {
+      await u.click(within(group).getByRole('button', { name: `Más acciones de «${title}»` }));
+      await u.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: action }));
+    };
+
+    // Reordenar: "Mover abajo"; la primera no se puede subir más.
+    await act('Primera', 'Mover abajo');
     expect(spy.mock.lastCall![0].map((i: FaqItem) => i.question)).toEqual(['Segunda', 'Primera']);
-    expect(within(group).getByRole('button', { name: 'Subir «Segunda»' })).toBeDisabled();
+    await u.click(within(group).getByRole('button', { name: 'Más acciones de «Segunda»' }));
+    expect(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Mover arriba' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await u.keyboard('{Escape}');
 
     // Desplegar, renombrar en el lugar (Enter guarda).
     await u.click(within(group).getByRole('button', { name: 'Primera', expanded: false }));
-    await u.click(within(group).getByRole('button', { name: 'Renombrar' }));
+    await act('Primera', 'Cambiar nombre');
     const name = within(group).getByRole('textbox', { name: 'Nombre del ítem' });
     await u.type(name, 'La de cambios{Enter}');
     expect(spy.mock.lastCall![0][1]).toMatchObject({ question: 'Primera', label: 'La de cambios' });
     expect(within(group).getByRole('button', { name: 'La de cambios', expanded: true })).toBeInTheDocument();
 
     // Escape cancela un renombre.
-    await u.click(within(group).getByRole('button', { name: 'Renombrar' }));
+    await act('La de cambios', 'Cambiar nombre');
     await u.type(within(group).getByRole('textbox', { name: 'Nombre del ítem' }), 'nada{Escape}');
     expect(spy.mock.lastCall![0][1].label).toBe('La de cambios');
 
     // Duplicar: la copia va abajo con "(copia)".
-    await u.click(within(group).getByRole('button', { name: 'Duplicar' }));
+    await act('La de cambios', 'Duplicar');
     expect(spy.mock.lastCall![0].map((i: FaqItem) => i.label)).toEqual([
       undefined,
       'La de cambios',
@@ -179,10 +189,10 @@ describe('editor de listas de ítems', () => {
 
     // Borrar pide confirmación: cancelar no borra; confirmar sí.
     const before = spy.mock.calls.length;
-    await u.click(within(group).getAllByRole('button', { name: 'Eliminar' })[0]!);
+    await act('La de cambios', 'Eliminar');
     await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
     expect(spy.mock.calls.length).toBe(before);
-    await u.click(within(group).getAllByRole('button', { name: 'Eliminar' })[0]!);
+    await act('La de cambios', 'Eliminar');
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('«La de cambios»');
     await u.click(within(dialog).getByRole('button', { name: 'Eliminar' }));
@@ -208,8 +218,15 @@ describe('editor de listas de ítems', () => {
     expect(within(group).getByRole('button', { name: 'Ítem 2', expanded: true })).toBeInTheDocument();
     expect(within(group).getByRole('button', { name: /Agregar pregunta/ })).toBeDisabled();
     expect(within(group).getByText('Llegaste al máximo de 2.')).toBeInTheDocument();
-    for (const b of within(group).getAllByRole('button', { name: /^(Subir|Bajar|Mover) / }))
-      expect(b.className).toMatch(/\bh-10\b/);
+    for (const b of within(group).getAllByRole('button', { name: /^(Más acciones|Mover) / }))
+      expect(b.className).toMatch(/\b(h-10|size-10)\b/);
+    // Duplicar avisa por qué no se puede.
+    await u.click(within(group).getByRole('button', { name: 'Más acciones de «Una»' }));
+    expect(within(screen.getByRole('menu')).getByRole('menuitem', { name: /Duplicar/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await u.keyboard('{Escape}');
     // El arrastre también se puede empezar con teclado (la manija es un botón con instrucciones).
     expect(within(group).getAllByRole('button', { name: /^Mover «/ })[0]).toHaveAttribute(
       'aria-roledescription',
