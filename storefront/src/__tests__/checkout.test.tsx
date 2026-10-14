@@ -9,17 +9,22 @@
  * tokenizan la tarjeta contra sus servidores) se reemplazan por un botón que
  * entrega lo mismo que ellos: acá se prueba qué hace el checkout con el token.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CheckoutClient } from '../components/store/CheckoutClient';
 import { cartStorageKey, couponStorageKey, type CartLine } from '../components/store/cart';
+import { buyerStorageKey } from '../lib/cart-storage';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
 
 const sdk = vi.hoisted(() => ({ initMercadoPago: vi.fn() }));
+const browser = vi.hoisted(() => ({ goTo: vi.fn() }));
+
+// jsdom no navega: se registra adónde quiso ir el checkout.
+vi.mock('@/lib/navigation', () => ({ hardNavigate: browser.goTo }));
 
 vi.mock('@mercadopago/sdk-react', () => ({
   initMercadoPago: sdk.initMercadoPago,
@@ -79,6 +84,7 @@ const LINE: CartLine = {
   quantity: 2,
 };
 const SESSION = '22222222-2222-2222-2222-222222222222';
+const ORDER = '44444444-4444-4444-4444-444444444444';
 
 const DELIVERY = {
   id: '33333333-3333-3333-3333-333333333333',
@@ -135,19 +141,33 @@ function offline(part: string) {
   );
 }
 
-const field = (placeholder: string | RegExp) => screen.getByPlaceholderText(placeholder);
+/** Los campos se buscan por su etiqueta, como los encuentra un lector de pantalla. */
+const field = (label: string | RegExp) => screen.getByLabelText(label);
 const posted = (suffix: string) =>
   api.calls
     .filter((c) => c.method === 'POST' && c.path.endsWith(suffix))
     .map((c) => c.body as Record<string, unknown>);
 
+const PAYWAY_CONFIG = {
+  enabled: true,
+  publicKey: 'pk',
+  baseUrl: 'https://pw',
+  siteId: '1',
+  installmentOptions: [1],
+};
+
 /** Completa el paso de entrega con retiro en el local y pasa al pago. */
 async function deliverAndContinue(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(field('E-mail'), 'ana@example.com');
+  // clear: el comprador puede venir con datos guardados de antes.
+  const fill = async (label: string | RegExp, value: string) => {
+    await user.clear(field(label));
+    await user.type(field(label), value);
+  };
+  await fill('E-mail', 'ana@example.com');
   await user.click(screen.getByRole('radio', { name: new RegExp(pickup.name) }));
-  await user.type(field('Nombre'), 'Ana');
-  await user.type(field('Apellido'), 'García');
-  await user.type(field(/^Teléfono/), '1155554444');
+  await fill('Nombre', 'Ana');
+  await fill('Apellido', 'García');
+  await fill(/^Teléfono/, '1155554444');
   await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
   await settle(1);
 }
@@ -155,6 +175,7 @@ async function deliverAndContinue(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   crashes = watchCrashes();
   sdk.initMercadoPago.mockClear();
+  browser.goTo.mockClear();
 });
 afterEach(() => {
   expect(crashes()).toEqual([]);
@@ -174,47 +195,135 @@ describe('checkout: antes de empezar', () => {
     expect(screen.getByText(/todavía no tiene los pagos habilitados/)).toBeInTheDocument();
   });
 
-  it('si la configuración de pagos no responde, sigue con Mercado Pago Pro', async () => {
+  it('si la configuración del comercio o Payway no responden, sigue con lo de fábrica y Mercado Pago', async () => {
     store();
-    offline('public-config');
     offline('/checkout-settings');
+    offline('/payway/public-config');
     const user = await open();
+    await deliverAndContinue(user);
+    expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      'la configuración de pagos',
+      '/api/v1/payments/mercadopago/public-config',
+      { connected: true, checkoutMode: 'PRO' },
+    ],
+    ['los envíos', '/api/v1/shipping/methods', fixture('/api/v1/shipping/methods')],
+  ])('si %s da error, lo dice (no "sin pagos" ni "sin envío") y deja reintentar', async (_, path, ok) => {
+    store();
+    api.on('GET', path, { title: 'boom' }, 500);
+    const user = await open();
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar el checkout');
+    expect(screen.queryByText(/todavía no tiene los pagos habilitados/)).not.toBeInTheDocument();
+
+    api.on('GET', path, ok);
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await settle(3);
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeInTheDocument();
+  });
+
+  it('cada pedido inicial lleva un tope de espera (el spinner no gira para siempre)', async () => {
+    store();
+    await open();
+    const initial = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => /public-config|shipping\/methods|checkout-settings/.test(String(url)));
+    expect(initial.length).toBe(4);
+    for (const [, init] of initial) expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('checkout: precios y stock de hoy', () => {
+  const current = (amount: number, available = 10) => ({
+    items: [{ variantId: LINE.variantId, price: { amount, currency: 'ARS' }, available }],
+  });
+
+  it('si el precio cambió desde que se agregó, lo avisa y cobra con el nuevo', async () => {
+    store({
+      payway: { enabled: true, publicKey: 'pk', baseUrl: 'https://pw', siteId: '1', installmentOptions: [1] },
+    });
+    api.on('GET', '/api/v1/products/variants', current(180_000));
+    const user = await open();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /El precio de Taladro cambió de .*1\.500.* a .*1\.800/,
+    );
+    // El total y el formulario de pago se arman con el precio nuevo.
+    expect(JSON.parse(localStorage.getItem(cartStorageKey(fixtureTenantId))!)[0].priceAmount).toBe(180_000);
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
+    expect(screen.getByRole('button', { name: /Pagar .*3\.600.* con Payway/ })).toBeInTheDocument();
+  });
+
+  it('una línea sin stock bloquea el pago hasta quitarla', async () => {
+    store({
+      cart: [LINE, { ...LINE, variantId: '55555555-5555-5555-5555-555555555555', productName: 'Mecha' }],
+    });
+    api.on('GET', '/api/v1/products/variants', current(150_000, 1)); // Mecha ya no se vende; quedan 1 de 2
+    const user = await open();
+    expect(screen.getByRole('alert')).toHaveTextContent(/ya no están disponibles/);
+    expect(screen.getByText('Ya no está a la venta. Quitalo para seguir.')).toBeInTheDocument();
+    expect(screen.getByText('Queda 1 sola unidad. Bajá la cantidad para seguir.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeDisabled();
+
+    await user.click(screen.getAllByRole('button', { name: 'Quitar' })[1]!);
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+    expect(screen.getByText('Tu carrito está vacío.')).toBeInTheDocument();
+  });
+
+  it('si no se puede verificar, sigue con lo guardado (el cobro usa igual el precio vigente)', async () => {
+    store();
+    offline('/products/variants');
+    const user = await open();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     await deliverAndContinue(user);
     expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
   });
 });
 
 describe('checkout: paso de entrega', () => {
-  it('valida cada dato en orden antes de pasar al pago', async () => {
+  it('marca cada dato al lado de su campo, enfoca el primero y Enter avanza', async () => {
     store({ methods: { items: [DELIVERY] }, settings: { requireDocument: true } });
     const user = await open();
     const go = () => user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
-    const says = (text: string) => expect(screen.getByText(text)).toBeInTheDocument();
+    const wrong = (label: string | RegExp, message: string) => {
+      expect(field(label)).toHaveAttribute('aria-invalid', 'true');
+      expect(field(label)).toHaveAccessibleDescription(message);
+    };
 
     await go();
-    says('Ingresá un email válido.');
+    // El envío no es un campo: va en el aviso general.
+    expect(screen.getByRole('alert')).toHaveTextContent('Elegí cómo querés recibir tu compra.');
+    wrong('E-mail', 'Ingresá un email válido.');
+    wrong('Nombre', 'Completá tu nombre.');
+    wrong('Apellido', 'Completá tu apellido.');
+    wrong('Teléfono', 'Completá tu teléfono.');
+    wrong(/DNI/, 'Completá tu DNI o CUIT para poder facturarte.');
+    expect(field('E-mail')).toHaveFocus();
+
+    // Corregir un campo le saca la marca en el momento.
     await user.type(field('E-mail'), 'ana@example.com');
-    await go();
-    says('Elegí cómo querés recibir tu compra.');
+    expect(field('E-mail')).not.toHaveAttribute('aria-invalid');
     await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
-    await go();
-    says('Completá nombre y apellido.');
     await user.type(field('Nombre'), 'Ana');
     await user.type(field('Apellido'), 'García');
-    await go();
-    says('Completá tu teléfono.');
     await user.type(field('Teléfono'), '1155554444');
-    await go();
-    says('Completá tu DNI o CUIT para poder facturarte.');
     await user.type(field(/DNI/), '30123456');
     await go();
-    says('Completá la dirección de entrega (calle, número, ciudad y código postal).');
+    expect(screen.getByRole('alert')).toHaveTextContent('Revisá los datos marcados.');
+    wrong('Calle', 'Completá la calle.');
+    wrong('Número', 'Completá el número.');
+    wrong('Ciudad', 'Completá la ciudad.');
+    wrong('Código Postal', 'Completá el código postal.');
+    expect(field('Calle')).toHaveFocus();
+
     await user.type(field('Calle'), 'Corrientes');
     await user.type(field('Número'), '1234');
     await user.type(field('Departamento (opcional)'), '3B');
     await user.type(field('Ciudad'), 'CABA');
-    await user.type(field('Código Postal'), '1043');
-    await go();
+    await user.type(field('Código Postal'), '1043{Enter}');
 
     // En el pago: la entrega elegida, el costo y el total con envío.
     expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
@@ -225,13 +334,67 @@ describe('checkout: paso de entrega', () => {
     await user.click(screen.getAllByRole('button', { name: /Cambiar|Editar|Entrega/ })[0]!);
     expect(field('E-mail')).toHaveValue('ana@example.com');
   });
+
+  it('los campos piden el teclado y el autocompletado que corresponden', async () => {
+    store({ methods: { items: [DELIVERY] } });
+    const user = await open();
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    const attrs = (label: string | RegExp) => {
+      const el = field(label);
+      return [
+        el.getAttribute('type') ?? 'text',
+        el.getAttribute('autocomplete'),
+        el.getAttribute('inputmode'),
+      ];
+    };
+    expect(attrs('E-mail')).toEqual(['email', 'email', 'email']);
+    expect(attrs('Nombre')).toEqual(['text', 'given-name', null]);
+    expect(attrs('Apellido')).toEqual(['text', 'family-name', null]);
+    expect(attrs('Teléfono')).toEqual(['tel', 'tel', 'tel']);
+    expect(attrs('Calle')).toEqual(['text', 'address-line1', null]);
+    expect(attrs('Número')).toEqual(['text', 'off', 'numeric']);
+    expect(attrs('Departamento (opcional)')).toEqual(['text', 'address-line2', null]);
+    expect(attrs('Ciudad')).toEqual(['text', 'address-level2', null]);
+    expect(attrs('Código Postal')).toEqual(['text', 'postal-code', 'numeric']);
+  });
+
+  it('lo escrito sobrevive a una recarga (no los datos de pago) y se borra al comprar', async () => {
+    store();
+    let user = await open();
+    await user.type(field('E-mail'), 'ana@example.com');
+    await user.type(field('Nombre'), 'Ana');
+    cleanup();
+
+    // Recarga (o vuelta de un rechazo de Mercado Pago): sigue ahí.
+    user = await open();
+    expect(field('E-mail')).toHaveValue('ana@example.com');
+    expect(field('Nombre')).toHaveValue('Ana');
+    expect(JSON.parse(sessionStorage.getItem(buyerStorageKey(fixtureTenantId))!)).toMatchObject({
+      email: 'ana@example.com',
+      name: 'Ana',
+    });
+
+    // Comprado con Payway: se va con el carrito.
+    store({ payway: PAYWAY_CONFIG });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { orderId: ORDER, status: 'APPROVED' });
+    cleanup();
+    user = await open();
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
+    await user.click(screen.getByRole('button', { name: /con Payway/ }));
+    await settle(3);
+    expect(sessionStorage.getItem(buyerStorageKey(fixtureTenantId))).toBeNull();
+  });
 });
 
 describe('checkout: pago', () => {
   it('Mercado Pago Pro reserva el stock, manda todo lo cargado y redirige al link de pago', async () => {
     store();
     sessionStorage.setItem('tiendafy.utm', 'instagram');
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay`, { initPoint: 'https://mp.example.com/pay/1' });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay`, {
+      orderId: ORDER,
+      initPoint: 'https://mp.example.com/pay/1',
+    });
     const user = await open();
     await deliverAndContinue(user);
 
@@ -253,11 +416,15 @@ describe('checkout: pago', () => {
       shippingQuoteToken: null,
     });
     expect(posted('/pay')[0]).toMatchObject({ couponCode: null, utmSource: 'instagram' });
+    // La venta queda anotada con el id de la ORDEN: es el que vuelve en ?order=.
     expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toEqual({
-      orderId: SESSION,
+      orderId: ORDER,
       value: 3000,
       currency: 'ARS',
     });
+    expect(browser.goTo).toHaveBeenCalledWith('https://mp.example.com/pay/1');
+    // Se fue a pagar: el carrito sigue hasta que la compra se confirme.
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 
   it('si no hay stock, lo dice y deja reintentar', async () => {
@@ -299,13 +466,13 @@ describe('checkout: pago', () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
-  it.each([
-    ['approved', /confirm|aprob|gracias|listo/i],
-    ['rejected', /rechaz|no se pudo|fall/i],
-    ['in_process', /pendiente|proceso|revis/i],
-  ])('el Brick on-site cobra y muestra el resultado (%s)', async (status, shows) => {
-    store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { status });
+  it('el Brick on-site cobra con el token y, aprobado, cierra la compra y va a "listo"', async () => {
+    store({
+      mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' },
+      coupon: { code: 'HOLA', discount: 0, freeShipping: false },
+    });
+    api.on('POST', '/api/v1/coupons/validate', { valid: true, code: 'HOLA', discountAmount: 0 });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'approved' });
     const user = await open();
     expect(sdk.initMercadoPago).toHaveBeenCalledWith('APP_USR-pub', { locale: 'es-AR' });
     await deliverAndContinue(user);
@@ -321,7 +488,25 @@ describe('checkout: pago', () => {
       payerDocType: 'DNI',
       payerDocNumber: '30123456',
     });
-    expect(screen.getAllByText(shows).length).toBeGreaterThan(0);
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/success?order=${ORDER}`);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).toBeNull();
+    expect(localStorage.getItem(couponStorageKey(fixtureTenantId))).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toMatchObject({ orderId: ORDER });
+  });
+
+  it.each([
+    ['in_process', 'va a "pendiente"', `/checkout/pending?order=${ORDER}`],
+    ['rejected', 'lo dice ahí mismo', null],
+  ])('el Brick %s: %s y no vacía el carrito', async (status, _, goes) => {
+    store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status });
+    const user = await open();
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
+    await settle(3);
+    if (goes) expect(browser.goTo).toHaveBeenCalledWith(goes);
+    else expect(screen.getAllByText(/rechaz|no se pudo|fall/i).length).toBeGreaterThan(0);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 
   it('el Brick: un rechazo del backend y un error del formulario se muestran', async () => {
@@ -345,11 +530,11 @@ describe('checkout: pago', () => {
   };
 
   it.each([
-    ['APPROVED', undefined, /confirm|aprob|gracias|listo/i],
-    ['REVIEW', undefined, /pendiente|proceso|revis/i],
-  ])('Payway cobra con el token de la tarjeta (%s)', async (status, _msg, shows) => {
+    ['APPROVED', 'success', true],
+    ['REVIEW', 'pending', false],
+  ])('Payway cobra con el token de la tarjeta (%s)', async (status, page, emptied) => {
     store({ payway: PAYWAY });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { status });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { orderId: ORDER, status });
     const user = await open();
     await deliverAndContinue(user);
     await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
@@ -363,7 +548,8 @@ describe('checkout: pago', () => {
       isDebit: false,
       installments: 6,
     });
-    expect(screen.getAllByText(shows).length).toBeGreaterThan(0);
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/${page}?order=${ORDER}`);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId)) === null).toBe(emptied);
   });
 
   it('Payway: un rechazo muestra el motivo y deja probar con otra tarjeta', async () => {
@@ -530,7 +716,7 @@ describe('checkout: envío cotizado', () => {
     // El CP y la ciudad de la cotización completan la dirección.
     await user.click(screen.getByRole('radio', { name: /Correo a domicilio/ }));
     expect(field('Código Postal')).toHaveValue('1043');
-    expect(screen.getAllByPlaceholderText('Ciudad').at(-1)).toHaveValue('CABA');
+    expect(field('Ciudad')).toHaveValue('CABA');
 
     // Retiro en sucursal de Correo: hay que elegir la sucursal.
     await user.click(screen.getByRole('radio', { name: /Correo a sucursal/ }));
@@ -571,9 +757,44 @@ describe('checkout: envío cotizado', () => {
     await user.click(screen.getByRole('button', { name: /Calcular/ }));
     await settle(2);
     await user.click(screen.getByRole('radio', { name: /Andreani a sucursal/ }));
-    expect(screen.queryByPlaceholderText('Calle')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Calle')).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /Andreani a domicilio/ }));
     expect(field('Calle')).toBeInTheDocument();
+  });
+
+  it('solo con Andreani: lo nombra, no deja seguir sin cotizar y el envío aparece en los resúmenes', async () => {
+    store({ methods: { items: [], andreani: { enabled: true } } });
+    api.on('POST', '/api/v1/shipping/andreani/quote', {
+      options: [{ token: 'a-dom', name: 'Andreani a domicilio', price: money(7_000), toBranch: false }],
+    });
+    const user = await open();
+    expect(screen.getByText('Andreani cotiza al instante para tu dirección.')).toBeInTheDocument();
+
+    await user.type(field('E-mail'), 'ana@example.com');
+    await user.type(field('Nombre'), 'Ana');
+    await user.type(field('Apellido'), 'García');
+    await user.type(field(/^Teléfono/), '1155554444');
+    // Sin tocar "Calcular" antes se podía pagar sin envío.
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+    expect(
+      screen.getByText('Ingresá tu código postal y tocá «Calcular» para elegir el envío.'),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Código postal para cotizar'), '5000{Enter}');
+    await settle(2);
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+    expect(screen.getByText('Elegí cómo querés recibir tu compra.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /Andreani a domicilio/ }));
+    await user.type(field('Calle'), 'Colón');
+    await user.type(field('Número'), '100');
+    await user.type(field('Ciudad'), 'Córdoba');
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+
+    // Los dos resúmenes muestran el envío que ya está sumado al total.
+    expect(screen.getByText('Andreani a domicilio')).toBeInTheDocument();
+    expect(screen.getByText('Costo de envío')).toBeInTheDocument();
+    expect(screen.getByText(/3\.070/)).toBeInTheDocument(); // $3.000 + $70 de envío
   });
 
   it('sin tarifas o con error, cada carrier lo dice por su cuenta', async () => {

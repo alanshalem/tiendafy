@@ -16,7 +16,10 @@ public sealed record VariantDto(
     int? WeightGrams = null,
     int? LengthCm = null,
     int? WidthCm = null,
-    int? HeightCm = null);
+    int? HeightCm = null,
+    // Unidades disponibles de ESTA variante. Solo la llena la ficha del
+    // storefront (el stock vive en otro módulo); null = desconocido.
+    int? Available = null);
 
 public sealed record ProductImageDto(Guid Id, string Url, string? AltText, int Position);
 

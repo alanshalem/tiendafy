@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { finishPurchase } from '@/lib/cart-storage';
 
 type Kind = 'success' | 'failure' | 'pending';
 
@@ -84,6 +85,16 @@ export function CheckoutResult({
         : status === 'PENDINGPAYMENT'
           ? 'pending'
           : kind;
+
+  // Compra confirmada → el carrito se vacía. Solo con la orden en la mano y
+  // ya resuelta (no mientras se sigue preguntando): un pago pendiente o
+  // rechazado deja el carrito como estaba para volver a intentar. Si Mercado
+  // Pago trajo al comprador hasta acá, el carrito de la página se acaba de
+  // montar y se entera por el evento que dispara finishPurchase.
+  const confirmed = resolved === 'success' && !loading && Boolean(orderId);
+  useEffect(() => {
+    if (confirmed && orderId) finishPurchase(tenantId, orderId);
+  }, [confirmed, orderId, tenantId]);
 
   const view = {
     success: {

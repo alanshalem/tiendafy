@@ -55,6 +55,7 @@ interface ProductDto {
     optionValues: string[];
     price: MoneyDto;
     compareAtPrice: MoneyDto | null;
+    available?: number | null;
   }[];
   images: { url: string; altText: string | null }[];
   categoryIds: string[];
@@ -199,6 +200,7 @@ async function ProductContent({
             images={product.images}
             options={product.options}
             variants={product.variants}
+            stock={product.stock}
             specs={specRows}
             config={theme.productDetail}
             paymentLogos={theme.footer.paymentLogos}

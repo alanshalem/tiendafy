@@ -15,6 +15,7 @@ import { TrackingTags } from '../components/store/TrackingTags';
 import { fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { nav } from '../test/next';
 import { settle } from '../test/explore';
+import { setTrackSink, track } from '../lib/track';
 
 const TAGS = {
   requireConsent: true,
@@ -55,6 +56,8 @@ const fbqCalls = () => win.fbq?.queue ?? [];
 
 beforeEach(() => {
   api = mockApi();
+  setTrackSink(() => {}); // cada test arranca sin eventos encolados de otro
+  setTrackSink(null);
 });
 afterEach(() => {
   for (const id of ['tf-gtag', 'tf-fbq', 'tf-clarity']) script(id)?.remove();
@@ -171,6 +174,61 @@ describe('medición: reglas', () => {
   });
 });
 
+describe('medición: el embudo de compra', () => {
+  const item = { id: 'v-1', name: 'Mate', variant: 'Rojo', price: 12_500_00, currency: 'ARS', quantity: 2 };
+
+  it('ficha, carrito e inicio de compra llegan a Google y a Meta con el formato de la venta', async () => {
+    track({ type: 'view_item', item: { ...item, quantity: 1 } }); // antes de saber la config: espera
+    await mount({ ...TAGS, requireConsent: false });
+    track({ type: 'add_to_cart', item });
+    track({ type: 'begin_checkout', items: [item] });
+
+    const gaItem = { item_id: 'v-1', item_name: 'Mate', item_variant: 'Rojo', price: 12500 };
+    expect(gtagCalls()).toEqual(
+      expect.arrayContaining([
+        ['event', 'view_item', { currency: 'ARS', value: 12500, items: [{ ...gaItem, quantity: 1 }] }],
+        ['event', 'add_to_cart', { currency: 'ARS', value: 25000, items: [{ ...gaItem, quantity: 2 }] }],
+        ['event', 'begin_checkout', { currency: 'ARS', value: 25000, items: [{ ...gaItem, quantity: 2 }] }],
+      ]),
+    );
+    const meta = { content_ids: ['v-1'], content_type: 'product', currency: 'ARS' };
+    expect(fbqCalls()).toEqual(
+      expect.arrayContaining([
+        ['track', 'ViewContent', { ...meta, contents: [{ id: 'v-1', quantity: 1 }], value: 12500 }],
+        ['track', 'AddToCart', { ...meta, contents: [{ id: 'v-1', quantity: 2 }], value: 25000 }],
+        [
+          'track',
+          'InitiateCheckout',
+          { ...meta, contents: [{ id: 'v-1', quantity: 2 }], value: 25000, num_items: 2 },
+        ],
+      ]),
+    );
+  });
+
+  it('esperan la respuesta del aviso: con un sí se mandan, con un no se descartan', async () => {
+    await mount();
+    track({ type: 'view_item', item });
+    expect(gtagCalls().some(([, e]) => e === 'view_item')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+    await settle(1);
+    expect(gtagCalls().filter(([, e]) => e === 'view_item')).toHaveLength(1);
+  });
+
+  it('sin permiso o en la página de pago no sale nada', async () => {
+    const { unmount } = await mount();
+    await userEvent.click(screen.getByRole('button', { name: 'No, gracias' }));
+    await settle(1);
+    track({ type: 'add_to_cart', item });
+    unmount();
+
+    localStorage.setItem(`tiendafy.consent.${fixtureTenantId}`, 'granted');
+    await mount(TAGS, '/checkout');
+    track({ type: 'begin_checkout', items: [item] });
+    expect(win.dataLayer ?? []).toHaveLength(0);
+    expect(win.fbq).toBeUndefined();
+  });
+});
+
 describe('medición: navegación y venta', () => {
   it('cuenta cada pantalla al navegar y la venta una sola vez en "listo"', async () => {
     localStorage.setItem(`tiendafy.consent.${fixtureTenantId}`, 'granted');
@@ -198,6 +256,18 @@ describe('medición: navegación y venta', () => {
     sessionStorage.setItem('tiendafy.purchase', '{"value":"mucho"}');
     await go('/checkout/success');
     expect(gtagCalls().filter(([, e]) => e === 'purchase')).toHaveLength(1);
+  });
+
+  it('una misma orden se mide una sola vez aunque vuelva a quedar anotada', async () => {
+    localStorage.setItem(`tiendafy.consent.${fixtureTenantId}`, 'granted');
+    const stash = JSON.stringify({ orderId: 'o-7', value: 100, currency: 'ARS' });
+    sessionStorage.setItem('tiendafy.purchase', stash);
+    const { go } = await mount(TAGS, '/checkout/success');
+    await go('/');
+    sessionStorage.setItem('tiendafy.purchase', stash); // un reintento la anotó de nuevo
+    await go('/checkout/success');
+    expect(gtagCalls().filter(([, e]) => e === 'purchase')).toHaveLength(1);
+    expect(fbqCalls().filter(([, e]) => e === 'Purchase')).toHaveLength(1);
   });
 
   it('Clarity encola sus llamadas hasta que baja el script', async () => {

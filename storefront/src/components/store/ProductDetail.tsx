@@ -14,7 +14,8 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { track } from '@/lib/track';
 import { useCart } from './cart';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
@@ -28,7 +29,15 @@ interface Variant {
   optionValues: string[];
   price: MoneyDto;
   compareAtPrice: MoneyDto | null;
+  /** Unidades disponibles de esta variante; null/ausente = no se sabe. */
+  available?: number | null;
 }
+
+// Desde acá para abajo se avisa "últimas unidades" (mismo umbral que la card).
+const LOW_STOCK = 5;
+
+const sameCombination = (v: Variant, values: string[]) =>
+  v.optionValues.length === values.length && v.optionValues.every((ov, i) => ov === values[i]);
 
 interface DetailConfig {
   installmentsCount: number;
@@ -62,6 +71,7 @@ export function ProductDetail({
   config,
   paymentLogos = [],
   whatsappPhone = '',
+  stock = null,
 }: {
   name: string;
   description: string | null;
@@ -74,39 +84,85 @@ export function ProductDetail({
   paymentLogos?: string[];
   /** Número del botón flotante de WhatsApp, para consultar por este producto. */
   whatsappPhone?: string;
+  /**
+   * Stock total del producto. Respaldo para cuando las variantes no traen el
+   * suyo: con una sola variante es el de ella, y en cero lo es para todas.
+   */
+  stock?: number | null;
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
   const cfg = live?.productDetail ?? config;
   const logos = live?.footer.paymentLogos ?? paymentLogos;
   const waPhone = (live?.whatsappButton.phone ?? whatsappPhone ?? '').replace(/\D/g, '');
-  const router = useRouter();
   const href = usePreviewHref();
-  const { add, setOpen } = useCart();
+  const { add, setOpen, beginCheckout } = useCart();
   const hasOptions = options.length > 0;
-  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+
+  // Unidades de una variante: la suya si vino; si no, lo que se deduce del total.
+  const availableOf = (v: Variant): number | null =>
+    v.available != null ? v.available : stock === 0 || variants.length === 1 ? stock : null;
+  // Arranca en la primera variante que se puede comprar: abrir la ficha en un
+  // talle agotado obligaba a buscar a mano cuál quedaba.
+  const initial = variants.find((v) => (availableOf(v) ?? 1) > 0) ?? variants[0];
+
+  const [variantId, setVariantId] = useState(initial?.id ?? '');
   // Selección por opción (color/talle); index-alineado a `options`.
-  const [selected, setSelected] = useState<string[]>(variants[0]?.optionValues ?? []);
+  const [selected, setSelected] = useState<string[]>(initial?.optionValues ?? []);
   const fieldId = useId();
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [shared, setShared] = useState(false);
 
-  const variant =
-    (hasOptions
-      ? variants.find(
-          (v) =>
-            v.optionValues.length === selected.length && v.optionValues.every((ov, i) => ov === selected[i]),
-        )
-      : variants.find((v) => v.id === variantId)) ?? variants[0];
-  if (!variant) return null;
-  const label = variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
+  // Ficha vista, para los píxeles (ver lib/track): una vez por producto, con
+  // la variante con la que abre la ficha.
+  const viewedId = initial?.id;
+  useEffect(() => {
+    if (!initial) return;
+    track({
+      type: 'view_item',
+      item: {
+        id: initial.id,
+        name,
+        variant: initial.optionValues.join(' / ') || undefined,
+        price: initial.price.amount,
+        currency: initial.price.currency,
+        quantity: 1,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedId, name]);
+
+  if (variants.length === 0) return null;
+
+  // Con opciones, la variante es la combinación EXACTA elegida; si no existe
+  // no hay variante (antes caía en la primera y se vendía otra cosa).
+  const variant: Variant | null = hasOptions
+    ? (variants.find((v) => sameCombination(v, selected)) ?? null)
+    : (variants.find((v) => v.id === variantId) ?? variants[0]!);
+  // Qué precio mostrar mientras la combinación no existe: la más parecida.
+  const matches = (v: Variant) => v.optionValues.filter((ov, i) => ov === selected[i]).length;
+  const shown = variant ?? [...variants].sort((a, b) => matches(b) - matches(a))[0]!;
+  const available = variant ? availableOf(variant) : null;
+  const soldOut = available !== null && available <= 0;
+  const canBuy = variant !== null && !soldOut;
+  // La cantidad nunca pasa lo que hay (si se sabe): al cambiar a un talle con
+  // menos unidades, baja sola.
+  const maxQty = available !== null && available > 0 ? available : Infinity;
+  const quantity = Math.min(qty, maxQty);
+  const unavailableMsg =
+    variant === null ? 'Esta combinación no está disponible.' : soldOut ? 'Sin stock por ahora.' : null;
+  const buyLabel = (text: string) => (variant === null ? 'No disponible' : soldOut ? 'Sin stock' : text);
+
+  const label = shown.optionValues.length > 0 ? shown.optionValues.join(' / ') : 'Única';
 
   const cashPct = cfg.cashDiscountPercent ?? 0;
-  const cashPrice = cashPct > 0 ? Math.round(variant.price.amount * (1 - cashPct / 100)) : null;
+  const cashPrice = cashPct > 0 ? Math.round(shown.price.amount * (1 - cashPct / 100)) : null;
 
-  const addToCart = () =>
+  /** Agrega la variante elegida; false si no se puede comprar (nunca agrega otra). */
+  const addToCart = () => {
+    if (!variant || !canBuy) return false;
     add(
       {
         variantId: variant.id,
@@ -116,13 +172,16 @@ export function ProductDetail({
         currency: variant.price.currency,
         image: images[0]?.url ?? null,
       },
-      qty,
+      quantity,
     );
+    return true;
+  };
 
   // Comprar ahora = agregar y saltar directo al checkout (un paso menos que el drawer).
+  // Con carga completa (beginCheckout): con el router, la página de pago
+  // quedaba con los scripts de medición que había cargado la ficha.
   const buyNow = () => {
-    addToCart();
-    router.push(href('/checkout'));
+    if (addToCart()) beginCheckout(href('/checkout'));
   };
 
   const share = async () => {
@@ -153,10 +212,15 @@ export function ProductDetail({
                   onClick={() => setLightboxIndex(i)}
                   className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg"
                 >
-                  <img
+                  <Image
                     src={img.url}
                     alt={img.altText ?? name}
-                    className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    width={1200}
+                    height={1200}
+                    sizes={MAIN_SIZES}
+                    // La primera es la imagen grande de la página (LCP).
+                    {...(i === 0 ? LCP : {})}
+                    className="h-auto w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                   <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
                     <ZoomIn className="h-4 w-4" />
@@ -183,7 +247,7 @@ export function ProductDetail({
                     aria-label={`Ver imagen ${i + 1}`}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}
                   >
-                    <img src={img.url} alt="" className="h-full w-full object-cover" />
+                    <Thumb src={img.url} size={64} />
                   </button>
                 ))}
               </div>
@@ -227,7 +291,7 @@ export function ProductDetail({
                     aria-label={`Ver imagen ${i + 1}`}
                     className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}
                   >
-                    <img src={img.url} alt="" className="h-full w-full object-cover" />
+                    <Thumb src={img.url} size={64} />
                   </button>
                 ))}
               </div>
@@ -240,20 +304,21 @@ export function ProductDetail({
         <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {name}
         </h1>
-        {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
-        {cfg.showSku && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
+        {/* Stock de la variante elegida, si se sabe (antes decía "En stock" siempre). */}
+        {cfg.showStock && variant && available !== null && <StockLine available={available} />}
+        {cfg.showSku && variant && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
-          {formatMoney(variant.price.amount, variant.price.currency)}
-          {variant.compareAtPrice && (
+          {formatMoney(shown.price.amount, shown.price.currency)}
+          {shown.compareAtPrice && (
             <span className="ml-3 text-lg font-normal line-through text-fg-muted">
-              {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+              {formatMoney(shown.compareAtPrice.amount, shown.compareAtPrice.currency)}
             </span>
           )}
         </div>
         {cashPrice !== null && (
           <div className="mt-1">
             <span className="text-xl font-bold text-primary-ink">
-              {formatMoney(cashPrice, variant.price.currency)}
+              {formatMoney(cashPrice, shown.price.currency)}
             </span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
             <div className="text-xs text-fg-muted">
@@ -266,7 +331,7 @@ export function ProductDetail({
           <div className="mt-1 text-sm opacity-70">
             {cfg.installmentsCount} cuotas sin interés de{' '}
             <span className="font-semibold">
-              {formatMoney(Math.round(variant.price.amount / cfg.installmentsCount), variant.price.currency)}
+              {formatMoney(Math.round(shown.price.amount / cfg.installmentsCount), shown.price.currency)}
             </span>
           </div>
         )}
@@ -301,6 +366,17 @@ export function ProductDetail({
                 <div role="group" aria-labelledby={`${fieldId}-opt-${oi}`} className="flex flex-wrap gap-2">
                   {opt.values.map((val) => {
                     const active = selected[oi] === val;
+                    // ¿Este valor arma una variante con lo demás que ya está
+                    // elegido, y le queda stock? Si no, se tacha — pero se puede
+                    // tocar igual: deshabilitarlo encerraba al comprador cuando
+                    // la única combinación posible pedía cambiar dos opciones.
+                    const combos = variants.filter(
+                      (v) =>
+                        v.optionValues[oi] === val &&
+                        v.optionValues.every((ov, j) => j === oi || ov === selected[j]),
+                    );
+                    const missing = combos.length === 0;
+                    const noStock = !missing && combos.every((v) => (availableOf(v) ?? 1) <= 0);
                     return (
                       <button
                         key={val}
@@ -312,9 +388,12 @@ export function ProductDetail({
                           })
                         }
                         aria-pressed={active}
-                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'}`}
+                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
                       >
                         {val}
+                        {(missing || noStock) && (
+                          <span className="sr-only">{missing ? ' (no disponible)' : ' (sin stock)'}</span>
+                        )}
                       </button>
                     );
                   })}
@@ -336,6 +415,7 @@ export function ProductDetail({
                   {variants.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.sku}
+                      {(availableOf(v) ?? 1) <= 0 ? ' — Sin stock' : ''}
                     </option>
                   ))}
                 </select>
@@ -343,41 +423,49 @@ export function ProductDetail({
             )}
 
         <div className="mt-5 space-y-3">
+          {/* Por qué no se puede comprar (combinación inexistente o agotada). */}
+          <p role="status" className={unavailableMsg ? 'text-sm font-medium text-red-600' : 'sr-only'}>
+            {unavailableMsg ?? ''}
+          </p>
+
           {/* Comprar ahora — CTA principal */}
           <button
             onClick={buyNow}
-            className="h-12 w-full rounded-md bg-primary text-sm font-semibold text-primary-fg"
+            disabled={!canBuy}
+            className="h-12 w-full rounded-md bg-primary text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Comprar ahora
+            {buyLabel('Comprar ahora')}
           </button>
 
           {/* Cantidad + Agregar al carrito */}
           <div className="flex items-center gap-3">
             <div className="flex items-center rounded-md border border-black/15">
               <button
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                onClick={() => setQty(Math.max(1, quantity - 1))}
                 aria-label="Restar"
-                className="inline-flex h-11 w-10 items-center justify-center"
+                disabled={!canBuy}
+                className="inline-flex h-11 w-10 items-center justify-center disabled:opacity-40"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-8 text-center tabular-nums">{qty}</span>
+              <span className="w-8 text-center tabular-nums">{quantity}</span>
               <button
-                onClick={() => setQty((q) => q + 1)}
+                onClick={() => setQty(Math.min(maxQty, quantity + 1))}
                 aria-label="Sumar"
-                className="inline-flex h-11 w-10 items-center justify-center"
+                disabled={!canBuy || quantity >= maxQty}
+                className="inline-flex h-11 w-10 items-center justify-center disabled:opacity-40"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
             <button
               onClick={() => {
-                addToCart();
-                setOpen(true);
+                if (addToCart()) setOpen(true);
               }}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary-ink"
+              disabled={!canBuy}
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary-ink disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Agregar al carrito
+              {buyLabel('Agregar al carrito')}
             </button>
           </div>
 
@@ -440,24 +528,22 @@ export function ProductDetail({
         <div className="min-w-0">
           <div className="truncate text-xs text-fg-muted">{name}</div>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold">
-              {formatMoney(variant.price.amount, variant.price.currency)}
-            </span>
-            {variant.compareAtPrice && (
+            <span className="text-lg font-bold">{formatMoney(shown.price.amount, shown.price.currency)}</span>
+            {shown.compareAtPrice && (
               <span className="text-xs line-through text-fg-muted">
-                {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+                {formatMoney(shown.compareAtPrice.amount, shown.compareAtPrice.currency)}
               </span>
             )}
           </div>
         </div>
         <button
           onClick={() => {
-            addToCart();
-            setOpen(true);
+            if (addToCart()) setOpen(true);
           }}
-          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg"
+          disabled={!canBuy}
+          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Agregar al carrito
+          {buyLabel('Agregar al carrito')}
         </button>
       </div>
       {/* Espaciador para que la barra fija no tape el contenido en mobile. */}
@@ -476,15 +562,43 @@ export function ProductDetail({
   );
 }
 
+/**
+ * Imágenes de la ficha por next/image (como las cards y el hero): tamaños
+ * a medida y formatos modernos. Antes las miniaturas de 64 px bajaban el
+ * original entero (en producción hay uno de 2,2 MB).
+ */
+// La imagen grande ocupa el ancho en el celular y media página en desktop.
+const MAIN_SIZES = '(max-width: 768px) 100vw, 50vw';
+// La imagen grande es el LCP: se pide ya y con prioridad. En Next 16
+// `priority` está deprecado; la documentación recomienda esto antes que
+// `preload` (la ficha llega en streaming, después del <head>).
+const LCP = { loading: 'eager', fetchPriority: 'high' } as const;
+
+function Thumb({ src, size }: { src: string; size: number }) {
+  return <Image src={src} alt="" width={size} height={size} className="h-full w-full object-cover" />;
+}
+
+/** El stock de la variante elegida, en palabras de comprador. */
+function StockLine({ available }: { available: number }) {
+  if (available <= 0) return <div className="mt-1 text-sm font-medium text-red-600">● Sin stock</div>;
+  if (available <= LOW_STOCK)
+    return (
+      <div className="mt-1 text-sm font-medium text-amber-700">
+        ● {available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`}
+      </div>
+    );
+  return <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>;
+}
+
 /** Imagen principal estilo MercadoLibre: lens sobre la imagen + panel de zoom al costado (desktop). Click → pantalla completa. */
 const ZOOM = 2.6;
 function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen: () => void }) {
-  const boxRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLButtonElement>(null);
   const [show, setShow] = useState(false);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [lens, setLens] = useState({ x: 0, y: 0 });
 
-  const move = (e: MouseEvent<HTMLDivElement>) => {
+  const move = (e: MouseEvent<HTMLButtonElement>) => {
     const el = boxRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -503,25 +617,37 @@ function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen
 
   return (
     <div className="relative">
-      <div
+      {/* Un botón (no un div con onClick): se alcanza con Tab, se abre con
+          Enter o espacio, y al cerrar el visor el foco vuelve acá. */}
+      <button
         ref={boxRef}
-        className="group relative aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-black/5"
+        type="button"
+        aria-label={`Ampliar imagen: ${alt}`}
+        className="group relative block aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-black/5"
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         onMouseMove={move}
         onClick={onOpen}
       >
-        <img src={src} alt={alt} draggable={false} className="h-full w-full select-none object-cover" />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes={MAIN_SIZES}
+          {...LCP}
+          draggable={false}
+          className="select-none object-cover"
+        />
         {show && box.w > 0 && (
-          <div
+          <span
             className="pointer-events-none absolute hidden border border-white bg-white/25 shadow-[0_0_0_1px_rgba(0,0,0,0.2)] md:block"
             style={{ left: lens.x, top: lens.y, width: lensW, height: lensH }}
           />
         )}
-        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <ZoomIn className="h-4 w-4" />
         </span>
-      </div>
+      </button>
 
       {/* Panel de zoom al costado (solo desktop) */}
       {show && box.w > 0 && (
@@ -616,22 +742,26 @@ function Lightbox({
             <ChevronLeft className="h-7 w-7" />
           </button>
         )}
-        <img
-          key={img.url}
-          src={img.url}
-          alt={img.altText ?? alt}
-          draggable={false}
-          onClick={() => setZoomed((z) => !z)}
-          onMouseMove={(e) => {
-            if (!zoomed) return;
-            const r = e.currentTarget.getBoundingClientRect();
-            setOrigin(
-              `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
-            );
-          }}
-          className={`max-h-[80vh] max-w-[92vw] select-none object-contain transition-transform duration-200 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-          style={{ transformOrigin: origin, transform: zoomed ? 'scale(2.4)' : 'scale(1)' }}
-        />
+        <div className="relative h-[80vh] w-[92vw]">
+          <Image
+            key={img.url}
+            src={img.url}
+            alt={img.altText ?? alt}
+            fill
+            sizes="92vw"
+            draggable={false}
+            onClick={() => setZoomed((z) => !z)}
+            onMouseMove={(e) => {
+              if (!zoomed) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              setOrigin(
+                `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
+              );
+            }}
+            className={`select-none object-contain transition-transform duration-200 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+            style={{ transformOrigin: origin, transform: zoomed ? 'scale(2.4)' : 'scale(1)' }}
+          />
+        </div>
         {images.length > 1 && (
           <button
             onClick={() => go(1)}
@@ -659,7 +789,7 @@ function Lightbox({
               }}
               className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition ${i === index ? 'border-white' : 'border-transparent opacity-50 hover:opacity-100'}`}
             >
-              <img src={im.url} alt="" className="h-full w-full object-cover" />
+              <Thumb src={im.url} size={56} />
             </button>
           ))}
         </div>

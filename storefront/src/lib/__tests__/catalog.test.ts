@@ -34,6 +34,11 @@ describe('toStoreProduct', () => {
     expect(sp.image).toBe('https://cdn/img1.jpg');
     expect(sp.images).toHaveLength(2);
     expect(sp.stock).toBe(7);
+    // La card necesita saber si hay algo que elegir antes de agregar.
+    expect(sp.variantCount).toBe(1);
+    expect(
+      toStoreProduct(producto({ variants: [...producto().variants, ...producto().variants] }))!.variantCount,
+    ).toBe(2);
   });
 
   it('sin variantes devuelve null (no se puede vender)', () => {

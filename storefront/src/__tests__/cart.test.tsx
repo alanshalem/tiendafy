@@ -118,6 +118,30 @@ describe('carrito', () => {
     expect(within(drawer()).getByRole('button', { name: 'Ir a pagar' })).toBeInTheDocument();
   });
 
+  it('un sugerido agotado no se ofrece; uno con talles lleva a su ficha', async () => {
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify([LINE]));
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderInStore(
+      <>
+        <Opener />
+        <CartDrawer
+          cart={CONFIG}
+          suggested={[
+            { ...SUGGESTED[0]!, stock: 0 },
+            { ...SUGGESTED[0]!, variantId: 'v-3', name: 'Guantes', slug: 'guantes', variantCount: 2 },
+          ]}
+        />
+      </>,
+    );
+    await settle(1);
+    await user.click(screen.getByRole('button', { name: /Abrir carrito/ }));
+    expect(within(drawer()).queryByText('Soga')).not.toBeInTheDocument();
+    expect(within(drawer()).getByRole('link', { name: /Guantes/ })).toHaveAttribute(
+      'href',
+      '/productos/guantes',
+    );
+  });
+
   it('cupón: se aplica, se guarda para el checkout, se revalida al cambiar el subtotal y se quita', async () => {
     api.on('POST', '/api/v1/coupons/validate', { valid: true, code: 'HOLA', discountAmount: 4_000_00 });
     const user = await show();
@@ -199,6 +223,72 @@ describe('carrito', () => {
     expect(aside).toHaveAttribute('aria-hidden', 'true');
     expect(aside).toHaveAttribute('inert');
     expect(screen.queryByRole('button', { name: 'Sumar' })).not.toBeInTheDocument();
+  });
+
+  it('al abrirse trae el precio de hoy, lo guarda y avisa qué cambió', async () => {
+    api.on('GET', '/api/v1/products/variants', {
+      items: [{ variantId: 'v-1', price: { amount: 45_000_00, currency: 'ARS' }, available: 1 }],
+    });
+    const user = await show();
+    await settle(1);
+    const d = within(drawer());
+    expect(d.getByRole('status')).toHaveTextContent(
+      /El precio de Mancuerna cambió de .*40\.000.* a .*45\.000/,
+    );
+    expect(saved()[0]!.priceAmount).toBe(45_000_00);
+    expect(api.calls.some((c) => c.path === '/api/v1/products/variants?ids=v-1')).toBe(true);
+    // Queda 1: no deja sumar más de lo que hay.
+    expect(d.getByRole('button', { name: 'Sumar' })).toBeDisabled();
+    expect(d.getByRole('button', { name: 'Ir a pagar' })).toBeEnabled();
+    await user.click(d.getByRole('button', { name: 'Restar' }));
+    expect(saved()).toEqual([]);
+  });
+
+  it('una línea agotada o despublicada se marca y no deja seguir hasta quitarla', async () => {
+    api.on('GET', '/api/v1/products/variants', {
+      items: [{ variantId: 'v-1', price: { amount: 40_000_00, currency: 'ARS' }, available: 0 }],
+    });
+    const user = await show([LINE, { ...LINE, variantId: 'v-9', productName: 'Barra' }]);
+    await settle(1);
+    const d = within(drawer());
+    expect(d.getByText('Se quedó sin stock. Quitalo para seguir.')).toBeInTheDocument();
+    expect(d.getByText('Ya no está a la venta. Quitalo para seguir.')).toBeInTheDocument();
+    expect(d.getByText('Revisá los productos marcados para poder seguir.')).toBeInTheDocument();
+    expect(d.getByRole('button', { name: 'Ir a pagar' })).toBeDisabled();
+    expect(d.queryByRole('status')).not.toBeInTheDocument(); // ningún precio cambió
+
+    const [first, second] = d.getAllByRole('button', { name: 'Quitar' });
+    await user.click(second!);
+    await user.click(first!);
+    expect(saved()).toEqual([]);
+  });
+
+  it('si no se puede verificar, sigue con lo guardado sin bloquear', async () => {
+    api.on('GET', '/api/v1/products/variants', {}, 503);
+    await show();
+    await settle(1);
+    expect(within(drawer()).getByRole('button', { name: 'Ir a pagar' })).toBeEnabled();
+    expect(saved()[0]!.priceAmount).toBe(LINE.priceAmount);
+  });
+
+  it('si otra pestaña cambia el carrito guardado, este se entera', async () => {
+    const user = await show();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Abrir carrito (1)' })).toBeInTheDocument();
+
+    // Otra pestaña de la misma tienda terminó la compra y lo vació.
+    localStorage.removeItem(cartStorageKey(fixtureTenantId));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: cartStorageKey(fixtureTenantId) }));
+    });
+    expect(screen.getByRole('button', { name: 'Abrir carrito (0)' })).toBeInTheDocument();
+
+    // Lo de otra tienda no le importa.
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify([LINE]));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'tiendafy.cart.otra' }));
+    });
+    expect(screen.getByRole('button', { name: 'Abrir carrito (0)' })).toBeInTheDocument();
   });
 
   it('abierto, el Tab da la vuelta dentro del carrito', async () => {

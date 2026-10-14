@@ -1,22 +1,31 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 
 import { readJson, removeKey, writeJson } from '@/lib/storage';
+import { CART_SYNC_EVENT, cartStorageKey, couponStorageKey } from '@/lib/cart-storage';
+import { hardNavigate } from '@/lib/navigation';
+import { track, type TrackItem } from '@/lib/track';
+import Image from 'next/image';
+import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
+import { usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
+import {
+  fetchVariantSnapshots,
+  issueText,
+  lineIssue,
+  mergePriceChanges,
+  reprice,
+  type Availability,
+  type LineIssue,
+  type PriceChange,
+} from '@/lib/cart-pricing';
 
-export const cartStorageKey = (storeKey: string) => `tiendafy.cart.${storeKey}`;
-
-/**
- * El cupón aplicado vive al lado del carrito (misma tienda, misma duración):
- * antes moría en el estado del drawer y el comprador tenía que volver a
- * escribirlo en el checkout — o se olvidaba y pagaba de más.
- */
-export const couponStorageKey = (storeKey: string) => `tiendafy.coupon.${storeKey}`;
+export { cartStorageKey, couponStorageKey };
 
 export interface StoredCoupon {
   code: string;
@@ -36,6 +45,8 @@ export interface CartLine {
 
 interface CartContextValue {
   lines: CartLine[];
+  /** false hasta leer el carrito guardado: antes de eso `lines` vacío no significa "vacío". */
+  hydrated: boolean;
   count: number;
   totalAmount: number;
   currency: string;
@@ -45,7 +56,28 @@ interface CartContextValue {
   remove: (variantId: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
+  /** Trae precio y stock vigentes y actualiza las líneas (ver lib/cart-pricing). */
+  refreshPrices: () => Promise<void>;
+  /** Precios que cambiaron desde que se agregaron, para avisarle al comprador. */
+  priceChanges: PriceChange[];
+  /** Lo que impide comprar cada línea (agotada, despublicada, menos stock). */
+  issues: Record<string, LineIssue>;
+  /** true si alguna línea tiene un problema: no se puede seguir a pagar. */
+  blocked: boolean;
+  /** Unidades por variante según la última consulta (null = no se consultó). */
+  availability: Availability | null;
+  /** Ir a pagar: mide el inicio de la compra y entra al checkout con carga completa. */
+  beginCheckout: (url?: string) => void;
 }
+
+const toTrackItem = (l: Omit<CartLine, 'quantity'>, quantity: number): TrackItem => ({
+  id: l.variantId,
+  name: l.productName,
+  variant: l.variantLabel,
+  price: l.priceAmount,
+  currency: l.currency,
+  quantity,
+});
 
 const CartContext = createContext<CartContextValue | null>(null);
 
@@ -58,34 +90,95 @@ export function useCart(): CartContextValue {
 export function CartProvider({ storeKey, children }: { storeKey: string; children: ReactNode }) {
   const key = cartStorageKey(storeKey);
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [open, setOpen] = useState(false);
+  // Lo último que se guardó, leído y escrito en el momento (ver mutate).
+  const current = useRef<CartLine[]>([]);
 
   useEffect(() => {
-    setLines(readJson<CartLine[]>(key, []));
+    const load = () => {
+      current.current = readJson<CartLine[]>(key, []);
+      setLines(current.current);
+    };
+    load();
+    setHydrated(true);
+    // El guardado puede cambiar por afuera de este carrito: la pantalla de
+    // "listo" lo vacía al confirmar la compra, el checkout lo reprecia, u otra
+    // pestaña de la misma tienda compra. Sin esto el ícono seguía diciendo 3
+    // productos de una compra que ya estaba pagada.
+    const onSync = (e: Event) => {
+      if ((e as CustomEvent<{ key?: string }>).detail?.key === key) load();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === key || e.key === null) load();
+    };
+    window.addEventListener(CART_SYNC_EVENT, onSync);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(CART_SYNC_EVENT, onSync);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [key]);
 
-  // Persistencia SINCRÓNICA en cada mutación (no en un useEffect post-render):
-  // "Comprar ahora" agrega y navega al instante — si el write quedara para un
-  // effect, el desmontaje de la página podía perder el ítem (lo cazó el E2E).
-  const mutate = (fn: (prev: CartLine[]) => CartLine[]) =>
-    setLines((prev) => {
-      const next = fn(prev);
-      writeJson(key, next);
-      return next;
-    });
+  // Persistencia SINCRÓNICA en cada mutación (no en un useEffect post-render
+  // ni dentro del updater de setState, que React puede correr más tarde):
+  // "Comprar ahora" agrega y navega al instante — si el write quedara para
+  // después, el desmontaje de la página podía perder el ítem (lo cazó el E2E).
+  const mutate = (fn: (prev: CartLine[]) => CartLine[]) => {
+    const next = fn(current.current);
+    current.current = next;
+    writeJson(key, next);
+    setLines(next);
+  };
+
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
+  const [availability, setAvailability] = useState<Availability | null>(null);
+
+  // Se aplica sobre las líneas de ESE momento (no las de cuando salió el
+  // pedido): si mientras tanto el comprador cambió una cantidad, se respeta.
+  const refreshPrices = async () => {
+    const snapshots = await fetchVariantSnapshots(
+      storeKey,
+      current.current.map((l) => l.variantId),
+    );
+    if (!snapshots) return;
+    const result = reprice(current.current, snapshots);
+    if (result.changes.length > 0) mutate(() => result.lines);
+    setPriceChanges((prev) => mergePriceChanges(prev, result.changes));
+    setAvailability(result.availability);
+  };
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((s, l) => s + l.quantity, 0);
     const totalAmount = lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0);
+    const issues: Record<string, LineIssue> = {};
+    for (const l of lines) {
+      const issue = lineIssue(l, availability);
+      if (issue) issues[l.variantId] = issue;
+    }
     return {
       lines,
+      hydrated,
       count,
       totalAmount,
       currency: lines[0]?.currency ?? 'ARS',
       tenantId: storeKey,
       open,
       setOpen,
-      add: (line, qty = 1) =>
+      refreshPrices,
+      // Solo de lo que sigue en el carrito.
+      priceChanges: priceChanges.filter((c) => lines.some((l) => l.variantId === c.variantId)),
+      issues,
+      blocked: Object.keys(issues).length > 0,
+      availability,
+      beginCheckout: (url = '/checkout') => {
+        track({ type: 'begin_checkout', items: current.current.map((l) => toTrackItem(l, l.quantity)) });
+        // Carga completa a propósito: la página de pago no hereda los scripts
+        // de medición que cargó la anterior (ver lib/navigation).
+        hardNavigate(url);
+      },
+      add: (line, qty = 1) => {
+        track({ type: 'add_to_cart', item: toTrackItem(line, qty) });
         mutate((prev) => {
           const existing = prev.find((l) => l.variantId === line.variantId);
           if (existing) {
@@ -94,7 +187,8 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
             );
           }
           return [...prev, { ...line, quantity: qty }];
-        }),
+        });
+      },
       setQty: (variantId, qty) =>
         mutate((prev) =>
           qty <= 0
@@ -104,9 +198,39 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       remove: (variantId) => mutate((prev) => prev.filter((l) => l.variantId !== variantId)),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, open, storeKey]);
+  }, [lines, hydrated, open, storeKey, priceChanges, availability]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+/** "El precio de X cambió de $A a $B": lo que el comprador tiene que ver antes de pagar. */
+export function PriceChangeNotice({
+  changes,
+  className = '',
+}: {
+  changes: PriceChange[];
+  className?: string;
+}) {
+  if (changes.length === 0) return null;
+  return (
+    <div
+      role="status"
+      className={`space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 ${className}`}
+    >
+      {changes.map((c) => (
+        <p key={c.variantId}>
+          El precio de <strong>{c.productName}</strong> cambió de {formatMoney(c.from, c.currency)} a{' '}
+          {formatMoney(c.to, c.currency)}.
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** El problema de una línea (agotada, despublicada, menos stock), si tiene. */
+export function LineIssueText({ issue }: { issue: LineIssue | undefined }) {
+  if (!issue) return null;
+  return <p className="mt-1 text-xs font-medium text-red-600">{issueText(issue)}</p>;
 }
 
 interface CartConfig {
@@ -125,10 +249,33 @@ interface Suggested {
   currency: string;
   image: string | null;
   variantLabel: string;
+  slug?: string;
+  stock?: number | null;
+  variantCount?: number;
 }
 
-export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; suggested?: Suggested[] }) {
-  const { lines, open, setOpen, setQty, remove, totalAmount, currency, add, tenantId } = useCart();
+export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; suggested?: Suggested[] }) {
+  // Un sugerido agotado no se ofrece; uno con varias variantes lleva a su
+  // ficha (agregar "la primera" era venderle un talle que no eligió).
+  const suggested = all.filter((s) => !(s.stock != null && s.stock <= 0));
+  const href = usePreviewHref();
+  const {
+    lines,
+    open,
+    setOpen,
+    setQty,
+    remove,
+    totalAmount,
+    currency,
+    add,
+    tenantId,
+    refreshPrices,
+    priceChanges,
+    issues,
+    blocked,
+    availability,
+    beginCheckout,
+  } = useCart();
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
@@ -152,6 +299,13 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
 
   // A11y: enfoca el drawer al abrir, atrapa el Tab dentro y restaura el foco al cerrar.
   const drawerRef = useFocusTrap<HTMLElement>(open);
+
+  // Cada vez que se abre, los precios y el stock se traen de nuevo: lo
+  // guardado es de cuando se agregó, quizás hace días.
+  useEffect(() => {
+    if (open && lines.length > 0) void refreshPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Cerrar con Escape (consistente con los otros modales del storefront).
   useEffect(() => {
@@ -254,10 +408,17 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
         ) : (
           <>
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+              <PriceChangeNotice changes={priceChanges} />
               {lines.map((l) => (
                 <div key={l.variantId} className="flex gap-3 border-b border-black/10 pb-3">
                   {l.image ? (
-                    <img src={l.image} alt="" className="h-16 w-16 rounded-md object-cover" />
+                    <Image
+                      src={l.image}
+                      alt=""
+                      width={64}
+                      height={64}
+                      className="h-16 w-16 rounded-md object-cover"
+                    />
                   ) : (
                     <InitialFallback
                       name={l.productName}
@@ -267,29 +428,39 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.productName}</div>
                     <div className="text-xs text-fg-muted">{l.variantLabel}</div>
+                    {/* Los botones se ven de 24 px pero se tocan de 40: el
+                        relleno con margen negativo agranda el área sin mover
+                        nada (el mismo truco que el header). */}
                     <div className="mt-1 flex items-center gap-2">
                       <button
                         onClick={() => setQty(l.variantId, l.quantity - 1)}
                         aria-label="Restar"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                        className="-m-2 inline-flex p-2"
                       >
-                        <Minus className="h-4 w-4" />
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                          <Minus className="h-4 w-4" />
+                        </span>
                       </button>
                       <span className="w-6 text-center text-sm tabular-nums">{l.quantity}</span>
                       <button
                         onClick={() => setQty(l.variantId, l.quantity + 1)}
                         aria-label="Sumar"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                        // Con el stock a la vista, no deja pedir más de lo que hay.
+                        disabled={l.quantity >= (availability?.[l.variantId] ?? Infinity)}
+                        className="-m-2 inline-flex p-2 disabled:opacity-40"
                       >
-                        <Plus className="h-4 w-4" />
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                          <Plus className="h-4 w-4" />
+                        </span>
                       </button>
                       <button
                         onClick={() => remove(l.variantId)}
-                        className="ml-auto text-xs text-red-600 hover:underline"
+                        className="-my-2.5 ml-auto py-2.5 text-xs text-red-600 hover:underline"
                       >
                         Quitar
                       </button>
                     </div>
+                    <LineIssueText issue={issues[l.variantId]} />
                   </div>
                   <div className="text-sm font-semibold tabular-nums">
                     {formatMoney(l.priceAmount * l.quantity, l.currency)}
@@ -304,32 +475,54 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                     También te puede gustar
                   </div>
                   <div className="flex gap-2 overflow-x-auto">
-                    {suggested.map((s) => (
-                      <button
-                        key={s.variantId}
-                        onClick={() =>
-                          add({
-                            variantId: s.variantId,
-                            productName: s.name,
-                            variantLabel: s.variantLabel,
-                            priceAmount: s.priceAmount,
-                            currency: s.currency,
-                            image: s.image,
-                          })
-                        }
-                        className="w-20 shrink-0 text-left"
-                      >
-                        {s.image ? (
-                          <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
-                        ) : (
-                          <InitialFallback
-                            name={s.name}
-                            className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
-                          />
-                        )}
-                        <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
-                      </button>
-                    ))}
+                    {suggested.map((s) => {
+                      const body = (
+                        <>
+                          {s.image ? (
+                            <Image
+                              src={s.image}
+                              alt=""
+                              width={80}
+                              height={80}
+                              className="h-20 w-20 rounded-md object-cover"
+                            />
+                          ) : (
+                            <InitialFallback
+                              name={s.name}
+                              className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
+                            />
+                          )}
+                          <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
+                        </>
+                      );
+                      return (s.variantCount ?? 1) > 1 && s.slug ? (
+                        <Link
+                          key={s.variantId}
+                          href={href(`/productos/${s.slug}`)}
+                          onClick={() => setOpen(false)}
+                          className="w-20 shrink-0 text-left"
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <button
+                          key={s.variantId}
+                          onClick={() =>
+                            add({
+                              variantId: s.variantId,
+                              productName: s.name,
+                              variantLabel: s.variantLabel,
+                              priceAmount: s.priceAmount,
+                              currency: s.currency,
+                              image: s.image,
+                            })
+                          }
+                          className="w-20 shrink-0 text-left"
+                        >
+                          {body}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -392,11 +585,15 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
               {cart?.notice && (
                 <p className="mb-3 rounded-md bg-black/5 px-3 py-2 text-xs text-black/70">{cart.notice}</p>
               )}
+              {blocked && (
+                <p className="mb-2 text-xs font-medium text-red-600">
+                  Revisá los productos marcados para poder seguir.
+                </p>
+              )}
               <button
-                onClick={() => {
-                  window.location.href = '/checkout';
-                }}
-                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg"
+                onClick={() => beginCheckout()}
+                disabled={blocked}
+                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {cart?.checkoutButtonText || 'Iniciar compra'}
               </button>
