@@ -7,11 +7,11 @@
  * configuración y lee el carrito), así los dos estados ocupan lo mismo.
  */
 export function CheckoutSkeleton() {
-  const block = 'animate-pulse rounded-lg bg-fg/[0.06]';
+  const block = 'tf-skeleton rounded-lg';
   return (
     <main aria-busy="true" className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="sr-only">Finalizar compra</h1>
-      <p className="sr-only" role="status">
+      <p className="sr-only" role="status" aria-label="Cargando el checkout…">
         Cargando el checkout…
       </p>
       {/* Pasos: tres círculos de 28 px con su etiqueta. */}
