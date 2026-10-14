@@ -6,6 +6,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { orderNumber } from '../../lib/orderNumber';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
@@ -436,7 +437,7 @@ function PickingTab() {
         <option value="">Pedidos pagados sin despachar ({pending.length})…</option>
         {pending.map((o) => (
           <option key={o.id} value={o.id}>
-            #{o.id.slice(0, 8)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
+            {orderNumber(o.id)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
           </option>
         ))}
       </select>

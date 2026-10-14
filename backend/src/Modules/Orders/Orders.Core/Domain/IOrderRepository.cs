@@ -19,6 +19,12 @@ public interface IOrderRepository
     Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(
         TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default);
 
+    /// <summary>
+    /// Todas las ventas que cumplen la búsqueda y el filtro del listado, de a
+    /// una y sin cargarlas todas en memoria: para exportarlas a un archivo.
+    /// </summary>
+    IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, string? search, string? status);
+
     /// <summary>Pedidos de un comprador (por email) — para "Mis pedidos" del storefront.</summary>
     Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default);
 
