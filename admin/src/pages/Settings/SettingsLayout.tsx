@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { cn, Tooltip } from '@tiendafy/ui';
-import { ThemeModeToggle } from '../../components/ThemeModeToggle';
+import { HeaderActions } from '../../components/HeaderActions';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { visibleSettingsNav } from '../../config/navigation';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -71,9 +71,7 @@ export function SettingsLayout() {
           <div className="min-w-0">
             <StoreSwitcher />
           </div>
-          <div className="ml-auto">
-            <ThemeModeToggle />
-          </div>
+          <HeaderActions />
         </>
       }
     >

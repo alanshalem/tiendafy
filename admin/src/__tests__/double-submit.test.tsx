@@ -56,7 +56,7 @@ describe('un click por pedido', () => {
 
   it('archivar una tienda: mientras va, el menú no deja repetirlo', async () => {
     const tenant = fixture<{ items: { id: string; name: string }[] }>('/api/v1/tenants').items[0]!;
-    const { api, user } = await open('/tenants', 'Tiendas');
+    const { api, user } = await open('/tenants', 'Mis tiendas');
     const release = hold(api, 'POST', `/tenants/${tenant.id}/archive`);
 
     await user.click(await menu(user, tenant.name, /Archivar/));

@@ -15,7 +15,7 @@ import {
   type BadgeVariant,
   type TableColumn,
 } from '@tiendafy/ui';
-import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Archive, ArchiveRestore, Plus, Trash2 } from 'lucide-react';
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { storefrontHost, storePublicHost, storePublicUrl } from '../lib/storefront';
@@ -277,12 +277,20 @@ export function TenantsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Tiendas</h1>
+          {/* Mismo nombre que en el menú: entrar a "Mis tiendas" y leer
+              "Tiendas" hacía dudar de si era la misma pantalla. */}
+          <h1 className="text-2xl font-bold text-fg">Mis tiendas</h1>
           <p className="text-sm text-fg-muted">
             Todas las tiendas del grupo y cómo viene cada una en los últimos {WINDOW_DAYS} días.
           </p>
         </div>
-        {canCreate && <Button onClick={() => setCreateOpen(true)}>Crear tienda</Button>}
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" /> Crear tienda
+            </span>
+          </Button>
+        )}
       </div>
 
       <ListStats

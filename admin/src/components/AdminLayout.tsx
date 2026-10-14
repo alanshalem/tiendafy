@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ExternalLink, LifeBuoy, LogOut, Settings } from 'lucide-react';
+import { LifeBuoy, Settings } from 'lucide-react';
 import { cn, Tooltip } from '@tiendafy/ui';
-import { useStore } from '../context/StoreContext';
-import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { firstSettingsPath } from '../lib/access';
 import { visibleMainNav, type NavItem } from '../config/navigation';
-import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
-import { storePublicUrl } from '../lib/storefront';
 import { LogoMark } from './LogoMark';
 import { PanelShell } from './PanelShell';
+import { HeaderActions } from './HeaderActions';
 
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
 // Marketing, Instagram/Facebook, Google Shopping, Marketplaces, Aplicaciones.
@@ -104,8 +101,6 @@ function SidebarItem({ item }: { item: NavItem }) {
 }
 
 export function AdminLayout() {
-  const { store } = useStore();
-  const { user, logout } = useAuth();
   const { can } = usePermissions();
 
   const visibleSections = visibleMainNav(can);
@@ -176,34 +171,7 @@ export function AdminLayout() {
             <StoreSwitcher />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {store && (
-              <a
-                href={storePublicUrl(store)}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Ver mi tienda"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                <span className="hidden sm:inline">Ver mi tienda</span> <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-            <ThemeModeToggle />
-            <div className="flex items-center gap-2 border-l border-border pl-2 sm:pl-3">
-              <span className="hidden max-w-[8rem] truncate text-sm text-fg-muted sm:inline">
-                {user?.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => logout()}
-                title="Cerrar sesión"
-                aria-label="Cerrar sesión"
-                className="text-fg-subtle hover:text-fg"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+          <HeaderActions />
         </>
       }
     >
