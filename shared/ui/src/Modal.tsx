@@ -48,12 +48,16 @@ export function Modal({ open, onClose, title, footer, size = 'md', dirty = false
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
+    // Se anota siempre que esté abierto, no solo al abrirlo: en StrictMode el
+    // efecto corre, se limpia (y se borra de la pila) y vuelve a correr con
+    // el diálogo ya abierto.
+    if (open) {
+      if (!dialog.open) dialog.showModal();
       topLayer.push(dialog);
+    } else {
+      if (dialog.open) dialog.close();
+      topLayer.remove(dialog);
     }
-    if (!open && dialog.open) dialog.close();
-    if (!open) topLayer.remove(dialog);
     return () => topLayer.remove(dialog);
   }, [open]);
 

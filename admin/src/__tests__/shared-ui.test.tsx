@@ -21,7 +21,7 @@ import {
   usePrompt,
   useToast,
 } from '@tiendafy/ui';
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../test/api';
 
@@ -314,6 +314,21 @@ describe('Modal', () => {
     });
     expect(cancel.defaultPrevented).toBe(false);
     expect(screen.getByText('cerrado')).toBeInTheDocument();
+  });
+
+  it('en StrictMode (efectos dobles) el modal sigue anotado como el de arriba', async () => {
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <ConfirmProvider>
+            <Form />
+          </ConfirmProvider>
+        </ToastProvider>
+      </StrictMode>,
+    );
+    await user.click(screen.getByRole('button', { name: 'fallar' }));
+    expect(dialogOf()).toContainElement(screen.getByText('No se pudo guardar'));
   });
 
   it('los avisos que dispara un modal se ven adentro del modal (si no, quedan inertes debajo del fondo)', async () => {
