@@ -788,7 +788,7 @@ public sealed record OrderListQuery(
         DateTime.SpecifyKind(day.ToDateTime(TimeOnly.MinValue) - Argentina, DateTimeKind.Utc);
 
     /// <summary>"a,b,c" → ids; lo que no es un id se ignora, y hay tope (es una selección de la tabla).</summary>
-    private static IReadOnlyCollection<Guid>? ParseIds(string? ids)
+    private static List<Guid>? ParseIds(string? ids)
     {
         if (string.IsNullOrWhiteSpace(ids)) return null;
         var parsed = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

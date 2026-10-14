@@ -78,7 +78,7 @@ public sealed class MeliStockSyncWorker(
             var pushStock = syncStock && link.SyncStock && link.LastPushedQty != available;
 
             long? priceMinor = null;
-            if (syncPrice && link.SyncPrice &&priceByVariant.TryGetValue(link.VariantId, out var localMinor) && localMinor > 0)
+            if (syncPrice && link.SyncPrice && priceByVariant.TryGetValue(link.VariantId, out var localMinor) && localMinor > 0)
             {
                 var target = MeliPricing.ForChannel(localMinor, connection.PriceMarkupPct);
                 if (link.LastPushedPriceMinor != target) priceMinor = target;
