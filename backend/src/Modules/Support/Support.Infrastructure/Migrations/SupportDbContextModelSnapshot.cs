@@ -17,7 +17,7 @@ namespace Support.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -82,6 +82,134 @@ namespace Support.Infrastructure.Migrations
                         .HasDatabaseName("ix_support_conversations_tenant_id_order_id");
 
                     b.ToTable("support_conversations", (string)null);
+                });
+
+            modelBuilder.Entity("Support.Infrastructure.InboxReply", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("author_name");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inbox_replies");
+
+                    b.HasIndex("TenantId", "Channel", "ExternalId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_inbox_replies_tenant_id_channel_external_id_created_at_utc");
+
+                    b.ToTable("inbox_replies", (string)null);
+                });
+
+            modelBuilder.Entity("Support.Infrastructure.InboxThreadState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ArchivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at_utc");
+
+                    b.Property<DateTime?>("AssignedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at_utc");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_user_id");
+
+                    b.Property<string>("AssignedUserName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("assigned_user_name");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("channel");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_id");
+
+                    b.Property<int>("ExternalUnread")
+                        .HasColumnType("integer")
+                        .HasColumnName("external_unread");
+
+                    b.Property<DateTime?>("LastSeenActivityAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_activity_at_utc");
+
+                    b.Property<bool>("MarkedUnread")
+                        .HasColumnType("boolean")
+                        .HasColumnName("marked_unread");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inbox_thread_states");
+
+                    b.HasIndex("TenantId", "AssignedUserId")
+                        .HasDatabaseName("ix_inbox_thread_states_tenant_id_assigned_user_id");
+
+                    b.HasIndex("TenantId", "Channel", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_inbox_thread_states_tenant_id_channel_external_id");
+
+                    b.ToTable("inbox_thread_states", (string)null);
                 });
 
             modelBuilder.Entity("Support.Infrastructure.SupportMessage", b =>
