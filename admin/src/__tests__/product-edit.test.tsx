@@ -73,9 +73,11 @@ describe('editar producto', () => {
       seoTitle: 'Mancuerna barata',
     });
     expect(sent(api, 'PATCH', `/variants/${variant.id}/price`)[0]).toMatchObject({ currency: 'ARS' });
+    // Sin stock cargado (las fixtures no tienen inventario) se espera 0.
     expect(sent(api, 'PUT', `/inventory/${variant.id}`)[0]).toEqual({
       available: 12,
       reason: 'Edición de producto',
+      expectedAvailable: 0,
     });
     if (category)
       expect(sent(api, 'PUT', `/products/${product.id}/categories`)[0]).toEqual({ categoryIds: [] });
@@ -127,6 +129,84 @@ describe('editar producto', () => {
       api.calls.filter((c) => c.method === 'GET' && c.path === `/api/v1/products/${product.id}`).length,
     ).toBeGreaterThan(1);
     expect(screen.getByLabelText(/^Nombre/)).toHaveValue('Nombre todavía sin guardar');
+  });
+
+  it('sin tocar el stock no lo reescribe: guardar no pisa las ventas del medio', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });
+    const user = await open(api);
+    expect(screen.getByLabelText('Stock')).toHaveValue('5');
+    await user.type(screen.getByLabelText(/Título SEO/), 'Otro título');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PATCH', `/products/${product.id}`)).toHaveLength(1);
+    expect(sent(api, 'PUT', `/inventory/${variant.id}`)).toEqual([]);
+  });
+
+  it('si el stock cambió mientras se editaba, avisa con el actual y el segundo guardado entra', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });
+    const user = await open(api);
+    const stock = screen.getByLabelText('Stock');
+    await user.clear(stock);
+    await user.type(stock, '8');
+
+    // En el medio se vendieron 2: el backend no pisa y dice cuánto hay.
+    const changed = 'El stock cambió mientras editabas: ahora hay 3. Revisalo y guardá de nuevo.';
+    api.on('PUT', `/api/v1/inventory/${variant.id}`, { title: 'Stock.Changed', detail: changed }, 409);
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 3, reserved: 2 }] });
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/inventory/${variant.id}`)[0]).toEqual({
+      available: 8,
+      reason: 'Edición de producto',
+      expectedAvailable: 5,
+    });
+    // En el campo y en un aviso; no se sale de la pantalla.
+    expect(screen.getAllByText(changed).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('heading', { name: 'Editar producto' })).toBeInTheDocument();
+
+    // Revisado, se guarda de nuevo contra el stock actual.
+    api.on('PUT', `/api/v1/inventory/${variant.id}`, { variantId: variant.id, available: 8, reserved: 2 });
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(sent(api, 'PUT', `/inventory/${variant.id}`)[1]).toMatchObject({ expectedAvailable: 3 });
+  });
+
+  it('con cambios sin guardar, salir de la pantalla o cerrar la pestaña pregunta', async () => {
+    const api = mockApi();
+    const user = await open(api);
+    const unload = () => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    // Recién abierto no hay nada que perder.
+    expect(unload()).toBe(false);
+
+    await user.type(screen.getByLabelText(/Título SEO/), 'Nuevo');
+    expect(unload()).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByLabelText(/Título SEO/)).toHaveValue('Nuevo');
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Editar producto' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('sin cambios, Cancelar sale sin preguntar', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });
+    const user = await open(api);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Editar producto' })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
   });
 
   it('sin tocar el paquete no lo reescribe', async () => {

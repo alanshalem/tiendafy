@@ -115,6 +115,19 @@ public static class InventoryEndpoints
             if (request.Available < 0)
                 return Results.Problem(title: "Stock.Negative", detail: "Available cannot be negative.", statusCode: 400);
 
+            // Con ExpectedAvailable (lo que la pantalla mostraba al cargar), el
+            // ajuste no pisa una venta o una recepción que entró mientras se
+            // editaba: responde 409 con el stock actual. Sin él, set absoluto
+            // como siempre (conteo de depósito, escáner, importación).
+            if (request.ExpectedAvailable is { } expected)
+            {
+                var result = await repository.SetAvailableIfUnchangedAsync(
+                    tenant.TenantId, variantId, expected, request.Available, request.Reason, ct);
+                return result.IsSuccess
+                    ? Results.Ok(new { result.Value.VariantId, result.Value.Available, result.Value.Reserved })
+                    : result.Error.ToProblem();
+            }
+
             var item = await repository.SetAvailableAsync(
                 tenant.TenantId, variantId, request.Available, request.Reason, ct);
             return Results.Ok(new { item.VariantId, item.Available, item.Reserved });
@@ -175,7 +188,7 @@ public static class InventoryEndpoints
     }
 }
 
-public sealed record SetStockRequest(int Available, string? Reason);
+public sealed record SetStockRequest(int Available, string? Reason, int? ExpectedAvailable = null);
 
 public sealed record SetLocationRequest(string? Location);
 

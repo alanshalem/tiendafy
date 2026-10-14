@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Store } from 'lucide-react';
 import { Tabs } from '@tiendafy/ui';
 import { api } from '../lib/api';
@@ -7,6 +7,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import type { Perm } from '../lib/access';
 import { HelpLink } from '../components/HelpLink';
+import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { VentasTab } from './mercadolibre-ventas';
 import { PreguntasTab } from './mercadolibre-preguntas';
 import { PublicacionesTab } from './mercadolibre-publicaciones';
@@ -33,7 +34,20 @@ export function MercadoLibrePage() {
   const { store } = useStore();
   const { can } = usePermissions();
   const tabs = TABS.filter((t) => can(t.perm));
-  const [status, setStatus] = useState<MeliStatus | null>(null);
+  // Antes un error al preguntar el estado se tomaba como "no conectada" y la
+  // pantalla invitaba a conectar una cuenta que ya estaba conectada.
+  const {
+    data: status,
+    error,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['meli-status', store?.id],
+    queryFn: () => api.get<MeliStatus>('/api/v1/admin/meli/status'),
+    enabled: !!store,
+    meta: ERROR_SHOWN,
+  });
 
   // La pestaña vive en la URL para poder mandar a alguien directo a la que
   // resuelve su problema — desde Configuración, por ejemplo, a vincular
@@ -46,14 +60,18 @@ export function MercadoLibrePage() {
     setParams(params, { replace: true });
   };
 
-  useEffect(() => {
-    if (!store) return;
-    api
-      .get<MeliStatus>('/api/v1/admin/meli/status')
-      .then(setStatus)
-      .catch(() => setStatus({ connected: false, nickname: null }));
-  }, [store]);
-
+  if (isError && !status)
+    return (
+      <div className="mx-auto max-w-xl py-16">
+        <h1 className="mb-4 text-2xl font-bold tracking-tight">Mercado Libre</h1>
+        <LoadError
+          title="No se pudo cargar el estado de Mercado Libre."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      </div>
+    );
   if (!status) return null;
 
   if (!status.connected) {

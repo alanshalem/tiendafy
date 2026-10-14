@@ -5,7 +5,7 @@ import { Trash2, GripVertical } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
-import { api, errMsg } from '../../lib/api';
+import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { type SpecValues } from './SpecFields';
@@ -27,6 +27,8 @@ import {
 import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { ScreenSkeleton } from '../../components/Skeleton';
+import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
+import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
 
 interface VariantDto {
   id: string;
@@ -65,18 +67,22 @@ export function EditProductPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: product, isLoading } = useQuery({
+  const productQ = useQuery({
     queryKey: ['product', id],
     queryFn: () => api.get<ProductDto>(`/api/v1/products/${id}`),
     enabled: !!id && !!store,
+    meta: ERROR_SHOWN,
   });
+  const { data: product, isLoading } = productQ;
 
   const variantIds = useMemo(() => product?.variants.map((v) => v.id) ?? [], [product]);
-  const { data: stockData } = useQuery({
+  const stockQ = useQuery({
     queryKey: ['inventory', store?.id, 'product', variantIds.join(',')],
     queryFn: () => api.get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantIds.join(',')}`),
     enabled: variantIds.length > 0,
+    meta: ERROR_SHOWN,
   });
+  const stockData = stockQ.data;
 
   // Estado del form (se inicializa al cargar el producto).
   const [name, setName] = useState('');
@@ -86,6 +92,11 @@ export function EditProductPage() {
   const [seoDescription, setSeoDescription] = useState('');
   const [prices, setPrices] = useState<Record<string, { price: string; promo: string }>>({});
   const [stock, setStock] = useState<Record<string, string>>({});
+  // El stock que se vio al cargar (o el último guardado): solo se manda el que
+  // cambió, y con este valor como "esperado" para que el backend no pise una
+  // venta que entró mientras se editaba.
+  const [stockSeen, setStockSeen] = useState<Record<string, string>>({});
+  const [stockError, setStockError] = useState<Record<string, string>>({});
   // Por variante: código de barras y el paquete de una unidad (peso y medidas).
   const [barcodes, setBarcodes] = useState<Record<string, string>>({});
   const [shipping, setShipping] = useState<Record<string, ShippingDraft>>({});
@@ -99,25 +110,38 @@ export function EditProductPage() {
   // volvía a copiar en cada recarga del producto —por ejemplo al subir una
   // foto— y se perdía lo que se estaba editando sin guardar.
   const [formFor, setFormFor] = useState<string | null>(null);
+  // Cómo estaba el form al cargarse: contra eso se sabe si hay cambios sin guardar.
+  const [loaded, setLoaded] = useState('');
   if (product && formFor !== product.id) {
-    setFormFor(product.id);
-    setName(product.name);
-    setDescription(product.description ?? '');
-    setBrand(product.brand ?? '');
-    setSeoTitle(product.seoTitle ?? '');
-    setSeoDescription(product.seoDescription ?? '');
-    setCategoryIds(product.categoryIds ?? []);
-    setSpecs(Object.fromEntries((product.specs ?? []).map((x) => [x.definitionId, x.value])));
-    setPrices(
-      Object.fromEntries(
+    const initial = {
+      name: product.name,
+      description: product.description ?? '',
+      brand: product.brand ?? '',
+      seoTitle: product.seoTitle ?? '',
+      seoDescription: product.seoDescription ?? '',
+      categoryIds: product.categoryIds ?? [],
+      specs: Object.fromEntries((product.specs ?? []).map((x) => [x.definitionId, x.value])) as SpecValues,
+      prices: Object.fromEntries(
         product.variants.map((v) => {
           const f = toFormPrice(v.price.amount, v.compareAtPrice?.amount ?? null);
           return [v.id, { price: toPesos(f.regular), promo: f.promo != null ? toPesos(f.promo) : '' }];
         }),
       ),
-    );
-    setBarcodes(Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])));
-    setShipping(Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])));
+      barcodes: Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])),
+      shipping: Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])),
+    };
+    setFormFor(product.id);
+    setLoaded(JSON.stringify(initial));
+    setName(initial.name);
+    setDescription(initial.description);
+    setBrand(initial.brand);
+    setSeoTitle(initial.seoTitle);
+    setSeoDescription(initial.seoDescription);
+    setCategoryIds(initial.categoryIds);
+    setSpecs(initial.specs);
+    setPrices(initial.prices);
+    setBarcodes(initial.barcodes);
+    setShipping(initial.shipping);
   }
 
   // El stock llega aparte: también se carga una sola vez por producto.
@@ -125,7 +149,9 @@ export function EditProductPage() {
   if (product && stockData && stockFor !== product.id) {
     setStockFor(product.id);
     const map = new Map(stockData.items.map((s) => [s.variantId, s.available]));
-    setStock(Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')])));
+    const loaded = Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')]));
+    setStock(loaded);
+    setStockSeen(loaded);
   }
 
   // Las fotos, en cambio, siguen al servidor: se agregan y se quitan al
@@ -136,6 +162,24 @@ export function EditProductPage() {
     setImagesFor(imagesKey);
     setImageOrder(product?.images.map((img) => img.id) ?? []);
   }
+
+  // Mismo orden de claves que `initial`: la comparación es por texto.
+  const dirty =
+    !!formFor &&
+    (JSON.stringify({
+      name,
+      description,
+      brand,
+      seoTitle,
+      seoDescription,
+      categoryIds,
+      specs,
+      prices,
+      barcodes,
+      shipping,
+    }) !== loaded ||
+      Object.keys(stock).some((vid) => stock[vid] !== (stockSeen[vid] ?? '')));
+  const leave = useUnsavedChanges(dirty);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['product', id] });
@@ -185,6 +229,30 @@ export function EditProductPage() {
     reorder.mutate(next);
   };
 
+  // Un ajuste de stock con el valor que se vio: si cambió en el medio, el
+  // backend responde Stock.Changed con el actual, y ese pasa a ser el visto
+  // para que el próximo guardado (ya revisado) entre.
+  const saveStock = async (variantId: string, available: number, expectedAvailable: number) => {
+    try {
+      await api.put(`/api/v1/inventory/${variantId}`, {
+        available,
+        reason: 'Edición de producto',
+        expectedAvailable,
+      });
+      setStockSeen((s) => ({ ...s, [variantId]: String(available) }));
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed') {
+        const fresh = await api
+          .get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantId}`)
+          .catch(() => null);
+        const now = fresh?.items.find((x) => x.variantId === variantId)?.available;
+        if (now !== undefined) setStockSeen((s) => ({ ...s, [variantId]: String(now) }));
+        setStockError((s) => ({ ...s, [variantId]: e.message }));
+      }
+      throw e;
+    }
+  };
+
   // Guardar: aplica los diffs (detalles, precios, stock, categorías).
   const save = useMutation({
     mutationFn: async () => {
@@ -211,12 +279,13 @@ export function EditProductPage() {
             compareAtAmount,
           });
 
+        // Antes se mandaba el stock de todas las variantes en cada guardado,
+        // aunque nadie lo hubiera tocado: el número cargado al abrir pisaba las
+        // ventas del medio y se vendía lo que ya no había.
         const sVal = stock[v.id];
-        if (sVal !== undefined && sVal !== '' && !Number.isNaN(Number(sVal)))
-          await api.put(`/api/v1/inventory/${v.id}`, {
-            available: parseInt(sVal, 10),
-            reason: 'Edición de producto',
-          });
+        const seen = stockSeen[v.id] ?? '';
+        if (sVal !== undefined && sVal !== '' && sVal !== seen && !Number.isNaN(Number(sVal)))
+          await saveStock(v.id, parseInt(sVal, 10), seen === '' ? 0 : parseInt(seen, 10));
 
         const barcode = (barcodes[v.id] ?? '').trim();
         if (barcode !== (v.barcode ?? ''))
@@ -240,9 +309,15 @@ export function EditProductPage() {
     onSuccess: () => {
       refresh();
       toast('Producto guardado', { variant: 'success' });
-      navigate('/productos');
+      leave(() => navigate('/productos'));
     },
-    onError: (e) => setError(errMsg(e, 'Error inesperado')),
+    onError: (e) => {
+      // El choque de stock se marca en su campo (y en un aviso, porque el
+      // campo puede estar lejos del botón); lo demás, donde siempre.
+      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed')
+        toast(e.message, { variant: 'error' });
+      else setError(errMsg(e, 'Error inesperado'));
+    },
   });
 
   const setStatus = useMutation({
@@ -260,7 +335,7 @@ export function EditProductPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast('Producto eliminado', { variant: 'success' });
-      navigate('/productos');
+      leave(() => navigate('/productos'));
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
@@ -268,6 +343,15 @@ export function EditProductPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   if (!store) return <NoStoreSelected />;
+  if (productQ.isError && !product)
+    return (
+      <LoadError
+        title="No se pudo cargar el producto."
+        error={productQ.error}
+        onRetry={() => void productQ.refetch()}
+        retrying={productQ.isFetching}
+      />
+    );
   if (isLoading || !product) return <ScreenSkeleton label="Cargando producto…" />;
 
   const shippingInvalid = product.variants.some(
@@ -342,6 +426,18 @@ export function EditProductPage() {
             title={multi ? 'Variantes' : 'Precio, stock y envío'}
             hint={multi ? 'Precio, stock, código de barras y paquete de cada una.' : undefined}
           >
+            {/* Sin el stock actual, el campo vacío parecería "sin stock". Igual
+                se puede cargar uno: el backend lo compara contra 0 y, si había
+                otro, avisa con el real. */}
+            {stockQ.isError && !stockData && (
+              <LoadError
+                className="mb-4"
+                title="No se pudo cargar el stock actual."
+                error={stockQ.error}
+                onRetry={() => void stockQ.refetch()}
+                retrying={stockQ.isFetching}
+              />
+            )}
             <div className="space-y-4">
               {product.variants.map((v) => {
                 const label = v.optionValues.length > 0 ? v.optionValues.join(' / ') : v.sku;
@@ -374,13 +470,14 @@ export function EditProductPage() {
                           placeholder="—"
                         />
                       </FormField>
-                      <FormField label="Stock">
+                      <FormField label="Stock" error={stockError[v.id]}>
                         <Input
                           inputMode="numeric"
                           value={stock[v.id] ?? ''}
-                          onChange={(e) =>
-                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))
-                          }
+                          onChange={(e) => {
+                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }));
+                            setStockError((s) => ({ ...s, [v.id]: '' }));
+                          }}
                           placeholder="—"
                         />
                       </FormField>

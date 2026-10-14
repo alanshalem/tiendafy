@@ -505,7 +505,12 @@ function PoEditor({
           )}
           {poId !== null &&
             (NEXT_STEPS[status] ?? []).map((next) => (
-              <Button key={next} variant="secondary" onClick={() => setStatus.mutate(next)}>
+              <Button
+                key={next}
+                variant="secondary"
+                disabled={setStatus.isPending}
+                onClick={() => setStatus.mutate(next)}
+              >
                 {PO_STATUS[next]?.label ?? next}
               </Button>
             ))}

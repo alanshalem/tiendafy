@@ -15,6 +15,15 @@ public interface IStockRepository
     Task<StockItem> SetAvailableAsync(TenantId tenantId, Guid variantId, int available, string? reason, CancellationToken ct = default);
 
     /// <summary>
+    /// Setea el disponible SOLO si sigue siendo <paramref name="expectedAvailable"/>
+    /// (lo que vio quien lo editó), en un UPDATE condicional: si en el medio se
+    /// vendió o entró mercadería, falla con Stock.Changed y no pisa nada. Sin
+    /// fila de stock cuenta como 0.
+    /// </summary>
+    Task<Result<StockItem>> SetAvailableIfUnchangedAsync(
+        TenantId tenantId, Guid variantId, int expectedAvailable, int available, string? reason, CancellationToken ct = default);
+
+    /// <summary>
     /// available += delta en UN update atómico, clampeado a 0 (ventas de otros
     /// canales, recepción de compras, componentes de kit): sin el read-modify-write
     /// que pierde actualizaciones contra las reservas del checkout. Crea el item

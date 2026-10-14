@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Badge, EmptyList, Spinner } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { fecha } from './mercadolibre-shared';
+import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 
 interface MeliClaim {
   id: string;
@@ -16,14 +17,23 @@ interface MeliClaim {
 // ---- Reclamos ----------------------------------------------------------------
 
 export function ReclamosTab() {
-  const [claims, setClaims] = useState<MeliClaim[] | null>(null);
+  // Un error no es "sin reclamos": eso hacía creer que no había nada que atender.
+  const { data, error, isError, refetch, isFetching } = useQuery({
+    queryKey: ['meli-claims'],
+    queryFn: () => api.get<{ claims: MeliClaim[] }>('/api/v1/admin/meli/claims'),
+    meta: ERROR_SHOWN,
+  });
+  const claims = data?.claims ?? null;
 
-  useEffect(() => {
-    api
-      .get<{ claims: MeliClaim[] }>('/api/v1/admin/meli/claims')
-      .then((r) => setClaims(r.claims))
-      .catch(() => setClaims([]));
-  }, []);
+  if (isError && !claims)
+    return (
+      <LoadError
+        title="No se pudieron cargar los reclamos."
+        error={error}
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
+    );
 
   return claims === null ? (
     <Spinner />

@@ -5,6 +5,7 @@ import { Button, Tabs, useToast } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
+import { LoadError } from '../components/LoadError';
 import { ListStats } from '../components/stats/ListStats';
 import { formatMoney, formatNumber } from '../lib/format';
 import { CalendarioTab } from './redes-calendario';
@@ -39,30 +40,42 @@ export function RedesPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [composer, setComposer] = useState<{ post: SocialPostDto | null; date: Date | null } | null>(null);
+  // Lo que no se pudo cargar. Antes un error dejaba listas vacías: "sin
+  // cuentas conectadas" (y el botón mandaba a conectar de nuevo) o un
+  // calendario sin posts que sí estaban programados.
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   const loadAccounts = useCallback(() => {
     api
       .get<{ accounts: SocialAccountDto[] }>('/api/v1/admin/social/accounts')
       .then((r) => setAccounts(r.accounts))
-      .catch(() => setAccounts([]));
+      .catch((e: unknown) => setLoadError(e ?? true));
   }, []);
 
   const loadPosts = useCallback(() => {
     api
       .get<{ posts: SocialPostDto[] }>('/api/v1/admin/social/posts')
       .then((r) => setPosts(r.posts))
-      .catch(() => setPosts([]));
+      .catch((e: unknown) => setLoadError(e ?? true));
   }, []);
 
-  useEffect(() => {
-    if (!store) return;
+  const loadAll = useCallback(() => {
     api
       .get<SocialChannelsDto>('/api/v1/admin/social/channels')
       .then(setChannels)
-      .catch(() => setChannels({ connectors: [], channels: [] }));
+      .catch((e: unknown) => setLoadError(e ?? true));
     loadAccounts();
     loadPosts();
-  }, [store, loadAccounts, loadPosts]);
+  }, [loadAccounts, loadPosts]);
+
+  useEffect(() => {
+    if (store) loadAll();
+  }, [store, loadAll]);
+
+  const retry = () => {
+    setLoadError(null);
+    loadAll();
+  };
 
   // Vuelta del OAuth: ?social=connected|error (y la URL queda limpia).
   useEffect(() => {
@@ -104,7 +117,7 @@ export function RedesPage() {
           {tab !== 'cuentas' && (
             <Button
               onClick={() => {
-                if (accounts === null) return; // todavía cargando
+                if (accounts === null) return; // todavía cargando (o no se pudo)
                 if (!hasAuthorized) {
                   toast('Conectá una cuenta primero (pestaña Cuentas).', { variant: 'error' });
                   setTab('cuentas');
@@ -119,7 +132,16 @@ export function RedesPage() {
         </div>
       </div>
 
-      {tab !== 'cuentas' && monthPosts.length > 0 && (
+      {loadError !== null && (
+        <LoadError
+          className="mb-4"
+          title="No se pudieron cargar las redes sociales."
+          error={loadError}
+          onRetry={retry}
+        />
+      )}
+
+      {loadError === null && tab !== 'cuentas' && monthPosts.length > 0 && (
         <div className="mb-4">
           <ListStats
             items={[
@@ -150,7 +172,7 @@ export function RedesPage() {
         </div>
       )}
 
-      {tab === 'calendario' && (
+      {loadError === null && tab === 'calendario' && (
         <CalendarioTab
           posts={posts}
           month={month}
@@ -168,14 +190,16 @@ export function RedesPage() {
           onPostClick={(post) => setComposer({ post, date: null })}
         />
       )}
-      {tab === 'publicaciones' && (
+      {loadError === null && tab === 'publicaciones' && (
         <PublicacionesTab
           posts={posts}
           onChanged={loadPosts}
           onEdit={(post) => setComposer({ post, date: null })}
         />
       )}
-      {tab === 'cuentas' && <CuentasTab channels={channels} accounts={accounts} onChanged={loadAccounts} />}
+      {loadError === null && tab === 'cuentas' && (
+        <CuentasTab channels={channels} accounts={accounts} onChanged={loadAccounts} />
+      )}
 
       {composer && channels && (
         <ComposerModal

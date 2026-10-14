@@ -29,6 +29,11 @@ ENV VITE_STOREFRONT_ORIGIN=$VITE_STOREFRONT_ORIGIN
 ENV VITE_API_URL=${VITE_API_URL} \
     VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
 RUN pnpm --filter ./admin build
+# Los assets con hash salen ya comprimidos (.gz al lado de cada uno): nginx
+# los sirve con gzip_static, sin recomprimir en cada pedido y al nivel máximo.
+# Solo /assets: config.js se reescribe al arrancar y index.html es chico.
+RUN find admin/dist/assets -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' -o -name '*.json' \) \
+      -size +1k -exec sh -c 'gzip -9 -c "$1" > "$1.gz"' _ {} \;
 
 # Imagen nginx no-root (uid 101, escucha 8080). Solo el dist + la config.
 FROM nginxinc/nginx-unprivileged:alpine
@@ -37,6 +42,7 @@ FROM nginxinc/nginx-unprivileged:alpine
 # root y la reescritura falla con "permission denied".
 COPY --from=build --chown=101:101 /repo/admin/dist /usr/share/nginx/html
 COPY admin/nginx.conf /etc/nginx/conf.d/default.conf
+COPY admin/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 # Config de runtime: la imagen NO tiene ambiente propio. Este script reescribe
 # config.js al arrancar, así el mismo digest se promueve de staging a prod.
 COPY --chmod=755 admin/docker-config.sh /docker-entrypoint.d/40-tiendafy-config.sh

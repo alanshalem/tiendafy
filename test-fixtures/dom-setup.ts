@@ -34,8 +34,13 @@ export function installDomPolyfills() {
   Element.prototype.scrollBy ??= () => {};
   Element.prototype.scrollTo ??= () => {};
 
+  // El orden en que se abrieron: el último es el de arriba (la "capa
+  // superior" del navegador), que es al que le llega el Escape.
+  let shown = 0;
+  const shownAt = new WeakMap<HTMLDialogElement, number>();
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
     this.open = true;
+    shownAt.set(this, ++shown);
   };
   HTMLDialogElement.prototype.show ??= function (this: HTMLDialogElement) {
     this.open = true;
@@ -49,7 +54,7 @@ export function installDomPolyfills() {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const open = Array.from(document.querySelectorAll<HTMLDialogElement>('dialog[open]'));
-    const top = open[open.length - 1];
+    const top = open.sort((a, b) => (shownAt.get(a) ?? 0) - (shownAt.get(b) ?? 0))[open.length - 1];
     if (!top) return;
     const cancel = new Event('cancel', { cancelable: true });
     if (top.dispatchEvent(cancel)) top.close();

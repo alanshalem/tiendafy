@@ -124,6 +124,17 @@ export function createExplorer({ act, screen, within }: TestingLibrary, vi: Vi) 
     }
     await user.keyboard('{Escape}');
     await settle(1);
+    // Un form con cambios no se cierra con Escape: pregunta si descartarlos.
+    // Se descartan, como haría quien lo quiso cerrar.
+    for (const dialog of screen.queryAllByRole('dialog')) {
+      const discard = within(dialog)
+        .queryAllByRole('button')
+        .find((b) => /^(Descartar|Salir sin guardar)$/.test(b.textContent?.trim() ?? ''));
+      if (discard && dialog.textContent?.includes('¿Descartar los cambios?')) {
+        await user.click(discard);
+        await settle(1);
+      }
+    }
   }
 
   /**

@@ -25,6 +25,7 @@ import { HelpLink } from '../components/HelpLink';
 import { api, errMsg } from '../lib/api';
 import { toCents } from '../lib/price';
 import { EmptyState } from '../components/EmptyState';
+import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
@@ -76,13 +77,14 @@ export function DiscountsPage() {
   const [editing, setEditing] = useState<Coupon | null>(null);
 
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['coupons', store?.id, page],
     queryFn: () =>
       api.get<{ items: Coupon[]; total: number }>(
         `/api/v1/coupons?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   const [search, setSearch] = useState('');
@@ -94,9 +96,12 @@ export function DiscountsPage() {
 
   const toggle = useMutation({
     mutationFn: (c: Coupon) => api.post(`/api/v1/coupons/${c.id}/toggle`, {}),
-    onSuccess: () => {
-      refresh();
+    // Se espera la lista nueva antes de volver a habilitar el botón: es un
+    // "alternar", y con el estado viejo en pantalla un segundo click lo
+    // deshacía (o lo pausaba creyendo que lo activaba).
+    onSuccess: async () => {
       toast('Cupón actualizado', { variant: 'success' });
+      await refresh();
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
@@ -152,7 +157,7 @@ export function DiscountsPage() {
                 <Dropdown.Item onSelect={() => setEditing(c)}>
                   <Pencil className="mr-2 inline h-4 w-4" /> Editar
                 </Dropdown.Item>
-                <Dropdown.Item onSelect={() => toggle.mutate(c)}>
+                <Dropdown.Item disabled={toggle.isPending} onSelect={() => toggle.mutate(c)}>
                   <Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}
                 </Dropdown.Item>
                 <Dropdown.Item
@@ -207,6 +212,13 @@ export function DiscountsPage() {
         <Card>
           <TableSkeleton label="Cargando cupones…" />
         </Card>
+      ) : isError && !data ? (
+        <LoadError
+          title="No se pudieron cargar los cupones."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
       ) : coupons.length === 0 ? (
         <EmptyState
           kicker="Descuentos"

@@ -9,6 +9,12 @@ interface StoreContextValue {
   stores: Tenant[];
   selectStore: (store: Tenant) => void;
   isLoading: boolean;
+  /**
+   * No se pudo traer la lista de tiendas. No es "no hay tiendas": las
+   * pantallas dicen que falló la carga en vez de "Elegí una tienda".
+   */
+  loadError: unknown;
+  retry: () => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -26,9 +32,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // de la lista: si la elegida ya no existe, la primera.
   const [chosenId, setChosenId] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['tenants'],
     queryFn: () => api.get<{ items: Tenant[] }>('/api/v1/tenants?limit=50'),
+    meta: { errorShown: true },
   });
 
   // Memoizado: con `?? []` suelto, mientras carga era un array nuevo en cada
@@ -46,10 +53,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   setActiveTenant(store?.id ?? null);
 
   // Sin tiendas (p. ej. se eliminaron todas): que al recargar el switcher no
-  // busque una tienda que ya no existe.
+  // busque una tienda que ya no existe. Si la lista no llegó, no se sabe:
+  // la elegida se conserva.
   useEffect(() => {
-    if (!isLoading && stores.length === 0) localStorage.removeItem(STORAGE_KEY);
-  }, [isLoading, stores.length]);
+    if (!isLoading && !isError && stores.length === 0) localStorage.removeItem(STORAGE_KEY);
+  }, [isLoading, isError, stores.length]);
+  const loadError = isError && !data ? error : null;
+  const retry = useCallback(() => void refetch(), [refetch]);
 
   const selectStore = useCallback(
     (next: Tenant) => {
@@ -62,7 +72,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <StoreContext.Provider value={{ store, stores, selectStore, isLoading }}>
+    <StoreContext.Provider value={{ store, stores, selectStore, isLoading, loadError, retry }}>
       {children}
     </StoreContext.Provider>
   );

@@ -1,8 +1,19 @@
 'use client';
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from './cn';
+import { topLayer } from './topLayer';
 
 export type ToastVariant = 'success' | 'error' | 'info';
 
@@ -60,10 +71,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
+  // Con un modal abierto, los avisos van adentro del de arriba: afuera
+  // quedaban debajo del fondo oscuro e inertes (no se podían cerrar), justo
+  // los errores que dispara un form dentro del modal. Viven en un nodo propio
+  // que se mueve de lugar (sin volver a montar los avisos) y va PRIMERO en el
+  // modal: así no se mete entre los botones del pie.
+  const [slot] = useState(() => (typeof document === 'undefined' ? null : document.createElement('div')));
+  const host = useSyncExternalStore(topLayer.subscribe, topLayer.top, () => null);
+  useLayoutEffect(() => {
+    if (!slot) return;
+    if (host) host.prepend(slot);
+    else document.body.append(slot);
+  }, [slot, host]);
+  useEffect(() => () => slot?.remove(), [slot]);
+
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {typeof document !== 'undefined' &&
+      {slot &&
         createPortal(
           <div
             aria-live="polite"
@@ -97,7 +122,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               </div>
             ))}
           </div>,
-          document.body,
+          slot,
         )}
     </ToastContext.Provider>
   );

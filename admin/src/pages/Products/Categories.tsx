@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
-import { api, errMsg } from '../../lib/api';
+import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { storefrontUrl } from '../../lib/storefront';
 import { EmptyState } from '../../components/EmptyState';
 import { HelpLink } from '../../components/HelpLink';
@@ -21,6 +21,8 @@ import { useFlipList } from '../../lib/useFlip';
 import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
 import { TableSkeleton } from '../../components/Skeleton';
+import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
+import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 
 interface CategoryDto {
   id: string;
@@ -97,23 +99,17 @@ export function CategoriesPage() {
     setOrder(readSavedOrder(storageKey));
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['categories', store?.id],
     queryFn: () => api.get<CategoriesResponse>('/api/v1/categories'),
     enabled: !!store,
+    meta: ERROR_SHOWN,
   });
   const categories = useMemo(() => data?.items ?? [], [data]);
 
-  // Aviso del navegador si hay cambios sin guardar.
-  useEffect(() => {
-    if (!dirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty]);
+  // Un orden sin guardar no se pierde: ni yéndose a otra pantalla del panel
+  // ni cerrando la pestaña.
+  useUnsavedChanges(dirty);
 
   const tree = useMemo(() => buildTree(categories, order), [categories, order]);
 
@@ -175,6 +171,46 @@ export function CategoriesPage() {
     onError: (e) => toast(errMsg(e, 'No se pudo eliminar'), { variant: 'error' }),
   });
 
+  // Duplicar: una hermana "Nombre (copia)" con la misma estructura de
+  // subcategorías debajo. Los productos no se copian (cada uno elige sus
+  // categorías); el aviso lo dice.
+  const duplicateMut = useMutation({
+    mutationFn: async (node: TreeNode) => {
+      let copy: CategoryDto | null = null;
+      for (let n = 1; !copy; n++) {
+        const name = n === 1 ? `${node.name} (copia)` : `${node.name} (copia ${n})`;
+        try {
+          copy = await api.post<CategoryDto>('/api/v1/categories', { name, parentId: node.parentId });
+        } catch (e) {
+          // Ya hay una copia con ese nombre: se prueba con el siguiente número.
+          if (!(e instanceof ApiRequestError && e.error.code === 'Category.Duplicate') || n >= 20) throw e;
+        }
+      }
+      const copyChildren = async (from: TreeNode, parentId: string) => {
+        for (const child of from.children) {
+          const made = await api.post<CategoryDto>('/api/v1/categories', { name: child.name, parentId });
+          await copyChildren(child, made.id);
+        }
+      };
+      await copyChildren(node, copy.id);
+      return copy;
+    },
+    onSuccess: (copy, node) => {
+      refresh();
+      toast(
+        node.children.length > 0
+          ? `Se creó “${copy.name}” con sus subcategorías. Los productos no se copian.`
+          : `Se creó “${copy.name}”. Los productos no se copian.`,
+        { variant: 'success' },
+      );
+    },
+    onError: (e) => {
+      // Lo que alcanzó a crearse antes del error también se ve.
+      refresh();
+      toast(errMsg(e, 'No se pudo duplicar la categoría.'), { variant: 'error' });
+    },
+  });
+
   const onAddSub = (node: TreeNode) => {
     setCreateParentId(node.id);
     setCreateOpen(true);
@@ -203,7 +239,9 @@ export function CategoriesPage() {
     return <NoStoreSelected />;
   }
 
-  const isEmpty = !isLoading && categories.length === 0;
+  // Un error no es un catálogo sin categorías (invitaba a crearlas de nuevo).
+  const loadFailed = isError && !data;
+  const isEmpty = !isLoading && !loadFailed && categories.length === 0;
 
   return (
     <div className="space-y-4 pb-20">
@@ -222,7 +260,14 @@ export function CategoriesPage() {
         )}
       </div>
 
-      {isEmpty ? (
+      {loadFailed ? (
+        <LoadError
+          title="No se pudieron cargar las categorías."
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      ) : isEmpty ? (
         <EmptyState
           kicker="Categorías"
           title="Organizá tu catálogo"
@@ -244,7 +289,8 @@ export function CategoriesPage() {
               dragId={dragId}
               onDragStart={setDragId}
               onDrop={handleDrop}
-              onDuplicate={() => toast('Duplicar categoría — próximamente', { variant: 'info' })}
+              onDuplicate={(n) => duplicateMut.mutate(n)}
+              duplicating={duplicateMut.isPending}
               onEdit={setRenaming}
               onAddSub={onAddSub}
               onView={onView}
@@ -354,7 +400,9 @@ interface RowHandlers {
   dragId: string | null;
   onDragStart: (id: string) => void;
   onDrop: (node: TreeNode) => void;
-  onDuplicate: () => void;
+  onDuplicate: (node: TreeNode) => void;
+  /** Hay una copia en curso: el botón no se puede tocar dos veces. */
+  duplicating: boolean;
   onEdit: (node: TreeNode) => void;
   onAddSub: (node: TreeNode) => void;
   onView: (node: TreeNode) => void;
@@ -369,6 +417,7 @@ function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
     onDragStart,
     onDrop,
     onDuplicate,
+    duplicating,
     onEdit,
     onAddSub,
     onView,
@@ -426,9 +475,11 @@ function CategoryRow({ node, ...h }: { node: TreeNode } & RowHandlers) {
 
         <button
           type="button"
-          onClick={onDuplicate}
-          title="Duplicar"
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted"
+          onClick={() => onDuplicate(node)}
+          disabled={duplicating}
+          title="Duplicar (con subcategorías, sin productos)"
+          aria-label={`Duplicar ${node.name}`}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-fg-muted hover:bg-bg-muted disabled:cursor-wait disabled:opacity-50"
         >
           <Copy className="h-4 w-4" />
         </button>

@@ -21,6 +21,7 @@ import {
   SpecSection,
   parseShipping,
 } from './product-form';
+import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
 
 interface ProductDto {
   id: string;
@@ -146,6 +147,18 @@ export function NewProductPage() {
   const photos = useUploadQueue('productImage', uploadMedia);
   const [saving, setSaving] = useState<{ index: number; progress: number } | null>(null);
 
+  // Cualquier cosa cargada cuenta: salir sin guardar pregunta antes.
+  const dirty =
+    [name, description, brand, seoTitle, seoDescription, price, promoPrice, stock, sku, barcode].some(
+      (v) => v.trim() !== '',
+    ) ||
+    categoryIds.length > 0 ||
+    Object.values(specs).some((v) => v.trim() !== '') ||
+    JSON.stringify(shipping) !== JSON.stringify(EMPTY_SHIPPING) ||
+    files.length > 0 ||
+    hasVariants;
+  const leave = useUnsavedChanges(dirty);
+
   const parsedShipping = parseShipping(shipping);
   const size = parsedShipping.value ?? {};
 
@@ -264,7 +277,7 @@ export function NewProductPage() {
     onSuccess: (product) => {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast(`"${product.name}" creado`, { variant: 'success' });
-      navigate('/productos');
+      leave(() => navigate('/productos'));
     },
     onError: (err) => setError(errMsg(err, 'Error inesperado')),
   });
