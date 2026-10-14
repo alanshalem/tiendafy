@@ -10,7 +10,7 @@ public enum OrderStatus
     Failed = 2,         // pago rechazado
     Cancelled = 3,      // cancelada (expiró / usuario abandonó)
     Refunded = 4,       // reembolsada por el total tras estar pagada
-    Fulfilled = 5,      // entregada (módulo de fulfillment, futuro)
+    Fulfilled = 5,      // despachada (o, si se retira, lista para retirar); no hay "entregada"
     ChargedBack = 6,    // contracargo / disputa del comprador
     PartiallyRefunded = 7, // reembolso parcial acumulado < total
 }
@@ -47,7 +47,24 @@ public static class OrderStatuses
 /// </summary>
 public sealed class Order : AggregateRoot
 {
+    /// <summary>Venta del checkout de la tienda online.</summary>
+    public const string ChannelWeb = "web";
+
+    /// <summary>Venta cargada a mano en el panel (mostrador, WhatsApp, teléfono).</summary>
+    public const string ChannelManual = "manual";
+
+    /// <summary>Presupuesto aceptado que se convirtió en venta.</summary>
+    public const string ChannelQuote = "quote";
+
     public Guid CheckoutSessionId { get; private set; }
+
+    /// <summary>
+    /// Por dónde entró la venta. Se guarda al nacer y no se deduce después:
+    /// adivinarlo por el id del pago o por la nota se rompía en cuanto una
+    /// venta manual se cobraba con link (queda con un pago de Mercado Pago,
+    /// igual que una del checkout).
+    /// </summary>
+    public string Channel { get; private set; } = ChannelWeb;
     public OrderStatus Status { get; private set; }
     public string Currency { get; private set; } = null!;
     public string BuyerEmail { get; private set; } = null!;
@@ -77,6 +94,15 @@ public sealed class Order : AggregateRoot
     public DateTime? PaidAtUtc { get; private set; }
     public string? Tracking { get; private set; }
     public DateTime? FulfilledAtUtc { get; private set; }
+
+    /// <summary>
+    /// Cuándo, quién y por qué se canceló a mano una venta pendiente. Una
+    /// cancelación libera stock y anula el link de pago: sin rastro, después
+    /// nadie sabe por qué una venta "desapareció" de lo pendiente.
+    /// </summary>
+    public DateTime? CancelledAtUtc { get; private set; }
+    public string? CancelledBy { get; private set; }
+    public string? CancelReason { get; private set; }
 
     private readonly List<OrderItem> _items = [];
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
@@ -210,6 +236,36 @@ public sealed class Order : AggregateRoot
     {
         if (Status == OrderStatus.PendingPayment) Status = OrderStatus.Cancelled;
     }
+
+    /// <summary>De dónde vino la venta (ver <see cref="Channel"/>). Valores fuera de la lista quedan en web.</summary>
+    public void SetChannel(string channel) =>
+        Channel = channel is ChannelManual or ChannelQuote ? channel : ChannelWeb;
+
+    /// <summary>
+    /// Cancelación a mano de una venta que nunca se cobró (el link de pago que
+    /// no se pagó, el cliente que se arrepintió antes de pagar). Una venta
+    /// cobrada no se cancela: se reembolsa, que es lo que devuelve la plata.
+    /// </summary>
+    public Result Cancel(string cancelledBy, string? reason)
+    {
+        var allowed = EnsureCancellable();
+        if (allowed.IsFailure) return allowed;
+
+        Status = OrderStatus.Cancelled;
+        CancelledAtUtc = DateTime.UtcNow;
+        CancelledBy = Text.Clip(cancelledBy, 200) ?? "admin";
+        CancelReason = Text.Clip(reason, 300);
+        return Result.Success();
+    }
+
+    /// <summary>Si se puede cancelar, sin cancelarla: para chequear antes de tocar el link de pago.</summary>
+    public Result EnsureCancellable() => Status switch
+    {
+        OrderStatus.PendingPayment => Result.Success(),
+        OrderStatus.Cancelled => Result.Failure(Error.Conflict("Order.AlreadyCancelled", "Esta venta ya estaba cancelada.")),
+        _ => Result.Failure(Error.Conflict("Order.NotCancellable",
+            "Solo se cancela una venta pendiente de pago. Si ya se cobró, reembolsala.")),
+    };
 
     /// <summary>Marca como despachada/entregada (Paid → Fulfilled). Guarda el tracking opcional.</summary>
     public Result MarkFulfilled(string? tracking)

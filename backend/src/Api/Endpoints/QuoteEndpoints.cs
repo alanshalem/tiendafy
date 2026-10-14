@@ -249,7 +249,7 @@ public static class QuoteEndpoints
                 DiscountMinor: quote.DiscountAmount.AmountInMinorUnits > 0
                     ? quote.DiscountAmount.AmountInMinorUnits
                     : null,
-                CustomerId: quote.CustomerId), null, ct);
+                CustomerId: quote.CustomerId), null, ct, global::Orders.Core.Domain.Order.ChannelQuote);
             if (order.IsFailure) return order.Error.ToProblem();
 
             var accepted = quote.Accept(order.Value.Order.Id);

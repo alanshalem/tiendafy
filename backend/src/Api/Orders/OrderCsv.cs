@@ -21,7 +21,7 @@ public static class OrderCsv
     private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
 
     public const string Header =
-        "Número;Fecha;Estado;Cliente;Email;Teléfono;DNI/CUIT;Productos;Unidades;Subtotal;Descuento;Envío;Total;Reembolsado;Moneda;Medio de envío;Dirección;Seguimiento;Cobrada;Enviada;Cupón;Origen";
+        "Número;Fecha;Estado;Cliente;Email;Teléfono;DNI/CUIT;Productos;Unidades;Subtotal;Descuento;Envío;Total;Reembolsado;Moneda;Medio de envío;Dirección;Seguimiento;Cobrada;Enviada;Cupón;Origen;Canal;Cobro";
 
     public static IEnumerable<string?> Row(Order o) =>
     [
@@ -48,7 +48,26 @@ public static class OrderCsv
         o.FulfilledAtUtc is { } sent ? LocalDateTime(sent) : "",
         VatBookCsv.Text(o.CouponCode),
         VatBookCsv.Text(o.UtmSource),
+        ChannelLabel(o.Channel),
+        PaymentLabel(OrderPayment.Of(o)),
     ];
+
+    /// <summary>Los mismos nombres que el filtro de canal del panel.</summary>
+    private static string ChannelLabel(string channel) => channel switch
+    {
+        Order.ChannelManual => "Venta manual",
+        Order.ChannelQuote => "Presupuesto",
+        _ => "Tienda online",
+    };
+
+    private static string PaymentLabel(string? method) => method switch
+    {
+        OrderPayment.Cash => "Efectivo",
+        OrderPayment.Transfer => "Transferencia",
+        OrderPayment.CurrentAccount => "Cuenta corriente",
+        OrderPayment.Gateway => "Pago online",
+        _ => "",
+    };
 
     private static string LocalDateTime(DateTime utc) =>
         (DateTime.SpecifyKind(utc, DateTimeKind.Utc) + Argentina).ToString("dd/MM/yyyy HH:mm");
@@ -63,7 +82,8 @@ public static class OrderCsv
         OrderStatus.Refunded => "Reembolsada",
         OrderStatus.PartiallyRefunded => "Reembolso parcial",
         OrderStatus.ChargedBack => "Contracargo",
-        OrderStatus.Fulfilled => o.IsPickup ? "Lista para retirar" : "Entregada",
+        // Despachada, no entregada: el sistema no se entera de la entrega.
+        OrderStatus.Fulfilled => o.IsPickup ? "Lista para retirar" : "Enviada",
         _ => o.Status.ToString(),
     };
 }

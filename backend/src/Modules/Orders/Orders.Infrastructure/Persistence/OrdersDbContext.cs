@@ -70,6 +70,9 @@ public sealed class OrdersDbContext : DbContext
         order.Property(o => o.BuyerPhone).HasMaxLength(40);
         order.Property(o => o.DocNumber).HasMaxLength(20);
         order.Property(o => o.Notes).HasMaxLength(500);
+        order.Property(o => o.Channel).HasMaxLength(20).HasDefaultValue(Order.ChannelWeb);
+        order.Property(o => o.CancelledBy).HasMaxLength(200);
+        order.Property(o => o.CancelReason).HasMaxLength(300);
         order.HasIndex(o => new { o.TenantId, o.CreatedAtUtc });
         order.HasIndex(o => o.PaymentId);
         order.Ignore(o => o.DomainEvents);
