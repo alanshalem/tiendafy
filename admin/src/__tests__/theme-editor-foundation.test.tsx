@@ -319,17 +319,16 @@ describe('editor: la sección abierta desaparece', () => {
   it('deshacer hasta antes de agregarla vuelve a la lista (no rompe)', async () => {
     const { api, user: u } = await openEditor();
     await openHome(u);
-    const before = within(panel()).getAllByRole('button', { name: 'Editar sección' }).length;
-    await u.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
+    const before = within(panel()).getAllByRole('button', { name: /^Editar «/ }).length;
+    await u.click(within(panel()).getByRole('button', { name: 'Agregar sección' }));
     await u.click(
-      within(within(panel()).getByRole('group', { name: 'Contenido' })).getByRole('button', {
-        name: /^Preguntas frecuentes/,
-      }),
+      within(
+        within(screen.getByRole('dialog', { name: 'Agregar sección' })).getByRole('group', {
+          name: 'Contenido',
+        }),
+      ).getByRole('button', { name: /^Preguntas frecuentes/ }),
     );
-    const rows = within(panel()).getAllByRole('button', { name: 'Editar sección' });
-    expect(rows).toHaveLength(before + 1);
-    await u.click(rows.at(-1)!);
-    // Recién agregada, ya trae contenido de ejemplo.
+    // Se abre sola, y recién agregada ya trae contenido de ejemplo.
     expect(
       await within(panel()).findByRole('button', { name: '¿Hacen envíos a todo el país?' }),
     ).toBeInTheDocument();
@@ -337,7 +336,7 @@ describe('editor: la sección abierta desaparece', () => {
 
     await u.keyboard('{Control>}z{/Control}');
     await waitFor(() =>
-      expect(within(panel()).getAllByRole('button', { name: 'Editar sección' })).toHaveLength(before),
+      expect(within(panel()).getAllByRole('button', { name: /^Editar «/ })).toHaveLength(before),
     );
     await waitFor(() => expect((drafts(api).at(-1)?.body as ThemeConfig).sections).toHaveLength(before));
     expect(crashes()).toEqual([]);
@@ -346,13 +345,12 @@ describe('editor: la sección abierta desaparece', () => {
   it('descartar con el panel de una sección nueva abierto vuelve a la lista', async () => {
     const { user: u } = await openEditor();
     await openHome(u);
-    await u.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
+    await u.click(within(panel()).getByRole('button', { name: 'Agregar sección' }));
     await u.click(
-      within(within(panel()).getByRole('group', { name: 'Contenido' })).getByRole('button', {
+      within(screen.getByRole('dialog', { name: 'Agregar sección' })).getByRole('button', {
         name: /^Mensaje institucional/,
       }),
     );
-    await u.click(within(panel()).getAllByRole('button', { name: 'Editar sección' }).at(-1)!);
     expect(await within(panel()).findByRole('textbox', { name: 'Nombre de la sección' })).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: /^Descartar$/ }));
@@ -367,7 +365,7 @@ describe('editor: la sección abierta desaparece', () => {
         within(panel()).queryByRole('textbox', { name: 'Nombre de la sección' }),
       ).not.toBeInTheDocument(),
     );
-    expect(within(panel()).getAllByRole('button', { name: 'Editar sección' }).length).toBeGreaterThan(0);
+    expect(within(panel()).getAllByRole('button', { name: /^Editar «/ }).length).toBeGreaterThan(0);
     expect(crashes()).toEqual([]);
   });
 });

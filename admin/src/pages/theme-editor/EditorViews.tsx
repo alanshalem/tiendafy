@@ -38,6 +38,7 @@ export function EditorViews({
   onSearch,
   onHistory,
   onCopyFromStore,
+  onRemoveSection,
 }: {
   view: string;
   setView: (view: string) => void;
@@ -49,9 +50,18 @@ export function EditorViews({
   onSearch: () => void;
   onHistory: () => void;
   onCopyFromStore?: () => void;
+  /** Quitar una sección del inicio (con "Deshacer"). */
+  onRemoveSection: (id: string) => void;
 }) {
   const confirm = useConfirm();
   const toRoot = () => setView('root');
+  const homeProps = {
+    theme,
+    onBack: toRoot,
+    updateTheme,
+    onOpenSection: (sid: string) => setView(`${SECTION_VIEW}${sid}`),
+    onRemoveSection,
+  };
 
   if (view.startsWith(SECTION_VIEW)) {
     const id = view.slice(SECTION_VIEW.length);
@@ -59,15 +69,7 @@ export function EditorViews({
     // La sección abierta puede dejar de existir (deshacer hasta antes de
     // agregarla, restaurar otra versión, recargar el borrador de otra
     // pestaña): se vuelve a la lista en vez de romper el editor.
-    if (!section)
-      return (
-        <HomePanel
-          theme={theme}
-          onBack={toRoot}
-          onOpenSection={(sid) => setView(`${SECTION_VIEW}${sid}`)}
-          updateTheme={updateTheme}
-        />
-      );
+    if (!section) return <HomePanel {...homeProps} />;
     return (
       <SectionPanel
         section={section}
@@ -129,7 +131,7 @@ export function EditorViews({
     case 'header':
       return <HeaderPanel {...panelProps} />;
     case 'home':
-      return <HomePanel {...panelProps} onOpenSection={(id) => setView(`${SECTION_VIEW}${id}`)} />;
+      return <HomePanel {...homeProps} />;
     case 'products-list':
       return <ProductListPanel {...panelProps} />;
     case 'product-detail':

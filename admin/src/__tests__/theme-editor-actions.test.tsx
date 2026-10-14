@@ -119,7 +119,7 @@ describe('editor de diseño: guardar y publicar', () => {
   it('Ctrl+K abre el buscador de opciones', async () => {
     const { user } = await openEditor();
     await user.keyboard('{Control>}k{/Control}');
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Buscar una opción del editor' })).toBeInTheDocument();
   });
 });
 
@@ -141,18 +141,17 @@ describe('editor de diseño: la vista previa', () => {
     await settle(1);
   });
 
-  it('borrar una sección desde el preview pide confirmación y la saca del borrador', async () => {
-    const { api } = await openEditor();
-    const section = theme.sections[0]!;
+  it('borrar una sección desde el preview la saca enseguida, con "Deshacer" (como en la lista)', async () => {
+    const { api, user } = await openEditor();
+    const section = theme.sections[1]!;
     fromPreview({ type: EDITOR_MSG.deleteSection, sectionId: section.id });
-    await userEvent.click(
-      within(await screen.findByRole('dialog', { name: 'Eliminar sección' })).getByRole('button', {
-        name: 'Eliminar',
-      }),
-    );
     await waitFor(() => expect(drafts(api).length).toBeGreaterThan(0), { timeout: 3000 });
-    const saved = drafts(api).at(-1)!.body as { sections: { id: string }[] };
-    expect(saved.sections.some((s) => s.id === section.id)).toBe(false);
+    const saved = () => drafts(api).at(-1)!.body as { sections: { id: string }[] };
+    expect(saved().sections.some((s) => s.id === section.id)).toBe(false);
+
+    const notice = screen.getByText(/^Eliminaste «/).closest<HTMLElement>('[role=status]')!;
+    await user.click(within(notice).getByRole('button', { name: 'Deshacer' }));
+    await waitFor(() => expect(saved().sections[1]!.id).toBe(section.id), { timeout: 3000 });
   });
 
   it('cuando el preview avisa que está listo, se le manda el tema', async () => {
