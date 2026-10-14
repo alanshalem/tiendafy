@@ -1,3 +1,6 @@
+// Importar cada página en frío (con la cobertura instrumentando) tarda: de ahí
+// los timeouts largos, como en pages.test.
+
 /**
  * Cada página con su título (el layout le suma " · <Tienda>") y las privadas
  * fuera de Google. Antes contacto, checkout, la cuenta, favoritos y la vista
@@ -22,7 +25,7 @@ describe('títulos', () => {
     ['pago pendiente', () => import('../app/checkout/pending/layout'), 'Pago pendiente'],
     ['términos', () => import('../app/terminos/page'), 'Términos y condiciones'],
     ['vista previa', () => import('../app/preview/page'), 'Vista previa'],
-  ] as const)('%s', async (_, load, title) => {
+  ] as const)('%s', { timeout: 60_000 }, async (_, load, title) => {
     expect((await meta(load as () => Promise<{ metadata: Metadata }>)).title).toBe(title);
   });
 });
@@ -33,11 +36,11 @@ describe('fuera de Google (noindex, sin bloquearlas en robots.txt)', () => {
     ['el checkout y sus resultados', () => import('../app/checkout/layout')],
     ['favoritos', () => import('../app/favoritos/page')],
     ['la vista previa del editor', () => import('../app/preview/page')],
-  ] as const)('%s', async (_, load) => {
+  ] as const)('%s', { timeout: 60_000 }, async (_, load) => {
     expect((await meta(load as () => Promise<{ metadata: Metadata }>)).robots).toEqual(NOT_INDEXED);
   });
 
-  it('los layouts nuevos solo envuelven', async () => {
+  it('los layouts nuevos solo envuelven', { timeout: 60_000 }, async () => {
     for (const load of [
       () => import('../app/cuenta/layout'),
       () => import('../app/checkout/layout'),
