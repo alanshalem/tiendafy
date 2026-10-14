@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { EDITOR_MSG, sanitizeCss } from '@tiendafy/types';
 import { IconKitContext } from './Icon';
 import { CartProvider, CartDrawer, useCart } from './cart';
@@ -14,8 +14,15 @@ import { TrackingTags } from './TrackingTags';
 import { WhatsAppFab } from './WhatsAppFab';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
-import { fetchProductsByIdsClient } from '@/lib/catalog-client';
-import { referencedProductIds } from '@/lib/catalog-map';
+import { fetchSectionProductsClient } from '@/lib/catalog-client';
+import {
+  applySectionProducts,
+  productsBySection,
+  resolvePlans,
+  sectionPlans,
+  type SectionProductsMap,
+} from '@/lib/section-products';
+import { SectionProductsContext } from './SectionProductsContext';
 import { Header } from './StoreHeader';
 import { Footer } from './StoreFooter';
 
@@ -24,6 +31,8 @@ interface StorefrontViewProps {
   tenantName: string;
   theme: ThemeConfig;
   products: StoreProduct[];
+  /** Productos de las secciones de la portada, ya resueltos en el servidor (ver loadHomeSectionProducts). */
+  sectionProducts?: SectionProductsMap;
   live?: boolean;
   children?: React.ReactNode;
 }
@@ -47,7 +56,12 @@ function PreviewCartSync() {
 /** Adonde lleva "Saltar al contenido": lo que hay entre el encabezado y el pie. */
 export const CONTENT_ID = 'contenido';
 
-function Inner({ tenantName, theme, products, children }: Omit<StorefrontViewProps, 'live' | 'tenantId'>) {
+function Inner({
+  tenantName,
+  theme,
+  products,
+  children,
+}: Omit<StorefrontViewProps, 'live' | 'tenantId' | 'sectionProducts'>) {
   return (
     <div className="min-h-screen overflow-x-clip bg-bg text-fg" style={{ fontFamily: 'var(--font-body)' }}>
       {/* Lo primero que alcanza el Tab: con teclado o lector de pantalla, saltea
@@ -84,12 +98,16 @@ export function StorefrontView({
   tenantId,
   tenantName,
   theme: initialTheme,
-  products: initialProducts,
+  products,
+  sectionProducts: initialSectionProducts,
   live,
   children,
 }: StorefrontViewProps) {
   const [theme, setTheme] = useState<ThemeConfig>(initialTheme);
-  const [products, setProducts] = useState<StoreProduct[]>(initialProducts);
+  // Lo resuelto de cada sección de productos, por plan (origen + límite).
+  const [resolved, setResolved] = useState<SectionProductsMap>(initialSectionProducts ?? {});
+  // Planes ya pedidos (o que vinieron del servidor): cada uno se pide una vez.
+  const requested = useRef(new Set(Object.keys(initialSectionProducts ?? {})));
 
   useEffect(() => {
     if (!live) return;
@@ -119,24 +137,35 @@ export function StorefrontView({
     return () => window.removeEventListener('message', handler);
   }, [live]);
 
-  // Live: el theme se actualiza por postMessage pero `products` es el snapshot
-  // inicial. Un destacado recién agregado puede no estar en ese set → lo traemos
-  // por id al vuelo, así aparece sin recargar el preview.
+  // Live: el tema llega por postMessage y una sección puede cambiar de
+  // origen (otros elegidos, otra categoría…). Se pide solo lo que no se pidió
+  // nunca, un pedido por origen. Antes se pedía por id lo que faltara en cada
+  // cambio del tema: un producto borrado nunca aparecía, así que se volvía a
+  // pedir con cada tecla que se tocaba en el editor.
+  const plans = useMemo(() => sectionPlans(theme.sections.filter((s) => s.visible)), [theme.sections]);
   useEffect(() => {
     if (!live) return;
-    const present = new Set(products.map((p) => p.id));
-    const missing = referencedProductIds(theme.sections).filter((id) => !present.has(id));
-    if (missing.length === 0) return;
-
-    let cancelled = false;
-    fetchProductsByIdsClient(missing, tenantId).then((extra) => {
-      if (cancelled) return;
-      if (extra.length) setProducts((prev) => [...prev, ...extra]);
+    const pending = [...plans].filter(([key]) => !requested.current.has(key));
+    if (pending.length === 0) return;
+    for (const [key] of pending) requested.current.add(key);
+    void resolvePlans(new Map(pending), (source, limit) =>
+      fetchSectionProductsClient(tenantId, source, limit),
+    ).then((found) => {
+      if (Object.keys(found).length > 0) setResolved((prev) => ({ ...prev, ...found }));
     });
-    return () => {
-      cancelled = true;
+  }, [live, plans, tenantId]);
+
+  // Lo resuelto entra al render de dos formas: por sección (contexto, para
+  // los renderers que lo lean) y, mientras tanto, como `productIds` + lista
+  // de productos, que es lo que lee el render actual de las secciones.
+  const view = useMemo(() => {
+    const applied = applySectionProducts(theme.sections, products, resolved);
+    return {
+      theme: applied.sections === theme.sections ? theme : { ...theme, sections: applied.sections },
+      products: applied.products,
+      bySection: productsBySection(theme.sections, resolved),
     };
-  }, [live, theme, tenantId, products]);
+  }, [theme, products, resolved]);
 
   // En la tienda, el favicon sale del servidor (metadata del layout). Acá solo
   // se cambia en vivo en el preview, cuando el comercio sube otro en el editor.
@@ -175,9 +204,11 @@ export function StorefrontView({
               <AuthProvider storeKey={tenantId}>
                 <FavoritesProvider storeKey={tenantId}>
                   <CartProvider storeKey={tenantId}>
-                    <Inner tenantName={tenantName} theme={theme} products={products}>
-                      {children}
-                    </Inner>
+                    <SectionProductsContext.Provider value={view.bySection}>
+                      <Inner tenantName={tenantName} theme={view.theme} products={view.products}>
+                        {children}
+                      </Inner>
+                    </SectionProductsContext.Provider>
                   </CartProvider>
                 </FavoritesProvider>
               </AuthProvider>

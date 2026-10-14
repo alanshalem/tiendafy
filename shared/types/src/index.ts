@@ -8,6 +8,25 @@ export type { TenantId, Money, ApiError, IsoDateTime } from './common';
 
 export type { Tenant } from './tenancy';
 
+// Origen de los productos de una sección de la portada (editor ↔ tienda ↔ API).
+export type {
+  ProductSource,
+  ProductSourceKind,
+  ProductSourceSort,
+  ProductSectionType,
+  SectionProductPlan,
+} from './product-source';
+export {
+  PRODUCT_SOURCE_LIMIT,
+  BEST_SELLERS_DAYS,
+  PRODUCT_SECTION_TYPES,
+  clampProductLimit,
+  normalizeProductSource,
+  productSourceQuery,
+  defaultProductSource,
+  sectionProductPlan,
+} from './product-source';
+
 // Schema de tema del merchant (fuente única para storefront + admin).
 export type {
   ThemeColors,

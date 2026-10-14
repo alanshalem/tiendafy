@@ -69,6 +69,40 @@ public sealed record AdminProductFilter(
     bool? HasMatchingVariant = null,
     AdminProductSort Sort = AdminProductSort.Newest);
 
+/// <summary>
+/// De dónde sale la lista de una sección de productos de la portada. "Más
+/// vendidos" no está: cruza ventas y catálogo, así que la arma el Api y le
+/// pide al catálogo los ids ya rankeados como <see cref="Manual"/>.
+/// </summary>
+public enum SectionProductKind
+{
+    /// <summary>Los ids que eligió el comercio, en su orden.</summary>
+    Manual = 0,
+    Category = 1,
+    Brand = 2,
+    /// <summary>Lo último que se cargó (fecha de alta, más nuevo primero).</summary>
+    Newest = 3,
+    /// <summary>Con alguna variante cuyo precio tachado supera al de venta.</summary>
+    OnSale = 4,
+}
+
+/// <summary>
+/// Pedido de productos para una sección del storefront. Siempre solo ACTIVE y
+/// con al menos una variante: lo demás no se puede vender, y ocupaba lugares
+/// del tope de la sección.
+/// </summary>
+/// <param name="Ids">Para <see cref="SectionProductKind.Manual"/>: el orden pedido se respeta.</param>
+/// <param name="IncludeChildren">Para categoría: también los productos de sus subcategorías.</param>
+/// <param name="Sort">Orden para categoría, marca y ofertas; las demás tienen el suyo propio.</param>
+public sealed record SectionProductQuery(
+    SectionProductKind Kind,
+    int Limit,
+    IReadOnlyList<Guid>? Ids = null,
+    Guid? CategoryId = null,
+    bool IncludeChildren = true,
+    string? Brand = null,
+    ProductSort Sort = ProductSort.Newest);
+
 /// <summary>Un filtro de opción con sus valores disponibles (ej: "Color" → ["Rojo","Azul"]).</summary>
 public sealed record OptionFacet(string Name, IReadOnlyList<string> Values);
 
@@ -114,4 +148,19 @@ public interface IProductRepository
     /// <summary>Busca productos ACTIVE con filtros, orden y paginado. Devuelve la página, el total y las facetas.</summary>
     Task<(IReadOnlyList<Product> Items, int Total, ProductFacets Facets)> SearchAsync(
         TenantId tenantId, ProductSearchFilter filter, CancellationToken ct = default);
+
+    /// <summary>
+    /// Los productos de una sección de la portada (destacados, ofertas, una
+    /// categoría…): solo publicados, hasta <see cref="SectionProductQuery.Limit"/>.
+    /// </summary>
+    Task<IReadOnlyList<Product>> ListForSectionAsync(
+        TenantId tenantId, SectionProductQuery query, CancellationToken ct = default);
+
+    /// <summary>
+    /// A qué producto PUBLICADO pertenece cada variante. Las de productos en
+    /// borrador o archivados, o de otra tienda, no vuelven. Lo usa "más
+    /// vendidos", que suma ventas por variante y muestra productos.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> ActiveProductIdsByVariantAsync(
+        TenantId tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default);
 }

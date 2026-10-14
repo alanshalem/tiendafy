@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { fetchDraftTheme } from '@/lib/theme';
-import { loadStorefront, withReferencedProducts } from '@/lib/storefront';
+import { loadStorefront, loadHomeSectionProducts } from '@/lib/storefront';
 import { NOT_INDEXED } from '@/lib/seo';
 
 // Preview del editor: render del DRAFT, con postMessage live.
@@ -20,14 +20,17 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
 
   const { pt } = await searchParams;
   const theme = await fetchDraftTheme(data.tenant.id, pt);
-  const products = await withReferencedProducts(data.tenant.id, theme, data.products);
+  // Los productos de cada sección de la portada, según su origen (elegidos,
+  // más vendidos, lo último, ofertas…): un pedido por origen y solo publicados.
+  const sectionProducts = await loadHomeSectionProducts(data.tenant.id, theme.sections);
 
   return (
     <StorefrontView
       tenantId={data.tenant.id}
       tenantName={data.tenant.name}
       theme={theme}
-      products={products}
+      products={data.products}
+      sectionProducts={sectionProducts}
       live
     />
   );

@@ -1,3 +1,4 @@
+import { productSourceQuery, type ProductSource } from '@tiendafy/types';
 import { apiGetTenant } from './api';
 import type { ProductDto } from './catalog-map';
 import { REVALIDATE } from './cache';
@@ -80,12 +81,32 @@ export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_UR
   return [...slugs].slice(0, max);
 }
 
-/** Un producto por id. Lo usan las secciones que referencian productos
- *  puntuales (destacados/ofertas) que pueden quedar fuera del set inicial. */
-export async function fetchProductById(tenantId: string, id: string): Promise<ProductDto | null> {
-  return apiGetTenant<ProductDto>(`/api/v1/products/${id}`, tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+/**
+ * Los productos de una sección de la portada según su origen (elegidos a
+ * mano, categoría, marca, lo último, ofertas, lo más vendido), en un solo
+ * pedido. Antes lo elegido se pedía de a uno por /products/{id}, que no
+ * filtra estado: un borrador o un archivado seguía en la portada.
+ *
+ * Null si no se pudo: la API caída o sin el endpoint (404). Quien llama deja
+ * esa sección como estaba en vez de romper la portada entera.
+ */
+export async function fetchSectionProducts(
+  tenantId: string,
+  source: ProductSource,
+  limit?: number,
+): Promise<ProductDto[] | null> {
+  try {
+    // Data Cache como el resto del catálogo, y con el tenant en la URL (_mt,
+    // lo pone apiGetTenant): la caché no mira headers.
+    const res = await apiGetTenant<{ items: ProductDto[] }>(
+      `/api/v1/products/section?${productSourceQuery(source, limit)}`,
+      tenantId,
+      { next: { revalidate: REVALIDATE.catalog } },
+    );
+    return res?.items ?? null;
+  } catch {
+    return null;
+  }
 }
 
 interface ProductSearchResult {
@@ -162,4 +183,4 @@ export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> 
 
 // Los tipos y mappers puros viven en catalog-map (importable desde el cliente).
 export type { VariantDto, ProductDto } from './catalog-map';
-export { toStoreProduct, toStoreProducts, referencedProductIds } from './catalog-map';
+export { toStoreProduct, toStoreProducts } from './catalog-map';

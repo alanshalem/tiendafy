@@ -8,7 +8,8 @@
  */
 import { act, screen } from '@testing-library/react';
 import { render } from '@testing-library/react';
-import { EDITOR_MSG } from '@tiendafy/types';
+import { EDITOR_MSG, sectionProductPlan } from '@tiendafy/types';
+import { planKey } from '../lib/section-products';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StorefrontView } from '../components/store/StorefrontView';
 import { ADMIN_ORIGIN } from '../components/store/preview';
@@ -23,6 +24,17 @@ const products = toStoreProducts([dto]);
 
 let api: MockApi;
 let crashes: () => unknown[][];
+
+const SECTION = '/api/v1/products/section';
+/** Los pedidos de productos de secciones que hizo la vista, como query params. */
+const sectionCalls = () =>
+  api.calls
+    .filter((c) => c.path.startsWith(`${SECTION}?`))
+    .map((c) => new URL(c.path, 'http://x').searchParams);
+const featuredWith = (productIds: string[], title = 'Elegidos') => ({
+  ...theme,
+  sections: [{ id: 'f', type: 'featured', visible: true, data: { title, productIds } }],
+});
 
 function view(props: Partial<Parameters<typeof StorefrontView>[0]> = {}) {
   return render(
@@ -117,20 +129,61 @@ describe('vista previa del editor', () => {
 
   it('trae al vuelo un destacado que no estaba en la tienda', async () => {
     const otherId = '99999999-9999-9999-9999-999999999999';
-    api.on('GET', `/api/v1/products/${otherId}`, { ...dto, id: otherId, name: 'Recién destacado' });
-    view({ live: true });
+    api.on('GET', SECTION, { items: [{ ...dto, id: otherId, name: 'Recién destacado' }] });
+    view({ live: true, theme: { ...theme, sections: [] } });
     await settle(2);
+    await fromEditor({ type: EDITOR_MSG.theme, theme: featuredWith([otherId]) });
+    const asked = sectionCalls();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.get('kind')).toBe('manual');
+    expect(asked[0]!.get('ids')).toBe(otherId);
+    expect(screen.getAllByText('Recién destacado').length).toBeGreaterThan(0);
+  });
+
+  it('un elegido que ya no existe no se vuelve a pedir con cada cambio del tema', async () => {
+    // Antes: el borrado nunca llegaba, así que cada tecla en el editor lo volvía a pedir.
+    const gone = '88888888-8888-8888-8888-888888888888';
+    api.on('GET', SECTION, { items: [] });
+    view({ live: true, theme: { ...theme, sections: [] } });
+    await settle(2);
+    await fromEditor({ type: EDITOR_MSG.theme, theme: featuredWith([gone], 'Elegidos') });
+    await fromEditor({ type: EDITOR_MSG.theme, theme: featuredWith([gone], 'Elegidos!') });
+    await fromEditor({ type: EDITOR_MSG.theme, theme: { ...featuredWith([gone]), favicon: 'x.png' } });
+    expect(sectionCalls()).toHaveLength(1);
+    // Sin productos para mostrar, la sección no aparece (antes caía a "los primeros del catálogo").
+    expect(screen.queryByText('Elegidos!')).not.toBeInTheDocument();
+
+    // Cambiar lo elegido sí pide, una vez y todo junto.
+    const other = '77777777-7777-7777-7777-777777777777';
+    await fromEditor({ type: EDITOR_MSG.theme, theme: featuredWith([gone, other]) });
+    await fromEditor({ type: EDITOR_MSG.theme, theme: featuredWith([gone, other], 'Otro título') });
+    expect(sectionCalls()).toHaveLength(2);
+    expect(sectionCalls()[1]!.get('ids')).toBe(`${gone},${other}`);
+  });
+
+  it('lo que el servidor ya resolvió no se vuelve a pedir; un origen nuevo, sí', async () => {
+    const sections = [{ id: 'n', type: 'new-products' as const, visible: true, data: { title: 'Lo nuevo' } }];
+    const withNew = { ...theme, sections };
+    const key = planKey(sectionProductPlan(sections[0]!)!);
+    api.on('GET', SECTION, { items: [{ ...dto, id: 'en-oferta', name: 'En oferta ya' }] });
+    view({
+      live: true,
+      theme: withNew,
+      sectionProducts: { [key]: toStoreProducts([{ ...dto, id: 'nuevo-1', name: 'Lo más nuevo' }]) },
+    });
+    await settle(2);
+    expect(screen.getAllByText('Lo más nuevo').length).toBeGreaterThan(0);
+    expect(sectionCalls()).toHaveLength(0);
+
     await fromEditor({
       type: EDITOR_MSG.theme,
       theme: {
-        ...theme,
-        sections: [
-          { id: 'f', type: 'featured', visible: true, data: { title: 'Elegidos', productIds: [otherId] } },
-        ],
+        ...withNew,
+        sections: [...sections, { id: 's', type: 'sale-products', visible: true, data: {} }],
       },
     });
-    expect(api.calls.some((c) => c.path === `/api/v1/products/${otherId}`)).toBe(true);
-    expect(screen.getAllByText('Recién destacado').length).toBeGreaterThan(0);
+    expect(sectionCalls().map((q) => q.get('kind'))).toEqual(['on-sale']);
+    expect(screen.getAllByText('En oferta ya').length).toBeGreaterThan(0);
   });
 
   it('avisa al panel que está lista cuando corre dentro del iframe', async () => {

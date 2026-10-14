@@ -92,7 +92,9 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
               ¡Últimas {product.stock}!
             </span>
           )}
-        {/* Favorito: toggle sin navegar. */}
+        {/* Favorito: toggle sin navegar. El círculo se ve de 32 px pero el
+            botón mide 48: con el dedo, uno de 32 se erraba seguido. Está corrido
+            para que el círculo quede donde estaba. */}
         <button
           type="button"
           onClick={(e) => {
@@ -102,9 +104,14 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           }}
           aria-label={faved ? 'Quitar de favoritos' : 'Agregar a favoritos'}
           aria-pressed={faved}
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:scale-110"
+          className="group/fav absolute right-0 top-0 z-10 flex h-12 w-12 items-center justify-center rounded-full"
         >
-          <Icon name="heart" className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`} />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur transition group-hover/fav:scale-110">
+            <Icon
+              name="heart"
+              className={`h-4 w-4 ${faved ? 'fill-red-500 text-red-500' : 'text-black/55'}`}
+            />
+          </span>
         </button>
         {imgs.length > 0 ? (
           <StoreImage
@@ -148,9 +155,14 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           </>
         )}
       </Link>
+      {/* Nombre en dos líneas como mucho, con "…". Antes el `block` le ganaba
+          al display del recorte y un nombre largo ocupaba cuatro o cinco
+          líneas, desalineando precios y botones de la fila; una palabra larga
+          sin espacios se cortaba sin "…" (wrap-anywhere la parte). El alto
+          mínimo de dos líneas alinea también los nombres cortos. */}
       <Link
         href={link}
-        className="mt-2 block min-h-[2.5rem] text-sm font-medium hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+        className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm/5 font-medium wrap-anywhere hover:underline"
       >
         {product.name}
       </Link>
@@ -180,6 +192,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         </div>
       )}
       {/* Siempre visible. mt-3: gap del precio; el card flex lo mantiene abajo.
+          40 px de alto (antes 32): es lo que se toca con el pulgar en mobile.
           Agotado no se agrega (aunque el comercio oculte el badge), y con
           varias variantes se elige en la ficha: antes se agregaba siempre la
           primera, que muchas veces no era el talle o color que se quería. */}
@@ -188,14 +201,14 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           <button
             type="button"
             disabled
-            className="mt-3 w-full cursor-not-allowed rounded-md bg-black/10 py-2 text-xs font-semibold text-fg-muted"
+            className="mt-3 flex min-h-10 w-full cursor-not-allowed items-center justify-center rounded-md bg-black/10 px-2 text-xs font-semibold text-fg-muted"
           >
             Sin stock
           </button>
         ) : (product.variantCount ?? 1) > 1 ? (
           <Link
             href={link}
-            className="mt-3 block w-full rounded-md bg-primary py-2 text-center text-xs font-semibold text-primary-fg"
+            className="mt-3 flex min-h-10 w-full items-center justify-center rounded-md bg-primary px-2 text-center text-xs font-semibold text-primary-fg"
           >
             Elegir opciones
           </Link>
@@ -213,7 +226,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
               });
               setOpen(true);
             }}
-            className="mt-3 w-full rounded-md bg-primary py-2 text-xs font-semibold text-primary-fg"
+            className="mt-3 flex min-h-10 w-full items-center justify-center rounded-md bg-primary px-2 text-xs font-semibold text-primary-fg"
           >
             Agregar al carrito
           </button>

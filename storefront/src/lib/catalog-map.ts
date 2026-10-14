@@ -1,11 +1,10 @@
 import { type MoneyDto } from '@tiendafy/types';
-import type { StoreProduct } from '@/components/store/sections';
+import type { StoreProduct } from '@/components/store/ProductCard';
 
 /**
  * Tipos del catálogo y mappers PUROS (DTO → modelo de la tienda). Viven aparte
  * de catalog.ts porque ese módulo importa lib/api (server-only): sin esta
- * separación, el cliente arrastraba el fetcher del servidor solo para mapear
- * — y por eso `referencedProductIds` estaba duplicado a mano en StorefrontView.
+ * separación, el cliente arrastraba el fetcher del servidor solo para mapear.
  */
 export interface VariantDto {
   id: string;
@@ -54,16 +53,6 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     variantCount: p.variants.length,
     stock: p.stock ?? null,
   };
-}
-
-/** Ids de producto referenciados por las secciones del home (destacados/ofertas). */
-export function referencedProductIds(sections: { data: unknown }[]): string[] {
-  const referenced = new Set<string>();
-  for (const s of sections) {
-    const ids = (s.data as { productIds?: unknown }).productIds;
-    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && referenced.add(id));
-  }
-  return [...referenced];
 }
 
 /** DTOs (posiblemente null) → StoreProduct, descartando inválidos. */

@@ -1,8 +1,9 @@
 import { headers } from 'next/headers';
-import { fetchActiveProducts, fetchProductById, referencedProductIds, toStoreProducts } from './catalog';
-import type { StoreProduct } from '@/components/store/sections';
+import { fetchActiveProducts, fetchSectionProducts, toStoreProducts } from './catalog';
+import type { StoreProduct } from '@/components/store/ProductCard';
+import { resolvePlans, sectionPlans, type SectionProductsMap } from './section-products';
 import { resolveTenant } from './tenancy';
-import type { Tenant, ThemeConfig } from '@tiendafy/types';
+import type { ProductSource, Tenant, ThemeSection } from '@tiendafy/types';
 
 /** Base absoluta del sitio a partir del Host (http en localhost, https afuera). */
 export async function siteBase(): Promise<string> {
@@ -36,20 +37,33 @@ export async function loadStorefront({ products: withProducts = true } = {}): Pr
 }
 
 /**
- * Las secciones del home (destacados/ofertas) eligen productos por id. Si un
- * producto elegido quedó fuera del set inicial (que trae sólo los primeros 24),
- * el render lo descartaba en silencio. Acá traemos por id los referenciados que
- * falten y los sumamos, así siempre se muestran los que el merchant seleccionó.
+ * Los productos de UN origen (ver ProductSource), ya mapeados para las cards:
+ * solo publicados, en un pedido, cacheado unos segundos por tienda. Null si
+ * la API no respondió: la sección queda como estaba, sin romper la portada.
  */
-export async function withReferencedProducts(
+export async function loadSectionProducts(
   tenantId: string,
-  theme: ThemeConfig,
-  products: StoreProduct[],
-): Promise<StoreProduct[]> {
-  const present = new Set(products.map((p) => p.id));
-  const missing = referencedProductIds(theme.sections).filter((id) => !present.has(id));
-  if (missing.length === 0) return products;
+  source: ProductSource,
+  limit?: number,
+): Promise<StoreProduct[] | null> {
+  const dtos = await fetchSectionProducts(tenantId, source, limit);
+  return dtos ? toStoreProducts(dtos) : null;
+}
 
-  const fetched = await Promise.all(missing.map((id) => fetchProductById(tenantId, id)));
-  return [...products, ...toStoreProducts(fetched)];
+/**
+ * Lo de todas las secciones de productos visibles de la portada, por plan
+ * (ver lib/section-products). Va a StorefrontView como `sectionProducts`.
+ *
+ * Reemplaza a `withReferencedProducts`, que pedía de a uno los elegidos a mano
+ * que faltaran y no miraba el estado: un borrador elegido se mostraba igual.
+ * Y las secciones sin elegidos ya no salen de los 24 más nuevos: destacados
+ * son lo más vendido, recién llegados lo último y ofertas las de todo el catálogo.
+ */
+export async function loadHomeSectionProducts(
+  tenantId: string,
+  sections: ThemeSection[],
+): Promise<SectionProductsMap> {
+  return resolvePlans(sectionPlans(sections.filter((s) => s.visible)), (source, limit) =>
+    loadSectionProducts(tenantId, source, limit),
+  );
 }

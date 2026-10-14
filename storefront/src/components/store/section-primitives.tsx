@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { colClass, type ProductListConfig } from '@/lib/theme';
 import { StoreImage } from './StoreImage';
@@ -38,6 +38,22 @@ export function ProductGrid({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollByCards = (dir: number) => scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  // Flechas deshabilitadas en los extremos: antes "Anterior" quedaba activa al
+  // abrir el carrusel y tocarla no hacía nada.
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const measureEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
+  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    // Al montar y cuando cambia el ancho (rotar el teléfono, más productos).
+    const ro = new ResizeObserver(measureEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureEdges, products.length]);
   if (products.length === 0) return null;
   return (
     <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
@@ -53,6 +69,7 @@ export function ProductGrid({
         <div className="group/car relative">
           <div
             ref={scrollRef}
+            onScroll={measureEdges}
             className="flex snap-x gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {products.map((p, i) => (
@@ -71,16 +88,18 @@ export function ProductGrid({
               <button
                 type="button"
                 onClick={() => scrollByCards(-1)}
+                disabled={edge.start}
                 aria-label="Anterior"
-                className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
+                className="absolute -left-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
               >
                 <Icon name="chevronLeft" className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={() => scrollByCards(1)}
+                disabled={edge.end}
                 aria-label="Siguiente"
-                className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 sm:flex"
+                className="absolute -right-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
               >
                 <Icon name="chevronRight" className="h-5 w-5" />
               </button>
