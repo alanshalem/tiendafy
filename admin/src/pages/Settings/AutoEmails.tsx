@@ -4,7 +4,7 @@ import { Button, Input, Modal, Switch, useToast } from '@tiendafy/ui';
 import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { NotificationUsage } from '../../components/NotificationUsage';
-import { RichTextEditor } from '../../components/RichTextEditor';
+import { LazyRichTextEditor as RichTextEditor } from '../../components/LazyRichTextEditor';
 import { EmailPreviewPanel } from '../../components/EmailPreview';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';

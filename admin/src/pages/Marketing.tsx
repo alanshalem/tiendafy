@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { lazy, Suspense, useState } from 'react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
 import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
@@ -8,8 +8,14 @@ import { useStore } from '../context/StoreContext';
 import { NotificationUsage } from '../components/NotificationUsage';
 import { StatusLegend } from '../components/StatusLegend';
 import { HelpLink } from '../components/HelpLink';
-import { AUDIENCE_LABEL, CampaignModal, type Campaign } from './CampaignModal';
+import type { Campaign } from './CampaignModal';
+import { AUDIENCE_LABEL } from './marketing-constants';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { usePageParam } from '../lib/useListParams';
+
+// El editor de campañas trae el editor de texto enriquecido (Tiptap, ~400 KB):
+// se baja recién al crear o editar una campaña, no al mirar el listado.
+const CampaignModal = lazy(() => import('./CampaignModal').then((m) => ({ default: m.CampaignModal })));
 
 interface CampaignDetail {
   campaign: Campaign;
@@ -51,7 +57,7 @@ export function MarketingPage() {
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const { data } = useQuery({
     queryKey: ['campaigns', store?.id, page],
     queryFn: () =>
@@ -59,6 +65,7 @@ export function MarketingPage() {
         `/api/v1/admin/campaigns?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
     refetchInterval: (query) =>
       query.state.data?.items.some((c) => c.status === 'sending' || c.status === 'scheduled') ? 5000 : false,
   });
@@ -231,21 +238,32 @@ export function MarketingPage() {
               );
             })}
           </div>
-          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+          <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
         </>
       )}
 
       <HelpLink id="emailMarketing" />
 
       {editing && (
-        <CampaignModal
-          campaign={editing === 'new' ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            refresh();
-          }}
-        />
+        <Suspense
+          fallback={
+            <div
+              role="status"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 text-sm text-white"
+            >
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abriendo el editor…
+            </div>
+          }
+        >
+          <CampaignModal
+            campaign={editing === 'new' ? null : editing}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              refresh();
+            }}
+          />
+        </Suspense>
       )}
       {detailId && <DetailModal campaignId={detailId} onClose={() => setDetailId(null)} />}
     </div>
