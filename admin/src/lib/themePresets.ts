@@ -1,21 +1,26 @@
 /**
- * Diseños listos para usar (DSL compacto de la galería). Aplicar = PUT del
- * borrador con presetToConfig(preset) (ThemeGallery); el merchant los ajusta
- * después en el editor. Tokens en RGB crudo (formato de tokens.css).
+ * Diseños listos para usar (DSL compacto de la galería). Aplicar = mezclar el
+ * diseño del preset sobre el borrador actual (applyPreset, desde la galería);
+ * el merchant los ajusta después en el editor. Tokens en RGB crudo (formato de
+ * tokens.css).
  *
  * Orden de la galería: paletas claras primero, oscuras después; las
  * verticales (gimnasio/motos/autos) quedan agrupadas.
  */
 
-import type {
-  BorderRadiusStyle,
-  ComingSoonConfig,
-  DensityStyle,
-  FontOptionValue,
-  IconKit,
-  MotionStyle,
-  SectionType,
-  ThemeHeader,
+import {
+  createSection,
+  isSectionType,
+  type BorderRadiusStyle,
+  type ComingSoonConfig,
+  type DensityStyle,
+  type FontOptionValue,
+  type IconKit,
+  type MotionStyle,
+  type SectionType,
+  type ThemeConfig,
+  type ThemeHeader,
+  type ThemeSection,
 } from '@tiendafy/types';
 
 interface ThemeSectionPreset {
@@ -657,22 +662,33 @@ export function presetHeader(t: ThemePreset['tokens']): { bg: string; textColor:
   return dark ? { bg: t.colorBgSubtle, textColor: t.colorFg } : { bg: t.colorFg, textColor: t.colorBg };
 }
 
+/** Los tipos del DSL viejo de la galería ("hero", "featured-products") → el tipo real de sección. */
+const LEGACY_TYPES: Record<string, SectionType> = {
+  hero: 'carousel',
+  'featured-products': 'featured',
+};
+
 /**
- * Convierte un preset (DSL compacto de la galería) al ThemeConfig actual.
- *
- * Lo que el preset no trae queda como estaba: los presets genéricos siguen
- * dando el mismo resultado de siempre. Los de marca sí traen tipografía, forma
- * de los bordes, kit de íconos y hasta la página de espera, porque una guía de
- * marca no es una paleta: con los colores bien y los bordes redondeados, una
- * identidad de bloques rectos ya no es esa identidad.
+ * Las secciones de un preset: cada una nace del registro compartido (con su
+ * contenido de ejemplo) y el contenido del preset manda encima. Una sección de
+ * marca trae sus preguntas, sus items y su texto ya escritos.
+ */
+function presetSections(preset: ThemePreset): ThemeSection[] {
+  return preset.sections.flatMap((s, i) => {
+    const type = LEGACY_TYPES[s.type] ?? s.type;
+    if (!isSectionType(type)) return [];
+    const section = createSection(type, { ...(s.title !== undefined ? { title: s.title } : {}), ...s.data });
+    return [{ ...section, id: `${type}-${i}`, visible: s.visible }];
+  });
+}
+
+/**
+ * Convierte un preset (DSL compacto de la galería) a la parte del ThemeConfig
+ * que define: el DISEÑO (colores, tipografías, estilo, encabezado, anuncio,
+ * secciones del inicio) y, si el preset los trae, logo, favicon, SEO y la
+ * página en construcción. Nada más: lo demás es de la tienda.
  */
 export function presetToConfig(preset: ThemePreset) {
-  const typeMap: Record<string, string> = {
-    hero: 'carousel',
-    'featured-products': 'featured',
-    'info-bar': 'info-bar',
-    newsletter: 'newsletter',
-  };
   const hdr = presetHeader(preset.tokens);
   return {
     colors: {
@@ -695,20 +711,61 @@ export function presetToConfig(preset: ThemePreset) {
       bg: hdr.bg,
       textColor: hdr.textColor,
       sticky: true,
-      logoSize: 'md',
+      logoSize: 'md' as const,
       showTabsMobile: false,
       ...preset.header,
     },
-    announcement: preset.announcement
-      ? { show: true, animation: 'static', items: [{ text: preset.announcement, link: '' }] }
-      : { show: false, animation: 'static', items: [] },
-    sections: preset.sections.map((s, i) => ({
-      id: `${typeMap[s.type] ?? s.type}-${i}`,
-      type: typeMap[s.type] ?? s.type,
-      visible: s.visible,
-      // El contenido del preset manda sobre los defaults: una sección de marca
-      // trae sus preguntas, sus items y su texto ya escritos.
-      data: { title: s.title ?? '', images: [], carousel: true, ...s.data },
-    })),
+    ...(preset.announcement
+      ? {
+          announcement: {
+            show: true,
+            animation: 'static' as const,
+            items: [{ text: preset.announcement, link: '' }],
+          },
+        }
+      : {}),
+    sections: presetSections(preset),
   };
+}
+
+/**
+ * Aplica un preset SOBRE el borrador actual. Antes "Usar este diseño"
+ * reemplazaba el borrador entero por lo del preset y se llevaba puesto el pie
+ * de página, los datos de contacto, el carrito, el listado, el WhatsApp y el
+ * CSS propio —todo lo que el comercio había cargado y que un diseño no
+ * define—. Ahora cambia solo lo que el preset trae (ver presetChanges) y del
+ * encabezado conserva el menú y lo que el preset no menciona.
+ */
+export function applyPreset(current: ThemeConfig, preset: ThemePreset): ThemeConfig {
+  const { header, comingSoon, ...rest } = presetToConfig(preset);
+  return {
+    ...current,
+    ...rest,
+    header: { ...current.header, ...header },
+    ...(comingSoon ? { comingSoon: { ...current.comingSoon, ...comingSoon } } : {}),
+  };
+}
+
+/** Qué partes de la tienda cambia aplicar el preset, en palabras (para la confirmación). */
+export function presetChanges(preset: ThemePreset): string[] {
+  const parts = ['colores', 'tipografía'];
+  const style = [
+    preset.borderRadius && 'bordes',
+    preset.density && 'espaciado',
+    preset.motion && 'animaciones',
+    preset.iconKit && 'íconos',
+  ].filter(Boolean) as string[];
+  parts.push(...style, 'encabezado');
+  if (preset.announcement) parts.push('barra de anuncio');
+  parts.push('secciones del inicio');
+  if (preset.logo) parts.push('logo');
+  if (preset.favicon) parts.push('favicon');
+  if (preset.seo) parts.push('título y descripción para Google');
+  if (preset.comingSoon) parts.push('página en construcción');
+  return parts;
+}
+
+/** "a, b y c". */
+export function listInWords(parts: string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
 }
