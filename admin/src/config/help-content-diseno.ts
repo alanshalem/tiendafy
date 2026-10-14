@@ -314,7 +314,7 @@ export const DISENO = {
         heading: 'Cambiarle el nombre a una sección o a sus ítems',
         paragraphs: [
           'Con ⋯ → Cambiar nombre, la fila se convierte en un campo: escribí y apretá Enter (Escape cancela). También está el campo “Nombre de la sección” adentro de cada una. Si lo dejás vacío vuelve al nombre del tipo.',
-          'Lo mismo con los ítems de adentro: diapositivas del carrusel, banners, testimonios, preguntas, logos de marcas, ítems de la barra de información, columnas de íconos y bloques del collage. Abrí el ítem y tocá “Renombrar”. Ahí mismo están “Duplicar” y “Eliminar” (este pide confirmación), y las flechas para subirlo o bajarlo.',
+          'Lo mismo con los ítems de adentro: diapositivas del carrusel, banners, testimonios, preguntas, logos de marcas, ítems de la barra de información, columnas de íconos y bloques del collage. Cada ítem tiene su menú ⋯ con “Cambiar nombre”, “Duplicar”, “Mover arriba”, “Mover abajo” y “Eliminar” (este pide confirmación); también se ordenan arrastrando la manija. En la fila ves la foto del ítem (o su número) para reconocerlo sin abrirlo.',
         ],
         blocks: [
           {
