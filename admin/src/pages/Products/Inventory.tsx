@@ -5,6 +5,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { downloadBlob } from '../../lib/download';
 import { useVariantStock } from './queries';
+import { fetchStock, isStockChanged } from '../../lib/products';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
@@ -63,7 +64,10 @@ export function InventoryPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Lo tipeado y el disponible que había cuando se empezó a tipear: ese es el
+  // que viaja como `expectedAvailable`. Con el de la consulta del momento, una
+  // venta que refrescara la tabla mientras se tipeaba pasaría inadvertida.
+  const [drafts, setDrafts] = useState<Record<string, { value: string; seen: number }>>({});
   const list = useListParams(LIST_DEFAULTS);
   const [search, setSearch] = useListSearch(list);
   const page = list.values.pagina;
@@ -112,8 +116,20 @@ export function InventoryPage() {
   const stockByVariant = useVariantStock(items);
 
   const save = useMutation({
-    mutationFn: ({ variantId, available }: { variantId: string; available: number }) =>
-      api.put(`/api/v1/inventory/${variantId}`, { available, reason: 'Ajuste manual desde el panel' }),
+    mutationFn: ({
+      variantId,
+      available,
+      expectedAvailable,
+    }: {
+      variantId: string;
+      available: number;
+      expectedAvailable: number;
+    }) =>
+      api.put(`/api/v1/inventory/${variantId}`, {
+        available,
+        reason: 'Ajuste manual desde el panel',
+        expectedAvailable,
+      }),
     onSuccess: (_, { variantId }) => {
       queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
       setDrafts((d) => {
@@ -123,8 +139,18 @@ export function InventoryPage() {
       });
       toast('Stock actualizado', { variant: 'success' });
     },
-    onError: (err) => {
+    onError: async (err, { variantId }) => {
       toast(errMsg(err, 'Error guardando stock'), { variant: 'error' });
+      if (!isStockChanged(err)) return;
+      // Se vendió o entró mercadería mientras se tipeaba: la fila se refresca
+      // y lo tipeado queda, ahora contra el stock actual, para que la persona
+      // lo revise y el segundo "Guardar" entre.
+      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+      const now = await fetchStock(variantId);
+      if (now)
+        setDrafts((d) =>
+          d[variantId] ? { ...d, [variantId]: { ...d[variantId], seen: now.available } } : d,
+        );
     },
   });
 
@@ -258,8 +284,8 @@ export function InventoryPage() {
                 product.variants.map((variant, vi) => {
                   const current = stockByVariant.get(variant.id);
                   const draft = drafts[variant.id];
-                  const value = draft ?? String(current?.available ?? '');
-                  const changed = draft !== undefined && draft !== String(current?.available ?? '');
+                  const value = draft?.value ?? String(current?.available ?? '');
+                  const changed = draft !== undefined && draft.value !== String(current?.available ?? '');
 
                   return (
                     <tr key={variant.id} className="border-b border-border last:border-b-0">
@@ -288,7 +314,13 @@ export function InventoryPage() {
                             placeholder="—"
                             readOnly={!canAdjust}
                             onChange={(e) =>
-                              setDrafts((d) => ({ ...d, [variant.id]: e.target.value.replace(/\D/g, '') }))
+                              setDrafts((d) => ({
+                                ...d,
+                                [variant.id]: {
+                                  value: e.target.value.replace(/\D/g, ''),
+                                  seen: d[variant.id]?.seen ?? current?.available ?? 0,
+                                },
+                              }))
                             }
                           />
                         </div>
@@ -299,7 +331,11 @@ export function InventoryPage() {
                             size="sm"
                             loading={save.isPending && save.variables?.variantId === variant.id}
                             onClick={() =>
-                              save.mutate({ variantId: variant.id, available: parseInt(value || '0', 10) })
+                              save.mutate({
+                                variantId: variant.id,
+                                available: parseInt(value || '0', 10),
+                                expectedAvailable: draft!.seen,
+                              })
                             }
                           >
                             Guardar

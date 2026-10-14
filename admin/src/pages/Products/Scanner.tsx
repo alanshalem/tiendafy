@@ -4,6 +4,7 @@ import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide
 import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { fetchStock, isStockChanged, type StockItem } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { orderNumber } from '../../lib/orderNumber';
@@ -203,18 +204,30 @@ function BuscarTab() {
 
   const scanner = useScanner(lookup);
 
+  // Contra el disponible que se mostró al escanear (ver isStockChanged).
   const saveStock = useMutation({
-    mutationFn: () =>
-      api.put(`/api/v1/inventory/${hit!.variantId}`, {
+    mutationFn: (seen: CodeHit) =>
+      api.put(`/api/v1/inventory/${seen.variantId}`, {
         available: Number(stockDraft),
         reason: 'Ajuste desde el escáner',
+        expectedAvailable: seen.available,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
       toast('Stock actualizado', { variant: 'success' });
       if (hit) setHit({ ...hit, available: Number(stockDraft) });
     },
-    onError: (e) => toast(errMsg(e, 'Error guardando stock'), { variant: 'error' }),
+    onError: async (e, seen) => {
+      toast(errMsg(e, 'Error guardando stock'), { variant: 'error' });
+      if (!isStockChanged(e)) return;
+      // El número del sistema se actualiza y lo tipeado queda: revisarlo y
+      // volver a guardar ya va contra el stock actual.
+      const now = await fetchStock(seen.variantId);
+      if (now)
+        setHit((h) =>
+          h?.variantId === seen.variantId ? { ...h, available: now.available, reserved: now.reserved } : h,
+        );
+    },
   });
 
   const saveLocation = useMutation({
@@ -333,7 +346,7 @@ function BuscarTab() {
               <Button
                 variant="secondary"
                 disabled={saveStock.isPending || Number(stockDraft) === hit.available}
-                onClick={() => saveStock.mutate()}
+                onClick={() => saveStock.mutate(hit)}
               >
                 Guardar stock
               </Button>
@@ -570,18 +583,57 @@ function ConteoTab() {
   const list = Object.values(rows);
   const withDiff = list.filter((r) => r.counted !== r.hit.available);
 
+  // Cada ajuste va contra el número de "Sistema" que se veía (ver
+  // isStockChanged). Lo aplicado sale de la lista aunque otro falle: volver a
+  // aplicarlo chocaría contra su propio ajuste. Lo que cambió mientras se
+  // contaba queda, con el número nuevo, para que la persona decida.
   const apply = useMutation({
     mutationFn: async () => {
-      for (const r of withDiff)
-        await api.put(`/api/v1/inventory/${r.hit.variantId}`, {
-          available: r.counted,
-          reason: 'Conteo cíclico (escáner)',
+      const applied = new Set<string>();
+      const refreshed = new Map<string, StockItem>();
+      let changed = 0;
+      try {
+        for (const r of withDiff) {
+          try {
+            await api.put(`/api/v1/inventory/${r.hit.variantId}`, {
+              available: r.counted,
+              reason: 'Conteo cíclico (escáner)',
+              expectedAvailable: r.hit.available,
+            });
+            applied.add(r.hit.variantId);
+          } catch (e) {
+            if (!isStockChanged(e)) throw e;
+            changed++;
+            const now = await fetchStock(r.hit.variantId);
+            if (now) refreshed.set(r.hit.variantId, now);
+          }
+        }
+      } finally {
+        setRows((prev) => {
+          const next: Record<string, CountRow> = {};
+          for (const [id, row] of Object.entries(prev)) {
+            if (applied.has(id)) continue;
+            const now = refreshed.get(id);
+            next[id] = now
+              ? { ...row, hit: { ...row.hit, available: now.available, reserved: now.reserved } }
+              : row;
+          }
+          return next;
         });
+        if (applied.size > 0) queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
+      }
+      return { applied: applied.size, changed };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory', store?.id] });
-      toast(`Conteo aplicado: ${withDiff.length} ajuste(s)`, { variant: 'success' });
-      setRows({});
+    onSuccess: ({ applied, changed }) => {
+      if (changed === 0) {
+        toast(`Conteo aplicado: ${applied} ajuste(s)`, { variant: 'success' });
+        return;
+      }
+      toast(
+        `${changed === 1 ? 'Un producto cambió' : `${changed} productos cambiaron`} en el sistema mientras contabas` +
+          `${applied > 0 ? ` (se aplicaron los otros ${applied})` : ''}. Revisá el número nuevo y aplicá de nuevo.`,
+        { variant: 'error' },
+      );
     },
     onError: (e) => toast(errMsg(e, 'Error aplicando el conteo'), { variant: 'error' }),
   });

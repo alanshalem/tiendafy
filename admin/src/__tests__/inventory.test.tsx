@@ -59,6 +59,7 @@ describe('inventario', () => {
     expect(api.calls.find((c) => c.method === 'PUT')!.body).toEqual({
       available: 99,
       reason: 'Ajuste manual desde el panel',
+      expectedAvailable: 5,
     });
 
     // Vacío se guarda como 0.
@@ -67,6 +68,36 @@ describe('inventario', () => {
     await user.click(within(row).getByRole('button', { name: 'Guardar' }));
     expect(await screen.findByText('Stock actualizado')).toBeInTheDocument();
     expect(api.calls.filter((c) => c.method === 'PUT').at(-1)!.body).toMatchObject({ available: 0 });
+  });
+
+  it('si el stock cambió mientras se tipeaba, no lo pisa: avisa, refresca la fila y el segundo guardado entra', async () => {
+    const { api, user } = await openInventory((a) =>
+      a.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] }),
+    );
+    const input = screen.getByLabelText(stockLabel);
+    const row = input.closest('tr') as HTMLElement;
+    await waitFor(() => expect(input).toHaveValue('5'));
+    await user.clear(input);
+    await user.type(input, '8');
+
+    // En el medio se vendieron 2 y entró una reserva.
+    const changed = 'El stock cambió mientras editabas: ahora hay 3. Revisalo y guardá de nuevo.';
+    api.on('PUT', `/api/v1/inventory/${variant.id}`, { title: 'Stock.Changed', detail: changed }, 409);
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 3, reserved: 1 }] });
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText(changed)).toBeInTheDocument();
+    const puts = () => api.calls.filter((c) => c.method === 'PUT').map((c) => c.body);
+    expect(puts()[0]).toEqual({ available: 8, reason: 'Ajuste manual desde el panel', expectedAvailable: 5 });
+    // La fila muestra la reserva nueva y lo tipeado sigue ahí.
+    await waitFor(() => expect(within(row).getByText('1')).toBeInTheDocument());
+    expect(input).toHaveValue('8');
+    await settle(2);
+
+    // Revisado, el segundo guardado va contra el stock actual.
+    api.on('PUT', `/api/v1/inventory/${variant.id}`, {});
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Stock actualizado')).toBeInTheDocument();
+    expect(puts()[1]).toMatchObject({ available: 8, expectedAvailable: 3 });
   });
 
   it('filtrar sin stock o con poco, volver a ver todo, y buscar', async () => {

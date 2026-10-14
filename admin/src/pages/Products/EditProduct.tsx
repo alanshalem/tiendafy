@@ -5,7 +5,8 @@ import { Trash2, GripVertical } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
-import { api, ApiRequestError, errMsg } from '../../lib/api';
+import { api, errMsg } from '../../lib/api';
+import { fetchStock, isStockChanged } from '../../lib/products';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { type SpecValues } from './SpecFields';
@@ -241,12 +242,9 @@ export function EditProductPage() {
       });
       setStockSeen((s) => ({ ...s, [variantId]: String(available) }));
     } catch (e) {
-      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed') {
-        const fresh = await api
-          .get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantId}`)
-          .catch(() => null);
-        const now = fresh?.items.find((x) => x.variantId === variantId)?.available;
-        if (now !== undefined) setStockSeen((s) => ({ ...s, [variantId]: String(now) }));
+      if (isStockChanged(e)) {
+        const now = await fetchStock(variantId);
+        if (now) setStockSeen((s) => ({ ...s, [variantId]: String(now.available) }));
         setStockError((s) => ({ ...s, [variantId]: e.message }));
       }
       throw e;
@@ -314,8 +312,7 @@ export function EditProductPage() {
     onError: (e) => {
       // El choque de stock se marca en su campo (y en un aviso, porque el
       // campo puede estar lejos del botón); lo demás, donde siempre.
-      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed')
-        toast(e.message, { variant: 'error' });
+      if (isStockChanged(e)) toast(e.message, { variant: 'error' });
       else setError(errMsg(e, 'Error inesperado'));
     },
   });

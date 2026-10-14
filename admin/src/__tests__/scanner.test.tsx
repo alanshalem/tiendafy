@@ -66,8 +66,36 @@ describe('escáner: buscar y ajustar', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar ubicación' }));
     await settle(2);
 
-    expect(put(api, `/api/v1/inventory/${hit.variantId}`)[0]).toMatchObject({ available: 40 });
+    expect(put(api, `/api/v1/inventory/${hit.variantId}`)[0]).toMatchObject({
+      available: 40,
+      expectedAvailable: hit.available,
+    });
     expect(put(api, `/api/v1/inventory/${hit.variantId}/location`)[0]).toEqual({ location: 'B3' });
+  });
+
+  it('si el stock cambió desde que se escaneó, avisa y el segundo guardado va contra el actual', async () => {
+    const { api, user } = await open();
+    await user.type(screen.getByPlaceholderText('Código de barras o SKU…'), 'SEED-01{Enter}');
+    expect(await screen.findByText(hit.productName)).toBeInTheDocument();
+    const stock = screen.getByDisplayValue(String(hit.available));
+    await user.clear(stock);
+    await user.type(stock, '40');
+
+    const changed = 'El stock cambió mientras editabas: ahora hay 7. Revisalo y guardá de nuevo.';
+    api.on('PUT', `/api/v1/inventory/${hit.variantId}`, { title: 'Stock.Changed', detail: changed }, 409);
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: hit.variantId, available: 7, reserved: 0 }] });
+    await user.click(screen.getByRole('button', { name: 'Guardar stock' }));
+    expect(await screen.findByText(changed)).toBeInTheDocument();
+    await settle(2);
+    expect(stock).toHaveValue(40); // lo tipeado no se pierde
+
+    api.on('PUT', `/api/v1/inventory/${hit.variantId}`, {});
+    await user.click(screen.getByRole('button', { name: 'Guardar stock' }));
+    expect(await screen.findByText('Stock actualizado')).toBeInTheDocument();
+    expect(put(api, `/api/v1/inventory/${hit.variantId}`)[1]).toMatchObject({
+      available: 40,
+      expectedAvailable: 7,
+    });
   });
 
   it('un código desconocido se puede asignar a una variante por su SKU', async () => {
@@ -201,7 +229,41 @@ describe('escáner: conteo', () => {
     expect(put(api, `/api/v1/inventory/${hit.variantId}`)[0]).toEqual({
       available: 45,
       reason: 'Conteo cíclico (escáner)',
+      expectedAvailable: hit.available,
     });
     expect(await screen.findByText('Conteo aplicado: 1 ajuste(s)')).toBeInTheDocument();
+  });
+
+  it('lo que cambió en el sistema mientras se contaba no se pisa: queda con el número nuevo', async () => {
+    const { api, user } = await open('Conteo');
+    const other = { ...hit, variantId: 'otra-variante', productName: 'Banco', sku: 'OTRO' };
+    api.on('GET', '/api/v1/products/by-code/OTRO', other);
+    const manual = () => screen.getByPlaceholderText('…o ingresá el código a mano');
+    await user.type(manual(), 'SEED-01{Enter}');
+    await user.type(manual(), 'OTRO{Enter}');
+    await settle(1);
+
+    // El primero se vendió en el medio; el segundo entra.
+    const changed = 'El stock cambió mientras editabas: ahora hay 7. Revisalo y guardá de nuevo.';
+    api.on('PUT', `/api/v1/inventory/${hit.variantId}`, { title: 'Stock.Changed', detail: changed }, 409);
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: hit.variantId, available: 7, reserved: 0 }] });
+    await user.click(screen.getByRole('button', { name: 'Aplicar ajustes' }));
+    expect(await screen.findByText(/Un producto cambió en el sistema mientras contabas/)).toBeInTheDocument();
+    expect(put(api, '/api/v1/inventory/otra-variante')[0]).toMatchObject({ available: 1 });
+
+    // Lo aplicado salió de la lista; el que chocó muestra el número nuevo.
+    expect(screen.queryByLabelText('Contado de Banco')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(`Contado de ${hit.productName}`)).toHaveValue(1);
+    expect(screen.getByText('7')).toBeInTheDocument();
+
+    // Aplicar de nuevo va contra el número nuevo (y no repite el que ya entró).
+    api.on('PUT', `/api/v1/inventory/${hit.variantId}`, {});
+    await user.click(screen.getByRole('button', { name: 'Aplicar ajustes' }));
+    expect(await screen.findByText('Conteo aplicado: 1 ajuste(s)')).toBeInTheDocument();
+    expect(put(api, `/api/v1/inventory/${hit.variantId}`)[1]).toMatchObject({
+      available: 1,
+      expectedAvailable: 7,
+    });
+    expect(put(api, '/api/v1/inventory/otra-variante')).toHaveLength(1);
   });
 });
