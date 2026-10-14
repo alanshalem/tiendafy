@@ -1,6 +1,6 @@
 import type { ThemeConfig } from '@tiendafy/types';
 import { MediaUpload } from '../../components/upload/MediaUpload';
-import { BackHeader, Field, TextArea, TextInput } from '../theme-editor-inputs';
+import { BackHeader, Field, SegField, TextArea, TextInput } from '../theme-editor-inputs';
 
 /** "Identidad de tu tienda": logo, favicon, imagen al compartir y cómo aparece en Google. */
 export function LogoPanel({
@@ -28,6 +28,29 @@ export function LogoPanel({
             onChange={(url) => updateTheme((t) => ({ ...t, logo: url }))}
           />
         </Field>
+        {/* El tamaño se buscaba acá y vivía solo en "Encabezado". */}
+        <SegField
+          label="Tamaño en el encabezado"
+          value={theme.header.logoSize}
+          onChange={(logoSize) => updateTheme((t) => ({ ...t, header: { ...t.header, logoSize } }))}
+          options={[
+            {
+              value: 'sm',
+              label: 'Chico',
+              visual: <span className="text-xs font-bold leading-none">Aa</span>,
+            },
+            {
+              value: 'md',
+              label: 'Mediano',
+              visual: <span className="text-base font-bold leading-none">Aa</span>,
+            },
+            {
+              value: 'lg',
+              label: 'Grande',
+              visual: <span className="text-2xl font-bold leading-none">Aa</span>,
+            },
+          ]}
+        />
         <Field label="Favicon" hint="El ícono chico de la pestaña del navegador.">
           <MediaUpload
             kind="favicon"

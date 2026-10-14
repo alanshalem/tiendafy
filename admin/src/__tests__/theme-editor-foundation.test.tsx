@@ -471,7 +471,12 @@ describe('galería: usar un diseño no se lleva puesto lo cargado', () => {
     contact: { showForm: true, address: 'Av. Siempreviva 742', phone: '', email: 'hola@x.com', whatsapp: '' },
     cart: { ...normalizeTheme({}).cart, notice: 'Envíos los martes' },
     customCss: '.x{color:red}',
-    whatsappButton: { enabled: true, phone: '5491100000000', message: 'Hola', showPreview: true },
+    whatsappButton: {
+      ...normalizeTheme({}).whatsappButton,
+      enabled: true,
+      phone: '5491100000000',
+      message: 'Hola',
+    },
     header: { ...normalizeTheme({}).header, menu: [{ id: 'contact', visible: false }] },
     seoTitle: 'Mi SEO',
     logo: '/mi-logo.png',

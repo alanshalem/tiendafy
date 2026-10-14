@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { type ThemeConfig, baseTheme } from '@tiendafy/types';
+import { type ThemeConfig, baseTheme, heroUnderHeader } from '@tiendafy/types';
 import { HelpLink } from '../components/HelpLink';
 
 export function RootNav({
@@ -130,22 +130,39 @@ export function RootNav({
  * Checklist de progreso: nudges accionables (cada uno abre su panel). Usa solo
  * señales del theme (sin fetches extra). Se colapsa a un resumen cuando está todo.
  */
-function EditorChecklist({ theme, onNavigate }: { theme: ThemeConfig; onNavigate: (v: string) => void }) {
-  const items = [
+export function checklistItems(theme: ThemeConfig) {
+  const f = theme.footer;
+  return [
     { label: 'Cargá tu logo', done: !!theme.logo, view: 'logo' },
     {
       label: 'Elegí colores de marca',
       done: theme.colors.primary !== baseTheme.colors.primary,
       view: 'colors',
     },
-    { label: 'Armá tu página de inicio', done: theme.sections.length > 0, view: 'home' },
-    { label: 'Mostrá medios de pago', done: theme.footer.paymentLogos.length > 0, view: 'footer' },
+    // Antes: "Armá tu página de inicio" (hay secciones) y "Mostrá medios de
+    // pago" (hay logos). Las dos venían hechas de fábrica: el progreso
+    // arrancaba en 2/5 sin haber tocado nada.
+    { label: 'Poné una foto de portada', done: heroUnderHeader(theme.sections), view: 'home' },
+    {
+      label: 'Sumá tus redes sociales',
+      done: f.showSocial && [f.instagram, f.facebook, f.tiktok, f.youtube, f.x].some((u) => !!u?.trim()),
+      view: 'footer',
+    },
+    {
+      label: 'Activá el botón de WhatsApp',
+      done: theme.whatsappButton.enabled && !!theme.whatsappButton.phone.replace(/\D/g, ''),
+      view: 'whatsapp',
+    },
     {
       label: 'Cargá datos de contacto',
       done: !!(theme.contact.whatsapp || theme.contact.phone || theme.contact.email || theme.contact.address),
       view: 'contact',
     },
   ];
+}
+
+function EditorChecklist({ theme, onNavigate }: { theme: ThemeConfig; onNavigate: (v: string) => void }) {
+  const items = checklistItems(theme);
   const doneCount = items.filter((i) => i.done).length;
   const pct = Math.round((doneCount / items.length) * 100);
   if (doneCount === items.length) return null; // todo listo → no molestar

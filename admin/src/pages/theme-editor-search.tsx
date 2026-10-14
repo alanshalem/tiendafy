@@ -97,6 +97,31 @@ export const OPTION_INDEX: OptionEntry[] = [
     panel: 'Encabezado',
     keywords: 'mega menu desplegable subcategorias columnas acordeon',
   },
+  {
+    label: 'Tamaño del logo',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'logo chico grande mediano achicar agrandar',
+  },
+  {
+    label: 'Color del texto del encabezado',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'menu letras iconos contraste automatico',
+  },
+  { label: 'Borde inferior del encabezado', view: 'header', panel: 'Encabezado', keywords: 'linea sombra' },
+  {
+    label: 'Logo sobre la foto de portada',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'logo blanco transparente inmersivo version clara',
+  },
+  {
+    label: 'Menú desplegable en celulares',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'hamburguesa celular movil solapas',
+  },
   { label: 'Buscador en el encabezado', view: 'header', panel: 'Encabezado', keywords: 'lupa buscar' },
   { label: 'Carrito en el encabezado', view: 'header', panel: 'Encabezado', keywords: 'icono carrito texto' },
   {
@@ -217,6 +242,12 @@ export const OPTION_INDEX: OptionEntry[] = [
     panel: 'WhatsApp',
     keywords: 'chat numero mensaje',
   },
+  {
+    label: 'Posición y texto del botón de WhatsApp',
+    view: 'whatsapp',
+    panel: 'WhatsApp',
+    keywords: 'izquierda derecha esquina te ayudamos',
+  },
 
   {
     label: 'Datos de contacto',
@@ -226,6 +257,18 @@ export const OPTION_INDEX: OptionEntry[] = [
   },
   { label: 'Formulario de contacto', view: 'contact', panel: 'Contacto', keywords: 'mensajes consultas' },
 
+  {
+    label: 'Disposición del pie',
+    view: 'footer',
+    panel: 'Pie de página',
+    keywords: 'columnas centrado footer',
+  },
+  {
+    label: 'Color de fondo del pie',
+    view: 'footer',
+    panel: 'Pie de página',
+    keywords: 'footer oscuro color fondo',
+  },
   {
     label: 'Redes sociales',
     view: 'footer',

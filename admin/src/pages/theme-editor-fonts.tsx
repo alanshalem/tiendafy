@@ -86,6 +86,23 @@ export function FontsPanel({
           <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
             Personalizado
           </div>
+          {/* Muestra con las dos elegidas y los colores de la tienda: en el
+              desplegable los nombres solos no dicen cómo se ve cada una. */}
+          <div
+            className="mb-4 rounded-lg border border-border p-3"
+            style={{ background: `rgb(${theme.colors.bg})`, color: `rgb(${theme.colors.text})` }}
+            aria-hidden
+          >
+            <div
+              className="text-xl font-bold leading-tight"
+              style={{ fontFamily: FONT_CSS[theme.fonts.heading] }}
+            >
+              Nueva colección
+            </div>
+            <p className="mt-1 text-sm opacity-80" style={{ fontFamily: FONT_CSS[theme.fonts.body] }}>
+              Envíos a todo el país y hasta 6 cuotas sin interés.
+            </p>
+          </div>
           <div className="space-y-4">
             <Field label="Títulos de páginas y banners">
               <Select
