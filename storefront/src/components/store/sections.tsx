@@ -11,6 +11,7 @@ import { StoreImage } from './StoreImage';
 import { type StoreProduct } from './ProductCard';
 import { MarqueeTrack } from './MarqueeTrack';
 import { NewsletterForm } from './NewsletterForm';
+import { jsonLd as jsonLdHtml } from '@/lib/json-ld';
 export { ProductCard, CashDiscountContext, type StoreProduct } from './ProductCard';
 import {
   defaultList,
@@ -541,7 +542,7 @@ function FaqSection({ section }: SectionRenderProps) {
           </details>
         ))}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
     </section>
   );
 }

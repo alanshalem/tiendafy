@@ -1,9 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { permanentRedirect } from 'next/navigation';
 
 import { API_URL } from '@/lib/api-client';
+import { API_TIMEOUT_MS } from '@/lib/api';
 import { resolveTenant } from '@/lib/tenancy';
+
+/** Con el nombre de la tienda: antes la pestaña del 404 decía "Tienda online". */
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await resolveTenant().catch(() => null);
+  const title = 'Página no encontrada';
+  return { title: { absolute: tenant ? `${title} · ${tenant.name}` : title } };
+}
 
 /**
  * Antes de mostrar el 404, se busca si el comercio dejó una redirección para
@@ -25,6 +34,7 @@ async function redirectTarget(): Promise<string | null> {
     const res = await fetch(`${API_URL}/api/v1/redirects/resolve?path=${encodeURIComponent(path)}`, {
       headers: { 'X-Tenant-Id': tenant.id },
       cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
     if (!res.ok) return null;
 

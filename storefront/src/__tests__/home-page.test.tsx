@@ -103,21 +103,35 @@ describe('portada: según la tienda', () => {
 });
 
 describe('página de contenido: metadata', () => {
-  it('el título de la página; sin tienda o sin página, nada', async () => {
+  it('el título, el comienzo del texto como descripción y la URL canónica', async () => {
     const p = (slug: string) => ({ params: Promise.resolve({ slug }) });
     expect(await contentMetadata(p(contentPage.slug))).toEqual({
       title: contentPage.title,
-      description: contentPage.title,
+      // El texto de la página sin HTML, no el título repetido.
+      description: 'Condiciones de compra, cambios y devoluciones.',
+      alternates: { canonical: `http://seed.localhost:3000/paginas/${contentPage.slug}` },
     });
+  });
+
+  it('sin página, "no encontrada" (el layout le suma la tienda); sin tienda, nada', async () => {
+    const p = (slug: string) => ({ params: Promise.resolve({ slug }) });
     api.on('GET', '/api/v1/pages/by-slug/nada', {}, 404);
-    expect(await contentMetadata(p('nada'))).toEqual({});
+    expect(await contentMetadata(p('nada'))).toEqual({ title: 'Página no encontrada' });
     api.on('GET', '/api/v1/tenants/resolve', {}, 404);
     expect(await contentMetadata(p(contentPage.slug))).toEqual({});
   });
 
-  it('una página que no existe', async () => {
+  it('una página que no existe responde 404 (y así corre la búsqueda de redirecciones)', async () => {
     api.on('GET', '/api/v1/pages/by-slug/nada', {}, 404);
-    await renderPage(ContentPage, '/paginas/nada', { slug: 'nada' });
-    expect(document.body.textContent).toMatch(/no (existe|encontr)/i);
+    await expect(renderPage(ContentPage, '/paginas/nada', { slug: 'nada' })).rejects.toThrow(
+      'NEXT_NOT_FOUND',
+    );
+  });
+
+  it('si la API falla (5xx) no es un 404: es un error', async () => {
+    api.on('GET', '/api/v1/pages/by-slug/rota', {}, 503);
+    const err = await renderPage(ContentPage, '/paginas/rota', { slug: 'rota' }).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).not.toBe('NEXT_NOT_FOUND');
   });
 });

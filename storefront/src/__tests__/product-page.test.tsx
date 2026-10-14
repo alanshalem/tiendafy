@@ -73,7 +73,8 @@ afterEach(() => vi.restoreAllMocks());
 describe('página de producto: metadata', () => {
   it('título, descripción, canonical y la imagen para redes', async () => {
     const meta = await generateMetadata(params());
-    expect(meta.title).toMatch(new RegExp(`^${product.name} · `));
+    // El nombre de la tienda lo suma la plantilla del layout ("… · Tienda").
+    expect(meta.title).toBe(product.name);
     expect(meta.alternates?.canonical).toBe(`http://seed.localhost:3000/productos/${product.slug}`);
     expect(meta.openGraph?.title).toBe(product.name);
   });
@@ -83,10 +84,23 @@ describe('página de producto: metadata', () => {
     expect((await generateMetadata(params())).description).toMatch(new RegExp(`^${product.name} en `));
 
     api.on('GET', '/api/v1/products/by-slug/nada', {}, 404);
-    expect((await generateMetadata(params('nada'))).title).not.toContain('·');
+    expect((await generateMetadata(params('nada'))).title).toBe('Producto no encontrado');
 
     api.on('GET', '/api/v1/tenants/resolve', {}, 404);
     expect((await generateMetadata(params())).title).toBe('Tienda');
+  });
+});
+
+describe('página de producto: SEO cargado por el comercio', () => {
+  it('el título SEO va tal cual (sin la plantilla) y la descripción SEO gana', async () => {
+    api.on('GET', `/api/v1/products/by-slug/${product.slug}`, {
+      ...product,
+      seoTitle: ' Mancuernas baratas ',
+      seoDescription: 'Las mejores mancuernas.',
+    });
+    const meta = await generateMetadata(params());
+    expect(meta.title).toEqual({ absolute: 'Mancuernas baratas' });
+    expect(meta.description).toBe('Las mejores mancuernas.');
   });
 });
 
@@ -149,10 +163,27 @@ describe('página de producto: contenido', () => {
     expect(screen.queryByText('Material')).not.toBeInTheDocument();
   });
 
-  it('un producto que no existe ofrece volver al catálogo', async () => {
+  it('un producto que no existe responde 404 (y así corre la búsqueda de redirecciones)', async () => {
     api.on('GET', '/api/v1/products/by-slug/no-existe', {}, 404);
-    await renderPage(ProductDetailPage, '/productos/no-existe', { slug: 'no-existe' });
-    expect(screen.getByText('Producto no encontrado')).toBeInTheDocument();
-    expect(jsonLd()).toEqual([]);
+    await expect(
+      renderPage(ProductDetailPage, '/productos/no-existe', { slug: 'no-existe' }),
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+
+  it('si la API falla (5xx) no es un 404: es un error', async () => {
+    api.on('GET', '/api/v1/products/by-slug/roto', {}, 503);
+    const err = await renderPage(ProductDetailPage, '/productos/roto', { slug: 'roto' }).catch(
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).not.toBe('NEXT_NOT_FOUND');
+  });
+
+  it('los datos estructurados no se pueden cortar con un </script> en el nombre', async () => {
+    richProduct({ name: 'Remera </script><script>alert(1)</script>' });
+    await renderPage(ProductDetailPage, `/productos/${product.slug}`, { slug: product.slug });
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    scripts.forEach((s) => expect(s.innerHTML).not.toContain('</script'));
+    expect(jsonLd()[1].name).toBe('Remera </script><script>alert(1)</script>');
   });
 });
