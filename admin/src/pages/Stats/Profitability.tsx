@@ -4,7 +4,6 @@ import { Button, Select, useToast } from '@tiendafy/ui';
 import {
   KpiCard,
   StatsPageHeader,
-  StatsToolbar,
   defaultStatsRange,
   rangeLabel,
   rangeQuery,
@@ -114,12 +113,17 @@ export function StatsProfitabilityPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar value={range} onChange={setRange} />
-      <StatsPageHeader title="Rentabilidad" />
-      <p className="-mt-3 text-sm text-fg-muted">
-        Período: {rangeLabel(range)}. Ganancia real = ventas de productos − costo − comisión de Mercado Pago.{' '}
-        <HelpLink id="rentabilidad" className="mt-0 w-auto" />
-      </p>
+      <StatsPageHeader
+        title="Rentabilidad"
+        description={
+          <>
+            Período: {rangeLabel(range)}. Ganancia real = ventas de productos − costo − comisión de Mercado
+            Pago. <HelpLink id="rentabilidad" className="mt-0 w-auto" />
+          </>
+        }
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-4">

@@ -199,6 +199,30 @@ export function KpiCard({
   );
 }
 
-export function StatsPageHeader({ title }: { title: string }) {
-  return <h1 className="text-2xl font-bold text-fg">{title}</h1>;
+/**
+ * El encabezado de toda pantalla de estadísticas: título, bajada y, si la
+ * pantalla tiene período, la barra de fechas debajo. Antes cada pantalla lo
+ * armaba a mano y en Visión general la barra iba bajo el título mientras en
+ * el resto iba arriba: al pasar de una a otra la barra "saltaba".
+ */
+export function StatsPageHeader({
+  title,
+  description,
+  range,
+  onRangeChange,
+}: {
+  title: string;
+  description?: ReactNode;
+  range?: StatsRange;
+  onRangeChange?: (r: StatsRange) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold text-fg">{title}</h1>
+        {description && <p className="mt-1 text-sm text-fg-muted">{description}</p>}
+      </div>
+      {range && onRangeChange && <StatsToolbar value={range} onChange={onRangeChange} />}
+    </div>
+  );
 }

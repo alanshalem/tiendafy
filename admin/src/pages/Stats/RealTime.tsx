@@ -28,8 +28,11 @@ export function StatsRealTimePage() {
 
   return (
     <div className="space-y-5">
-      <StatsPageHeader title="Tiempo real" />
-      <p className="-mt-3 text-sm text-fg-muted">Actividad de los últimos 5 minutos · se actualiza solo.</p>
+      {/* Sin barra de fechas: siempre son los últimos 5 minutos. */}
+      <StatsPageHeader
+        title="Tiempo real"
+        description="Actividad de los últimos 5 minutos · se actualiza solo."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard

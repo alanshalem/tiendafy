@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  KpiCard,
-  StatsPageHeader,
-  StatsToolbar,
-  rangeLabel,
-  rangeQuery,
-} from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, DonutChart, RankBars } from '../../components/charts/viz';
@@ -35,9 +29,12 @@ export function StatsSalesPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar value={range} onChange={setRange} />
-      <StatsPageHeader title="Ventas y clientes" />
-      <p className="-mt-3 text-sm text-fg-muted">Período: {rangeLabel(range)}.</p>
+      <StatsPageHeader
+        title="Ventas y clientes"
+        description={`Período: ${rangeLabel(range)}.`}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-4">

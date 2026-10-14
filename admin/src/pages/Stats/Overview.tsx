@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { KpiCard, StatsPageHeader, StatsToolbar } from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { BarChart, DonutChart, Delta, RankBars } from '../../components/charts/viz';
@@ -66,14 +66,12 @@ export function StatsOverviewPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <StatsPageHeader title="Visión general" />
-        <p className="mt-1 text-sm text-fg-muted">
-          Cómo viene tu negocio, comparado con el período anterior.
-        </p>
-      </div>
-
-      <StatsToolbar value={range} onChange={setRange} />
+      <StatsPageHeader
+        title="Visión general"
+        description="Cómo viene tu negocio, comparado con el período anterior."
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {isLoading || !data ? (
         <ScreenSkeleton label="Cargando estadísticas…" />

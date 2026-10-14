@@ -1,11 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import {
-  KpiCard,
-  StatsPageHeader,
-  StatsToolbar,
-  rangeLabel,
-  rangeQuery,
-} from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { Delta, RankBars } from '../../components/charts/viz';
@@ -47,7 +41,7 @@ const PAGE_SIZE = 20;
  */
 export function StatsCouponsPage() {
   const { store } = useStore();
-  const { range, setRange, page, setPage } = useStatsRange('Últimos 90 días');
+  const { range, setRange, page, setPage } = useStatsRange();
 
   const { data, isLoading } = useQuery({
     queryKey: ['stats-coupons', store?.id, range.from, range.to, page],
@@ -64,9 +58,12 @@ export function StatsCouponsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar value={range} onChange={setRange} />
-      <StatsPageHeader title="Reporte de cupones" />
-      <p className="-mt-3 text-sm text-fg-muted">Período: {rangeLabel(range)}.</p>
+      <StatsPageHeader
+        title="Reporte de cupones"
+        description={`Período: ${rangeLabel(range)}.`}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
