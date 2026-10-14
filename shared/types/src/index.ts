@@ -55,3 +55,19 @@ export { contrastText, contrastRatio, mixRgb, readableOn } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
 export type { FontOptionValue } from './fonts';
 export type { MoneyDto } from './wire';
+// Opciones globales del tema: menú armable, links del pie y estilo de botones.
+export type { ThemeMenuItemKind, FooterLink, ButtonStyle } from './theme';
+export { BUILTIN_MENU_IDS } from './theme';
+// Links que escribe el comercio: validación y destinos de la tienda.
+export {
+  normalizeLink,
+  safeHref,
+  isExternalHref,
+  describeLink,
+  whatsappLink,
+  productLink,
+  pageLink,
+  categoryLink,
+  STORE_PAGES,
+} from './links';
+export type { LinkKind, NormalizedLink, LinkTarget } from './links';

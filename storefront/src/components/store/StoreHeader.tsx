@@ -10,9 +10,11 @@ import { Icon } from './Icon';
 import { useCart } from './cart';
 import { useFavorites } from './favorites';
 import { AccountButton } from './AccountButton';
-import { CategoryMenuMobile } from './CategoryMenu';
-import { PagesNav, usePublishedPages } from './PagesNav';
-import { HeaderNav, type NavItem } from './HeaderNav';
+import { CategoryBranchMobile, CategoryMenuMobile, useHasSubcategories } from './CategoryMenu';
+import { usePublishedPagesState } from './PagesNav';
+import { HeaderNav } from './HeaderNav';
+import { buildHeaderMenu, type NavItem } from './header-menu';
+import { StoreLink } from './StoreLink';
 import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
 import { MarqueeTrack } from './MarqueeTrack';
@@ -66,13 +68,10 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
         <MarqueeTrack className="whitespace-nowrap">
           {annItems.map((it, i) => (
             <span key={i} className="flex items-center">
-              {it.link ? (
-                <a href={it.link} className="px-6 hover:underline">
-                  {it.text}
-                </a>
-              ) : (
-                <span className="px-6">{it.text}</span>
-              )}
+              {/* Sin link válido, StoreLink deja el texto solo (nunca un href="#"). */}
+              <StoreLink href={it.link} newTab={it.newTab} className="px-6 [&[href]]:hover:underline">
+                {it.text}
+              </StoreLink>
               <span className="opacity-50">•</span>
             </span>
           ))}
@@ -82,13 +81,9 @@ function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; p
           {annItems.map((it, i) => (
             <span key={i} className="flex items-center gap-3">
               {i > 0 && <span className="opacity-50">•</span>}
-              {it.link ? (
-                <a href={it.link} className="hover:underline">
-                  {it.text}
-                </a>
-              ) : (
-                <span>{it.text}</span>
-              )}
+              <StoreLink href={it.link} newTab={it.newTab} className="[&[href]]:hover:underline">
+                {it.text}
+              </StoreLink>
             </span>
           ))}
         </div>
@@ -150,14 +145,70 @@ function MobileSearch({
   );
 }
 
-/** Mobile: panel desplegable con los links (mismos ítems que el desktop). */
+/** Mobile: un ítem con subítems o subcategorías, como acordeón (el link y su flechita). */
+function MobileGroup({ item, onClose }: { item: NavItem; onClose: () => void }) {
+  const [open, setOpen] = useState(false);
+  const hasBranch = useHasSubcategories(item.categoryId);
+  const groupId = `menu-movil-${item.id.replace(/[^\w-]/g, '-')}`;
+  if (!hasBranch && !item.children?.length)
+    return (
+      <StoreLink href={item.href} newTab={item.newTab} className="py-2.5 opacity-90 hover:opacity-100">
+        {item.label}
+      </StoreLink>
+    );
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <StoreLink
+          href={item.href}
+          newTab={item.newTab}
+          onClick={onClose}
+          className="flex-1 py-2.5 opacity-90 hover:opacity-100"
+        >
+          {item.label}
+        </StoreLink>
+        {/* 44 px de alto: se toca con el dedo sin acertarle al link de al lado. */}
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={groupId}
+          aria-label={`${open ? 'Cerrar' : 'Abrir'} ${item.label}`}
+          className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center opacity-80 hover:opacity-100"
+        >
+          <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      <div id={groupId} hidden={!open} className="border-l border-white/15 pb-1 pl-3">
+        {item.categoryId && <CategoryBranchMobile categoryId={item.categoryId} onNavigate={onClose} />}
+        {item.children?.map((child) => (
+          <StoreLink
+            key={child.id}
+            href={child.href}
+            newTab={child.newTab}
+            onClick={onClose}
+            className="block py-2 text-sm opacity-90 hover:opacity-100"
+          >
+            {child.label}
+          </StoreLink>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mobile: panel desplegable con los links. Los mismos ítems y en el mismo
+ * orden que el desktop (antes el celular tenía su orden fijo e ignoraba lo
+ * que el comercio armó); los desplegables se vuelven acordeones.
+ */
 function MobilePanel({
   header,
-  navLinks,
+  items,
   onClose,
 }: {
   header: ThemeConfig['header'];
-  navLinks: { href: string; label: string }[];
+  items: NavItem[];
   onClose: () => void;
 }) {
   return (
@@ -166,21 +217,14 @@ function MobilePanel({
       className="border-t border-white/10 px-4 py-3 md:hidden"
       style={{ background: `rgb(${header.bg})` }}
     >
-      {/* Mismos ítems que el desktop: Inicio · Productos · Categorías · Contacto · páginas */}
-      <nav className="flex flex-col gap-0.5 text-sm">
-        <Link href={navLinks[0].href} className="py-1.5 opacity-90 hover:opacity-100">
-          {navLinks[0].label}
-        </Link>
-        <Link href={navLinks[1].href} className="py-1.5 opacity-90 hover:opacity-100">
-          {navLinks[1].label}
-        </Link>
-        <CategoryMenuMobile onNavigate={onClose} />
-        <Link href={navLinks[2].href} className="py-1.5 opacity-90 hover:opacity-100">
-          {navLinks[2].label}
-        </Link>
-        <div className="flex flex-col [&>a]:py-1.5 [&>a]:opacity-90 [&>a:hover]:opacity-100">
-          <PagesNav />
-        </div>
+      <nav aria-label="Menú" className="flex flex-col gap-0.5 text-sm">
+        {items.map((item) =>
+          item.kind === 'categories' ? (
+            <CategoryMenuMobile key={item.id} label={item.label} onNavigate={onClose} />
+          ) : (
+            <MobileGroup key={item.id} item={item} onClose={onClose} />
+          ),
+        )}
       </nav>
     </div>
   );
@@ -249,35 +293,12 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     </Link>
   );
 
-  const navLinks = [
-    { href: href('/'), label: 'Inicio' },
-    { href: href('/productos'), label: 'Productos' },
-    { href: href('/contacto'), label: 'Contacto' },
-  ];
-  // El menú del encabezado: los ítems fijos + las páginas de contenido, en el
-  // orden y con la visibilidad que el comercio eligió en el editor de diseño.
-  //
-  // El tema guarda PREFERENCIAS, no la lista: acá se arma lo que existe de
-  // verdad y después se aplica. Una página nueva aparece sola al final —
-  // publicarla y que no se vea sería desconcertante— y una borrada deja una
-  // preferencia que no coincide con nada.
-  const pages = usePublishedPages();
-  const allItems: NavItem[] = [
-    { id: 'home', label: 'Inicio', href: href('/') },
-    { id: 'products', label: 'Productos', href: href('/productos') },
-    { id: 'categories', label: 'Categorías', href: href('/productos'), kind: 'categories' },
-    { id: 'contact', label: 'Contacto', href: href('/contacto') },
-    ...pages.map((p) => ({ id: `page:${p.id}`, label: p.title, href: href(`/paginas/${p.slug}`) })),
-  ];
-
-  const prefs = header.menu ?? [];
-  const rank = new Map(prefs.map((m, i) => [m.id, i]));
-  const hiddenIds = new Set(prefs.filter((m) => !m.visible).map((m) => m.id));
-  const navItems = allItems
-    .filter((item) => !hiddenIds.has(item.id))
-    .sort(
-      (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-    );
+  // El menú del encabezado: lo que armó el comercio en el editor de diseño
+  // (orden, nombres, ocultos, anidado, links propios) sobre lo que existe de
+  // verdad. Ver buildHeaderMenu. Las páginas llegan desde el navegador; hasta
+  // entonces se dibujan las que el comercio guardó con su destino.
+  const pages = usePublishedPagesState();
+  const navItems = buildHeaderMenu(header.menu ?? [], pages);
 
   const navFor = (align: 'center' | 'start') => <HeaderNav align={align} items={navItems} />;
   const nav = navFor('center');
@@ -409,6 +430,8 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
                 e.stopPropagation();
                 window.parent?.postMessage({ type: EDITOR_MSG.editSection, target: 'header' }, ADMIN_ORIGIN);
               }}
+              // data-tf-plain: es un control del editor, no un botón de la tienda (no sigue el estilo de botones).
+              data-tf-plain
               className="absolute right-3 top-2 z-[56] inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-fg shadow-lg"
             >
               <Pencil className="h-3.5 w-3.5" /> Editar encabezado
@@ -467,7 +490,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           <MobileSearch header={header} q={q} setQ={setQ} submitSearch={submitSearch} />
         )}
         {header.showTabsMobile && mobileOpen && (
-          <MobilePanel header={header} navLinks={navLinks} onClose={() => setMobileOpen(false)} />
+          <MobilePanel header={header} items={navItems} onClose={() => setMobileOpen(false)} />
         )}
       </header>
     </>

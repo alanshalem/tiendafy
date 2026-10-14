@@ -6,19 +6,25 @@ import { type ThemeConfig } from '@/lib/theme';
 import { usePublishedPages } from './PagesNav';
 import { usePreviewHref } from './preview';
 import { NewsletterForm } from './NewsletterForm';
+import { StoreLink } from './StoreLink';
+import { safeHref } from '@tiendafy/types';
 
 export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
   const footer = theme.footer;
   const pages = usePublishedPages();
   const href = usePreviewHref();
-  // Cada red es opcional: se dibuja la que tenga link, en el orden de siempre.
+  // Cada red es opcional: se dibuja la que tenga un link válido, en el orden de
+  // siempre. safeHref completa "instagram.com/x" con https:// (antes quedaba
+  // como link relativo roto) y descarta lo que no es un link.
   const socials = [
-    { url: footer.instagram, label: 'Instagram', icon: <InstagramIcon /> },
-    { url: footer.facebook, label: 'Facebook', icon: <FacebookIcon /> },
-    { url: footer.tiktok, label: 'TikTok', icon: <TikTokIcon /> },
-    { url: footer.youtube, label: 'YouTube', icon: <YouTubeIcon /> },
-    { url: footer.x, label: 'X', icon: <XIcon /> },
+    { url: safeHref(footer.instagram), label: 'Instagram', icon: <InstagramIcon /> },
+    { url: safeHref(footer.facebook), label: 'Facebook', icon: <FacebookIcon /> },
+    { url: safeHref(footer.tiktok), label: 'TikTok', icon: <TikTokIcon /> },
+    { url: safeHref(footer.youtube), label: 'YouTube', icon: <YouTubeIcon /> },
+    { url: safeHref(footer.x), label: 'X', icon: <XIcon /> },
   ].filter((s) => !!s.url);
+  // Links propios del comercio: solo los que tienen nombre y un destino válido.
+  const links = (footer.links ?? []).filter((l) => l.label.trim() && safeHref(l.href));
   return (
     <footer className="mt-8 border-t border-black/10">
       <div className="mx-auto max-w-container px-4 py-10">
@@ -30,13 +36,32 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
                 key={s.label}
                 href={s.url}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100"
               >
                 {s.icon} {s.label}
               </a>
             ))}
           </div>
+        )}
+
+        {links.length > 0 && (
+          <nav aria-label="Links del pie" className="mt-5">
+            <ul className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm">
+              {links.map((l, i) => (
+                <li key={i}>
+                  {/* py-2: alto cómodo para el dedo, como los links legales de abajo. */}
+                  <StoreLink
+                    href={l.href}
+                    newTab={l.newTab}
+                    className="inline-block py-2 opacity-75 hover:underline hover:opacity-100"
+                  >
+                    {l.label}
+                  </StoreLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
         )}
 
         {/* Las páginas que escribió el comercio (cómo comprar, preguntas, envíos):

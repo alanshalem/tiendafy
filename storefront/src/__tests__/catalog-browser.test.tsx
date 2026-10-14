@@ -301,3 +301,23 @@ describe('listado: resultados y paginado', () => {
     expect(screen.getByRole('link', { name: 'Página anterior' })).not.toHaveAttribute('href');
   });
 });
+
+describe('listado: grilla', () => {
+  const grid = () =>
+    screen.getAllByRole('link', { name: new RegExp(products[0]!.name) })[0]!.closest('.grid')!;
+
+  it('en el celular, 2 columnas por defecto', async () => {
+    await show();
+    expect(grid()).toHaveClass('grid-cols-2');
+  });
+
+  it('o 1 si el comercio lo eligió', async () => {
+    await show({ productList: { ...defaultTheme.productList, columns: 3, mobileColumns: 1 } });
+    expect(grid()).toHaveClass('grid-cols-1', 'sm:grid-cols-3');
+  });
+
+  it('la página activa usa los colores de marca pero no el estilo de botón', async () => {
+    await show({ page: 2, totalPages: 3 });
+    expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('data-tf-plain');
+  });
+});

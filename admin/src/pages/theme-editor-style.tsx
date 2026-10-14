@@ -1,5 +1,6 @@
 import { cn } from '@tiendafy/ui';
-import { type ThemeConfig } from '@tiendafy/types';
+import { useId } from 'react';
+import { baseTheme, contrastText, readableOn, type ThemeConfig } from '@tiendafy/types';
 import { BackHeader, INPUT_BASE, useSectionReset } from './theme-editor-inputs';
 import type { PanelProps } from './theme-editor-pages';
 
@@ -22,7 +23,10 @@ export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
       <BackHeader
         title="Estilo y movimiento"
         onBack={onBack}
-        onReset={reset(['borderRadius', 'iconKit', 'motion', 'density'], 'el estilo y el movimiento')}
+        onReset={reset(
+          ['borderRadius', 'buttons', 'iconKit', 'motion', 'density'],
+          'el estilo y el movimiento',
+        )}
       />
       <div className="space-y-6 p-4">
         <div>
@@ -53,6 +57,8 @@ export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
             })}
           </div>
         </div>
+
+        <ButtonStyleSection theme={theme} updateTheme={updateTheme} />
 
         <div className="border-t border-border pt-4">
           <div className="mb-2 text-sm font-semibold text-fg">Íconos</div>
@@ -125,6 +131,117 @@ export function BorderRadiusPanel({ theme, onBack, updateTheme }: PanelProps) {
   );
 }
 
+type Buttons = ThemeConfig['buttons'];
+
+/** Radio de la muestra según la forma (y los bordes globales en 'auto'). */
+function sampleRadius(b: Buttons, global: ThemeConfig['borderRadius']): string {
+  if (b.shape === 'square') return '0px';
+  if (b.shape === 'pill') return '9999px';
+  if (b.shape === 'rounded') return '0.5rem';
+  return global === 'sharp' ? '0px' : global === 'soft' ? '0.125rem' : '0.5rem';
+}
+
+/**
+ * Botones principales de la tienda (Comprar, Agregar, Pagar…): forma, relleno
+ * y texto. Con una muestra que usa el color de la marca: elegir "contorno" sin
+ * verlo es elegir a ciegas.
+ */
+function ButtonStyleSection({
+  theme,
+  updateTheme,
+}: {
+  theme: ThemeConfig;
+  updateTheme: PanelProps['updateTheme'];
+}) {
+  const b = theme.buttons ?? baseTheme.buttons;
+  const set = (patch: Partial<Buttons>) =>
+    updateTheme((t) => ({ ...t, buttons: { ...(t.buttons ?? baseTheme.buttons), ...patch } }));
+  const primary = theme.colors.primary;
+  const ink = readableOn(primary, [theme.colors.bg]);
+  const outline = b.variant === 'outline';
+  const ids = useId();
+  return (
+    <div className="border-t border-border pt-4">
+      <div className="mb-2 text-sm font-semibold text-fg">Botones</div>
+      <p className="mb-3 text-xs text-fg-muted">
+        Comprar, agregar al carrito, pagar y el resto de los principales.
+      </p>
+
+      {/* Muestra en vivo, sobre el fondo de la tienda. */}
+      <div
+        className="mb-3 flex items-center justify-center rounded-lg border border-border p-4"
+        style={{ background: `rgb(${theme.colors.bg})` }}
+        aria-hidden
+      >
+        <span
+          data-testid="muestra-boton"
+          className="inline-flex h-10 items-center px-5 text-sm font-semibold"
+          style={{
+            borderRadius: sampleRadius(b, theme.borderRadius),
+            background: outline ? 'transparent' : `rgb(${primary})`,
+            color: outline ? `rgb(${ink})` : `rgb(${contrastText(primary)})`,
+            border: outline ? '1.5px solid currentColor' : '0',
+            textTransform: b.textCase === 'uppercase' ? 'uppercase' : 'none',
+            letterSpacing: b.textCase === 'uppercase' ? '0.06em' : 'normal',
+          }}
+        >
+          Agregar al carrito
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <div className="mb-1.5 text-xs font-medium text-fg-muted" id={`${ids}-forma`}>
+            Forma
+          </div>
+          <SegGroup
+            labelledBy={`${ids}-forma`}
+            columns={4}
+            value={b.shape}
+            onChange={(shape) => set({ shape })}
+            options={[
+              { value: 'auto', label: 'Como los bordes' },
+              { value: 'square', label: 'Recto' },
+              { value: 'rounded', label: 'Redondeado' },
+              { value: 'pill', label: 'Píldora' },
+            ]}
+          />
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs font-medium text-fg-muted" id={`${ids}-relleno`}>
+            Relleno
+          </div>
+          <SegGroup
+            labelledBy={`${ids}-relleno`}
+            columns={2}
+            value={b.variant}
+            onChange={(variant) => set({ variant })}
+            options={[
+              { value: 'filled', label: 'Lleno' },
+              { value: 'outline', label: 'Solo contorno' },
+            ]}
+          />
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs font-medium text-fg-muted" id={`${ids}-texto`}>
+            Texto
+          </div>
+          <SegGroup
+            labelledBy={`${ids}-texto`}
+            columns={2}
+            value={b.textCase}
+            onChange={(textCase) => set({ textCase })}
+            options={[
+              { value: 'normal', label: 'Normal' },
+              { value: 'uppercase', label: 'MAYÚSCULAS' },
+            ]}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CssPanel({ theme, onBack, updateTheme }: PanelProps) {
   const reset = useSectionReset(updateTheme);
   return (
@@ -151,18 +268,24 @@ export function CssPanel({ theme, onBack, updateTheme }: PanelProps) {
   );
 }
 
-/** Grupo de opciones tipo segmented (3 botones). */
+const SEG_COLS = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2' } as const;
+
+/** Grupo de opciones tipo segmented (3 botones; 4 van en dos filas: el panel es angosto). */
 function SegGroup<T extends string>({
   value,
   options,
   onChange,
+  columns = 3,
+  labelledBy,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  columns?: 2 | 3 | 4;
+  labelledBy?: string;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={cn('grid gap-2', SEG_COLS[columns])} role="group" aria-labelledby={labelledBy}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -170,7 +293,7 @@ function SegGroup<T extends string>({
           onClick={() => onChange(o.value)}
           aria-pressed={value === o.value}
           className={cn(
-            'rounded-lg border px-2 py-2 text-xs font-medium transition',
+            'min-h-10 rounded-lg border px-2 py-2 text-xs font-medium transition',
             value === o.value
               ? 'border-primary text-primary ring-2 ring-primary/30'
               : 'border-border text-fg hover:border-border-strong',

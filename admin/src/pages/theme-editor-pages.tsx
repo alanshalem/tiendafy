@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { cn } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
 import { HelpLink } from '../components/HelpLink';
 import {
@@ -130,7 +131,7 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
             options={[12, 24, 48].map((n) => ({ value: String(n), label: `${n} productos` }))}
           />
         </Field>
-        <Field label="Productos por fila">
+        <Field label="Productos por fila en la computadora">
           <Select
             value={String(theme.productList.columns)}
             onChange={(v) => set({ columns: Number(v) })}
@@ -138,6 +139,19 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
               { value: '2', label: '2 columnas' },
               { value: '3', label: '3 columnas' },
               { value: '4', label: '4 columnas' },
+            ]}
+          />
+        </Field>
+        <Field
+          label="Productos por fila en el celular"
+          hint="Con 1 cada foto ocupa todo el ancho: luce más, pero hay que scrollear más."
+        >
+          <Select
+            value={String(theme.productList.mobileColumns ?? 2)}
+            onChange={(v) => set({ mobileColumns: v === '1' ? 1 : 2 })}
+            options={[
+              { value: '2', label: '2 columnas' },
+              { value: '1', label: '1 columna (foto grande)' },
             ]}
           />
         </Field>
@@ -251,16 +265,10 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
       />
       <div className="space-y-4 p-4">
         <QuickStyles presets={DETAIL_PRESETS} current={theme.productDetail} onApply={set} />
-        <Field label="Estilo de galería">
-          <Select
-            value={theme.productDetail.galleryStyle}
-            onChange={(v) => set({ galleryStyle: v as ThemeConfig['productDetail']['galleryStyle'] })}
-            options={[
-              { value: 'thumbs', label: 'Miniaturas abajo' },
-              { value: 'thumbs-left', label: 'Miniaturas verticales' },
-            ]}
-          />
-        </Field>
+        <GalleryStylePicker
+          value={theme.productDetail.galleryStyle}
+          onChange={(galleryStyle) => set({ galleryStyle })}
+        />
         <Check
           label="Mostrar SKU"
           checked={theme.productDetail.showSku}
@@ -322,6 +330,66 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
         </Field>
       </div>
     </div>
+  );
+}
+
+type GalleryStyle = ThemeConfig['productDetail']['galleryStyle'];
+
+/**
+ * Estilos de galería, cada uno con para qué sirve: los nombres solos
+ * ("apilada", "miniaturas verticales") no le dicen nada a quien no armó
+ * nunca una tienda. "Apilada" existía en la tienda pero el editor no la
+ * ofrecía.
+ */
+const GALLERY_STYLES: { value: GalleryStyle; label: string; desc: string }[] = [
+  {
+    value: 'thumbs',
+    label: 'Miniaturas abajo',
+    desc: 'Una foto grande y las demás chiquitas debajo. La más común.',
+  },
+  {
+    value: 'thumbs-left',
+    label: 'Miniaturas al costado',
+    desc: 'Las chiquitas en columna a la izquierda: deja más alto para la foto grande.',
+  },
+  {
+    value: 'stacked',
+    label: 'Apilada',
+    desc: 'Todas las fotos grandes, una debajo de la otra. Ideal para indumentaria y productos con detalles.',
+  },
+];
+
+function GalleryStylePicker({
+  value,
+  onChange,
+}: {
+  value: GalleryStyle;
+  onChange: (v: GalleryStyle) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-1.5 block text-sm font-medium text-fg">Estilo de galería</legend>
+      <div className="grid gap-2">
+        {GALLERY_STYLES.map((g) => {
+          const active = value === g.value;
+          return (
+            <button
+              key={g.value}
+              type="button"
+              onClick={() => onChange(g.value)}
+              aria-pressed={active}
+              className={cn(
+                'min-h-10 rounded-lg border px-3 py-2 text-left transition',
+                active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border-strong',
+              )}
+            >
+              <span className="block text-sm font-medium text-fg">{g.label}</span>
+              <span className="block text-xs text-fg-muted">{g.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 

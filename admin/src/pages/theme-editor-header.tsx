@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { type ThemeConfig, type ThemeMenuItem } from '@tiendafy/types';
-import { api } from '../lib/api';
-import { useStore } from '../context/StoreContext';
+import { type ThemeConfig } from '@tiendafy/types';
+import { LinkPicker } from '../components/LinkPicker';
+import { MenuEditor } from './theme-editor-menu';
 import {
   BackHeader,
   Field,
@@ -280,13 +280,13 @@ export function HeaderPanel({
                         placeholder="10% OFF EN TU PRIMERA COMPRA"
                       />
                     </Field>
-                    <Field label="Link (opcional)">
-                      <TextInput
-                        value={it.link}
-                        onChange={(v) => updateItem(i, { link: v })}
-                        placeholder="/productos"
-                      />
-                    </Field>
+                    <LinkPicker
+                      label="Link (opcional)"
+                      value={it.link}
+                      onChange={(href) => updateItem(i, { link: href })}
+                      newTab={it.newTab}
+                      onNewTabChange={(v) => updateItem(i, { newTab: v || undefined })}
+                    />
                   </div>
                 ))}
               </div>
@@ -315,135 +315,6 @@ export function HeaderPanel({
           )}
         </Collapsible>
       </div>
-    </div>
-  );
-}
-
-/* ---------- Menú del encabezado ---------- */
-
-interface Pg {
-  id: string;
-  title: string;
-}
-
-/**
- * Qué se muestra en el menú y en qué orden.
- *
- * El orden no es sólo estético: lo que no entra a lo ancho del encabezado se va
- * a un desplegable "Más", así que lo de arriba es lo que queda a la vista.
- *
- * Se guardan preferencias, no la lista: los ítems que existen se calculan cada
- * vez (los fijos + las páginas publicadas). Por eso una página nueva aparece
- * sola al final en vez de quedar afuera hasta que alguien se acuerde.
- */
-function MenuEditor({
-  theme,
-  updateTheme,
-}: {
-  theme: ThemeConfig;
-  updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
-}) {
-  const { store } = useStore();
-  const [pages, setPages] = useState<Pg[]>([]);
-
-  useEffect(() => {
-    if (!store) return;
-    api
-      .get<{ items: Pg[] }>('/api/v1/pages/published')
-      .then((d) => setPages(d.items ?? []))
-      .catch(() => setPages([]));
-  }, [store]);
-
-  const all = [
-    { id: 'home', label: 'Inicio' },
-    { id: 'products', label: 'Productos' },
-    { id: 'categories', label: 'Categorías' },
-    { id: 'contact', label: 'Contacto' },
-    ...pages.map((p) => ({ id: `page:${p.id}`, label: p.title })),
-  ];
-
-  const prefs = theme.header.menu ?? [];
-  const rank = new Map(prefs.map((m, i) => [m.id, i]));
-  const hidden = new Set(prefs.filter((m) => !m.visible).map((m) => m.id));
-  const rows = [...all].sort(
-    (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-  );
-
-  // Se guarda la lista entera cada vez: mantener un orden parcial y adivinar
-  // dónde entra lo que falta es la clase de estado que después nadie entiende.
-  const save = (next: { id: string; label: string }[], hiddenNext: Set<string>) =>
-    updateTheme((t) => ({
-      ...t,
-      header: {
-        ...t.header,
-        menu: next.map<ThemeMenuItem>((r) => ({ id: r.id, visible: !hiddenNext.has(r.id) })),
-      },
-    }));
-
-  const move = (index: number, delta: number) => {
-    const target = index + delta;
-    if (target < 0 || target >= rows.length) return;
-    const next = [...rows];
-    const moved = next.splice(index, 1)[0];
-    if (!moved) return;
-    next.splice(target, 0, moved);
-    save(next, hidden);
-  };
-
-  const toggle = (id: string) => {
-    const hiddenNext = new Set(hidden);
-    if (hiddenNext.has(id)) hiddenNext.delete(id);
-    else hiddenNext.add(id);
-    save(rows, hiddenNext);
-  };
-
-  return (
-    <div>
-      <p className="mb-2 text-xs text-fg-muted">
-        Arriba va lo más importante: cuando no entran todos, los últimos pasan a un desplegable «Más».
-      </p>
-      {rows.map((row, i) => {
-        const isHidden = hidden.has(row.id);
-        return (
-          <div
-            key={row.id}
-            className="mb-1.5 flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-1.5"
-          >
-            <GripVertical className="h-4 w-4 shrink-0 text-fg-subtle" />
-            <div className="flex flex-col text-fg-subtle">
-              <button
-                onClick={() => move(i, -1)}
-                disabled={i === 0}
-                aria-label={`Subir ${row.label}`}
-                className="leading-none disabled:opacity-30"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => move(i, 1)}
-                disabled={i === rows.length - 1}
-                aria-label={`Bajar ${row.label}`}
-                className="leading-none disabled:opacity-30"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <span className={cn('flex-1 truncate text-sm', isHidden && 'text-fg-subtle line-through')}>
-              {row.label}
-            </span>
-            <button
-              onClick={() => toggle(row.id)}
-              aria-label={isHidden ? `Mostrar ${row.label}` : `Ocultar ${row.label}`}
-              className="shrink-0 text-fg-muted hover:text-fg"
-            >
-              {isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        );
-      })}
-      <p className="mt-2 text-xs text-fg-subtle">
-        Las páginas de contenido que crees aparecen solas al final. Se editan en Páginas de contenido.
-      </p>
     </div>
   );
 }
