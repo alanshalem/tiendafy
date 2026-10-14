@@ -75,6 +75,7 @@ public static class PipelineExtensions
         apiV1.MapShopAuthEndpoints();
         apiV1.MapShopFavoritesEndpoints();
         apiV1.MapShopOrdersEndpoints();
+        apiV1.MapStoreLegalEndpoints();
         apiV1.MapContactEndpoints();
         apiV1.MapMembersEndpoints();
 

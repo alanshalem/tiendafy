@@ -471,6 +471,75 @@ namespace Fiscal.Infrastructure.Migrations
 
                     b.ToTable("fiscal_sequences", (string)null);
                 });
+
+            modelBuilder.Entity("Fiscal.Core.Domain.StoreLegalInfo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("condition");
+
+                    b.Property<string>("Cuit")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("cuit");
+
+                    b.Property<string>("DataFiscalImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("data_fiscal_image_url");
+
+                    b.Property<string>("DataFiscalUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("data_fiscal_url");
+
+                    b.Property<string>("LegalName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("legal_name");
+
+                    b.Property<decimal>("OtherNationalTaxesPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("other_national_taxes_percent");
+
+                    b.Property<bool>("ShowPriceWithoutTaxes")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_price_without_taxes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<decimal>("VatRatePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_rate_percent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_store_legal_info");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_store_legal_info_tenant_id");
+
+                    b.ToTable("store_legal_info", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }
