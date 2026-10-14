@@ -1,6 +1,7 @@
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig, FONT_OPTIONS, FONT_FAMILY_CSS } from '@tiendafy/types';
 import { BackHeader, Field, Select, useSectionReset } from './theme-editor-inputs';
+import { useEditorFonts } from '../lib/useEditorFonts';
 
 // Catálogo compartido (@tiendafy/types). Copia mutable para el <Select> (options no-readonly).
 const fontOptions: { value: string; label: string }[] = [...FONT_OPTIONS];
@@ -38,6 +39,7 @@ export function FontsPanel({
   onBack: () => void;
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
 }) {
+  useEditorFonts();
   const setFont = (k: 'heading' | 'body', v: string) =>
     updateTheme((t) => ({ ...t, fonts: { ...t.fonts, [k]: v } }));
   const reset = useSectionReset(updateTheme);
