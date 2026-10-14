@@ -569,13 +569,15 @@ function ReceiptModal({
   }, 0);
 
   const overAllocated = Number.isFinite(amountMinor) && allocated > amountMinor;
-  const problem = useMemo(() => {
-    if (!party) return `Elegí ${partyKind === 'customer' ? 'el cliente' : 'el proveedor'}.`;
-    if (!accountId) return 'Elegí la cuenta donde entra o sale la plata.';
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) return 'Escribí el importe.';
-    if (overAllocated) return 'Estás imputando más de lo que cobrás: bajá alguna de las filas.';
-    return null;
-  }, [party, partyKind, accountId, amountMinor, overAllocated]);
+  const problem = !party
+    ? `Elegí ${partyKind === 'customer' ? 'el cliente' : 'el proveedor'}.`
+    : !accountId
+      ? 'Elegí la cuenta donde entra o sale la plata.'
+      : !Number.isFinite(amountMinor) || amountMinor <= 0
+        ? 'Escribí el importe.'
+        : overAllocated
+          ? 'Estás imputando más de lo que cobrás: bajá alguna de las filas.'
+          : null;
   // El modal abría con "Elegí a quién." en rojo antes de tocar nada: un
   // error por no haber hecho todavía lo que se está por hacer. Los faltantes
   // se muestran recién al intentar registrar; imputar de más, en cambio, se
