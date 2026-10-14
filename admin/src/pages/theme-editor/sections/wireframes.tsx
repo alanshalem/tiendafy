@@ -105,6 +105,17 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           </div>
         </div>
       );
+    case 'categories':
+      return (
+        <div className="flex justify-around gap-1">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-0.5">
+              <span className="h-5 w-5 rounded-full bg-fg/10" />
+              <span className="h-1 w-4 rounded bg-fg/20" />
+            </div>
+          ))}
+        </div>
+      );
     case 'popup':
       return (
         <div className={`flex h-9 items-center justify-center ${base}`}>

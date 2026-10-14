@@ -35,6 +35,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   'featured-product': true,
   'promo-popup': true,
   'rich-text': true,
+  'category-list': true,
 };
 
 let crashes: () => unknown[][];

@@ -140,6 +140,11 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     },
     shows: 'Nuestra historia',
   },
+  // Las categorías de la tienda sembrada (las pide el árbol del menú).
+  'category-list': {
+    data: { title: 'Por categoría', mode: 'auto', layout: 'carousel' },
+    shows: 'Musculación',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

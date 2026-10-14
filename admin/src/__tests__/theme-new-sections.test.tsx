@@ -239,3 +239,64 @@ describe('texto con formato', () => {
     expect(screen.getByText('A dónde lleva el botón')).toBeInTheDocument();
   });
 });
+
+describe('categorías principales', () => {
+  it('automático pide cuántas; a mano, una lista de categorías de la tienda con nombre y foto propios', async () => {
+    const { user } = await open('category-list', createSection('category-list').data);
+    fireEvent.change(screen.getByLabelText('Cuántas mostrar'), { target: { value: '4' } });
+    expect(latest.count).toBe(4);
+
+    await user.selectOptions(screen.getByLabelText('Qué categorías'), 'manual');
+    expect(screen.queryByLabelText('Cuántas mostrar')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Agregar categoría/ }));
+    await settle(2);
+    await user.selectOptions(screen.getByLabelText('Categoría'), 'Musculación');
+    const items = latest.items as { categoryId: string; title: string }[];
+    expect(items).toHaveLength(1);
+    expect(items[0]!.categoryId).toEqual(expect.any(String));
+    expect(items[0]!.categoryId).not.toBe('');
+    // El ítem se nombra con la categoría elegida.
+    expect(screen.getAllByText('Musculación').length).toBeGreaterThan(0);
+    await user.type(screen.getByLabelText('Nombre a mostrar (opcional)'), 'Pesas');
+    expect((latest.items as { title: string }[])[0]!.title).toBe('Pesas');
+  });
+
+  it('forma, columnas y «Ver todas»', async () => {
+    const { user } = await open('category-list', createSection('category-list').data);
+    await user.selectOptions(screen.getByLabelText('Cómo se muestran'), 'carousel');
+    await user.selectOptions(screen.getByLabelText('Forma de la foto'), 'square');
+    await user.selectOptions(screen.getByLabelText('Por fila en celular'), '3');
+    fireEvent.change(screen.getByLabelText('Por fila en computadora'), { target: { value: '1' } });
+    expect(latest).toMatchObject({
+      layout: 'carousel',
+      shape: 'square',
+      columnsMobile: 3,
+      columnsDesktop: 2,
+    });
+    await user.click(screen.getByLabelText('Botón «Ver todas»'));
+    expect(latest.showAll).toBe(false);
+    expect(screen.queryByLabelText('Texto del botón')).not.toBeInTheDocument();
+  });
+
+  it('tolera datos rotos', () => {
+    const s = normalizeSection({
+      id: 'x',
+      type: 'category-list',
+      visible: true,
+      data: {
+        mode: 'todas',
+        count: 999,
+        columnsDesktop: '5',
+        items: [null, { categoryId: 3 }, 'x'],
+        shape: 'hexágono',
+      },
+    })!;
+    expect(s.data).toMatchObject({
+      mode: 'auto',
+      count: 24,
+      columnsDesktop: 5,
+      shape: 'circle',
+      items: [{ categoryId: '3', title: '', image: '' }],
+    });
+  });
+});

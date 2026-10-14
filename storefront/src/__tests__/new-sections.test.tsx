@@ -20,6 +20,7 @@ import { excerptOf } from '../lib/catalog-map';
 import { popupSeen } from '../components/store/sections/promo-popup';
 import { ADMIN_ORIGIN } from '../components/store/preview';
 import { nav } from '../test/next';
+import { StoreCategoriesProvider } from '../components/store/CategoryMenu';
 import { EDITOR_MSG } from '@tiendafy/types';
 import { useCart } from '../components/store/cart';
 import userEvent from '@testing-library/user-event';
@@ -483,5 +484,73 @@ describe('texto con formato', () => {
     expect(container.querySelector('.md\\:grid-cols-2')).toBeNull();
     rerender(ui(section('rich-text', { body: { type: 'doc', content: [{ type: 'paragraph' }] } })));
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+const CATS = [
+  { id: 'c1', name: 'Ropa', parentId: null, path: 'ropa' },
+  { id: 'c2', name: 'Remeras', parentId: 'c1', path: 'ropa/remeras' },
+  { id: 'c3', name: 'Calzado', parentId: null, path: 'calzado' },
+  { id: 'c4', name: 'Accesorios', parentId: null, path: 'accesorios' },
+];
+const withCats = (node: ReactNode) => (
+  <StoreCategoriesProvider categories={CATS}>{node}</StoreCategoriesProvider>
+);
+
+describe('categorías principales', () => {
+  it('automático: las de primer nivel, hasta la cantidad elegida, con su link y la inicial si no hay foto', () => {
+    render(withCats(ui(section('category-list', { title: 'Comprá por categoría', mode: 'auto', count: 2 }))));
+    const links = screen.getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('category='));
+    expect(links).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Ropa' })).toHaveAttribute('href', '/productos?category=ropa');
+    expect(screen.getByRole('link', { name: 'Calzado' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver todas' })).toHaveAttribute('href', '/productos');
+  });
+
+  it('a mano: en su orden, con nombre y foto propios; las borradas no dejan hueco', () => {
+    const { container } = render(
+      withCats(
+        ui(
+          section('category-list', {
+            mode: 'manual',
+            showAll: false,
+            shape: 'portrait',
+            items: [
+              { categoryId: 'c2', title: 'Remeras de verano', image: 'https://cdn.example.com/r.jpg' },
+              { categoryId: 'borrada', title: 'Fantasma' },
+              { categoryId: 'c4' },
+            ],
+          }),
+        ),
+      ),
+    );
+    expect(screen.getByRole('link', { name: 'Remeras de verano' })).toHaveAttribute(
+      'href',
+      '/productos?category=ropa/remeras',
+    );
+    expect(screen.queryByText('Fantasma')).not.toBeInTheDocument();
+    expect(screen.getByText('Accesorios')).toBeInTheDocument();
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/r.jpg');
+    expect(container.querySelector('.aspect-\\[3\\/4\\]')).not.toBeNull();
+    expect(screen.queryByText('Ver todas')).not.toBeInTheDocument();
+  });
+
+  it('en carrusel es una lista que se desliza; en grilla, las columnas elegidas', () => {
+    const { container, rerender } = render(
+      withCats(ui(section('category-list', { layout: 'carousel', columnsMobile: 2, columnsDesktop: 5 }))),
+    );
+    expect(container.querySelector('ul.overflow-x-auto')).not.toBeNull();
+    rerender(withCats(ui(section('category-list', { layout: 'grid', columnsMobile: 3, columnsDesktop: 7 }))));
+    expect(container.querySelector('ul')).toHaveClass('grid-cols-3', 'md:grid-cols-4', 'lg:grid-cols-7');
+  });
+
+  it('sin categorías: nada en la tienda y un aviso en el editor', () => {
+    const empty = (node: ReactNode) => (
+      <StoreCategoriesProvider categories={[]}>{node}</StoreCategoriesProvider>
+    );
+    const { container, rerender } = render(empty(ui(section('category-list', { title: 'Cats' }))));
+    expect(container).toBeEmptyDOMElement();
+    rerender(empty(ui(section('category-list', { title: 'Cats' }), { preview: true })));
+    expect(screen.getByText(/Todavía no hay categorías/)).toBeInTheDocument();
   });
 });

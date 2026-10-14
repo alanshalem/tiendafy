@@ -364,6 +364,7 @@ export interface SectionDataMap {
   'featured-product': FeaturedProductData;
   'promo-popup': PromoPopupData;
   'rich-text': RichTextData;
+  'category-list': CategoryListData;
 }
 
 /* ---- El registro ---- */
@@ -711,6 +712,28 @@ export const SECTION_REGISTRY = {
     },
     limits: {},
     keywords: 'editorial texto enriquecido historia blog articulo parrafos formato',
+  }),
+  'category-list': define({
+    type: 'category-list',
+    label: 'Categorías principales',
+    previewLabel: 'las categorías',
+    description: 'Tus categorías con foto, en grilla o carrusel, para entrar directo.',
+    group: 'Productos',
+    wireframe: 'categories',
+    fields: categoryListFields,
+    defaults: {
+      title: 'Comprá por categoría',
+      mode: 'auto',
+      count: 6,
+      layout: 'grid',
+      columnsDesktop: 6,
+      columnsMobile: 2,
+      shape: 'circle',
+      showAll: true,
+      showAllText: 'Ver todas',
+    },
+    limits: {},
+    keywords: 'categorias rubros colecciones departamentos circulos',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

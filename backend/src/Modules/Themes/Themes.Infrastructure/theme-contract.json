@@ -531,6 +531,76 @@
           "kind": "url"
         }
       }
+    },
+    "category-list": {
+      "label": "Categorías principales",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "mode": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "manual"
+          ]
+        },
+        "count": {
+          "kind": "number",
+          "min": 1,
+          "max": 24
+        },
+        "items": {
+          "kind": "items",
+          "max": 24,
+          "fields": {
+            "categoryId": {
+              "kind": "string",
+              "max": 100
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "image": {
+              "kind": "media"
+            }
+          }
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "grid",
+            "carousel"
+          ]
+        },
+        "columnsDesktop": {
+          "kind": "number",
+          "min": 2,
+          "max": 8
+        },
+        "columnsMobile": {
+          "kind": "number",
+          "min": 1,
+          "max": 3
+        },
+        "shape": {
+          "kind": "enum",
+          "values": [
+            "circle",
+            "square",
+            "portrait"
+          ]
+        },
+        "showAll": {
+          "kind": "boolean"
+        },
+        "showAllText": {
+          "kind": "string",
+          "max": 200
+        }
+      }
     }
   },
   "defaultConfig": {
