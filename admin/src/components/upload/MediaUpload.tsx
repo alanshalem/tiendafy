@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { UPLOADS, type UploadKind, type UploadSpec } from '../../lib/uploads';
+import { UPLOADS, type IdealSize, type UploadKind, type UploadSpec } from '../../lib/uploads';
 import {
   LoadingImg,
   UploadBar,
@@ -170,15 +170,26 @@ export function MediaUpload({
   kind,
   value,
   onChange,
+  ideal,
+  label,
 }: {
   kind: UploadKind;
   value: string;
   onChange: (url: string) => void;
+  /**
+   * La medida a la que se muestra, si depende de lo que eligió el comercio
+   * (la proporción de un banner, el alto del carrusel). Cambia el recuadro de
+   * la vista previa, la medida recomendada y los avisos de recorte.
+   */
+  ideal?: IdealSize;
+  /** Qué se elige ("Elegir imagen para celular"); por defecto, imagen o video. */
+  label?: string;
 }) {
-  const spec: UploadSpec = UPLOADS[kind];
+  const base: UploadSpec = UPLOADS[kind];
+  const spec: UploadSpec = ideal ? { ...base, ideal } : base;
   const video = isVideo(spec);
   const noun = video ? 'video' : 'imagen';
-  const queue = useUploadQueue(kind, uploadMedia);
+  const queue = useUploadQueue(kind, uploadMedia, spec);
   const take = (files: File[]) => void queue.run(files.slice(0, 1), (url) => onChange(url));
   const picker = useFilePicker({ kind, onFiles: take, disabled: queue.busy });
   const drop = useDropTarget(take, queue.busy);
@@ -238,12 +249,12 @@ export function MediaUpload({
       ) : (
         <EmptyDrop
           spec={spec}
-          label={video ? 'Elegir video' : 'Elegir imagen'}
+          label={label ?? (video ? 'Elegir video' : 'Elegir imagen')}
           onClick={picker.open}
           drop={drop}
         />
       )}
-      <UploadSpecHint kind={kind} />
+      <UploadSpecHint kind={kind} spec={spec} />
       <UploadNotes notes={queue.notes} onDismiss={queue.dismissNotes} showFile={false} />
     </div>
   );
