@@ -449,6 +449,11 @@ export const DISENO = {
       'ordenar',
       'filtros',
       'anuncio',
+      'barra de anuncios',
+      'rotativo',
+      'uno por vez',
+      'color del encabezado',
+      'colores por página',
     ],
     sections: [
       {
@@ -468,9 +473,45 @@ export const DISENO = {
         ],
       },
       {
+        heading: 'Un color de encabezado distinto según la página',
+        paragraphs: [
+          'En Encabezado → Colores por página podés darle al encabezado otro color en el inicio, en el listado (y las categorías), en la página de cada producto, en las páginas de contenido (las tuyas, Contacto y las legales) o en el checkout. Por ejemplo: oscuro solo en el inicio y claro en el resto de la tienda.',
+          'Cada página arranca en “Igual que el general”. Al destildarlo elegís el fondo, y el texto y los íconos se acomodan solos para que se lean (o los elegís vos). Mientras cambiás uno, la vista previa va a esa página para que lo veas.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si el encabezado va transparente sobre la foto de portada, arriba de todo sigue transparente; el color del inicio aparece al bajar. La barra de anuncio y los menús desplegables no cambian: mantienen sus colores para que siempre se lean.',
+          },
+        ],
+      },
+      {
         heading: 'La barra de anuncio',
         paragraphs: [
-          'Es la franja angosta arriba de todo (“Envío gratis desde $50.000”). Se configura en Encabezado → Barra de anuncio: podés cargar varios anuncios, cada uno con su link, y elegir si quedan fijos o se mueven de derecha a izquierda.',
+          'Es la franja angosta arriba de todo (“Envío gratis desde $50.000”). Se configura en Encabezado → Barra de anuncio: podés cargar varios anuncios, cada uno con su link, y reordenarlos, duplicarlos o borrarlos con el menú ⋯ de cada uno.',
+        ],
+        blocks: [
+          {
+            type: 'table',
+            headers: ['Cómo se ven', 'Qué pasa'],
+            rows: [
+              ['Fijo', 'Todos a la vista, uno al lado del otro.'],
+              [
+                'Desplazándose',
+                'Pasan en fila de derecha a izquierda. Elegís la velocidad: lenta, normal o rápida.',
+              ],
+              [
+                'Uno por vez',
+                'Se ve un anuncio solo y cambia al siguiente cada 3 a 10 segundos (vos elegís cuántos), con flechas para pasarlos.',
+              ],
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Lo que se mueve se frena cuando tu cliente pasa el mouse o lo toca, y siempre tiene un botón de pausa. Si en su celular o compu pidió “reducir movimiento”, los anuncios no cambian solos: quedan las flechas para verlos.',
+          },
         ],
       },
       {

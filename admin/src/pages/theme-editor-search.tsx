@@ -133,7 +133,19 @@ export const OPTION_INDEX: OptionEntry[] = [
     label: 'Barra de anuncio',
     view: 'header',
     panel: 'Encabezado',
-    keywords: 'promo envio gratis marquesina cupon',
+    keywords: 'promo envio gratis marquesina cupon barra de anuncios',
+  },
+  {
+    label: 'Anuncios de a uno por vez',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'rotativo rotan cambian carrusel intervalo segundos desplazandose fijo velocidad',
+  },
+  {
+    label: 'Colores del encabezado por página',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'color del encabezado distinto inicio listado producto checkout oscuro claro pagina',
   },
 
   {

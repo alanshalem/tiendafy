@@ -4,11 +4,11 @@
  * puede elegir y deshacer, y los avisos aparecen cuando una opción no se
  * va a notar (transparente sin foto de portada, WhatsApp sin número).
  */
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { normalizeTheme, type ThemeConfig } from '@tiendafy/types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HeaderPanel } from '../pages/theme-editor-header';
 import { FooterPanel } from '../pages/theme-editor-footer';
 import { WhatsAppPanel } from '../pages/theme-editor-contact';
@@ -103,6 +103,135 @@ describe('encabezado', () => {
   });
 });
 
+describe('barra de anuncio', () => {
+  const withAnn = (patch: Partial<ThemeConfig['announcement']> = {}) => ({
+    announcement: { ...normalizeTheme({}).announcement, show: true, ...patch },
+  });
+
+  it('los tres modos con su dibujito: el intervalo solo en "uno por vez" y la velocidad solo desplazándose', async () => {
+    const user = await header(withAnn({ items: [{ text: 'Envío gratis', link: '' }] }));
+    const modes = screen.getByRole('group', { name: 'Cómo se ven los anuncios' });
+    expect(within(modes).getByRole('button', { name: 'Fijo' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('combobox', { name: 'Cada cuánto cambia' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Velocidad' })).not.toBeInTheDocument();
+
+    await user.click(within(modes).getByRole('button', { name: 'Uno por vez' }));
+    expect(current.announcement.animation).toBe('rotate');
+    expect(screen.getByText(/cambia solo al siguiente/)).toBeInTheDocument();
+    const interval = screen.getByRole('combobox', { name: 'Cada cuánto cambia' });
+    expect(interval).toHaveValue('5');
+    // De 3 a 10 segundos, nada más.
+    expect(
+      within(interval)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual([3, 4, 5, 6, 7, 8, 9, 10].map((n) => `${n} segundos`));
+    await user.selectOptions(interval, '8');
+    expect(current.announcement.interval).toBe(8);
+    expect(screen.queryByRole('group', { name: 'Velocidad' })).not.toBeInTheDocument();
+
+    await user.click(within(modes).getByRole('button', { name: 'Desplazándose' }));
+    expect(current.announcement.animation).toBe('marquee');
+    expect(screen.queryByRole('combobox', { name: 'Cada cuánto cambia' })).not.toBeInTheDocument();
+    await user.click(
+      within(screen.getByRole('group', { name: 'Velocidad' })).getByRole('button', { name: 'Rápida' }),
+    );
+    expect(current.announcement.speed).toBe('fast');
+  });
+
+  it('los anuncios como filas con menú ⋯: el título es el texto, sin "Cambiar nombre"', async () => {
+    const user = await header(
+      withAnn({
+        items: [
+          { text: 'Envío gratis', link: '/productos' },
+          { text: '3 cuotas', link: '' },
+        ],
+      }),
+    );
+    const list = screen.getByRole('group', { name: 'Anuncios' });
+    await user.click(within(list).getByRole('button', { name: 'Más acciones de «3 cuotas»' }));
+    const menu = within(screen.getByRole('menu'));
+    expect(menu.queryByRole('menuitem', { name: 'Cambiar nombre' })).not.toBeInTheDocument();
+    await user.click(menu.getByRole('menuitem', { name: 'Mover arriba' }));
+    expect(current.announcement.items.map((i) => i.text)).toEqual(['3 cuotas', 'Envío gratis']);
+
+    await user.click(within(list).getByRole('button', { name: /Agregar anuncio/ }));
+    expect(current.announcement.items).toHaveLength(3);
+    // Recién agregado viene abierto para escribir; el título de la fila sigue al texto.
+    const text = within(list).getAllByRole('textbox', { name: 'Texto' }).at(-1)!;
+    await user.type(text, 'Cupón BIENVENIDA');
+    expect(current.announcement.items[2]).toMatchObject({ text: 'Cupón BIENVENIDA', link: '' });
+    expect(
+      within(list).getByRole('button', { name: 'Cupón BIENVENIDA', expanded: true }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('colores del encabezado por página', () => {
+  const panel = (initial: Partial<ThemeConfig> = {}, onPreviewPage = vi.fn()) =>
+    show(
+      (t, u) => <HeaderPanel theme={t} updateTheme={u} onBack={() => {}} onPreviewPage={onPreviewPage} />,
+      initial,
+    );
+
+  it('plegado; una página deja de ser "igual que el general", cambia de color y la vista previa va ahí', async () => {
+    const onPreviewPage = vi.fn();
+    const user = await panel({}, onPreviewPage);
+    const toggle = screen.getByRole('button', { name: 'Colores por página' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    expect(screen.getByText(/oscuro solo en el inicio/)).toBeInTheDocument();
+    for (const name of [
+      'Inicio',
+      'Listado y categorías',
+      'Producto',
+      'Páginas de contenido',
+      'Checkout (pago)',
+    ])
+      expect(
+        within(screen.getByRole('group', { name })).getByRole('checkbox', { name: 'Igual que el general' }),
+      ).toBeChecked();
+
+    const home = within(screen.getByRole('group', { name: 'Inicio' }));
+    await user.click(home.getByRole('checkbox', { name: 'Igual que el general' }));
+    // Arranca con el fondo general y el texto en automático.
+    expect(current.header.pageColors).toEqual({ home: { bg: current.header.bg, textColor: '' } });
+    expect(onPreviewPage).toHaveBeenLastCalledWith('home');
+
+    fireEvent.change(home.getByLabelText('Fondo'), { target: { value: '#ffffff' } });
+    expect(current.header.pageColors.home).toEqual({ bg: '255 255 255', textColor: '' });
+
+    const product = within(screen.getByRole('group', { name: 'Producto' }));
+    await user.click(product.getByRole('checkbox', { name: 'Igual que el general' }));
+    expect(onPreviewPage).toHaveBeenLastCalledWith('product');
+    fireEvent.change(product.getByLabelText('Texto e íconos'), { target: { value: '#000000' } });
+    expect(current.header.pageColors.product?.textColor).toBe('0 0 0');
+    await user.click(product.getByRole('button', { name: 'Volver a automático' }));
+    expect(current.header.pageColors.product?.textColor).toBe('');
+
+    // Volver a "igual" la saca: esa página usa otra vez los colores generales.
+    await user.click(home.getByRole('checkbox', { name: 'Igual que el general' }));
+    expect(Object.keys(current.header.pageColors)).toEqual(['product']);
+    // El general no se tocó.
+    expect(current.header.bg).toBe(normalizeTheme({}).header.bg);
+  });
+
+  it('con colores propios guardados viene abierto; en el inicio transparente avisa cuándo se ve', async () => {
+    await panel({
+      header: {
+        ...normalizeTheme({}).header,
+        transparentOnHome: true,
+        pageColors: { home: { bg: '250 250 250', textColor: '' } },
+      },
+    });
+    expect(screen.getByRole('button', { name: 'Colores por página' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByText(/este color se ve al bajar/)).toBeInTheDocument();
+  });
+});
+
 describe('pie', () => {
   it('"En columnas" pone la disposición y el color de fondo vuelve a como la tienda', async () => {
     const user = await show((t, u) => <FooterPanel theme={t} updateTheme={u} onBack={() => {}} />, {
@@ -165,6 +294,9 @@ describe('buscador de opciones', () => {
     ['columnas', 'footer'],
     ['izquierda', 'whatsapp'],
     ['hamburguesa', 'header'],
+    ['rotativo', 'header'],
+    ['color del encabezado', 'header'],
+    ['barra de anuncios', 'header'],
   ])('«%s» lleva a %s', (q, view) => {
     expect(searchOptions(q).some((e) => e.view === view)).toBe(true);
   });

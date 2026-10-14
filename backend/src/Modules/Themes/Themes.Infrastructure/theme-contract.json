@@ -1341,7 +1341,8 @@
       "showCart": true,
       "cartStyle": "icon",
       "border": "none",
-      "menu": []
+      "menu": [],
+      "pageColors": {}
     },
     "announcement": {
       "show": false,
@@ -1351,7 +1352,9 @@
           "text": "",
           "link": ""
         }
-      ]
+      ],
+      "interval": 5,
+      "speed": "normal"
     },
     "comingSoon": {
       "enabled": false,

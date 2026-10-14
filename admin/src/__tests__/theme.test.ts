@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { baseTheme, normalizeTheme, sanitizeCss, type ThemeConfig } from '@tiendafy/types';
+import { baseTheme, headerColorsFor, normalizeTheme, sanitizeCss, type ThemeConfig } from '@tiendafy/types';
 
 describe('normalizeTheme', () => {
   it('devuelve defaults completos ante null', () => {
@@ -14,6 +14,54 @@ describe('normalizeTheme', () => {
     const t = normalizeTheme(raw as unknown as Partial<ThemeConfig>, []);
     expect(t.announcement.items).toEqual([{ text: '10% OFF', link: '/promo' }]);
     expect(t.announcement.show).toBe(true);
+  });
+
+  it('barra de anuncio guardada antes de "uno por vez": 5 s y velocidad normal; el intervalo va de 3 a 10', () => {
+    const old = normalizeTheme(
+      { announcement: { show: true, animation: 'marquee', items: [] } } as never,
+      [],
+    );
+    expect(old.announcement).toMatchObject({ animation: 'marquee', interval: 5, speed: 'normal' });
+    const pick = (raw: unknown) =>
+      normalizeTheme({ announcement: raw } as Partial<ThemeConfig>, []).announcement;
+    expect(pick({ animation: 'rotate', interval: 1 })).toMatchObject({ animation: 'rotate', interval: 3 });
+    expect(pick({ interval: 60, speed: 'fast' })).toMatchObject({ interval: 10, speed: 'fast' });
+    expect(pick({ interval: '7', speed: 'turbo', animation: 'bounce' })).toMatchObject({
+      interval: 5,
+      speed: 'normal',
+      animation: 'static',
+    });
+  });
+
+  it('colores del encabezado por página: solo tipos conocidos con fondo válido', () => {
+    const header = (pageColors: unknown) =>
+      normalizeTheme({ header: { pageColors } } as unknown as Partial<ThemeConfig>, []).header.pageColors;
+    expect(normalizeTheme({}, []).header.pageColors).toEqual({});
+    expect(header('roto')).toEqual({});
+    expect(header([{ bg: '1 2 3' }])).toEqual({});
+    expect(
+      header({
+        home: { bg: '10 20 30', textColor: 'blanco' },
+        product: { bg: '' },
+        blog: { bg: '1 1 1' },
+        checkout: { bg: '255 255 255', textColor: '0 0 0' },
+      }),
+    ).toEqual({
+      home: { bg: '10 20 30', textColor: '' },
+      checkout: { bg: '255 255 255', textColor: '0 0 0' },
+    });
+  });
+
+  it('headerColorsFor: los de la página, o los generales', () => {
+    const h = {
+      bg: '27 21 16',
+      textColor: '250 250 250',
+      pageColors: { home: { bg: '255 255 255', textColor: '' } },
+    };
+    // Con fondo propio y texto automático no hereda el texto elegido para el general.
+    expect(headerColorsFor(h, 'home')).toEqual({ bg: '255 255 255', textColor: '' });
+    expect(headerColorsFor(h, 'listing')).toEqual({ bg: '27 21 16', textColor: '250 250 250' });
+    expect(headerColorsFor(h, null)).toEqual({ bg: '27 21 16', textColor: '250 250 250' });
   });
 
   it('filtra logos de pago con slugs inválidos', () => {
