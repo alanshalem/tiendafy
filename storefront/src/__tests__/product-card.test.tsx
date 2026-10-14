@@ -62,3 +62,35 @@ describe('card de producto: agregar al carrito', () => {
     expect(screen.getByRole('link', { name: 'Elegir opciones' })).toHaveAttribute('href', '/productos/mate');
   });
 });
+
+/**
+ * La forma de la card. jsdom no aplica Tailwind, así que se mira lo que decide
+ * el layout en el navegador: las clases.
+ */
+describe('card de producto: forma', () => {
+  const classes = (el: Element) => el.getAttribute('class')!.split(/\s+/);
+
+  it('el nombre se recorta en dos líneas con "…" y reserva ese alto', () => {
+    const name = 'Mate imperial de calabaza con virola de alpaca cincelada a mano y bombilla de regalo';
+    renderInStore(<ProductCard product={{ ...PRODUCT, name }} list={list} />);
+    const link = classes(screen.getByRole('link', { name }));
+    expect(link).toEqual(expect.arrayContaining(['line-clamp-2', 'min-h-[2.5rem]', 'wrap-anywhere']));
+    // Un display propio le gana al del recorte: con `block` el nombre ocupaba
+    // cuatro o cinco líneas y desalineaba la fila.
+    for (const display of ['block', 'inline', 'inline-block', 'flex', 'grid'])
+      expect(link).not.toContain(display);
+  });
+
+  it('el favorito y el botón de compra se pueden tocar con el dedo (40 px o más)', () => {
+    const { unmount } = renderInStore(<ProductCard product={PRODUCT} list={list} />);
+    // El círculo se ve igual (32 px); el botón alrededor mide 48.
+    const fav = screen.getByRole('button', { name: 'Agregar a favoritos' });
+    expect(classes(fav)).toEqual(expect.arrayContaining(['h-12', 'w-12']));
+    expect(classes(fav.firstElementChild!)).toEqual(expect.arrayContaining(['h-8', 'w-8']));
+    expect(classes(screen.getByRole('button', { name: 'Agregar al carrito' }))).toContain('min-h-10');
+    unmount();
+
+    renderInStore(<ProductCard product={{ ...PRODUCT, variantCount: 2 }} list={list} />);
+    expect(classes(screen.getByRole('link', { name: 'Elegir opciones' }))).toContain('min-h-10');
+  });
+});
