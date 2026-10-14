@@ -461,13 +461,22 @@ public static partial class ProductEndpoints
                 return Results.NotFound();
 
             // Stock total (suma de variantes): el detalle lo usa para el
-            // "availability" real del JSON-LD (InStock/OutOfStock) y el badge.
+            // "availability" real del JSON-LD (InStock/OutOfStock). Y el de cada
+            // variante, porque la ficha vende UNA: con solo el total, un talle
+            // agotado se mostraba "en stock" y el comprador recién se enteraba
+            // al pagar. Sin fila de stock = 0, igual que la reserva del checkout.
             var variantIds = product.Variants.Select(v => v.Id).ToList();
-            var stock = variantIds.Count > 0
-                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).Sum(s => s.Available)
-                : 0;
+            var byVariant = variantIds.Count > 0
+                ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct))
+                    .ToDictionary(s => s.VariantId, s => s.Available)
+                : new Dictionary<Guid, int>();
 
-            return Results.Ok(product.ToDto() with { Stock = stock });
+            var dto = product.ToDto();
+            return Results.Ok(dto with
+            {
+                Stock = byVariant.Values.Sum(),
+                Variants = dto.Variants.Select(v => v with { Available = byVariant.GetValueOrDefault(v.Id) }).ToList(),
+            });
         });
 
         return group;

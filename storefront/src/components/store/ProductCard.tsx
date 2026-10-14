@@ -26,6 +26,8 @@ export interface StoreProduct {
   images: string[];
   variantId: string;
   variantLabel: string;
+  /** Cuántas variantes tiene; con más de una, la card no elige por el comprador. */
+  variantCount?: number;
   stock?: number | null;
 }
 
@@ -49,6 +51,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
     setImgIdx((i) => (i + dir + imgs.length) % imgs.length);
   };
   const boxed = list.cardStyle === 'boxed';
+  const soldOut = product.stock != null && product.stock <= 0;
   return (
     <div
       className={`group flex h-full flex-col ${
@@ -176,25 +179,45 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           interés
         </div>
       )}
-      {list.showBuyButton && (
-        <button
-          onClick={() => {
-            add({
-              variantId: product.variantId,
-              productName: product.name,
-              variantLabel: product.variantLabel,
-              priceAmount: product.priceAmount,
-              currency: product.currency,
-              image: product.image,
-            });
-            setOpen(true);
-          }}
-          // Siempre visible. mt-3: gap del precio; el card flex lo mantiene abajo.
-          className="mt-3 w-full rounded-md bg-primary py-2 text-xs font-semibold text-primary-fg"
-        >
-          Agregar al carrito
-        </button>
-      )}
+      {/* Siempre visible. mt-3: gap del precio; el card flex lo mantiene abajo.
+          Agotado no se agrega (aunque el comercio oculte el badge), y con
+          varias variantes se elige en la ficha: antes se agregaba siempre la
+          primera, que muchas veces no era el talle o color que se quería. */}
+      {list.showBuyButton &&
+        (soldOut ? (
+          <button
+            type="button"
+            disabled
+            className="mt-3 w-full cursor-not-allowed rounded-md bg-black/10 py-2 text-xs font-semibold text-fg-muted"
+          >
+            Sin stock
+          </button>
+        ) : (product.variantCount ?? 1) > 1 ? (
+          <Link
+            href={link}
+            className="mt-3 block w-full rounded-md bg-primary py-2 text-center text-xs font-semibold text-primary-fg"
+          >
+            Elegir opciones
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              add({
+                variantId: product.variantId,
+                productName: product.name,
+                variantLabel: product.variantLabel,
+                priceAmount: product.priceAmount,
+                currency: product.currency,
+                image: product.image,
+              });
+              setOpen(true);
+            }}
+            className="mt-3 w-full rounded-md bg-primary py-2 text-xs font-semibold text-primary-fg"
+          >
+            Agregar al carrito
+          </button>
+        ))}
     </div>
   );
 }

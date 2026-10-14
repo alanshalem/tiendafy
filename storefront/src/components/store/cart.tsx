@@ -6,7 +6,9 @@ import { formatMoney } from '@tiendafy/types';
 
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { CART_SYNC_EVENT, cartStorageKey, couponStorageKey } from '@/lib/cart-storage';
+import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
+import { usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 
@@ -147,9 +149,16 @@ interface Suggested {
   currency: string;
   image: string | null;
   variantLabel: string;
+  slug?: string;
+  stock?: number | null;
+  variantCount?: number;
 }
 
-export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; suggested?: Suggested[] }) {
+export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; suggested?: Suggested[] }) {
+  // Un sugerido agotado no se ofrece; uno con varias variantes lleva a su
+  // ficha (agregar "la primera" era venderle un talle que no eligió).
+  const suggested = all.filter((s) => !(s.stock != null && s.stock <= 0));
+  const href = usePreviewHref();
   const { lines, open, setOpen, setQty, remove, totalAmount, currency, add, tenantId } = useCart();
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
@@ -326,32 +335,48 @@ export function CartDrawer({ cart, suggested = [] }: { cart?: CartConfig; sugges
                     También te puede gustar
                   </div>
                   <div className="flex gap-2 overflow-x-auto">
-                    {suggested.map((s) => (
-                      <button
-                        key={s.variantId}
-                        onClick={() =>
-                          add({
-                            variantId: s.variantId,
-                            productName: s.name,
-                            variantLabel: s.variantLabel,
-                            priceAmount: s.priceAmount,
-                            currency: s.currency,
-                            image: s.image,
-                          })
-                        }
-                        className="w-20 shrink-0 text-left"
-                      >
-                        {s.image ? (
-                          <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
-                        ) : (
-                          <InitialFallback
-                            name={s.name}
-                            className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
-                          />
-                        )}
-                        <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
-                      </button>
-                    ))}
+                    {suggested.map((s) => {
+                      const body = (
+                        <>
+                          {s.image ? (
+                            <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
+                          ) : (
+                            <InitialFallback
+                              name={s.name}
+                              className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
+                            />
+                          )}
+                          <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
+                        </>
+                      );
+                      return (s.variantCount ?? 1) > 1 && s.slug ? (
+                        <Link
+                          key={s.variantId}
+                          href={href(`/productos/${s.slug}`)}
+                          onClick={() => setOpen(false)}
+                          className="w-20 shrink-0 text-left"
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <button
+                          key={s.variantId}
+                          onClick={() =>
+                            add({
+                              variantId: s.variantId,
+                              productName: s.name,
+                              variantLabel: s.variantLabel,
+                              priceAmount: s.priceAmount,
+                              currency: s.currency,
+                              image: s.image,
+                            })
+                          }
+                          className="w-20 shrink-0 text-left"
+                        >
+                          {body}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

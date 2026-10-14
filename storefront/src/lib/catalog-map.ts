@@ -13,6 +13,8 @@ export interface VariantDto {
   optionValues: string[];
   price: MoneyDto;
   compareAtPrice: MoneyDto | null;
+  /** Unidades de la variante (solo la ficha del storefront lo trae). */
+  available?: number | null;
 }
 
 interface ProductImageDto {
@@ -45,8 +47,11 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     compareAtAmount: v.compareAtPrice?.amount ?? null,
     image: p.images[0]?.url ?? null,
     images: p.images.map((img) => img.url),
+    // La card agrega al carrito la primera variante: solo vale si es la única.
+    // Con más, el botón lleva a la ficha a elegir (ver ProductCard).
     variantId: v.id,
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
+    variantCount: p.variants.length,
     stock: p.stock ?? null,
   };
 }

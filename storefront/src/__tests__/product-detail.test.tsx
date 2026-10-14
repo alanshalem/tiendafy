@@ -122,15 +122,27 @@ describe('ficha de producto: comprar', () => {
     expect(screen.getByRole('group', { name: /^Talle/ })).toBeInTheDocument();
   });
 
-  it('una combinación que no existe cae en la primera variante; restar no baja de 1', async () => {
+  it('una combinación que no existe no se vende: lo dice y no agrega otra variante', async () => {
     const { user } = await show();
     await user.click(screen.getByRole('button', { name: 'Azul' }));
-    await user.click(screen.getByRole('button', { name: 'M' })); // Azul / M no existe
-    expect(screen.getByText('SKU: REM-R-S')).toBeInTheDocument();
+    // Con Azul elegido, M no arma ninguna variante: se tacha pero se puede tocar.
+    await user.click(screen.getByRole('button', { name: 'M (no disponible)' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Esta combinación no está disponible.');
+    expect(screen.queryByText(/SKU:/)).not.toBeInTheDocument();
+    // Comprar ahora, agregar y la barra del celular: los tres apagados.
+    const off = screen.getAllByRole('button', { name: 'No disponible' });
+    expect(off).toHaveLength(3);
+    for (const b of off) expect(b).toBeDisabled();
+    await user.click(off[0]!);
+    expect(cart()).toEqual([]);
+    expect(nav.router.push).not.toHaveBeenCalled();
+
+    // Volver a una combinación que existe habilita la compra; restar no baja de 1.
+    await user.click(screen.getByRole('button', { name: 'Rojo' }));
     await user.click(screen.getByRole('button', { name: 'Restar' }));
     await user.click(screen.getByRole('button', { name: 'Comprar ahora' }));
     await settle(1);
-    expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-s', quantity: 1 });
+    expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-m', quantity: 1 });
     expect(nav.router.push).toHaveBeenCalledWith('/checkout');
   });
 
@@ -146,11 +158,61 @@ describe('ficha de producto: comprar', () => {
     const { container } = await show({ variants: [] });
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('una variante agotada no se compra; la ficha arranca en la primera con stock', async () => {
+    const { user } = await show({
+      variants: [
+        { ...VARIANTS[0]!, available: 0 },
+        { ...VARIANTS[1]!, available: 3 },
+        { ...VARIANTS[2]!, available: 20 },
+      ],
+    });
+    // Rojo / S está agotado: abre en Rojo / M, que tiene 3.
+    expect(screen.getByText('SKU: REM-R-M')).toBeInTheDocument();
+    expect(screen.getByText('● ¡Últimas 3 unidades!')).toBeInTheDocument();
+    // S con Rojo no tiene stock: se tacha y lo dice al lector de pantalla.
+    expect(screen.getByRole('button', { name: 'S (sin stock)' })).toBeInTheDocument();
+
+    // La cantidad no pasa lo que hay.
+    const plus = screen.getByRole('button', { name: 'Sumar' });
+    await user.click(plus);
+    await user.click(plus);
+    expect(plus).toBeDisabled();
+    await user.click(screen.getAllByRole('button', { name: 'Agregar al carrito' })[0]!);
+    expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-m', quantity: 3 });
+
+    await user.click(screen.getByRole('button', { name: 'S (sin stock)' }));
+    expect(screen.getByText('● Sin stock')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Sin stock por ahora.');
+    for (const b of screen.getAllByRole('button', { name: 'Sin stock' })) expect(b).toBeDisabled();
+
+    // Azul / S tiene de sobra.
+    await user.click(screen.getByRole('button', { name: 'Azul' }));
+    expect(screen.getByText('● En stock')).toBeInTheDocument();
+  });
+
+  it('sin el stock de cada variante usa el del producto: con una sola variante es el suyo', async () => {
+    await show({ options: [], variants: [{ ...VARIANTS[0]!, optionValues: [] }], stock: 1 });
+    expect(screen.getByText('● ¡Última unidad!')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sumar' })).toBeDisabled();
+  });
+
+  it('producto agotado (total en cero): ninguna variante se compra, ni de la lista', async () => {
+    await show({ options: [], variants: VARIANTS.map((v) => ({ ...v, optionValues: [] })), stock: 0 });
+    expect(screen.getByRole('option', { name: 'REM-R-S — Sin stock' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Sin stock' })[0]).toBeDisabled();
+  });
+
+  it('sin dato de stock no inventa nada: no muestra la línea y deja comprar', async () => {
+    await show({ variants: VARIANTS.map((v) => ({ ...v, available: null })) });
+    expect(screen.queryByText(/● /)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Comprar ahora' })).toBeEnabled();
+  });
 });
 
 describe('ficha de producto: lo que muestra', () => {
   it('cuotas, precio en efectivo, stock, WhatsApp con el producto y medios de pago', async () => {
-    const { container } = await show();
+    const { container } = await show({ variants: VARIANTS.map((v) => ({ ...v, available: 40 })) });
     expect(screen.getByText(/3 cuotas sin interés de/)).toBeInTheDocument();
     expect(screen.getByText('● En stock')).toBeInTheDocument();
     const wa = screen.getByRole('link', { name: /Consultar por este producto/ });
@@ -161,6 +223,7 @@ describe('ficha de producto: lo que muestra', () => {
 
   it('el comercio puede apagar cada dato', async () => {
     await show({
+      variants: VARIANTS.map((v) => ({ ...v, available: 40 })),
       config: {
         ...CONFIG,
         installmentsCount: 0,

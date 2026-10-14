@@ -118,6 +118,30 @@ describe('carrito', () => {
     expect(within(drawer()).getByRole('button', { name: 'Ir a pagar' })).toBeInTheDocument();
   });
 
+  it('un sugerido agotado no se ofrece; uno con talles lleva a su ficha', async () => {
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify([LINE]));
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderInStore(
+      <>
+        <Opener />
+        <CartDrawer
+          cart={CONFIG}
+          suggested={[
+            { ...SUGGESTED[0]!, stock: 0 },
+            { ...SUGGESTED[0]!, variantId: 'v-3', name: 'Guantes', slug: 'guantes', variantCount: 2 },
+          ]}
+        />
+      </>,
+    );
+    await settle(1);
+    await user.click(screen.getByRole('button', { name: /Abrir carrito/ }));
+    expect(within(drawer()).queryByText('Soga')).not.toBeInTheDocument();
+    expect(within(drawer()).getByRole('link', { name: /Guantes/ })).toHaveAttribute(
+      'href',
+      '/productos/guantes',
+    );
+  });
+
   it('cupón: se aplica, se guarda para el checkout, se revalida al cambiar el subtotal y se quita', async () => {
     api.on('POST', '/api/v1/coupons/validate', { valid: true, code: 'HOLA', discountAmount: 4_000_00 });
     const user = await show();

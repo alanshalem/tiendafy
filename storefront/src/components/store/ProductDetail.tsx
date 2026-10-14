@@ -28,7 +28,15 @@ interface Variant {
   optionValues: string[];
   price: MoneyDto;
   compareAtPrice: MoneyDto | null;
+  /** Unidades disponibles de esta variante; null/ausente = no se sabe. */
+  available?: number | null;
 }
+
+// Desde acá para abajo se avisa "últimas unidades" (mismo umbral que la card).
+const LOW_STOCK = 5;
+
+const sameCombination = (v: Variant, values: string[]) =>
+  v.optionValues.length === values.length && v.optionValues.every((ov, i) => ov === values[i]);
 
 interface DetailConfig {
   installmentsCount: number;
@@ -62,6 +70,7 @@ export function ProductDetail({
   config,
   paymentLogos = [],
   whatsappPhone = '',
+  stock = null,
 }: {
   name: string;
   description: string | null;
@@ -74,6 +83,11 @@ export function ProductDetail({
   paymentLogos?: string[];
   /** Número del botón flotante de WhatsApp, para consultar por este producto. */
   whatsappPhone?: string;
+  /**
+   * Stock total del producto. Respaldo para cuando las variantes no traen el
+   * suyo: con una sola variante es el de ella, y en cero lo es para todas.
+   */
+  stock?: number | null;
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
@@ -84,29 +98,52 @@ export function ProductDetail({
   const href = usePreviewHref();
   const { add, setOpen } = useCart();
   const hasOptions = options.length > 0;
-  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+
+  // Unidades de una variante: la suya si vino; si no, lo que se deduce del total.
+  const availableOf = (v: Variant): number | null =>
+    v.available != null ? v.available : stock === 0 || variants.length === 1 ? stock : null;
+  // Arranca en la primera variante que se puede comprar: abrir la ficha en un
+  // talle agotado obligaba a buscar a mano cuál quedaba.
+  const initial = variants.find((v) => (availableOf(v) ?? 1) > 0) ?? variants[0];
+
+  const [variantId, setVariantId] = useState(initial?.id ?? '');
   // Selección por opción (color/talle); index-alineado a `options`.
-  const [selected, setSelected] = useState<string[]>(variants[0]?.optionValues ?? []);
+  const [selected, setSelected] = useState<string[]>(initial?.optionValues ?? []);
   const fieldId = useId();
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [shared, setShared] = useState(false);
 
-  const variant =
-    (hasOptions
-      ? variants.find(
-          (v) =>
-            v.optionValues.length === selected.length && v.optionValues.every((ov, i) => ov === selected[i]),
-        )
-      : variants.find((v) => v.id === variantId)) ?? variants[0];
-  if (!variant) return null;
-  const label = variant.optionValues.length > 0 ? variant.optionValues.join(' / ') : 'Única';
+  if (variants.length === 0) return null;
+
+  // Con opciones, la variante es la combinación EXACTA elegida; si no existe
+  // no hay variante (antes caía en la primera y se vendía otra cosa).
+  const variant: Variant | null = hasOptions
+    ? (variants.find((v) => sameCombination(v, selected)) ?? null)
+    : (variants.find((v) => v.id === variantId) ?? variants[0]!);
+  // Qué precio mostrar mientras la combinación no existe: la más parecida.
+  const matches = (v: Variant) => v.optionValues.filter((ov, i) => ov === selected[i]).length;
+  const shown = variant ?? [...variants].sort((a, b) => matches(b) - matches(a))[0]!;
+  const available = variant ? availableOf(variant) : null;
+  const soldOut = available !== null && available <= 0;
+  const canBuy = variant !== null && !soldOut;
+  // La cantidad nunca pasa lo que hay (si se sabe): al cambiar a un talle con
+  // menos unidades, baja sola.
+  const maxQty = available !== null && available > 0 ? available : Infinity;
+  const quantity = Math.min(qty, maxQty);
+  const unavailableMsg =
+    variant === null ? 'Esta combinación no está disponible.' : soldOut ? 'Sin stock por ahora.' : null;
+  const buyLabel = (text: string) => (variant === null ? 'No disponible' : soldOut ? 'Sin stock' : text);
+
+  const label = shown.optionValues.length > 0 ? shown.optionValues.join(' / ') : 'Única';
 
   const cashPct = cfg.cashDiscountPercent ?? 0;
-  const cashPrice = cashPct > 0 ? Math.round(variant.price.amount * (1 - cashPct / 100)) : null;
+  const cashPrice = cashPct > 0 ? Math.round(shown.price.amount * (1 - cashPct / 100)) : null;
 
-  const addToCart = () =>
+  /** Agrega la variante elegida; false si no se puede comprar (nunca agrega otra). */
+  const addToCart = () => {
+    if (!variant || !canBuy) return false;
     add(
       {
         variantId: variant.id,
@@ -116,13 +153,14 @@ export function ProductDetail({
         currency: variant.price.currency,
         image: images[0]?.url ?? null,
       },
-      qty,
+      quantity,
     );
+    return true;
+  };
 
   // Comprar ahora = agregar y saltar directo al checkout (un paso menos que el drawer).
   const buyNow = () => {
-    addToCart();
-    router.push(href('/checkout'));
+    if (addToCart()) router.push(href('/checkout'));
   };
 
   const share = async () => {
@@ -240,20 +278,21 @@ export function ProductDetail({
         <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {name}
         </h1>
-        {cfg.showStock && <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>}
-        {cfg.showSku && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
+        {/* Stock de la variante elegida, si se sabe (antes decía "En stock" siempre). */}
+        {cfg.showStock && variant && available !== null && <StockLine available={available} />}
+        {cfg.showSku && variant && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
         <div className="mt-3 text-2xl font-bold">
-          {formatMoney(variant.price.amount, variant.price.currency)}
-          {variant.compareAtPrice && (
+          {formatMoney(shown.price.amount, shown.price.currency)}
+          {shown.compareAtPrice && (
             <span className="ml-3 text-lg font-normal line-through text-fg-muted">
-              {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+              {formatMoney(shown.compareAtPrice.amount, shown.compareAtPrice.currency)}
             </span>
           )}
         </div>
         {cashPrice !== null && (
           <div className="mt-1">
             <span className="text-xl font-bold text-primary-ink">
-              {formatMoney(cashPrice, variant.price.currency)}
+              {formatMoney(cashPrice, shown.price.currency)}
             </span>
             <span className="ml-1.5 text-sm opacity-70">con EFECTIVO</span>
             <div className="text-xs text-fg-muted">
@@ -266,7 +305,7 @@ export function ProductDetail({
           <div className="mt-1 text-sm opacity-70">
             {cfg.installmentsCount} cuotas sin interés de{' '}
             <span className="font-semibold">
-              {formatMoney(Math.round(variant.price.amount / cfg.installmentsCount), variant.price.currency)}
+              {formatMoney(Math.round(shown.price.amount / cfg.installmentsCount), shown.price.currency)}
             </span>
           </div>
         )}
@@ -301,6 +340,17 @@ export function ProductDetail({
                 <div role="group" aria-labelledby={`${fieldId}-opt-${oi}`} className="flex flex-wrap gap-2">
                   {opt.values.map((val) => {
                     const active = selected[oi] === val;
+                    // ¿Este valor arma una variante con lo demás que ya está
+                    // elegido, y le queda stock? Si no, se tacha — pero se puede
+                    // tocar igual: deshabilitarlo encerraba al comprador cuando
+                    // la única combinación posible pedía cambiar dos opciones.
+                    const combos = variants.filter(
+                      (v) =>
+                        v.optionValues[oi] === val &&
+                        v.optionValues.every((ov, j) => j === oi || ov === selected[j]),
+                    );
+                    const missing = combos.length === 0;
+                    const noStock = !missing && combos.every((v) => (availableOf(v) ?? 1) <= 0);
                     return (
                       <button
                         key={val}
@@ -312,9 +362,12 @@ export function ProductDetail({
                           })
                         }
                         aria-pressed={active}
-                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'}`}
+                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
                       >
                         {val}
+                        {(missing || noStock) && (
+                          <span className="sr-only">{missing ? ' (no disponible)' : ' (sin stock)'}</span>
+                        )}
                       </button>
                     );
                   })}
@@ -336,6 +389,7 @@ export function ProductDetail({
                   {variants.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.sku}
+                      {(availableOf(v) ?? 1) <= 0 ? ' — Sin stock' : ''}
                     </option>
                   ))}
                 </select>
@@ -343,41 +397,49 @@ export function ProductDetail({
             )}
 
         <div className="mt-5 space-y-3">
+          {/* Por qué no se puede comprar (combinación inexistente o agotada). */}
+          <p role="status" className={unavailableMsg ? 'text-sm font-medium text-red-600' : 'sr-only'}>
+            {unavailableMsg ?? ''}
+          </p>
+
           {/* Comprar ahora — CTA principal */}
           <button
             onClick={buyNow}
-            className="h-12 w-full rounded-md bg-primary text-sm font-semibold text-primary-fg"
+            disabled={!canBuy}
+            className="h-12 w-full rounded-md bg-primary text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Comprar ahora
+            {buyLabel('Comprar ahora')}
           </button>
 
           {/* Cantidad + Agregar al carrito */}
           <div className="flex items-center gap-3">
             <div className="flex items-center rounded-md border border-black/15">
               <button
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                onClick={() => setQty(Math.max(1, quantity - 1))}
                 aria-label="Restar"
-                className="inline-flex h-11 w-10 items-center justify-center"
+                disabled={!canBuy}
+                className="inline-flex h-11 w-10 items-center justify-center disabled:opacity-40"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-8 text-center tabular-nums">{qty}</span>
+              <span className="w-8 text-center tabular-nums">{quantity}</span>
               <button
-                onClick={() => setQty((q) => q + 1)}
+                onClick={() => setQty(Math.min(maxQty, quantity + 1))}
                 aria-label="Sumar"
-                className="inline-flex h-11 w-10 items-center justify-center"
+                disabled={!canBuy || quantity >= maxQty}
+                className="inline-flex h-11 w-10 items-center justify-center disabled:opacity-40"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
             <button
               onClick={() => {
-                addToCart();
-                setOpen(true);
+                if (addToCart()) setOpen(true);
               }}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary-ink"
+              disabled={!canBuy}
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-md border-2 border-primary text-sm font-semibold text-primary-ink disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Agregar al carrito
+              {buyLabel('Agregar al carrito')}
             </button>
           </div>
 
@@ -440,24 +502,22 @@ export function ProductDetail({
         <div className="min-w-0">
           <div className="truncate text-xs text-fg-muted">{name}</div>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold">
-              {formatMoney(variant.price.amount, variant.price.currency)}
-            </span>
-            {variant.compareAtPrice && (
+            <span className="text-lg font-bold">{formatMoney(shown.price.amount, shown.price.currency)}</span>
+            {shown.compareAtPrice && (
               <span className="text-xs line-through text-fg-muted">
-                {formatMoney(variant.compareAtPrice.amount, variant.compareAtPrice.currency)}
+                {formatMoney(shown.compareAtPrice.amount, shown.compareAtPrice.currency)}
               </span>
             )}
           </div>
         </div>
         <button
           onClick={() => {
-            addToCart();
-            setOpen(true);
+            if (addToCart()) setOpen(true);
           }}
-          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg"
+          disabled={!canBuy}
+          className="ml-auto inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Agregar al carrito
+          {buyLabel('Agregar al carrito')}
         </button>
       </div>
       {/* Espaciador para que la barra fija no tape el contenido en mobile. */}
@@ -474,6 +534,18 @@ export function ProductDetail({
       )}
     </div>
   );
+}
+
+/** El stock de la variante elegida, en palabras de comprador. */
+function StockLine({ available }: { available: number }) {
+  if (available <= 0) return <div className="mt-1 text-sm font-medium text-red-600">● Sin stock</div>;
+  if (available <= LOW_STOCK)
+    return (
+      <div className="mt-1 text-sm font-medium text-amber-700">
+        ● {available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`}
+      </div>
+    );
+  return <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>;
 }
 
 /** Imagen principal estilo MercadoLibre: lens sobre la imagen + panel de zoom al costado (desktop). Click → pantalla completa. */
