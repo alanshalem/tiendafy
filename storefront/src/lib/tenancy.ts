@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import type { Tenant } from '@tiendafy/types';
 import { apiGet } from './api';
+import { REVALIDATE } from './cache';
 
 /** Dominio base de la instalación: lo que queda al sacarle el subdominio a una tienda. */
 const BASE_DOMAIN = process.env.PLATFORM_BASE_DOMAIN ?? 'localhost';
@@ -28,16 +29,18 @@ function isApex(host: string): boolean {
 
 const byHost = (host: string) =>
   apiGet<Tenant>(`/api/v1/tenants/resolve?host=${encodeURIComponent(host)}`, {
-    // Sin cache: el status de la tienda (activa/suspendida/eliminada) debe
-    // reflejarse al instante. Eliminar una tienda corta el storefront ya, sin
-    // ventana de cache que la siga sirviendo. (Se cachea en Redis al escalar.)
-    cache: 'no-store',
+    // Data Cache corta: antes era no-store y cada vista de página le pegaba a
+    // la API solo para saber de qué tienda es. El host va en la URL, así que la
+    // entrada de caché es por tienda. El costo: suspender o eliminar una
+    // tienda tarda hasta un minuto en verse. Un host desconocido (404) no se
+    // cachea: Next solo guarda las respuestas 200.
+    next: { revalidate: REVALIDATE.tenant },
   });
 
 /**
  * Resuelve el tenant del request actual por Host header contra el backend.
- * Cache por request la hace React (fetch dedupe); cache cross-request por
- * tenant llega con Redis en fase de escala.
+ * Dentro de un request, React deduplica el fetch; entre requests, la Data
+ * Cache (ver byHost).
  */
 export async function resolveTenant(): Promise<Tenant | null> {
   const headerList = await headers();

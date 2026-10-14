@@ -3,6 +3,7 @@ import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
 import { fetchAllActiveSlugs, SITEMAP_MAX_URLS } from '@/lib/catalog';
 import { fetchPublishedTheme } from '@/lib/theme';
+import { REVALIDATE } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export async function GET() {
     // apiGetTenant y no apiGet: todo fetch server-side pasa por el guardrail
     // que evita cachear respuestas de un tenant para otro.
     const pages = await apiGetTenant<{ items: { slug: string }[] }>('/api/v1/pages/published', tenant.id, {
-      cache: 'no-store',
+      next: { revalidate: REVALIDATE.cms },
     }).catch(() => null);
     pages?.items.forEach((pg) => locs.push(`${base}/paginas/${pg.slug}`));
   }

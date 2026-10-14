@@ -12,4 +12,16 @@ export const REVALIDATE = {
   categories: 60,
   /** Términos/privacidad (plantilla u override CMS). */
   legal: 60,
+  /**
+   * Qué tienda atiende cada host. Se pedía en cada vista de página; un cambio
+   * de estado (suspender, eliminar) tarda hasta esto en verse en la tienda.
+   */
+  tenant: 60,
+  /**
+   * El diseño publicado. Más corto que el resto: después de publicar, el
+   * comercio entra a mirar su tienda y espera ver el cambio.
+   */
+  theme: 30,
+  /** El sitemap: recorre el catálogo entero, y Google no lo lee a cada minuto. */
+  sitemap: 3600,
 } as const;
