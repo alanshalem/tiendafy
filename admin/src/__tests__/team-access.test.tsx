@@ -5,7 +5,7 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
@@ -250,5 +250,25 @@ describe('el menú según lo que cada uno puede', () => {
   it('/configuracion lleva a lo primero que la persona puede ver', async () => {
     await open('/configuracion', as('catalogo', roleRow('catalogo').permissions));
     expect(await screen.findByRole('heading', { name: 'Ficha técnica' })).toBeInTheDocument();
+  });
+});
+
+describe('usuarios en el teléfono', () => {
+  it('cada persona es una tarjeta con su rol y sus acciones, sin la tabla', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+    await open('/configuracion/usuarios');
+    const cards = within(await screen.findByRole('list', { name: 'Usuarios' }));
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(cards.getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(cards.getAllByText(/Desde /).length).toBeGreaterThan(0);
   });
 });

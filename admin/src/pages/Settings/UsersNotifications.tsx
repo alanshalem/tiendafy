@@ -13,6 +13,8 @@ import { formatDate, formatNumber } from '../../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
+import { ListCard, ListCardList } from '../../components/ListCards';
+import { useIsMobile } from '../../lib/useMediaQuery';
 import {
   OWNER,
   ROLE_BADGE,
@@ -41,6 +43,7 @@ export function UsersNotificationsPage() {
   const { user: me } = useAuth();
   const isOwner = myRole === OWNER;
   const canManage = can('members.manage');
+  const mobile = useIsMobile();
 
   // La matriz real del backend: nombres de los roles, qué puede cada uno y qué
   // es sensible. Sin copia acá que pueda quedar desactualizada.
@@ -155,6 +158,120 @@ export function UsersNotificationsPage() {
     }
 
     return true;
+  };
+
+  /**
+   * Lo que se muestra de cada persona, armado una vez para la tabla y para las
+   * tarjetas del teléfono (donde la tabla se salía de la pantalla).
+   */
+  const memberView = (m: Member) => {
+    const isMe = m.userId === me?.id;
+    const meta = roleOf(m.role);
+    const target = meta?.rank ?? 0;
+    // Las mismas reglas que el backend: a un dueño solo lo toca
+    // otro dueño, y nadie toca a alguien de su rango o más.
+    const touchable = isOwner || (m.role !== OWNER && (isMe || target < myRank));
+    const editable = canManage && touchable;
+    const canEditPermissions = canManage && !isMe && m.role !== OWNER && (isOwner || target < myRank);
+    const options = assignable.some((r) => r.role === m.role) || !meta ? assignable : [meta, ...assignable];
+    const sens = sensitiveOf(m);
+    const roleControl = (
+      <>
+        {editable ? (
+          <select
+            aria-label={`Rol de ${m.email ?? 'este usuario'}`}
+            value={m.role}
+            disabled={changeRole.isPending}
+            onChange={async (e) => {
+              const next = e.target.value;
+              if (next === m.role) return;
+              if (!(await confirmRoleChange(m, next))) {
+                // Volver a dejar el select como estaba: el
+                // cambio se cancela, no queda a medias.
+                e.target.value = m.role;
+                return;
+              }
+              changeRole.mutate({ userId: m.userId, role: next });
+            }}
+            className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg outline-none focus:border-primary disabled:opacity-60"
+            title={meta?.summary}
+          >
+            {options.map((r) => (
+              <option key={r.role} value={r.role}>
+                {roleOptionLabel(r)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span
+            className={cn(
+              'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+              ROLE_BADGE[m.role] ?? ROLE_BADGE_FALLBACK,
+            )}
+            title={meta?.summary}
+          >
+            {meta?.label ?? m.role}
+          </span>
+        )}
+        {m.customized && (
+          <span
+            className="mt-1 block text-[11px] font-medium text-primary"
+            title="Tiene permisos distintos de los de su rol."
+          >
+            Personalizado
+          </span>
+        )}
+      </>
+    );
+    const sensitiveNode =
+      sens.length > 0 ? (
+        <span
+          className="inline-flex items-center gap-1 text-xs font-medium text-warning"
+          title={`Accesos sensibles: ${sens.length}.`}
+        >
+          <ShieldAlert className="h-3.5 w-3.5" />
+          {sens.length}
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-xs text-fg-subtle">
+          <ShieldCheck className="h-3.5 w-3.5" /> —
+        </span>
+      );
+    const actions = (
+      <div className="flex justify-end gap-1.5">
+        {canEditPermissions && matrix && (
+          <button
+            onClick={() => setEditingPermissions(m)}
+            className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted hover:text-fg"
+            aria-label={`Permisos de ${m.email ?? m.name ?? 'este usuario'}`}
+            title="Permisos de esta persona"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
+        )}
+        {editable && (
+          <button
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: 'Quitar de la tienda',
+                  message: `¿Quitar a ${m.email ?? m.name ?? 'este usuario'} de la tienda?`,
+                  confirmLabel: 'Quitar',
+                  variant: 'danger',
+                })
+              )
+                removeM.mutate(m.userId);
+            }}
+            disabled={removeM.isPending}
+            className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-60"
+            aria-label="Quitar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    );
+    return { isMe, roleControl, sensitiveNode, actions };
   };
 
   return (
@@ -272,163 +389,93 @@ export function UsersNotificationsPage() {
             </div>
           )}
 
-          <div className={TABLE_CARD}>
-            <div className={TABLE_SCROLL_X}>
-              <table className="w-full text-sm">
-                <thead className={TABLE_HEAD_STICKY_SUBTLE}>
-                  <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
-                    <th className="px-4 py-2.5">Nombre</th>
-                    <th className="px-4 py-2.5">Email</th>
-                    <th className="px-4 py-2.5">Rol</th>
-                    <th className="px-4 py-2.5" title="Permisos que mueven plata o dan más accesos.">
-                      Accesos sensibles
-                    </th>
-                    <th className="px-4 py-2.5">Desde</th>
-                    <th className="px-4 py-2.5 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {membersQ.isLoading && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
-                        <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                      </td>
-                    </tr>
-                  )}
+          {mobile ? (
+            <div className={TABLE_CARD}>
+              {membersQ.isLoading ? (
+                <Loader2 className="mx-auto my-8 h-5 w-5 animate-spin text-fg-muted" />
+              ) : members.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-fg-muted">No hay usuarios.</p>
+              ) : (
+                <ListCardList label="Usuarios">
                   {members.map((m) => {
-                    const isMe = m.userId === me?.id;
-                    const meta = roleOf(m.role);
-                    const target = meta?.rank ?? 0;
-                    // Las mismas reglas que el backend: a un dueño solo lo toca
-                    // otro dueño, y nadie toca a alguien de su rango o más.
-                    const touchable = isOwner || (m.role !== OWNER && (isMe || target < myRank));
-                    const editable = canManage && touchable;
-                    const canEditPermissions =
-                      canManage && !isMe && m.role !== OWNER && (isOwner || target < myRank);
-                    const options =
-                      assignable.some((r) => r.role === m.role) || !meta ? assignable : [meta, ...assignable];
-                    const sens = sensitiveOf(m);
+                    const v = memberView(m);
                     return (
-                      <tr key={m.userId} className="border-b border-border last:border-b-0">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-fg">{m.name ?? '—'}</div>
-                          {isMe && (
-                            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                              <User className="h-3.5 w-3.5" /> Vos
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-fg-muted">{m.email ?? '—'}</td>
-                        <td className="px-4 py-3">
-                          {editable ? (
-                            <select
-                              aria-label={`Rol de ${m.email ?? 'este usuario'}`}
-                              value={m.role}
-                              disabled={changeRole.isPending}
-                              onChange={async (e) => {
-                                const next = e.target.value;
-                                if (next === m.role) return;
-                                if (!(await confirmRoleChange(m, next))) {
-                                  // Volver a dejar el select como estaba: el
-                                  // cambio se cancela, no queda a medias.
-                                  e.target.value = m.role;
-                                  return;
-                                }
-                                changeRole.mutate({ userId: m.userId, role: next });
-                              }}
-                              className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg outline-none focus:border-primary disabled:opacity-60"
-                              title={meta?.summary}
-                            >
-                              {options.map((r) => (
-                                <option key={r.role} value={r.role}>
-                                  {roleOptionLabel(r)}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span
-                              className={cn(
-                                'rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                                ROLE_BADGE[m.role] ?? ROLE_BADGE_FALLBACK,
-                              )}
-                              title={meta?.summary}
-                            >
-                              {meta?.label ?? m.role}
-                            </span>
-                          )}
-                          {m.customized && (
-                            <span
-                              className="mt-1 block text-[11px] font-medium text-primary"
-                              title="Tiene permisos distintos de los de su rol."
-                            >
-                              Personalizado
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {sens.length > 0 ? (
-                            <span
-                              className="inline-flex items-center gap-1 text-xs font-medium text-warning"
-                              title={`Accesos sensibles: ${sens.length}.`}
-                            >
-                              <ShieldAlert className="h-3.5 w-3.5" />
-                              {sens.length}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-fg-subtle">
-                              <ShieldCheck className="h-3.5 w-3.5" /> —
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-fg-muted">{formatDate(m.createdAtUtc)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-1.5">
-                            {canEditPermissions && matrix && (
-                              <button
-                                onClick={() => setEditingPermissions(m)}
-                                className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-bg-muted hover:text-fg"
-                                aria-label={`Permisos de ${m.email ?? m.name ?? 'este usuario'}`}
-                                title="Permisos de esta persona"
-                              >
-                                <SlidersHorizontal className="h-4 w-4" />
-                              </button>
-                            )}
-                            {editable && (
-                              <button
-                                onClick={async () => {
-                                  if (
-                                    await confirm({
-                                      title: 'Quitar de la tienda',
-                                      message: `¿Quitar a ${m.email ?? m.name ?? 'este usuario'} de la tienda?`,
-                                      confirmLabel: 'Quitar',
-                                      variant: 'danger',
-                                    })
-                                  )
-                                    removeM.mutate(m.userId);
-                                }}
-                                disabled={removeM.isPending}
-                                className="rounded-full border border-border p-1.5 text-fg-muted hover:bg-danger/10 hover:text-danger disabled:opacity-60"
-                                aria-label="Quitar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
+                      <ListCard
+                        key={m.userId}
+                        title={
+                          <span className="inline-flex items-center gap-2">
+                            {m.name ?? m.email ?? '—'} {v.isMe && <YouBadge />}
+                          </span>
+                        }
+                        subtitle={m.name ? (m.email ?? undefined) : undefined}
+                        // El selector de rol y los botones, del tamaño del dedo.
+                        meta={
+                          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 [&_select]:h-10 [&_select]:w-full [&_select]:text-sm">
+                            <div className="w-full">{v.roleControl}</div>
+                            {v.sensitiveNode}
+                            <span>Desde {formatDate(m.createdAtUtc)}</span>
                           </div>
-                        </td>
-                      </tr>
+                        }
+                        actions={<div className="[&_button]:p-2.5">{v.actions}</div>}
+                      />
                     );
                   })}
-                  {!membersQ.isLoading && members.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
-                        No hay usuarios.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                </ListCardList>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className={TABLE_CARD}>
+              <div className={TABLE_SCROLL_X}>
+                <table className="w-full text-sm">
+                  <thead className={TABLE_HEAD_STICKY_SUBTLE}>
+                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                      <th className="px-4 py-2.5">Nombre</th>
+                      <th className="px-4 py-2.5">Email</th>
+                      <th className="px-4 py-2.5">Rol</th>
+                      <th className="px-4 py-2.5" title="Permisos que mueven plata o dan más accesos.">
+                        Accesos sensibles
+                      </th>
+                      <th className="px-4 py-2.5">Desde</th>
+                      <th className="px-4 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {membersQ.isLoading && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
+                          <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+                        </td>
+                      </tr>
+                    )}
+                    {!mobile &&
+                      members.map((m) => {
+                        const v = memberView(m);
+                        return (
+                          <tr key={m.userId} className="border-b border-border last:border-b-0">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-fg">{m.name ?? '—'}</div>
+                              {v.isMe && <YouBadge />}
+                            </td>
+                            <td className="px-4 py-3 text-fg-muted">{m.email ?? '—'}</td>
+                            <td className="px-4 py-3">{v.roleControl}</td>
+                            <td className="px-4 py-3">{v.sensitiveNode}</td>
+                            <td className="px-4 py-3 text-xs text-fg-muted">{formatDate(m.createdAtUtc)}</td>
+                            <td className="px-4 py-3">{v.actions}</td>
+                          </tr>
+                        );
+                      })}
+                    {!membersQ.isLoading && members.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
+                          No hay usuarios.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />
 
           <div className="mt-4 rounded-lg border border-border bg-surface p-4">
@@ -466,5 +513,14 @@ export function UsersNotificationsPage() {
 
       <HelpLink id="users" />
     </div>
+  );
+}
+
+/** La marca de "esta sos vos" en la lista del equipo. */
+function YouBadge() {
+  return (
+    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+      <User className="h-3.5 w-3.5" /> Vos
+    </span>
   );
 }
