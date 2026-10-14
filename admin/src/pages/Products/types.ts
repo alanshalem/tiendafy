@@ -13,6 +13,7 @@ export interface Category {
   name: string;
   path: string;
   depth: number;
+  parentId?: string | null;
 }
 
 export const statusVariant: Record<ProductStatus, BadgeVariant> = {

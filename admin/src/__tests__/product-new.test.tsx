@@ -36,12 +36,12 @@ describe('nuevo producto', () => {
 
     const save = screen.getByRole('button', { name: 'Guardar producto' });
     expect(save).toBeDisabled();
-    await user.type(screen.getByPlaceholderText('Remera oversize'), 'Remera');
-    await user.type(screen.getAllByPlaceholderText('28900')[0]!, '28900');
+    await user.type(screen.getByPlaceholderText('Ej.: Remera oversize'), 'Remera');
+    await user.type(screen.getAllByPlaceholderText('Ej.: 28.900')[0]!, '28900');
     await user.type(screen.getAllByPlaceholderText('—')[0]!, '25000');
     await user.click(screen.getByLabelText('Limitado'));
     await user.type(screen.getByPlaceholderText('Cantidad'), '7x');
-    await user.type(screen.getByPlaceholderText('REM-001'), 'rem-1');
+    await user.type(screen.getByPlaceholderText('Ej.: REM-001'), 'rem-1');
     await user.type(screen.getByLabelText(/^Código de barras/), '7790001112223');
     await user.type(screen.getByLabelText('Peso del paquete (kg)'), '1,5');
     await user.type(screen.getByLabelText('Largo (cm)'), '30');
@@ -130,14 +130,14 @@ describe('nuevo producto', () => {
       ],
     });
     const user = await open(api);
-    await user.type(screen.getByPlaceholderText('Remera oversize'), 'Remera');
+    await user.type(screen.getByPlaceholderText('Ej.: Remera oversize'), 'Remera');
     await user.click(screen.getByLabelText('Este producto tiene variantes'));
 
-    await user.type(screen.getByPlaceholderText('Talle'), 'Talle');
-    await user.type(screen.getByPlaceholderText('S, M, L'), 'S, M, s, ');
+    await user.type(screen.getByPlaceholderText('Ej.: Talle'), 'Talle');
+    await user.type(screen.getByPlaceholderText('Ej.: S, M, L'), 'S, M, s, ');
     await user.click(screen.getByRole('button', { name: /Agregar opción/ }));
-    const names = screen.getAllByPlaceholderText('Talle');
-    const values = screen.getAllByPlaceholderText('S, M, L');
+    const names = screen.getAllByPlaceholderText('Ej.: Talle');
+    const values = screen.getAllByPlaceholderText('Ej.: S, M, L');
     await user.type(names[1]!, 'Color');
     await user.type(values[1]!, 'Rojo');
     await user.click(screen.getByRole('button', { name: /Agregar opción/ }));
@@ -150,8 +150,8 @@ describe('nuevo producto', () => {
     expect(rows).toHaveLength(2);
     const [s, m] = rows.map((r) => within(r));
     expect(screen.getByRole('button', { name: 'Guardar producto' })).toBeDisabled(); // falta precio
-    await user.type(s!.getByPlaceholderText('28900'), '1000');
-    await user.type(m!.getByPlaceholderText('28900'), '1200');
+    await user.type(s!.getByPlaceholderText('Ej.: 28.900'), '1000');
+    await user.type(m!.getByPlaceholderText('Ej.: 28.900'), '1200');
     await user.type(m!.getAllByPlaceholderText('—')[0]!, '1100');
     await user.type(s!.getAllByPlaceholderText('—').at(-1)!, '4');
     await user.type(m!.getAllByPlaceholderText('—').at(-1)!, '2a');
@@ -180,8 +180,8 @@ describe('nuevo producto', () => {
       { title: 'Conflict', detail: 'Ya existe un producto con ese SKU.' },
       409,
     );
-    await user.type(screen.getByPlaceholderText('Remera oversize'), 'Remera');
-    await user.type(screen.getAllByPlaceholderText('28900')[0]!, '100');
+    await user.type(screen.getByPlaceholderText('Ej.: Remera oversize'), 'Remera');
+    await user.type(screen.getAllByPlaceholderText('Ej.: 28.900')[0]!, '100');
     await user.click(screen.getByRole('button', { name: 'Guardar producto' }));
     expect(await screen.findByText('Ya existe un producto con ese SKU.')).toBeInTheDocument();
   });
@@ -198,10 +198,10 @@ describe('nuevo producto', () => {
   it('con algo cargado, cancelar pregunta antes de descartar', async () => {
     const api = mockApi();
     const user = await open(api);
-    await user.type(screen.getByPlaceholderText('Remera oversize'), 'Remera');
+    await user.type(screen.getByPlaceholderText('Ej.: Remera oversize'), 'Remera');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     await user.click(await screen.findByRole('button', { name: 'Seguir editando' }));
-    expect(screen.getByPlaceholderText('Remera oversize')).toHaveValue('Remera');
+    expect(screen.getByPlaceholderText('Ej.: Remera oversize')).toHaveValue('Remera');
 
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));

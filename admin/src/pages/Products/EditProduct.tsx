@@ -25,7 +25,7 @@ import {
   toShippingDraft,
   type ShippingDraft,
 } from './product-form';
-import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
+import { AddImagesTile, PhotoTile, UploadingThumb, moveItem } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { ScreenSkeleton } from '../../components/Skeleton';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
@@ -105,6 +105,8 @@ export function EditProductPage() {
   const [specs, setSpecs] = useState<SpecValues>({});
   const [imageOrder, setImageOrder] = useState<string[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  // Fotos marcadas para quitar: se borran recién al guardar (ver `pendingRemoval`).
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
   const [error, setError] = useState<string>();
 
   // Los campos se cargan UNA vez por producto, al dibujar. Antes un efecto los
@@ -155,14 +157,25 @@ export function EditProductPage() {
     setStockSeen(loaded);
   }
 
-  // Las fotos, en cambio, siguen al servidor: se agregan y se quitan al
-  // instante. El orden local solo adelanta el arrastre mientras se guarda.
+  // Las fotos nuevas, en cambio, se suben al instante (subir lleva su tiempo y
+  // no tiene sentido hacerlo esperar al guardado) y el orden se manda apenas
+  // se cambia. El orden local solo adelanta el movimiento mientras se guarda.
   const imagesKey = product?.images.map((img) => img.id).join(',') ?? '';
   const [imagesFor, setImagesFor] = useState('');
   if (imagesFor !== imagesKey) {
     setImagesFor(imagesKey);
     setImageOrder(product?.images.map((img) => img.id) ?? []);
   }
+
+  // Quitar una foto, en cambio, espera a "Guardar cambios" como el resto del
+  // formulario. Antes la cruz la borraba en el acto, sin confirmar ni poder
+  // deshacer, mientras todo lo demás se descartaba con "Cancelar": un toque
+  // errado en el teléfono perdía la foto. Se eligió diferirla al guardado y no
+  // un aviso con "Deshacer" porque el formulario ya tiene ese momento de
+  // confirmación, y porque un borrado con demora seguiría corriendo aunque se
+  // saliera con "Cancelar". Solo cuentan las que siguen en el producto: si un
+  // guardado que falló a medias ya borró alguna, no se reintenta.
+  const pendingRemoval = removedImages.filter((iid) => product?.images.some((img) => img.id === iid));
 
   // Mismo orden de claves que `initial`: la comparación es por texto.
   const dirty =
@@ -179,7 +192,8 @@ export function EditProductPage() {
       barcodes,
       shipping,
     }) !== loaded ||
-      Object.keys(stock).some((vid) => stock[vid] !== (stockSeen[vid] ?? '')));
+      Object.keys(stock).some((vid) => stock[vid] !== (stockSeen[vid] ?? '')) ||
+      pendingRemoval.length > 0);
   const leave = useUnsavedChanges(dirty);
 
   const refresh = () => {
@@ -203,11 +217,6 @@ export function EditProductPage() {
     queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
     toast(added === 1 ? 'Foto agregada' : `${added} fotos agregadas`, { variant: 'success' });
   };
-  const removeImage = useMutation({
-    mutationFn: (imageId: string) => api.delete(`/api/v1/products/${id}/images/${imageId}`),
-    onSuccess: () => refresh(),
-    onError: (e) => toast(errMsg(e), { variant: 'error' }),
-  });
   const reorder = useMutation({
     mutationFn: (imageIds: string[]) => api.put(`/api/v1/products/${id}/images/reorder`, { imageIds }),
     onSuccess: () => {
@@ -226,6 +235,14 @@ export function EditProductPage() {
     const at = next.indexOf(targetId);
     next.splice(at, 0, dragId);
     setDragId(null);
+    setImageOrder(next);
+    reorder.mutate(next);
+  };
+
+  // Las flechas hacen lo mismo que el arrastre, de a un lugar.
+  const moveImage = (imageId: string, step: -1 | 1) => {
+    const next = moveItem(imageOrder, imageOrder.indexOf(imageId), step);
+    if (next === imageOrder) return;
     setImageOrder(next);
     reorder.mutate(next);
   };
@@ -303,6 +320,9 @@ export function EditProductPage() {
       await api.put(`/api/v1/products/${id}/specs`, {
         values: Object.entries(specs).map(([definitionId, value]) => ({ definitionId, value })),
       });
+
+      // Las fotos quitadas, al final: si algo de arriba falla, siguen ahí.
+      for (const imageId of pendingRemoval) await api.delete(`/api/v1/products/${id}/images/${imageId}`);
     },
     onSuccess: () => {
       refresh();
@@ -310,6 +330,8 @@ export function EditProductPage() {
       leave(() => navigate('/productos'));
     },
     onError: (e) => {
+      // Si alguna foto se borró antes del error, que deje de verse.
+      if (pendingRemoval.length > 0) queryClient.invalidateQueries({ queryKey: ['product', id] });
       // El choque de stock se marca en su campo (y en un aviso, porque el
       // campo puede estar lejos del botón); lo demás, donde siempre.
       if (isStockChanged(e)) toast(e.message, { variant: 'error' });
@@ -355,6 +377,11 @@ export function EditProductPage() {
     (v) => shipping[v.id] && parseShipping(shipping[v.id]!).error,
   );
   const multi = product.variants.length > 1;
+  const images = imageOrder
+    .map((iid) => product.images.find((img) => img.id === iid))
+    .filter((img): img is ProductImage => !!img);
+  // La portada es la primera que va a quedar: si se quita la primera, pasa a la que sigue.
+  const coverId = images.find((img) => !removedImages.includes(img.id))?.id;
 
   return (
     <div className="space-y-4 pb-24">
@@ -377,30 +404,43 @@ export function EditProductPage() {
             error={error}
           />
 
-          <Section title="Fotos" hint="Se agregan o eliminan al instante. Arrastrá para reordenar.">
+          <Section
+            title="Fotos"
+            hint="Las nuevas se suben al instante; las que quites se borran al guardar. La primera es la portada: arrastrá o usá las flechas para ordenarlas."
+          >
             <div className="flex flex-wrap gap-3">
-              {imageOrder
-                .map((iid) => product.images.find((img) => img.id === iid))
-                .filter((img): img is ProductImage => !!img)
-                .map((img) => (
+              {images.map((img, i) => {
+                const removed = removedImages.includes(img.id);
+                return (
                   <div
                     key={img.id}
-                    draggable
+                    draggable={!removed}
                     onDragStart={() => setDragId(img.id)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
                       onDropImage(img.id);
                     }}
-                    className={`group relative cursor-grab active:cursor-grabbing ${dragId === img.id ? 'opacity-50' : ''}`}
+                    className={`group ${removed ? '' : 'cursor-grab active:cursor-grabbing'} ${dragId === img.id ? 'opacity-50' : ''}`}
                   >
-                    <RemovableThumb src={img.url} onRemove={() => removeImage.mutate(img.id)}>
-                      <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                        <GripVertical className="h-3.5 w-3.5" />
-                      </span>
-                    </RemovableThumb>
+                    <PhotoTile
+                      src={img.url}
+                      cover={img.id === coverId}
+                      removed={removed}
+                      onRemove={() => setRemovedImages((r) => [...r, img.id])}
+                      onRestore={() => setRemovedImages((r) => r.filter((x) => x !== img.id))}
+                      onMoveLeft={i > 0 ? () => moveImage(img.id, -1) : undefined}
+                      onMoveRight={i < images.length - 1 ? () => moveImage(img.id, 1) : undefined}
+                    >
+                      {!removed && (
+                        <span className="pointer-events-none absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <GripVertical className="h-3.5 w-3.5" />
+                        </span>
+                      )}
+                    </PhotoTile>
                   </div>
-                ))}
+                );
+              })}
               {uploads.pending.map((item) => (
                 <UploadingThumb
                   key={item.id}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Check, Loader2, Sparkles } from 'lucide-react';
 import { FormField, Input, Textarea, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { foldText } from '../../lib/text';
 import { useAiEnabled } from '../../lib/useAi';
 import { Section } from './FormSection';
 import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
@@ -59,7 +60,7 @@ export function DetailsSection({
     <Section title="Nombre y descripción">
       <div className="space-y-4">
         <FormField label="Nombre" required error={error}>
-          <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Remera oversize" />
+          <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ej.: Remera oversize" />
         </FormField>
         {/* El botón de IA va fuera del FormField: adentro, el <label> apuntaba al
             contenedor y la descripción quedaba sin nombre accesible. */}
@@ -103,34 +104,93 @@ export function CategoriesSection({
     queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
     enabled: !!store,
   });
+  const [query, setQuery] = useState('');
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
 
+  const items = cats?.items ?? [];
+  const labeled = categoryLabels(items);
+  const q = foldText(query.trim());
+  // Las elegidas quedan a la vista aunque no coincidan con el filtro: si no,
+  // buscar otra cosa las escondía y parecía que se habían desmarcado.
+  const shown = q ? labeled.filter((c) => value.includes(c.id) || foldText(c.label).includes(q)) : labeled;
+
   return (
     <Section title="Categorías" hint="Aparecen en el menú y los filtros de la tienda.">
-      {(cats?.items ?? []).length === 0 ? (
+      {items.length === 0 ? (
         <p className="text-xs text-fg-subtle">No hay categorías. Creálas en Productos → Categorías.</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {cats!.items.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => toggle(c.id)}
-              aria-pressed={value.includes(c.id)}
-              className={
-                value.includes(c.id)
-                  ? 'rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary'
-                  : 'rounded-full border border-border-strong px-3 py-1 text-xs text-fg-muted hover:bg-bg-muted'
-              }
-            >
-              {c.path.split('/').join(' › ')}
-            </button>
-          ))}
-        </div>
+        <>
+          {/* Con pocas categorías el buscador sobra; con sesenta, encontrar
+              "Discos" a ojo entre todas era lo más lento de cargar un producto. */}
+          {items.length > CATEGORY_SEARCH_FROM && (
+            <Input
+              type="search"
+              aria-label="Buscar categoría"
+              placeholder="Buscar categoría…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="mb-3"
+            />
+          )}
+          {shown.length === 0 ? (
+            <p className="text-xs text-fg-subtle">Ninguna categoría coincide con “{query.trim()}”.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {shown.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggle(c.id)}
+                  aria-pressed={value.includes(c.id)}
+                  className={
+                    value.includes(c.id)
+                      ? 'inline-flex min-h-10 items-center gap-1.5 rounded-full border border-primary bg-primary/10 px-3.5 text-sm font-medium text-primary'
+                      : 'inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border-strong px-3.5 text-sm text-fg-muted hover:bg-bg-muted'
+                  }
+                >
+                  {value.includes(c.id) && <Check className="h-3.5 w-3.5" aria-hidden />}
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </Section>
   );
+}
+
+/** Desde cuántas categorías aparece el buscador arriba de los chips. */
+const CATEGORY_SEARCH_FROM = 8;
+
+/**
+ * Cada categoría con su nombre y el de sus padres ("Pesas › Discos"),
+ * ordenadas así para que las hijas queden junto a su padre. Antes los chips
+ * mostraban el path, que son slugs ("bumpers-plates-discos"): nadie reconocía
+ * su propia categoría. Se sube por parentId y, si la API no lo trae, por los
+ * prefijos del path, que identifican a cada ancestro igual.
+ */
+export function categoryLabels(items: Category[]): (Category & { label: string })[] {
+  const byId = new Map(items.map((c) => [c.id, c]));
+  const byPath = new Map(items.map((c) => [c.path, c]));
+  const parentOf = (c: Category): Category | undefined => {
+    if (c.parentId) return byId.get(c.parentId);
+    const cut = c.path.lastIndexOf('/');
+    return cut > 0 ? byPath.get(c.path.slice(0, cut)) : undefined;
+  };
+  return items
+    .map((c) => {
+      const names = [c.name];
+      const seen = new Set([c.id]);
+      // El conjunto de vistas corta un ciclo si los datos vinieran rotos.
+      for (let p = parentOf(c); p && !seen.has(p.id); p = parentOf(p)) {
+        seen.add(p.id);
+        names.unshift(p.name);
+      }
+      return { ...c, label: names.join(' › ') };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, 'es'));
 }
 
 /* ------------------------------------------------------------ SEO */
@@ -288,7 +348,7 @@ export function ShippingInputs({
   return (
     <div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {field('weightKg', 'Peso del paquete (kg)', '0,5')}
+        {field('weightKg', 'Peso del paquete (kg)', 'Ej.: 0,5')}
         {field('lengthCm', 'Largo (cm)', '—')}
         {field('widthCm', 'Ancho (cm)', '—')}
         {field('heightCm', 'Alto (cm)', '—')}

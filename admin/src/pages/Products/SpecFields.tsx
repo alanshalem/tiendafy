@@ -92,7 +92,7 @@ export function SpecFields({
                 value={value}
                 onChange={(e) => set(d.id, e.target.value)}
                 inputMode={d.type === 'NUMBER' ? 'decimal' : undefined}
-                placeholder={d.type === 'NUMBER' ? '0' : 'Sin definir'}
+                placeholder={d.type === 'NUMBER' ? 'Ej.: 12' : 'Sin definir'}
                 maxLength={120}
               />
             )}
