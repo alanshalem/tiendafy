@@ -13,6 +13,7 @@ builder.AddSecretProtection();
 builder.Services.AddAppCore();
 builder.Services.AddApiDocs();
 builder.Services.AddAppCors(builder.Configuration, builder.Environment);
+builder.Services.AddAppResponseCompression();
 
 var app = builder.Build();
 
@@ -59,6 +60,9 @@ if (app.Environment.IsDevelopment())
         .WithTheme(ScalarTheme.Purple));
 }
 
+// Antes que todo lo que escribe respuestas (también los 429 del rate limiter
+// y los problem+json de los middlewares de tenant/permisos).
+app.UseResponseCompression();
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
