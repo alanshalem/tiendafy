@@ -50,6 +50,7 @@ const NAV_VISIBILITY: Record<string, boolean> = {
   '/configuracion/redirecciones': true,
   '/configuracion/medicion': true,
   '/configuracion/ficha-tecnica': true,
+  '/configuracion/busqueda': true,
 };
 
 export const isNavVisible = (to: string): boolean => NAV_VISIBILITY[to] ?? true;
@@ -106,6 +107,7 @@ export const HELP_LINKS = {
   ajustesAvanzados: { label: 'Más sobre redirecciones' },
   externalCodes: { label: 'Más sobre medición y píxeles' },
   fichaTecnica: { label: 'Más sobre la ficha técnica' },
+  busqueda: { label: 'Más sobre el buscador de la tienda' },
   plataformaPuestaEnMarcha: { label: 'Cómo está armado y en qué orden se levanta' },
   plataformaDesarrollo: { label: 'Levantar el proyecto en tu máquina' },
   plataformaClaves: { label: 'Qué conseguir y dónde se carga cada cosa' },

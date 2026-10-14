@@ -574,6 +574,8 @@ export const DISENO = {
         paragraphs: [
           'Tus clientes ordenan el listado por Más nuevos, Menor precio, Mayor precio, Nombre A-Z o Más vendidos (lo que más se vendió en los últimos 30 días).',
           'Si hay productos con precio tachado, el costado del listado muestra el filtro “Solo ofertas”. Prendido, el listado se titula “Ofertas” (o “Remeras en oferta” dentro de una categoría). Para mandar a alguien directo ahí, linkeá a /productos?onSale=1: es a donde lleva el “Ver todos” de una sección de productos en oferta.',
+          'Lo agotado va siempre al final, en cualquier orden: primero todo lo que se puede comprar y después lo que no tiene stock, en el mismo orden que eligió tu cliente. Así la primera página nunca es una pared de “Sin stock”. Y el filtro “Solo con stock” esconde lo agotado del todo; al lado dice cuántos productos quedan.',
+          'En el celular los filtros no ocupan la pantalla: arriba del listado hay una barra con “Filtrar” (con cuántos tenés puestos) y “Ordenar”. Los filtros se abren en un panel desde abajo y se aplican con “Ver N productos”.',
         ],
       },
       {
@@ -586,7 +588,7 @@ export const DISENO = {
       {
         heading: 'Carrito de compras',
         paragraphs: [
-          'Estilos rápidos: Directo o Con incentivos. Mientras el panel está abierto, la vista previa abre el carrito con un producto de muestra, así ves cada opción. Elegís el texto del botón para pagar, si se muestran productos sugeridos, el botón “Seguir comprando” y el campo de cupón, y un mensaje para tus clientes.',
+          'Estilos rápidos: Directo o Con incentivos. Mientras el panel está abierto, la vista previa abre el carrito con un producto de muestra, así ves cada opción. Elegís el texto del botón para pagar, si se muestran productos sugeridos, el botón “Seguir comprando” y el campo de cupón, y un mensaje para tus clientes. Los sugeridos salen de lo que hay en el carrito: productos de las mismas categorías, después lo más vendido y después lo más nuevo, siempre con stock y nunca algo que ya está adentro.',
           '“Mostrar barra de envío gratis” le dice al cliente cuánto le falta para llegar al envío gratis, a partir del mínimo que cargues. La barra solo informa: el envío gratis tiene que existir en tus medios de envío o en un cupón.',
         ],
       },

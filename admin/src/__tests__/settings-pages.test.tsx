@@ -299,3 +299,66 @@ describe('opciones del checkout', () => {
     );
   });
 });
+
+describe('búsqueda', () => {
+  const settings = {
+    synonyms: [
+      ['mancuerna', 'dumbbell'],
+      ['pesa rusa', 'kettlebell'],
+    ],
+    isDefault: true,
+    updatedAt: null,
+    defaults: [['mancuerna', 'dumbbell']],
+  };
+  const queries = {
+    top: [{ term: 'mancuerna', count: 12, results: 8 }],
+    withoutResults: [{ term: 'barra olimpica', count: 3, results: 0 }],
+  };
+  const setup = (a: MockApi) => {
+    a.on('GET', '/api/v1/search/settings', settings);
+    a.on('GET', '/api/v1/search/queries', queries);
+    a.on('PUT', '/api/v1/search/settings', (body) => ({
+      ...settings,
+      isDefault: false,
+      synonyms: (body as { synonyms: string[][] }).synonyms,
+    }));
+  };
+
+  it('edita los sinónimos, suma uno desde lo que no encontró nada y guarda', async () => {
+    const { api, user } = await open('busqueda', setup);
+    expect(await screen.findByText('Usando la lista sugerida')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('mancuerna, dumbbell')).toBeInTheDocument();
+    expect(screen.getByText(/12 búsquedas · 8 resultados/)).toBeInTheDocument();
+
+    // Lo que no encontró nada pasa a un grupo nuevo, listo para completar.
+    await user.click(screen.getByRole('button', { name: 'Agregar como sinónimo' }));
+    const added = screen.getByLabelText('Grupo de sinónimos 3');
+    expect(added).toHaveValue('barra olimpica, ');
+    await user.type(added, 'barbell');
+    await user.click(screen.getByRole('button', { name: 'Quitar el grupo pesa rusa, kettlebell' }));
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await settle(2);
+    expect(last(api, 'PUT', '/api/v1/search/settings')).toEqual({
+      synonyms: [
+        ['mancuerna', 'dumbbell'],
+        ['barra olimpica', 'barbell'],
+      ],
+    });
+    expect(await screen.findByRole('button', { name: /Volver a la lista sugerida/ })).toBeInTheDocument();
+  });
+
+  it('vuelve a la lista sugerida', async () => {
+    const { api, user } = await open('busqueda', (a) => {
+      setup(a);
+      a.on('GET', '/api/v1/search/settings', { ...settings, isDefault: false, synonyms: [] });
+      a.on('DELETE', '/api/v1/search/settings', settings);
+    });
+    expect(await screen.findByText(/Sin sinónimos/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Volver a la lista sugerida/ }));
+    await confirmDialog(/Volver a la sugerida/);
+    await settle(2);
+    expect(did(api, 'DELETE', '/api/v1/search/settings')).toBe(true);
+    expect(await screen.findByDisplayValue('pesa rusa, kettlebell')).toBeInTheDocument();
+  });
+});

@@ -69,6 +69,7 @@ export const SETTINGS_PERMISSIONS = {
   'emails-automaticos': 'notifications.config',
   'whatsapp-automatico': 'notifications.config',
   'ficha-tecnica': 'catalog.write',
+  busqueda: 'catalog.write',
   'opciones-del-checkout': 'store.config',
   usuarios: 'members.read',
   roles: 'members.read',

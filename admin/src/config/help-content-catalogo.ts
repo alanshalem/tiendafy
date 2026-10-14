@@ -410,4 +410,53 @@ export const CATALOGO = {
       },
     ],
   },
+  busqueda: {
+    title: 'El buscador de la tienda',
+    intro:
+      'Cómo encuentra tu tienda lo que escriben tus clientes, y cómo enseñarle las palabras que usan ellos.',
+    category: 'Catálogo',
+    keywords: ['sinónimos', 'búsquedas', 'buscar', 'predictivo', 'autocompletar', 'sin resultados'],
+    sections: [
+      {
+        heading: 'Cómo busca',
+        paragraphs: [
+          'Cada palabra tiene que aparecer en el nombre del producto, en cualquier orden y sin importar tildes ni mayúsculas: “camion rojo” encuentra “Camión de juguete Rojo”. El SKU no cuenta: tu cliente no conoce tus códigos.',
+          'Mientras escribe, el buscador del encabezado ya le muestra productos con foto y precio, las categorías que se llaman así y cuántos resultados hay. Con Enter (o “Ver todos los resultados”) va al listado completo, donde lo agotado queda al final.',
+        ],
+      },
+      {
+        heading: 'Sinónimos',
+        paragraphs: [
+          'Tu cliente busca “mancuerna” y vos la cargaste como viene de fábrica: “DUMBBELL HEXAGONAL”. Sin un sinónimo, no la encuentra. Un grupo de sinónimos son palabras que valen lo mismo: cualquiera de ellas encuentra lo que dicen las demás.',
+          'La tienda trae una lista sugerida con palabras comunes (mancuerna = dumbbell, pesa rusa = kettlebell, remera = camiseta…). Mientras no guardes la tuya, vale esa. Cuando guardás, vale la tuya, aunque la dejes vacía; “Volver a la lista sugerida” la recupera.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Búsqueda'] },
+          {
+            type: 'checklist',
+            items: [
+              'Un grupo por renglón, con las palabras separadas por coma: “mancuerna, dumbbell, pesa de mano”.',
+              'Un término puede tener varias palabras (“pesa rusa”): cuenta como uno solo.',
+              'El plural se encuentra solo: con “mancuerna” en la lista, “mancuernas” también trae las dumbbells.',
+              'Evitá palabras cortas que aparecen adentro de otras: “mat” está en “material” y traería cualquier cosa.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Lo que buscan tus clientes',
+        paragraphs: [
+          'En la misma pantalla ves lo más buscado y, aparte, lo que se buscó y no encontró nada. Esa segunda lista es oro: o es un producto que no tenés, o es una palabra que te falta como sinónimo. El botón “Agregar como sinónimo” la suma a un grupo nuevo para que le pongas al lado cómo lo cargaste vos.',
+          'Lo más buscado que sí encuentra algo aparece también en la tienda, como “Búsquedas populares”, en el buscador y cuando una búsqueda no da resultados.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Se cuenta cada búsqueda que llega a la página de resultados, no cada letra que se escribe en el buscador. Para la tienda, una búsqueda es “popular” desde que se hizo dos veces y encuentra algo.',
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;
