@@ -100,33 +100,39 @@ function RotatingAnnouncements({ items, interval }: { items: AnnouncementItem[];
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusIn(false);
       }}
     >
-      <button type="button" onClick={() => go(-1)} aria-label="Anuncio anterior" className={arrow}>
-        <Icon name="chevronLeft" className="h-4 w-4" />
-      </button>
-      <div className="grid min-w-0 flex-1" aria-live={announce ? 'polite' : 'off'} aria-atomic="true">
-        {items.map((it, i) => {
-          const shown = i === current;
-          return (
-            <div
-              key={i}
-              aria-hidden={!shown}
-              inert={!shown}
-              className={cn(
-                'col-start-1 row-start-1 flex items-center justify-center px-1 py-2 text-center',
-                'transition-[opacity,transform,visibility] duration-500 ease-out motion-reduce:transition-none',
-                shown ? 'visible opacity-100' : 'invisible translate-y-1 opacity-0',
-              )}
-            >
-              <StoreLink href={it.link} newTab={it.newTab} className="[&[href]]:hover:underline">
-                {it.text}
-              </StoreLink>
-            </div>
-          );
-        })}
+      {/* Del ancho de la pausa: así el anuncio queda centrado en la compu. En
+          el celular no, que ahí cada píxel es para el texto. */}
+      {!reduced && <span aria-hidden className="hidden w-10 shrink-0 md:block" />}
+      {/* Las flechas pegadas al texto (no en los bordes): se ve que son de él. */}
+      <div className="flex min-w-0 flex-1 items-center justify-center">
+        <button type="button" onClick={() => go(-1)} aria-label="Anuncio anterior" className={arrow}>
+          <Icon name="chevronLeft" className="h-4 w-4" />
+        </button>
+        <div className="grid min-w-0" aria-live={announce ? 'polite' : 'off'} aria-atomic="true">
+          {items.map((it, i) => {
+            const shown = i === current;
+            return (
+              <div
+                key={i}
+                aria-hidden={!shown}
+                inert={!shown}
+                className={cn(
+                  'col-start-1 row-start-1 flex items-center justify-center px-1 py-2 text-center',
+                  'transition-[opacity,transform,visibility] duration-500 ease-out motion-reduce:transition-none',
+                  shown ? 'visible opacity-100' : 'invisible translate-y-1 opacity-0',
+                )}
+              >
+                <StoreLink href={it.link} newTab={it.newTab} className="[&[href]]:hover:underline">
+                  {it.text}
+                </StoreLink>
+              </div>
+            );
+          })}
+        </div>
+        <button type="button" onClick={() => go(1)} aria-label="Anuncio siguiente" className={arrow}>
+          <Icon name="chevronRight" className="h-4 w-4" />
+        </button>
       </div>
-      <button type="button" onClick={() => go(1)} aria-label="Anuncio siguiente" className={arrow}>
-        <Icon name="chevronRight" className="h-4 w-4" />
-      </button>
       {/* Con "menos movimiento" no hay nada que frenar. */}
       {!reduced && <PauseButton paused={paused} onToggle={() => setPaused((p) => !p)} />}
     </div>
@@ -194,7 +200,12 @@ export function AnnouncementBar({ ann, preview }: { ann: Announcement; preview: 
                 ADMIN_ORIGIN,
               );
             }}
-            className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
+            // Fija, a la derecha (no tapa nada). Con flechas y pausa, a la
+            // izquierda: a la derecha tapaba la pausa justo al querer probarla.
+            className={cn(
+              'absolute top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40',
+              mode === 'static' ? 'right-3' : 'left-3',
+            )}
           >
             <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
           </button>
