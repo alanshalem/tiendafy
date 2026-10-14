@@ -47,7 +47,6 @@ export {
 export type {
   SectionDefinition,
   SectionGroup,
-  SectionWireframe,
   SectionDataMap,
   HeroVideoData,
   CarouselData,

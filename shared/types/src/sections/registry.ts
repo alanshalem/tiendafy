@@ -34,25 +34,6 @@ export const SECTION_GROUPS: readonly SectionGroup[] = [
 ];
 
 /** Qué maqueta dibuja el editor para el tipo (plantillas y menú de agregar). */
-export type SectionWireframe =
-  | 'hero'
-  | 'products'
-  | 'banners'
-  | 'image-text'
-  | 'text'
-  | 'info-bar'
-  | 'newsletter'
-  | 'video'
-  | 'cards'
-  | 'faq'
-  | 'logos'
-  | 'countdown'
-  | 'product-feature'
-  | 'popup'
-  | 'categories'
-  | 'columns'
-  | 'collage';
-
 export interface SectionDefinition<F extends FieldsSpec = FieldsSpec> {
   type: SectionType;
   /** Nombre del tipo en el editor ("Carrusel de imágenes"). */
@@ -62,7 +43,6 @@ export interface SectionDefinition<F extends FieldsSpec = FieldsSpec> {
   /** Una línea que explica para qué sirve (menú de agregar). */
   description: string;
   group: SectionGroup;
-  wireframe: SectionWireframe;
   fields: F;
   /**
    * Contenido de ejemplo de una sección NUEVA (agregar o plantilla): que se
@@ -595,7 +575,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el hero con video',
     description: 'Video a pantalla completa con título y botón, para abrir la portada.',
     group: 'Imágenes',
-    wireframe: 'hero',
     fields: heroVideoFields,
     defaults: {
       title: 'Nueva colección',
@@ -612,7 +591,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el carrusel',
     description: 'Fotos grandes a todo el ancho que se pasan solas, con texto y link en cada una.',
     group: 'Imágenes',
-    wireframe: 'hero',
     fields: carouselFields,
     // Sin diapositivas, el storefront muestra una portada con el nombre de la tienda.
     defaults: { slides: [] },
@@ -625,7 +603,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los banners de promo',
     description: 'Imágenes con promos o campañas, cada una con su link.',
     group: 'Imágenes',
-    wireframe: 'banners',
     fields: promoBannersFields,
     defaults: {
       banners: [
@@ -643,7 +620,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los banners de categorías',
     description: 'Una imagen por categoría, con su nombre encima, que lleva a esa categoría.',
     group: 'Imágenes',
-    wireframe: 'banners',
     fields: categoryBannersFields,
     defaults: {
       banners: [categoryBanner('Novedades'), categoryBanner('Más vendidos'), categoryBanner('Ofertas')],
@@ -657,7 +633,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los destacados',
     description: 'Lo más vendido, una categoría, una marca o los que elijas, en grilla o carrusel.',
     group: 'Productos',
-    wireframe: 'products',
     fields: productsFields('Destacados'),
     defaults: { title: 'Destacados', carousel: true, productIds: [], viewAll: true },
     limits: {},
@@ -669,7 +644,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los recién llegados',
     description: 'Lo último que cargaste, o los productos que elijas.',
     group: 'Productos',
-    wireframe: 'products',
     fields: productsFields('Recién llegados'),
     defaults: { title: 'Recién llegados', carousel: true, productIds: [], viewAll: true },
     limits: {},
@@ -681,7 +655,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'las ofertas',
     description: 'Los productos con precio tachado, o los que elijas.',
     group: 'Productos',
-    wireframe: 'products',
     fields: productsFields('Ofertas'),
     defaults: { title: 'Ofertas', carousel: true, productIds: [], viewAll: true },
     limits: {},
@@ -693,7 +666,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'la sección institucional',
     description: 'Un título y un texto corto sobre tu marca.',
     group: 'Contenido',
-    wireframe: 'text',
     fields: institutionalFields,
     defaults: {
       title: 'Sobre nosotros',
@@ -708,7 +680,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'la sección imagen + texto',
     description: 'Una imagen al lado de un texto con botón.',
     group: 'Contenido',
-    wireframe: 'image-text',
     fields: imageTextFields,
     defaults: {
       title: 'Nuestra historia',
@@ -726,7 +697,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'las preguntas frecuentes',
     description: 'Preguntas y respuestas desplegables, que además ayudan en Google.',
     group: 'Contenido',
-    wireframe: 'faq',
     fields: faqFields,
     defaults: {
       title: 'Preguntas frecuentes',
@@ -755,7 +725,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'la barra de información',
     description: 'Íconos con envíos, medios de pago y compra protegida.',
     group: 'Confianza',
-    wireframe: 'info-bar',
     fields: infoBarFields,
     defaults: { items: DEFAULT_INFO_ITEMS.map((i) => ({ ...i })) },
     limits: {},
@@ -767,7 +736,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los testimonios',
     description: 'Opiniones de clientes con nombre y foto.',
     group: 'Confianza',
-    wireframe: 'cards',
     fields: testimonialsFields,
     // Texto que se nota que hay que reemplazar: un testimonio inventado
     // publicado por descuido sería peor que no tener la sección.
@@ -799,7 +767,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'las marcas',
     description: 'Los logos de las marcas que vendés.',
     group: 'Confianza',
-    wireframe: 'logos',
     fields: brandsFields,
     defaults: { title: 'Marcas que vendemos', logos: [] },
     limits: {},
@@ -811,7 +778,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el newsletter',
     description: 'Un formulario para que te dejen el email.',
     group: 'Contacto',
-    wireframe: 'newsletter',
     fields: newsletterFields,
     defaults: { title: 'Recibí novedades', text: 'Enterate primero de los lanzamientos y las ofertas.' },
     limits: { maxPerPage: 1 },
@@ -823,7 +789,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el feed de Instagram',
     description: 'Un video de YouTube o Vimeo, o una publicación de Instagram.',
     group: 'Contacto',
-    wireframe: 'video',
     fields: instagramFields,
     defaults: { video: '' },
     limits: {},
@@ -835,7 +800,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'la oferta con cronómetro',
     description: 'Productos en oferta con una cuenta regresiva hasta que termina la promo.',
     group: 'Productos',
-    wireframe: 'countdown',
     fields: countdownOfferFields,
     defaults: {
       title: 'Ofertas por tiempo limitado',
@@ -858,7 +822,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el producto destacado',
     description: 'Un producto grande, con su foto, precio y botón de compra.',
     group: 'Productos',
-    wireframe: 'product-feature',
     fields: featuredProductFields,
     defaults: { badge: 'Elegido del mes', layout: 'image-left', showDescription: true, button: 'cart' },
     limits: {},
@@ -870,7 +833,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el pop-up',
     description: 'Una ventana con una promo o un cupón que aparece al entrar o al irse.',
     group: 'Contenido',
-    wireframe: 'popup',
     fields: promoPopupFields,
     defaults: {
       title: '10% off en tu primera compra',
@@ -892,7 +854,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el texto con formato',
     description: 'Un texto largo con títulos, listas, links y citas; con imagen y botón si querés.',
     group: 'Contenido',
-    wireframe: 'text',
     fields: richTextFields,
     defaults: {
       title: 'Cómo trabajamos',
@@ -911,7 +872,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'las categorías',
     description: 'Tus categorías con foto, en grilla o carrusel, para entrar directo.',
     group: 'Productos',
-    wireframe: 'categories',
     fields: categoryListFields,
     defaults: {
       title: 'Comprá por categoría',
@@ -933,7 +893,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el video',
     description: 'Un video de YouTube, Vimeo o subido por vos, con título y botón.',
     group: 'Imágenes',
-    wireframe: 'video',
     fields: videoFields,
     defaults: { source: 'link', ratio: '16:9', autoplay: true, title: 'Mirá cómo se usa' },
     limits: {},
@@ -945,7 +904,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'los íconos con texto',
     description: 'Columnas con un ícono, un título y un texto corto: beneficios, pasos, garantías.',
     group: 'Confianza',
-    wireframe: 'columns',
     fields: iconColumnsFields,
     defaults: {
       title: '¿Por qué comprarnos?',
@@ -984,7 +942,6 @@ export const SECTION_REGISTRY = {
     previewLabel: 'el collage',
     description: 'Dos o tres bloques (imagen, producto o categoría): uno grande y los otros al lado.',
     group: 'Imágenes',
-    wireframe: 'collage',
     fields: collageFields,
     defaults: {
       layout: 'big-left',

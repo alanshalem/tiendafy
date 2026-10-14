@@ -11,7 +11,7 @@ import {
 } from '@tiendafy/types';
 import { foldText } from '../../../lib/text';
 import { addBlockedReason } from './sectionOps';
-import { MiniBlock } from './wireframes';
+import { SectionThumb } from './wireframes';
 
 /** Tipos que coinciden con lo buscado: nombre, palabras clave y descripción, sin tildes. */
 export function searchSectionTypes(
@@ -202,12 +202,7 @@ export function AddSectionPicker({
                       blocked ? 'cursor-not-allowed opacity-50' : 'hover:bg-bg-muted',
                     )}
                   >
-                    <span
-                      className="w-16 shrink-0 rounded-md border border-border bg-bg-subtle p-1.5"
-                      aria-hidden
-                    >
-                      <MiniBlock wireframe={def.wireframe} />
-                    </span>
+                    <SectionThumb type={def.type} className="w-24 shrink-0 border border-border shadow-sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-fg">{def.label}</span>
                       <span className="block text-xs text-fg-muted">{blocked ?? def.description}</span>

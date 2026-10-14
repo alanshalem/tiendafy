@@ -37,9 +37,10 @@ de ejemplo, límites y palabras de búsqueda. De esa entrada salen:
    regenera `backend/src/Modules/Themes/Themes.Infrastructure/theme-contract.json`
    (el backend valida con eso). Los tests fallan si queda viejo.
 
-Los mapas de renderers y editores están tipados con `SectionType`: si falta
-alguno, no compila. La maqueta (`wireframe`) reusa una de las que dibuja
-`admin/.../sections/wireframes.tsx` (o se suma un caso ahí).
+Los mapas de renderers, editores y miniaturas están tipados con `SectionType`:
+si falta alguno, no compila. La miniatura del menú de agregar y de las
+plantillas se dibuja en `admin/.../sections/wireframes.tsx` (un SVG de 96 × 64
+con los tonos del panel).
 
 ## Agregar una migración
 
