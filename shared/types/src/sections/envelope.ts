@@ -31,6 +31,7 @@ export const SECTION_TYPES = [
   'category-list',
   'video',
   'icon-columns',
+  'collage',
 ] as const;
 
 export type SectionType = (typeof SECTION_TYPES)[number];

@@ -38,6 +38,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   'category-list': true,
   video: true,
   'icon-columns': true,
+  collage: true,
 };
 
 let crashes: () => unknown[][];

@@ -21,6 +21,7 @@ import { RichTextSectionEditor } from './rich-text';
 import { CategoryListEditor } from './category-list';
 import { VideoEditor } from './video';
 import { IconColumnsEditor } from './icon-columns';
+import { CollageEditor } from './collage';
 
 /**
  * Un editor por tipo de sección (espeja los renderers del storefront). El tipo
@@ -50,4 +51,5 @@ export const SECTION_EDITORS: { [K in SectionType]: ComponentType<SectionEditorP
   'category-list': CategoryListEditor,
   video: VideoEditor,
   'icon-columns': IconColumnsEditor,
+  collage: CollageEditor,
 };

@@ -128,6 +128,14 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           ))}
         </div>
       );
+    case 'collage':
+      return (
+        <div className="grid h-9 grid-cols-2 grid-rows-2 gap-1">
+          <span className={`row-span-2 ${base}`} />
+          <span className={base} />
+          <span className={base} />
+        </div>
+      );
     case 'popup':
       return (
         <div className={`flex h-9 items-center justify-center ${base}`}>

@@ -367,6 +367,7 @@ export interface SectionDataMap {
   'category-list': CategoryListData;
   video: VideoData;
   'icon-columns': IconColumnsData;
+  collage: CollageData;
 }
 
 /* ---- El registro ---- */
@@ -787,6 +788,40 @@ export const SECTION_REGISTRY = {
     },
     limits: {},
     keywords: 'iconos columnas beneficios ventajas pasos multicolumna garantia',
+  }),
+  collage: define({
+    type: 'collage',
+    label: 'Collage',
+    previewLabel: 'el collage',
+    description: 'Dos o tres bloques (imagen, producto o categoría): uno grande y los otros al lado.',
+    group: 'Imágenes',
+    wireframe: 'collage',
+    fields: collageFields,
+    defaults: {
+      layout: 'big-left',
+      mobile: 'stack',
+      blocks: [
+        {
+          kind: 'image',
+          image: '',
+          title: 'Nueva temporada',
+          link: '/productos',
+          productId: '',
+          categoryId: '',
+        },
+        {
+          kind: 'image',
+          image: '',
+          title: 'Más vendidos',
+          link: '/productos',
+          productId: '',
+          categoryId: '',
+        },
+        { kind: 'image', image: '', title: 'Ofertas', link: '/productos', productId: '', categoryId: '' },
+      ],
+    },
+    limits: {},
+    keywords: 'collage mosaico bloques imagenes destacadas lookbook',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

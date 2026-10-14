@@ -697,3 +697,64 @@ describe('íconos con texto', () => {
     expect(screen.getByText('Agregá columnas con un ícono y un texto.')).toBeInTheDocument();
   });
 });
+
+describe('collage', () => {
+  const blocks = [
+    { kind: 'image', image: 'https://cdn.example.com/big.jpg', title: 'Temporada', link: '/productos' },
+    { kind: 'product', productId: 'p-1' },
+    { kind: 'category', categoryId: 'c3', image: 'https://cdn.example.com/cat.jpg' },
+  ];
+
+  it('una imagen con link, un producto con su precio y una categoría, el primero grande', () => {
+    const { container } = render(withCats(ui(section('collage', { title: 'Lo nuevo', blocks }))));
+    expect(screen.getByRole('link', { name: 'Temporada' })).toHaveAttribute('href', '/productos');
+    const product = screen.getByRole('link', { name: /Producto 1/ });
+    expect(product).toHaveAttribute('href', '/productos/prod-1');
+    expect(product).toHaveTextContent('$');
+    expect(screen.getByRole('link', { name: 'Calzado' })).toHaveAttribute(
+      'href',
+      '/productos?category=calzado',
+    );
+    const items = container.querySelectorAll('li');
+    expect(items[0]).toHaveClass('md:row-span-2');
+    expect(items[1]).not.toHaveClass('md:row-span-2');
+  });
+
+  it('el grande a la derecha; en celular deslizando; con dos bloques, los dos altos', () => {
+    const { container, rerender } = render(
+      withCats(ui(section('collage', { blocks, layout: 'big-right', mobile: 'swipe' }))),
+    );
+    const items = container.querySelectorAll('li');
+    expect(items[0]).toHaveClass('md:col-start-2', 'md:row-start-1');
+    expect(items[1]).toHaveClass('md:col-start-1');
+    expect(container.querySelector('ul')).toHaveClass('overflow-x-auto');
+    rerender(withCats(ui(section('collage', { blocks: blocks.slice(0, 2) }))));
+    container.querySelectorAll('li').forEach((li) => expect(li).toHaveClass('md:row-span-2'));
+  });
+
+  it('lo resuelto por la API manda; un producto o categoría que ya no está no deja hueco', () => {
+    const s = section('collage', {
+      blocks: [
+        { kind: 'product', productId: 'p-9' },
+        { kind: 'category', categoryId: 'borrada' },
+        { kind: 'image', title: 'Solo texto', link: 'javascript:alert(1)' },
+      ],
+    });
+    const { container, rerender } = render(withCats(ui(s)));
+    expect(container.querySelectorAll('li')).toHaveLength(1);
+    // Un link peligroso no es link: el bloque queda sin destino.
+    expect(screen.queryByRole('link', { name: 'Solo texto' })).not.toBeInTheDocument();
+    expect(screen.getByText('Solo texto')).toBeInTheDocument();
+    rerender(
+      withCats(ui(s, { resolved: { [s.id]: [{ ...products[2]!, id: 'p-9', name: 'Traído por la API' }] } })),
+    );
+    expect(screen.getByRole('link', { name: /Traído por la API/ })).toBeInTheDocument();
+  });
+
+  it('vacío: nada en la tienda; en el editor, qué hacer', () => {
+    const { container, rerender } = render(withCats(ui(section('collage', { blocks: [] }))));
+    expect(container).toBeEmptyDOMElement();
+    rerender(withCats(ui(section('collage', { blocks: [] }), { preview: true })));
+    expect(screen.getByText(/Elegí qué va en cada bloque/)).toBeInTheDocument();
+  });
+});

@@ -711,6 +711,61 @@
           ]
         }
       }
+    },
+    "collage": {
+      "label": "Collage",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "blocks": {
+          "kind": "items",
+          "max": 3,
+          "fields": {
+            "kind": {
+              "kind": "enum",
+              "values": [
+                "image",
+                "product",
+                "category"
+              ]
+            },
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "link": {
+              "kind": "url"
+            },
+            "productId": {
+              "kind": "string",
+              "max": 100
+            },
+            "categoryId": {
+              "kind": "string",
+              "max": 100
+            }
+          }
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "big-left",
+            "big-right"
+          ]
+        },
+        "mobile": {
+          "kind": "enum",
+          "values": [
+            "stack",
+            "swipe"
+          ]
+        }
+      }
     }
   },
   "defaultConfig": {

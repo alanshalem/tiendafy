@@ -166,6 +166,18 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     },
     shows: 'Por qué elegirnos',
   },
+  collage: {
+    data: {
+      title: 'Lookbook',
+      blocks: [
+        { kind: 'image', image: img(11), title: 'Temporada', link: '/productos' },
+        { kind: 'product', productId: products[0]!.id },
+        { kind: 'image', title: 'Ofertas', link: '/productos' },
+      ],
+      layout: 'big-right',
+    },
+    shows: 'Lookbook',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

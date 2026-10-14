@@ -356,3 +356,43 @@ describe('íconos con texto', () => {
     });
   });
 });
+
+describe('collage', () => {
+  it('cada bloque elige qué muestra; el producto entra al plan de la sección', async () => {
+    const { user } = await open('collage', createSection('collage').data);
+    // Los bloques arrancan plegados: se abren tocando su nombre.
+    await user.click(screen.getByRole('button', { name: /Más vendidos/, expanded: false }));
+    await user.selectOptions(screen.getByLabelText('Qué muestra'), 'product');
+    await user.type(screen.getByLabelText('Buscar un producto'), 'banco');
+    await settle(4);
+    await user.click(await screen.findByRole('button', { name: /Banco plano regulable/ }));
+    const blocks = latest.blocks as { kind: string; productId: string }[];
+    expect(blocks[1]).toMatchObject({ kind: 'product', productId: expect.any(String) });
+    expect(sectionProductPlan({ type: 'collage', data: latest })).toEqual({
+      source: { kind: 'manual', ids: [blocks[1]!.productId] },
+      limit: 1,
+    });
+
+    await user.click(screen.getByRole('button', { name: /Ofertas/, expanded: false }));
+    const kinds = screen.getAllByLabelText('Qué muestra');
+    await user.selectOptions(kinds[kinds.length - 1]!, 'category');
+    await settle(2);
+    await user.selectOptions(screen.getByLabelText('Categoría'), 'Musculación');
+    expect((latest.blocks as { categoryId: string }[])[2]!.categoryId).not.toBe('');
+
+    await user.selectOptions(screen.getByLabelText('El bloque grande va'), 'big-right');
+    await user.selectOptions(screen.getByLabelText('En celular'), 'swipe');
+    expect(latest).toMatchObject({ layout: 'big-right', mobile: 'swipe' });
+  });
+
+  it('sin bloques de producto no pide productos; tope de tres bloques', () => {
+    expect(sectionProductPlan({ type: 'collage', data: createSection('collage').data })).toBeNull();
+    const s = normalizeSection({
+      id: 'x',
+      type: 'collage',
+      visible: true,
+      data: { blocks: [{ kind: 'video' }, 3], layout: 'arriba' },
+    })!;
+    expect(s.data).toMatchObject({ layout: 'big-left', blocks: [{ kind: 'image', title: '' }] });
+  });
+});
