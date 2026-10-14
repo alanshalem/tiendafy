@@ -9,13 +9,15 @@ import { HelpLink } from '../components/HelpLink';
 import { ListStats } from '../components/stats/ListStats';
 import { formatDateTime } from '@tiendafy/types';
 import { formatNumber } from '../lib/format';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { UPLOADS, describe } from '../lib/uploads';
 import { UploadBar, UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
 
 interface Conversation {
   id: string;
   orderId: string;
+  /** Número de la venta (#1042); null si la API no lo encontró. */
+  orderNumber?: number | null;
   customerEmail: string;
   status: 'OPEN' | 'CLOSED';
   unreadForStaff: number;
@@ -126,11 +128,11 @@ export function SupportChatPage() {
     // El pedido de la conversación, con el mismo número que ve el comprador.
     // Antes se mandaba el principio del id de la CONVERSACIÓN como si fuera
     // el del pedido.
-    const orderId = convs.find((c) => c.id === selected)?.orderId;
+    const conv = convs.find((c) => c.id === selected);
     try {
       const r = await api.post<{ text: string }>('/api/v1/ai/support-reply', {
         message: lastFromCustomer.body,
-        orderSummary: orderId ? `Pedido ${orderNumber(orderId)}` : null,
+        orderSummary: conv ? `Pedido ${orderLabel({ id: conv.orderId, number: conv.orderNumber })}` : null,
       });
       setText(r.text);
     } catch (err) {
@@ -290,7 +292,8 @@ export function SupportChatPage() {
                     )}
                   </div>
                   <p className="text-xs text-fg-muted">
-                    Pedido {orderNumber(c.orderId)} · {formatDateTime(c.lastMessageAtUtc)}
+                    Pedido {orderLabel({ id: c.orderId, number: c.orderNumber })} ·{' '}
+                    {formatDateTime(c.lastMessageAtUtc)}
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
@@ -321,7 +324,9 @@ export function SupportChatPage() {
                     ← Volver
                   </button>
                   <span className="text-sm font-semibold text-fg">{current.customerEmail}</span>
-                  <span className="ml-2 text-xs text-fg-muted">Pedido {orderNumber(current.orderId)}</span>
+                  <span className="ml-2 text-xs text-fg-muted">
+                    Pedido {orderLabel({ id: current.orderId, number: current.orderNumber })}
+                  </span>
                 </div>
                 {current.status === 'OPEN' && (
                   <button

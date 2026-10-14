@@ -7,7 +7,7 @@ import { api, errMsg } from '../../lib/api';
 import { fetchStock, isStockChanged, type StockItem } from '../../lib/products';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
-import { orderNumber } from '../../lib/orderNumber';
+import { orderLabel } from '../../lib/orderNumber';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
@@ -27,6 +27,7 @@ interface CodeHit {
 }
 
 interface OrderLite {
+  number?: number;
   id: string;
   status: string;
   buyerEmail: string;
@@ -452,7 +453,7 @@ function PickingTab() {
         <option value="">Pedidos pagados sin despachar ({pending.length})…</option>
         {pending.map((o) => (
           <option key={o.id} value={o.id}>
-            {orderNumber(o.id)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
+            {orderLabel(o)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
           </option>
         ))}
       </select>

@@ -2,7 +2,7 @@ import { Loader2, PackageCheck, Truck, Undo2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { CorreoShipmentButton } from '../components/CorreoShipment';
 import { ZipnovaShipmentButton } from '../components/ZipnovaShipment';
 import { AndreaniShipmentButton } from '../components/AndreaniShipment';
@@ -42,7 +42,7 @@ export function OrderDetail({
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="text-xs font-semibold text-fg-muted">Venta {orderNumber(o.id)}</div>
+      <div className="text-xs font-semibold text-fg-muted">Venta {orderLabel(o)}</div>
       {o.items.map((i) => (
         <div key={i.variantId} className="flex justify-between text-xs">
           <span className="text-fg">
