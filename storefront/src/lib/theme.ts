@@ -33,6 +33,27 @@ export type {
   FooterConfig,
   IconKit,
   ThemeConfig,
+  // Secciones del inicio (registro compartido).
+  SectionStyle,
+  SectionSpacing,
+  SectionHideOn,
+  SectionDataMap,
+  BannerItem,
+  BannersData,
+  BrandsData,
+  CarouselData,
+  FaqData,
+  FaqItem,
+  HeroVideoData,
+  ImageTextData,
+  InfoBarData,
+  InfoItemData,
+  InstagramData,
+  InstitutionalData,
+  NewsletterData,
+  ProductsData,
+  TestimonialItem,
+  TestimonialsData,
 } from '@tiendafy/types';
 
 /** Defaults del storefront: incluye las secciones iniciales sembradas. */

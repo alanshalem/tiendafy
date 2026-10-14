@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@tiendafy/ui';
 import { Icon, type IconName } from './Icon';
 import { colClass, type ProductListConfig } from '@/lib/theme';
 import { StoreImage } from './StoreImage';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { baseTheme } from '@tiendafy/types';
+import { useSectionStyle } from './section-context';
+import { PreviewContext } from './preview';
 
 // Mapea el slug guardado en la sección al nombre semántico del kit de íconos.
 export const INFO_ICON_MAP: Record<string, IconName> = {
@@ -18,6 +21,69 @@ export const INFO_ICON_MAP: Record<string, IconName> = {
 };
 
 export const defaultList: ProductListConfig = baseTheme.productList;
+
+/** Imágenes que no son la de portada: el navegador las pide al acercarse. */
+export const LAZY = { loading: 'lazy', decoding: 'async' } as const;
+
+/**
+ * El título de una sección: siempre un h2. La página tiene un solo h1 (el de
+ * la portada o uno invisible con el nombre de la tienda) y antes los títulos
+ * de sección eran h3 colgando directo de él, salteando un nivel: los lectores
+ * de pantalla y Google arman el índice de la página con eso.
+ *
+ * Respeta la alineación que el comercio eligió para la sección.
+ */
+export function SectionTitle({ className, children }: { className?: string; children: ReactNode }) {
+  const align = useSectionStyle()?.align;
+  return (
+    <h2
+      className={cn(className, align === 'left' && 'text-left', align === 'center' && 'text-center')}
+      style={{ fontFamily: 'var(--font-heading)' }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+/**
+ * Lo que se ve en la vista previa del editor en lugar de una imagen que
+ * todavía no se subió. En la tienda no se dibuja nada: un hueco gris
+ * publicado por descuido se ve roto, uno en el editor dice "subí una foto".
+ */
+export function usePreviewPlaceholders(): boolean {
+  return useContext(PreviewContext);
+}
+
+export function ImagePlaceholder({
+  className,
+  label = 'Subí una imagen',
+}: {
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex h-full w-full flex-col items-center justify-center gap-2 bg-fg/5 text-xs font-medium text-fg-muted',
+        className,
+      )}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="h-8 w-8 opacity-60"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        aria-hidden="true"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <circle cx="9" cy="10" r="2" />
+        <path d="m21 16-5-5-9 9" />
+      </svg>
+      {label}
+    </div>
+  );
+}
 
 /** Selecciona productos por id preservando el orden elegido. */
 export function pickProducts(products: StoreProduct[], ids: string[]): StoreProduct[] {
@@ -42,12 +108,9 @@ export function ProductGrid({
   return (
     <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
       {title && (
-        <h3
-          className="mb-6 text-sm font-bold uppercase tracking-widest text-fg-muted"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
+        <SectionTitle className="mb-6 text-sm font-bold uppercase tracking-widest text-fg-muted">
           {title}
-        </h3>
+        </SectionTitle>
       )}
       {carousel ? (
         <div className="group/car relative">
