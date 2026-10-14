@@ -24,7 +24,7 @@ public sealed class StorefrontFindingTests(ApiFactory factory)
         return created;
     }
 
-    private static Task SellAsync(Merchant merchant, Guid variantId, int quantity = 1) =>
+    private static Task<JsonElement> SellAsync(Merchant merchant, Guid variantId, int quantity = 1) =>
         merchant.PostAsync("/api/v1/orders/manual", new
         {
             items = new[] { new { variantId, quantity } },

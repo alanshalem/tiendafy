@@ -317,7 +317,7 @@ describe('búsqueda', () => {
   const setup = (a: MockApi) => {
     a.on('GET', '/api/v1/search/settings', settings);
     a.on('GET', '/api/v1/search/queries', queries);
-    a.on('PUT', '/api/v1/search/settings', (body) => ({
+    a.on('PUT', '/api/v1/search/settings', (body: unknown) => ({
       ...settings,
       isDefault: false,
       synonyms: (body as { synonyms: string[][] }).synonyms,
