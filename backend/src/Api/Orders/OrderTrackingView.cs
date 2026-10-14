@@ -76,6 +76,11 @@ public sealed class OrderTrackingView(
 
         var imageMap = await images.ForOrderAsync(order, ct);
 
+        // Transferencia o efectivo pendiente: cuánto, a qué cuenta y hasta cuándo.
+        var paymentOptions = order.IsOfflinePayment && order.Status == OrderStatus.PendingPayment
+            ? await checkout.PaymentOptions.AsNoTracking().FirstOrDefaultAsync(o => o.TenantId == order.TenantId, ct)
+            : null;
+
         return new
         {
             order.Id,
@@ -113,6 +118,7 @@ public sealed class OrderTrackingView(
             canRepent = OrderStatuses.IsEarning(order.Status),
             invoiceAvailable,
             trackingToken = OrderTrackingToken.Protect(dp, tenantGuid, order.Id),
+            paymentInstructions = OfflinePaymentEmail.ForOrderView(order, paymentOptions),
         };
     }
 

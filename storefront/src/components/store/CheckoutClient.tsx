@@ -3,7 +3,21 @@
 import { useEffect, useId, useMemo, useRef, useState, type InputHTMLAttributes } from 'react';
 import Image from 'next/image';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
-import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
+import {
+  Banknote,
+  Check,
+  ChevronDown,
+  CreditCard,
+  Landmark,
+  MapPin,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  Store,
+  Tag,
+  Truck,
+  Loader2,
+} from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 import { PaywayCardForm, type PaywayCardToken, type PaywayPublicConfig } from './PaywayCardForm';
 import { CheckoutResult } from './CheckoutResult';
@@ -25,6 +39,11 @@ import { readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
+import { CheckoutSkeleton } from './CheckoutSkeleton';
+import { useAuth } from './auth';
+import type { StoreOffers } from '@/lib/store-offers';
+import { defaultAddress, fetchSavedAddresses } from '@/lib/addresses';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 
 interface ShippingOption {
   id: string;
@@ -33,6 +52,8 @@ interface ShippingOption {
   price: MoneyDto;
   description: string | null;
   pickupAddress: string | null;
+  /** "Gratis desde $X": con ese subtotal de productos, el envío no se cobra. */
+  freeAbove?: MoneyDto | null;
 }
 
 interface CorreoAgency {
@@ -95,6 +116,21 @@ const CORREO_PROVINCES: [string, string][] = [
 
 type Mode = 'PRO' | 'API';
 type Step = 'entrega' | 'pago';
+/** Cómo paga: las pasarelas, o a mano (transferencia, efectivo al retirar). */
+type PayMethod = 'mp' | 'payway' | 'transfer' | 'cash';
+
+const METHOD_LABEL: Record<PayMethod, string> = {
+  mp: 'Mercado Pago',
+  payway: 'Tarjeta de crédito o débito',
+  transfer: 'Transferencia',
+  cash: 'Efectivo al retirar',
+};
+
+/** Lo que el comprador ve si la tienda todavía no cobra online: por dónde escribirle. */
+export interface CheckoutContact {
+  whatsapp?: string | null;
+  email?: string | null;
+}
 
 // Tope de espera de cada pedido a la API: un servidor que no contesta no puede
 // dejar al comprador mirando un spinner para siempre.
@@ -152,16 +188,22 @@ async function getJson<T>(path: string, tenantId: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function CheckoutClient({ tenantId }: { tenantId: string }) {
+export function CheckoutClient({ tenantId, contact }: { tenantId: string; contact?: CheckoutContact }) {
   // El carrito es el de la tienda (el mismo del ícono): así lo que se reprecia
   // o se quita acá se ve en todos lados.
-  const { lines, hydrated, refreshPrices, priceChanges, issues, blocked, remove } = useCart();
+  const { lines, hydrated, refreshPrices, priceChanges, issues, blocked, remove, setOpen } = useCart();
+  const { user } = useAuth();
   const [mode, setMode] = useState<Mode | null>(null);
   const [pubKey, setPubKey] = useState<string | null>(null);
   const [payway, setPayway] = useState<PaywayPublicConfig | null>(null);
-  // Con los dos medios disponibles, el comprador elige.
-  const [method, setMethod] = useState<'mp' | 'payway'>('mp');
+  // Con más de un medio disponible, el comprador elige.
+  const [method, setMethod] = useState<PayMethod>('mp');
   const [connected, setConnected] = useState(true);
+  // Descuento por transferencia, efectivo al retirar, cuotas y envío gratis
+  // (ver lib/store-offers). Sin respuesta, no se ofrece pagar a mano.
+  const [offers, setOffers] = useState<StoreOffers | null>(null);
+  // El resumen plegado del celular (como en Shopify): arriba, con el total.
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const [step, setStep] = useState<Step>('entrega');
 
@@ -239,6 +281,44 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     setQuoteCp((cp) => cp || readPostalCode(tenantId));
   }, [tenantId]);
 
+  // Comprador con sesión: arranca con su email de la cuenta y su dirección
+  // guardada (la predeterminada, de Mi cuenta). Solo completa lo que está
+  // vacío: lo que ya escribió en esta pestaña (o trajo de un intento anterior)
+  // manda.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!user || prefilled.current) return;
+    prefilled.current = true;
+    const [first = '', ...rest] = user.name.trim().split(/\s+/);
+    const fill = (found: Partial<Buyer>) => {
+      const next = { ...buyerRef.current };
+      for (const key of FIELD_ORDER) {
+        const value = found[key];
+        if (value && !next[key].trim()) next[key] = value;
+      }
+      buyerRef.current = next;
+      setBuyer(next);
+    };
+    fill({ email: user.email, name: first, lastName: rest.join(' ') });
+    fetchSavedAddresses(tenantId)
+      .then((items) => {
+        const a = defaultAddress(items);
+        if (!a) return;
+        fill({
+          name: a.name,
+          lastName: a.lastName ?? '',
+          phone: a.phone ?? '',
+          doc: a.doc ?? '',
+          street: a.street,
+          streetNumber: a.streetNumber,
+          apartment: a.apartment ?? '',
+          city: a.city,
+          zip: a.zip,
+        });
+      })
+      .catch(() => undefined);
+  }, [user, tenantId]);
+
   // Precio y stock de hoy, antes de mostrar un total: el carrito guarda los
   // de cuando se agregó cada cosa, y el cobro sale por los vigentes.
   const repriced = useRef(false);
@@ -275,6 +355,12 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       .then((c) => alive && setPayway(c.enabled ? c : null))
       .catch(() => alive && setPayway(null));
 
+    // Lo que la tienda promete (descuento por transferencia, envío gratis): un
+    // error acá solo apaga los medios a mano; con tarjeta se sigue pagando.
+    getJson<StoreOffers>('/api/v1/store-offers', tenantId)
+      .then((o) => alive && setOffers(o))
+      .catch(() => alive && setOffers(null));
+
     // Sin la configuración del comercio se sigue con la de fábrica.
     getJson<CheckoutSettings>('/api/v1/checkout-settings', tenantId)
       .then((d) => alive && setSettings({ ...DEFAULT_SETTINGS, ...d }))
@@ -309,11 +395,35 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     (quotes[k] ?? []).map((option, i) => ({ id: `${k}-${i}`, option })),
   );
   const selectedQuote = quoteOptions.find((q) => q.id === shippingId)?.option ?? null;
-  const quotedShipping = selectedQuote?.price.amount ?? selected?.price.amount ?? 0; // centavos (ApiJson.MoneyJson)
+  // "Gratis desde $X" de un medio propio: lo aplica el servidor con el
+  // subtotal de productos (antes de cupones), y acá se muestra lo mismo.
+  const freeByAmount = (o: ShippingOption) => Boolean(o.freeAbove && subtotal >= o.freeAbove.amount);
+  const methodPrice = (o: ShippingOption) => (freeByAmount(o) ? 0 : o.price.amount);
+  const quotedShipping = selectedQuote?.price.amount ?? (selected ? methodPrice(selected) : 0); // centavos (ApiJson.MoneyJson)
   // Cupón de envío gratis: el servidor pone el envío en cero al crear la orden,
   // así que lo que se muestra acá tiene que decir lo mismo.
   const shipCost = coupon?.freeShipping ? 0 : quotedShipping;
-  const total = Math.max(0, subtotal - discount) + shipCost;
+
+  // Medios de pago de esta compra. El efectivo, solo retirando en el local.
+  const pickupSelected = selected?.kind === 'PICKUP';
+  const available: PayMethod[] = [
+    ...(connected ? (['mp'] as const) : []),
+    ...(payway ? (['payway'] as const) : []),
+    ...(offers?.transfer.enabled ? (['transfer'] as const) : []),
+    ...(offers?.cashOnPickup.enabled && pickupSelected ? (['cash'] as const) : []),
+  ];
+  const payMethod: PayMethod | null = available.includes(method) ? method : (available[0] ?? null);
+  const offline = payMethod === 'transfer' || payMethod === 'cash';
+  // ¿Se puede comprar de alguna forma? El efectivo cuenta aunque todavía no
+  // se haya elegido retirar: es elegir el retiro y listo.
+  const canPay = connected || Boolean(payway) || Boolean(offers?.canCheckout);
+
+  // El mismo orden que el servidor (Order.UseOfflinePayment): cupón sobre el
+  // subtotal, el % de la transferencia sobre lo que queda, y el envío entero.
+  const afterCoupon = Math.max(0, subtotal - discount);
+  const offlinePct = offline ? (offers?.transfer.discountPercent ?? 0) : 0;
+  const offlineDiscount = Math.round((afterCoupon * offlinePct) / 100);
+  const total = afterCoupon - offlineDiscount + shipCost;
   // Retiro en el local o en una sucursal del correo: sin dirección.
   const needsAddress = selected?.kind === 'DELIVERY' || (selectedQuote !== null && !selectedQuote.pickup);
   const shippingLabel = selectedQuote?.name ?? selected?.name ?? null;
@@ -565,7 +675,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
    */
   const postPayment = async <T,>(
     id: string,
-    path: 'pay' | 'pay-onsite' | 'pay-payway',
+    path: 'pay' | 'pay-onsite' | 'pay-payway' | 'pay-offline',
     body: object,
     failMsg: string,
   ) => {
@@ -687,11 +797,40 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     }
   };
 
+  /**
+   * Transferencia o efectivo: la orden queda hecha y pendiente de pago, con el
+   * descuento que calcula el servidor. El carrito se vacía (lo comprado ya
+   * está reservado en la orden) y la pantalla de "pendiente" muestra los datos
+   * para pagar, que también salen por email.
+   */
+  const payOffline = async (kind: 'transfer' | 'cash') => {
+    setPaying(true);
+    setError(null);
+    try {
+      const id = await reserve(email.trim());
+      const data = await postPayment<{ orderId?: string }>(
+        id,
+        'pay-offline',
+        { method: kind },
+        'No pudimos registrar tu pedido.',
+      );
+      const orderId = data.orderId ?? id;
+      stashPurchase(orderId);
+      setLeaving(true);
+      finishPurchase(tenantId, orderId);
+      hardNavigate(`/checkout/pending?order=${encodeURIComponent(orderId)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No pudimos registrar tu pedido.');
+      setPaying(false);
+    }
+  };
+
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
 
   if (loadError && !leaving)
     return (
       <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <h1 className="mb-2 text-xl font-bold">Finalizar compra</h1>
         <p role="alert" className="opacity-80">
           No pudimos cargar el checkout. Revisá tu conexión y probá de nuevo.
         </p>
@@ -705,16 +844,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       </main>
     );
 
-  if (leaving || !hydrated || mode === null || shippingOptions === null)
-    return (
-      <main className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin opacity-50" />
-      </main>
-    );
+  // Mismas medidas que el checkout (ver CheckoutSkeleton): al llegar no salta.
+  if (leaving || !hydrated || mode === null || shippingOptions === null) return <CheckoutSkeleton />;
 
   if (lines.length === 0)
     return (
       <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <h1 className="mb-2 text-xl font-bold">Finalizar compra</h1>
         <p className="opacity-70">Tu carrito está vacío.</p>
         <a href="/" className="mt-4 inline-block text-primary-ink underline">
           Volver a la tienda
@@ -722,17 +858,47 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       </main>
     );
 
-  if (!connected)
+  if (!canPay) {
+    // Sin ningún medio de pago no hay compra online, pero sí venta: lo que
+    // queda es escribirle a la tienda, con el carrito ya contado.
+    const order = lines.map((l) => `${l.quantity} × ${l.productName}`).join(', ');
+    const whatsapp = contact?.whatsapp?.replace(/\D/g, '');
     return (
       <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <h1 className="mb-2 text-xl font-bold">Comprá escribiéndonos</h1>
         <p className="opacity-70">Esta tienda todavía no tiene los pagos habilitados.</p>
-        <a href="/" className="mt-4 inline-block text-primary-ink underline">
-          Volver
-        </a>
+        <p className="mt-1 text-sm text-fg-muted">Mandanos tu pedido y coordinamos el pago y la entrega.</p>
+        <div className="mt-5 flex flex-col items-center gap-2">
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`¡Hola! Quiero comprar: ${order}.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg"
+            >
+              <MessageCircle className="h-4 w-4" /> Comprar por WhatsApp
+            </a>
+          )}
+          {contact?.email && (
+            <a
+              href={`mailto:${contact.email}?subject=${encodeURIComponent('Quiero comprar')}&body=${encodeURIComponent(order)}`}
+              className="text-sm text-primary-ink underline"
+            >
+              Escribir a {contact.email}
+            </a>
+          )}
+          <a href="/contacto" className="text-sm text-primary-ink underline">
+            Ir a Contacto
+          </a>
+          <a href="/" className="text-sm text-fg-muted underline">
+            Volver
+          </a>
+        </div>
       </main>
     );
+  }
 
-  const inputCls = `${INPUT_LIGHT_11} focus:outline-none focus:ring-2 focus:ring-black/30`;
+  const inputCls = `${INPUT_LIGHT_11} focus:outline-none focus:ring-2 focus:ring-primary/40`;
 
   /**
    * Un campo del comprador con su etiqueta visible (el placeholder no es una
@@ -744,9 +910,11 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     label: string,
     extra: InputHTMLAttributes<HTMLInputElement> = {},
     className = '',
+    hint?: string,
   ) => {
     const id = fieldId(key);
     const err = fieldErrors[key];
+    const describedBy = [err ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(' ');
     return (
       <div className={className}>
         <label htmlFor={id} className="mb-1 block text-sm font-medium">
@@ -759,12 +927,17 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           onChange={(e) => setField(key, e.target.value)}
           enterKeyHint="next"
           aria-invalid={err ? true : undefined}
-          aria-describedby={err ? `${id}-error` : undefined}
-          className={`${inputCls} ${err ? 'border-red-500' : ''}`}
+          aria-describedby={describedBy || undefined}
+          className={`${inputCls} ${err ? 'border-danger' : ''}`}
           {...extra}
         />
+        {hint && !err && (
+          <p id={`${id}-hint`} className="mt-1 text-xs text-fg-muted">
+            {hint}
+          </p>
+        )}
         {err && (
-          <p id={`${id}-error`} className="mt-1 text-xs text-red-600">
+          <p id={`${id}-error`} className="mt-1 text-xs text-danger">
             {err}
           </p>
         )}
@@ -774,26 +947,45 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      {/* Indicador de pasos: Carrito → Entrega → Pago */}
+      <h1 className="sr-only">Finalizar compra</h1>
+      {/* Indicador de pasos: Carrito → Entrega → Pago. "Carrito" abre el
+          carrito acá mismo (antes llevaba a la portada y se perdía el paso). */}
       <div className="mx-auto mb-8 flex max-w-md items-center">
-        <StepDot label="Carrito" state="done" href="/" />
-        <div className="h-px flex-1 bg-black/20" />
+        <StepDot label="Carrito" state="done" onClick={() => setOpen(true)} />
+        <div className="h-px flex-1 bg-fg/20" />
         <StepDot
           label="Entrega"
           state={step === 'entrega' ? 'current' : 'done'}
           onClick={step === 'pago' ? () => setStep('entrega') : undefined}
         />
-        <div className="h-px flex-1 bg-black/20" />
+        <div className="h-px flex-1 bg-fg/20" />
         <StepDot label="Pago" state={step === 'pago' ? 'current' : 'todo'} />
       </div>
 
       <PriceChangeNotice changes={priceChanges} className="mx-auto mb-6 max-w-5xl text-sm" />
       {blocked && (
-        <p role="alert" className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+        <p role="alert" className="mb-6 rounded-md bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
           Algunos productos de tu carrito ya no están disponibles como los agregaste. Revisalos en el resumen
           para poder pagar.
         </p>
       )}
+
+      {/* Celular: el resumen va arriba y plegado, con el total a la vista (como
+          Shopify). Antes quedaba debajo de todo el formulario y el comprador
+          llenaba sus datos sin ver cuánto iba a pagar. */}
+      <button
+        type="button"
+        onClick={() => setSummaryOpen((o) => !o)}
+        aria-expanded={summaryOpen}
+        aria-controls={`${formId}-summary`}
+        className="mb-4 flex h-12 w-full items-center justify-between rounded-lg border border-fg/10 px-4 text-sm lg:hidden"
+      >
+        <span className="inline-flex items-center gap-1.5 font-medium">
+          {summaryOpen ? 'Ocultar resumen' : 'Ver resumen'}
+          <ChevronDown className={`h-4 w-4 transition-transform ${summaryOpen ? 'rotate-180' : ''}`} />
+        </span>
+        <span className="font-bold tabular-nums">{formatMoney(total, currency)}</span>
+      </button>
 
       <div className={settings.singleColumn ? 'grid gap-8' : 'grid gap-8 lg:grid-cols-[1fr_360px]'}>
         <div>
@@ -827,7 +1019,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       {shippingOptions.map((o) => (
                         <label
                           key={o.id}
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-primary bg-primary/[0.04] ring-1 ring-primary' : 'border-fg/15 hover:border-fg/30'}`}
                         >
                           <input
                             type="radio"
@@ -851,9 +1043,16 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                             {o.kind === 'PICKUP' && o.pickupAddress && (
                               <span className="mt-0.5 block text-xs text-fg-muted">{o.pickupAddress}</span>
                             )}
+                            {o.freeAbove && (
+                              <span className="mt-0.5 block text-xs text-success">
+                                {freeByAmount(o)
+                                  ? `Sin cargo: tu compra supera ${formatMoney(o.freeAbove.amount, o.freeAbove.currency)}`
+                                  : `Sin cargo desde ${formatMoney(o.freeAbove.amount, o.freeAbove.currency)}`}
+                              </span>
+                            )}
                           </span>
                           <span className="font-semibold">
-                            {o.price.amount === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
+                            {methodPrice(o) === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
                           </span>
                         </label>
                       ))}
@@ -864,7 +1063,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 {carriers.length > 0 && (
                   <section>
                     {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
-                    <div className="rounded-lg border border-black/15 p-3.5">
+                    <div className="rounded-lg border border-fg/15 p-3.5">
                       <div className="flex items-center gap-1.5 text-sm font-semibold">
                         <Truck className="h-4 w-4" /> Calculá tu envío
                       </div>
@@ -894,26 +1093,29 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                               aria-label="Ciudad para cotizar"
                               className={`${inputCls} max-w-[180px]`}
                             />
-                            <input
+                            {/* Una lista y no texto libre: "Bs As", "Pcia de BA" o un
+                                error de tipeo hacían que el correo no encontrara el destino. */}
+                            <select
                               value={quoteProvince}
                               onChange={(e) => setQuoteProvince(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key !== 'Enter') return;
-                                e.preventDefault();
-                                quoteShipping();
-                              }}
-                              placeholder="Provincia"
                               autoComplete="address-level1"
                               aria-label="Provincia para cotizar"
-                              className={`${inputCls} max-w-[180px]`}
-                            />
+                              className={`${inputCls} max-w-[200px] appearance-none`}
+                            >
+                              <option value="">Provincia</option>
+                              {CORREO_PROVINCES.map(([code, label]) => (
+                                <option key={code} value={label}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
                           </>
                         )}
                         <button
                           type="button"
                           onClick={quoteShipping}
                           disabled={quoting}
-                          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
+                          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-fg/30 px-4 text-sm font-semibold disabled:opacity-60"
                         >
                           {quoting && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
                         </button>
@@ -921,7 +1123,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       {(['cp', ...CARRIER_KEYS] as const).map(
                         (k) =>
                           quoteErrors[k] && (
-                            <p key={k} className="mt-2 text-xs text-red-600">
+                            <p key={k} className="mt-2 text-xs text-danger">
                               {quoteErrors[k]}
                             </p>
                           ),
@@ -932,7 +1134,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                           {quoteOptions.map(({ id, option: o }) => (
                             <label
                               key={id}
-                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-primary bg-primary/[0.04] ring-1 ring-primary' : 'border-fg/15 hover:border-fg/30'}`}
                             >
                               <input
                                 type="radio"
@@ -960,7 +1162,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                           ))}
 
                           {selectedQuote?.needsAgency && (
-                            <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
+                            <div className="rounded-lg border border-fg/10 bg-fg/[0.02] p-3">
                               <div className="text-xs font-semibold">¿En qué sucursal retirás?</div>
                               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                 <select
@@ -996,7 +1198,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                                 </select>
                               </div>
                               {agencies !== null && agencies.length === 0 && (
-                                <p className="mt-1.5 text-xs text-red-600">
+                                <p className="mt-1.5 text-xs text-danger">
                                   No encontramos sucursales en esa provincia. Probá con otra o elegí envío a
                                   domicilio.
                                 </p>
@@ -1020,11 +1222,13 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     autoComplete: 'family-name',
                     autoCapitalize: 'words',
                   })}
-                  {textField('phone', settings.requirePhone ? 'Teléfono' : 'Teléfono (opcional)', {
-                    type: 'tel',
-                    inputMode: 'tel',
-                    autoComplete: 'tel',
-                  })}
+                  {textField(
+                    'phone',
+                    settings.requirePhone ? 'Teléfono' : 'Teléfono (opcional)',
+                    { type: 'tel', inputMode: 'tel', autoComplete: 'tel' },
+                    '',
+                    'Con código de área, sin 0 ni 15. Ej.: 11 2345 6789',
+                  )}
                   {textField(
                     'doc',
                     settings.requireDocument ? 'DNI o CUIT (facturación)' : 'DNI o CUIT (opcional)',
@@ -1054,7 +1258,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
               </section>
 
               {formError && (
-                <p role="alert" className="text-sm font-medium text-red-600">
+                <p role="alert" className="text-sm font-medium text-danger">
                   {formError}
                 </p>
               )}
@@ -1070,7 +1274,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           ) : (
             <div className="space-y-5">
               {/* Resumen de lo elegido, con Cambiar */}
-              <div className="space-y-3 rounded-lg border border-black/10 p-4 text-sm">
+              <div className="space-y-3 rounded-lg border border-fg/10 p-4 text-sm">
                 <div className="flex items-start gap-2.5">
                   <Mail className="mt-0.5 h-4 w-4 opacity-50" />
                   <span className="flex-1">{email}</span>
@@ -1144,36 +1348,63 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <CreditCard className="h-5 w-5" /> Medio de pago
               </h2>
 
-              {payway && (
+              {available.length > 1 && (
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMethod('mp')}
-                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                      method === 'mp' ? 'border-black bg-black text-white' : 'border-black/20'
-                    }`}
-                  >
-                    Mercado Pago
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMethod('payway')}
-                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                      method === 'payway' ? 'border-black bg-black text-white' : 'border-black/20'
-                    }`}
-                  >
-                    Tarjeta de crédito o débito
-                  </button>
+                  {available.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMethod(m)}
+                      aria-pressed={payMethod === m}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                        payMethod === m ? 'border-primary bg-primary text-primary-fg' : 'border-fg/20'
+                      }`}
+                    >
+                      {METHOD_LABEL[m]}
+                    </button>
+                  ))}
                 </div>
+              )}
+              {/* El descuento se anuncia en el botón que lo da: el comprador ve
+                  cuánto ahorra antes de elegir, no después. */}
+              {available.length > 1 && (offers?.transfer.discountPercent ?? 0) > 0 && (
+                <p className="text-xs text-success">
+                  {offers!.transfer.discountPercent}% de descuento pagando con{' '}
+                  {available.includes('cash') ? 'transferencia o en efectivo' : 'transferencia'}.
+                </p>
               )}
 
               {blocked ? (
                 // Ningún medio de pago mientras haya algo que no se puede vender:
                 // el cobro fallaría igual, pero después de pedir la tarjeta.
-                <p className="text-sm text-red-700">
+                <p className="text-sm text-danger">
                   Quitá los productos marcados en el resumen para poder pagar.
                 </p>
-              ) : payway && method === 'payway' ? (
+              ) : offline ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5 rounded-lg border border-fg/10 p-4 text-sm">
+                    {payMethod === 'cash' ? (
+                      <Banknote className="mt-0.5 h-4 w-4 shrink-0 opacity-60" />
+                    ) : (
+                      <Landmark className="mt-0.5 h-4 w-4 shrink-0 opacity-60" />
+                    )}
+                    <p>
+                      {payMethod === 'cash'
+                        ? `Pagás ${formatMoney(total, currency)} en efectivo cuando retirás.`
+                        : `Al confirmar te mostramos los datos de la cuenta para transferir ${formatMoney(total, currency)}. También te los mandamos por email.`}{' '}
+                      Te guardamos los productos {offers?.transfer.holdHours ?? 48} horas; si para entonces no
+                      registramos el pago, el pedido se cancela solo.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => payOffline(payMethod === 'cash' ? 'cash' : 'transfer')}
+                    disabled={paying}
+                    className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:opacity-60 sm:max-w-xs"
+                  >
+                    {paying ? 'Registrando tu pedido…' : 'Confirmar pedido'}
+                  </button>
+                </div>
+              ) : payway && payMethod === 'payway' ? (
                 <PaywayCardForm
                   config={payway}
                   amountLabel={formatMoney(total, currency)}
@@ -1205,13 +1436,41 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 </button>
               )}
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {/* Qué se puede usar en Mercado Pago: sin esto, quien no tiene
+                  cuenta cree que no puede pagar ahí. */}
+              {!blocked && payMethod === 'mp' && (
+                <p className="text-xs text-fg-muted">
+                  Con Mercado Pago pagás con tarjeta de crédito (en cuotas), débito, dinero en tu cuenta o en
+                  efectivo en Rapipago y Pago Fácil. No hace falta tener cuenta.
+                </p>
+              )}
+
+              {error && <p className="text-sm text-danger">{error}</p>}
+
+              <p className="text-xs text-fg-muted">
+                Al comprar aceptás los{' '}
+                <a href="/terminos" className="underline">
+                  Términos y condiciones
+                </a>
+                . Tenés 10 días para arrepentirte de la compra con el{' '}
+                <a href="/arrepentimiento" className="underline">
+                  Botón de arrepentimiento
+                </a>
+                .
+              </p>
             </div>
           )}
         </div>
 
-        {/* Resumen del pedido */}
-        <aside className="h-fit rounded-lg border border-black/10 p-4 text-sm lg:sticky lg:top-6">
+        {/* Resumen del pedido. En el celular va arriba del formulario y se
+            abre con la barra "Ver resumen"; en la compu, al costado siempre. */}
+        <aside
+          id={`${formId}-summary`}
+          aria-label="Resumen del pedido"
+          className={`order-first h-fit rounded-lg border border-fg/10 p-4 text-sm lg:sticky lg:top-6 lg:order-none lg:block ${
+            summaryOpen ? 'block' : 'hidden'
+          }`}
+        >
           {lines.map((l) => (
             <div key={l.variantId} className="py-1.5">
               <div className="flex items-center gap-3">
@@ -1236,7 +1495,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                   <button
                     type="button"
                     onClick={() => remove(l.variantId)}
-                    className="mt-1 shrink-0 text-xs font-semibold text-red-600 underline"
+                    className="mt-1 shrink-0 text-xs font-semibold text-danger underline"
                   >
                     Quitar
                   </button>
@@ -1244,15 +1503,23 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
               )}
             </div>
           ))}
-          <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
+          <div className="mt-3 space-y-1 border-t border-fg/10 pt-3">
             <div className="flex justify-between">
               <span className="opacity-70">Subtotal</span>
               <span className="tabular-nums">{formatMoney(subtotal, currency)}</span>
             </div>
             {discount > 0 && (
-              <div className="flex justify-between text-green-600">
+              <div className="flex justify-between text-success">
                 <span>Descuento ({coupon?.code})</span>
                 <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
+              </div>
+            )}
+            {offlineDiscount > 0 && (
+              <div className="flex justify-between text-success">
+                <span>
+                  Descuento por {payMethod === 'cash' ? 'pago en efectivo' : 'transferencia'} ({offlinePct}%)
+                </span>
+                <span className="tabular-nums">- {formatMoney(offlineDiscount, currency)}</span>
               </div>
             )}
             {hasShipping && (
@@ -1260,6 +1527,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <span className="opacity-70">
                   Costo de envío
                   {coupon?.freeShipping && quotedShipping > 0 ? ` (gratis con ${coupon.code})` : ''}
+                  {!coupon?.freeShipping && selected && !selectedQuote && freeByAmount(selected)
+                    ? ' (sin cargo por el monto)'
+                    : ''}
                 </span>
                 <span className="tabular-nums">
                   {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
@@ -1270,6 +1540,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
               <span>Total</span>
               <span className="tabular-nums">{formatMoney(total, currency)}</span>
             </div>
+            <PriceWithoutTaxes amount={total} currency={currency} className="text-right" />
           </div>
 
           {!coupon && (
@@ -1284,12 +1555,12 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 />
                 <button
                   onClick={() => applyCoupon()}
-                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-3 text-sm font-semibold"
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-fg/30 px-3 text-sm font-semibold"
                 >
                   <Tag className="h-4 w-4" /> Aplicar
                 </button>
               </div>
-              {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
+              {couponError && <p className="mt-1 text-xs text-danger">{couponError}</p>}
             </div>
           )}
         </aside>
@@ -1301,22 +1572,22 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 function StepDot({
   label,
   state,
-  href,
   onClick,
 }: {
   label: string;
   state: 'done' | 'current' | 'todo';
-  href?: string;
   onClick?: () => void;
 }) {
+  // Colores del tema: con negro fijo, en una tienda de fondo oscuro los
+  // círculos y las líneas desaparecían.
   const dot = (
     <span
       className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
         state === 'current'
-          ? 'border-black bg-black text-white'
+          ? 'border-primary bg-primary text-primary-fg'
           : state === 'done'
-            ? 'border-black/40 text-black/70'
-            : 'border-black/20 text-black/30'
+            ? 'border-fg/50 text-fg/80'
+            : 'border-fg/25 text-fg/40'
       }`}
     >
       {state === 'done' ? <Check className="h-3.5 w-3.5" /> : ''}
@@ -1328,7 +1599,6 @@ function StepDot({
       <span className={`text-xs ${state === 'current' ? 'font-semibold' : 'text-fg-muted'}`}>{label}</span>
     </span>
   );
-  if (href) return <a href={href}>{body}</a>;
   if (onClick) return <button onClick={onClick}>{body}</button>;
   return body;
 }

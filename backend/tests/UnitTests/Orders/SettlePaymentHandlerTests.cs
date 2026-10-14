@@ -42,6 +42,8 @@ public class SettlePaymentHandlerTests
         { Confirmed.Add(reservationId); return Task.FromResult(Result.Success()); }
         public Task<Result> ReleaseReservationAsync(Guid tenantId, Guid reservationId, CancellationToken ct = default)
         { Released.Add(reservationId); return Task.FromResult(Result.Success()); }
+        public Task<Result> ExtendReservationAsync(Guid tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default) =>
+            Task.FromResult(Result.Success());
     }
 
     private static Order Orden(Guid? reserva = null)

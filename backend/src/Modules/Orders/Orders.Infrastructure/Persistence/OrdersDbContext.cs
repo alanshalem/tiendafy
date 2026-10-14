@@ -101,6 +101,11 @@ public sealed class OrdersDbContext : DbContext
             .HasColumnName("shipping_cost")
             .HasMaxLength(24)
             .HasDefaultValue(new Money(0, Money.DefaultCurrency));
+        order.Property(o => o.PaymentMethodDiscount)
+            .HasConversion(ModuleDb.MoneyConverter)
+            .HasColumnName("payment_method_discount")
+            .HasMaxLength(24)
+            .HasDefaultValue(new Money(0, Money.DefaultCurrency));
         order.Property(o => o.MpFeeAmount)
             .HasConversion(ModuleDb.NullableMoneyConverter)
             .HasColumnName("mp_fee_amount")
@@ -120,6 +125,8 @@ public sealed class OrdersDbContext : DbContext
         // en el panel. El contador ya lo garantiza; esto frena una escritura a mano.
         order.HasIndex(o => new { o.TenantId, o.Number }).IsUnique();
         order.HasIndex(o => o.PaymentId);
+        // El worker de vencimientos busca las pendientes con plazo vencido.
+        order.HasIndex(o => new { o.Status, o.PaymentDueAtUtc });
         order.Ignore(o => o.DomainEvents);
         order.Ignore(o => o.Total);
         order.Ignore(o => o.Subtotal);
@@ -127,6 +134,9 @@ public sealed class OrdersDbContext : DbContext
         order.Ignore(o => o.IsPending);
         order.Ignore(o => o.RemainingRefundable);
         order.Ignore(o => o.ProductCost);
+        order.Ignore(o => o.IsOfflinePayment);
+        order.Ignore(o => o.ProductsAfterCoupon);
+        order.Ignore(o => o.CouponDiscount);
         order.Ignore(o => o.Label);
 
         order.OwnsMany(o => o.Items, items =>

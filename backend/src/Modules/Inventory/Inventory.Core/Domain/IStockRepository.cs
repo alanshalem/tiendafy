@@ -46,6 +46,9 @@ public interface IStockRepository
     /// <summary>reserved -= qty, available += qty. Marca liberada.</summary>
     Task<Result> ReleaseReservationAsync(TenantId tenantId, Guid reservationId, CancellationToken ct = default);
 
+    /// <summary>Estira el vencimiento de una reserva activa (ver Reservation.ExtendUntil).</summary>
+    Task<Result> ExtendReservationAsync(TenantId tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default);
+
     /// <summary>Libera todas las reservas activas vencidas (job). Devuelve cuántas.</summary>
     Task<int> ReleaseExpiredAsync(DateTime nowUtc, CancellationToken ct = default);
 

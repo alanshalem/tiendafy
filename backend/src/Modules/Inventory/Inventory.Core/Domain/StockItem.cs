@@ -120,6 +120,19 @@ public sealed class Reservation : Entity
         return Result.Success();
     }
 
+    /// <summary>
+    /// Estira el vencimiento de una reserva activa (nunca lo acorta). La usa el
+    /// pago por transferencia: el comprador tiene horas para pagar, no los 30
+    /// minutos de un checkout con tarjeta.
+    /// </summary>
+    public Result ExtendUntil(DateTime expiresAtUtc)
+    {
+        if (Status != ReservationStatus.Active)
+            return Result.Failure(Error.Conflict("Reservation.NotActive", "La reserva de stock ya no está activa."));
+        if (expiresAtUtc > ExpiresAtUtc) ExpiresAtUtc = expiresAtUtc;
+        return Result.Success();
+    }
+
     public Result Release()
     {
         if (Status != ReservationStatus.Active)

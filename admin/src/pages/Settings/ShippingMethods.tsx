@@ -25,6 +25,8 @@ interface ShippingMethod {
   pickupAddress: string | null;
   active: boolean;
   sortOrder: number;
+  /** "Gratis desde $X" (centavos): con ese subtotal de productos, no se cobra. */
+  freeAbove?: MoneyDto | null;
 }
 
 /** Body de POST/PUT: price es decimal en unidad mayor (ej. 1500.50). */
@@ -36,6 +38,8 @@ interface ShippingMethodRequest {
   pickupAddress?: string | null;
   active?: boolean;
   sortOrder?: number;
+  /** Unidad mayor, como el precio. null = siempre cobra su precio. */
+  freeAbove?: number | null;
 }
 
 const KIND_LABEL: Record<ShippingKind, string> = {
@@ -193,6 +197,11 @@ export function ShippingMethodsPage() {
                     )}
                     {m.description && <span className="text-fg-muted"> · {m.description}</span>}
                   </div>
+                  {m.freeAbove && (
+                    <p className="mt-0.5 text-xs font-medium text-success">
+                      Gratis desde {formatMoney(m.freeAbove.amount, m.freeAbove.currency)}
+                    </p>
+                  )}
                   {m.kind === 'PICKUP' && m.pickupAddress && (
                     <p className="mt-0.5 truncate text-xs text-fg-muted">{m.pickupAddress}</p>
                   )}
@@ -276,6 +285,7 @@ function MethodDialog({
   const [description, setDescription] = useState(method?.description ?? '');
   const [pickupAddress, setPickupAddress] = useState(method?.pickupAddress ?? '');
   const [active, setActive] = useState(method?.active ?? true);
+  const [freeAbove, setFreeAbove] = useState(method?.freeAbove ? String(method.freeAbove.amount / 100) : '');
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
 
@@ -283,7 +293,10 @@ function MethodDialog({
   const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 0;
   const nameValid = name.trim().length > 0;
   const pickupValid = kind !== 'PICKUP' || pickupAddress.trim().length > 0;
-  const valid = nameValid && priceValid && pickupValid;
+  const parsedFreeAbove = freeAbove.trim() === '' ? null : Number(freeAbove.replace(/\D/g, ''));
+  const freeAboveValid =
+    parsedFreeAbove === null || (Number.isFinite(parsedFreeAbove) && parsedFreeAbove >= 0);
+  const valid = nameValid && priceValid && pickupValid && freeAboveValid;
 
   const submit = async () => {
     setTouched(true);
@@ -297,6 +310,7 @@ function MethodDialog({
       pickupAddress: kind === 'PICKUP' ? pickupAddress.trim() : null,
       active,
       sortOrder: method?.sortOrder ?? nextSortOrder,
+      freeAbove: parsedFreeAbove && parsedFreeAbove > 0 ? parsedFreeAbove : null,
     };
     try {
       if (method) await api.put<ShippingMethod>(`/api/v1/admin/shipping/methods/${method.id}`, body);
@@ -385,6 +399,32 @@ function MethodDialog({
             <p className="mt-1 text-xs text-fg-muted">Dejalo en 0 para ofrecerlo gratis.</p>
           )}
         </div>
+
+        {parsedPrice > 0 && (
+          <div>
+            <label htmlFor={`${fid}-6`} className="mb-1 block text-sm font-medium text-fg">
+              Gratis desde (opcional)
+            </label>
+            <input
+              id={`${fid}-6`}
+              aria-label="Gratis desde (opcional)"
+              value={freeAbove}
+              onChange={(e) => setFreeAbove(e.target.value)}
+              inputMode="decimal"
+              placeholder="Ej.: 50000"
+              className={inputCls}
+            />
+            {touched && !freeAboveValid ? (
+              <p className="mt-1 text-xs text-danger">Ingresá un monto válido.</p>
+            ) : (
+              <p className="mt-1 text-xs text-fg-muted">
+                Con compras de este monto o más (en productos, antes de cupones), este envío no se cobra. Es
+                lo que muestra la barra «te faltan $X para el envío gratis» del carrito: con varios medios, la
+                barra usa el monto más bajo.
+              </p>
+            )}
+          </div>
+        )}
 
         <div>
           <label htmlFor={`${fid}-4`} className="mb-1 block text-sm font-medium text-fg">

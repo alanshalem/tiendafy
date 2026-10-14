@@ -187,6 +187,9 @@ public static class CheckoutEndpoints
         m.PickupAddress,
         m.Active,
         m.SortOrder,
+        // "Gratis desde $X" (null = siempre cobra su precio): el checkout lo
+        // muestra y el submit lo aplica con el subtotal del servidor.
+        freeAbove = m.FreeAbove is { } f ? ApiJson.MoneyJson(f) : null,
     };
 
     private static object ToDto(CheckoutSession session) => new

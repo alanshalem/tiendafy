@@ -48,6 +48,9 @@ public class SubmitCheckoutSagaTests
             Released.Add(reservationId);
             return Task.FromResult(Result.Success());
         }
+
+        public Task<Result> ExtendReservationAsync(Guid tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default) =>
+            Task.FromResult(Result.Success());
     }
 
     private static CheckoutSession TwoItemSession(out Guid variantA, out Guid variantB)

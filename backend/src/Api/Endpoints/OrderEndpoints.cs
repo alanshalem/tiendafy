@@ -618,12 +618,16 @@ public static class OrderEndpoints
         return group;
     }
 
-    /// <summary>Crea la Order desde un checkout enviado, aplicando el cupón validado server-side.</summary>
-    private static async Task<Result<Order>> BuildOrderAsync(
+    /// <summary>
+    /// Crea la Order desde un checkout enviado, aplicando el cupón validado
+    /// server-side. Con <paramref name="offline"/>, además el descuento y el
+    /// plazo de la transferencia o el efectivo (ver Order.UseOfflinePayment).
+    /// </summary>
+    internal static async Task<Result<Order>> BuildOrderAsync(
         TenantId tenantId, Guid sessionId, string? couponCode, string? utmSource,
         ICheckoutRepository checkouts, DiscountsDbContext discountsDb, CreateOrderHandler createOrder,
         Catalog.Contracts.ICatalogCheckoutQuery catalogQuery, IShippingMethodRepository shippingMethods,
-        CancellationToken ct)
+        CancellationToken ct, OfflinePaymentPlan? offline = null)
     {
         var session = await checkouts.GetByIdAsync(tenantId, sessionId, ct);
         if (session is null) return Result.Failure<Order>(Error.NotFound("Checkout", sessionId));
@@ -687,14 +691,15 @@ public static class OrderEndpoints
             DocNumber: session.DocNumber,
             Notes: session.Notes,
             UtmSource: utmSource,
-            IsPickup: isPickup), ct);
+            IsPickup: isPickup,
+            OfflinePayment: offline), ct);
     }
 
     private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
         string.IsNullOrWhiteSpace(i.VariantDescription) ? i.ProductName : $"{i.ProductName} · {i.VariantDescription}",
         i.Quantity, i.UnitPrice.ToDecimal());
 
-    private static object ToDto(Order order) => new
+    internal static object ToDto(Order order) => new
     {
         order.Id,
         order.Number,
@@ -717,6 +722,10 @@ public static class OrderEndpoints
         order.CancelReason,
         subtotal = ApiJson.MoneyJson(order.Subtotal),
         discount = ApiJson.MoneyJson(order.DiscountAmount),
+        // La parte del descuento que vino de pagar por transferencia o en
+        // efectivo (ya incluida en discount), y hasta cuándo se espera el pago.
+        paymentMethodDiscount = ApiJson.MoneyJson(order.PaymentMethodDiscount),
+        order.PaymentDueAtUtc,
         shipping = ApiJson.MoneyJson(order.ShippingCost),
         shippingMethod = order.ShippingMethodName,
         isPickup = order.IsPickup,

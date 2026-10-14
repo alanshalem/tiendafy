@@ -57,6 +57,7 @@ export type {
   TestimonialsData,
 } from '@tiendafy/types';
 import type { ButtonStyle, ProductListConfig } from '@tiendafy/types';
+import { applyStoreOffers, type StoreOffers } from './store-offers';
 
 /** Defaults del storefront: incluye las secciones iniciales sembradas. */
 export const defaultTheme: ThemeConfig = { ...baseTheme, sections: DEFAULT_SECTIONS };
@@ -71,8 +72,24 @@ export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig
   // era no-store y cada vista de página pedía el diseño entero. Al publicar, el
   // backend avisa y la etiqueta se vence al toque; REVALIDATE.theme queda de
   // respaldo. El borrador del editor no pasa por acá (fetchDraftTheme).
-  const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, cacheFor('theme', tenantId));
-  return mergeTheme(cfg);
+  const [cfg, offers] = await Promise.all([
+    apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, cacheFor('theme', tenantId)),
+    fetchStoreOffers(tenantId),
+  ]);
+  return applyStoreOffers(mergeTheme(cfg), offers);
+}
+
+/**
+ * Descuento por transferencia, cuotas y envío gratis de la tienda (ver
+ * lib/store-offers). Viajan con el tema porque son lo que el tema muestra; un
+ * error acá no tumba la página: el tema sigue con sus propios números. Misma
+ * etiqueta que el diseño: guardar las opciones de pago o un medio de envío
+ * la vence desde el backend.
+ */
+async function fetchStoreOffers(tenantId: string): Promise<StoreOffers | null> {
+  return apiGetTenant<StoreOffers>('/api/v1/store-offers', tenantId, cacheFor('theme', tenantId)).catch(
+    () => null,
+  );
 }
 
 /**
@@ -89,7 +106,7 @@ export async function fetchDraftTheme(tenantId: string, previewToken?: string): 
     cache: 'no-store',
     headers: { 'X-Preview-Token': previewToken },
   }).catch(() => null);
-  return cfg ? mergeTheme(cfg) : null;
+  return cfg ? applyStoreOffers(mergeTheme(cfg), await fetchStoreOffers(tenantId)) : null;
 }
 
 /**
@@ -188,6 +205,12 @@ export function mutedText(theme: ThemeConfig): string {
   return readableOn(mixRgb(text, bg, 0.4), [bg, mixRgb(bg, '0 0 0', 0.05)]);
 }
 
+/** Un color de estado como texto: a 4,5:1 sobre el fondo y sobre un sombreado leve del texto. */
+export function statusInk(theme: ThemeConfig, rgb: string): string {
+  const { text, bg } = theme.colors;
+  return readableOn(rgb, [bg, mixRgb(bg, text, 0.06)]);
+}
+
 /** Radio de cada forma de botón. 'auto' no define nada: sigue a los bordes globales. */
 const BUTTON_RADIUS: Record<ButtonStyle['shape'], string | null> = {
   auto: null,
@@ -235,6 +258,10 @@ export function themeToStyle(theme: ThemeConfig): Record<string, string> {
     '--color-surface': c.bg,
     '--color-fg': c.text,
     '--color-fg-muted': mutedText(theme),
+    // Rojo y verde de estado ("Sin stock", "Quitar", descuentos) ajustados al
+    // fondo de la tienda: el red-600 fijo daba 3:1 sobre un fondo oscuro.
+    '--color-danger': statusInk(theme, '220 38 38'),
+    '--color-success': statusInk(theme, '22 163 74'),
     '--store-header-bg': theme.header.bg,
     '--font-heading': FONT_FAMILIES[theme.fonts.heading] ?? FONT_FAMILIES.sans!,
     '--font-body': FONT_FAMILIES[theme.fonts.body] ?? FONT_FAMILIES.sans!,

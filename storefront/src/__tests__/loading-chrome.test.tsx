@@ -27,6 +27,9 @@ import { renderPending } from '../test/server';
 const CHROME = [
   /^\/api\/v1\/tenants\/resolve$/,
   /^\/api\/v1\/theme(\/|$)/,
+  // Lo que la tienda anuncia (descuento, cuotas, envío gratis) viaja con el
+  // diseño: misma Data Cache y mismo tiempo de vida (ver lib/theme).
+  /^\/api\/v1\/store-offers$/,
   /^\/api\/v1\/products$/,
   /^\/api\/v1\/(products|pages)\/by-slug\//,
 ];

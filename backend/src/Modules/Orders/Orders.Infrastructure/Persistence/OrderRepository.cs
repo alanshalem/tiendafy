@@ -108,7 +108,11 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
                 break;
             case OrderPayment.Cash or OrderPayment.Transfer or OrderPayment.CurrentAccount:
                 var paymentId = OrderPayment.ManualPaymentId(filter.Payment);
-                query = query.Where(o => o.PaymentId == paymentId);
+                // Cobrada a mano (manual-transfer), o una transferencia/efectivo
+                // del checkout que todavía espera que el comercio registre el pago.
+                var provider = filter.Payment;
+                query = query.Where(o => o.PaymentId == paymentId
+                    || (o.PaymentId == null && o.PaymentProvider == provider));
                 break;
         }
 

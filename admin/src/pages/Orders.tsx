@@ -60,6 +60,12 @@ export interface Order {
   currency: string;
   paymentId: string | null;
   preferenceId?: string | null;
+  /** mercadopago | payway | transfer | cash (los dos últimos se cobran a mano). */
+  paymentProvider?: string;
+  /** Transferencia/efectivo: hasta cuándo se guarda el stock esperando el pago. */
+  paymentDueAtUtc?: string | null;
+  /** La parte de `discount` que vino de pagar por transferencia o en efectivo. */
+  paymentMethodDiscount?: Money | null;
   couponCode: string | null;
   createdAtUtc: string;
   paidAtUtc: string | null;
@@ -296,6 +302,30 @@ export function OrdersPage() {
     [load, prompt, toast],
   );
 
+  // Transferencia o efectivo del checkout: el pago lo registra el comercio
+  // cuando ve la plata (stock, email al comprador, factura y cupón).
+  const registerPayment = useCallback(
+    async (o: Order) => {
+      const ok = await confirm({
+        title: 'Registrar pago',
+        message: `¿Ya recibiste ${money(o.total)} de ${o.buyerName || o.buyerEmail}? La venta pasa a pagada, se descuenta el stock y le avisamos al comprador.`,
+        confirmLabel: 'Registrar pago',
+      });
+      if (!ok) return;
+      setBusy(o.id);
+      try {
+        await api.post(`/api/v1/orders/${o.id}/mark-paid`, {});
+        toast('Pago registrado', { variant: 'success' });
+        await load();
+      } catch (e) {
+        toast(errMsg(e, 'No se pudo registrar el pago.'), { variant: 'error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [confirm, load, toast],
+  );
+
   // Deep-link desde Mensajes o Presupuestos: /ventas?order=<id> abre esa venta.
   const [urlParams] = useSearchParams();
   const focusOrder = urlParams.get('order');
@@ -401,6 +431,8 @@ export function OrdersPage() {
     onFulfill: fulfill,
     onRefund: setRefunding,
     onCancel: cancel,
+    canRegisterPayment: can('orders.create'),
+    onRegisterPayment: registerPayment,
   };
 
   return (

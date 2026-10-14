@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
 import { PreviewContext, usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
+import { useStoreOffers } from './store-offers-context';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import {
   fetchVariantSnapshots,
@@ -230,7 +232,7 @@ export function PriceChangeNotice({
 /** El problema de una línea (agotada, despublicada, menos stock), si tiene. */
 export function LineIssueText({ issue }: { issue: LineIssue | undefined }) {
   if (!issue) return null;
-  return <p className="mt-1 text-xs font-medium text-red-600">{issueText(issue)}</p>;
+  return <p className="mt-1 text-xs font-medium text-danger">{issueText(issue)}</p>;
 }
 
 interface CartConfig {
@@ -283,12 +285,16 @@ export function CartDrawer({
   cart,
   suggested: all = [],
   sample,
+  whatsapp,
 }: {
   cart?: CartConfig;
   suggested?: Suggested[];
   /** Vista previa: el producto con el que se muestra el carrito si está vacío. */
   sample?: Suggested;
+  /** WhatsApp de la tienda: la salida cuando todavía no cobra online. */
+  whatsapp?: string;
 }) {
+  const offers = useStoreOffers();
   // Un sugerido agotado no se ofrece; uno con varias variantes lleva a su
   // ficha (agregar "la primera" era venderle un talle que no eligió).
   const suggested = all.filter((s) => !(s.stock != null && s.stock <= 0));
@@ -320,6 +326,8 @@ export function CartDrawer({
   const totalAmount = sampleLines ? sampleLines[0]!.priceAmount : realTotal;
   const setQty = sampleLines ? noop : realSetQty;
   const remove = sampleLines ? noop : realRemove;
+  // El umbral sale de los medios de envío (ver lib/store-offers): el mismo
+  // número con el que el checkout pone el envío en cero.
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
   const progress = threshold > 0 ? Math.min(100, (totalAmount / threshold) * 100) : 0;
@@ -342,7 +350,7 @@ export function CartDrawer({
   }, [couponKey]);
 
   // A11y: enfoca el drawer al abrir, atrapa el Tab dentro y restaura el foco al cerrar.
-  const drawerRef = useFocusTrap<HTMLElement>(open);
+  const drawerRef = useFocusTrap<HTMLDivElement>(open);
 
   // Cada vez que se abre, los precios y el stock se traen de nuevo: lo
   // guardado es de cuando se agregó, quizás hace días.
@@ -394,7 +402,9 @@ export function CartDrawer({
         className={`fixed inset-0 z-50 bg-black/40 transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         onClick={() => setOpen(false)}
       />
-      <aside
+      {/* Un div con rol de diálogo y no un <aside>: aside es una región
+          "complementaria" del documento, y el carrito es un diálogo modal. */}
+      <div
         ref={drawerRef}
         tabIndex={-1}
         role="dialog"
@@ -412,7 +422,7 @@ export function CartDrawer({
       >
         {/* Handle del bottom sheet (solo mobile). */}
         <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-fg/20 sm:hidden" />
-        <div className="flex items-center justify-between border-b border-black/10 px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-fg/10 px-5 py-3.5">
           <h2 id="cart-drawer-title" className="text-lg font-bold">
             Tu carrito
           </h2>
@@ -425,17 +435,20 @@ export function CartDrawer({
           </button>
         </div>
 
-        {cart?.freeShippingBar && lines.length > 0 && (
-          <div className="border-b border-black/10 px-5 py-3 text-xs">
+        {cart?.freeShippingBar && threshold > 0 && lines.length > 0 && (
+          <div className="border-b border-fg/10 px-5 py-3 text-xs">
             {remaining > 0 ? (
               <span className="inline-flex items-center gap-1">
                 Te faltan <strong>{formatMoney(remaining, currency)}</strong> para el envío gratis{' '}
                 <Truck className="h-4 w-4" />
               </span>
             ) : (
-              <span className="font-semibold text-green-600">¡Tenés envío gratis! 🎉</span>
+              <span className="font-semibold text-success">
+                ¡Tenés envío gratis
+                {offers?.freeShipping?.methodName ? ` con ${offers.freeShipping.methodName}` : ''}!
+              </span>
             )}
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fg/10">
               <div
                 className="h-full rounded-full bg-primary transition-all"
                 style={{ width: `${progress}%` }}
@@ -459,7 +472,7 @@ export function CartDrawer({
                 </p>
               )}
               {lines.map((l) => (
-                <div key={l.variantId} className="flex gap-3 border-b border-black/10 pb-3">
+                <div key={l.variantId} className="flex gap-3 border-b border-fg/10 pb-3">
                   {l.image ? (
                     <Image
                       src={l.image}
@@ -471,7 +484,7 @@ export function CartDrawer({
                   ) : (
                     <InitialFallback
                       name={l.productName}
-                      className="flex h-16 w-16 items-center justify-center rounded-md bg-black/5 text-lg font-bold text-fg-muted"
+                      className="flex h-16 w-16 items-center justify-center rounded-md bg-fg/5 text-lg font-bold text-fg-muted"
                     />
                   )}
                   <div className="min-w-0 flex-1">
@@ -486,7 +499,7 @@ export function CartDrawer({
                         aria-label="Restar"
                         className="-m-2 inline-flex p-2"
                       >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-fg/15">
                           <Minus className="h-4 w-4" />
                         </span>
                       </button>
@@ -498,13 +511,13 @@ export function CartDrawer({
                         disabled={l.quantity >= (availability?.[l.variantId] ?? Infinity)}
                         className="-m-2 inline-flex p-2 disabled:opacity-40"
                       >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-fg/15">
                           <Plus className="h-4 w-4" />
                         </span>
                       </button>
                       <button
                         onClick={() => remove(l.variantId)}
-                        className="-my-2.5 ml-auto py-2.5 text-xs text-red-600 hover:underline"
+                        className="-my-2.5 ml-auto py-2.5 text-xs text-danger hover:underline"
                       >
                         Quitar
                       </button>
@@ -517,7 +530,7 @@ export function CartDrawer({
                 </div>
               ))}
             </div>
-            <div className="border-t border-black/10 px-5 py-4">
+            <div className="border-t border-fg/10 px-5 py-4">
               {suggested.length > 0 && (
                 <div className="mb-4">
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
@@ -538,7 +551,7 @@ export function CartDrawer({
                           ) : (
                             <InitialFallback
                               name={s.name}
-                              className="flex h-20 w-20 items-center justify-center rounded-md bg-black/5 text-base font-bold text-fg-muted"
+                              className="flex h-20 w-20 items-center justify-center rounded-md bg-fg/5 text-base font-bold text-fg-muted"
                             />
                           )}
                           <div className="mt-1 truncate text-[0.65rem]">{s.name}</div>
@@ -578,8 +591,8 @@ export function CartDrawer({
               {/* Cupón de descuento */}
               <div className={cart?.showCoupon === false ? 'hidden' : 'mb-3'}>
                 {coupon ? (
-                  <div className="flex items-center justify-between rounded-md bg-black/5 px-3 py-2 text-sm">
-                    <span className="inline-flex items-center gap-1.5 font-medium text-green-600">
+                  <div className="flex items-center justify-between rounded-md bg-fg/5 px-3 py-2 text-sm">
+                    <span className="inline-flex items-center gap-1.5 font-medium text-success">
                       <Tag className="h-4 w-4" /> {coupon.code}
                       {coupon.freeShipping ? ' · envío gratis' : ''}
                     </span>
@@ -589,7 +602,7 @@ export function CartDrawer({
                         setCouponInput('');
                         setCouponError(null);
                       }}
-                      className="text-xs text-red-600 hover:underline"
+                      className="text-xs text-danger hover:underline"
                     >
                       Quitar
                     </button>
@@ -612,40 +625,70 @@ export function CartDrawer({
                     <button
                       type="submit"
                       disabled={checking || !couponInput.trim()}
-                      className="h-9 shrink-0 rounded-md border border-black/20 px-3 text-sm font-semibold disabled:opacity-50"
+                      className="h-9 shrink-0 rounded-md border border-fg/20 px-3 text-sm font-semibold disabled:opacity-50"
                     >
                       {checking ? '…' : 'Aplicar'}
                     </button>
                   </form>
                 )}
-                {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
+                {couponError && <p className="mt-1 text-xs text-danger">{couponError}</p>}
               </div>
 
               {discount > 0 && (
-                <div className="mb-1 flex items-center justify-between text-sm text-green-600">
+                <div className="mb-1 flex items-center justify-between text-sm text-success">
                   <span>Descuento ({coupon?.code})</span>
                   <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
                 </div>
               )}
-              <div className="mb-3 flex items-center justify-between text-base font-bold">
-                <span>Total</span>
+              {/* "Subtotal" y no "Total": el envío todavía no se eligió, y llamar
+                  total a algo que después crece es lo que hace abandonar. */}
+              <div className="flex items-center justify-between text-base font-bold">
+                <span>Subtotal</span>
                 <span className="tabular-nums">{formatMoney(finalTotal, currency)}</span>
               </div>
+              <PriceWithoutTaxes amount={finalTotal} currency={currency} className="text-right" />
+              <p className="mb-3 text-xs text-fg-muted">
+                {threshold > 0 && remaining === 0
+                  ? `Envío gratis${offers?.freeShipping?.methodName ? ` con ${offers.freeShipping.methodName}` : ''}.`
+                  : 'El envío se calcula en el próximo paso.'}
+              </p>
               {cart?.notice && (
                 <p className="mb-3 rounded-md bg-fg/5 px-3 py-2 text-xs text-fg-muted">{cart.notice}</p>
               )}
               {blocked && (
-                <p className="mb-2 text-xs font-medium text-red-600">
+                <p className="mb-2 text-xs font-medium text-danger">
                   Revisá los productos marcados para poder seguir.
                 </p>
               )}
-              <button
-                onClick={() => beginCheckout()}
-                disabled={blocked}
-                className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {cart?.checkoutButtonText || 'Iniciar compra'}
-              </button>
+              {offers && !offers.canCheckout ? (
+                // La tienda todavía no cobra online: se dice ACÁ, antes de que el
+                // comprador llene el checkout, y la compra sigue por WhatsApp.
+                <div className="space-y-2">
+                  <p className="text-xs text-fg-muted">
+                    Esta tienda todavía no cobra online. Escribinos y coordinamos el pago y la entrega.
+                  </p>
+                  {whatsapp && (
+                    <a
+                      href={`https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+                        `¡Hola! Quiero comprar: ${lines.map((l) => `${l.quantity} × ${l.productName}`).join(', ')}.`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full rounded-md bg-primary py-3 text-center text-sm font-semibold text-primary-fg"
+                    >
+                      Comprar por WhatsApp
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => beginCheckout()}
+                  disabled={blocked}
+                  className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {cart?.checkoutButtonText || 'Iniciar compra'}
+                </button>
+              )}
               {/* Volver al catálogo sin tener que cerrar el panel a mano. */}
               {cart?.showContinue !== false && (
                 <button
@@ -658,7 +701,7 @@ export function CartDrawer({
             </div>
           </>
         )}
-      </aside>
+      </div>
     </>
   );
 }

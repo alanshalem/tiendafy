@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Ban, Loader2, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
+import { Ban, Banknote, Loader2, PackageCheck, Truck, Undo2, UserRound } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
@@ -55,6 +55,9 @@ export interface OrderActions {
   onFulfill: (o: Order) => void;
   onRefund: (o: Order) => void;
   onCancel: (o: Order) => void;
+  /** Transferencia o efectivo: registrar que la plata llegó (permiso de cargar ventas). */
+  canRegisterPayment?: boolean;
+  onRegisterPayment?: (o: Order) => void;
 }
 
 /**
@@ -75,7 +78,12 @@ export function OrderDetail({
   onFulfill,
   onRefund,
   onCancel,
+  canRegisterPayment = false,
+  onRegisterPayment,
 }: { order: Order; busy: boolean } & OrderActions) {
+  const offline = o.paymentProvider === 'transfer' || o.paymentProvider === 'cash';
+  const methodDiscount = o.paymentMethodDiscount?.amount ?? 0;
+  const couponDiscount = (o.discount?.amount ?? 0) - methodDiscount;
   const paidLike = o.status === 'PAID' || o.status === 'FULFILLED' || o.status === 'PARTIALLYREFUNDED';
   return (
     <div className="space-y-3">
@@ -92,10 +100,18 @@ export function OrderDetail({
             </span>
           </div>
         ))}
-        {o.discount && o.discount.amount > 0 && (
+        {o.discount && couponDiscount > 0 && (
           <div className="flex justify-between text-xs text-success">
             <span>Descuento{o.couponCode ? ` (${o.couponCode})` : ''}</span>
-            <span className="tabular-nums">- {money(o.discount)}</span>
+            <span className="tabular-nums">
+              - {money({ amount: couponDiscount, currency: o.discount.currency })}
+            </span>
+          </div>
+        )}
+        {o.paymentMethodDiscount && methodDiscount > 0 && (
+          <div className="flex justify-between text-xs text-success">
+            <span>Descuento por {o.paymentProvider === 'cash' ? 'pago en efectivo' : 'transferencia'}</span>
+            <span className="tabular-nums">- {money(o.paymentMethodDiscount)}</span>
           </div>
         )}
         {o.shipping && o.shipping.amount > 0 && (
@@ -187,6 +203,26 @@ export function OrderDetail({
       )}
       {(paidLike || o.status === 'REFUNDED') && (
         <FiscalPanel orderId={o.id} orderStatus={o.status} buyerDoc={o.docNumber} canEmit={canEmit} />
+      )}
+      {offline && o.status === 'PENDINGPAYMENT' && (
+        <div className="rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-xs text-warning">
+          {o.paymentProvider === 'cash' ? 'Paga en efectivo al retirar' : 'Paga por transferencia'}: falta
+          registrar el pago
+          {o.paymentDueAtUtc ? `. Si no, se cancela sola el ${formatDateTime(o.paymentDueAtUtc)}.` : '.'}
+        </div>
+      )}
+      {offline && o.status === 'PENDINGPAYMENT' && canRegisterPayment && onRegisterPayment && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => onRegisterPayment(o)}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}{' '}
+            Registrar pago
+          </button>
+        </div>
       )}
       {o.status === 'PENDINGPAYMENT' && canCancel && (
         <div className="flex flex-wrap items-center gap-2 pt-1">

@@ -15,6 +15,8 @@ import { WhatsAppFab } from './WhatsAppFab';
 import { ComingSoon } from './ComingSoon';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
+import { applyStoreOffers, offersOf } from '@/lib/store-offers';
+import { StoreOffersContext } from './store-offers-context';
 import { fetchSectionProductsClient } from '@/lib/catalog-client';
 import {
   productsBySection,
@@ -94,6 +96,7 @@ function Inner({
         cart={theme.cart}
         suggested={theme.cart.showSuggested ? products.slice(0, 3) : []}
         sample={products[0]}
+        whatsapp={theme.whatsappButton.phone || theme.contact.whatsapp}
       />
     </div>
   );
@@ -124,7 +127,10 @@ export function StorefrontView({
       // debe poder inyectar un theme (llegaría con customCss sin sanear).
       if (e.origin !== ADMIN_ORIGIN) return;
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
-      if (e.data?.type === EDITOR_MSG.theme && e.data.theme) setTheme(mergeTheme(e.data.theme));
+      // Las ofertas de la tienda (descuento, cuotas, envío gratis) no son del
+      // diseño: se vuelven a aplicar sobre lo que manda el editor.
+      if (e.data?.type === EDITOR_MSG.theme && e.data.theme)
+        setTheme(applyStoreOffers(mergeTheme(e.data.theme), offersOf(initialTheme)));
       if (e.data?.type === EDITOR_MSG.previewComingSoon) {
         setComingSoon(e.data.show === true);
         window.scrollTo({ top: 0 });
@@ -147,7 +153,7 @@ export function StorefrontView({
       window.parent.postMessage({ type: EDITOR_MSG.previewReady }, ADMIN_ORIGIN);
     }
     return () => window.removeEventListener('message', handler);
-  }, [live]);
+  }, [live, initialTheme]);
 
   // Live: el tema llega por postMessage y una sección puede cambiar de
   // origen (otros elegidos, otra categoría…). Se pide solo lo que no se pidió
@@ -200,54 +206,56 @@ export function StorefrontView({
     >
       <IconKitContext.Provider value={theme.iconKit}>
         <CashDiscountContext.Provider value={theme.productDetail.cashDiscountPercent || 0}>
-          {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
-          {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
-          {!live && tenantId && <Analytics tenantId={tenantId} />}
-          {/* En la vista previa del editor no: son datos de prueba, y ensuciarían
+          <StoreOffersContext.Provider value={offersOf(theme)}>
+            {/* sanitizeCss también acá: el theme puede venir del postMessage live (no pasó por el backend). */}
+            {theme.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(theme.customCss) }} />}
+            {!live && tenantId && <Analytics tenantId={tenantId} />}
+            {/* En la vista previa del editor no: son datos de prueba, y ensuciarían
               la medición de la tienda con las visitas de quien la está armando. */}
-          {!live && tenantId && <TrackingTags tenantId={tenantId} />}
-          <PreviewContext.Provider value={!!live}>
-            <LiveThemeContext.Provider value={live ? theme : null}>
-              <AuthProvider storeKey={tenantId}>
-                <FavoritesProvider storeKey={tenantId}>
-                  <CartProvider storeKey={tenantId}>
-                    <SectionProductsContext.Provider value={bySection}>
-                      <DarkPageContext.Provider value={darkPage}>
-                        {comingSoon ? (
-                          <>
-                            <ComingSoon theme={theme} tenantName={tenantName} tenantId={tenantId} />
-                            {/* Que no se confunda con "ya está activa". */}
-                            <div className="fixed left-1/2 top-3 z-[80] -translate-x-1/2 rounded-full bg-black/75 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
-                              {theme.comingSoon.enabled
-                                ? 'Activada: al publicar, tus visitantes ven esta página'
-                                : 'Apagada: tus visitantes siguen viendo la tienda'}
-                            </div>
-                          </>
-                        ) : (
-                          <Inner tenantName={tenantName} theme={theme} products={products}>
-                            {children}
-                          </Inner>
-                        )}
-                      </DarkPageContext.Provider>
-                    </SectionProductsContext.Provider>
-                  </CartProvider>
-                </FavoritesProvider>
-              </AuthProvider>
-            </LiveThemeContext.Provider>
-          </PreviewContext.Provider>
-          {/* En la vista previa aparece aunque falte el número: así se ve dónde
+            {!live && tenantId && <TrackingTags tenantId={tenantId} />}
+            <PreviewContext.Provider value={!!live}>
+              <LiveThemeContext.Provider value={live ? theme : null}>
+                <AuthProvider storeKey={tenantId}>
+                  <FavoritesProvider storeKey={tenantId}>
+                    <CartProvider storeKey={tenantId}>
+                      <SectionProductsContext.Provider value={bySection}>
+                        <DarkPageContext.Provider value={darkPage}>
+                          {comingSoon ? (
+                            <>
+                              <ComingSoon theme={theme} tenantName={tenantName} tenantId={tenantId} />
+                              {/* Que no se confunda con "ya está activa". */}
+                              <div className="fixed left-1/2 top-3 z-[80] -translate-x-1/2 rounded-full bg-black/75 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
+                                {theme.comingSoon.enabled
+                                  ? 'Activada: al publicar, tus visitantes ven esta página'
+                                  : 'Apagada: tus visitantes siguen viendo la tienda'}
+                              </div>
+                            </>
+                          ) : (
+                            <Inner tenantName={tenantName} theme={theme} products={products}>
+                              {children}
+                            </Inner>
+                          )}
+                        </DarkPageContext.Provider>
+                      </SectionProductsContext.Provider>
+                    </CartProvider>
+                  </FavoritesProvider>
+                </AuthProvider>
+              </LiveThemeContext.Provider>
+            </PreviewContext.Provider>
+            {/* En la vista previa aparece aunque falte el número: así se ve dónde
               va y cómo queda mientras se completa el panel. */}
-          {theme.whatsappButton?.enabled && (theme.whatsappButton.phone || live) && !comingSoon && (
-            <WhatsAppFab
-              phone={theme.whatsappButton.phone}
-              message={theme.whatsappButton.message}
-              storeName={tenantName}
-              logo={theme.logo}
-              showPreview={theme.whatsappButton.showPreview !== false}
-              position={theme.whatsappButton.position}
-              label={theme.whatsappButton.label}
-            />
-          )}
+            {theme.whatsappButton?.enabled && (theme.whatsappButton.phone || live) && !comingSoon && (
+              <WhatsAppFab
+                phone={theme.whatsappButton.phone}
+                message={theme.whatsappButton.message}
+                storeName={tenantName}
+                logo={theme.logo}
+                showPreview={theme.whatsappButton.showPreview !== false}
+                position={theme.whatsappButton.position}
+                label={theme.whatsappButton.label}
+              />
+            )}
+          </StoreOffersContext.Provider>
         </CashDiscountContext.Provider>
       </IconKitContext.Provider>
     </div>

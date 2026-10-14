@@ -207,6 +207,27 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return Result.Success();
     }
 
+    public async Task<Result> ExtendReservationAsync(
+        TenantId tenantId, Guid reservationId, DateTime expiresAtUtc, CancellationToken ct = default)
+    {
+        var reservation = await context.Reservations
+            .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Id == reservationId, ct);
+        if (reservation is null)
+            return Result.Failure(Error.NotFound("Reservation", reservationId));
+
+        var extended = reservation.ExtendUntil(expiresAtUtc);
+        if (extended.IsFailure) return extended;
+
+        // Condicional sobre el estado: si el job de vencidas la liberó entre la
+        // lectura y acá, no se revive una reserva cuyo stock ya volvió a la venta.
+        var updated = await context.Reservations
+            .Where(r => r.Id == reservationId && r.Status == ReservationStatus.Active)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ExpiresAtUtc, reservation.ExpiresAtUtc), ct);
+        return updated == 1
+            ? Result.Success()
+            : Result.Failure(Error.Conflict("Reservation.NotActive", "La reserva de stock ya no está activa."));
+    }
+
     public async Task<int> ReleaseExpiredAsync(DateTime nowUtc, CancellationToken ct = default)
     {
         // Lote chico por pasada: el job corre seguido; sin locks largos.

@@ -15,6 +15,8 @@ import {
   useCart,
   type CartLine,
 } from '../components/store/cart';
+import { StoreOffersContext } from '../components/store/store-offers-context';
+import type { StoreOffers } from '../lib/store-offers';
 import { fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
@@ -219,7 +221,7 @@ describe('carrito', () => {
   it('regresión: cerrado no se alcanza con Tab ni lo anuncia un lector de pantalla', async () => {
     const user = await show();
     await user.keyboard('{Escape}');
-    const aside = document.querySelector('aside')!;
+    const aside = document.querySelector('[role="dialog"]')!;
     expect(aside).toHaveAttribute('aria-hidden', 'true');
     expect(aside).toHaveAttribute('inert');
     expect(screen.queryByRole('button', { name: 'Sumar' })).not.toBeInTheDocument();
@@ -307,5 +309,64 @@ describe('carrito', () => {
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(focusables.at(-1));
     expect(buttons.length).toBeGreaterThan(2);
+  });
+});
+
+describe('carrito: lo que promete la tienda', () => {
+  const OFFERS: StoreOffers = {
+    configured: true,
+    transfer: { enabled: true, discountPercent: 10, holdHours: 48 },
+    cashOnPickup: { enabled: false },
+    installments: { max: 0, note: null },
+    freeShipping: { from: { amount: 100_000_00, currency: 'ARS' }, methodName: 'Moto' },
+    canCheckout: true,
+  };
+
+  async function showWith(offers: StoreOffers, lines: CartLine[] = [LINE], whatsapp?: string) {
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify(lines));
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderInStore(
+      <StoreOffersContext.Provider value={offers}>
+        <Opener />
+        <CartDrawer cart={CONFIG} suggested={[]} whatsapp={whatsapp} />
+      </StoreOffersContext.Provider>,
+    );
+    await settle(1);
+    await user.click(screen.getByRole('button', { name: /Abrir carrito/ }));
+    return user;
+  }
+
+  it('dice "Subtotal" y que el envío viene después; al llegar al monto, con qué medio es gratis', async () => {
+    const user = await showWith(OFFERS);
+    const d = within(drawer());
+    expect(d.getByText('Subtotal')).toBeInTheDocument();
+    expect(d.queryByText('Total')).not.toBeInTheDocument();
+    expect(d.getByText('El envío se calcula en el próximo paso.')).toBeInTheDocument();
+    await user.click(d.getByRole('button', { name: 'Sumar' }));
+    await user.click(d.getByRole('button', { name: 'Sumar' }));
+    expect(d.getByText(/Tenés envío gratis con Moto/)).toBeInTheDocument();
+    expect(d.getByText('Envío gratis con Moto.')).toBeInTheDocument();
+  });
+
+  it('sin umbral en ningún medio de envío no muestra la barra', async () => {
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify([LINE]));
+    renderInStore(
+      <StoreOffersContext.Provider value={{ ...OFFERS, freeShipping: null }}>
+        <Opener />
+        <CartDrawer cart={{ ...CONFIG, freeShippingThreshold: 0 }} suggested={[]} />
+      </StoreOffersContext.Provider>,
+    );
+    await settle(1);
+    expect(screen.queryByText(/Te faltan/)).not.toBeInTheDocument();
+  });
+
+  it('si la tienda no cobra online, lo dice antes del checkout y ofrece WhatsApp', async () => {
+    await showWith({ ...OFFERS, canCheckout: false }, [LINE], '11 5555-4444');
+    const d = within(drawer());
+    expect(d.getByText(/todavía no cobra online/)).toBeInTheDocument();
+    expect(d.queryByRole('button', { name: 'Ir a pagar' })).not.toBeInTheDocument();
+    expect(d.getByRole('link', { name: 'Comprar por WhatsApp' }).getAttribute('href')).toMatch(
+      /^https:\/\/wa\.me\/1155554444\?text=.*Mancuerna/,
+    );
   });
 });

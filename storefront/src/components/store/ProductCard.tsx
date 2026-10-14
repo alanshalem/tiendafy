@@ -187,14 +187,14 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
       )}
       {list.showPrice && <PriceWithoutTaxes amount={product.priceAmount} currency={product.currency} />}
       {list.showPrice && list.showCashPrice && cashPct > 0 && (
-        <div className="text-xs font-semibold text-green-700">
+        <div className="text-xs font-semibold text-success">
           {formatMoney(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con
           transferencia
         </div>
       )}
       {list.showPrice && list.installmentsCount > 0 && (
-        <div className="text-xs opacity-70">
-          {list.installmentsCount} x{' '}
+        <div className="text-xs text-fg-muted">
+          Hasta {list.installmentsCount} x{' '}
           {formatMoney(Math.round(product.priceAmount / list.installmentsCount), product.currency)} sin
           interés
         </div>

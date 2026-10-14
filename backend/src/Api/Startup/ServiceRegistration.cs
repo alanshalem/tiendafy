@@ -122,6 +122,7 @@ public static class ServiceRegistration
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();
         // Diseños programados (ej. una portada de Hot Sale que sale a las 00:00).
         if (runPollingWorkers) services.AddHostedService<Api.Workers.ThemeScheduleWorker>();
+        if (runPollingWorkers) services.AddHostedService<Api.Orders.OfflinePaymentExpiryWorker>();
         services.AddScoped<CampaignAudienceService>();
 
         // Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,
@@ -136,6 +137,7 @@ public static class ServiceRegistration
         services.AddScoped<Api.Orders.OrderFulfillment>();
         services.AddScoped<Api.Orders.OrderTrackingView>();
         services.AddScoped<Api.Orders.ManualOrderService>();
+        services.AddScoped<Api.Orders.OfflinePaymentService>();
         services.AddSingleton<Api.Auth.IGoogleIdTokenValidator, Api.Auth.GoogleIdTokenValidator>(); // login de compradores con Google
         // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
         services.AddScoped<Api.Meli.MeliTokenService>();

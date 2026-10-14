@@ -29,6 +29,7 @@ public sealed class CheckoutDbContext : DbContext
     public DbSet<AndreaniConfig> AndreaniConfigs => Set<AndreaniConfig>();
     public DbSet<AndreaniShipment> AndreaniShipments => Set<AndreaniShipment>();
     public DbSet<CheckoutSettings> Settings => Set<CheckoutSettings>();
+    public DbSet<StorePaymentOptions> PaymentOptions => Set<StorePaymentOptions>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,23 @@ public sealed class CheckoutDbContext : DbContext
         settings.Property(x => x.CustomerNoteLabel).HasMaxLength(CheckoutSettings.MaxLabelLength);
         settings.Property(x => x.OrderMessageText).HasMaxLength(CheckoutSettings.MaxMessageLength);
 
+        var payment = modelBuilder.Entity<StorePaymentOptions>();
+        payment.ToTable("payment_options");
+        payment.HasKey(x => x.Id);
+        payment.Property(x => x.Id).ValueGeneratedNever();
+        payment.Property(x => x.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        payment.HasQueryFilter(x => !_filterByTenant || x.TenantId == _currentTenant);
+        // Una por tienda, igual que las opciones del checkout.
+        payment.HasIndex(x => x.TenantId).IsUnique();
+        payment.Property(x => x.BankName).HasMaxLength(80);
+        payment.Property(x => x.AccountHolder).HasMaxLength(120);
+        payment.Property(x => x.HolderTaxId).HasMaxLength(20);
+        payment.Property(x => x.Cbu).HasMaxLength(22);
+        payment.Property(x => x.Alias).HasMaxLength(40);
+        payment.Property(x => x.Instructions).HasMaxLength(StorePaymentOptions.MaxInstructionsLength);
+        payment.Property(x => x.InstallmentsNote).HasMaxLength(StorePaymentOptions.MaxNoteLength);
+        payment.Property(x => x.HoldHours).HasDefaultValue(StorePaymentOptions.DefaultHoldHours);
+
         var shipping = modelBuilder.Entity<ShippingMethod>();
         shipping.ToTable("shipping_methods");
         shipping.HasKey(m => m.Id);
@@ -83,6 +101,10 @@ public sealed class CheckoutDbContext : DbContext
         shipping.Property(m => m.Price)
             .HasConversion(ModuleDb.MoneyConverter)
             .HasColumnName("price")
+            .HasMaxLength(24);
+        shipping.Property(m => m.FreeAbove)
+            .HasConversion(ModuleDb.NullableMoneyConverter)
+            .HasColumnName("free_above")
             .HasMaxLength(24);
         shipping.HasIndex(m => new { m.TenantId, m.SortOrder });
         shipping.Ignore(m => m.DomainEvents);

@@ -61,7 +61,9 @@ public static class OrderPayment
     public static string? Of(Order o) =>
         o.PaymentId is { Length: > 0 } id
             ? id.StartsWith(ManualPrefix, StringComparison.Ordinal) ? id[ManualPrefix.Length..] : Gateway
-            : o.PreferenceId is not null ? Gateway : null;
+            : o.PreferenceId is not null ? Gateway
+            // Transferencia o efectivo del checkout, todavía sin pago registrado.
+            : o.IsOfflinePayment ? o.PaymentProvider : null;
 }
 
 public interface IOrderRepository

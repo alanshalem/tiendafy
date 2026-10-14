@@ -4,12 +4,15 @@ import { HelpLink } from '../../components/HelpLink';
 import { MercadoPagoConnect } from './MercadoPagoConnect';
 import { WebhookHealth } from './WebhookHealth';
 import { PaywayConnect } from './PaywayConnect';
+import { PaymentOptionsCard } from './PaymentOptions';
 
 /**
  * Medios de pago. Solo entran los que el checkout usa de verdad — nada de
- * listas decorativas de pasarelas. Hoy son dos, y funcionan distinto: Mercado
- * Pago se conecta por OAuth y avisa por webhook; Payway se configura con
- * claves fijas y hay que preguntarle el estado de cada pago.
+ * listas decorativas de pasarelas. Son dos pasarelas que funcionan distinto
+ * (Mercado Pago se conecta por OAuth y avisa por webhook; Payway se configura
+ * con claves fijas y hay que preguntarle el estado de cada pago) y los pagos a
+ * mano: transferencia y efectivo al retirar, con el descuento y las cuotas que
+ * anuncia la tienda.
  */
 export function PaymentMethodsPage() {
   return (
@@ -22,8 +25,10 @@ export function PaymentMethodsPage() {
         </div>
         <PaywayConnect />
       </div>
+      <PaymentOptionsCard />
       <HelpLink id="payments" />
       <HelpLink id="payway" className="mt-2" />
+      <HelpLink id="transferencia" className="mt-2" />
     </div>
   );
 }

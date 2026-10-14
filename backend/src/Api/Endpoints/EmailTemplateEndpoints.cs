@@ -139,6 +139,7 @@ public static class EmailTemplateEndpoints
                 ["email"] = "cliente@ejemplo.com",
                 ["link"] = "#",
                 ["items"] = SampleItemsTable(),
+                ["payment_instructions"] = Api.Orders.OfflinePaymentEmail.Sample(),
             };
 
             var body = Sanitizer.Sanitize(req.BodyHtml ?? string.Empty);

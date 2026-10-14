@@ -9,7 +9,7 @@
  * tokenizan la tarjeta contra sus servidores) se reemplazan por un botón que
  * entrega lo mismo que ellos: acá se prueba qué hace el checkout con el token.
  */
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -140,6 +140,9 @@ function offline(part: string) {
     ),
   );
 }
+
+/** El resumen del pedido (al costado en la compu, plegado arriba en el celular). */
+const summary = () => screen.getByRole('complementary', { name: 'Resumen del pedido' });
 
 /** Los campos se buscan por su etiqueta, como los encuentra un lector de pantalla. */
 const field = (label: string | RegExp) => screen.getByLabelText(label);
@@ -687,7 +690,7 @@ describe('checkout: envío cotizado', () => {
     expect(screen.getByText('Completá ciudad y provincia para cotizar con Zipnova.')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Ciudad para cotizar'), 'CABA');
-    await user.type(screen.getByLabelText('Provincia para cotizar'), 'Buenos Aires');
+    await user.selectOptions(screen.getByLabelText('Provincia para cotizar'), 'Buenos Aires');
     await quote();
     await settle(2);
     expect(posted('/zipnova/quote')[0]).toMatchObject({
@@ -794,7 +797,9 @@ describe('checkout: envío cotizado', () => {
     // Los dos resúmenes muestran el envío que ya está sumado al total.
     expect(screen.getByText('Andreani a domicilio')).toBeInTheDocument();
     expect(screen.getByText('Costo de envío')).toBeInTheDocument();
-    expect(screen.getByText(/3\.070/)).toBeInTheDocument(); // $3.000 + $70 de envío
+    // $3.000 + $70 de envío, en el resumen y en la barra plegada del celular.
+    expect(within(summary()).getByText(/3\.070/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ver resumen.*3\.070/ })).toBeInTheDocument();
   });
 
   it('sin tarifas o con error, cada carrier lo dice por su cuenta', async () => {
@@ -805,7 +810,7 @@ describe('checkout: envío cotizado', () => {
     const user = await open();
     await user.type(screen.getByLabelText('Código postal para cotizar'), '9410');
     await user.type(screen.getByLabelText('Ciudad para cotizar'), 'Ushuaia');
-    await user.type(screen.getByLabelText('Provincia para cotizar'), 'TDF');
+    await user.selectOptions(screen.getByLabelText('Provincia para cotizar'), 'Tierra del Fuego');
     await user.click(screen.getByRole('button', { name: /Calcular/ }));
     await settle(2);
     expect(screen.getByText('Correo Argentino no tiene tarifas para ese código postal.')).toBeInTheDocument();
@@ -826,5 +831,170 @@ describe('checkout: envío cotizado', () => {
     await user.click(screen.getByRole('button', { name: /Calcular/ }));
     await settle(2);
     expect(screen.getAllByText('No se pudo cotizar.').length).toBeGreaterThan(0);
+  });
+});
+
+/** Lo que responde /store-offers en una tienda con transferencia (10%) y efectivo al retirar. */
+const OFFERS = {
+  configured: true,
+  transfer: { enabled: true, discountPercent: 10, holdHours: 48 },
+  cashOnPickup: { enabled: true },
+  installments: { max: 6, note: null },
+  freeShipping: null,
+  canCheckout: true,
+};
+
+describe('checkout: transferencia y efectivo', () => {
+  it('con transferencia muestra el descuento, crea el pedido sin tarjeta y lleva a cómo pagar', async () => {
+    store();
+    api.on('GET', '/api/v1/store-offers', OFFERS);
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-offline`, { orderId: ORDER, method: 'transfer' });
+    const user = await open();
+    await deliverAndContinue(user);
+
+    // Mercado Pago, transferencia y (por retirar en el local) efectivo.
+    for (const name of ['Mercado Pago', 'Transferencia', 'Efectivo al retirar'])
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.getByText(/10% de descuento pagando con transferencia o en efectivo/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Transferencia' }));
+    // 2 × $1.500 = $3.000 → 10% = $300 → total $2.700 (el retiro no cuesta).
+    expect(within(summary()).getByText('Descuento por transferencia (10%)')).toBeInTheDocument();
+    expect(within(summary()).getByText(/2\.700/)).toBeInTheDocument();
+    expect(screen.getByText(/Te guardamos los productos 48 horas/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar pedido' }));
+    await settle(2);
+    // El total no viaja: lo calcula el servidor.
+    const [body] = posted('/pay-offline');
+    expect(body).toMatchObject({ method: 'transfer' });
+    expect(body).not.toHaveProperty('total');
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/pending?order=${ORDER}`);
+    // El pedido ya está hecho: el carrito se vacía.
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).toBeNull();
+  });
+
+  it('el efectivo es solo para retirar en el local', async () => {
+    store({ methods: { ...fixture('/api/v1/shipping/methods'), items: [DELIVERY] } });
+    api.on('GET', '/api/v1/store-offers', OFFERS);
+    const user = await open();
+    await user.type(field('E-mail'), 'ana@example.com');
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    await user.type(field('Nombre'), 'Ana');
+    await user.type(field('Apellido'), 'García');
+    await user.type(field(/^Teléfono/), '1155554444');
+    await user.type(field('Calle'), 'Corrientes');
+    await user.type(field('Número'), '1234');
+    await user.type(field('Ciudad'), 'CABA');
+    await user.type(field('Código Postal'), '1043');
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+    await settle(1);
+    expect(screen.getByRole('button', { name: 'Transferencia' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Efectivo al retirar' })).not.toBeInTheDocument();
+  });
+
+  it('un error de las ofertas no rompe el checkout: se sigue con Mercado Pago', async () => {
+    store();
+    api.on('GET', '/api/v1/store-offers', { title: 'boom' }, 500);
+    const user = await open();
+    await deliverAndContinue(user);
+    expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Transferencia' })).not.toBeInTheDocument();
+    // Qué se puede usar en Mercado Pago, y los legales junto al botón.
+    expect(screen.getByText(/Rapipago y Pago Fácil/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Términos y condiciones' })).toHaveAttribute('href', '/terminos');
+    expect(screen.getByRole('link', { name: 'Botón de arrepentimiento' })).toHaveAttribute(
+      'href',
+      '/arrepentimiento',
+    );
+  });
+
+  it('solo con transferencia (sin Mercado Pago) se puede comprar igual', async () => {
+    store({ mp: { connected: false, checkoutMode: 'PRO' } });
+    api.on('GET', '/api/v1/store-offers', { ...OFFERS, cashOnPickup: { enabled: false } });
+    const user = await open();
+    expect(screen.queryByText(/todavía no tiene los pagos habilitados/)).not.toBeInTheDocument();
+    await deliverAndContinue(user);
+    // Un solo medio: sin botones para elegir, directo a confirmar.
+    expect(screen.queryByRole('button', { name: 'Transferencia' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar pedido' })).toBeInTheDocument();
+  });
+
+  it('sin ningún medio de pago ofrece comprar por WhatsApp', async () => {
+    store({ mp: { connected: false, checkoutMode: 'PRO' } });
+    api.on('GET', '/api/v1/store-offers', {
+      ...OFFERS,
+      transfer: { enabled: false, discountPercent: 0, holdHours: 48 },
+      cashOnPickup: { enabled: false },
+      canCheckout: false,
+    });
+    renderInStore(<CheckoutClient tenantId={fixtureTenantId} contact={{ whatsapp: '+54 9 11 5555-4444' }} />);
+    await settle(4);
+    expect(screen.getByRole('heading', { level: 1, name: 'Comprá escribiéndonos' })).toBeInTheDocument();
+    const wa = screen.getByRole('link', { name: /Comprar por WhatsApp/ });
+    expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/5491155554444\?text=.*Taladro/);
+  });
+});
+
+describe('checkout: envío gratis desde un monto', () => {
+  it('el medio dice desde cuánto es gratis y, al llegar, no se cobra', async () => {
+    const cheapFrom = { ...DELIVERY, freeAbove: { amount: 200_000, currency: 'ARS' } };
+    store({ methods: { ...fixture('/api/v1/shipping/methods'), items: [cheapFrom] } });
+    const user = await open();
+    // Subtotal $3.000 ≥ $2.000: sin cargo.
+    expect(screen.getByText(/Sin cargo: tu compra supera/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    expect(within(summary()).getByText(/sin cargo por el monto/)).toBeInTheDocument();
+    expect(within(summary()).getByText('Gratis')).toBeInTheDocument();
+  });
+
+  it('debajo del monto se cobra y avisa desde cuánto sería gratis', async () => {
+    const farFrom = { ...DELIVERY, freeAbove: { amount: 1_000_000, currency: 'ARS' } };
+    store({ methods: { ...fixture('/api/v1/shipping/methods'), items: [farFrom] } });
+    const user = await open();
+    expect(screen.getByText(/Sin cargo desde/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    expect(within(summary()).queryByText('Gratis')).not.toBeInTheDocument();
+  });
+});
+
+describe('checkout: comprador con sesión', () => {
+  it('arranca con su email y su dirección guardada, sin pisar lo que ya escribió', async () => {
+    store({ methods: { ...fixture('/api/v1/shipping/methods'), items: [DELIVERY] } });
+    localStorage.setItem(
+      `tiendafy.shop.user.${fixtureTenantId}`,
+      JSON.stringify({ id: 'c1', name: 'Ana García', email: 'ana@example.com' }),
+    );
+    sessionStorage.setItem(buyerStorageKey(fixtureTenantId), JSON.stringify({ phone: '1100000000' }));
+    api.on('GET', '/api/v1/shop/auth/me', { id: 'c1', name: 'Ana García', email: 'ana@example.com' });
+    api.on('GET', '/api/v1/shop/addresses/', {
+      items: [
+        {
+          id: 'a1',
+          label: 'Casa',
+          name: 'Ana',
+          lastName: 'García',
+          phone: '1155554444',
+          doc: '30111222',
+          street: 'Corrientes',
+          streetNumber: '1234',
+          apartment: '3B',
+          city: 'CABA',
+          province: 'C',
+          zip: '1043',
+          isDefault: true,
+        },
+      ],
+    });
+    const user = await open();
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    expect(field('E-mail')).toHaveValue('ana@example.com');
+    expect(field('Nombre')).toHaveValue('Ana');
+    expect(field('Calle')).toHaveValue('Corrientes');
+    expect(field('Código Postal')).toHaveValue('1043');
+    // Lo que ya había escrito en esta pestaña manda.
+    expect(field(/^Teléfono/)).toHaveValue('1100000000');
+    // Y el teléfono dice cómo escribirlo.
+    expect(field(/^Teléfono/)).toHaveAccessibleDescription(/código de área/);
   });
 });

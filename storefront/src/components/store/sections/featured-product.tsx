@@ -168,7 +168,7 @@ export function FeaturedProductSection({
           </div>
           {productList.installmentsCount > 0 && (
             <p className="mt-1 text-sm text-fg-muted">
-              {`${productList.installmentsCount} x ${formatMoney(Math.round(product.priceAmount / productList.installmentsCount), product.currency)} sin interés`}
+              {`Hasta ${productList.installmentsCount} x ${formatMoney(Math.round(product.priceAmount / productList.installmentsCount), product.currency)} sin interés`}
             </p>
           )}
           {data.showDescription && product.excerpt && (

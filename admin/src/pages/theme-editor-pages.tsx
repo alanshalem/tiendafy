@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@tiendafy/ui';
 import { type ThemeConfig } from '@tiendafy/types';
 import { HelpLink } from '../components/HelpLink';
@@ -234,19 +235,7 @@ export function ProductListPanel({ theme, onBack, updateTheme }: PanelProps) {
             checked={theme.productList.showCashPrice}
             onChange={(v) => set({ showCashPrice: v })}
           />
-          <p className="mb-3 mt-1 text-xs text-fg-muted">
-            Usa el % de descuento por transferencia de «Detalle de producto».
-          </p>
-          <Field label="Cuotas sin interés (0 = no mostrar)">
-            <Select
-              value={String(theme.productList.installmentsCount)}
-              onChange={(v) => set({ installmentsCount: Number(v) })}
-              options={[0, 3, 6, 9, 12].map((n) => ({
-                value: String(n),
-                label: n === 0 ? 'No mostrar' : `${n} cuotas`,
-              }))}
-            />
-          </Field>
+          <PaymentOffersNote />
         </div>
 
         <div className="border-t border-border pt-4">
@@ -330,37 +319,32 @@ export function ProductDetailPanel({ theme, onBack, updateTheme }: PanelProps) {
         </p>
 
         <div className="border-t border-border pt-4">
-          <div className="mb-3 text-sm font-semibold text-fg">Precio y financiación</div>
-          <Field label="Cuotas sin interés (0 = no mostrar)">
-            <Select
-              value={String(theme.productDetail.installmentsCount)}
-              onChange={(v) => set({ installmentsCount: Number(v) })}
-              options={[0, 3, 6, 9, 12].map((n) => ({
-                value: String(n),
-                label: n === 0 ? 'No mostrar' : `${n} cuotas`,
-              }))}
-            />
-          </Field>
+          <div className="mb-2 text-sm font-semibold text-fg">Precio y financiación</div>
+          <PaymentOffersNote />
         </div>
-
-        <Field
-          label="Descuento pagando en efectivo (%)"
-          hint="0 = sin descuento. Se muestra como 'precio con EFECTIVO' acá y, si lo activaste, también en el listado."
-        >
-          <TextInput
-            value={String(theme.productDetail.cashDiscountPercent || 0)}
-            onChange={(v) =>
-              set({ cashDiscountPercent: Math.max(0, Math.min(90, Number(v.replace(/\D/g, '')) || 0)) })
-            }
-            placeholder="10"
-          />
-        </Field>
       </div>
     </div>
   );
 }
 
 type GalleryStyle = ThemeConfig['productDetail']['galleryStyle'];
+
+/**
+ * El descuento por transferencia y las cuotas ya no se cargan en el diseño:
+ * eran números sueltos que el checkout no cumplía. Viven en Medios de pago,
+ * que es lo que cobra, y la ficha y el listado los leen de ahí.
+ */
+function PaymentOffersNote() {
+  return (
+    <p className="text-xs text-fg-muted">
+      El % de descuento por transferencia y las cuotas sin interés se configuran en{' '}
+      <Link to="/configuracion/medios-de-pago" className="font-medium text-primary hover:underline">
+        Medios de pago
+      </Link>
+      : son los mismos en la ficha, el listado y el checkout, y el checkout los cobra.
+    </p>
+  );
+}
 
 /**
  * Estilos de galería, cada uno con para qué sirve: los nombres solos
@@ -600,14 +584,19 @@ export function CartPanel({ theme, onBack, updateTheme }: PanelProps) {
           checked={theme.cart.freeShippingBar}
           onChange={(v) => set({ freeShippingBar: v })}
         />
+        {/* El monto ya no se carga acá: la barra prometía un envío gratis que
+            el checkout no daba. Ahora sale del "gratis desde" de cada medio de
+            envío, que es donde se cobra. */}
         {theme.cart.freeShippingBar && (
-          <Field label="Mínimo para envío gratis (ARS)">
-            <TextInput
-              value={String(theme.cart.freeShippingThreshold / 100)}
-              onChange={(v) => set({ freeShippingThreshold: Math.round(Number(v.replace(/\D/g, '')) * 100) })}
-              placeholder="50000"
-            />
-          </Field>
+          <p className="-mt-2 text-xs text-fg-muted">
+            El monto sale de «Gratis desde» de tus{' '}
+            <Link to="/configuracion/medios-de-envio" className="font-medium text-primary hover:underline">
+              medios de envío
+            </Link>
+            : con varios, la barra usa el más bajo. Sin ninguno, la barra no aparece.
+            {theme.cart.freeShippingThreshold > 0 &&
+              ` Tu diseño tenía cargados $${(theme.cart.freeShippingThreshold / 100).toLocaleString('es-AR')}: pasalos al medio que corresponda.`}
+          </p>
         )}
       </div>
     </div>
