@@ -23,7 +23,9 @@ interface ConnectionDto {
   connectedAtUtc: string | null;
 }
 
-const MP_BLUE = '#009ee3';
+// El celeste de la marca (#009ee3) con texto blanco da 3:1, ilegible para
+// mucha gente. Este es el mismo azul más oscuro: 5:1 con blanco (AA).
+const MP_BLUE = '#0074b4';
 
 export function MercadoPagoConnect() {
   const { store } = useStore();
