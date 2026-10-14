@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, Loader2, ShieldOff } from 'lucide-react';
+import { Home, ShieldOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { satisfies, type Perm, type PermRequirement } from '../lib/access';
 import { useStore } from './StoreContext';
 import { NoStoreSelected } from '../components/NoStoreSelected';
+import { Spinner } from '@tiendafy/ui';
 
 /** Respuesta de GET /api/v1/me/permissions (rol + claves efectivas en la tienda activa). */
 interface MePermissionsDto {
@@ -93,11 +94,7 @@ export function RequirePerm({ perm, children }: { perm: PermRequirement; childre
   if (loadError) return <NoStoreSelected />;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24 text-fg-muted">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
+    return <Spinner className="py-24" />;
   }
 
   if (!satisfies(can, perm)) {

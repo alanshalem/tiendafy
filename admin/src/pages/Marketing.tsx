@@ -1,7 +1,16 @@
 import { Suspense, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
-import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
+import { BarChart3, Copy, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Modal,
+  PageHeader,
+  useConfirm,
+  useToast,
+  type BadgeVariant,
+  Spinner,
+} from '@tiendafy/ui';
 import { formatAmount, formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { lazyComponent } from '../lib/lazyPage';
@@ -252,7 +261,7 @@ export function MarketingPage() {
               role="status"
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 text-sm text-white"
             >
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abriendo el editor…
+              <Spinner inline size={20} className="mr-2" /> Abriendo el editor…
             </div>
           }
         >
@@ -285,9 +294,7 @@ function DetailModal({ campaignId, onClose }: { campaignId: string; onClose: () 
   return (
     <Modal open size="lg" onClose={onClose} title={data ? data.campaign.subject : 'Cargando…'}>
       {!data ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
-        </div>
+        <Spinner className="py-10" />
       ) : (
         <div className="max-h-[68vh] space-y-5 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

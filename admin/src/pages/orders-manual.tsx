@@ -1,8 +1,8 @@
 import { useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, Loader2, Plus, Trash2, UserPlus, UserRound, X } from 'lucide-react';
-import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
+import { Copy, ExternalLink, Plus, Trash2, UserPlus, UserRound, X } from 'lucide-react';
+import { Button, Input, Modal, Select, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
@@ -185,8 +185,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             Cancelar
           </Button>
           <Button onClick={create} disabled={busy || items.length === 0}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Registrar
-            venta
+            {busy ? <Spinner inline /> : <Plus className="h-4 w-4" />} Registrar venta
           </Button>
         </>
       }
@@ -522,7 +521,7 @@ function CustomerField({
                 disabled={creating}
                 className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-primary hover:bg-bg-muted disabled:opacity-50"
               >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                {creating ? <Spinner inline /> : <UserPlus className="h-4 w-4" />}
                 Crear «{name.trim()}» en la agenda
               </button>
             </li>

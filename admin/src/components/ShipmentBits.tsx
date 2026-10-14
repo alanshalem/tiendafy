@@ -1,5 +1,4 @@
-import { Loader2 } from 'lucide-react';
-import { Button } from '@tiendafy/ui';
+import { Button, Spinner } from '@tiendafy/ui';
 
 /** Piezas de UI compartidas por los modales de envío (Correo Argentino, Zipnova). */
 
@@ -20,7 +19,7 @@ export function ShipmentFooter({
         Cancelar
       </Button>
       <Button onClick={onSubmit} disabled={busy}>
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />} Crear envío
+        {busy && <Spinner inline />} Crear envío
       </Button>
     </>
   );

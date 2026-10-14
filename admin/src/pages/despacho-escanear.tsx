@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, CheckCircle2, Loader2, PackageCheck, Truck, XCircle } from 'lucide-react';
-import { Button, Card, cn, Input, useToast } from '@tiendafy/ui';
+import { Check, CheckCircle2, PackageCheck, Truck, XCircle } from 'lucide-react';
+import { Button, Card, cn, Input, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { CARRIERS, type DispatchOrder } from '../lib/fulfillment';
 import { CameraBox, useScanner } from './Products/Scanner';
@@ -149,7 +149,7 @@ export function ScanDispatch({ initialCode }: { initialCode: string | null }) {
             onChange={(e) => setManual(e.target.value)}
           />
           <Button type="submit" variant="secondary" disabled={resolving}>
-            {resolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'OK'}
+            {resolving ? <Spinner inline /> : 'OK'}
           </Button>
         </form>
 
@@ -214,11 +214,7 @@ export function ScanDispatch({ initialCode }: { initialCode: string | null }) {
                     />
                   </div>
                   <Button onClick={() => void dispatch()} disabled={dispatching}>
-                    {dispatching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Truck className="h-4 w-4" />
-                    )}
+                    {dispatching ? <Spinner inline /> : <Truck className="h-4 w-4" />}
                     {order.isPickup ? 'Lista para retirar' : 'Despachar'}
                   </Button>
                 </div>

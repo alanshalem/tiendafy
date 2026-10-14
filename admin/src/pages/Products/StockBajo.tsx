@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BellOff, Loader2, PackageCheck, Plus, Settings2 } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast } from '@tiendafy/ui';
+import { BellOff, PackageCheck, Plus, Settings2 } from 'lucide-react';
+import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast, Spinner } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -171,7 +171,7 @@ export function StockBajoPage() {
       <div className={TABLE_CARD}>
         {isLoading ? (
           <p className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Calculando…
+            <Spinner inline /> Calculando…
           </p>
         ) : error && !data ? (
           <LoadError

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Check, Loader2, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
-import { Badge, Button, Card, Input, Tabs, useToast } from '@tiendafy/ui';
+import { Camera, Check, PackageCheck, ScanLine, Truck, X } from 'lucide-react';
+import { Badge, Button, Card, Input, Tabs, useToast, Spinner } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { fetchStock, isStockChanged, type StockItem } from '../../lib/products';
@@ -516,11 +516,7 @@ function PickingTab() {
                     />
                   </div>
                   <Button onClick={() => fulfill.mutate()} disabled={fulfill.isPending}>
-                    {fulfill.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Truck className="h-4 w-4" />
-                    )}
+                    {fulfill.isPending ? <Spinner inline /> : <Truck className="h-4 w-4" />}
                     Marcar enviada
                   </Button>
                 </div>

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
-import { cn, useToast, useConfirm } from '@tiendafy/ui';
+import { Plus, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, User } from 'lucide-react';
+import { cn, useToast, useConfirm, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import type { Perm } from '../../lib/access';
 import { HelpLink } from '../../components/HelpLink';
@@ -383,7 +383,7 @@ export function UsersNotificationsPage() {
                   disabled={!email || addM.isPending}
                   className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
                 >
-                  {addM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Agregar'}
+                  {addM.isPending ? <Spinner inline /> : 'Agregar'}
                 </button>
               </div>
             </div>
@@ -392,7 +392,7 @@ export function UsersNotificationsPage() {
           {mobile ? (
             <div className={TABLE_CARD}>
               {membersQ.isLoading ? (
-                <Loader2 className="mx-auto my-8 h-5 w-5 animate-spin text-fg-muted" />
+                <Spinner className="py-8" />
               ) : members.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-fg-muted">No hay usuarios.</p>
               ) : (
@@ -443,7 +443,7 @@ export function UsersNotificationsPage() {
                     {membersQ.isLoading && (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-fg-muted">
-                          <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+                          <Spinner inline size={20} />
                         </td>
                       </tr>
                     )}

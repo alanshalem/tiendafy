@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Heart,
   ImagePlus,
-  Loader2,
   MessageCircle,
   Send,
   Sparkles,
@@ -215,17 +214,17 @@ export function ComposerModal({
               Cancelar
             </Button>
             <Button variant="secondary" onClick={() => save('draft')} disabled={busy}>
-              {saving === 'draft' && <Loader2 className="h-4 w-4 animate-spin" />} Guardar borrador
+              {saving === 'draft' && <Spinner inline />} Guardar borrador
             </Button>
             <Button
               variant="secondary"
               onClick={() => save('schedule')}
               disabled={busy || !canPublish || !scheduleAt}
             >
-              {saving === 'schedule' && <Loader2 className="h-4 w-4 animate-spin" />} Programar
+              {saving === 'schedule' && <Spinner inline />} Programar
             </Button>
             <Button onClick={() => save('now')} disabled={busy || !canPublish}>
-              {saving === 'now' && <Loader2 className="h-4 w-4 animate-spin" />} Publicar ahora
+              {saving === 'now' && <Spinner inline />} Publicar ahora
             </Button>
           </>
         )
@@ -284,11 +283,7 @@ export function ComposerModal({
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
                       title="Reescribe el borrador con tono vendedor (conserva link y cupón)"
                     >
-                      {improving ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3 w-3" />
-                      )}
+                      {improving ? <Spinner inline size={12} /> : <Sparkles className="h-3 w-3" />}
                       Mejorar con IA
                     </button>
                   )}

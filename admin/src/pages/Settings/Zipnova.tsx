@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
-import { Loader2, Package, Zap } from 'lucide-react';
-import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
+import { Package, Zap } from 'lucide-react';
+import { Button, FormField, Input, Modal, Select, Switch, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatAmount } from '../../lib/format';
@@ -157,7 +157,7 @@ function ConfigModal({
             Cancelar
           </Button>
           <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+            {saving && <Spinner inline />} Guardar
           </Button>
         </>
       }
@@ -325,7 +325,7 @@ function ConfigModal({
               </FormField>
             </div>
             <Button variant="secondary" className="mt-2" onClick={test} disabled={testing}>
-              {testing && <Loader2 className="h-4 w-4 animate-spin" />} Cotizar
+              {testing && <Spinner inline />} Cotizar
             </Button>
             {testOptions && (
               <div className="mt-2 text-sm">

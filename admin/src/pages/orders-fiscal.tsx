@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Loader2, RefreshCw, FileText, Download } from 'lucide-react';
-import { useToast } from '@tiendafy/ui';
+import { RefreshCw, FileText, Download } from 'lucide-react';
+import { useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { InvoiceDialog, type InvoiceBuyer } from './orders-invoice-dialog';
@@ -137,7 +137,7 @@ export function FiscalPanel({
       </div>
       {loading ? (
         <div className="flex items-center gap-1.5 text-xs text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
+          <Spinner inline size={14} /> Cargando…
         </div>
       ) : (
         <div className="space-y-1 text-xs">
@@ -162,7 +162,7 @@ export function FiscalPanel({
             </div>
           ) : activeJob ? (
             <div className="flex items-center gap-1.5 text-warning">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Facturación en proceso…
+              <Spinner inline size={14} /> Facturación en proceso…
             </div>
           ) : failedJob ? (
             <div className="text-danger">
@@ -194,8 +194,7 @@ export function FiscalPanel({
               disabled={busy}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}{' '}
-              Facturar ahora
+              {busy ? <Spinner inline size={14} /> : <FileText className="h-3.5 w-3.5" />} Facturar ahora
             </button>
           )}
           {canEmit && failedJob && !invoice && (
@@ -204,12 +203,7 @@ export function FiscalPanel({
               disabled={busy}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
             >
-              {busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}{' '}
-              Reintentar
+              {busy ? <Spinner inline size={14} /> : <RefreshCw className="h-3.5 w-3.5" />} Reintentar
             </button>
           )}
         </div>

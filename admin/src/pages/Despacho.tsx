@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, FileText, Loader2, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Input, Select, Tabs, useToast } from '@tiendafy/ui';
+import { ClipboardList, FileText, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
+import { Badge, Button, Checkbox, cn, Input, Select, Tabs, useToast, Spinner } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
@@ -200,11 +200,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('picking')}
         >
-          {busy === 'picking' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ClipboardList className="h-4 w-4" />
-          )}
+          {busy === 'picking' ? <Spinner inline /> : <ClipboardList className="h-4 w-4" />}
           Lista de picking
         </Button>
         <Button
@@ -213,7 +209,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('labels')}
         >
-          {busy === 'labels' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+          {busy === 'labels' ? <Spinner inline /> : <Tag className="h-4 w-4" />}
           Etiquetas
         </Button>
         <Button
@@ -222,7 +218,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
           disabled={!chosen.length || !!busy}
           onClick={() => void run('slips')}
         >
-          {busy === 'slips' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+          {busy === 'slips' ? <Spinner inline /> : <FileText className="h-4 w-4" />}
           Remitos
         </Button>
       </div>
@@ -334,7 +330,7 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
       <div className="rounded-lg border border-border bg-surface shadow-card">
         {isLoading ? (
           <p className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando pedidos…
+            <Spinner inline /> Cargando pedidos…
           </p>
         ) : error && !data ? (
           <LoadError

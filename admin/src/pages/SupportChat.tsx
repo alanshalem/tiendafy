@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
-import { cn, useToast } from '@tiendafy/ui';
+import { Archive, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { cn, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
@@ -266,7 +266,7 @@ export function SupportChatPage() {
           )}
           {loading ? (
             <div className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+              <Spinner inline /> Cargando…
             </div>
           ) : loadError !== null && convs.length === 0 ? (
             <LoadError
@@ -445,11 +445,7 @@ export function SupportChatPage() {
                     className="rounded-full border border-border-strong p-2.5 text-fg-muted hover:text-primary disabled:opacity-40"
                     aria-label="Sugerir con IA"
                   >
-                    {suggesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
+                    {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
                   </button>
                 )}
                 <button
@@ -458,7 +454,7 @@ export function SupportChatPage() {
                   className="rounded-full bg-primary p-2.5 text-primary-fg hover:opacity-90 disabled:opacity-40"
                   aria-label="Enviar"
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
             </>

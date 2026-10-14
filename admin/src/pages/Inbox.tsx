@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Inbox as InboxIcon, Loader2, MessagesSquare } from 'lucide-react';
-import { cn, Input, Select } from '@tiendafy/ui';
+import { Inbox as InboxIcon, MessagesSquare } from 'lucide-react';
+import { cn, Input, Select, Spinner } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -201,7 +201,7 @@ export function InboxPage() {
           )}
           {isLoading ? (
             <p className="flex items-center gap-2 p-4 text-sm text-fg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
+              <Spinner inline /> Cargando…
             </p>
           ) : error && !data ? (
             <LoadError

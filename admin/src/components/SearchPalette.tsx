@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { CornerDownLeft, Loader2, Search } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { CornerDownLeft, Search } from 'lucide-react';
+import { cn, Spinner } from '@tiendafy/ui';
 
 /* ============================================================
    La paleta de búsqueda: un campo arriba y una lista que se
@@ -122,9 +122,7 @@ export function SearchPalette({
             placeholder={placeholder}
             className="h-12 w-full bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle [&::-webkit-search-cancel-button]:hidden"
           />
-          {loading && (
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-fg-subtle" aria-label="Buscando" />
-          )}
+          {loading && <Spinner inline label="Buscando" className="shrink-0 text-fg-subtle" />}
           <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 text-3xs text-fg-subtle sm:inline">
             Esc
           </kbd>

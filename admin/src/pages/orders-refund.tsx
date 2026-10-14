@@ -1,6 +1,5 @@
 import { useEffect, useState, useId } from 'react';
-import { Loader2 } from 'lucide-react';
-import { Button, Checkbox, Modal, cn } from '@tiendafy/ui';
+import { Button, Checkbox, Modal, cn, Spinner } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/format';
 import { refundEffect } from '../lib/orderFacets';
@@ -59,7 +58,7 @@ export function RefundDialog({
             onClick={() => onSubmit(mode === 'total' ? null : parsed, reason, mode === 'total' && restock)}
             disabled={busy || !amountValid}
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Reembolsar
+            {busy && <Spinner inline />} Reembolsar
           </Button>
         </>
       }

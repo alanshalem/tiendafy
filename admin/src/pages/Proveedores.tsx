@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, PackagePlus, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, PackagePlus, Plus, Truck } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -12,6 +12,7 @@ import {
   Modal,
   Textarea,
   useToast,
+  Spinner,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -167,11 +168,7 @@ function SupplierList({
             title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
           >
             <span className="inline-flex items-center gap-1.5">
-              {importFromPurchases.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <PackagePlus className="h-4 w-4" />
-              )}
+              {importFromPurchases.isPending ? <Spinner inline /> : <PackagePlus className="h-4 w-4" />}
               Traer de mis compras
             </span>
           </Button>

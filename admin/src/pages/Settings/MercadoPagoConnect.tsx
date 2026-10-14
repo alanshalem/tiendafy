@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BadgeCheck, Link2, Loader2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
-import { Button, cn, useConfirm, useToast } from '@tiendafy/ui';
+import { BadgeCheck, Link2, Lock, ShieldCheck, Unplug, Zap } from 'lucide-react';
+import { Button, cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -191,7 +191,7 @@ function DisconnectedView({
           className="w-full sm:w-auto"
           style={{ background: MP_BLUE }}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          {busy ? <Spinner inline /> : <Link2 className="h-4 w-4" />}
           Conectá tu cuenta de Mercado Pago
         </Button>
       )}

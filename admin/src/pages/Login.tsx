@@ -1,9 +1,9 @@
 import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
 import { Captcha } from '../components/Captcha';
 import { LogoMark } from '../components/LogoMark';
+import { Spinner } from '@tiendafy/ui';
 
 const AUTH_INPUT =
   'h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary';
@@ -180,7 +180,7 @@ export function Login() {
             className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
           >
             {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner inline />
             ) : mode === 'forgot' ? (
               'Enviar link'
             ) : mode === 'login' ? (
@@ -306,7 +306,7 @@ function ResetPasswordForm() {
           disabled={busy || password.length < 10}
           className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cambiar contraseña'}
+          {busy ? <Spinner inline /> : 'Cambiar contraseña'}
         </button>
       </form>
     </Shell>
@@ -367,7 +367,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg-subtle">
-        <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
+        <Spinner inline size={24} className="text-fg-muted" />
       </div>
     );
   }

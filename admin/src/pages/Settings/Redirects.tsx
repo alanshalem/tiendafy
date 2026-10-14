@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
-import { Button, Input, useConfirm, useToast } from '@tiendafy/ui';
+import { Trash2 } from 'lucide-react';
+import { Button, Input, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { useStore } from '../../context/StoreContext';
@@ -116,7 +116,7 @@ export function RedirectsPage() {
             />
           </div>
           <Button onClick={add} disabled={!from.trim() || !to.trim() || busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Agregar
+            {busy && <Spinner inline />} Agregar
           </Button>
         </div>
         <p className="mt-2 text-xs text-fg-muted">

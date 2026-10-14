@@ -6,7 +6,6 @@ import {
   ArchiveRestore,
   ArrowLeft,
   ExternalLink,
-  Loader2,
   Mail,
   MailOpen,
   Package,
@@ -15,7 +14,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
-import { Badge, Button, cn, Select, Textarea, useToast } from '@tiendafy/ui';
+import { Badge, Button, cn, Select, Textarea, useToast, Spinner } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
@@ -260,7 +259,7 @@ function MessageList({
   if (loading)
     return (
       <p className="flex items-center gap-2 text-sm text-fg-muted">
-        <Loader2 className="h-4 w-4 animate-spin" /> Cargando la conversación…
+        <Spinner inline /> Cargando la conversación…
       </p>
     );
   if (messages.length === 0) return <p className="text-sm text-fg-muted">{empty}</p>;
@@ -600,11 +599,11 @@ function ReplyBox({ thread, onSent }: { thread: InboxThread; onSent: () => void 
             title="Sugerir una respuesta con IA (después la editás)"
             aria-label="Sugerir con IA"
           >
-            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {suggesting ? <Spinner inline /> : <Sparkles className="h-4 w-4" />}
           </Button>
         )}
         <Button size="sm" onClick={() => void send()} disabled={!canSend}>
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
           {spec.label}
         </Button>
       </div>

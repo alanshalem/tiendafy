@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, Loader2, RotateCw } from 'lucide-react';
-import { Button, useToast } from '@tiendafy/ui';
+import { AlertTriangle, RotateCw } from 'lucide-react';
+import { Button, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -101,7 +101,7 @@ export function WebhookHealth() {
                     disabled={retrying !== null}
                   >
                     {retrying === ev.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <Spinner inline />
                     ) : (
                       <RotateCw className="h-4 w-4" aria-hidden="true" />
                     )}

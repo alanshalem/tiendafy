@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CreditCard, Loader2, Lock, Unplug } from 'lucide-react';
-import { Button, FormField, Input, Select, useConfirm, useToast } from '@tiendafy/ui';
+import { CreditCard, Lock, Unplug } from 'lucide-react';
+import { Button, FormField, Input, Select, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -295,7 +295,7 @@ export function PaywayConnect() {
                 {conn?.connected && (
                   <>
                     <Button variant="secondary" onClick={test} disabled={busy}>
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Probar conexión
+                      {busy ? <Spinner inline /> : null} Probar conexión
                     </Button>
                     <Button variant="secondary" onClick={disconnect} disabled={busy}>
                       <Unplug className="h-4 w-4" /> Desconectar

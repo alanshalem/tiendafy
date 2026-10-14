@@ -6,7 +6,6 @@ import {
   ArrowUp,
   ArrowUpDown,
   Download,
-  Loader2,
   MoreVertical,
   Pencil,
   Trash2,
@@ -27,6 +26,7 @@ import {
   useToast,
   useConfirm,
   type TableColumn,
+  Spinner,
 } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -346,7 +346,7 @@ export function CustomersPage() {
             title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
           >
             <span className="inline-flex items-center gap-1.5">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />}
               Exportar
             </span>
           </Button>
@@ -359,11 +359,7 @@ export function CustomersPage() {
                 title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
               >
                 <span className="inline-flex items-center gap-1.5">
-                  {importFromOrders.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="h-4 w-4" />
-                  )}
+                  {importFromOrders.isPending ? <Spinner inline /> : <UserPlus className="h-4 w-4" />}
                   Traer de mis ventas
                 </span>
               </Button>

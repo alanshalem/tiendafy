@@ -1,7 +1,7 @@
 import { useState, useId } from 'react';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
+import { Button, Card, Input, Modal, Select, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
@@ -367,7 +367,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
             Cancelar
           </Button>
           <Button onClick={apply} disabled={busy || !percent}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Repreciar
+            {busy && <Spinner inline />} Repreciar
           </Button>
         </>
       }

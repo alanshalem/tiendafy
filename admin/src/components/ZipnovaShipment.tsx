@@ -1,6 +1,6 @@
 import { useEffect, useState, useId } from 'react';
-import { Download, Loader2, Zap } from 'lucide-react';
-import { Input, Modal, useToast } from '@tiendafy/ui';
+import { Download, Zap } from 'lucide-react';
+import { Input, Modal, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import {
@@ -77,12 +77,7 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
           disabled={downloading}
           className={`${shipmentTriggerCls} disabled:opacity-50`}
         >
-          {downloading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}{' '}
-          Etiqueta PDF
+          {downloading ? <Spinner inline size={14} /> : <Download className="h-3.5 w-3.5" />} Etiqueta PDF
         </button>
         {state.trackingUrl && (
           <a

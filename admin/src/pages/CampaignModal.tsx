@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useId } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Check, Loader2, Plus, Search, Send, X, XCircle } from 'lucide-react';
-import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast } from '@tiendafy/ui';
+import { Check, Plus, Search, Send, X, XCircle } from 'lucide-react';
+import { Button, Checkbox, Input, Modal, Select, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { formatMoney, formatNumber } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -397,7 +397,7 @@ export function CampaignModal({
                 className="max-w-xs"
               />
               <Button variant="secondary" onClick={sendTest} disabled={testing || !canSend}>
-                {testing && <Loader2 className="h-4 w-4 animate-spin" />} Enviar prueba
+                {testing && <Spinner inline />} Enviar prueba
               </Button>
             </div>
           </div>

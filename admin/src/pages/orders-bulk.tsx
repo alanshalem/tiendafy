@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Download, FileText, Loader2, Printer, Tag, Truck, X } from 'lucide-react';
-import { cn, useConfirm, useToast } from '@tiendafy/ui';
+import { Download, FileText, Printer, Tag, Truck, X } from 'lucide-react';
+import { cn, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { base64ToBlob, type LabelBatch } from '../lib/fulfillment';
@@ -252,50 +252,29 @@ export function OrdersBulkBar({
             onClick={fulfill}
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-50"
           >
-            {busy === 'fulfill' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Truck className="h-4 w-4" />
-            )}{' '}
-            Marcar como enviadas
+            {busy === 'fulfill' ? <Spinner inline /> : <Truck className="h-4 w-4" />} Marcar como enviadas
           </button>
         )}
         {canFulfill && (
           <button type="button" disabled={!!busy} onClick={labels} className={button}>
-            {busy === 'labels' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}{' '}
-            Etiquetas
+            {busy === 'labels' ? <Spinner inline /> : <Tag className="h-4 w-4" />} Etiquetas
           </button>
         )}
         {canFulfill && (
           <button type="button" disabled={!!busy} onClick={slips} className={button}>
-            {busy === 'slips' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Printer className="h-4 w-4" />
-            )}{' '}
-            Remitos
+            {busy === 'slips' ? <Spinner inline /> : <Printer className="h-4 w-4" />} Remitos
           </button>
         )}
         {canEmit &&
           (fiscalReady ? (
             <button type="button" disabled={!!busy} onClick={invoice} className={button}>
-              {busy === 'invoice' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}{' '}
-              Facturar
+              {busy === 'invoice' ? <Spinner inline /> : <FileText className="h-4 w-4" />} Facturar
             </button>
           ) : (
             <SetupInvoicingLink className="h-9" />
           ))}
         <button type="button" disabled={!!busy} onClick={exportCsv} className={button}>
-          {busy === 'export' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}{' '}
-          Exportar
+          {busy === 'export' ? <Spinner inline /> : <Download className="h-4 w-4" />} Exportar
         </button>
         <button
           type="button"

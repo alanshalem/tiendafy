@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Download, Loader2, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
+import { AlertTriangle, Download, Package, Plus, RefreshCw, Search, Store } from 'lucide-react';
 import {
   Checkbox,
   clickableRowProps,
@@ -11,6 +11,7 @@ import {
   useToast,
   useConfirm,
   usePrompt,
+  Spinner,
 } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -457,8 +458,7 @@ export function OrdersPage() {
             title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{' '}
-            Exportar
+            {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />} Exportar
           </button>
           <button
             type="button"

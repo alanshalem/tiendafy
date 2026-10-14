@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Loader2, MessageSquare, Search, Send, X } from 'lucide-react';
+import { FileText, MessageSquare, Search, Send, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -260,12 +260,7 @@ export function VentasTab() {
         disabled={row?.state === 'working' || !!progress}
         onClick={() => invoice(o)}
       >
-        {row?.state === 'working' ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <FileText className="h-4 w-4" />
-        )}{' '}
-        Facturar
+        {row?.state === 'working' ? <Spinner inline /> : <FileText className="h-4 w-4" />} Facturar
       </Button>
     );
   };
@@ -343,8 +338,7 @@ export function VentasTab() {
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={invoiceSelected} disabled={!!progress}>
-              {progress ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}{' '}
-              Facturar seleccionadas
+              {progress ? <Spinner inline /> : <FileText className="h-4 w-4" />} Facturar seleccionadas
             </Button>
             <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={!!progress}>
               <X className="h-4 w-4" /> Deseleccionar
@@ -585,7 +579,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
           onKeyDown={(e) => e.key === 'Enter' && send()}
         />
         <Button aria-label="Enviar" onClick={send} disabled={sending || !text.trim()}>
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {sending ? <Spinner inline /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
     </Modal>

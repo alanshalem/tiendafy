@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Loader2, Sparkles } from 'lucide-react';
-import { FormField, Input, Textarea, useToast } from '@tiendafy/ui';
+import { Check, Sparkles } from 'lucide-react';
+import { FormField, Input, Textarea, useToast, Spinner } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { foldText } from '../../lib/text';
@@ -76,7 +76,7 @@ export function DetailsSection({
               className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
               title="Escribe (o reescribe) la descripción a partir del nombre y lo que ya haya"
             >
-              {aiWriting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              {aiWriting ? <Spinner inline size={12} /> : <Sparkles className="h-3 w-3" />}
               Escribir con IA
             </button>
           )}

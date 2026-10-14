@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, ExternalLink, Globe, Loader2, Lock, RefreshCw, Trash2 } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, useConfirm, useToast } from '@tiendafy/ui';
+import { Check, Copy, ExternalLink, Globe, Lock, RefreshCw, Trash2 } from 'lucide-react';
+import { Badge, Button, FormField, Input, Modal, useConfirm, useToast, Spinner } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -141,7 +141,7 @@ export function DomainsPage() {
                   <td className="px-4 py-3">
                     {statusQ.isFetching ? (
                       <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando…
+                        <Spinner inline size={14} /> Verificando…
                       </span>
                     ) : status.pointsHere ? (
                       <Badge variant="success">
