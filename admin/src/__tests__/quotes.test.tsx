@@ -176,6 +176,46 @@ describe('presupuestos: su ciclo', () => {
     expect(screen.getByRole('button', { name: /verla en Ventas/ })).toBeInTheDocument();
   });
 
+  it('una acción con cambios sin guardar los guarda primero', async () => {
+    const { api, user } = await openQuote();
+    await user.type(screen.getByLabelText('Notas'), ' — cambio');
+    await user.click(screen.getByRole('button', { name: 'Marcar como enviado' }));
+    await settle(3);
+    const writes = api.calls.filter(
+      (c) => c.method !== 'GET' && c.path.startsWith(`/api/v1/quotes/${quote.id}`),
+    );
+    expect(writes.map((c) => `${c.method} ${c.path}`)).toEqual([
+      `PUT /api/v1/quotes/${quote.id}`,
+      `POST /api/v1/quotes/${quote.id}/send`,
+    ]);
+    expect((writes[0]!.body as { notes: string }).notes).toMatch(/— cambio$/);
+  });
+
+  it('con cambios inválidos, la acción no sale y dice qué corregir', async () => {
+    const { api, user } = await openQuote();
+    const qty = screen.getAllByLabelText(/^Cantidad de /)[0]!;
+    await user.clear(qty);
+    await user.type(qty, '0');
+    await user.click(screen.getByRole('button', { name: 'Marcar como enviado' }));
+    expect(
+      await screen.findByText('Antes, corregí lo que cambiaste: Las cantidades tienen que ser positivas.'),
+    ).toBeInTheDocument();
+    expect(api.calls.some((c) => c.method !== 'GET' && c.path.includes(quote.id))).toBe(false);
+  });
+
+  it('volver con cambios sin guardar pregunta antes', async () => {
+    const { user } = await openQuote();
+    await user.type(screen.getByLabelText('Notas'), ' — cambio');
+    await user.click(screen.getByRole('button', { name: /^Presupuestos$/ }));
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect((screen.getByLabelText('Notas') as HTMLTextAreaElement).value).toMatch(/— cambio$/);
+
+    await user.click(screen.getByRole('button', { name: /^Presupuestos$/ }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
+    expect(await screen.findByRole('searchbox', { name: 'Buscar presupuestos' })).toBeInTheDocument();
+  });
+
   it('un error de la API se muestra', async () => {
     const { api, user } = await openQuote();
     api.on('POST', `/api/v1/quotes/${quote.id}/send`, { detail: 'Sin email del cliente.' }, 400);

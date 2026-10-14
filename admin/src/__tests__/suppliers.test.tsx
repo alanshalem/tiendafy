@@ -125,6 +125,27 @@ describe('proveedores', () => {
     await waitFor(() => expect(screen.queryByRole('heading', { name: row.name })).not.toBeInTheDocument());
   });
 
+  it('editar con cambios: cancelar pregunta antes de descartarlos', async () => {
+    const { api, user } = await openSuppliers();
+    await user.click(screen.getByText(row.name));
+    await user.click(await screen.findByRole('button', { name: 'Editar' }));
+    const f = await form('Editar proveedor');
+    const name = f.getByLabelText('Nombre', { exact: false });
+    await user.type(name, ' SRL');
+
+    await user.click(f.getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(name).toHaveValue(`${row.name} SRL`);
+
+    await user.click(f.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Editar proveedor' })).not.toBeInTheDocument(),
+    );
+    expect(api.calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
   it('volver de la ficha a la lista; cancelar el formulario no guarda', async () => {
     const { api, user } = await openSuppliers();
     await user.click(screen.getByText(row.name));

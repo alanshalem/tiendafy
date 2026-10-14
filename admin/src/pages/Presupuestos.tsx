@@ -29,6 +29,7 @@ import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { replaceAt } from '../lib/arrays';
+import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { parseMoneyInput } from '../lib/price';
 
 // ---------------------------------------------------------------- Tipos wire
@@ -332,6 +333,46 @@ interface DraftLine {
   quantity: string;
 }
 
+type QuoteCustomer = { id: string | null; name: string; email: string | null };
+
+interface QuoteForm {
+  customer: QuoteCustomer | null;
+  validUntil: string;
+  lines: DraftLine[];
+  discount: string;
+  notes: string;
+}
+
+function formOf(quote: QuoteDetail): QuoteForm {
+  return {
+    customer: { id: quote.customerId, name: quote.customerName, email: quote.customerEmail },
+    validUntil: quote.validUntilUtc.slice(0, 10),
+    lines: quote.items.map((i) => ({
+      variantId: i.variantId,
+      productName: i.productName,
+      variantDescription: i.variantDescription,
+      sku: i.sku,
+      price: String(i.unitPriceMinor / 100),
+      quantity: String(i.quantity),
+    })),
+    discount: quote.discountMinor > 0 ? String(quote.discountMinor / 100) : '',
+    notes: quote.notes ?? '',
+  };
+}
+
+/** Lo que cuenta para "hay cambios sin guardar". */
+function quoteKey(f: QuoteForm): string {
+  return JSON.stringify([
+    f.customer?.id ?? null,
+    f.customer?.name ?? '',
+    f.customer?.email ?? null,
+    f.validUntil,
+    f.lines.map((l) => [l.variantId, l.price, l.quantity]),
+    f.discount,
+    f.notes,
+  ]);
+}
+
 function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) {
   const { store } = useStore();
   const qc = useQueryClient();
@@ -345,39 +386,51 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
     enabled: !!store && !!id,
   });
 
-  const [customer, setCustomer] = useState<{ id: string | null; name: string; email: string | null } | null>(
-    null,
-  );
+  const [customer, setCustomer] = useState<QuoteCustomer | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
-  const [validUntil, setValidUntil] = useState(inDays(15));
+  const [validUntil, setValidUntil] = useState(() => inDays(15));
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [discount, setDiscount] = useState('');
   const [notes, setNotes] = useState('');
-  const [hydrated, setHydrated] = useState(false);
+  // Cómo está guardado (o el form vacío, si es nuevo): contra eso se mide si
+  // hay cambios. null = todavía no llegó el detalle.
+  const [savedKey, setSavedKey] = useState<string | null>(() =>
+    id ? null : quoteKey({ customer: null, validUntil: inDays(15), lines: [], discount: '', notes: '' }),
+  );
   const [accepting, setAccepting] = useState(false);
+
+  const load = (f: QuoteForm) => {
+    setCustomer(f.customer);
+    setValidUntil(f.validUntil);
+    setLines(f.lines);
+    setDiscount(f.discount);
+    setNotes(f.notes);
+    setSavedKey(quoteKey(f));
+  };
 
   // Hidratar el formulario cuando llega el detalle. Durante el render y no en un
   // efecto: es el mismo patrón del editor de compras y evita el parpadeo de un
   // formulario vacío que se llena después.
-  if (quote && !hydrated) {
-    setHydrated(true);
-    setCustomer({ id: quote.customerId, name: quote.customerName, email: quote.customerEmail });
-    setValidUntil(quote.validUntilUtc.slice(0, 10));
-    setLines(
-      quote.items.map((i) => ({
-        variantId: i.variantId,
-        productName: i.productName,
-        variantDescription: i.variantDescription,
-        sku: i.sku,
-        price: String(i.unitPriceMinor / 100),
-        quantity: String(i.quantity),
-      })),
-    );
-    setDiscount(quote.discountMinor > 0 ? String(quote.discountMinor / 100) : '');
-    setNotes(quote.notes ?? '');
-  }
+  if (quote && savedKey === null) load(formOf(quote));
 
   const editable = !quote || quote.editable;
+  const currentKey = quoteKey({ customer, validUntil, lines, discount, notes });
+  const dirty = editable && savedKey !== null && currentKey !== savedKey;
+  // Cerrar el presupuesto (volver, «Atrás», otra pantalla) con cambios pregunta.
+  const leave = useUnsavedChanges(dirty, { param: 'presupuesto' });
+
+  /**
+   * Después de guardar o de una acción (enviar, extender, rechazar…), el form
+   * muestra lo que quedó en el servidor: antes seguía con lo hidratado al
+   * abrir, y "Extender 15 días más" dejaba a la vista la fecha vieja.
+   */
+  const showServerTruth = async () => {
+    qc.invalidateQueries({ queryKey: ['quotes', store?.id] });
+    qc.invalidateQueries({ queryKey: ['quotes-summary', store?.id] });
+    await qc.invalidateQueries({ queryKey: ['quote', store?.id, id] });
+    const fresh = qc.getQueryData<QuoteDetail>(['quote', store?.id, id]);
+    if (fresh?.items) load(formOf(fresh));
+  };
 
   const subtotalMinor = lines.reduce((sum, l) => {
     const price = parseMoneyInput(l.price || '0');
@@ -400,49 +453,60 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
   const priceOf = (variantId: string) =>
     (customerPrices?.items ?? []).find((p) => p.variantId === variantId)?.priceMinor;
 
+  const body = () => ({
+    customerName: customer?.name ?? '',
+    customerId: customer?.id ?? null,
+    customerEmail: customer?.email ?? null,
+    currency: 'ARS',
+    validUntilUtc: new Date(`${validUntil}T00:00:00Z`).toISOString(),
+    items: lines.map((l) => ({
+      variantId: l.variantId,
+      quantity: Number(l.quantity) || 1,
+      unitPriceMinor: parseMoneyInput(l.price || '0'),
+    })),
+    discountMinor: discountMinor > 0 ? discountMinor : null,
+    notes: notes.trim() || null,
+  });
+
   const save = useMutation({
-    mutationFn: () => {
-      const body = {
-        customerName: customer?.name ?? '',
-        customerId: customer?.id ?? null,
-        customerEmail: customer?.email ?? null,
-        currency: 'ARS',
-        validUntilUtc: new Date(`${validUntil}T00:00:00Z`).toISOString(),
-        items: lines.map((l) => ({
-          variantId: l.variantId,
-          quantity: Number(l.quantity) || 1,
-          unitPriceMinor: parseMoneyInput(l.price || '0'),
-        })),
-        discountMinor: discountMinor > 0 ? discountMinor : null,
-        notes: notes.trim() || null,
-      };
-      return id
-        ? api.put<QuoteDetail>(`/api/v1/quotes/${id}`, body)
-        : api.post<QuoteDetail>('/api/v1/quotes', body);
-    },
-    onSuccess: (saved) => {
-      qc.invalidateQueries({ queryKey: ['quotes', store?.id] });
-      qc.invalidateQueries({ queryKey: ['quotes-summary', store?.id] });
-      qc.invalidateQueries({ queryKey: ['quote', store?.id, saved.id] });
-      toast(`${saved.number} guardado`, { variant: 'success' });
-      if (!id) onBack();
+    mutationFn: () =>
+      id
+        ? api.put<QuoteDetail>(`/api/v1/quotes/${id}`, body())
+        : api.post<QuoteDetail>('/api/v1/quotes', body()),
+    onSuccess: async (saved) => {
+      toast(`${saved.number ?? 'Presupuesto'} guardado`, { variant: 'success' });
+      if (!id) {
+        qc.invalidateQueries({ queryKey: ['quotes', store?.id] });
+        qc.invalidateQueries({ queryKey: ['quotes-summary', store?.id] });
+        leave(onBack);
+        return;
+      }
+      await showServerTruth();
     },
     onError: (e) => toast(errMsg(e, 'No se pudo guardar'), { variant: 'error' }),
   });
 
   const action = useMutation({
-    mutationFn: ({ path, body }: { path: string; body?: unknown }) =>
-      api.post<{ orderId?: string }>(`/api/v1/quotes/${id}/${path}`, body ?? {}),
-    onSuccess: (res, vars) => {
-      qc.invalidateQueries({ queryKey: ['quotes', store?.id] });
-      qc.invalidateQueries({ queryKey: ['quotes-summary', store?.id] });
-      qc.invalidateQueries({ queryKey: ['quote', store?.id, id] });
+    mutationFn: async ({ path, body: actionBody }: { path: string; body?: unknown }) => {
+      // Enviar, aceptar o extender un presupuesto con cambios sin guardar los
+      // guarda primero: aceptar crea la venta con lo que tiene el servidor, y
+      // esos precios recién tipeados se perdían sin aviso. Rechazar descarta.
+      if (dirty && path !== 'reject') {
+        await api.put<QuoteDetail>(`/api/v1/quotes/${id}`, body());
+        setSavedKey(currentKey);
+      }
+      return api.post<{ orderId?: string }>(`/api/v1/quotes/${id}/${path}`, actionBody ?? {});
+    },
+    onSuccess: async (res, vars) => {
       if (vars.path === 'accept' && res.orderId) {
+        qc.invalidateQueries({ queryKey: ['quotes', store?.id] });
+        qc.invalidateQueries({ queryKey: ['quotes-summary', store?.id] });
         toast('Presupuesto aceptado: la venta ya está creada.', { variant: 'success' });
-        navigate(`/ventas?order=${res.orderId}`);
+        leave(() => navigate(`/ventas?order=${res.orderId}`));
         return;
       }
       toast('Listo', { variant: 'success' });
+      await showServerTruth();
     },
     onError: (e) => toast(errMsg(e, 'No se pudo completar'), { variant: 'error' }),
   });
@@ -458,6 +522,16 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
       return 'La validez tiene que ser posterior a hoy.';
     return null;
   }, [customer, lines, discountMinor, subtotalMinor, validUntil]);
+
+  /** Una acción sobre el presupuesto; con cambios inválidos no se guarda nada a medias. */
+  const run = (vars: { path: string; body?: unknown }) => {
+    if (dirty && vars.path !== 'reject' && problem) {
+      toast(`Antes, corregí lo que cambiaste: ${problem}`, { variant: 'error' });
+      return;
+    }
+    action.mutate(vars);
+  };
+  const busy = save.isPending || action.isPending;
 
   return (
     <>
@@ -496,11 +570,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
             </Button>
           )}
           {editable && (
-            <Button
-              onClick={() => save.mutate()}
-              disabled={!!problem || save.isPending}
-              loading={save.isPending}
-            >
+            <Button onClick={() => save.mutate()} disabled={!!problem || busy} loading={save.isPending}>
               Guardar
             </Button>
           )}
@@ -672,23 +742,32 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
               <>
                 <Button
                   variant="secondary"
-                  disabled={action.isPending}
-                  onClick={() => action.mutate({ path: 'send' })}
+                  disabled={busy}
+                  loading={action.isPending && action.variables?.path === 'send'}
+                  onClick={() => run({ path: 'send' })}
                 >
                   Marcar como enviado
                 </Button>
-                <Button onClick={() => setAccepting(true)} disabled={quote.expired}>
+                <Button
+                  onClick={() => setAccepting(true)}
+                  disabled={quote.expired || busy}
+                  loading={action.isPending && action.variables?.path === 'accept'}
+                >
                   El cliente aceptó
                 </Button>
                 <Button
                   variant="secondary"
+                  disabled={busy}
+                  loading={action.isPending && action.variables?.path === 'reject'}
                   onClick={async () => {
                     const ok = await confirm({
                       title: `Rechazar ${quote.number}`,
-                      message: 'Queda registrado como rechazado. Después lo podés reabrir para renegociarlo.',
+                      message: dirty
+                        ? 'Queda registrado como rechazado, y los cambios sin guardar se descartan. Después lo podés reabrir para renegociarlo.'
+                        : 'Queda registrado como rechazado. Después lo podés reabrir para renegociarlo.',
                       confirmLabel: 'Rechazar',
                     });
-                    if (ok) action.mutate({ path: 'reject', body: { reason: null } });
+                    if (ok) run({ path: 'reject', body: { reason: null } });
                   }}
                 >
                   El cliente lo rechazó
@@ -696,8 +775,10 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
                 {quote.expired && (
                   <Button
                     variant="secondary"
+                    disabled={busy}
+                    loading={action.isPending && action.variables?.path === 'extend'}
                     onClick={() =>
-                      action.mutate({
+                      run({
                         path: 'extend',
                         body: { validUntilUtc: new Date(`${inDays(15)}T00:00:00Z`).toISOString() },
                       })
@@ -711,8 +792,9 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
             {quote.status === 'rejected' && (
               <Button
                 variant="secondary"
-                disabled={action.isPending}
-                onClick={() => action.mutate({ path: 'reopen' })}
+                disabled={busy}
+                loading={action.isPending && action.variables?.path === 'reopen'}
+                onClick={() => run({ path: 'reopen' })}
               >
                 Reabrir para renegociar
               </Button>
@@ -733,7 +815,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
           onClose={() => setAccepting(false)}
           onAccept={(paymentMethod) => {
             setAccepting(false);
-            action.mutate({ path: 'accept', body: { paymentMethod } });
+            run({ path: 'accept', body: { paymentMethod } });
           }}
         />
       )}

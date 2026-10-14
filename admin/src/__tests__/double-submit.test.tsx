@@ -4,7 +4,7 @@
  * "Próximamente" aunque ya existía: el campo personalizado de la ficha
  * técnica, que ahora lleva a Configuración.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
@@ -104,6 +104,32 @@ describe('un click por pedido: compras y presupuestos', () => {
     release();
     await settle(4);
     expect(api.calls.filter((c) => c.path.endsWith(`/quotes/${quote.id}/send`))).toHaveLength(1);
+  });
+
+  it('extender o rechazar un presupuesto: mientras va, ninguna acción responde', async () => {
+    const quote = fixture<{ id: string; number: string }>('/api/v1/quotes/:id');
+    const api = mockApi();
+    api.on('GET', `/api/v1/quotes/${quote.id}`, { ...fixture<object>('/api/v1/quotes/:id'), expired: true });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/presupuestos');
+    await user.click(await screen.findByText(quote.number, {}, { timeout: 5000 }));
+    await settle(2);
+
+    const release = hold(api, 'POST', `/quotes/${quote.id}/extend`);
+    await user.click(screen.getByRole('button', { name: 'Extender 15 días más' }));
+    for (const name of ['Extender 15 días más', 'El cliente lo rechazó', 'Marcar como enviado'])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    release();
+    await settle(4);
+    expect(api.calls.filter((c) => c.path.endsWith(`/quotes/${quote.id}/extend`))).toHaveLength(1);
+
+    const releaseReject = hold(api, 'POST', `/quotes/${quote.id}/reject`);
+    await user.click(screen.getByRole('button', { name: 'El cliente lo rechazó' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rechazar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'El cliente lo rechazó' })).toBeDisabled());
+    releaseReject();
+    await settle(4);
+    expect(api.calls.filter((c) => c.path.endsWith(`/quotes/${quote.id}/reject`))).toHaveLength(1);
   });
 });
 

@@ -22,6 +22,7 @@ import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { ScreenSkeleton } from '../components/Skeleton';
+import { useGuardedClose, useUnsavedChanges } from '../lib/useUnsavedChanges';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -408,7 +409,7 @@ function SupplierModal({ supplier, onClose }: { supplier?: SupplierDetail; onClo
   const { toast } = useToast();
   const editing = !!supplier;
 
-  const [form, setForm] = useState({
+  const [initial] = useState(() => ({
     name: supplier?.name ?? '',
     taxId: supplier?.taxId ?? '',
     email: supplier?.email ?? '',
@@ -417,7 +418,15 @@ function SupplierModal({ supplier, onClose }: { supplier?: SupplierDetail; onClo
     country: supplier?.country ?? '',
     notes: supplier?.notes ?? '',
     active: supplier?.active ?? true,
-  });
+  }));
+  const [form, setForm] = useState(initial);
+
+  // Con cambios, cerrar pregunta: la X, Escape y el fondo (prop `dirty` del
+  // Modal), "Cancelar", y también salir de la ficha con «Atrás» o ir a otra
+  // pantalla con el modal abierto (useUnsavedChanges sobre `?proveedor=`).
+  const dirty = (Object.keys(initial) as (keyof typeof initial)[]).some((k) => form[k] !== initial[k]);
+  const cancel = useGuardedClose(dirty, onClose);
+  useUnsavedChanges(dirty, { param: 'proveedor' });
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((cur) => ({ ...cur, [key]: value }));
@@ -448,7 +457,13 @@ function SupplierModal({ supplier, onClose }: { supplier?: SupplierDetail; onClo
   });
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Editar proveedor' : 'Nuevo proveedor'} size="lg">
+    <Modal
+      open
+      onClose={onClose}
+      dirty={dirty}
+      title={editing ? 'Editar proveedor' : 'Nuevo proveedor'}
+      size="lg"
+    >
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Nombre" className="sm:col-span-2" required>
           <Input value={form.name} onChange={(e) => set('name', e.target.value)} autoFocus />
@@ -489,7 +504,7 @@ function SupplierModal({ supplier, onClose }: { supplier?: SupplierDetail; onClo
       )}
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={cancel}>
           Cancelar
         </Button>
         <Button
