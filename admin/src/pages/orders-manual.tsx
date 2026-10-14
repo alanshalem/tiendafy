@@ -1,11 +1,14 @@
 import { useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Copy, ExternalLink, Loader2, Plus, Trash2, UserPlus, UserRound, X } from 'lucide-react';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
 import { formatMoney } from '../lib/format';
+import { Z_ANCHORED } from '../lib/styles';
+import { usePermissions } from '../context/PermissionsContext';
 import { VariantPicker } from '../components/VariantPicker';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
@@ -29,17 +32,18 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const { toast } = useToast();
   const [items, setItems] = useState<ManualItem[]>([]);
   const [payment, setPayment] = useState('cash');
+  // El cliente es UN solo campo: lo que se escribe es el nombre de esta venta
+  // y, si se elige de la agenda (o se crea ahí), además trae su ficha —
+  // obligatoria para la cuenta corriente, y la que dice su lista de precios.
+  // Antes eran dos campos ("Cliente" y "Cliente de la agenda") y no se sabía
+  // cuál mandaba.
   const [buyerName, setBuyerName] = useState('');
+  const [customer, setCustomer] = useState<PickedCustomer | null>(null);
   const [buyerEmail, setBuyerEmail] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
-  // El cliente de la agenda: obligatorio para la cuenta corriente (sin ficha no
-  // hay a quién anotarle la deuda) y opcional para el resto, donde lo que
-  // aporta es su lista de precios.
-  const [customer, setCustomer] = useState<PickedCustomer | null>(null);
-  const [customerSearch, setCustomerSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
-  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ id: string; paymentLink: string } | null>(null);
 
   // Una venta a medio cargar (productos, comprador, notas) no se pierde por un
   // click afuera del modal o un Escape de más.
@@ -48,14 +52,23 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
     payment !== 'cash' ||
     !!customer ||
     [buyerName, buyerEmail, buyerPhone, notes].some((v) => v.trim() !== '');
-  const cancel = useGuardedClose(dirty && !paymentLink, onClose);
-  useBeforeUnload(dirty && !paymentLink);
+  const cancel = useGuardedClose(dirty && !created, onClose);
+  useBeforeUnload(dirty && !created);
 
   const totalMinor = items.reduce((sum, i) => {
     const price = Number(i.price) > 0 ? Math.round(Number(i.price) * 100) : 0;
     return sum + price * (Number(i.quantity) || 0);
   }, 0);
   const hasCustomPrices = items.every((i) => Number(i.price) > 0);
+
+  const pickCustomer = (c: PickedCustomer | null) => {
+    setCustomer(c);
+    if (!c) return;
+    setBuyerName(c.name);
+    // Lo que ya está en la ficha no se vuelve a tipear (sin pisar lo escrito).
+    if (c.email && !buyerEmail.trim()) setBuyerEmail(c.email);
+    if (c.phone && !buyerPhone.trim()) setBuyerPhone(c.phone);
+  };
 
   const create = async () => {
     if (payment === 'link' && !buyerEmail.trim()) {
@@ -65,12 +78,17 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
       return;
     }
     if (payment === 'cuenta_corriente' && !customer) {
-      toast('Para vender en cuenta corriente elegí un cliente de la agenda.', { variant: 'error' });
+      toast(
+        'Para vender en cuenta corriente elegí un cliente de la agenda (o crealo desde el campo Cliente).',
+        {
+          variant: 'error',
+        },
+      );
       return;
     }
     setBusy(true);
     try {
-      const res = await api.post<{ paymentLink?: string }>('/api/v1/orders/manual', {
+      const res = await api.post<{ id: string; paymentLink?: string }>('/api/v1/orders/manual', {
         items: items.map((i) => ({
           variantId: i.variantId,
           quantity: Number(i.quantity) || 1,
@@ -88,7 +106,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
       if (res.paymentLink) {
         // Link de MP: la venta queda PENDIENTE hasta que el cliente pague
         // (el webhook la cobra sola). Se muestra para copiar y mandar.
-        setPaymentLink(res.paymentLink);
+        setCreated({ id: res.id, paymentLink: res.paymentLink });
         toast('Venta creada: mandá el link para cobrarla.', { variant: 'success' });
       } else {
         toast('Venta registrada: stock descontado y factura en camino (si está configurada).', {
@@ -103,7 +121,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
     }
   };
 
-  if (paymentLink) {
+  if (created) {
     return (
       <Modal
         open
@@ -122,7 +140,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             <Input
               aria-label="Link de pago"
               readOnly
-              value={paymentLink}
+              value={created.paymentLink}
               onFocus={(e) => e.currentTarget.select()}
             />
           </div>
@@ -130,7 +148,7 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             variant="secondary"
             className="shrink-0"
             onClick={() => {
-              navigator.clipboard?.writeText(paymentLink);
+              navigator.clipboard?.writeText(created.paymentLink);
               toast('Link copiado', { variant: 'success' });
             }}
           >
@@ -138,8 +156,17 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           </Button>
         </div>
         <p className="mt-2 text-xs text-fg-subtle">
-          El stock ya quedó reservado para esta venta: si el pago no llega, cancelá la orden desde Ventas para
-          liberarlo.
+          El stock ya quedó reservado para esta venta. Si el pago no llega, abrí la venta y tocá{' '}
+          <span className="font-medium text-fg">Cancelar venta</span>: se anula el link y se libera el stock.{' '}
+          {created.id && (
+            <Link
+              to={`/ventas?order=${created.id}`}
+              onClick={onClose}
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              Ver la venta <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          )}
         </p>
       </Modal>
     );
@@ -236,19 +263,21 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
-              Cliente
-            </label>
-            <Input
-              id={`${fid}-1`}
-              aria-label="Cliente"
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-              placeholder="Nombre"
-            />
-          </div>
+        <CustomerField
+          name={buyerName}
+          customer={customer}
+          required={payment === 'cuenta_corriente'}
+          contact={{ email: buyerEmail, phone: buyerPhone }}
+          onName={(text) => {
+            setBuyerName(text);
+            // Escribir otra cosa suelta la ficha elegida: el nombre y la ficha
+            // tienen que decir lo mismo.
+            if (customer && text !== customer.name) setCustomer(null);
+          }}
+          onPick={pickCustomer}
+        />
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor={`${fid}-2`} className="mb-1 block text-sm font-medium text-fg">
               Email {payment === 'link' ? '(requerido)' : '(opcional)'}
@@ -274,14 +303,6 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
         </div>
-
-        <CustomerPicker
-          customer={customer}
-          search={customerSearch}
-          required={payment === 'cuenta_corriente'}
-          onSearch={setCustomerSearch}
-          onPick={setCustomer}
-        />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -314,6 +335,12 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
             />
           </div>
         </div>
+        {payment === 'cuenta_corriente' && (
+          <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-sm text-fg-muted">
+            La venta se registra sin cobrar: el total queda como deuda del cliente en Cuentas corrientes, y se
+            salda cuando registres el cobro. Necesita un cliente de la agenda.
+          </p>
+        )}
       </div>
     </Modal>
   );
@@ -322,41 +349,55 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
 interface PickedCustomer {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
   priceListName: string | null;
 }
 
+interface AgendaCustomer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  priceListId: string | null;
+}
+
 /**
- * El cliente de la agenda. Sirve para dos cosas y por eso está siempre a la
- * vista: para vender en cuenta corriente hace falta saber a quién se le fía, y
- * para cualquier venta, si ese cliente tiene lista de precios asignada, los
- * precios salen de ahí.
+ * El cliente de la venta, en un solo campo: se escribe el nombre y abajo
+ * aparecen los de la agenda que coinciden; elegir uno trae su ficha (lista de
+ * precios, email, teléfono) y, si no está, "Crear en la agenda" lo da de alta
+ * en el momento. Sin elegir nada, el nombre queda solo en esta venta.
  *
- * No puede ser texto libre: el saldo y la lista se buscan por ficha, y "Juan"
- * escrito dos veces distinto serían dos clientes.
+ * La ficha importa: el saldo de la cuenta corriente y la lista de precios se
+ * buscan por ficha, y "Juan" escrito dos veces distinto serían dos clientes.
  */
-function CustomerPicker({
+function CustomerField({
+  name,
   customer,
-  search,
   required,
-  onSearch,
+  contact,
+  onName,
   onPick,
 }: {
+  name: string;
   customer: PickedCustomer | null;
-  search: string;
   required: boolean;
-  onSearch: (value: string) => void;
+  contact: { email: string; phone: string };
+  onName: (text: string) => void;
   onPick: (customer: PickedCustomer | null) => void;
 }) {
   const fid = useId();
-  const debounced = useDebouncedValue(search, 300).trim();
+  const { toast } = useToast();
+  const { can } = usePermissions();
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const debounced = useDebouncedValue(name, 300).trim();
 
   const { data } = useQuery({
     queryKey: ['manual-sale-customers', debounced],
     queryFn: () =>
-      api.get<{ items: { id: string; name: string; email: string | null; priceListId: string | null }[] }>(
-        `/api/v1/customers?limit=10&q=${encodeURIComponent(debounced)}`,
-      ),
-    enabled: !customer,
+      api.get<{ items: AgendaCustomer[] }>(`/api/v1/customers?limit=8&q=${encodeURIComponent(debounced)}`),
+    enabled: !customer && debounced.length >= 2 && can('customers.read'),
   });
 
   // Solo para mostrar de qué lista salen los precios: el que los aplica es el
@@ -365,66 +406,134 @@ function CustomerPicker({
     queryKey: ['price-lists-picker'],
     queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/price-lists'),
   });
-
   const nameOfList = (id: string | null) =>
     id ? ((lists?.items ?? []).find((l) => l.id === id)?.name ?? null) : null;
 
-  return (
-    <div className={required ? 'rounded-md border border-border bg-bg-subtle p-3' : undefined}>
-      {required && (
-        <p className="mb-2 text-sm text-fg-muted">
-          La venta se registra sin cobrar: el total queda como deuda del cliente en Cuentas corrientes, y se
-          salda cuando registres el cobro.
-        </p>
-      )}
+  const toPicked = (c: AgendaCustomer): PickedCustomer => ({
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone ?? null,
+    priceListName: nameOfList(c.priceListId),
+  });
 
-      {customer ? (
-        <div className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm">
-          <div>
-            <span className="font-medium">{customer.name}</span>
-            {customer.priceListName && (
-              <span className="ml-2 text-xs text-fg-subtle">
-                precios de la lista {customer.priceListName}
-              </span>
-            )}
-          </div>
-          <Button size="sm" variant="ghost" onClick={() => onPick(null)}>
-            Cambiar
-          </Button>
-        </div>
-      ) : (
-        <>
-          <label htmlFor={`${fid}-1`} className="mb-1 block text-sm font-medium text-fg">
-            Cliente de la agenda {required ? '(requerido)' : '(opcional)'}
-          </label>
-          <Input
-            id={`${fid}-1`}
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            placeholder="Buscar por nombre o email…"
-          />
-          {(data?.items ?? []).length > 0 && (
-            <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-border bg-surface">
-              {data!.items.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onPick({ id: c.id, name: c.name, priceListName: nameOfList(c.priceListId) })}
-                  className="flex w-full items-center justify-between border-b border-border px-3 py-2 text-left text-sm last:border-0 hover:bg-bg-muted"
-                >
-                  <span>{c.name}</span>
-                  <span className="text-xs text-fg-subtle">{nameOfList(c.priceListId) ?? c.email ?? ''}</span>
-                </button>
-              ))}
-            </div>
+  const matches = customer ? [] : (data?.items ?? []);
+  const exact = matches.some((c) => c.name.trim().toLowerCase() === debounced.toLowerCase());
+  const canCreate = can('customers.write') && !customer && debounced.length >= 2 && !exact;
+  const showList = open && !customer && (matches.length > 0 || canCreate);
+
+  const createInAgenda = async () => {
+    setCreating(true);
+    try {
+      const c = await api.post<AgendaCustomer>('/api/v1/customers', {
+        name: name.trim(),
+        email: contact.email.trim() || null,
+        phone: contact.phone.trim() || null,
+        address: null,
+        notes: null,
+      });
+      onPick(toPicked(c));
+      setOpen(false);
+      toast(`${c.name} quedó en la agenda de clientes.`, { variant: 'success' });
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo crear el cliente.'), { variant: 'error' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <label htmlFor={`${fid}-name`} className="mb-1 block text-sm font-medium text-fg">
+        Cliente {required ? '(de la agenda, requerido)' : '(opcional)'}
+      </label>
+      <div className="relative">
+        <UserRound className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+        <Input
+          id={`${fid}-name`}
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={showList ? `${fid}-list` : undefined}
+          aria-autocomplete="list"
+          autoComplete="off"
+          className="pl-8 pr-9"
+          value={name}
+          onChange={(e) => {
+            onName(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            // Escape cierra la lista, no el modal de la venta.
+            if (e.key === 'Escape' && showList) {
+              e.stopPropagation();
+              setOpen(false);
+            }
+          }}
+          placeholder="Nombre, o buscá en la agenda…"
+        />
+        {customer && (
+          <button
+            type="button"
+            aria-label="Quitar el cliente de la agenda"
+            onClick={() => {
+              onPick(null);
+              onName('');
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-fg-subtle hover:text-fg"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {showList && (
+        <ul
+          id={`${fid}-list`}
+          role="listbox"
+          aria-label="Clientes de la agenda"
+          className={`absolute ${Z_ANCHORED} mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-surface shadow-card`}
+        >
+          {matches.map((c) => (
+            <li key={c.id} role="option" aria-selected={false}>
+              <button
+                type="button"
+                // mousedown: que el blur del campo no cierre la lista antes del click.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onPick(toPicked(c));
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-bg-muted"
+              >
+                <span className="truncate text-fg">{c.name}</span>
+                <span className="shrink-0 text-xs text-fg-subtle">
+                  {nameOfList(c.priceListId) ?? c.email ?? ''}
+                </span>
+              </button>
+            </li>
+          ))}
+          {canCreate && (
+            <li role="option" aria-selected={false}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={createInAgenda}
+                disabled={creating}
+                className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-primary hover:bg-bg-muted disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Crear «{name.trim()}» en la agenda
+              </button>
+            </li>
           )}
-          {debounced && (data?.items ?? []).length === 0 && (
-            <p className="mt-2 text-sm text-fg-muted">
-              No hay ningún cliente con ese nombre. Crealo primero en Clientes.
-            </p>
-          )}
-        </>
+        </ul>
       )}
+      <p className="mt-1 text-xs text-fg-subtle">
+        {customer
+          ? `Cliente de la agenda${customer.priceListName ? ` · precios de la lista ${customer.priceListName}` : ''}.`
+          : 'Si no lo elegís de la agenda, el nombre queda solo en esta venta.'}
+      </p>
     </div>
   );
 }

@@ -105,7 +105,10 @@ export function MercadoLibrePage() {
             Conectado como <span className="font-medium text-fg">{status.nickname}</span>
           </p>
         </div>
-        <Tabs items={tabs} value={tab} onChange={setTab} />
+        {/* max-w-full: sin tope, la fila de pestañas se quedaba con el ancho de
+            su contenido y en un celular "Reclamos" caía fuera de la pantalla;
+            con tope, la fila corre de costado. */}
+        <Tabs items={tabs} value={tab} onChange={setTab} className="max-w-full" />
       </div>
 
       {tab === 'ventas' && <VentasTab />}
