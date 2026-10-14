@@ -6,7 +6,7 @@ import { MoreVertical } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { toFormPrice, toDomainPrice } from '../../lib/price';
-import { ListCard } from '../../components/ListCards';
+import { CARD_MENU_TRIGGER, ListCard } from '../../components/ListCards';
 import { statusLabel, statusVariant, type StockItem } from './types';
 import type { ProductDto, VariantDto } from './index';
 
@@ -63,12 +63,21 @@ function ProductActions({
   onDelete,
   onDuplicate,
   onEditPrices,
-}: Pick<RowProps, 'product' | 'onStatus' | 'onDelete' | 'onDuplicate'> & { onEditPrices?: () => void }) {
+  compact = false,
+}: Pick<RowProps, 'product' | 'onStatus' | 'onDelete' | 'onDuplicate'> & {
+  onEditPrices?: () => void;
+  /** Solo el ícono, para la tarjeta del teléfono. */
+  compact?: boolean;
+}) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   return (
     <Dropdown>
-      <Dropdown.Trigger label={`Acciones de ${product.name}`}>
+      <Dropdown.Trigger
+        label={`Acciones de ${product.name}`}
+        bare={compact}
+        className={compact ? CARD_MENU_TRIGGER : undefined}
+      >
         <MoreVertical className="h-4 w-4" />
       </Dropdown.Trigger>
       <Dropdown.Menu align="end">
@@ -301,6 +310,7 @@ export function ProductCard({
               onDelete={onDelete}
               onDuplicate={onDuplicate}
               onEditPrices={() => setPricesOpen(true)}
+              compact
             />
           )
         }

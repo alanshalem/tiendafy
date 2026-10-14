@@ -58,7 +58,7 @@ export function ListCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate font-semibold text-fg">{title}</div>
+            <div className="line-clamp-2 break-words font-semibold text-fg">{title}</div>
             {subtitle && <div className="truncate text-sm text-fg-muted">{subtitle}</div>}
           </div>
           {value != null && value !== false && (
@@ -76,6 +76,14 @@ export function ListCard({
     </li>
   );
 }
+
+/**
+ * Clases para el disparador del menú ⋮ de una tarjeta: un ícono de 40 px sin
+ * la caja con flecha de los menús de la tabla, que en el teléfono le comía
+ * el lugar al nombre. Va con `bare` en <Dropdown.Trigger>.
+ */
+export const CARD_MENU_TRIGGER =
+  'h-10 w-10 justify-center rounded-md text-fg-muted hover:bg-bg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-primary';
 
 /** El contenedor de las tarjetas: una lista con separadores, sin márgenes propios. */
 export function ListCardList({ children, label }: { children: ReactNode; label?: string }) {

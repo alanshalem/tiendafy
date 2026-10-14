@@ -266,7 +266,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
       // El grupo cuenta: "configuración" trae todas las pantallas de Configuración.
       .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''} ${c.group}`))
       .slice(0, 8)
-      .map((c) => add({ key: `nav-${c.to}`, group: c.group, label: c.label, hint: c.group }, c.to));
+      .map((c) => add({ key: `nav-${c.to}`, group: c.group, label: c.label }, c.to));
     // Las pantallas, agrupadas por "Ir a" / "Configuración" sin intercalarse.
     nav.sort((a, b) => (a.group === b.group ? 0 : a.group === 'Ir a' ? -1 : 1));
 

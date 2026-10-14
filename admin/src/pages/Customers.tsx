@@ -37,7 +37,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
-import { ResponsiveList } from '../components/ListCards';
+import { CARD_MENU_TRIGGER, ResponsiveList } from '../components/ListCards';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
 
@@ -212,10 +212,14 @@ export function CustomersPage() {
       remove.mutate(c);
   };
 
-  const actions = (c: Customer) =>
+  const actions = (c: Customer, compact = false) =>
     canEdit && (
       <Dropdown>
-        <Dropdown.Trigger label={`Acciones de ${c.name}`}>
+        <Dropdown.Trigger
+          label={`Acciones de ${c.name}`}
+          bare={compact}
+          className={compact ? CARD_MENU_TRIGGER : undefined}
+        >
           <MoreVertical className="h-4 w-4" />
         </Dropdown.Trigger>
         <Dropdown.Menu align="end">
@@ -468,7 +472,7 @@ export function CustomersPage() {
                     ))
                   : undefined,
               onOpen: () => open(c),
-              actions: actions(c) || undefined,
+              actions: actions(c, true) || undefined,
             })}
           />
           <Pagination

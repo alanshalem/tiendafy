@@ -61,7 +61,7 @@ export function HeaderActions() {
         <Dropdown.Trigger
           bare
           label={`Tu cuenta${user?.name ? `: ${user.name}` : ''}`}
-          className="ml-1 h-10 gap-2 rounded-full border-l border-border pl-2 hover:text-fg sm:pl-3"
+          className="h-10 min-w-10 justify-center gap-2 rounded-full hover:text-fg sm:ml-1 sm:border-l sm:border-border sm:pl-3"
         >
           <span
             aria-hidden="true"
