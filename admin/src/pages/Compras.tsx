@@ -178,7 +178,7 @@ function ComprasList({
             {
               label: 'Recibidas sin factura',
               value: formatNumber(summary.withoutInvoice),
-              hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA.',
+              hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA compras.',
               tone: summary.withoutInvoice > 0 ? 'warning' : 'default',
               onClick: () => toggleGroup('invoiceMissing'),
               active: group === 'invoiceMissing',

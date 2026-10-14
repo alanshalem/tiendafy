@@ -360,3 +360,21 @@ describe('compras: recibir con el escáner', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('proveedores: traer de mis compras', () => {
+  it('ata las compras sueltas y dice cuántas', async () => {
+    const api = mockApi();
+    api.on('POST', '/api/v1/suppliers/sync-from-purchases', { created: 2, linked: 3 });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/proveedores');
+    await screen.findByRole('heading', { name: 'Proveedores' });
+    await settle(2);
+    await user.click(screen.getByRole('button', { name: /Traer de mis compras/ }));
+    expect(
+      await screen.findByText(/Se ataron 3 compras a sus proveedores \(2 fichas nuevas\)/),
+    ).toBeInTheDocument();
+    expect(
+      api.calls.some((c) => c.method === 'POST' && c.path === '/api/v1/suppliers/sync-from-purchases'),
+    ).toBe(true);
+  });
+});

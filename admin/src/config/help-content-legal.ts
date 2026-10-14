@@ -114,8 +114,8 @@ export const LEGAL = {
       {
         heading: 'Libro de IVA ventas',
         paragraphs: [
-          'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total y CAE). Es lo que te pide tu contador.',
-          'El de compras sale de Compras e importaciones, con el botón “Libro de IVA”.',
+          'Arriba de la pantalla de Facturación elegís el mes y tocás “Libro IVA ventas”: se descarga un CSV, listo para Excel, con todos los comprobantes aprobados del mes (fecha, tipo, punto de venta, número, documento del comprador, neto, IVA, total y CAE). Es lo que te pide tu contador.',
+          'El de compras sale de Compras e importaciones, con el botón “Libro IVA compras”.',
         ],
       },
       {
