@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
+import { orderNumber } from '../lib/orderNumber';
 
 const CONVS = '/api/v1/support/conversations';
 
@@ -215,10 +216,21 @@ describe('chat posventa: el hilo', () => {
     api.on('POST', '/api/v1/ai/support-reply', { text: '¡Hola! Tu pedido sale mañana.' });
     await user.click(screen.getByRole('button', { name: 'Sugerir con IA' }));
     await waitFor(() => expect(box).toHaveValue('¡Hola! Tu pedido sale mañana.'));
-    // El mensaje del cliente es el último que mandó con texto o adjunto.
+    // El mensaje del cliente es el último que mandó con texto o adjunto, y el
+    // pedido es el de la conversación (no el id de la conversación), con el
+    // número que ve el comprador.
     expect(api.calls.filter((c) => c.path === '/api/v1/ai/support-reply').at(-1)!.body).toMatchObject({
-      orderSummary: `Pedido #${waiting.id.slice(0, 8)}`,
+      orderSummary: `Pedido ${orderNumber(waiting.orderId)}`,
     });
+  });
+
+  it('el pedido de cada conversación se muestra con su número de venta', async () => {
+    const { user } = await openChat();
+    const number = orderNumber(waiting.orderId);
+    expect(number).toMatch(/^#[0-9A-F]{8}$/);
+    expect(screen.getAllByText(new RegExp(`Pedido ${number}`)).length).toBeGreaterThan(0);
+    await openThread(user);
+    expect(screen.getAllByText(`Pedido ${number}`).length).toBeGreaterThan(0);
   });
 
   it('cerrar la conversación; si falla, lo dice', async () => {

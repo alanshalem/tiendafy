@@ -5,6 +5,7 @@ import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
 import { InvoiceDialog, type InvoiceBuyer } from './orders-invoice-dialog';
 import { useServerLoad } from '../lib/useServerLoad';
+import { orderNumber } from '../lib/orderNumber';
 
 interface FiscalDoc {
   id: string;
@@ -102,7 +103,11 @@ export function FiscalPanel({
       const blob = await api.download(
         `/api/v1/orders/${orderId}/invoice.pdf${kind === 'creditnote' ? '?type=creditnote' : ''}`,
       );
-      downloadBlob(blob, `comprobante-${orderId.slice(0, 8)}${kind === 'creditnote' ? '-nc' : ''}.pdf`);
+      // El archivo lleva el número de la venta (sin el "#"), el mismo que ve el comprador.
+      downloadBlob(
+        blob,
+        `comprobante-${orderNumber(orderId).slice(1)}${kind === 'creditnote' ? '-nc' : ''}.pdf`,
+      );
     } catch (e) {
       toast(errMsg(e, 'No se pudo descargar el comprobante.'), { variant: 'error' });
     }
