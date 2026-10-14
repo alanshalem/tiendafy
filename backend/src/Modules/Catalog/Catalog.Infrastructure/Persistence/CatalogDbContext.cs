@@ -22,6 +22,8 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
     public DbSet<SpecDefinition> SpecDefinitions => Set<SpecDefinition>();
     public DbSet<PriceList> PriceLists => Set<PriceList>();
     public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
+    public DbSet<SearchSettings> SearchSettings => Set<SearchSettings>();
+    public DbSet<SearchQueryStat> SearchQueries => Set<SearchQueryStat>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +86,68 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
         // Un precio a mano por variante y lista: sin esto, dos guardados
         // simultáneos dejan dos filas y gana la que devuelva primero la base.
         priceItem.HasIndex(i => new { i.PriceListId, i.VariantId }).IsUnique();
+
+        var search = modelBuilder.Entity<SearchSettings>();
+        search.ToTable("search_settings");
+        search.HasKey(s => s.TenantId);
+        search.Property(s => s.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        search.HasQueryFilter(s => !_filterByTenant || s.TenantId == _currentTenant);
+        search.Property<List<string>>("_synonymGroups").HasColumnName("synonym_groups");
+        search.Ignore(s => s.SynonymGroups);
+
+        var query = modelBuilder.Entity<SearchQueryStat>();
+        query.ToTable("search_queries");
+        query.HasKey(q => new { q.TenantId, q.Term });
+        query.Property(q => q.TenantId).HasConversion(id => id.Value, v => TenantId.From(v));
+        query.HasQueryFilter(q => !_filterByTenant || q.TenantId == _currentTenant);
+        query.Property(q => q.Term).HasMaxLength(SearchQueryStat.MaxTermLength);
+        // "Lo más buscado" de la tienda: ordena por cantidad dentro de cada tienda.
+        query.HasIndex(q => new { q.TenantId, q.Count });
+    }
+
+    /// <summary>
+    /// Toda escritura que toca un producto —él, sus variantes, imágenes,
+    /// opciones o ficha— le marca la fecha de modificación. Va acá y no en
+    /// cada método del dominio porque son decenas y alcanza con olvidarse uno;
+    /// el sitemap la usa como lastmod para que Google vuelva a lo que cambió.
+    /// </summary>
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        TouchChangedProducts();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        TouchChangedProducts();
+        return base.SaveChanges();
+    }
+
+    private void TouchChangedProducts()
+    {
+        ChangeTracker.DetectChanges();
+        var changed = ChangeTracker.Entries()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToList();
+        if (changed.Count == 0) return;
+
+        var touched = new HashSet<Guid>();
+        foreach (var entry in changed)
+        {
+            if (entry.Entity is Product p) touched.Add(p.Id);
+            // Variantes (entidad aparte) y lo que es del producto (owned): todos
+            // llevan el id del producto en la columna product_id.
+            else if (entry.Metadata.FindProperty("product_id") is { } fk && entry.Property(fk.Name).CurrentValue is Guid owner)
+                touched.Add(owner);
+        }
+        if (touched.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<Product>())
+        {
+            if (entry.State != EntityState.Deleted && touched.Contains(entry.Entity.Id))
+                entry.Property(p => p.UpdatedAtUtc).CurrentValue = now;
+        }
     }
 
     Task IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken) =>

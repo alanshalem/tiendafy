@@ -46,8 +46,29 @@ describe('productJsonLd', () => {
         price: '12999.00',
         availability: 'https://schema.org/InStock',
         url: 'https://t.com/productos/mancuerna',
+        shippingDetails: {
+          '@type': 'OfferShippingDetails',
+          shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'AR' },
+        },
+        hasMerchantReturnPolicy: {
+          '@type': 'MerchantReturnPolicy',
+          applicableCountry: 'AR',
+          returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+          merchantReturnDays: 10,
+          returnMethod: 'https://schema.org/ReturnByMail',
+          returnFees: 'https://schema.org/FreeReturn',
+        },
       },
     });
+  });
+
+  it('envío gratis desde el monto de la tienda: el costo cero va en el schema; si no, no se inventa', () => {
+    const free = productJsonLd(product(), '', { freeShippingThreshold: 10_000_00 })!;
+    expect((free.offers as { shippingDetails: unknown }).shippingDetails).toMatchObject({
+      shippingRate: { '@type': 'MonetaryAmount', value: '0.00', currency: 'ARS' },
+    });
+    const below = productJsonLd(product(), '', { freeShippingThreshold: 50_000_00 })!;
+    expect((below.offers as { shippingDetails: object }).shippingDetails).not.toHaveProperty('shippingRate');
   });
 
   it('varias variantes: AggregateOffer con el rango real, no el precio de la primera', () => {
@@ -61,7 +82,7 @@ describe('productJsonLd', () => {
       }),
       '',
     )!;
-    expect(ld.offers).toEqual({
+    expect(ld.offers).toMatchObject({
       '@type': 'AggregateOffer',
       priceCurrency: 'ARS',
       lowPrice: '20.00',

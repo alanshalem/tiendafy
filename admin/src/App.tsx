@@ -17,6 +17,7 @@ const CheckoutOptionsPage = lazyPage(() => import('./pages/Settings/CheckoutOpti
 const RedirectsPage = lazyPage(() => import('./pages/Settings/Redirects'), 'RedirectsPage');
 const TrackingPage = lazyPage(() => import('./pages/Settings/Tracking'), 'TrackingPage');
 const SpecFieldsPage = lazyPage(() => import('./pages/Settings/SpecFields'), 'SpecFieldsPage');
+const SearchSettingsPage = lazyPage(() => import('./pages/Settings/SearchSettings'), 'SearchSettingsPage');
 const FiscalInvoicingPage = lazyPage(() => import('./pages/Settings/FiscalInvoicing'), 'FiscalInvoicingPage');
 const LegalInfoPage = lazyPage(() => import('./pages/Settings/LegalInfo'), 'LegalInfoPage');
 const DomainsPage = lazyPage(() => import('./pages/Settings/Domains'), 'DomainsPage');
@@ -157,6 +158,7 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'redirecciones', el: <RedirectsPage /> },
   { path: 'medicion', el: <TrackingPage /> },
   { path: 'ficha-tecnica', el: <SpecFieldsPage /> },
+  { path: 'busqueda', el: <SearchSettingsPage /> },
   { path: 'alertas-de-stock', el: <StockAlertsPage /> },
 ];
 

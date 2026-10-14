@@ -19,6 +19,12 @@ public enum ProductSort
 /// <summary>Filtro de búsqueda del catálogo (storefront): texto, categoría, orden, página + filtros de precio/marca/opciones.</summary>
 /// <param name="OnSale">Solo los que tienen alguna variante con precio tachado mayor al de venta.</param>
 /// <param name="Ranking">Para <see cref="ProductSort.BestSellers"/>: ids del más vendido al menos.</param>
+/// <param name="InStockVariantIds">
+/// Las variantes con stock disponible, resueltas por el Api (el stock vive en
+/// otro módulo). Con la lista, lo agotado va al final en cualquier orden, y se
+/// cuenta para el filtro "Solo con stock". Null = no se sabe: no se mueve nada.
+/// </param>
+/// <param name="OnlyInStock">Solo lo que tiene alguna variante con stock (requiere <paramref name="InStockVariantIds"/>).</param>
 public sealed record ProductSearchFilter(
     string? Query,
     Guid? CategoryId,
@@ -31,7 +37,9 @@ public sealed record ProductSearchFilter(
     IReadOnlyList<string>? OptionValues = null,    // valores de opción seleccionados (Color/Talle/…); AND entre ellos
     IReadOnlyList<SpecFilter>? Specs = null,       // campos de ficha técnica; OR adentro de cada campo, AND entre campos
     bool OnSale = false,
-    IReadOnlyList<Guid>? Ranking = null);
+    IReadOnlyList<Guid>? Ranking = null,
+    IReadOnlyCollection<Guid>? InStockVariantIds = null,
+    bool OnlyInStock = false);
 
 /// <summary>
 /// Un campo de ficha técnica con los valores elegidos. Dentro de un campo la
@@ -130,7 +138,25 @@ public sealed record ProductFacets(
     long? PriceMin,
     long? PriceMax,
     IReadOnlyList<SpecFacet> Specs,
-    int OnSale = 0);
+    int OnSale = 0,
+    int InStock = 0);
+
+/// <summary>Lo que muestra el buscador predictivo mientras se escribe.</summary>
+/// <param name="Total">Cuántos productos encuentra la búsqueda entera (para "Ver los N resultados").</param>
+public sealed record ProductSuggestions(IReadOnlyList<Product> Products, int Total, IReadOnlyList<Category> Categories);
+
+/// <summary>
+/// Productos para sugerir al lado de otros (el carrito): publicados, con
+/// variantes, sin los que ya se tienen, y con stock si se sabe cuál lo tiene.
+/// </summary>
+/// <param name="CategoryIds">Solo los de alguna de estas categorías.</param>
+/// <param name="Ids">Solo estos (ej. un ranking de más vendidos); el orden lo pone quien llama.</param>
+public sealed record RelatedProductsQuery(
+    int Limit,
+    IReadOnlyCollection<Guid> ExcludeIds,
+    IReadOnlyCollection<Guid>? InStockVariantIds = null,
+    IReadOnlyCollection<Guid>? CategoryIds = null,
+    IReadOnlyCollection<Guid>? Ids = null);
 
 /// <summary>
 /// Puerto de persistencia del catálogo. Filtra por tenant explícitamente
@@ -178,4 +204,20 @@ public interface IProductRepository
     /// </summary>
     Task<IReadOnlyDictionary<Guid, Guid>> ActiveProductIdsByVariantAsync(
         TenantId tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// El buscador predictivo: los primeros productos que encuentra el texto
+    /// (con sinónimos; primero lo que tiene stock y lo que empieza con lo
+    /// escrito), cuántos son en total, y las categorías que se llaman así.
+    /// </summary>
+    Task<ProductSuggestions> SuggestAsync(
+        TenantId tenantId, string text, IReadOnlyCollection<Guid>? inStockVariantIds, int limit,
+        CancellationToken ct = default);
+
+    /// <summary>Cuántos productos publicados encuentra el texto en la tienda (con sinónimos).</summary>
+    Task<int> CountMatchingAsync(TenantId tenantId, string text, CancellationToken ct = default);
+
+    /// <summary>Ver <see cref="RelatedProductsQuery"/>. De lo más nuevo a lo más viejo.</summary>
+    Task<IReadOnlyList<Product>> ListRelatedAsync(
+        TenantId tenantId, RelatedProductsQuery query, CancellationToken ct = default);
 }

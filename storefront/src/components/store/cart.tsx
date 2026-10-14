@@ -15,6 +15,7 @@ import { PreviewContext, usePreviewHref } from './preview';
 import { useFocusTrap } from './useFocusTrap';
 import { useStoreOffers } from './store-offers-context';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
+import { RecentlyViewed } from './RecentlyViewed';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import {
   fetchVariantSnapshots,
@@ -461,6 +462,7 @@ export function CartDrawer({
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center opacity-70">
             <ShoppingCart className="h-10 w-10" />
             <p>Tu carrito está vacío.</p>
+            {open && <RecentlyViewed variant="compact" limit={6} onNavigate={() => setOpen(false)} />}
           </div>
         ) : (
           <>

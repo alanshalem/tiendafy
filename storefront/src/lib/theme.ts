@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { apiGetTenant } from './api';
 import { cacheFor } from './cache';
 import {
@@ -67,7 +68,15 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
   return normalizeTheme(raw, DEFAULT_SECTIONS);
 }
 
-export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
+/**
+ * `cache` (de React): dentro de un mismo pedido, quien lo pida recibe el MISMO
+ * objeto. La página y la pantalla de 404 —que Next arma en cada página, por
+ * si hace falta— pasan así el diseño una sola vez en la respuesta (React no
+ * repite un objeto que ya mandó) en vez de dos.
+ */
+export const fetchPublishedTheme = cache(async function fetchPublishedTheme(
+  tenantId: string,
+): Promise<ThemeConfig> {
   // Data Cache corta, por tienda (apiGetTenant pone el tenant en la URL). Antes
   // era no-store y cada vista de página pedía el diseño entero. Al publicar, el
   // backend avisa y la etiqueta se vence al toque; REVALIDATE.theme queda de
@@ -77,7 +86,7 @@ export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig
     fetchStoreOffers(tenantId),
   ]);
   return applyStoreOffers(mergeTheme(cfg), offers);
-}
+});
 
 /**
  * Descuento por transferencia, cuotas y envío gratis de la tienda (ver

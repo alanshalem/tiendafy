@@ -11,6 +11,48 @@ export interface ProductForJsonLd {
   stock: number | null;
 }
 
+/** Lo que el schema necesita de la tienda (no del producto). */
+export interface StoreForJsonLd {
+  /**
+   * Desde cuánto el envío es gratis (centavos; 0 o nada = no hay envío gratis
+   * por monto). Es el único costo de envío que se sabe sin el código postal:
+   * los carriers cotizan por destino.
+   */
+  freeShippingThreshold?: number;
+}
+
+/** Días para arrepentirse de una compra online (Ley 24.240 de Defensa del Consumidor, art. 34). */
+export const RETURN_DAYS = 10;
+
+/**
+ * La política de devolución: el botón de arrepentimiento obliga a aceptar la
+ * devolución dentro de los 10 días, sin costo para el comprador. Es la misma
+ * para toda tienda argentina.
+ */
+const returnPolicy = {
+  '@type': 'MerchantReturnPolicy',
+  applicableCountry: 'AR',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+  merchantReturnDays: RETURN_DAYS,
+  returnMethod: 'https://schema.org/ReturnByMail',
+  returnFees: 'https://schema.org/FreeReturn',
+};
+
+/**
+ * El envío: a todo el país, y gratis si el precio supera el monto de envío
+ * gratis de la tienda. Sin ese dato no se inventa un costo (cada carrier
+ * cotiza distinto por destino): va el destino solo, que Google acepta.
+ */
+function shippingDetails(currency: string, lowestPrice: number, store: StoreForJsonLd) {
+  const threshold = store.freeShippingThreshold ?? 0;
+  const free = threshold > 0 && lowestPrice >= threshold;
+  return {
+    '@type': 'OfferShippingDetails',
+    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'AR' },
+    ...(free ? { shippingRate: { '@type': 'MonetaryAmount', value: '0.00', currency } } : {}),
+  };
+}
+
 /** Centavos → "1299.00", como lo pide schema.org. */
 const price = (amount: number) => (amount / 100).toFixed(2);
 
@@ -25,7 +67,11 @@ const price = (amount: number) => (amount / 100).toFixed(2);
  *
  * Null si el producto no tiene variantes (no tiene precio que mostrar).
  */
-export function productJsonLd(product: ProductForJsonLd, base: string): Record<string, unknown> | null {
+export function productJsonLd(
+  product: ProductForJsonLd,
+  base: string,
+  store: StoreForJsonLd = {},
+): Record<string, unknown> | null {
   const variants = product.variants;
   if (variants.length === 0) return null;
 
@@ -36,6 +82,11 @@ export function productJsonLd(product: ProductForJsonLd, base: string): Record<s
   const currency = variants[0]!.price.currency;
   const amounts = variants.map((v) => v.price.amount);
   const skus = [...new Set(variants.map((v) => v.sku?.trim()).filter(Boolean))];
+  // Lo mismo para cualquier oferta: envío y devolución.
+  const terms = {
+    shippingDetails: shippingDetails(currency, Math.min(...amounts), store),
+    hasMerchantReturnPolicy: returnPolicy,
+  };
 
   const offers =
     variants.length === 1
@@ -45,6 +96,7 @@ export function productJsonLd(product: ProductForJsonLd, base: string): Record<s
           price: price(amounts[0]!),
           availability,
           ...(url ? { url } : {}),
+          ...terms,
         }
       : {
           '@type': 'AggregateOffer',
@@ -54,6 +106,7 @@ export function productJsonLd(product: ProductForJsonLd, base: string): Record<s
           offerCount: variants.length,
           availability,
           ...(url ? { url } : {}),
+          ...terms,
         };
 
   return {

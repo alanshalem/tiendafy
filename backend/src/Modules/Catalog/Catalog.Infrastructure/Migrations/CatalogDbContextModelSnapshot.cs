@@ -216,6 +216,10 @@ namespace Catalog.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
                     b.PrimitiveCollection<List<Guid>>("_categoryIds")
                         .IsRequired()
                         .HasColumnType("uuid[]")
@@ -235,6 +239,59 @@ namespace Catalog.Infrastructure.Migrations
                         .HasDatabaseName("ix_products_tenant_id_status_created_at_utc");
 
                     b.ToTable("products", (string)null);
+                });
+
+            modelBuilder.Entity("Catalog.Core.Domain.SearchQueryStat", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Term")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("term");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.Property<int>("LastResults")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_results");
+
+                    b.Property<DateTime>("LastSearchedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_searched_at_utc");
+
+                    b.HasKey("TenantId", "Term")
+                        .HasName("pk_search_queries");
+
+                    b.HasIndex("TenantId", "Count")
+                        .HasDatabaseName("ix_search_queries_tenant_id_count");
+
+                    b.ToTable("search_queries", (string)null);
+                });
+
+            modelBuilder.Entity("Catalog.Core.Domain.SearchSettings", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.PrimitiveCollection<List<string>>("_synonymGroups")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("synonym_groups");
+
+                    b.HasKey("TenantId")
+                        .HasName("pk_search_settings");
+
+                    b.ToTable("search_settings", (string)null);
                 });
 
             modelBuilder.Entity("Catalog.Core.Domain.SpecDefinition", b =>

@@ -9,6 +9,7 @@ import {
   Mail,
   MessageCircle,
   Package,
+  Search,
   ShieldCheck,
   ShoppingCart,
   Signpost,
@@ -375,6 +376,12 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'Ficha técnica',
         desc: 'Los datos propios de lo que vendés: medidas, materiales, compatibilidad, códigos.',
         icon: ListChecks,
+      },
+      {
+        to: '/configuracion/busqueda',
+        label: 'Búsqueda',
+        desc: 'Sinónimos del buscador de la tienda y lo que buscan tus clientes.',
+        icon: Search,
       },
       {
         to: '/configuracion/alertas-de-stock',

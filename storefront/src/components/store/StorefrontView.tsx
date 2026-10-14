@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { contrastText, EDITOR_MSG, sanitizeCss } from '@tiendafy/types';
 import { IconKitContext } from './Icon';
 import { CartProvider, CartDrawer, useCart } from './cart';
@@ -17,7 +18,7 @@ import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { applyStoreOffers, offersOf } from '@/lib/store-offers';
 import { StoreOffersContext } from './store-offers-context';
-import { fetchSectionProductsClient } from '@/lib/catalog-client';
+import { fetchCartSuggestionsClient, fetchSectionProductsClient } from '@/lib/catalog-client';
 import {
   productsBySection,
   resolvePlans,
@@ -28,6 +29,8 @@ import { SectionProductsContext } from './SectionProductsContext';
 import { DarkPageContext } from './section-context';
 import { Header } from './StoreHeader';
 import { Footer } from './StoreFooter';
+import { ProductListContext } from './ProductListContext';
+import { StoreErrorBoundary } from './StoreErrorBoundary';
 
 interface StorefrontViewProps {
   tenantId: string;
@@ -59,12 +62,50 @@ function PreviewCartSync() {
 /** Adonde lleva "Saltar al contenido": lo que hay entre el encabezado y el pie. */
 export const CONTENT_ID = 'contenido';
 
+/** Cuántos sugiere el carrito. */
+const CART_SUGGESTIONS = 3;
+
+/**
+ * "También te puede gustar" del carrito según lo que tiene adentro: de las
+ * mismas categorías, después lo más vendido (lo arma la API). Antes eran
+ * siempre los tres primeros productos de la tienda, aunque ya estuvieran en
+ * el carrito. Se pide al abrirlo (no en cada página) y una vez por cada
+ * contenido distinto; mientras llega, o si la API no responde, los de antes
+ * sin lo que ya se lleva.
+ */
+function useCartSuggestions(enabled: boolean, fallback: StoreProduct[]): StoreProduct[] {
+  const { lines, open, tenantId } = useCart();
+  const key = lines
+    .map((l) => l.variantId)
+    .sort()
+    .join(',');
+  const [loaded, setLoaded] = useState<{ key: string; items: StoreProduct[] } | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !open || !tenantId || loaded?.key === key) return;
+    let current = true;
+    void fetchCartSuggestionsClient(tenantId, key ? key.split(',') : [], CART_SUGGESTIONS).then((items) => {
+      if (current && items) setLoaded({ key, items });
+    });
+    return () => {
+      current = false;
+    };
+  }, [enabled, open, tenantId, key, loaded?.key]);
+
+  if (!enabled) return [];
+  const inCart = new Set(lines.map((l) => l.variantId));
+  return (loaded?.items ?? fallback).filter((p) => !inCart.has(p.variantId)).slice(0, CART_SUGGESTIONS);
+}
+
 function Inner({
   tenantName,
   theme,
   products,
   children,
 }: Omit<StorefrontViewProps, 'live' | 'tenantId' | 'sectionProducts'>) {
+  const suggested = useCartSuggestions(theme.cart.showSuggested, products);
+  // La barrera vuelve a cero al cambiar de página (como la de Next).
+  const pathname = usePathname();
   return (
     <div className="min-h-screen overflow-x-clip bg-bg text-fg" style={{ fontFamily: 'var(--font-body)' }}>
       {/* Lo primero que alcanza el Tab: con teclado o lector de pantalla, saltea
@@ -80,21 +121,23 @@ function Inner({
       {/* tabIndex -1: el salto mueve el foco acá (no solo el scroll), así el
           próximo Tab sigue desde el contenido. Envuelve el <main> de cada página. */}
       <div id={CONTENT_ID} tabIndex={-1} className="outline-none">
-        {children ?? (
-          <HomeSections
-            sections={theme.sections}
-            products={products}
-            storeName={tenantName}
-            productList={theme.productList}
-          />
-        )}
+        <StoreErrorBoundary key={pathname}>
+          {children ?? (
+            <HomeSections
+              sections={theme.sections}
+              products={products}
+              storeName={tenantName}
+              productList={theme.productList}
+            />
+          )}
+        </StoreErrorBoundary>
       </div>
       <EditableRegion target="footer" label="el pie de página">
         <Footer theme={theme} tenantName={tenantName} />
       </EditableRegion>
       <CartDrawer
         cart={theme.cart}
-        suggested={theme.cart.showSuggested ? products.slice(0, 3) : []}
+        suggested={suggested}
         sample={products[0]}
         whatsapp={theme.whatsappButton.phone || theme.contact.whatsapp}
       />
@@ -231,9 +274,11 @@ export function StorefrontView({
                               </div>
                             </>
                           ) : (
-                            <Inner tenantName={tenantName} theme={theme} products={products}>
-                              {children}
-                            </Inner>
+                            <ProductListContext.Provider value={theme.productList}>
+                              <Inner tenantName={tenantName} theme={theme} products={products}>
+                                {children}
+                              </Inner>
+                            </ProductListContext.Provider>
                           )}
                         </DarkPageContext.Provider>
                       </SectionProductsContext.Provider>

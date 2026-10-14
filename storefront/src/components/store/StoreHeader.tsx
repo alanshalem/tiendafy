@@ -3,7 +3,7 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EDITOR_MSG, contrastText, headerColorsFor, heroUnderHeader } from '@tiendafy/types';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Pencil } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
 import { Icon } from './Icon';
@@ -19,6 +19,7 @@ import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
 import { headerPageKind } from '@/lib/header-page';
 import { AnnouncementBar } from './AnnouncementBar';
+import { PredictiveSearch } from './PredictiveSearch';
 
 /**
  * Tamaños del logo: cada paso tiene que notarse. Antes iban de 16 a 24 px de
@@ -58,48 +59,17 @@ const MOBILE_SEARCH_ID = 'buscar-movil';
 /**
  * Mobile: la búsqueda, a la vista con su propio botón en la barra. Antes
  * vivía adentro del menú hamburguesa, y con el menú apagado el celular no
- * tenía cómo buscar.
+ * tenía cómo buscar. Con sugerencias mientras se escribe (ver PredictiveSearch).
  */
-function MobileSearch({
-  header,
-  q,
-  setQ,
-  submitSearch,
-}: {
-  header: ThemeConfig['header'];
-  q: string;
-  setQ: (v: string) => void;
-  submitSearch: (e: React.FormEvent) => void;
-}) {
-  const input = useRef<HTMLInputElement>(null);
-  // Se abre para escribir: el foco va directo a la caja.
-  useEffect(() => input.current?.focus(), []);
+function MobileSearch({ header }: { header: ThemeConfig['header'] }) {
   return (
     <div
       id={MOBILE_SEARCH_ID}
       className="border-t border-current/10 px-4 py-3 md:hidden"
       style={{ background: `rgb(${header.bg})` }}
     >
-      <form
-        onSubmit={submitSearch}
-        role="search"
-        className="flex items-center gap-1.5 rounded-full bg-current/10 px-3"
-      >
-        <input
-          ref={input}
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar"
-          aria-label="Buscar"
-          enterKeyHint="search"
-          className="h-10 w-full bg-transparent text-base outline-none placeholder:opacity-60"
-          style={{ color: 'currentColor' }}
-        />
-        <button type="submit" aria-label="Buscar" className="-m-2 p-2 opacity-70 hover:opacity-100">
-          <Icon name="search" className="h-4 w-4" />
-        </button>
-      </form>
+      {/* Se abre para escribir: el foco va directo a la caja. */}
+      <PredictiveSearch variant="mobile" autoFocus />
     </div>
   );
 }
@@ -200,9 +170,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const fav = useFavorites();
   const href = usePreviewHref();
   const preview = useContext(PreviewContext);
-  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
-  const [q, setQ] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [editHover, setEditHover] = useState(false);
@@ -259,11 +227,6 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const logoSrc = transparent && header.transparentLogo ? header.transparentLogo : theme.logo;
   const size = header.logoSize in LOGO_IMG ? header.logoSize : 'md';
 
-  const submitSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push(href(`/productos${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`));
-  };
-
   const logo = (
     <Link href={href('/')} className="flex min-w-0 items-center gap-2">
       {logoSrc ? (
@@ -293,20 +256,9 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
   const navFor = (align: 'center' | 'start' | 'end') => <HeaderNav align={align} items={navItems} />;
   const nav = navFor('center');
 
+  // Con el logo al centro la búsqueda va a la izquierda: la lista se abre hacia la derecha.
   const search = header.showSearch ? (
-    <form onSubmit={submitSearch} className="flex items-center gap-1.5 rounded-full bg-current/10 px-3">
-      <button type="submit" aria-label="Buscar" className="opacity-70 hover:opacity-100">
-        <Icon name="search" className="h-4 w-4" />
-      </button>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Buscar"
-        aria-label="Buscar"
-        className="h-8 w-32 bg-transparent text-sm outline-none placeholder:opacity-60 lg:w-44"
-        style={{ color: 'currentColor' }}
-      />
-    </form>
+    <PredictiveSearch variant="header" align={header.layout === 'logo-center' ? 'start' : 'end'} />
   ) : null;
 
   // El número del globito no lo lee un lector de pantalla si el botón tiene
@@ -488,9 +440,7 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
         </div>
 
         {/* Mobile: la búsqueda y el panel con los links */}
-        {header.showSearch && searchOpen && (
-          <MobileSearch header={header} q={q} setQ={setQ} submitSearch={submitSearch} />
-        )}
+        {header.showSearch && searchOpen && <MobileSearch header={header} />}
         {header.showTabsMobile && mobileOpen && (
           <MobilePanel header={header} items={navItems} onClose={() => setMobileOpen(false)} />
         )}
