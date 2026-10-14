@@ -253,6 +253,41 @@ public sealed class MercadoLibreFlowTests
     }
 
     [Fact]
+    public async Task Stock_y_precio_se_sincronizan_cada_uno_por_su_lado()
+    {
+        var (merchant, _) = await ConnectedAsync("mlp");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var (productId, variantId) = await merchant.CreateProductAsync("Buzo ML", priceMinor: 20_000_00, stock: 6);
+        await merchant.PostAsync($"/api/v1/admin/meli/items/{itemId}/link",
+            new { productId, variantId, meliVariationId = (long?)null, title = "Buzo ML" });
+        _factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/items/{itemId}", new { id = itemId });
+        List<string?> Puts() => [.. _factory.ExternalHttp.SentTo($"{Api}/items/{itemId}")
+            .Where(r => r.Method == HttpMethod.Put).Select(r => r.Body)];
+
+        // Solo stock: viaja la cantidad y el precio no, aunque nunca se haya empujado.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = false });
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        var stockOnly = Assert.Single(Puts());
+        Assert.Contains("\"available_quantity\":6", stockOnly);
+        Assert.DoesNotContain("price", stockOnly);
+
+        // Solo precio, con el stock apagado: antes la pasada ni miraba la tienda.
+        // El stock cambia en el medio y aun así no viaja.
+        await merchant.ExpectOkAsync(HttpMethod.Put, $"/api/v1/inventory/{variantId}", new { available = 4, reason = "test" });
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, priceSyncEnabled = true, priceMarkupPct = 0m });
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        var priceOnly = Puts().Last();
+        Assert.Equal(2, Puts().Count);
+        Assert.Contains("\"price\":20000", priceOnly);
+        Assert.DoesNotContain("available_quantity", priceOnly);
+
+        // Los dos apagados: nada sale.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = false, priceSyncEnabled = false });
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        Assert.Equal(2, Puts().Count);
+    }
+
+    [Fact]
     public async Task La_cuenta_de_demostracion_es_de_solo_lectura()
     {
         var store = await SeededStore.GetAsync(_factory);

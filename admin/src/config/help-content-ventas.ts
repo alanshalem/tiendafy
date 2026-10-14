@@ -556,8 +556,8 @@ export const VENTAS = {
         blocks: [
           {
             type: 'callout',
-            tone: 'warning',
-            text: 'Los precios viajan junto con el stock: para que se sincronicen, tené prendido también “Sincronizar stock”.',
+            tone: 'info',
+            text: 'Precio y stock son independientes: podés sincronizar solo los precios (y manejar el stock de ML a mano), solo el stock, o los dos. Cada uno actúa sobre las publicaciones vinculadas y se actualiza cada cinco minutos.',
           },
         ],
       },
