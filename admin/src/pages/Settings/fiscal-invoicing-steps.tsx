@@ -111,12 +111,29 @@ export function IntroBanner() {
 
 // ---- Checklist de progreso ---------------------------------------------------
 
+/**
+ * Los pasos de la pantalla, en orden. Los usan las tarjetas ("Paso N") y la
+ * barra de progreso de arriba: antes la barra tenía cuatro pasos con otros
+ * nombres ("Certificado", "Listo para facturar") y la página cinco tarjetas,
+ * y no había forma de saber en qué paso de la barra estaba cada tarjeta.
+ */
+export const FISCAL_STEPS = [
+  'Datos del emisor',
+  'Certificado digital',
+  'Puntos de venta',
+  'Probar la conexión',
+  'Preferencias de emisión',
+] as const;
+
 export function ProgressChecklist({
   config,
   points,
+  tested = false,
 }: {
   config: FiscalConfigDto | null;
   points: PointOfSale[];
+  /** La prueba de conexión salió bien en esta visita (no queda guardada). */
+  tested?: boolean;
 }) {
   const dataDone = !!config?.configured;
   const cert = config?.certificate;
@@ -124,11 +141,14 @@ export function ProgressChecklist({
   const posDone = points.length > 0;
   const ready = dataDone && certDone && posDone;
 
-  const steps: { label: string; done: boolean; pending?: boolean }[] = [
-    { label: 'Datos del emisor', done: dataDone },
-    { label: 'Certificado', done: certDone, pending: dataDone && !certDone },
-    { label: 'Puntos de venta', done: posDone },
-    { label: 'Listo para facturar', done: ready },
+  // Las preferencias son opcionales y tienen valores por defecto: con lo
+  // obligatorio completo, ya están "hechas".
+  const steps: { label: string; done: boolean; pending?: boolean; optional?: boolean }[] = [
+    { label: FISCAL_STEPS[0], done: dataDone },
+    { label: FISCAL_STEPS[1], done: certDone, pending: dataDone && !certDone },
+    { label: FISCAL_STEPS[2], done: posDone },
+    { label: FISCAL_STEPS[3], done: tested, optional: true },
+    { label: FISCAL_STEPS[4], done: ready, optional: true },
   ];
 
   return (
@@ -148,12 +168,20 @@ export function ProgressChecklist({
             >
               {s.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={cn('text-sm font-medium', s.done ? 'text-fg' : 'text-fg-muted')}>{s.label}</span>
+            <span className={cn('text-sm font-medium', s.done ? 'text-fg' : 'text-fg-muted')}>
+              {s.label}
+              {s.optional && <span className="font-normal text-fg-subtle"> (opcional)</span>}
+            </span>
             {i < steps.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
           </div>
         ))}
       </div>
-      {!ready && (
+      {ready ? (
+        <p className="mt-3 flex items-start gap-2 text-xs text-fg-muted">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+          Listo para facturar: los pasos 1 a 3 están completos.
+        </p>
+      ) : (
         <p className="mt-3 flex items-start gap-2 text-xs text-fg-muted">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
           Mientras el certificado no esté activo y no tengas al menos un punto de venta, todavía no se pueden
@@ -255,7 +283,7 @@ export function IssuerStep({
   return (
     <StepCard
       step={1}
-      title="Datos del emisor"
+      title={FISCAL_STEPS[0]}
       subtitle="Quién factura: los datos con los que ARCA te identifica."
       icon={<FileText className="h-5 w-5" />}
     >
@@ -450,7 +478,7 @@ export function CertificateStep({
   return (
     <StepCard
       step={2}
-      title="Certificado digital"
+      title={FISCAL_STEPS[1]}
       subtitle="El “DNI” de tu tienda para hablar con ARCA."
       icon={<ShieldCheck className="h-5 w-5" />}
       disabled={!configured}
@@ -663,7 +691,7 @@ export function PointsOfSaleStep({
   return (
     <StepCard
       step={3}
-      title="Puntos de venta"
+      title={FISCAL_STEPS[2]}
       subtitle="El “cajón numerado” de tus facturas."
       icon={<Store className="h-5 w-5" />}
       disabled={!configured}
@@ -748,7 +776,7 @@ export function PointsOfSaleStep({
   );
 }
 
-// ---- Paso 4: Preferencias de emisión -----------------------------------------
+// ---- Paso 5: Preferencias de emisión -----------------------------------------
 
 export function EmissionStep({
   config,
@@ -790,7 +818,7 @@ export function EmissionStep({
   return (
     <StepCard
       step={5}
-      title="Preferencias de emisión"
+      title={FISCAL_STEPS[4]}
       subtitle="Opcional: cómo y cuándo se factura cada venta."
       icon={<FileText className="h-5 w-5" />}
       disabled={!configured}
@@ -889,9 +917,12 @@ const STEP_ICON: Record<DiagnosticStepDto['status'], ReactNode> = {
 export function ConnectionTestStep({
   config,
   points,
+  onTested,
 }: {
   config: FiscalConfigDto | null;
   points: PointOfSale[];
+  /** Avisa el resultado, para marcar el paso en la barra de progreso. */
+  onTested?: (ok: boolean) => void;
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -902,8 +933,11 @@ export function ConnectionTestStep({
   const run = async () => {
     setBusy(true);
     try {
-      setResult(await api.post<DiagnosticDto>('/api/v1/fiscal/test-connection', {}));
+      const r = await api.post<DiagnosticDto>('/api/v1/fiscal/test-connection', {});
+      setResult(r);
+      onTested?.(r.ok);
     } catch (err) {
+      onTested?.(false);
       toast(errMsg(err, 'No se pudo probar la conexión con ARCA.'), { variant: 'error' });
     } finally {
       setBusy(false);
@@ -913,7 +947,7 @@ export function ConnectionTestStep({
   return (
     <StepCard
       step={4}
-      title="Probar la conexión"
+      title={FISCAL_STEPS[3]}
       subtitle="Sin emitir nada: verifica todo lo que se puede verificar antes de la primera factura."
       icon={<PlugZap className="h-5 w-5" />}
       disabled={!ready}

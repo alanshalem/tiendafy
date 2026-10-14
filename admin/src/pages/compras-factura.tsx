@@ -48,7 +48,7 @@ export function VatBookDownload() {
       />
       <Button variant="secondary" onClick={download} disabled={busy} title="Libro de IVA compras del mes">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-        Libro de IVA
+        Libro IVA compras
       </Button>
     </div>
   );
@@ -300,7 +300,7 @@ function ScanReview({
 
       <p className="mt-2 text-xs text-fg-subtle">
         Lo leyó la IA a partir del archivo. Revisá los números antes de guardar: de acá salen el libro de IVA
-        y la deuda con el proveedor.
+        compras y la deuda con el proveedor.
       </p>
     </div>
   );
