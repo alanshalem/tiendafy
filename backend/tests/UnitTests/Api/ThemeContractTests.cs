@@ -125,9 +125,10 @@ public partial class ThemeContractTests
     [Fact]
     public void Las_imagenes_solo_por_http_o_rutas()
     {
-        Assert.Empty(ValidateSections($$"""[{{Section("brands", """{ "images": ["https://cdn.x/a.png", "/marca/b.svg"] }""")}}]"""));
-        Assert.NotEmpty(ValidateSections($$"""[{{Section("brands", """{ "images": ["data:image/png;base64,AAAA"] }""")}}]"""));
-        Assert.NotEmpty(ValidateSections($$"""[{{Section("carousel", """{ "images": [null] }""")}}]"""));
+        Assert.Empty(ValidateSections($$"""[{{Section("brands", """{ "logos": [{ "image": "https://cdn.x/a.png" }, { "image": "/marca/b.svg" }] }""")}}]"""));
+        Assert.NotEmpty(ValidateSections($$"""[{{Section("brands", """{ "logos": [{ "image": "data:image/png;base64,AAAA" }] }""")}}]"""));
+        Assert.NotEmpty(ValidateSections($$"""[{{Section("carousel", """{ "slides": [null] }""")}}]"""));
+        Assert.NotEmpty(ValidateSections($$"""[{{Section("carousel", """{ "slides": [{ "mobileImage": "javascript:alert(1)" }] }""")}}]"""));
     }
 
     private static string RepoRoot()

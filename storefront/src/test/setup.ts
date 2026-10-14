@@ -13,6 +13,10 @@ import { nav } from './next';
 
 installDomPolyfills();
 
+// jsdom no reproduce video: play() avisa "not implemented" en cada test del hero.
+window.HTMLMediaElement.prototype.play = () => Promise.resolve();
+window.HTMLMediaElement.prototype.pause = () => {};
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -65,13 +69,26 @@ vi.mock('next/image', () => ({
     sizes: _s,
     ...rest
   }: Record<string, unknown>) =>
-    // Como next/image: lazy salvo que vaya con prioridad.
     createElement('img', {
       src: typeof src === 'string' ? src : '',
       alt: String(alt ?? ''),
-      ...(_pl || _p ? {} : { loading: 'lazy' }),
       ...rest,
+      // Como next/image: lazy salvo que se pida otra cosa o vaya con prioridad.
+      loading: rest.loading ?? (_pl || _p ? undefined : 'lazy'),
     }),
+  // Para <picture> (foto distinta en celular): las props de la <img>, con un
+  // srcSet que dice de qué foto es, así el test ve qué fuente va en cada media.
+  getImageProps: ({ src, alt, sizes, fill: _f, width, height, ...rest }: Record<string, unknown>) => ({
+    props: {
+      src: typeof src === 'string' ? src : '',
+      srcSet: `${String(src)} 1x`,
+      sizes,
+      alt: String(alt ?? ''),
+      width,
+      height,
+      ...rest,
+    },
+  }),
 }));
 
 vi.mock('next/script', () => ({ default: () => null }));

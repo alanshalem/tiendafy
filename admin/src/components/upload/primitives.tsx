@@ -144,8 +144,17 @@ export function FileDropzone({
 /* ------------------------------------------------------------ la ficha a la vista */
 
 /** Formatos, peso máximo y tamaño ideal, en etiquetas; y el consejo, si hay. */
-export function UploadSpecHint({ kind, centered = false }: { kind: UploadKind; centered?: boolean }) {
-  const spec: UploadSpec = UPLOADS[kind];
+export function UploadSpecHint({
+  kind,
+  centered = false,
+  spec: override,
+}: {
+  kind: UploadKind;
+  centered?: boolean;
+  /** La ficha con otra medida ideal (la que sale de cómo se muestra, ver MediaUpload). */
+  spec?: UploadSpec;
+}) {
+  const spec: UploadSpec = override ?? UPLOADS[kind];
   const d = describe(spec);
   return (
     <div className={cn('text-[11px] leading-snug', centered && 'text-center')}>
@@ -313,8 +322,10 @@ const previewable = (file: File) => file.type.startsWith('image/') || file.type.
 export function useUploadQueue<T>(
   kind: UploadKind,
   send: (file: File, progress: UploadProgress) => Promise<T>,
+  /** La ficha con otra medida ideal: los avisos ("se va a recortar") usan esa. */
+  override?: UploadSpec,
 ) {
-  const spec: UploadSpec = UPLOADS[kind];
+  const spec: UploadSpec = override ?? UPLOADS[kind];
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [notes, setNotes] = useState<UploadNote[]>([]);
   const controllers = useRef(new Map<number, AbortController>());

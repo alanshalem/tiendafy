@@ -4,7 +4,6 @@ import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } 
 import { cn } from '@tiendafy/ui';
 import { Icon, type IconName } from './Icon';
 import type { ProductListConfig } from '@/lib/theme';
-import { StoreImage } from './StoreImage';
 import { StoreLink } from './StoreLink';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { baseTheme } from '@tiendafy/types';
@@ -285,60 +284,3 @@ export function ProductGrid({
     </section>
   );
 }
-
-/**
- * Carrusel de imágenes del hero (auto-avanza, con puntos). `lcp`: abre la
- * portada, y su primera imagen es la más grande a la vista (ver StoreImage).
- */
-export function ImageCarousel({
-  images,
-  fullHeightMobile,
-  lcp = false,
-}: {
-  images: string[];
-  fullHeightMobile: boolean;
-  lcp?: boolean;
-}) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (images.length < 2) return;
-    const timer = setInterval(() => setI((x) => (x + 1) % images.length), 5000);
-    return () => clearInterval(timer);
-  }, [images.length]);
-  // next/image en el hero: srcset responsive, prioridad en el primer slide si
-  // abre la portada y lazy en el resto (antes: <img> crudo sin nada de eso).
-  const heightClass = fullHeightMobile ? 'h-[78vh] sm:h-[460px]' : 'h-[300px] sm:h-[460px]';
-  return (
-    <section className="relative overflow-hidden">
-      <div
-        className="flex transition-transform duration-700 ease-out"
-        style={{ transform: `translateX(-${i * 100}%)` }}
-      >
-        {images.map((src, idx) => (
-          <div key={idx} className={`relative ${heightClass} w-full shrink-0`}>
-            <StoreImage src={src} alt="" sizes="100vw" lcp={lcp && idx === 0} className="object-cover" />
-          </div>
-        ))}
-      </div>
-      {images.length > 1 && (
-        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
-          {images.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setI(idx)}
-              aria-label={`Ir a imagen ${idx + 1}`}
-              className={`h-2 rounded-full bg-white transition-all ${idx === i ? 'w-5' : 'w-2 opacity-60'}`}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-export const OVERLAY_CLASS: Record<string, string> = {
-  none: 'bg-transparent',
-  light: 'bg-black/20',
-  medium: 'bg-black/40',
-  strong: 'bg-black/60',
-};

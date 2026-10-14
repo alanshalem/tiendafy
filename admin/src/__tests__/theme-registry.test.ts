@@ -208,9 +208,21 @@ describe('normalizar secciones', () => {
     // Sin título guardado, el de siempre (vaciarlo a propósito sí lo oculta).
     expect(list[0]!.data).toEqual({ title: 'Preguntas frecuentes', items: [], openFirst: false });
     expect(list[1]!.data.banners).toEqual([
-      { image: '', title: 'Ok', description: '', link: '', show: true },
+      {
+        image: '',
+        mobileImage: '',
+        alt: '',
+        title: 'Ok',
+        description: '',
+        buttonText: '',
+        link: '',
+        newTab: false,
+        show: true,
+      },
     ]);
-    expect(list[2]!.data.images).toEqual(['https://x/a.jpg']);
+    // El carrusel viejo (images) pasa a diapositivas, sin las fotos rotas.
+    expect((list[2]!.data.slides as { image: string }[]).map((s) => s.image)).toEqual(['https://x/a.jpg']);
+    expect(list[2]!.data.images).toBeUndefined();
   });
 
   it('respeta lo que no conoce (no borra campos de una versión más nueva)', () => {
@@ -336,48 +348,48 @@ describe('migraciones del tema', () => {
   });
 
   it('agregar una migración es sumar una entrada (y corre una sola vez)', () => {
-    // El ejemplo de la fase siguiente: las imágenes del carrusel pasan a ser diapositivas.
-    const slides: ThemeMigration = {
-      from: 1,
-      to: 2,
-      description: 'carrusel: images: string[] → slides',
+    // Una migración de ejemplo, después de la última que existe.
+    const from = THEME_SCHEMA_VERSION;
+    const rename: ThemeMigration = {
+      from,
+      to: from + 1,
+      description: 'preguntas: title → heading',
       migrate: (t) => ({
         ...t,
         sections: (t.sections as ThemeSection[]).map((s) =>
-          s.type === 'carousel'
-            ? { ...s, data: { slides: (s.data.images as string[]).map((image) => ({ image })) } }
-            : s,
+          s.type === 'faq' ? { ...s, data: { heading: s.data.title } } : s,
         ),
       }),
     };
-    const v1 = { schemaVersion: 1, sections: [{ id: 'c', type: 'carousel', data: { images: ['a.jpg'] } }] };
-    const v2 = migrateTheme(v1, [...THEME_MIGRATIONS, slides]);
-    expect(v2.schemaVersion).toBe(2);
-    expect((v2.sections as ThemeSection[])[0]!.data).toEqual({ slides: [{ image: 'a.jpg' }] });
+    const vN = { schemaVersion: from, sections: [{ id: 'f', type: 'faq', data: { title: 'Dudas' } }] };
+    const next = migrateTheme(vN, [...THEME_MIGRATIONS, rename]);
+    expect(next.schemaVersion).toBe(from + 1);
+    expect((next.sections as ThemeSection[])[0]!.data).toEqual({ heading: 'Dudas' });
     // Ya migrado: no se vuelve a aplicar.
-    expect(migrateTheme(v2, [...THEME_MIGRATIONS, slides])).toEqual(v2);
+    expect(migrateTheme(next, [...THEME_MIGRATIONS, rename])).toEqual(next);
     // Una versión más nueva que la que conoce este código se respeta (no se "baja").
-    expect(migrateTheme(v2).schemaVersion).toBe(2);
+    expect(migrateTheme(next).schemaVersion).toBe(from + 1);
   });
 
   it('si una migración falla, se corta ahí sin marcar la versión nueva', () => {
+    const from = THEME_SCHEMA_VERSION;
     const broken: ThemeMigration = {
-      from: 1,
-      to: 2,
+      from,
+      to: from + 1,
       description: 'rota',
       migrate: () => {
         throw new Error('dato imposible');
       },
     };
     const bug: ThemeMigration = {
-      from: 1,
-      to: 2,
+      from,
+      to: from + 1,
       description: 'devuelve basura',
       migrate: () => null as never,
     };
-    const v1 = { schemaVersion: 1, sections: [] };
-    expect(migrateTheme(v1, [...THEME_MIGRATIONS, broken])).toEqual(v1);
-    expect(migrateTheme(v1, [...THEME_MIGRATIONS, bug])).toEqual(v1);
+    const vN = { schemaVersion: from, sections: [] };
+    expect(migrateTheme(vN, [...THEME_MIGRATIONS, broken])).toEqual(vN);
+    expect(migrateTheme(vN, [...THEME_MIGRATIONS, bug])).toEqual(vN);
   });
 });
 

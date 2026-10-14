@@ -318,7 +318,7 @@ export interface ThemeConfig {
  * Una lista vacía NO cae acá: es un inicio vacío a propósito.
  */
 export const DEFAULT_SECTIONS: ThemeSection[] = normalizeSections([
-  { id: 'carousel', type: 'carousel', visible: true, data: { images: [], fullHeightMobile: false } },
+  { id: 'carousel', type: 'carousel', visible: true, data: { slides: [] } },
   { id: 'featured', type: 'featured', visible: true, data: { title: 'Destacados', carousel: true } },
   // Sin ítems: la barra muestra los tres de siempre (envíos, pagos, compra protegida).
   { id: 'info-bar', type: 'info-bar', visible: true, data: {} },

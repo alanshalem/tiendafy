@@ -12,6 +12,8 @@
    con `from` = la versión actual y `to` = from + 1. Ver README.md.
    ============================================================ */
 
+import { upgradeSectionData } from './legacy';
+
 export type RawTheme = Record<string, unknown>;
 
 export interface ThemeMigration {
@@ -44,6 +46,26 @@ export const THEME_MIGRATIONS: readonly ThemeMigration[] = [
       return {
         ...theme,
         sections: theme.sections.filter(isObject).map((s) => (isObject(s.data) ? s : { ...s, data: {} })),
+      };
+    },
+  },
+  {
+    from: 1,
+    to: 2,
+    description:
+      'Carrusel: `images: string[]` → `slides` (cada diapositiva con imagen de celular, texto ' +
+      'alternativo, link y textos) y `fullHeightMobile` → `heightMobile`. Marcas: `images: string[]` ' +
+      '→ `logos` (con nombre y link). Las mismas funciones las aplica el normalizador a la data ' +
+      'que llega por otro camino (legacy.ts).',
+    migrate: (theme) => {
+      if (!Array.isArray(theme.sections)) return theme;
+      return {
+        ...theme,
+        sections: theme.sections.map((s) =>
+          isObject(s) && typeof s.type === 'string' && isObject(s.data)
+            ? { ...s, data: upgradeSectionData(s.type, s.data) }
+            : s,
+        ),
       };
     },
   },

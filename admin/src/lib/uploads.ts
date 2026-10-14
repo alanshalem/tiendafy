@@ -116,41 +116,87 @@ export const UPLOADS = {
     tip: 'El mismo video que el WebM: lo usan iPhone y Safari.',
     heavyBytes: HEAVY_VIDEO,
   },
+  /** Video vertical para celular: uno solo, en MP4 (lo reproducen todos los celulares). */
+  heroVideoMobile: {
+    formats: ['mp4'],
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 720, height: 1280 },
+    fit: 'cover',
+    tip: 'Vertical (9:16), corto y sin audio. En celular cada MB cuenta: cuanto más liviano, mejor.',
+    heavyBytes: 3 * MB,
+  },
   heroPoster: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,
     ideal: { width: 1920, height: 1080 },
     fit: 'cover',
-    tip: 'Un cuadro del video: se ve mientras carga y en conexiones lentas.',
+    tip: 'Un cuadro del video: se ve mientras carga, con conexión lenta y a quien pide menos movimiento.',
     heavyBytes: HEAVY_IMAGE,
   },
+  heroPosterMobile: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1080, height: 1620 },
+    fit: 'cover',
+    tip: 'Vertical: en celular el hero es más alto que ancho.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  /** Con el alto "según la imagen" del carrusel (1580×600); con otro alto, ver carouselIdeal. */
   carousel: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,
     ideal: { width: 1580, height: 600 },
     fit: 'cover',
-    tip: 'Dejá el texto importante en el centro: en celular se recortan los costados.',
+    tip: 'Dejá lo importante en el centro: según la pantalla se recortan los bordes.',
     heavyBytes: HEAVY_IMAGE,
   },
+  carouselMobile: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1080, height: 1350 },
+    fit: 'cover',
+    tip: 'Para celular: vertical o cuadrada, con lo importante en el centro.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  /** La foto al lado del texto (media columna en computadora); con otra proporción, ver imageTextIdeal. */
   imageText: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,
-    ideal: { width: 1270, height: 300 },
+    ideal: { width: 1200, height: 900 },
     fit: 'cover',
     heavyBytes: HEAVY_IMAGE,
   },
+  imageTextMobile: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1080, height: 1350 },
+    fit: 'cover',
+    tip: 'Para celular, donde la foto va a todo el ancho arriba o abajo del texto.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  /** 3 columnas en 16:9 (lo de siempre); con otras opciones, ver bannerIdeal. */
   promoBanner: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,
-    ideal: { width: 620, height: 235 },
+    ideal: { width: 1080, height: 610 },
     fit: 'cover',
+    tip: 'El texto lo pone la tienda encima: subí la foto sin letras.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  promoBannerMobile: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1080, height: 1080 },
+    fit: 'cover',
+    tip: 'Para celular: más alta que la de computadora, así el texto no tapa la foto.',
     heavyBytes: HEAVY_IMAGE,
   },
   categoryBanner: {
     formats: PHOTO,
     maxBytes: MEDIA_LIMITS,
-    ideal: { width: 620, height: 620 },
+    ideal: { width: 830, height: 830 },
     fit: 'cover',
+    tip: 'El nombre de la categoría va encima: mejor una foto sin letras.',
     heavyBytes: HEAVY_IMAGE,
   },
   newsletterImage: {
@@ -171,7 +217,8 @@ export const UPLOADS = {
   brandLogo: {
     formats: [...PHOTO, 'svg'],
     maxBytes: MEDIA_LIMITS,
-    ideal: { width: 300, height: 120 },
+    // La tienda lo muestra entero en un lugar de 144×48 (3:1).
+    ideal: { width: 300, height: 100 },
     fit: 'contain',
     tip: 'Apaisados y con fondo transparente (PNG o SVG).',
     heavyBytes: 200 * 1024,
@@ -236,6 +283,96 @@ export const UPLOADS = {
 } satisfies Record<string, UploadSpec>;
 
 export type UploadKind = keyof typeof UPLOADS;
+
+/* ------------------------------------------------------------ medidas según cómo se muestra */
+
+/*
+ * Algunas fotos se muestran distinto según lo que elige el comercio (la
+ * proporción del banner, cuántas columnas, el alto del carrusel). La medida
+ * recomendada sale de esa misma elección: la que se ve en la tienda. Las
+ * cuentas usan el contenedor de la tienda (1280 px, 1248 útiles), el doble de
+ * píxeles para pantallas de alta densidad y un celular de 390 px (×3 = 1080).
+ */
+
+export interface IdealSize {
+  width: number;
+  height: number;
+}
+
+/** "16x9" → 16/9. */
+export function ratioValue(ratio: string): number {
+  const [w, h] = ratio.split('x').map(Number);
+  return w && h ? w / h : 16 / 9;
+}
+
+const round10 = (n: number) => Math.round(n / 10) * 10;
+const sized = (width: number, ratio: number): IdealSize => ({
+  width: round10(width),
+  height: round10(width / ratio),
+});
+
+/** Ancho útil del contenedor de la tienda en computadora. */
+const CONTENT_WIDTH = 1248;
+/** Un celular grande en píxeles reales. */
+const PHONE_PX = 1080;
+
+/**
+ * Banner de una grilla: el ancho de una columna en computadora (al doble),
+ * pero nunca menos que lo que ocupa en el celular. Con foto propia de
+ * celular, la de computadora ya no tiene que cubrir el teléfono.
+ */
+export function bannerIdeal(opts: {
+  ratio: string;
+  columns: number;
+  columnsMobile: number;
+  fullWidth: boolean;
+  hasMobileImage?: boolean;
+}): IdealSize {
+  const desktop = ((opts.fullWidth ? 1440 : CONTENT_WIDTH) / opts.columns) * 2;
+  const mobile = opts.hasMobileImage ? 0 : PHONE_PX / opts.columnsMobile;
+  return sized(Math.min(2400, Math.max(desktop, mobile)), ratioValue(opts.ratio));
+}
+
+/** La foto de celular de un banner: el ancho de su columna en el teléfono. */
+export function bannerMobileIdeal(ratio: string, columnsMobile: number): IdealSize {
+  return sized(PHONE_PX / columnsMobile, ratioValue(ratio));
+}
+
+/** Proporción del carrusel en computadora (a 1440 px de ancho) y en celular (a 390 px). */
+const CAROUSEL_DESKTOP: Record<string, number> = {
+  small: 1440 / 360,
+  medium: 1440 / 460,
+  large: 1440 / 600,
+  full: 16 / 9,
+  adapt: 1580 / 600,
+};
+const CAROUSEL_MOBILE: Record<string, number> = {
+  small: 390 / 240,
+  medium: 390 / 300,
+  large: 390 / 420,
+  full: 9 / 16,
+  adapt: 4 / 5,
+};
+
+/** Foto de computadora de una diapositiva, según el alto elegido. */
+export function carouselIdeal(height: string): IdealSize {
+  if (height === 'adapt') return UPLOADS.carousel.ideal;
+  return sized(1920, CAROUSEL_DESKTOP[height] ?? 1440 / 460);
+}
+
+/** Foto de celular de una diapositiva, según el alto en celular (`auto` = el de computadora). */
+export function carouselMobileIdeal(heightMobile: string, height: string): IdealSize {
+  const h = heightMobile === 'auto' ? height : heightMobile;
+  return sized(PHONE_PX, CAROUSEL_MOBILE[h] ?? 390 / 300);
+}
+
+/**
+ * Imagen y texto: media columna en computadora (~620 px, al doble 1200); sola,
+ * sin texto, el contenedor entero. `original` no recorta: 4:3 de referencia.
+ */
+export function imageTextIdeal(ratio: string, alone: boolean): IdealSize {
+  return sized(alone ? 1600 : 1200, ratio === 'original' ? 4 / 3 : ratioValue(ratio));
+}
 
 /* ------------------------------------------------------------ lectura de la ficha */
 
