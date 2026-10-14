@@ -102,7 +102,7 @@ export function ImagesTab() {
           agregá <span className="font-medium text-fg">-2</span>,{' '}
           <span className="font-medium text-fg">-3</span>, etc.
         </p>
-        <ul className="mt-2 space-y-0.5 font-mono text-[0.7rem] text-fg-subtle">
+        <ul className="mt-2 space-y-0.5 font-mono text-2xs text-fg-subtle">
           <li>remera-oversize.jpg → producto «remera-oversize» (principal)</li>
           <li>remera-oversize-2.jpg → misma, segunda foto</li>
         </ul>
@@ -212,7 +212,7 @@ export function ImagesTab() {
               <summary className="cursor-pointer text-sm font-semibold text-fg-muted">
                 Archivos sin producto ({job.unmatchedFiles})
               </summary>
-              <ul className="mt-2 space-y-0.5 font-mono text-[0.7rem] text-fg-subtle">
+              <ul className="mt-2 space-y-0.5 font-mono text-2xs text-fg-subtle">
                 {job.unmatchedSample.map((f, i) => (
                   <li key={i}>{f}</li>
                 ))}

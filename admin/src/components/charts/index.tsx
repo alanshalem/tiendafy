@@ -97,7 +97,7 @@ export function InfoDot({ info }: { info: string }) {
     <Tooltip label={info} side="top" delayMs={150} className="inline-flex">
       <span
         tabIndex={0}
-        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold text-fg-subtle"
+        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-3xs font-bold text-fg-subtle"
       >
         i
       </span>

@@ -183,7 +183,7 @@ export function CalendarioTab({
                             POST_STATUS[post.status]?.chip ?? 'bg-bg-muted/60',
                           )}
                         >
-                          <span className="shrink-0 text-[0.65rem] font-semibold tabular-nums text-fg-muted">
+                          <span className="shrink-0 text-3xs font-semibold tabular-nums text-fg-muted">
                             {hora}
                           </span>
                           <span className="flex shrink-0 -space-x-1">

@@ -293,7 +293,7 @@ function ThreadRow({
           <span className={cn('truncate text-sm text-fg', thread.unread ? 'font-semibold' : 'font-medium')}>
             {thread.title}
           </span>
-          <span className="ml-auto shrink-0 text-[11px] text-fg-subtle">
+          <span className="ml-auto shrink-0 text-2xs text-fg-subtle">
             {formatDateTime(thread.lastActivityAtUtc)}
           </span>
         </span>
@@ -307,13 +307,13 @@ function ThreadRow({
             <span
               title={`Asignada a ${thread.assignedTo.name}`}
               aria-label={`Asignada a ${thread.assignedTo.name}`}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bg-muted text-[10px] font-bold text-fg"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bg-muted text-3xs font-bold text-fg"
             >
               {initials(thread.assignedTo.name)}
             </span>
           )}
           {thread.unreadCount > 1 && (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-fg">
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-2xs font-bold text-primary-fg">
               {thread.unreadCount}
             </span>
           )}

@@ -162,7 +162,7 @@ export function ReviewsPage() {
               {n !== null && n > 0 && (
                 <span
                   className={cn(
-                    'ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold',
+                    'ml-1.5 rounded-full px-1.5 py-0.5 text-2xs font-semibold',
                     t.id === 'pending' ? 'bg-warning-bg text-warning' : 'bg-bg-muted text-fg-muted',
                   )}
                 >

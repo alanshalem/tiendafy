@@ -114,7 +114,7 @@ export function ChannelChip({ channel }: { channel: InboxChannel }) {
     'ml-mensaje': 'bg-warning-bg text-warning',
   };
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', tone[channel])}>
+    <span className={cn('rounded-full px-2 py-0.5 text-2xs font-semibold', tone[channel])}>
       {CHANNELS[channel].short}
     </span>
   );
@@ -236,7 +236,7 @@ function Bubble({ message }: { message: ChatMessage }) {
             <Paperclip className="h-3.5 w-3.5" /> {message.attachment.name}
           </a>
         )}
-        <p className="mt-1 text-[10px] opacity-60">
+        <p className="mt-1 text-3xs opacity-60">
           {[message.author, message.at ? formatDateTime(message.at) : null].filter(Boolean).join(' · ')}
         </p>
       </div>

@@ -215,7 +215,7 @@ export function UsersNotificationsPage() {
         )}
         {m.customized && (
           <span
-            className="mt-1 block text-[11px] font-medium text-primary"
+            className="mt-1 block text-2xs font-medium text-primary"
             title="Tiene permisos distintos de los de su rol."
           >
             Personalizado

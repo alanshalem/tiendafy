@@ -94,7 +94,7 @@ export function ListStats({ items, className }: { items: ListStat[]; className?:
             {body}
             <span
               className={cn(
-                'mt-1 text-[0.65rem] font-medium text-primary transition-opacity',
+                'mt-1 text-3xs font-medium text-primary transition-opacity',
                 // En el teléfono no hay hover: la pista ocupaba una línea vacía.
                 s.active ? 'block opacity-100' : 'hidden opacity-0 group-hover:opacity-100 sm:block',
               )}

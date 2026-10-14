@@ -149,7 +149,7 @@ export function FiscalPanel({
               </span>
               <button
                 onClick={() => downloadPdf('invoice')}
-                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted"
+                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-2xs font-medium text-fg hover:bg-bg-muted"
               >
                 <Download className="h-3 w-3" /> PDF
               </button>
@@ -179,7 +179,7 @@ export function FiscalPanel({
               </span>
               <button
                 onClick={() => downloadPdf('creditnote')}
-                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium text-fg hover:bg-bg-muted"
+                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-2xs font-medium text-fg hover:bg-bg-muted"
               >
                 <Download className="h-3 w-3" /> PDF
               </button>

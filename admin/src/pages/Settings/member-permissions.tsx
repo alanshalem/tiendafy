@@ -132,7 +132,7 @@ export function MemberPermissionsModal({
                           {p.label}
                           {p.sensitive && <SensitiveBadge className="ml-1.5" />}
                           {diff && (
-                            <span className="ml-1.5 text-[11px] font-semibold text-primary">
+                            <span className="ml-1.5 text-2xs font-semibold text-primary">
                               {on ? 'agregado' : 'quitado'}
                             </span>
                           )}

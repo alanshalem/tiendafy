@@ -295,7 +295,7 @@ export function SupportChatPage() {
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-fg">{c.customerEmail}</span>
                     {c.status === 'CLOSED' && (
-                      <span className="rounded-full bg-bg-muted px-1.5 py-px text-[10px] text-fg-muted">
+                      <span className="rounded-full bg-bg-muted px-1.5 py-px text-3xs text-fg-muted">
                         Cerrada
                       </span>
                     )}
@@ -306,7 +306,7 @@ export function SupportChatPage() {
                   </p>
                 </div>
                 {c.unreadForStaff > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-fg">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-2xs font-bold text-primary-fg">
                     {c.unreadForStaff}
                   </span>
                 )}
@@ -386,7 +386,7 @@ export function SupportChatPage() {
                             <Paperclip className="h-3.5 w-3.5" /> {m.attachment.name}
                           </a>
                         ))}
-                      <p className="mt-1 text-[10px] opacity-60">
+                      <p className="mt-1 text-3xs opacity-60">
                         {m.authorName} · {formatDateTime(m.createdAtUtc)}
                       </p>
                     </div>

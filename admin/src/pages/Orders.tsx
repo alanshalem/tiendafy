@@ -711,7 +711,7 @@ function OrderFilters({
         />
         {/* Con el rótulo a la vista: un "dd/mm/aaaa" vacío no dice si es desde o hasta. */}
         <label className="relative block">
-          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-3xs font-medium text-fg-subtle">
             Desde
           </span>
           <input
@@ -725,7 +725,7 @@ function OrderFilters({
           />
         </label>
         <label className="relative block">
-          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-3xs font-medium text-fg-subtle">
             Hasta (incluido)
           </span>
           <input

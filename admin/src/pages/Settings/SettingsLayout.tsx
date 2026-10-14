@@ -31,7 +31,7 @@ export function SettingsLayout() {
       <nav className="flex-1 space-y-5 overflow-y-auto p-3">
         {visibleGroups.map((group) => (
           <div key={group.heading}>
-            <div className="px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-accent-fg/65">
+            <div className="px-3 pb-1.5 text-3xs font-bold uppercase tracking-widest text-accent-fg/65">
               {group.heading}
             </div>
             <div className="space-y-0.5">

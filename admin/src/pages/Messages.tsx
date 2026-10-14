@@ -129,7 +129,7 @@ export function MessagesPage() {
           >
             {f.label}
             {f.id === 'repentance' && repentanceCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger">
+              <span className="ml-1.5 rounded-full bg-danger-bg px-1.5 py-0.5 text-2xs font-semibold text-danger">
                 {repentanceCount}
               </span>
             )}

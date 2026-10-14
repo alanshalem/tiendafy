@@ -185,7 +185,7 @@ export function AddSectionPicker({
           )}
           {groups.map(({ group, defs }) => (
             <div key={group} role="group" aria-label={group} className="pt-2">
-              <div className="px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">
+              <div className="px-2 pb-1 text-2xs font-semibold uppercase tracking-wide text-fg-subtle">
                 {group}
               </div>
               {defs.map((def) => {

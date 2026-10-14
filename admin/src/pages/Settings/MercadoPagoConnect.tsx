@@ -419,7 +419,7 @@ function ModeCard({
           {icon}
         </span>
         <span className="font-semibold text-fg">{title}</span>
-        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+        <span className="ml-auto rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-medium text-fg-muted">
           {tag}
         </span>
       </div>

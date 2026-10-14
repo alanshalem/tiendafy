@@ -180,11 +180,11 @@ export function ShippingMethodsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-fg">{m.name}</span>
-                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+                    <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-medium text-fg-muted">
                       {KIND_LABEL[m.kind]}
                     </span>
                     {!m.active && (
-                      <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                      <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-semibold text-fg-muted">
                         Inactivo
                       </span>
                     )}

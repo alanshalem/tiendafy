@@ -347,7 +347,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
     <div className="rounded-lg border border-border bg-surface p-3">
       <div className="text-xs text-fg-subtle">{label}</div>
       <div className="mt-0.5 text-xl font-bold tabular-nums text-fg">{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] leading-tight text-fg-subtle">{sub}</div>}
+      {sub && <div className="mt-0.5 text-2xs leading-tight text-fg-subtle">{sub}</div>}
     </div>
   );
 }

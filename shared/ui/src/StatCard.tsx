@@ -19,7 +19,7 @@ export function StatCard({ label, value, hint, className }: StatCardProps) {
           <Tooltip label={hint} side="top" delayMs={150} className="inline-flex normal-case tracking-normal">
             <span
               tabIndex={0}
-              className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-[0.55rem] font-bold"
+              className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-fg-subtle text-3xs font-bold"
             >
               i
             </span>

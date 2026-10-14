@@ -306,7 +306,7 @@ export function Stat({ label, value, tone }: { label: string; value: number; ton
   return (
     <div className="rounded-md border border-border bg-surface px-2 py-2">
       <div className={cn('text-lg font-bold', tone)}>{value}</div>
-      <div className="text-[0.7rem] text-fg-subtle">{label}</div>
+      <div className="text-2xs text-fg-subtle">{label}</div>
     </div>
   );
 }

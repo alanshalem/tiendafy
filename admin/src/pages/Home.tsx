@@ -168,7 +168,7 @@ export function HomePage() {
               className="flex items-start gap-3 border-b border-border px-4 py-3.5 transition-colors last:border-b-0 hover:bg-bg-subtle"
             >
               <span
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.65rem] font-bold ${
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-3xs font-bold ${
                   step.done
                     ? 'border-success bg-success-bg text-success'
                     : 'border-border-strong text-fg-subtle'

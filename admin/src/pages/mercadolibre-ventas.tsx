@@ -567,9 +567,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
                 }`}
               >
                 {m.text}
-                <div
-                  className={`mt-0.5 text-[10px] ${m.fromSeller ? 'text-primary-fg/70' : 'text-fg-subtle'}`}
-                >
+                <div className={`mt-0.5 text-3xs ${m.fromSeller ? 'text-primary-fg/70' : 'text-fg-subtle'}`}>
                   {fecha(m.dateCreated)}
                 </div>
               </div>

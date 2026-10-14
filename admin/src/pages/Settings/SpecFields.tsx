@@ -163,7 +163,7 @@ export function SpecFieldsPage() {
                   {f.filterable && <Badge variant="success">Filtra el catálogo</Badge>}
                   {!f.showOnProduct && <Badge variant="neutral">Oculto en la tienda</Badge>}
                   {f.meliAttributeId && (
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
                       ML: {f.meliAttributeId}
                     </span>
                   )}

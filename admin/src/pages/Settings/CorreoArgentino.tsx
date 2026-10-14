@@ -48,7 +48,7 @@ export function CorreoArgentinoCard() {
         extraBadges={
           config.configured &&
           config.environment === 'TEST' && (
-            <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+            <span className="rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
               Modo prueba
             </span>
           )

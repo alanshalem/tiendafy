@@ -195,7 +195,7 @@ function InvoiceScanButton({ poId, onScanned }: { poId: string; onScanned: (scan
             ? `Subiendo… ${Math.round(current.progress * 100)} %`
             : 'Leyendo…'}
       </Button>
-      <p className="text-right text-[11px] text-fg-subtle">
+      <p className="text-right text-2xs text-fg-subtle">
         {spec.formats} · {spec.weight}
       </p>
       <UploadNotes notes={scans.notes} onDismiss={scans.dismissNotes} showFile={false} />

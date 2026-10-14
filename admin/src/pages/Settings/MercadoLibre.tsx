@@ -207,12 +207,12 @@ export function MeliSettingsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-fg">Mercado Libre</span>
               {c.connected && !c.isDemo && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+                <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-2xs font-semibold text-success">
                   <CheckCircle2 className="h-3 w-3" /> Conectado como {c.nickname}
                 </span>
               )}
               {c.isDemo && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-2xs font-semibold text-warning">
                   <FlaskConical className="h-3 w-3" /> Cuenta de ejemplo
                 </span>
               )}

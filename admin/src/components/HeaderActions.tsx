@@ -37,7 +37,7 @@ export function HeaderActions() {
       >
         <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="hidden flex-1 text-left md:inline">Buscar…</span>
-        <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-[0.65rem] text-fg-subtle md:inline">
+        <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-3xs text-fg-subtle md:inline">
           {paletteShortcut()}
         </kbd>
       </button>

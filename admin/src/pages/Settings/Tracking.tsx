@@ -245,7 +245,7 @@ function Field({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-fg">{title}</h3>
             {on && (
-              <span className="rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+              <span className="rounded-full bg-success-bg px-2 py-0.5 text-2xs font-semibold text-success">
                 Activo
               </span>
             )}

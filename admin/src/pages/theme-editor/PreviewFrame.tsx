@@ -113,7 +113,7 @@ export function PreviewFrame({
     >
       {layout && (
         <p
-          className="pointer-events-none absolute inset-x-0 top-1 text-center text-[0.7rem] font-medium text-fg-muted"
+          className="pointer-events-none absolute inset-x-0 top-1 text-center text-2xs font-medium text-fg-muted"
           aria-live="polite"
         >
           {DEVICE_NAME[device]} · {Math.round(layout.width)} px

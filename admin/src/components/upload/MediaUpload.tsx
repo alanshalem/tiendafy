@@ -157,7 +157,7 @@ function EmptyDrop({
     >
       <Icon className="h-6 w-6" aria-hidden />
       <span className="text-xs font-semibold">{label}</span>
-      <span className="text-[11px] text-fg-subtle">o arrastralo acá</span>
+      <span className="text-2xs text-fg-subtle">o arrastralo acá</span>
     </button>
   );
 }
@@ -225,7 +225,7 @@ export function MediaUpload({
             )}
           </Frame>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="min-w-0 flex-1 truncate text-[11px] tabular-nums text-fg-subtle">{size}</span>
+            <span className="min-w-0 flex-1 truncate text-2xs tabular-nums text-fg-subtle">{size}</span>
             <button
               type="button"
               onClick={picker.open}

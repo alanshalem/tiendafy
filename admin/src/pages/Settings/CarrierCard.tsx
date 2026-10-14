@@ -102,16 +102,16 @@ export function CarrierCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-fg">{title}</span>
-            <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+            <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-medium text-fg-muted">
               {tag}
             </span>
             {config.configured && config.active && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-2xs font-semibold text-success">
                 <CheckCircle2 className="h-3 w-3" /> Activo
               </span>
             )}
             {config.configured && !config.active && (
-              <span className="rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+              <span className="rounded-full bg-bg-muted px-2 py-0.5 text-2xs font-semibold text-fg-muted">
                 Pausado
               </span>
             )}

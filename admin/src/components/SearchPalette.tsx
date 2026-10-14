@@ -125,7 +125,7 @@ export function SearchPalette({
           {loading && (
             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-fg-subtle" aria-label="Buscando" />
           )}
-          <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 text-[0.65rem] text-fg-subtle sm:inline">
+          <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 text-3xs text-fg-subtle sm:inline">
             Esc
           </kbd>
         </div>
@@ -146,7 +146,7 @@ export function SearchPalette({
                 {newGroup && (
                   <div
                     role="presentation"
-                    className="px-3 pb-1 pt-2.5 text-[0.65rem] font-bold uppercase tracking-wider text-fg-subtle"
+                    className="px-3 pb-1 pt-2.5 text-3xs font-bold uppercase tracking-wider text-fg-subtle"
                   >
                     {item.group}
                   </div>
@@ -178,9 +178,7 @@ export function SearchPalette({
             );
           })}
         </div>
-        {footer && (
-          <div className="border-t border-border px-4 py-2 text-[0.7rem] text-fg-subtle">{footer}</div>
-        )}
+        {footer && <div className="border-t border-border px-4 py-2 text-2xs text-fg-subtle">{footer}</div>}
       </div>
     </div>
   );
