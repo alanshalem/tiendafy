@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
-import { formatDate, formatMoney } from '@tiendafy/types';
+import { formatMoney } from '@tiendafy/types';
 import { PaywayCardForm, type PaywayCardToken, type PaywayPublicConfig } from './PaywayCardForm';
 import { CheckoutResult } from './CheckoutResult';
+import {
+  CARRIER_KEYS,
+  CARRIERS,
+  enabledCarriers,
+  quoteHint,
+  type CarrierKey,
+  type QuotedOption,
+} from './checkout-carriers';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
@@ -25,26 +33,10 @@ interface ShippingOption {
   pickupAddress: string | null;
 }
 
-interface CorreoOption {
-  token: string;
-  kind: 'D' | 'S';
-  name: string;
-  price: MoneyDto;
-  etaMin: string | null;
-  etaMax: string | null;
-}
-
 interface CorreoAgency {
   code: string;
   name: string | null;
   address: string;
-}
-
-interface ZipnovaOption {
-  token: string;
-  name: string;
-  price: MoneyDto;
-  estimatedDelivery: string | null;
 }
 
 /**
@@ -71,18 +63,6 @@ const DEFAULT_SETTINGS: CheckoutSettings = {
   orderMessageEnabled: false,
   orderMessageText: '',
 };
-
-/**
- * Opción de Andreani. No trae plazo de entrega porque su cotización no lo
- * devuelve — y una fecha inventada en el checkout es una promesa que después
- * hay que sostener.
- */
-interface AndreaniOption {
-  token: string;
-  name: string;
-  price: MoneyDto;
-  toBranch: boolean;
-}
 
 const CORREO_PROVINCES: [string, string][] = [
   ['B', 'Buenos Aires'],
@@ -114,6 +94,10 @@ const CORREO_PROVINCES: [string, string][] = [
 type Mode = 'PRO' | 'API';
 type Step = 'entrega' | 'pago';
 
+// Tope de espera de cada pedido a la API: un servidor que no contesta no puede
+// dejar al comprador mirando un spinner para siempre.
+const FETCH_TIMEOUT_MS = 10_000;
+
 export function CheckoutClient({ tenantId }: { tenantId: string }) {
   // El carrito es el de la tienda (el mismo del ícono): así lo que se reprecia
   // o se quita acá se ve en todos lados.
@@ -132,25 +116,19 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[] | null>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
 
-  // Correo Argentino: cotización en vivo por código postal.
-  const [correoEnabled, setCorreoEnabled] = useState(false);
-  const [correoCp, setCorreoCp] = useState('');
-  const [correoOptions, setCorreoOptions] = useState<CorreoOption[] | null>(null);
-  const [correoError, setCorreoError] = useState<string | null>(null);
-  const [correoLoading, setCorreoLoading] = useState(false);
+  // Correos que cotizan en vivo (ver checkout-carriers): todos con el código
+  // postal; los que resuelven por localidad, además ciudad y provincia.
+  const [carriers, setCarriers] = useState<CarrierKey[]>([]);
+  const [quoteCp, setQuoteCp] = useState('');
+  const [quoteCity, setQuoteCity] = useState('');
+  const [quoteProvince, setQuoteProvince] = useState('');
+  const [quotes, setQuotes] = useState<Partial<Record<CarrierKey, QuotedOption[]>>>({});
+  const [quoteErrors, setQuoteErrors] = useState<Partial<Record<CarrierKey | 'cp', string>>>({});
+  const [quoting, setQuoting] = useState(false);
+  // Sucursal de retiro (Correo Argentino a sucursal).
   const [agencyProvince, setAgencyProvince] = useState('B');
   const [agencies, setAgencies] = useState<CorreoAgency[] | null>(null);
   const [agencyCode, setAgencyCode] = useState<string | null>(null);
-
-  // Zipnova: multi-transporte. Necesita ciudad + provincia además del CP.
-  const [zipnovaEnabled, setZipnovaEnabled] = useState(false);
-  const [quoteCity, setQuoteCity] = useState('');
-  const [quoteProvince, setQuoteProvince] = useState('');
-  const [zipnovaOptions, setZipnovaOptions] = useState<ZipnovaOption[] | null>(null);
-  const [zipnovaError, setZipnovaError] = useState<string | null>(null);
-  const [andreaniEnabled, setAndreaniEnabled] = useState(false);
-  const [andreaniOptions, setAndreaniOptions] = useState<AndreaniOption[] | null>(null);
-  const [andreaniError, setAndreaniError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -219,9 +197,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       .then((r) => r.json())
       .then((d) => {
         setShippingOptions(d.items ?? []);
-        setCorreoEnabled(Boolean(d.correoArgentino?.enabled));
-        setZipnovaEnabled(Boolean(d.zipnova?.enabled));
-        setAndreaniEnabled(Boolean(d.andreani?.enabled));
+        setCarriers(enabledCarriers(d));
       })
       .catch(() => setShippingOptions([]));
   }, [tenantId]);
@@ -230,134 +206,85 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const currency = lines[0]?.currency ?? 'ARS';
   const discount = coupon?.discount ?? 0;
   const selected = shippingOptions?.find((o) => o.id === shippingId) ?? null;
-  // Opciones dinámicas cotizadas: "correo-<i>" | "zipnova-<i>".
-  const selectedCorreo = shippingId?.startsWith('correo-')
-    ? (correoOptions?.[Number(shippingId.slice(7))] ?? null)
-    : null;
-  const selectedZipnova = shippingId?.startsWith('zipnova-')
-    ? (zipnovaOptions?.[Number(shippingId.slice(8))] ?? null)
-    : null;
-  const selectedAndreani = shippingId?.startsWith('andreani-')
-    ? (andreaniOptions?.[Number(shippingId.slice(9))] ?? null)
-    : null;
-  const quotedShipping =
-    selectedCorreo?.price.amount ??
-    selectedZipnova?.price.amount ??
-    selectedAndreani?.price.amount ??
-    selected?.price.amount ??
-    0; // centavos (ApiJson.MoneyJson)
+  // Opciones cotizadas, con id "<correo>-<i>" para el radio.
+  const quoteOptions = CARRIER_KEYS.flatMap((k) =>
+    (quotes[k] ?? []).map((option, i) => ({ id: `${k}-${i}`, option })),
+  );
+  const selectedQuote = quoteOptions.find((q) => q.id === shippingId)?.option ?? null;
+  const quotedShipping = selectedQuote?.price.amount ?? selected?.price.amount ?? 0; // centavos (ApiJson.MoneyJson)
   // Cupón de envío gratis: el servidor pone el envío en cero al crear la orden,
   // así que lo que se muestra acá tiene que decir lo mismo.
   const shipCost = coupon?.freeShipping ? 0 : quotedShipping;
   const total = Math.max(0, subtotal - discount) + shipCost;
-  const needsAddress =
-    selected?.kind === 'DELIVERY' ||
-    selectedCorreo?.kind === 'D' ||
-    selectedZipnova !== null ||
-    // Retiro en sucursal de Andreani no necesita dirección.
-    (selectedAndreani !== null && !selectedAndreani.toBranch);
-  const shippingLabel =
-    selectedCorreo?.name ?? selectedZipnova?.name ?? selectedAndreani?.name ?? selected?.name ?? null;
-  const anyQuoter = correoEnabled || zipnovaEnabled || andreaniEnabled;
+  // Retiro en el local o en una sucursal del correo: sin dirección.
+  const needsAddress = selected?.kind === 'DELIVERY' || (selectedQuote !== null && !selectedQuote.pickup);
+  const shippingLabel = selectedQuote?.name ?? selected?.name ?? null;
+  const hasShipping = Boolean(selected || selectedQuote);
 
-  // Cotiza contra TODOS los carriers activos en paralelo. Correo solo pide CP;
-  // Zipnova además ciudad + provincia (su API resuelve el destino por localidad).
+  // Cotiza contra TODOS los correos activos en paralelo. Los que necesitan
+  // ciudad y provincia y no las tienen se saltean con su aviso; el resto
+  // cotiza igual.
   const quoteShipping = async () => {
-    const cp = correoCp.trim();
+    const cp = quoteCp.trim();
     if (!/^\d{4}$/.test(cp)) {
-      setCorreoError('Ingresá un código postal de 4 dígitos.');
+      setQuoteErrors({ cp: 'Ingresá un código postal de 4 dígitos.' });
       return;
     }
-    if (zipnovaEnabled && (!quoteCity.trim() || !quoteProvince.trim())) {
-      setZipnovaError('Completá ciudad y provincia para cotizar con Zipnova.');
-      if (!correoEnabled) return;
-    } else {
-      setZipnovaError(null);
-      setAndreaniError(null);
-    }
-    setCorreoLoading(true);
-    setCorreoError(null);
-    setCorreoOptions(null);
-    setZipnovaOptions(null);
-    if (
-      shippingId?.startsWith('correo-') ||
-      shippingId?.startsWith('zipnova-') ||
-      shippingId?.startsWith('andreani-')
-    )
-      setShippingId(null);
+    const hasPlace = Boolean(quoteCity.trim() && quoteProvince.trim());
+    const errors: Partial<Record<CarrierKey | 'cp', string>> = {};
+    const ready = carriers.filter((k) => {
+      if (!CARRIERS[k].needsCityProvince || hasPlace) return true;
+      errors[k] = `Completá ciudad y provincia para cotizar con ${CARRIERS[k].label}.`;
+      return false;
+    });
+    setQuoteErrors(errors);
+    if (ready.length === 0) return;
+
+    setQuoting(true);
+    setQuotes({});
+    if (selectedQuote) setShippingId(null);
     setAgencyCode(null);
-    const units = lines.reduce((s, l) => s + l.quantity, 0);
     // El detalle del carrito: cada correo cotiza con el peso y las medidas de
     // cada variante, y la cotización queda atada a este contenido.
-    const items = lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
+    const input = {
+      postalCode: cp,
+      city: quoteCity.trim(),
+      province: quoteProvince.trim(),
+      units: lines.reduce((s, l) => s + l.quantity, 0),
+      items: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
+      declaredValue: subtotal / 100,
+    };
     const headers = tenantHeaders(tenantId, true);
 
-    const correoPromise = correoEnabled
-      ? fetch(`${API}/api/v1/shipping/correo/quote`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ postalCode: cp, units, items }),
-        })
-          .then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
-            setCorreoOptions(data.options ?? []);
-            if (data.error) setCorreoError(data.error);
-            else if ((data.options ?? []).length === 0)
-              setCorreoError('Correo Argentino no tiene tarifas para ese código postal.');
-          })
-          .catch((e) =>
-            setCorreoError(e instanceof Error ? e.message : 'No se pudo cotizar con Correo Argentino.'),
-          )
-      : Promise.resolve();
-
-    const zipnovaPromise =
-      zipnovaEnabled && quoteCity.trim() && quoteProvince.trim()
-        ? fetch(`${API}/api/v1/shipping/zipnova/quote`, {
+    await Promise.all(
+      ready.map(async (k) => {
+        const carrier = CARRIERS[k];
+        let message: string | null = null;
+        try {
+          const res = await fetch(`${API}${carrier.path}`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-              postalCode: cp,
-              city: quoteCity.trim(),
-              state: quoteProvince.trim(),
-              units,
-              items,
-              declaredValue: subtotal / 100,
-            }),
-          })
-            .then(async (res) => {
-              const data = await res.json();
-              if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
-              setZipnovaOptions(data.options ?? []);
-              if (data.error) setZipnovaError(data.error);
-              else if ((data.options ?? []).length === 0)
-                setZipnovaError('Zipnova no tiene opciones para ese destino.');
-            })
-            .catch((e) => setZipnovaError(e instanceof Error ? e.message : 'No se pudo cotizar con Zipnova.'))
-        : Promise.resolve();
-
-    // Andreani solo necesita el código postal: su cotización no pide ciudad
-    // ni provincia.
-    const andreaniPromise = andreaniEnabled
-      ? fetch(`${API}/api/v1/shipping/andreani/quote`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ postalCode: cp, units, items, declaredValue: subtotal / 100 }),
-        })
-          .then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.detail ?? 'No se pudo cotizar.');
-            setAndreaniOptions(data.options ?? []);
-            if ((data.options ?? []).length === 0)
-              setAndreaniError('Andreani no tiene tarifas para ese código postal.');
-          })
-          .catch((e) => setAndreaniError(e instanceof Error ? e.message : 'No se pudo cotizar con Andreani.'))
-      : Promise.resolve();
-
-    await Promise.all([correoPromise, zipnovaPromise, andreaniPromise]);
+            body: JSON.stringify(carrier.body(input)),
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            message = data?.detail ?? 'No se pudo cotizar.';
+          } else {
+            const options = ((data?.options ?? []) as Record<string, unknown>[]).map(carrier.toOption);
+            setQuotes((q) => ({ ...q, [k]: options }));
+            message = data?.error ?? (options.length === 0 ? carrier.noRates : null);
+          }
+        } catch {
+          // Sin red o sin respuesta a tiempo.
+          message = `No se pudo cotizar con ${carrier.label}.`;
+        }
+        if (message) setQuoteErrors((prev) => ({ ...prev, [k]: message }));
+      }),
+    );
     if (!zip.trim()) setZip(cp);
     if (quoteCity.trim() && !city.trim()) setCity(quoteCity.trim());
-    setCorreoLoading(false);
+    setQuoting(false);
   };
 
   const loadAgencies = async (prov: string) => {
@@ -416,12 +343,14 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const continueToPago = () => {
     setFieldError(null);
     if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
-    if (
-      (shippingOptions?.length ?? 0) + (correoOptions?.length ?? 0) + (zipnovaOptions?.length ?? 0) > 0 &&
-      !shippingId
-    )
+    // Si la tienda envía (métodos propios o correos que cotizan), hay que elegir
+    // cómo. Antes solo contaban las opciones ya cotizadas: con solo correos y
+    // sin tocar "Calcular" se podía pagar sin envío.
+    if (!hasShipping && carriers.length > 0 && quoteOptions.length === 0 && !shippingOptions?.length)
+      return setFieldError('Ingresá tu código postal y tocá «Calcular» para elegir el envío.');
+    if (!hasShipping && ((shippingOptions?.length ?? 0) > 0 || carriers.length > 0))
       return setFieldError('Elegí cómo querés recibir tu compra.');
-    if (selectedCorreo?.kind === 'S' && !agencyCode)
+    if (selectedQuote?.needsAgency && !agencyCode)
       return setFieldError('Elegí la sucursal de Correo donde querés retirar.');
     if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
     if (settings.requirePhone && !phone.trim()) return setFieldError('Completá tu teléfono.');
@@ -453,11 +382,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         phone: phone.trim() || null,
         docNumber: doc.trim() || null,
         notes: notes.trim() || null,
-        shippingMethodId: selectedCorreo || selectedZipnova || selectedAndreani ? null : shippingId,
+        shippingMethodId: selectedQuote ? null : shippingId,
         address: formattedAddress(),
-        shippingQuoteToken:
-          selectedCorreo?.token ?? selectedZipnova?.token ?? selectedAndreani?.token ?? null,
-        correoAgency: selectedCorreo?.kind === 'S' ? agencyCode : null,
+        shippingQuoteToken: selectedQuote?.token ?? null,
+        correoAgency: selectedQuote?.needsAgency ? agencyCode : null,
       }),
     });
     if (!submitRes.ok) {
@@ -744,43 +672,49 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 </section>
               )}
 
-              {anyQuoter && (
+              {carriers.length > 0 && (
                 <section>
                   {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
                   <div className="rounded-lg border border-black/15 p-3.5">
                     <div className="flex items-center gap-1.5 text-sm font-semibold">
                       <Truck className="h-4 w-4" /> Calculá tu envío
                     </div>
-                    <p className="mt-0.5 text-xs text-fg-muted">
-                      {[correoEnabled && 'Correo Argentino', zipnovaEnabled && 'Zipnova']
-                        .filter(Boolean)
-                        .join(' y ')}{' '}
-                      cotizan al instante para tu dirección.
-                    </p>
+                    <p className="mt-0.5 text-xs text-fg-muted">{quoteHint(carriers)}</p>
                     <div className="mt-2.5 flex flex-wrap gap-2">
                       <input
-                        value={correoCp}
-                        onChange={(e) => setCorreoCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        onKeyDown={(e) => e.key === 'Enter' && quoteShipping()}
+                        value={quoteCp}
+                        onChange={(e) => setQuoteCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter') return;
+                          e.preventDefault();
+                          quoteShipping();
+                        }}
                         placeholder="Código postal"
                         inputMode="numeric"
+                        autoComplete="postal-code"
                         aria-label="Código postal para cotizar"
                         className={`${inputCls} max-w-[140px]`}
                       />
-                      {zipnovaEnabled && (
+                      {carriers.some((k) => CARRIERS[k].needsCityProvince) && (
                         <>
                           <input
                             value={quoteCity}
                             onChange={(e) => setQuoteCity(e.target.value)}
                             placeholder="Ciudad"
+                            autoComplete="address-level2"
                             aria-label="Ciudad para cotizar"
                             className={`${inputCls} max-w-[180px]`}
                           />
                           <input
                             value={quoteProvince}
                             onChange={(e) => setQuoteProvince(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && quoteShipping()}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter') return;
+                              e.preventDefault();
+                              quoteShipping();
+                            }}
                             placeholder="Provincia"
+                            autoComplete="address-level1"
                             aria-label="Provincia para cotizar"
                             className={`${inputCls} max-w-[180px]`}
                           />
@@ -789,134 +723,54 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                       <button
                         type="button"
                         onClick={quoteShipping}
-                        disabled={correoLoading}
+                        disabled={quoting}
                         className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
                       >
-                        {correoLoading && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
+                        {quoting && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
                       </button>
                     </div>
-                    {correoError && <p className="mt-2 text-xs text-red-600">{correoError}</p>}
-                    {zipnovaError && <p className="mt-2 text-xs text-red-600">{zipnovaError}</p>}
-                    {andreaniError && <p className="mt-2 text-xs text-red-600">{andreaniError}</p>}
-
-                    {andreaniOptions && andreaniOptions.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {andreaniOptions.map((o, i) => {
-                          const id = `andreani-${i}`;
-                          return (
-                            <label
-                              key={id}
-                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
-                            >
-                              <input
-                                type="radio"
-                                name="shipping"
-                                checked={shippingId === id}
-                                onChange={() => setShippingId(id)}
-                                className="mt-1"
-                              />
-                              <span className="flex-1">
-                                <span className="flex items-center gap-1.5 font-semibold">
-                                  <Truck className="h-4 w-4" />
-                                  {o.name}
-                                </span>
-                                {o.toBranch && (
-                                  <span className="mt-0.5 block text-xs text-fg-muted">
-                                    Lo retirás en una sucursal de Andreani
-                                  </span>
-                                )}
-                              </span>
-                              <span className="font-semibold">
-                                {formatMoney(o.price.amount, o.price.currency)}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                    {(['cp', ...CARRIER_KEYS] as const).map(
+                      (k) =>
+                        quoteErrors[k] && (
+                          <p key={k} className="mt-2 text-xs text-red-600">
+                            {quoteErrors[k]}
+                          </p>
+                        ),
                     )}
 
-                    {zipnovaOptions && zipnovaOptions.length > 0 && (
+                    {quoteOptions.length > 0 && (
                       <div className="mt-3 space-y-2">
-                        {zipnovaOptions.map((o, i) => {
-                          const id = `zipnova-${i}`;
-                          const eta = o.estimatedDelivery
-                            ? formatDate(o.estimatedDelivery, { day: 'numeric', month: 'long' })
-                            : null;
-                          return (
-                            <label
-                              key={id}
-                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
-                            >
-                              <input
-                                type="radio"
-                                name="shipping"
-                                checked={shippingId === id}
-                                onChange={() => setShippingId(id)}
-                                className="mt-1"
-                              />
-                              <span className="flex-1">
-                                <span className="flex items-center gap-1.5 font-semibold">
-                                  <Truck className="h-4 w-4" />
-                                  {o.name}
-                                </span>
-                                {eta && (
-                                  <span className="mt-0.5 block text-xs text-fg-muted">
-                                    Llega aprox. el {eta}
-                                  </span>
-                                )}
+                        {quoteOptions.map(({ id, option: o }) => (
+                          <label
+                            key={id}
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                          >
+                            <input
+                              type="radio"
+                              name="shipping"
+                              checked={shippingId === id}
+                              onChange={() => {
+                                setShippingId(id);
+                                if (o.needsAgency && agencies === null) loadAgencies(agencyProvince);
+                              }}
+                              className="mt-1"
+                            />
+                            <span className="flex-1">
+                              <span className="flex items-center gap-1.5 font-semibold">
+                                {o.pickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                                {o.name}
                               </span>
-                              <span className="font-semibold">
-                                {formatMoney(o.price.amount, o.price.currency)}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
+                              {o.detail && (
+                                <span className="mt-0.5 block text-xs text-fg-muted">{o.detail}</span>
+                              )}
+                            </span>
+                            <span className="font-semibold">
+                              {formatMoney(o.price.amount, o.price.currency)}
+                            </span>
+                          </label>
+                        ))}
 
-                    {correoOptions && correoOptions.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {correoOptions.map((o, i) => {
-                          const id = `correo-${i}`;
-                          return (
-                            <label
-                              key={id}
-                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
-                            >
-                              <input
-                                type="radio"
-                                name="shipping"
-                                checked={shippingId === id}
-                                onChange={() => {
-                                  setShippingId(id);
-                                  if (o.kind === 'S' && agencies === null) loadAgencies(agencyProvince);
-                                }}
-                                className="mt-1"
-                              />
-                              <span className="flex-1">
-                                <span className="flex items-center gap-1.5 font-semibold">
-                                  {o.kind === 'S' ? (
-                                    <Store className="h-4 w-4" />
-                                  ) : (
-                                    <Truck className="h-4 w-4" />
-                                  )}
-                                  {o.name}
-                                </span>
-                                {o.etaMin && (
-                                  <span className="mt-0.5 block text-xs text-fg-muted">
-                                    Llega en {o.etaMin}
-                                    {o.etaMax && o.etaMax !== o.etaMin ? ` a ${o.etaMax}` : ''} días hábiles
-                                  </span>
-                                )}
-                              </span>
-                              <span className="font-semibold">
-                                {formatMoney(o.price.amount, o.price.currency)}
-                              </span>
-                            </label>
-                          );
-                        })}
-
-                        {selectedCorreo?.kind === 'S' && (
+                        {selectedQuote?.needsAgency && (
                           <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
                             <div className="text-xs font-semibold">¿En qué sucursal retirás?</div>
                             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1059,9 +913,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     Cambiar
                   </button>
                 </div>
-                {(selected || selectedCorreo || selectedZipnova) && (
+                {hasShipping && (
                   <div className="flex items-start gap-2.5">
-                    {selected?.kind === 'PICKUP' || selectedCorreo?.kind === 'S' ? (
+                    {selected?.kind === 'PICKUP' || selectedQuote?.pickup ? (
                       <Store className="mt-0.5 h-4 w-4 opacity-50" />
                     ) : (
                       <Truck className="mt-0.5 h-4 w-4 opacity-50" />
@@ -1069,10 +923,12 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                     <span className="flex-1">
                       <strong>{shippingLabel}</strong> ·{' '}
                       {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
-                      {selected?.description && (
-                        <span className="block text-xs text-fg-muted">{selected.description}</span>
+                      {(selected?.description ?? selectedQuote?.detail) && (
+                        <span className="block text-xs text-fg-muted">
+                          {selected?.description ?? selectedQuote?.detail}
+                        </span>
                       )}
-                      {selectedCorreo?.kind === 'S' && agencyCode && (
+                      {selectedQuote?.needsAgency && agencyCode && (
                         <span className="block text-xs text-fg-muted">
                           Sucursal: {agencies?.find((a) => a.code === agencyCode)?.name ?? agencyCode}
                         </span>
@@ -1225,7 +1081,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                 <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
               </div>
             )}
-            {(selected || selectedCorreo || selectedZipnova) && (
+            {hasShipping && (
               <div className="flex justify-between">
                 <span className="opacity-70">
                   Costo de envío

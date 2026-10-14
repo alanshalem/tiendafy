@@ -656,6 +656,41 @@ describe('checkout: envío cotizado', () => {
     expect(field('Calle')).toBeInTheDocument();
   });
 
+  it('solo con Andreani: lo nombra, no deja seguir sin cotizar y el envío aparece en los resúmenes', async () => {
+    store({ methods: { items: [], andreani: { enabled: true } } });
+    api.on('POST', '/api/v1/shipping/andreani/quote', {
+      options: [{ token: 'a-dom', name: 'Andreani a domicilio', price: money(7_000), toBranch: false }],
+    });
+    const user = await open();
+    expect(screen.getByText('Andreani cotiza al instante para tu dirección.')).toBeInTheDocument();
+
+    await user.type(field('E-mail'), 'ana@example.com');
+    await user.type(field('Nombre'), 'Ana');
+    await user.type(field('Apellido'), 'García');
+    await user.type(field(/^Teléfono/), '1155554444');
+    // Sin tocar "Calcular" antes se podía pagar sin envío.
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+    expect(
+      screen.getByText('Ingresá tu código postal y tocá «Calcular» para elegir el envío.'),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Código postal para cotizar'), '5000{Enter}');
+    await settle(2);
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+    expect(screen.getByText('Elegí cómo querés recibir tu compra.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /Andreani a domicilio/ }));
+    await user.type(field('Calle'), 'Colón');
+    await user.type(field('Número'), '100');
+    await user.type(field('Ciudad'), 'Córdoba');
+    await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
+
+    // Los dos resúmenes muestran el envío que ya está sumado al total.
+    expect(screen.getByText('Andreani a domicilio')).toBeInTheDocument();
+    expect(screen.getByText('Costo de envío')).toBeInTheDocument();
+    expect(screen.getByText(/3\.070/)).toBeInTheDocument(); // $3.000 + $70 de envío
+  });
+
   it('sin tarifas o con error, cada carrier lo dice por su cuenta', async () => {
     store({ methods: ALL_CARRIERS });
     api.on('POST', '/api/v1/shipping/correo/quote', { options: [] });
