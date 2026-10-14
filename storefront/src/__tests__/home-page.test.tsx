@@ -10,6 +10,7 @@ import HomePage, { generateMetadata } from '../app/page';
 import ContentPage, { generateMetadata as contentMetadata } from '../app/paginas/[slug]/page';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { renderPage } from '../test/server';
+import { nav } from '../test/next';
 
 const tenant = fixture<{ id: string; name: string; status: string }>(`/api/v1/tenants/${fixtureTenantId}`);
 const theme = fixture<Record<string, unknown> & { footer: object; comingSoon: object }>('/api/v1/theme');
@@ -125,6 +126,15 @@ describe('página de contenido: metadata', () => {
     api.on('GET', '/api/v1/pages/by-slug/nada', {}, 404);
     await expect(renderPage(ContentPage, '/paginas/nada', { slug: 'nada' })).rejects.toThrow(
       'NEXT_NOT_FOUND',
+    );
+  });
+
+  it('una página que se movió (redirección del comercio): 308 a la nueva', async () => {
+    api.on('GET', '/api/v1/pages/by-slug/vieja', {}, 404);
+    api.on('GET', '/api/v1/redirects/resolve', { to: `/paginas/${contentPage.slug}` });
+    nav.headers = { 'x-pathname': '/paginas/vieja' };
+    await expect(renderPage(ContentPage, '/paginas/vieja', { slug: 'vieja' })).rejects.toThrow(
+      `NEXT_REDIRECT /paginas/${contentPage.slug}`,
     );
   });
 

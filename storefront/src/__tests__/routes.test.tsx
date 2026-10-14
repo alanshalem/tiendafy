@@ -12,6 +12,7 @@ import { NextRequest } from 'next/server';
 import { GET as sitemap } from '../app/sitemap.xml/route';
 import robots from '../app/robots';
 import NotFound, { generateMetadata as notFoundMetadata } from '../app/not-found';
+import Unmatched from '../app/[...ruta]/page';
 import ErrorPage from '../app/error';
 import RootLayout, { generateMetadata as layoutMetadata } from '../app/layout';
 import { proxy } from '../proxy';
@@ -20,7 +21,6 @@ import { NewsletterForm } from '../components/store/NewsletterForm';
 import { defaultTheme, mergeTheme } from '../lib/theme';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { nav } from '../test/next';
-import { renderPage } from '../test/server';
 import { settle, watchCrashes } from '../test/explore';
 
 // Las fuentes del editor (app/store-fonts.ts): next/font las procesa al
@@ -107,10 +107,10 @@ describe('404 y errores', () => {
     expect(res.headers.get('x-middleware-request-x-pathname')).toBe('/viejo/link');
   });
 
-  it('si el comercio cargó una redirección para esa URL, redirige', async () => {
+  it('una URL que no es de ninguna página: si el comercio cargó una redirección, redirige', async () => {
     nav.headers = { 'x-pathname': '/viejo' };
     api.on('GET', '/api/v1/redirects/resolve', { to: '/productos' });
-    await expect(NotFound()).rejects.toThrow('NEXT_REDIRECT /productos');
+    await expect(Unmatched()).rejects.toThrow('NEXT_REDIRECT /productos');
     expect(api.calls.some((c) => c.path === '/api/v1/redirects/resolve?path=%2Fviejo')).toBe(true);
   });
 
@@ -119,18 +119,18 @@ describe('404 y errores', () => {
     ['sin redirección', () => api.on('GET', '/api/v1/redirects/resolve', {}, 404)],
     ['redirección vacía', () => api.on('GET', '/api/v1/redirects/resolve', {})],
     ['sin tienda', () => api.on('GET', '/api/v1/tenants/resolve', {}, 404)],
-  ])('muestra el 404 (%s)', async (name, arrange) => {
+    ['la API caída', () => vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))],
+  ])('si no, es un 404 (%s)', async (name, arrange) => {
     if (name !== 'sin x-pathname') nav.headers = { 'x-pathname': '/no-existe' };
     arrange();
-    await renderPage(NotFound, '/no-existe');
-    expect(screen.getByText('Esta página no existe')).toBeInTheDocument();
+    await expect(Unmatched()).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('una caída de la API no tapa el 404', async () => {
-    nav.headers = { 'x-pathname': '/no-existe' };
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
-    await renderPage(NotFound, '/no-existe');
+  it('la pantalla de 404 solo pinta: Next la arma en cada página, no puede consultar la API', async () => {
+    nav.headers = { 'x-pathname': '/contacto' };
+    render(NotFound());
     expect(screen.getByText('Esta página no existe')).toBeInTheDocument();
+    expect(api.calls).toEqual([]);
   });
 
   it('la pantalla de error ofrece reintentar', async () => {

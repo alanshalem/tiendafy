@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProductDetailPage, { generateMetadata } from '../app/productos/[slug]/page';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderPage } from '../test/server';
+import { nav } from '../test/next';
 
 interface Product {
   id: string;
@@ -168,6 +169,15 @@ describe('página de producto: contenido', () => {
     await expect(
       renderPage(ProductDetailPage, '/productos/no-existe', { slug: 'no-existe' }),
     ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+
+  it('un slug viejo con redirección cargada por el comercio: 308 al nuevo', async () => {
+    api.on('GET', '/api/v1/products/by-slug/viejo', {}, 404);
+    api.on('GET', '/api/v1/redirects/resolve', { to: `/productos/${product.slug}` });
+    nav.headers = { 'x-pathname': '/productos/viejo' };
+    await expect(renderPage(ProductDetailPage, '/productos/viejo', { slug: 'viejo' })).rejects.toThrow(
+      `NEXT_REDIRECT /productos/${product.slug}`,
+    );
   });
 
   it('si la API falla (5xx) no es un 404: es un error', async () => {

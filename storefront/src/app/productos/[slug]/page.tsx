@@ -1,5 +1,4 @@
 import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ProductDetailSkeleton } from '@/components/store/Skeletons';
 import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
@@ -10,6 +9,7 @@ import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { siteBase, type StorefrontData } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
+import { notFoundUnlessRedirected } from '@/lib/redirects';
 import { jsonLd } from '@/lib/json-ld';
 import { productJsonLd as buildProductJsonLd } from '@/lib/product-json-ld';
 import { categoryHref } from '@/lib/category-url';
@@ -32,7 +32,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const tenant = await resolveTenant();
   if (!tenant) return { title: 'Tienda' };
-  const product = await fetchProduct(slug, tenant.id).catch(() => null);
+  const product = await fetchProduct(slug, tenant.id).catch(() => undefined);
+  // La API falló: la página va a la pantalla de error; nada que decir acá.
+  if (product === undefined) return {};
   // El nombre de la tienda lo agrega la plantilla del layout ("… · Tienda").
   if (!product) return { title: 'Producto no encontrado' };
   const base = await siteBase();
@@ -98,11 +100,11 @@ export default async function ProductDetailPage({
   const { data, theme, preview } = resolved;
 
   // Un producto que no existe (borrado, slug viejo) es un 404 de verdad, no una
-  // página vacía con 200: así Google lo saca del índice y la pantalla de 404
-  // busca si el comercio dejó una redirección para esta URL. Se pregunta ANTES
-  // de empezar a mandar la página (después el status ya salió). Un 5xx de la
-  // API tira y cae en la pantalla de error: no es "no existe".
-  if (!(await fetchProduct(slug, data.tenant.id))) notFound();
+  // página vacía con 200: así Google lo saca del índice. O un 308, si el
+  // comercio dejó una redirección para esta URL. Se pregunta ANTES de empezar
+  // a mandar la página (después el status ya salió). Un 5xx de la API tira y
+  // cae en la pantalla de error: no es "no existe".
+  if (!(await fetchProduct(slug, data.tenant.id))) await notFoundUnlessRedirected();
 
   // El marco de la tienda sale ya; la ficha (producto, relacionados, miga y
   // ficha técnica: lo que tarda) llega después, con su esqueleto en el lugar.

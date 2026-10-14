@@ -59,10 +59,15 @@ export const PAGES: Record<
   '/preview': { url: '/preview?pt=token', load: () => import('../app/preview/page') },
 };
 
-/** Las páginas que existen en app/ (carpetas con page.tsx). */
+/**
+ * Las páginas que existen en app/ (carpetas con page.tsx). Sin la que atrapa
+ * las URLs que no son de ninguna ([...ruta]): no muestra nada, siempre
+ * termina en un 404 o en una redirección (la prueba routes.test).
+ */
 export function discoveredPages(dir = path.resolve(__dirname, '../app'), base = ''): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir)) {
+    if (entry.startsWith('[...')) continue;
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) found.push(...discoveredPages(full, `${base}/${entry}`));
     else if (entry === 'page.tsx') found.push(base || '/');

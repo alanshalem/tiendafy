@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { StorefrontPageShell } from '@/lib/storefront-page';
 import { resolveTenant } from '@/lib/tenancy';
+import { notFoundUnlessRedirected } from '@/lib/redirects';
 import { siteBase } from '@/lib/storefront';
 import { apiGetTenant } from '@/lib/api';
 import { CmsBody } from '@/components/store/CmsBody';
@@ -31,7 +31,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const tenant = await resolveTenant();
   if (!tenant) return {};
-  const page = await fetchPage(slug, tenant.id).catch(() => null);
+  const page = await fetchPage(slug, tenant.id).catch(() => undefined);
+  if (page === undefined) return {}; // la API falló: la página va a la pantalla de error
   if (!page) return { title: 'Página no encontrada' };
   const base = await siteBase();
   return {
@@ -50,12 +51,12 @@ export default async function InstitutionalPage({
 }) {
   const { slug } = await params;
 
-  // Una página que no existe (borrada, slug viejo) es un 404 de verdad: Google
-  // la saca del índice y la pantalla de 404 busca si el comercio dejó una
-  // redirección. Se resuelve antes de empezar a mandar la página, que después
-  // el status ya salió. Un 5xx de la API tira (pantalla de error), no es 404.
+  // Una página que no existe (borrada, slug viejo) es un 404 de verdad (Google
+  // la saca del índice), o un 308 si el comercio dejó una redirección. Se
+  // resuelve antes de empezar a mandar la página, que después el status ya
+  // salió. Un 5xx de la API tira (pantalla de error), no es 404.
   const tenant = await resolveTenant();
-  if (tenant && !(await fetchPage(slug, tenant.id))) notFound();
+  if (tenant && !(await fetchPage(slug, tenant.id))) await notFoundUnlessRedirected();
 
   return (
     <StorefrontPageShell searchParams={searchParams}>
