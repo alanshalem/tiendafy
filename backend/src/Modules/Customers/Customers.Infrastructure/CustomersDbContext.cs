@@ -40,6 +40,7 @@ public sealed class CustomersDbContext : DbContext
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<CustomerToken> CustomerTokens => Set<CustomerToken>();
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
+    public DbSet<StockAlertSubscription> StockAlerts => Set<StockAlertSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +104,20 @@ public sealed class CustomersDbContext : DbContext
         // Único por tienda: suscribirse dos veces no crea dos filas ni manda dos veces.
         ns.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
 
+        // "Avisame cuando ingrese": una pendiente por variante y email (pedirlo
+        // dos veces no manda dos avisos); las ya avisadas quedan como historia.
+        var sa = modelBuilder.Entity<StockAlertSubscription>();
+        sa.ToTable("stock_alert_subscriptions");
+        sa.HasKey(x => x.Id);
+        sa.Property(x => x.Id).ValueGeneratedNever();
+        sa.Property(x => x.Email).HasMaxLength(200).IsRequired();
+        sa.HasIndex(x => new { x.TenantId, x.VariantId, x.Email })
+            .IsUnique()
+            .HasFilter("notified_at_utc IS NULL AND cancelled_at_utc IS NULL");
+        // El worker y la demanda del panel: las pendientes de cada tienda.
+        sa.HasIndex(x => new { x.TenantId, x.NotifiedAtUtc, x.CancelledAtUtc });
+        sa.HasIndex(x => new { x.TenantId, x.ProductId });
+
         // Filtro multi-tenant global en todas las entidades tenant-scoped.
         c.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         s.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
@@ -110,5 +125,6 @@ public sealed class CustomersDbContext : DbContext
         t.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         cm.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
         ns.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
+        sa.HasQueryFilter(x => !_filterByTenant || x.TenantId == _tenantGuid);
     }
 }

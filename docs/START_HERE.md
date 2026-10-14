@@ -50,7 +50,8 @@ reproducible. Este archivo te dice qué leer según lo que necesites.
 `Support` (chat posventa) · `MercadoLibre` (canal ML: ventas, preguntas, mensajes, stock unificado, publicar) ·
 `Purchasing` (compras a proveedores, ficha de proveedor, importación, landed cost, reposición) ·
 `Finance` (tesorería: cajas y bancos; cuentas corrientes de clientes y proveedores; recibos) ·
-`Social` (redes sociales: cuentas conectadas, posts multi-red programados, calendario)
+`Social` (redes sociales: cuentas conectadas, posts multi-red programados, calendario) ·
+`Reviews` (reseñas de productos con estrellas y fotos: solo compradores, moderación, pedido por email)
 
 Cada módulo: `{Module}.Contracts` (interfaz pública) / `.Core` (dominio+features) /
 `.Infrastructure` (persistencia, DbContext propio con filtro de tenant). Los módulos

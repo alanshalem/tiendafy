@@ -193,6 +193,7 @@ public static partial class ProductEndpoints
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
             OrdersDbContext ordersDb,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct,
             string? q = null,
             Guid? category = null,
@@ -261,10 +262,12 @@ public static partial class ProductEndpoints
                 ? (await stockRepository.GetByVariantsAsync(tenant.TenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
                 : new Dictionary<Guid, int>();
             int StockFor(Product p) => p.Variants.Sum(v => stockByVariant.TryGetValue(v.Id, out var a) ? a : 0);
+            // Estrellas para la card (reseñas aprobadas).
+            var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, items.Select(p => p.Id).ToList(), ct);
 
             return Results.Ok(new
             {
-                items = items.Select(p => p.ToDto() with { Stock = StockFor(p) }),
+                items = items.Select(p => p.ToDto() with { Stock = StockFor(p), Rating = ratings.GetValueOrDefault(p.Id) }),
                 total,
                 page,
                 pageSize,
@@ -516,6 +519,7 @@ public static partial class ProductEndpoints
             ITenantContext tenant,
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct) =>
         {
             var product = await repository.GetBySlugAsync(tenant.TenantId, slug, ct);
@@ -533,10 +537,14 @@ public static partial class ProductEndpoints
                     .ToDictionary(s => s.VariantId, s => s.Available)
                 : new Dictionary<Guid, int>();
 
+            // Estrellas junto al precio y el aggregateRating del JSON-LD.
+            var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenant.TenantId.Value, [product.Id], ct);
+
             var dto = product.ToDto();
             return Results.Ok(dto with
             {
                 Stock = byVariant.Values.Sum(),
+                Rating = ratings.GetValueOrDefault(product.Id),
                 Variants = dto.Variants.Select(v => v with { Available = byVariant.GetValueOrDefault(v.Id) }).ToList(),
             });
         });

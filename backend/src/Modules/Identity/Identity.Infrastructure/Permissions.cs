@@ -45,6 +45,8 @@ public enum Permission
     MembersManage,
     RolesManage,
     TenantAdmin,
+    // Al final a propósito: lo que se agrega no corre el valor de los anteriores.
+    ReviewsManage,
 }
 
 /// <summary>
@@ -147,6 +149,9 @@ public static class PermissionCatalog
             [Admin, Vendedor, Soporte]),
         new(Permission.MessagesRead, "messages.read", "Clientes", "Leer mensajes de contacto",
             "Lo que llega por el formulario de contacto, y cuánta gente se suscribió al newsletter.",
+            [Admin, Vendedor, Soporte]),
+        new(Permission.ReviewsManage, "reviews.manage", "Clientes", "Moderar reseñas",
+            "Aprobar, ocultar y responder las reseñas de productos, y cómo se piden y publican.",
             [Admin, Vendedor, Soporte]),
 
         // Marketing
