@@ -14,6 +14,9 @@ import {
   contrastText,
   footerColumnTitle,
   mixRgb,
+  PAYMENT_LOGO_SIZE,
+  paymentLogoLabel,
+  paymentLogoSrc,
   safeHref,
   type FooterColumn,
   type FooterLink,
@@ -474,8 +477,10 @@ function PaymentLogos({ footer, className }: { footer: FooterConfig; className: 
         // precargaba desde el <head>, compitiendo con la foto de portada.
         <img
           key={slug}
-          src={`/payment-logos/${slug}.svg`}
-          alt=""
+          src={paymentLogoSrc(slug)}
+          alt={paymentLogoLabel(slug)}
+          width={PAYMENT_LOGO_SIZE.width}
+          height={PAYMENT_LOGO_SIZE.height}
           loading="lazy"
           decoding="async"
           className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"

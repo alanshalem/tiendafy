@@ -66,6 +66,9 @@ export {
   normalizeTheme,
   sanitizeCss,
   PAYMENT_LOGOS,
+  PAYMENT_LOGO_SIZE,
+  paymentLogoSrc,
+  paymentLogoLabel,
   heroUnderHeader,
 } from './theme';
 export * from './sections';

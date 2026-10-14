@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   MessageCircle,
 } from 'lucide-react';
-import { formatMoney } from '@tiendafy/types';
+import { formatMoney, PAYMENT_LOGO_SIZE, paymentLogoLabel, paymentLogoSrc } from '@tiendafy/types';
 import { cn } from '@tiendafy/ui';
 import Image from 'next/image';
 import { track } from '@/lib/track';
@@ -501,8 +501,12 @@ export function ProductDetail({
               {logos.map((slug) => (
                 <img
                   key={slug}
-                  src={`/payment-logos/${slug}.svg`}
-                  alt=""
+                  src={paymentLogoSrc(slug)}
+                  alt={paymentLogoLabel(slug)}
+                  width={PAYMENT_LOGO_SIZE.width}
+                  height={PAYMENT_LOGO_SIZE.height}
+                  loading="lazy"
+                  decoding="async"
                   className="h-6 w-auto rounded bg-white p-0.5 opacity-80"
                 />
               ))}
