@@ -57,6 +57,44 @@ public sealed class StockRepository(InventoryDbContext context) : IStockReposito
         return (await GetByVariantsAsync(tenantId, [variantId], ct))[0];
     }
 
+    public async Task<Result<StockItem>> SetAvailableIfUnchangedAsync(
+        TenantId tenantId, Guid variantId, int expectedAvailable, int available, string? reason, CancellationToken ct = default)
+    {
+        await using var tx = await context.Database.BeginTransactionAsync(ct);
+
+        // Comparar y setear en el mismo UPDATE: entre leer y escribir puede
+        // entrar una reserva del checkout, y un "leo, comparo, escribo" la pisaría.
+        var updated = await context.StockItems
+            .Where(s => s.TenantId == tenantId && s.VariantId == variantId && s.Available == expectedAvailable)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Available, available), ct);
+
+        if (updated == 0)
+        {
+            var current = await context.StockItems.AsNoTracking()
+                .Where(s => s.TenantId == tenantId && s.VariantId == variantId)
+                .Select(s => (int?)s.Available)
+                .FirstOrDefaultAsync(ct);
+            if (current is not null || expectedAvailable != 0)
+                return Result.Failure<StockItem>(Error.Conflict(
+                    "Stock.Changed",
+                    $"El stock cambió mientras editabas: ahora hay {current ?? 0}. Revisalo y guardá de nuevo."));
+
+            // Sin fila y se esperaba 0: es el alta inicial.
+            context.StockItems.Add(new StockItem(tenantId, variantId, available));
+            context.Movements.Add(new StockMovement(tenantId, variantId, MovementType.Initial, available, reason: reason));
+        }
+        else if (available != expectedAvailable)
+        {
+            context.Movements.Add(new StockMovement(
+                tenantId, variantId, MovementType.Adjustment, available - expectedAvailable, reason: reason));
+        }
+
+        await context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return (await GetByVariantsAsync(tenantId, [variantId], ct))[0];
+    }
+
     public async Task<int> AdjustAvailableAsync(
         TenantId tenantId, Guid variantId, int delta, string? reason, CancellationToken ct = default)
     {

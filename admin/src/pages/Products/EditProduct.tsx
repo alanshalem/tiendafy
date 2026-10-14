@@ -5,7 +5,7 @@ import { Trash2, GripVertical } from 'lucide-react';
 import { Button, Checkbox, FormField, Input, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
-import { api, errMsg } from '../../lib/api';
+import { api, ApiRequestError, errMsg } from '../../lib/api';
 import { toFormPrice, toDomainPrice, toCents, toPesos, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { type SpecValues } from './SpecFields';
@@ -86,6 +86,11 @@ export function EditProductPage() {
   const [seoDescription, setSeoDescription] = useState('');
   const [prices, setPrices] = useState<Record<string, { price: string; promo: string }>>({});
   const [stock, setStock] = useState<Record<string, string>>({});
+  // El stock que se vio al cargar (o el último guardado): solo se manda el que
+  // cambió, y con este valor como "esperado" para que el backend no pise una
+  // venta que entró mientras se editaba.
+  const [stockSeen, setStockSeen] = useState<Record<string, string>>({});
+  const [stockError, setStockError] = useState<Record<string, string>>({});
   // Por variante: código de barras y el paquete de una unidad (peso y medidas).
   const [barcodes, setBarcodes] = useState<Record<string, string>>({});
   const [shipping, setShipping] = useState<Record<string, ShippingDraft>>({});
@@ -125,7 +130,9 @@ export function EditProductPage() {
   if (product && stockData && stockFor !== product.id) {
     setStockFor(product.id);
     const map = new Map(stockData.items.map((s) => [s.variantId, s.available]));
-    setStock(Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')])));
+    const loaded = Object.fromEntries(product.variants.map((v) => [v.id, String(map.get(v.id) ?? '')]));
+    setStock(loaded);
+    setStockSeen(loaded);
   }
 
   // Las fotos, en cambio, siguen al servidor: se agregan y se quitan al
@@ -185,6 +192,30 @@ export function EditProductPage() {
     reorder.mutate(next);
   };
 
+  // Un ajuste de stock con el valor que se vio: si cambió en el medio, el
+  // backend responde Stock.Changed con el actual, y ese pasa a ser el visto
+  // para que el próximo guardado (ya revisado) entre.
+  const saveStock = async (variantId: string, available: number, expectedAvailable: number) => {
+    try {
+      await api.put(`/api/v1/inventory/${variantId}`, {
+        available,
+        reason: 'Edición de producto',
+        expectedAvailable,
+      });
+      setStockSeen((s) => ({ ...s, [variantId]: String(available) }));
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed') {
+        const fresh = await api
+          .get<{ items: StockItem[] }>(`/api/v1/inventory/?variantIds=${variantId}`)
+          .catch(() => null);
+        const now = fresh?.items.find((x) => x.variantId === variantId)?.available;
+        if (now !== undefined) setStockSeen((s) => ({ ...s, [variantId]: String(now) }));
+        setStockError((s) => ({ ...s, [variantId]: e.message }));
+      }
+      throw e;
+    }
+  };
+
   // Guardar: aplica los diffs (detalles, precios, stock, categorías).
   const save = useMutation({
     mutationFn: async () => {
@@ -211,12 +242,13 @@ export function EditProductPage() {
             compareAtAmount,
           });
 
+        // Antes se mandaba el stock de todas las variantes en cada guardado,
+        // aunque nadie lo hubiera tocado: el número cargado al abrir pisaba las
+        // ventas del medio y se vendía lo que ya no había.
         const sVal = stock[v.id];
-        if (sVal !== undefined && sVal !== '' && !Number.isNaN(Number(sVal)))
-          await api.put(`/api/v1/inventory/${v.id}`, {
-            available: parseInt(sVal, 10),
-            reason: 'Edición de producto',
-          });
+        const seen = stockSeen[v.id] ?? '';
+        if (sVal !== undefined && sVal !== '' && sVal !== seen && !Number.isNaN(Number(sVal)))
+          await saveStock(v.id, parseInt(sVal, 10), seen === '' ? 0 : parseInt(seen, 10));
 
         const barcode = (barcodes[v.id] ?? '').trim();
         if (barcode !== (v.barcode ?? ''))
@@ -242,7 +274,13 @@ export function EditProductPage() {
       toast('Producto guardado', { variant: 'success' });
       navigate('/productos');
     },
-    onError: (e) => setError(errMsg(e, 'Error inesperado')),
+    onError: (e) => {
+      // El choque de stock se marca en su campo (y en un aviso, porque el
+      // campo puede estar lejos del botón); lo demás, donde siempre.
+      if (e instanceof ApiRequestError && e.error.code === 'Stock.Changed')
+        toast(e.message, { variant: 'error' });
+      else setError(errMsg(e, 'Error inesperado'));
+    },
   });
 
   const setStatus = useMutation({
@@ -374,13 +412,14 @@ export function EditProductPage() {
                           placeholder="—"
                         />
                       </FormField>
-                      <FormField label="Stock">
+                      <FormField label="Stock" error={stockError[v.id]}>
                         <Input
                           inputMode="numeric"
                           value={stock[v.id] ?? ''}
-                          onChange={(e) =>
-                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }))
-                          }
+                          onChange={(e) => {
+                            setStock((s) => ({ ...s, [v.id]: e.target.value.replace(/\D/g, '') }));
+                            setStockError((s) => ({ ...s, [v.id]: '' }));
+                          }}
                           placeholder="—"
                         />
                       </FormField>
