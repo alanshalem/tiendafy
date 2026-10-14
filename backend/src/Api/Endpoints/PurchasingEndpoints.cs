@@ -98,7 +98,7 @@ public static class PurchasingEndpoints
             if (created.IsFailure) return created.Error.ToProblem();
             var po = created.Value;
 
-            var applied = await ApplyDraftAsync(po, request, tenant, catalog, ct);
+            var applied = await ApplyDraftAsync(po, request, tenant, db, catalog, ct);
             if (applied.IsFailure) return applied.Error.ToProblem();
 
             db.PurchaseOrders.Add(po);
@@ -113,7 +113,7 @@ public static class PurchasingEndpoints
             var po = await db.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id, ct);
             if (po is null) return Results.NotFound();
 
-            var applied = await ApplyDraftAsync(po, request, tenant, catalog, ct);
+            var applied = await ApplyDraftAsync(po, request, tenant, db, catalog, ct);
             if (applied.IsFailure) return applied.Error.ToProblem();
 
             await db.SaveChangesAsync(ct);
@@ -442,14 +442,18 @@ public static class PurchasingEndpoints
     /// <summary>Aplica los campos de un borrador, resolviendo los datos de variantes desde el catálogo.</summary>
     private static async Task<Result> ApplyDraftAsync(
         PurchaseOrder po, SavePurchaseOrderRequest request, ITenantContext tenant,
-        ICatalogCheckoutQuery catalog, CancellationToken ct)
+        PurchasingDbContext db, ICatalogCheckoutQuery catalog, CancellationToken ct)
     {
         var updated = po.UpdateDraft(
             request.SupplierName, request.Reference, request.Notes,
             request.Currency ?? "USD", request.ExchangeRate ?? 1m, request.LeadTimeDays);
         if (updated.IsFailure) return updated;
 
-        po.LinkSupplier(request.SupplierId);
+        // El proveedor escrito a mano también queda en Proveedores: si no, la
+        // ficha (sus compras, su saldo) nunca se enteraba de esta compra.
+        var supplier = await Api.Purchasing.SupplierLinker.ResolveAsync(
+            db, tenant.TenantId.Value, request.SupplierId, request.SupplierName, ct);
+        po.LinkSupplier(supplier?.Id);
 
         var itemRequests = request.Items ?? [];
         var variantIds = itemRequests.Select(i => i.VariantId).Distinct().ToList();
