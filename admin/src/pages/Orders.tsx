@@ -402,7 +402,8 @@ export function OrdersPage() {
   };
 
   return (
-    <div>
+    // Lugar para la barra de lo elegido, que en el celular va fija abajo.
+    <div className={cn(selected.size > 0 && 'pb-44 sm:pb-0')}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-fg">Ventas</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -675,24 +676,35 @@ function OrderFilters({
           onChange={(e) => onChange({ cobro: e.target.value })}
           options={toOptions(ORDER_PAYMENT, 'Cualquier cobro')}
         />
-        <input
-          type="date"
-          aria-label="Desde"
-          title="Ventas desde este día"
-          value={values.desde}
-          max={values.hasta || undefined}
-          onChange={(e) => onChange({ desde: e.target.value })}
-          className={dateCls}
-        />
-        <input
-          type="date"
-          aria-label="Hasta"
-          title="Ventas hasta este día (incluido)"
-          value={values.hasta}
-          min={values.desde || undefined}
-          onChange={(e) => onChange({ hasta: e.target.value })}
-          className={dateCls}
-        />
+        {/* Con el rótulo a la vista: un "dd/mm/aaaa" vacío no dice si es desde o hasta. */}
+        <label className="relative block">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+            Desde
+          </span>
+          <input
+            type="date"
+            aria-label="Desde"
+            title="Ventas desde este día"
+            value={values.desde}
+            max={values.hasta || undefined}
+            onChange={(e) => onChange({ desde: e.target.value })}
+            className={dateCls}
+          />
+        </label>
+        <label className="relative block">
+          <span className="pointer-events-none absolute -top-2 left-2 bg-surface px-1 text-[10px] font-medium text-fg-subtle">
+            Hasta (incluido)
+          </span>
+          <input
+            type="date"
+            aria-label="Hasta"
+            title="Ventas hasta este día (incluido)"
+            value={values.hasta}
+            min={values.desde || undefined}
+            onChange={(e) => onChange({ hasta: e.target.value })}
+            className={dateCls}
+          />
+        </label>
       </div>
       {showMeliLink && values.canal && (
         <p className="flex items-center gap-1.5 text-xs text-fg-subtle">

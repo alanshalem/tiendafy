@@ -257,7 +257,9 @@ export function OrdersBulkBar({
     'inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50';
 
   return (
-    <div className="sticky top-[calc(var(--header-height)+0.5rem)] z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-xl">
+    // En el celular va pegada abajo (arriba tapaba la venta abierta); desde sm, fija
+    // debajo del encabezado como siempre.
+    <div className="fixed inset-x-3 bottom-3 z-20 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-surface/95 px-3 py-2 shadow-overlay backdrop-blur-xl sm:sticky sm:inset-x-auto sm:bottom-auto sm:top-[calc(var(--header-height)+0.5rem)] sm:mb-3 sm:gap-3 sm:px-4 sm:py-2.5 sm:shadow-card">
       <span className="text-sm font-semibold text-primary" aria-live="polite">
         {count} {count === 1 ? 'seleccionada' : 'seleccionadas'}
         {progress && <span className="ml-2 font-normal text-fg-muted">{progress}</span>}
