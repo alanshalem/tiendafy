@@ -52,21 +52,30 @@ describe('presupuestos: armar uno', () => {
     });
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderApp('/presupuestos');
-    await user.click(await screen.findByRole('button', { name: /Nuevo presupuesto/ }));
+    // El primer dibujo del panel (sesión, tienda, permisos) tarda más con la
+    // suite entera corriendo: el mismo margen que el resto de los tests de
+    // pantalla le dan a su primera espera.
+    await user.click(await screen.findByRole('button', { name: /Nuevo presupuesto/ }, { timeout: 5000 }));
     await screen.findByRole('heading', { name: /Nuevo presupuesto/ });
 
     const save = screen.getByRole('button', { name: /Guardar/ });
     expect(screen.getByText('Poné a nombre de quién va el presupuesto.')).toBeInTheDocument();
 
+    // Las dos búsquedas esperan a que se deje de tipear (300 ms) antes de ir a
+    // la API: eso, más el pedido y el dibujo, a veces pasaba el segundo por
+    // defecto de findBy con la suite cargada. Es una espera pedida a
+    // propósito, no una lentitud de la pantalla: si la búsqueda no llegara,
+    // igual falla (a los 5 s).
+    const debounced = { timeout: 5000 };
     await user.type(screen.getByPlaceholderText('Buscar o escribir un nombre…'), customer.name.slice(0, 4));
-    await user.click(await screen.findByRole('button', { name: rx(customer.name) }));
+    await user.click(await screen.findByRole('button', { name: rx(customer.name) }, debounced));
     expect(screen.getByText('Agregá al menos un producto.')).toBeInTheDocument();
 
     await user.type(
       screen.getByPlaceholderText('Buscar producto o SKU para agregar…'),
       product.name.slice(0, 5),
     );
-    await user.click(await screen.findByRole('button', { name: rx(product.name) }));
+    await user.click(await screen.findByRole('button', { name: rx(product.name) }, debounced));
     await settle(2);
 
     // Precio vacío: al salir del campo toma el de la lista del cliente.
