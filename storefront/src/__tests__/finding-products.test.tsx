@@ -376,6 +376,8 @@ describe('cómo se muestra un valor de filtro', () => {
     ['LED BLANCO', 'LED Blanco'],
     ['iPhone', 'iPhone'],
     ['ROJO/NEGRO', 'Rojo/Negro'],
+    ['AMARILLO Y BLANCO', 'Amarillo y Blanco'],
+    ['Y', 'Y'],
     ['110', '110'],
   ])('%s → %s', (raw, shown) => expect(facetLabel(raw)).toBe(shown));
 });
