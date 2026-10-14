@@ -100,9 +100,61 @@ describe('rentabilidad: pauta de Meta Ads', () => {
       });
     });
     expect(await screen.findByText(/Pauta de Meta Ads · Tienda principal/)).toBeInTheDocument();
-    expect(await screen.findByText(/\d+\.\d{2}x/)).toBeInTheDocument();
+    // Con coma decimal, como el resto de los números del panel.
+    expect(await screen.findByText(/^\d+,\d{2}x$/)).toBeInTheDocument();
     expect(screen.getByText('Hot Sale')).toBeInTheDocument();
     void api;
+  });
+
+  it('sin ventas en el período: lo dice, ofrece un período más largo y la pauta igual se ve', async () => {
+    const empty = {
+      currency: 'ARS',
+      revenue: 0,
+      productCost: 0,
+      mpFees: 0,
+      discounts: 0,
+      shippingCharged: 0,
+      profit: 0,
+      marginPct: 0,
+      previous: { revenue: 0, profit: 0, marginPct: 0 },
+      coverage: { ordersWithCost: 0, ordersTotal: 0 },
+      productsTotal: 0,
+      series: [],
+      byProduct: [],
+      byChannel: [],
+      meli: null,
+    };
+    const api = mockApi();
+    api.on('GET', '/api/v1/stats/profitability', empty);
+    api.on('GET', `${META}/status`, status({ connected: false }));
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/estadisticas/rentabilidad');
+    expect(await screen.findByText(/No hubo ventas en el período/)).toBeInTheDocument();
+    expect(screen.queryByText(/Cargá el costo/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Conectar Meta Ads' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Ver los últimos 90 días' }));
+    await waitFor(() =>
+      expect(
+        api.calls.some((c) => c.path.startsWith('/api/v1/stats/profitability') && c.path.includes('from=')),
+      ).toBe(true),
+    );
+    expect(await screen.findByText(/No hubo ventas en el período \(últimos 90 días\)/)).toBeInTheDocument();
+
+    // Con ventas pero ninguna con costo, el pedido es cargar costos.
+    api.on('GET', '/api/v1/stats/profitability', {
+      ...empty,
+      coverage: { ordersWithCost: 0, ordersTotal: 12 },
+    });
+    await user.click(screen.getByRole('button', { name: 'Ver todo este año' }));
+    expect(
+      await screen.findByText(/Ninguna de las 12 ventas del período tiene costo cargado/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Cargá el costo de tus productos' })).toHaveAttribute(
+      'href',
+      '/productos/costos',
+    );
+    expect(screen.getByRole('button', { name: 'Conectar Meta Ads' })).toBeInTheDocument();
   });
 
   it('con cuenta pero sin gasto en el período', async () => {

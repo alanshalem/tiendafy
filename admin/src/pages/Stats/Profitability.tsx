@@ -15,7 +15,7 @@ import { BarChart, Delta } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
-import { formatDayShort, formatMoney, formatNumber } from '../../lib/format';
+import { formatDayShort, formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
 
@@ -80,6 +80,12 @@ interface MetaSpend {
 /** Productos por página en la tabla de ganancia. */
 const PAGE_SIZE = 20;
 
+/** A qué período más largo ofrecer pasar cuando el elegido no tuvo ventas. */
+const WIDER_PRESETS = [
+  { preset: 'Últimos 90 días', label: 'Ver los últimos 90 días' },
+  { preset: 'Este año', label: 'Ver todo este año' },
+];
+
 export function StatsProfitabilityPage() {
   const { store } = useStore();
   const { range, setRange, page, setPage } = useStatsRange();
@@ -95,7 +101,16 @@ export function StatsProfitabilityPage() {
   const totalPages = Math.max(1, Math.ceil((data?.productsTotal ?? 0) / PAGE_SIZE));
 
   const coverage = data?.coverage;
-  const partial = coverage && coverage.ordersWithCost < coverage.ordersTotal;
+  // Tres casos distintos que antes eran uno: con el 96 % de los costos
+  // cargados pero sin ventas en el período, la pantalla pedía "cargá el costo
+  // de tus productos", que ya estaba hecho. Ahora sin ventas sugiere ampliar
+  // el período, y el pedido de costos queda para cuando hay ventas sin costo.
+  const noSales = !!coverage && coverage.ordersTotal === 0;
+  const noCosts = !!coverage && coverage.ordersTotal > 0 && coverage.ordersWithCost === 0;
+  const partial = !!coverage && coverage.ordersWithCost > 0 && coverage.ordersWithCost < coverage.ordersTotal;
+  // Con "Este año" ya no hay un predefinido más largo que ofrecer.
+  const wider =
+    range.preset === 'Este año' ? undefined : WIDER_PRESETS.find((w) => w.preset !== range.preset);
 
   return (
     <div className="space-y-5">
@@ -124,9 +139,22 @@ export function StatsProfitabilityPage() {
               (o por CSV) para ver el número completo.
             </div>
           )}
-          {coverage && coverage.ordersWithCost === 0 ? (
+          {noSales ? (
             <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-fg-muted">
-              Todavía no hay ventas con costo cargado.{' '}
+              <p>No hubo ventas en el período ({rangeLabel(range)}), así que no hay ganancia para mostrar.</p>
+              {wider && (
+                <Button
+                  variant="secondary"
+                  className="mt-3"
+                  onClick={() => setRange(defaultStatsRange(wider.preset))}
+                >
+                  {wider.label}
+                </Button>
+              )}
+            </div>
+          ) : noCosts ? (
+            <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-fg-muted">
+              Ninguna de las {formatNumber(coverage.ordersTotal)} ventas del período tiene costo cargado.{' '}
               <Link to="/productos/costos" className="font-medium text-primary hover:underline">
                 Cargá el costo de tus productos
               </Link>{' '}
@@ -148,7 +176,7 @@ export function StatsProfitabilityPage() {
                 <KpiCard
                   title="Margen"
                   hint="Ganancia ÷ ventas, contando solo las órdenes con costo cargado."
-                  value={`${formatNumber(data.marginPct)}%`}
+                  value={formatPercent(data.marginPct)}
                 >
                   <Delta current={data.marginPct} previous={data.previous.marginPct} />
                 </KpiCard>
@@ -236,7 +264,7 @@ export function StatsProfitabilityPage() {
                             <td
                               className={`py-2 text-right tabular-nums ${p.marginPct < 15 ? 'text-danger' : 'text-fg'}`}
                             >
-                              {formatNumber(p.marginPct)}%
+                              {formatPercent(p.marginPct)}
                             </td>
                           </tr>
                         ))}
@@ -313,10 +341,11 @@ export function StatsProfitabilityPage() {
                   </p>
                 </ChartCard>
               )}
-
-              <MetaAdsSection profit={data.profit} currency={data.currency} range={range} />
             </>
           )}
+          {/* Fuera de los vacíos a propósito: antes solo aparecía con ventas
+              con costo, y conectar Meta quedaba escondido justo al empezar. */}
+          <MetaAdsSection profit={data.profit} currency={data.currency} range={range} />
         </>
       )}
     </div>
@@ -444,7 +473,11 @@ function MetaAdsSection({
         <div>
           <div className="text-xs text-fg-muted">ROAS real (ganancia / gasto)</div>
           <div className={`mt-0.5 font-semibold ${roas != null && roas < 1 ? 'text-danger' : 'text-fg'}`}>
-            {roas != null ? `${roas.toFixed(2)}x` : spend ? 'sin gasto' : '…'}
+            {roas != null
+              ? `${formatNumber(roas, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`
+              : spend
+                ? 'sin gasto'
+                : '…'}
           </div>
         </div>
       </div>
