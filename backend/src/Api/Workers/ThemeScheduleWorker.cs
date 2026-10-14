@@ -37,8 +37,18 @@ public sealed class ThemeScheduleWorker(
             if (!string.IsNullOrWhiteSpace(doc.PublishedConfig) && doc.PublishedConfig != next)
                 db.ThemeVersions.Add(ThemeVersion.Create(doc.TenantId, doc.PublishedConfig, null));
 
+            // El borrador NO se pisa: entre que se programó y ahora el comercio
+            // siguió editando, y antes esos cambios se perdían a la hora
+            // programada. La única excepción es un borrador sin cambios propios
+            // (igual a lo que estaba publicado): ahí se lo trae a lo nuevo, porque
+            // si no el editor mostraría "cambios sin publicar" y publicarlos
+            // desharía lo programado.
+            if (doc.DraftConfig == doc.PublishedConfig && doc.DraftConfig != next)
+            {
+                doc.DraftConfig = next;
+                doc.DraftVersion++;
+            }
             doc.PublishedConfig = next;
-            doc.DraftConfig = next;
             doc.ScheduledConfig = null;
             doc.ScheduledAtUtc = null;
             doc.UpdatedAtUtc = now;
