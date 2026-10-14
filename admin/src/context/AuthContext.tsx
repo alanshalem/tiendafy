@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, ApiRequestError } from '../lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@tiendafy/ui';
+import { api, ApiRequestError, setSessionExpiredHandler } from '../lib/api';
+import { SessionExpiredDialog } from '../components/SessionExpiredDialog';
 
 interface AdminUser {
   id: string;
@@ -42,6 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [unreachable, setUnreachable] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // La sesión venció con el panel abierto (un 401 de cualquier pedido).
+  const [expired, setExpired] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => setExpired(true));
+    return () => setSessionExpiredHandler(null);
+  }, []);
 
   useEffect(() => {
     api
@@ -95,6 +107,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Volver a entrar sin salir de la pantalla: lo que falló al cargar se pide
+  // de nuevo; lo que no se guardó lo repite la persona (no se reintenta solo:
+  // un "guardar" a ciegas podría ir dos veces).
+  const relogin = async (password: string, captcha?: string) => {
+    if (!user) return { ok: false };
+    const res = await login(user.email, password, captcha);
+    if (res.ok) {
+      setExpired(false);
+      void queryClient.refetchQueries({ predicate: (q) => q.state.status === 'error' });
+      toast('Listo, volviste a ingresar. Si algo no se guardó, repetilo.', { variant: 'success' });
+    }
+    return res;
+  };
+
   const logout = async () => {
     try {
       await api.post('/api/v1/auth/logout', {});
@@ -102,11 +128,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setUser(null);
+    setExpired(false);
   };
 
   return (
     <AuthContext.Provider value={{ user, ready, unreachable, retry, login, register, logout }}>
       {children}
+      {user && expired && (
+        <SessionExpiredDialog
+          email={user.email}
+          onLogin={relogin}
+          onSwitchAccount={() => void logout()}
+          // Cerrarlo deja ver (y copiar) lo que había; el próximo pedido que
+          // falle lo vuelve a abrir.
+          onDismiss={() => setExpired(false)}
+        />
+      )}
     </AuthContext.Provider>
   );
 }

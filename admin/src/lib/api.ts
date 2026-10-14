@@ -26,11 +26,40 @@ export function errMsg(e: unknown, fallback = 'Error'): string {
 }
 
 /** Construye el ApiRequestError a partir de una respuesta no-ok (RFC 7807). */
-async function toApiError(res: Response, fallbackMessage: string): Promise<ApiRequestError> {
-  return problemToError(res.status, await res.json().catch(() => null), fallbackMessage);
+async function toApiError(path: string, res: Response, fallbackMessage: string): Promise<ApiRequestError> {
+  return problemToError(path, res.status, await res.json().catch(() => null), fallbackMessage);
 }
 
-function problemToError(status: number, problem: unknown, fallbackMessage: string): ApiRequestError {
+export const SESSION_EXPIRED_MESSAGE = 'Tu sesión venció. Volvé a ingresar.';
+
+/** Lo avisa AuthContext: con la sesión vencida se pide la clave encima de la pantalla. */
+let onSessionExpired: (() => void) | null = null;
+
+export function setSessionExpiredHandler(handler: (() => void) | null) {
+  onSessionExpired = handler;
+}
+
+/**
+ * Un 401 de cualquier pedido del panel es la sesión que venció (la cookie dura
+ * 12 h desde el último uso). Antes llegaba con el cuerpo vacío y se mostraba
+ * el genérico "No se pudo guardar…", y React Query lo reintentaba. Los de
+ * /auth/ quedan afuera: ahí un 401 es una clave mal escrita o no tener sesión,
+ * y los maneja la pantalla de ingreso.
+ */
+function isSessionExpiry(path: string, status: number): boolean {
+  return status === 401 && !path.startsWith('/api/v1/auth/');
+}
+
+function problemToError(
+  path: string,
+  status: number,
+  problem: unknown,
+  fallbackMessage: string,
+): ApiRequestError {
+  if (isSessionExpiry(path, status)) {
+    onSessionExpired?.();
+    return new ApiRequestError(401, { code: 'Auth.SessionExpired', message: SESSION_EXPIRED_MESSAGE });
+  }
   // La API devuelve RFC 7807: { title: código, detail: mensaje }. Algunos
   // endpoints de importación todavía responden { error: mensaje }.
   const p = (problem ?? {}) as { title?: string; detail?: unknown; error?: unknown };
@@ -60,7 +89,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (!res.ok) throw await toApiError(res, `Request failed with status ${res.status}`);
+  if (!res.ok) throw await toApiError(path, res, `Request failed with status ${res.status}`);
 
   return res.status === 204 ? (undefined as T) : res.json();
 }
@@ -89,7 +118,7 @@ export const api = {
       credentials: 'include',
       headers: activeTenantId ? { 'X-Tenant-Id': activeTenantId } : undefined,
     });
-    if (!res.ok) throw await toApiError(res, `Download failed with status ${res.status}`);
+    if (!res.ok) throw await toApiError(path, res, `Download failed with status ${res.status}`);
     return res.blob();
   },
 };
@@ -129,7 +158,7 @@ function sendForm<T>(path: string, form: FormData, progress?: UploadProgress): P
         body = null;
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve((xhr.status === 204 ? undefined : body) as T);
-      else reject(problemToError(xhr.status, body, `Upload failed with status ${xhr.status}`));
+      else reject(problemToError(path, xhr.status, body, `Upload failed with status ${xhr.status}`));
     };
     xhr.onerror = () => reject(new TypeError('Network error'));
     xhr.onabort = () => reject(new UploadAbortedError());
