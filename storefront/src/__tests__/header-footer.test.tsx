@@ -31,6 +31,43 @@ const withHero: ThemeConfig['sections'] = [
   },
 ];
 
+/**
+ * Un pie guardado antes de las columnas (con los booleanos de antes), ya
+ * normalizado como lo recibe la tienda: las columnas salen de ellos.
+ */
+function oldFooter(footer: Partial<ThemeConfig['footer']>): ThemeConfig['footer'] {
+  const { columns: _, ...rest } = base.footer;
+  return mergeTheme({ footer: { ...rest, ...footer } as ThemeConfig['footer'] }).footer;
+}
+
+/** Un pie con estas columnas (y lo demás de la tienda de prueba). */
+function withColumns(
+  columns: ThemeConfig['footer']['columns'],
+  footer: Partial<ThemeConfig['footer']> = {},
+): ThemeConfig {
+  return {
+    ...base,
+    footer: mergeTheme({ footer: { ...base.footer, ...footer, columns } }).footer,
+  };
+}
+
+/** Simula el ancho de la pantalla: desde 640 px el pie va en grilla y sin acordeones. */
+function screenWidth(wide: boolean) {
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query: string) =>
+      ({
+        matches: query === '(min-width: 640px)' ? wide : false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList,
+  );
+}
+
 function theme(header: Partial<ThemeConfig['header']> = {}, extra: Partial<ThemeConfig> = {}): ThemeConfig {
   return { ...base, ...extra, header: { ...base.header, ...header } };
 }
@@ -365,8 +402,7 @@ describe('pie', () => {
       theme(
         {},
         {
-          footer: {
-            ...base.footer,
+          footer: oldFooter({
             instagram: 'https://instagram.com/seed',
             facebook: 'https://facebook.com/seed',
             tiktok: 'https://tiktok.com/@seed',
@@ -375,7 +411,7 @@ describe('pie', () => {
             paymentLogos: ['visa'],
             showNewsletter: true,
             showPages: true,
-          } as ThemeConfig['footer'],
+          }),
         },
       ),
     );
@@ -390,8 +426,7 @@ describe('pie', () => {
       theme(
         {},
         {
-          footer: {
-            ...base.footer,
+          footer: oldFooter({
             layout: 'columns',
             bg: '20 20 20',
             text: 'Hecho en Rosario',
@@ -400,7 +435,7 @@ describe('pie', () => {
             emails: ['hola@tienda.com'],
             showNewsletter: true,
             newsletterTitle: 'Novedades',
-          },
+          }),
         },
       ),
     );
@@ -427,13 +462,12 @@ describe('pie', () => {
       theme(
         {},
         {
-          footer: {
-            ...base.footer,
+          footer: oldFooter({
             whatsapps: ['+54 9 11 5555-4444', ''],
             phones: ['011 4555 1234'],
             emails: ['hola@tienda.com'],
             addresses: ['Av. Corrientes 1234, CABA'],
-          } as ThemeConfig['footer'],
+          }),
         },
       ),
     );
@@ -448,5 +482,153 @@ describe('pie', () => {
       'mailto:hola@tienda.com',
     );
     expect(footer.getByText('Av. Corrientes 1234, CABA')).toBeInTheDocument();
+  });
+});
+
+describe('pie: columnas', () => {
+  const columns: ThemeConfig['footer']['columns'] = [
+    { id: 'brand', kind: 'social' },
+    {
+      id: 'ayuda',
+      kind: 'links',
+      title: 'Ayuda',
+      links: [
+        { label: 'Envíos', href: '/productos' },
+        { label: 'Malo', href: 'javascript:alert(1)' },
+        { label: 'Roto', href: ' java\nscript:alert(1)' },
+        { label: '', href: '/sin-nombre' },
+        { label: 'Catálogo', href: 'catalogo.com.ar/a.pdf', newTab: true },
+      ],
+    },
+    { id: 'paginas', kind: 'pages', title: 'Más info' },
+    { id: 'nosotros', kind: 'text', title: 'Quiénes somos', text: 'Importamos desde 1990.' },
+    { id: 'contact', kind: 'contact' },
+  ];
+
+  it('en columnas: cada tipo con su título, en su orden, y los links inseguros no se dibujan', async () => {
+    screenWidth(true);
+    await show(
+      withColumns(columns, {
+        layout: 'columns',
+        text: 'Hecho en Rosario',
+        instagram: 'instagram.com/seed',
+        emails: ['hola@tienda.com'],
+      }),
+    );
+    const footer = within(screen.getByRole('contentinfo'));
+    const titles = footer.getAllByRole('heading').map((h) => h.textContent);
+    expect(titles).toEqual(['Ayuda', ...(page ? ['Más info'] : []), 'Quiénes somos', 'Contacto']);
+    expect(footer.getByText('Hecho en Rosario')).toBeInTheDocument();
+    expect(footer.getByRole('link', { name: 'Instagram' })).toHaveAttribute(
+      'href',
+      'https://instagram.com/seed',
+    );
+    expect(footer.getByRole('link', { name: 'Envíos' })).toHaveAttribute('href', '/productos');
+    const catalog = footer.getByRole('link', { name: 'Catálogo' });
+    expect(catalog).toHaveAttribute('href', 'https://catalogo.com.ar/a.pdf');
+    expect(catalog).toHaveAttribute('target', '_blank');
+    // Ni como link ni como texto suelto.
+    expect(footer.queryByText('Malo')).not.toBeInTheDocument();
+    expect(footer.queryByText('Roto')).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="javascript"]')).toBeNull();
+    if (page) expect(footer.getByRole('link', { name: page.title })).toBeInTheDocument();
+    expect(footer.getByText('Importamos desde 1990.')).toBeInTheDocument();
+    expect(footer.getByRole('link', { name: /hola@tienda.com/ })).toBeInTheDocument();
+    // En la compu no hay acordeones: los títulos son títulos.
+    expect(footer.queryByRole('button', { name: 'Ayuda' })).not.toBeInTheDocument();
+    // Cada columna se puede resaltar desde el editor.
+    expect(document.querySelector('[data-tf-focus="footer-col:ayuda"]')).not.toBeNull();
+  });
+
+  it('una columna sin nada para mostrar no deja hueco; sin columnas quedan los medios de pago y lo legal', async () => {
+    screenWidth(true);
+    const { unmount } = await show(
+      withColumns(
+        [
+          { id: 'contact', kind: 'contact' },
+          { id: 'vacia', kind: 'text', title: 'Nada', text: '   ' },
+          { id: 'n', kind: 'newsletter' },
+        ],
+        { layout: 'columns', newsletterTitle: 'Sumate' },
+      ),
+    );
+    let footer = within(screen.getByRole('contentinfo'));
+    expect(footer.getAllByRole('heading').map((h) => h.textContent)).toEqual(['Sumate']);
+    expect(document.querySelector('[data-tf-focus="footer-col:contact"]')).toBeNull();
+    unmount();
+
+    await show(withColumns([], { layout: 'columns', paymentLogos: ['visa'] }));
+    footer = within(screen.getByRole('contentinfo'));
+    expect(footer.queryAllByRole('heading')).toEqual([]);
+    expect(footer.getByRole('link', { name: /Botón de arrepentimiento/ })).toBeInTheDocument();
+  });
+
+  it('en el celular las listas de links se pliegan con su título; lo demás queda a la vista', async () => {
+    screenWidth(false);
+    const { user } = await show(withColumns(columns, { layout: 'columns', emails: ['hola@tienda.com'] }));
+    const footer = within(screen.getByRole('contentinfo'));
+    const toggle = footer.getByRole('button', { name: 'Ayuda' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const body = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    // Plegada en el celular (desde sm el CSS la muestra igual: sin salto al hidratar).
+    expect(body).toHaveClass('hidden', 'sm:block');
+    // Los links siguen en el HTML (Google los ve) y cada renglón mide 40 px.
+    expect(within(body).getByRole('link', { name: 'Envíos' })).toHaveClass('min-h-10');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(body).not.toHaveClass('hidden');
+    // El título del botón mide 48 px de alto (se toca con el dedo).
+    expect(toggle).toHaveClass('min-h-12');
+    // Texto y contacto no se pliegan.
+    expect(footer.queryByRole('button', { name: 'Quiénes somos' })).not.toBeInTheDocument();
+    expect(footer.queryByRole('button', { name: 'Contacto' })).not.toBeInTheDocument();
+  });
+
+  it('centrado: las mismas columnas apiladas en su orden; solo se ven los títulos propios', async () => {
+    await show(
+      withColumns(
+        [
+          { id: 'n', kind: 'newsletter' },
+          { id: 'l', kind: 'links', links: [{ label: 'Envíos', href: '/productos' }] },
+          { id: 'ayuda', kind: 'links', title: 'Ayuda', links: [{ label: 'Cambios', href: '/cambios' }] },
+          { id: 's', kind: 'social' },
+        ],
+        { layout: 'centered', text: 'Hecho en Rosario', newsletterTitle: 'Sumate' },
+      ),
+    );
+    const footer = screen.getByRole('contentinfo');
+    // La lista sin título propio no muestra "Información" (el pie centrado nunca lo tuvo).
+    expect(
+      within(footer)
+        .getAllByRole('heading')
+        .map((h) => h.textContent),
+    ).toEqual(['Ayuda']);
+    const order = [...footer.querySelectorAll('[data-tf-focus^="footer-col:"]')].map((el) =>
+      el.getAttribute('data-tf-focus'),
+    );
+    expect(order).toEqual(['footer-col:n', 'footer-col:l', 'footer-col:ayuda', 'footer-col:s']);
+    expect(within(footer).getByText('Sumate')).toBeInTheDocument();
+    expect(within(footer).getByText('Hecho en Rosario')).toBeInTheDocument();
+  });
+
+  it('un pie viejo en columnas se ve como siempre: links y páginas juntos bajo "Información"', async () => {
+    screenWidth(true);
+    await show(
+      theme(
+        {},
+        {
+          footer: oldFooter({
+            layout: 'columns',
+            links: [{ label: 'Envíos', href: '/productos' }],
+            showPages: true,
+          }),
+        },
+      ),
+    );
+    const footer = within(screen.getByRole('contentinfo'));
+    expect(footer.getAllByRole('heading', { name: 'Información' })).toHaveLength(1);
+    const info = footer.getByRole('heading', { name: 'Información' }).parentElement!;
+    expect(within(info).getByRole('link', { name: 'Envíos' })).toBeInTheDocument();
+    if (page) expect(within(info).getByRole('link', { name: page.title })).toBeInTheDocument();
   });
 });

@@ -271,15 +271,22 @@ describe('barra de anuncio y pie', () => {
     expect(current.announcement.items[0]?.newTab).toBe(true);
   });
 
-  it('links propios del pie: agregar, elegir destino (propone el texto) y quitar', async () => {
-    const user = await show((t, u) => <FooterPanel theme={t} updateTheme={u} onBack={() => {}} />);
+  it('links de una columna del pie: agregar, elegir destino (propone el texto) y quitar', async () => {
+    const user = await show((t, u) => <FooterPanel theme={t} updateTheme={u} onBack={() => {}} />, {
+      footer: {
+        ...baseTheme.footer,
+        columns: [{ id: 'ayuda', kind: 'links', title: 'Ayuda', links: [] }],
+      },
+    });
+    const links = () => current.footer.columns[0]!.links;
+    await user.click(screen.getByRole('button', { name: /^Ayuda/, expanded: false }));
     await user.click(screen.getByRole('button', { name: /Agregar link/ }));
-    expect(current.footer.links).toEqual([{ label: '', href: '' }]);
+    expect(links()).toEqual([{ label: '', href: '' }]);
     const picker = screen.getByRole('group', { name: 'A dónde lleva' });
     await user.click(within(picker).getByRole('button', { name: /Elegir a dónde lleva/ }));
     await user.click(within(picker).getByRole('button', { name: /^Página$/ }));
     await user.click(within(picker).getByRole('button', { name: 'Favoritos' }));
-    expect(current.footer.links[0]).toEqual({ label: 'Favoritos', href: '/favoritos' });
+    expect(links()![0]).toEqual({ label: 'Favoritos', href: '/favoritos' });
 
     // Con texto propio, elegir otro destino no lo pisa.
     const text = screen.getByRole('textbox', { name: 'Texto' });
@@ -287,12 +294,16 @@ describe('barra de anuncio y pie', () => {
     await user.type(text, 'Mis favoritos');
     await user.click(within(picker).getByRole('button', { name: 'Cambiar a dónde lleva' }));
     await user.click(within(picker).getByRole('button', { name: 'Contacto' }));
-    expect(current.footer.links[0]).toEqual({ label: 'Mis favoritos', href: '/contacto' });
+    expect(links()![0]).toEqual({ label: 'Mis favoritos', href: '/contacto' });
     await user.click(within(picker).getByRole('checkbox', { name: 'Abrir en pestaña nueva' }));
-    expect(current.footer.links[0]?.newTab).toBe(true);
+    expect(links()![0]?.newTab).toBe(true);
 
-    await user.click(screen.getByRole('button', { name: 'Quitar link 1' }));
-    expect(current.footer.links).toEqual([]);
+    // Quitar: desde el ⋯ del link, con confirmación.
+    await user.click(screen.getByRole('button', { name: 'Más acciones de «Mis favoritos»' }));
+    await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Eliminar' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Eliminar' }));
+    await settle(2);
+    expect(links()).toEqual([]);
   });
 });
 

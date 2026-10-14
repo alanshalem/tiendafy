@@ -80,6 +80,19 @@ export { BUILTIN_MENU_IDS } from './theme';
 // Encabezado por tipo de página y barra de anuncio "uno por vez".
 export type { HeaderPageKind, HeaderPageColor, HeaderPageColors } from './theme';
 export { HEADER_PAGE_KINDS, ANNOUNCEMENT_INTERVAL, headerColorsFor } from './theme';
+// Columnas del pie: tipos, topes y cómo se arman las de un tema viejo.
+export type { FooterColumn, FooterColumnKind } from './theme';
+export {
+  FOOTER_COLUMNS_MAX,
+  FOOTER_COLUMN_LINKS_MAX,
+  FOOTER_TITLE_MAX,
+  FOOTER_TEXT_MAX,
+  FOOTER_COLUMN_KINDS,
+  FOOTER_SINGLE_KINDS,
+  deriveFooterColumns,
+  footerFlagsFromColumns,
+  footerColumnTitle,
+} from './theme';
 // Links que escribe el comercio: validación y destinos de la tienda.
 export {
   normalizeLink,

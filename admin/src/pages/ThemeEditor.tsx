@@ -125,7 +125,7 @@ export function ThemeEditorPage() {
   const previewBase = store ? storefrontUrl(store.subdomain) : '';
   const previewOrigin = previewBase; // origin esperado del iframe (targetOrigin + validación de e.origin)
 
-  const { iframeRef, postToPreview } = usePreviewBridge(previewOrigin, view, {
+  const { iframeRef, postToPreview, focusPreview } = usePreviewBridge(previewOrigin, view, {
     onReady: () => {
       if (draft.theme) postToPreview(draft.theme);
     },
@@ -411,6 +411,7 @@ export function ThemeEditorPage() {
             onCopyFromStore={stores.length > 1 ? () => setCopyOpen(true) : undefined}
             onRemoveSection={removeSectionWithUndo}
             onHeaderPreviewPage={setHeaderPage}
+            onFocusPreview={focusPreview}
           />
         </aside>
 

@@ -40,6 +40,7 @@ export function EditorViews({
   onCopyFromStore,
   onRemoveSection,
   onHeaderPreviewPage,
+  onFocusPreview,
 }: {
   view: string;
   setView: (view: string) => void;
@@ -55,6 +56,8 @@ export function EditorViews({
   onRemoveSection: (id: string) => void;
   /** Llevar la vista previa a un tipo de página (colores del encabezado por página). */
   onHeaderPreviewPage?: (kind: HeaderPageKind) => void;
+  /** Resaltar una parte puntual de la vista previa (una columna del pie). */
+  onFocusPreview?: (target: string) => void;
 }) {
   const confirm = useConfirm();
   const toRoot = () => setView('root');
@@ -147,7 +150,7 @@ export function EditorViews({
     case 'whatsapp':
       return <WhatsAppPanel {...panelProps} />;
     case 'footer':
-      return <FooterPanel {...panelProps} />;
+      return <FooterPanel {...panelProps} onFocusPreview={onFocusPreview} />;
     case 'css':
       return <CssPanel {...panelProps} />;
     case 'coming-soon':
