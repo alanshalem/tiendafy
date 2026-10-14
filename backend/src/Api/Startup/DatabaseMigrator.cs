@@ -42,7 +42,7 @@ public static class DatabaseMigrator
         await MigrateAsync<AppIdentityDbContext>(sp, logger);
         await MigrateAsync<CatalogDbContext>(sp, logger);
         await MigrateAsync<DiscountsDbContext>(sp, logger);
-        await MigrateAsync<CustomersDbContext>(sp, logger);
+        var customersPending = await MigrateAsync<CustomersDbContext>(sp, logger);
         await MigrateAsync<ContentDbContext>(sp, logger);
         await MigrateAsync<ThemesDbContext>(sp, logger);
         await MigrateAsync<InventoryDbContext>(sp, logger);
@@ -60,9 +60,38 @@ public static class DatabaseMigrator
         await MigrateAsync<FinanceDbContext>(sp, logger);
         await MigrateAsync<MeliDbContext>(sp, logger);
         await MigrateAsync<SocialDbContext>(sp, logger);
+
+        // Relleno de una sola vez: la migración que crea el resumen de compras
+        // de los clientes lo deja en cero, y las fichas viejas mostrarían "0
+        // compras" hasta su próxima venta. Corre cuando esa migración se acaba
+        // de aplicar, con las ventas ya migradas.
+        if (customersPending.Any(m => m.EndsWith("_AddCustomerTagsAndPurchaseStats", StringComparison.Ordinal)))
+            await RestateCustomersAsync(sp, logger);
     }
 
-    private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)
+    private static async Task RestateCustomersAsync(IServiceProvider sp, ILogger logger)
+    {
+        var tenants = await sp.GetRequiredService<CustomersDbContext>().Customers.AsNoTracking()
+            .Select(c => c.TenantId).Distinct().ToListAsync();
+        var directory = sp.GetRequiredService<Api.Crm.CustomerDirectory>();
+        foreach (var tenantId in tenants)
+        {
+            try
+            {
+                var changed = await directory.RestateAllAsync(tenantId);
+                logger.LogInformation("Resumen de compras de clientes: {Changed} fichas en la tienda {TenantId}.", changed, tenantId);
+            }
+            catch (Exception ex)
+            {
+                // No frena el arranque: el resumen se corrige solo al abrir cada
+                // ficha o con "Traer de mis ventas".
+                logger.LogWarning(ex, "No se pudo calcular el resumen de compras de la tienda {TenantId}.", tenantId);
+            }
+        }
+    }
+
+    /// <returns>Las migraciones que se aplicaron (vacío si no había pendientes).</returns>
+    private static async Task<List<string>> MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)
         where TContext : DbContext
     {
         var context = sp.GetRequiredService<TContext>();
@@ -70,11 +99,12 @@ public static class DatabaseMigrator
         if (pending.Count == 0)
         {
             logger.LogDebug("{Context}: sin migraciones pendientes.", typeof(TContext).Name);
-            return;
+            return pending;
         }
 
         logger.LogInformation("{Context}: aplicando {Count} migración(es): {Migrations}",
             typeof(TContext).Name, pending.Count, string.Join(", ", pending));
         await context.Database.MigrateAsync();
+        return pending;
     }
 }

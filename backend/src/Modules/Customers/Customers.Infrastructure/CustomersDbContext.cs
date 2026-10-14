@@ -60,6 +60,10 @@ public sealed class CustomersDbContext : DbContext
         c.Property(x => x.Notes).HasMaxLength(2000);
         c.Property(x => x.PasswordHash).HasMaxLength(400);
         c.Property(x => x.GoogleSubject).HasMaxLength(100);
+        // text[]: filtrar por etiqueta es un `= ANY(tags)` en la base, sin tabla aparte.
+        c.Property(x => x.Tags).HasColumnType("text[]").HasDefaultValueSql("'{}'::text[]");
+        c.Property(x => x.OrdersCount).HasDefaultValue(0);
+        c.Property(x => x.TotalSpentMinor).HasDefaultValue(0L);
 
         var s = modelBuilder.Entity<CustomerSession>();
         s.ToTable("customer_sessions");

@@ -286,7 +286,7 @@ public static class OrderEndpoints
             IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
             global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
             Inventory.Core.Domain.IStockRepository stock, Api.Orders.KitStockService kits,
-            CancellationToken ct) =>
+            Api.Crm.CustomerDirectory customers, CancellationToken ct) =>
         {
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
@@ -353,6 +353,8 @@ public static class OrderEndpoints
                 }
                 paymentsDb.PaymentRefunds.Add(audit);
                 await paymentsDb.SaveChangesAsync(ct);
+                // Lo gastado por el cliente es neto de reembolsos: la agenda lo refleja ya.
+                await customers.RefreshStatsAsync(order.TenantId.Value, order.BuyerEmail, ct);
 
                 if (order.Status == OrderStatus.Refunded)
                 {
