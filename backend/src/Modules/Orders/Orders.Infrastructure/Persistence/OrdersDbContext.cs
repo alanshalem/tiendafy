@@ -23,9 +23,51 @@ public sealed class OrdersDbContext : DbContext
 
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<OrderNumberCounter> OrderNumberCounters => Set<OrderNumberCounter>();
+
+    /// <summary>
+    /// Toda orden nueva sale de acá con su número de tienda, venga del
+    /// checkout, de una venta manual, de un presupuesto o del seed: hay cinco
+    /// lugares que crean órdenes y ninguno tiene que acordarse de numerarlas.
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        await AssignOrderNumbersAsync(cancellationToken);
+        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AssignOrderNumbersAsync(CancellationToken.None).GetAwaiter().GetResult();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    private async Task AssignOrderNumbersAsync(CancellationToken ct)
+    {
+        var pending = ChangeTracker.Entries<Order>()
+            .Where(e => e.State == EntityState.Added && e.Entity.Number == 0)
+            .Select(e => e.Entity)
+            .GroupBy(o => o.TenantId.Value)
+            .ToList();
+
+        foreach (var group in pending)
+        {
+            // En el orden en que se crearon: un lote (el seed, una importación)
+            // numera igual que si hubieran entrado de a una.
+            var orders = group.OrderBy(o => o.CreatedAtUtc).ToList();
+            var next = await OrderNumberCounter.ReserveAsync(this, group.Key, orders.Count, ct);
+            foreach (var order in orders) order.AssignNumber(next++);
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var counter = modelBuilder.Entity<OrderNumberCounter>();
+        counter.ToTable("order_number_counters");
+        counter.HasKey(c => c.TenantId);
+        counter.Property(c => c.TenantId).ValueGeneratedNever();
+        counter.HasQueryFilter(c => !_filterByTenant || c.TenantId == _currentTenant.Value);
+
         var order = modelBuilder.Entity<Order>();
         order.ToTable("orders");
         order.HasKey(o => o.Id);
@@ -71,6 +113,9 @@ public sealed class OrdersDbContext : DbContext
         order.Property(o => o.DocNumber).HasMaxLength(20);
         order.Property(o => o.Notes).HasMaxLength(500);
         order.HasIndex(o => new { o.TenantId, o.CreatedAtUtc });
+        // Único por tienda: es el número que se habla por teléfono y se busca
+        // en el panel. El contador ya lo garantiza; esto frena una escritura a mano.
+        order.HasIndex(o => new { o.TenantId, o.Number }).IsUnique();
         order.HasIndex(o => o.PaymentId);
         order.Ignore(o => o.DomainEvents);
         order.Ignore(o => o.Total);
@@ -79,6 +124,7 @@ public sealed class OrdersDbContext : DbContext
         order.Ignore(o => o.IsPending);
         order.Ignore(o => o.RemainingRefundable);
         order.Ignore(o => o.ProductCost);
+        order.Ignore(o => o.Label);
 
         order.OwnsMany(o => o.Items, items =>
         {

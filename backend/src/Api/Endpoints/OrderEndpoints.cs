@@ -150,7 +150,7 @@ public static class OrderEndpoints
                 order.BuyerEmail,
                 http.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0",
                 request.CardLastFour, request.CardBrand, request.IsDebit,
-                $"Pedido {order.Id.ToString()[..8]}"), ct);
+                $"Pedido {order.Label}"), ct);
 
             if (payResult.IsFailure) return payResult.Error.ToProblem();
             var charge = payResult.Value;
@@ -272,7 +272,7 @@ public static class OrderEndpoints
                 fulfilled = outcomes.Count(o => o.Result == "fulfilled"),
                 skipped = outcomes.Count(o => o.Result == "skipped"),
                 failed = outcomes.Count(o => o.Result == "failed"),
-                results = outcomes.Select(o => new { o.Id, number = $"#{Api.Orders.OrderCsv.ShortNumber(o.Id)}", o.Result, o.Reason }),
+                results = outcomes.Select(o => new { o.Id, o.Number, o.Result, o.Reason }),
             });
         }).RequirePermission(Permission.OrdersFulfill);
 
@@ -373,7 +373,7 @@ public static class OrderEndpoints
                             {
                                 await stock.AdjustAvailableAsync(
                                     tenant.TenantId, item.VariantId, item.Quantity,
-                                    $"Devolución venta {order.Id.ToString()[..8]}", ct);
+                                    $"Devolución venta {order.Label}", ct);
                             }
                             catch
                             {
@@ -537,6 +537,7 @@ public static class OrderEndpoints
             return Results.Created($"/api/v1/orders/{order.Id}", new
             {
                 order.Id,
+                order.Number,
                 total = order.Total.AmountInMinorUnits,
                 status = order.Status.ToString().ToUpperInvariant(),
                 paymentLink = result.Value.PaymentLink,
@@ -548,23 +549,9 @@ public static class OrderEndpoints
             global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
             global::Fiscal.Core.Abstractions.IComprobantePdfRenderer pdf, CancellationToken ct) =>
         {
-            var tid = tenant.TenantId.Value;
             var wantNc = string.Equals(type, "creditnote", StringComparison.OrdinalIgnoreCase);
-
-            var docs = await fiscalDb.Documents.AsNoTracking()
-                .Where(d => d.TenantId == tid && d.OrderId == id
-                    && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
-                .OrderByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
-            var doc = docs.FirstOrDefault(d => OrderComprobantePresenter.IsNc(d.CbteTipo) == wantNc);
-            if (doc is null) return Results.NotFound();
-
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tid, ct);
-            if (cfg is null) return Results.NotFound();
-
-            var data = OrderComprobantePresenter.BuildPdfData(doc, order, cfg);
-            var bytes = pdf.Render(data);
-            return Results.File(bytes, "application/pdf", $"comprobante-{doc.PtoVta:0000}-{doc.Number:00000000}.pdf");
+            return await OrderInvoicePdf.DownloadAsync(fiscalDb, pdf, tenant.TenantId.Value, id, order, wantNc, ct);
         }).RequirePermission(Permission.OrdersRead);
 
         return group;
@@ -649,6 +636,7 @@ public static class OrderEndpoints
     private static object ToDto(Order order) => new
     {
         order.Id,
+        order.Number,
         status = order.Status.ToString().ToUpperInvariant(),
         order.BuyerEmail,
         order.Currency,

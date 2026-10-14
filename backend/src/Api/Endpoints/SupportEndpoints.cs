@@ -142,7 +142,9 @@ public static class SupportEndpoints
         var admin = group.MapGroup("/support").RequirePermission(Permission.SupportChat);
 
         // Bandeja: todas las conversaciones del tenant, no leídas primero.
-        admin.MapGet("/conversations", async (ITenantContext tenant, SupportDbContext db, CancellationToken ct) =>
+        admin.MapGet("/conversations", async (
+            ITenantContext tenant, SupportDbContext db, global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb,
+            CancellationToken ct) =>
         {
             var items = await db.Conversations.AsNoTracking()
                 .Where(c => c.TenantId == tenant.TenantId.Value)
@@ -153,11 +155,13 @@ public static class SupportEndpoints
             var unreadTotal = await db.Conversations.AsNoTracking()
                 .Where(c => c.TenantId == tenant.TenantId.Value)
                 .SumAsync(c => c.UnreadForStaff, ct);
-            return Results.Ok(new { items = items.Select(ToDto), unreadTotal });
+            var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, items.Select(c => c.OrderId), ct);
+            return Results.Ok(new { items = items.Select(c => WithNumber(c, numbers.GetValueOrDefault(c.OrderId))), unreadTotal });
         });
 
         admin.MapGet("/conversations/{id:guid}/messages", async (
-            Guid id, ITenantContext tenant, SupportDbContext db, IMediaStorage storage, CancellationToken ct) =>
+            Guid id, ITenantContext tenant, SupportDbContext db, IMediaStorage storage,
+            global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb, CancellationToken ct) =>
         {
             var conv = await db.Conversations.FirstOrDefaultAsync(
                 c => c.Id == id && c.TenantId == tenant.TenantId.Value, ct);
@@ -166,7 +170,8 @@ public static class SupportEndpoints
             var messages = await LoadMessagesAsync(db, storage, conv, ct);
             conv.MarkReadByStaff();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { conversation = ToDto(conv), items = messages });
+            var numbers = await OrderNumbersAsync(ordersDb, tenant.TenantId, [conv.OrderId], ct);
+            return Results.Ok(new { conversation = WithNumber(conv, numbers.GetValueOrDefault(conv.OrderId)), items = messages });
         });
 
         admin.MapPost("/conversations/{id:guid}/messages", async (
@@ -268,10 +273,25 @@ public static class SupportEndpoints
         })];
     }
 
-    private static object ToDto(Conversation c) => new
+    /// <summary>El número de pedido (#1042) de cada conversación, en una consulta para toda la bandeja.</summary>
+    private static async Task<Dictionary<Guid, int>> OrderNumbersAsync(
+        global::Orders.Infrastructure.Persistence.OrdersDbContext ordersDb, TenantId tenantId,
+        IEnumerable<Guid> orderIds, CancellationToken ct)
+    {
+        var ids = orderIds.Distinct().ToList();
+        return await ordersDb.Orders.AsNoTracking()
+            .Where(o => o.TenantId == tenantId && ids.Contains(o.Id))
+            .Select(o => new { o.Id, o.Number })
+            .ToDictionaryAsync(o => o.Id, o => o.Number, ct);
+    }
+
+    private static object ToDto(Conversation c) => WithNumber(c, 0);
+
+    private static object WithNumber(Conversation c, int orderNumber) => new
     {
         c.Id,
         c.OrderId,
+        orderNumber = orderNumber > 0 ? orderNumber : (int?)null,
         c.CustomerEmail,
         status = c.Status.ToString().ToUpperInvariant(),
         c.UnreadForCustomer,

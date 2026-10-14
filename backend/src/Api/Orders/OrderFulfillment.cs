@@ -77,12 +77,12 @@ public sealed class OrderFulfillment(
             // hace, para mandar un seguimiento corregido; acá no hay seguimiento).
             if (order.Status == OrderStatus.Fulfilled)
             {
-                outcomes.Add(new BulkFulfillOutcome(id, "skipped", "Ya estaba enviada."));
+                outcomes.Add(new BulkFulfillOutcome(id, "skipped", "Ya estaba enviada.", order.Label));
                 continue;
             }
             if (order.Status != OrderStatus.Paid)
             {
-                outcomes.Add(BulkFulfillOutcome.Failed(id, NotFulfillableReason(order.Status)));
+                outcomes.Add(BulkFulfillOutcome.Failed(id, NotFulfillableReason(order.Status), order.Label));
                 continue;
             }
 
@@ -91,14 +91,14 @@ public sealed class OrderFulfillment(
                 var fulfillment = scope.ServiceProvider.GetRequiredService<OrderFulfillment>();
                 var result = await fulfillment.FulfillAsync(tenantId, id, tracking: null, ct);
                 outcomes.Add(result.IsSuccess
-                    ? new BulkFulfillOutcome(id, "fulfilled", null)
-                    : BulkFulfillOutcome.Failed(id, result.Error.Message));
+                    ? new BulkFulfillOutcome(id, "fulfilled", null, order.Label)
+                    : BulkFulfillOutcome.Failed(id, result.Error.Message, order.Label));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 scope.ServiceProvider.GetRequiredService<ILogger<OrderFulfillment>>()
                     .LogError(ex, "Falló el despacho en lote de la venta {OrderId}.", id);
-                outcomes.Add(BulkFulfillOutcome.Failed(id, "No se pudo guardar. Probá de nuevo con esa sola."));
+                outcomes.Add(BulkFulfillOutcome.Failed(id, "No se pudo guardar. Probá de nuevo con esa sola.", order.Label));
             }
         }
         return outcomes;
@@ -129,7 +129,10 @@ public sealed class OrderFulfillment(
 }
 
 /// <summary>Lo que pasó con una venta del lote: <c>fulfilled</c>, <c>skipped</c> (ya estaba) o <c>failed</c>.</summary>
-public sealed record BulkFulfillOutcome(Guid Id, string Result, string? Reason)
+public sealed record BulkFulfillOutcome(Guid Id, string Result, string? Reason, string? Label = null)
 {
-    public static BulkFulfillOutcome Failed(Guid id, string reason) => new(id, "failed", reason);
+    public static BulkFulfillOutcome Failed(Guid id, string reason, string? label = null) => new(id, "failed", reason, label);
+
+    /// <summary>Cómo se la nombra en el panel: "#1042" (o el id corto si no se encontró).</summary>
+    public string Number => Label ?? OrderLabel.For(0, Id);
 }

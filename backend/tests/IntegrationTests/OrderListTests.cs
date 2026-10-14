@@ -5,8 +5,9 @@ using System.Text.Json;
 namespace IntegrationTests;
 
 /// <summary>
-/// El listado de Ventas del panel: buscar por el número corto que se ve en la
-/// tabla, exportar la planilla con los mismos filtros (y solo de esta tienda),
+/// El listado de Ventas del panel: buscar por el id corto que llevan las
+/// etiquetas viejas (el número de pedido se prueba en OrderNumberTests),
+/// exportar la planilla con los mismos filtros (y solo de esta tienda),
 /// marcar varias como enviadas de una vez contando qué pasó con cada una, y
 /// la agenda de clientes exportada. Con los permisos de cada cosa.
 /// </summary>
@@ -75,7 +76,8 @@ public sealed class OrderListTests(ApiFactory factory)
         var lines = all.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.StartsWith("Número;Fecha;Estado;Cliente;Email", lines[0]);
         Assert.Equal(3, lines.Length);
-        Assert.Contains($"#{Short(ana)};", all);
+        Assert.Contains("#1001;", all); // el número de la tienda, no el id
+        Assert.DoesNotContain("Ana de otra tienda", all);
         Assert.DoesNotContain(Short(foreignSale), all);
         // Un ";" o comillas en un nombre no rompen las columnas.
         Assert.Contains("\"Ana; la de \"\"siempre\"\"\"", all);
@@ -87,8 +89,8 @@ public sealed class OrderListTests(ApiFactory factory)
 
         // Los mismos filtros que la pantalla.
         var sent = await CsvAsync(merchant, "/api/v1/orders/export?status=FULFILLED");
-        Assert.Contains($"#{Short(evil)}", sent);
-        Assert.DoesNotContain($"#{Short(ana)}", sent);
+        Assert.Contains("#1002;", sent);
+        Assert.DoesNotContain("#1001;", sent);
         Assert.Contains("AR-1", sent);
         var searched = await CsvAsync(merchant, $"/api/v1/orders/export?q=%23{Short(ana)}");
         Assert.Equal(2, searched.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
@@ -122,7 +124,7 @@ public sealed class OrderListTests(ApiFactory factory)
         Assert.Contains("reembolso", results[refunded].Reason);
         Assert.Equal("failed", results[foreignSale].Result);
         Assert.Contains("no existe", results[foreignSale].Reason);
-        Assert.Equal($"#{Short(first)}", res.GetProperty("results").EnumerateArray().First().GetProperty("number").GetString());
+        Assert.Equal("#1001", res.GetProperty("results").EnumerateArray().First().GetProperty("number").GetString());
 
         // Quedaron enviadas, con el aviso al comprador; la ajena, intacta.
         Assert.Equal("FULFILLED", (await merchant.GetAsync($"/api/v1/orders/{second}")).GetProperty("status").GetString());
