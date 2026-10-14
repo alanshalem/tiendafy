@@ -16,7 +16,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { formatAmount, formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../lib/styles';
@@ -278,7 +278,7 @@ function ComprasList({
                           </Badge>
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                          {po.currency} {formatNumber(po.totalFob)}
+                          {formatAmount(po.totalFob, po.currency)}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
                         <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
@@ -737,7 +737,7 @@ function PoEditor({
 
           {po && (
             <p className="text-xs text-fg-muted">
-              FOB {po.currency} {formatNumber(po.totalFob)} · Gastos{' '}
+              FOB {formatAmount(po.totalFob, po.currency)} · Gastos{' '}
               {formatMoney(Math.round(po.totalExpensesArs * 100))} · El «landed» por unidad ya prorratea los
               gastos del embarque por valor.
             </p>
