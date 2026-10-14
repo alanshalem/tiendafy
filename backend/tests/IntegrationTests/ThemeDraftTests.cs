@@ -84,7 +84,7 @@ public sealed class ThemeDraftTests(ApiFactory factory)
         Assert.NotEqual(HttpStatusCode.OK, await ReadDraftAs(merchant, otherToken));
     }
 
-    private static object WithSections(params object[] sections) => new
+    private static object WithSections(params object?[] sections) => new
     {
         colors = new { primary = "1 2 3", accent = "0 0 0", useAccent = false, bg = "255 255 255", text = "17 24 39" },
         sections,
