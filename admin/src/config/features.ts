@@ -65,6 +65,7 @@ export const HELP_LINKS = {
   glosario: { label: 'Glosario: las palabras del sistema' },
   payments: { label: 'Más sobre medios de pago' },
   payway: { label: 'Más sobre cobrar con Payway' },
+  transferencia: { label: 'Más sobre transferencia, efectivo y cuotas' },
   ventas: { label: 'Más sobre ventas y reembolsos' },
   presupuestos: { label: 'Más sobre presupuestos' },
   rentabilidad: { label: 'Más sobre rentabilidad real' },

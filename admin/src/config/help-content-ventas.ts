@@ -194,6 +194,68 @@ export const VENTAS = {
     ],
   },
 
+  transferencia: {
+    title: 'Transferencia, efectivo y cuotas sin interés',
+    intro:
+      'Cobrá por transferencia (con el descuento que anuncia tu tienda) o en efectivo al retirar, y decí con honestidad cuántas cuotas sin interés ofrecés. Lo que se configura acá es lo mismo que muestran la ficha del producto, el listado y el checkout.',
+    category: 'Ventas y pagos',
+    keywords: ['descuento efectivo', 'precio con transferencia', 'cbu', 'alias', 'deposito', 'cuotas'],
+    sections: [
+      {
+        heading: 'Por qué un solo lugar',
+        paragraphs: [
+          'Lo que una tienda anuncia la obliga (Ley 24.240 de Defensa del Consumidor, art. 7): si la ficha dice “10% de descuento pagando con transferencia”, el comprador tiene que poder pagar así y con ese descuento. Antes ese número se cargaba en el diseño y el checkout no ofrecía transferencia.',
+          'Ahora el descuento, las cuotas y el plazo viven en Medios de pago, y la ficha, el listado, el checkout y el email al comprador leen el mismo número.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Configuración', 'Medios de pago', 'Transferencia, efectivo y cuotas'] },
+        ],
+      },
+      {
+        heading: 'Cómo funciona la transferencia',
+        steps: [
+          'Prendé “Transferencia o depósito”, poné el % de descuento y cargá el titular, el CBU/CVU o el alias y, si querés, instrucciones (a dónde mandar el comprobante).',
+          'Elegí cuánto tiempo te guardamos el stock esperando el pago (de 12 horas a una semana).',
+          'En el checkout el comprador elige Transferencia, ve el total con descuento y confirma el pedido. Le mostramos los datos de tu cuenta en la pantalla final y se los mandamos por email (plantilla “Instrucciones de pago”).',
+          'El pedido queda en Ventas como Pendiente. Cuando ves la plata en tu cuenta, abrí la venta y tocá “Registrar pago”: pasa a Pagada, descuenta el stock, le avisa al comprador y, si facturás al cobrar, se factura.',
+          'Si el plazo vence sin que registres el pago, la venta se cancela sola y el stock vuelve a estar a la venta. También podés cancelarla vos con “Cancelar venta”.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Cómo se combinan los descuentos',
+            text: 'Primero el cupón, sobre el precio de los productos; después el % de la transferencia, sobre lo que queda; el envío no se descuenta nunca. Ejemplo: $20.000 de productos, cupón del 10% y 10% por transferencia → $20.000 − $2.000 − $1.800 = $16.200, más el envío.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'El total lo calcula siempre el servidor. Aunque alguien toque la página, el pedido se crea con el descuento que configuraste vos.',
+          },
+        ],
+      },
+      {
+        heading: 'Efectivo al retirar',
+        paragraphs: [
+          'Si lo prendés, aparece solo cuando el comprador elige retirar en tu local. Lleva el mismo descuento y el mismo plazo que la transferencia; cuando te paga en el mostrador, registrás el pago desde la venta.',
+        ],
+      },
+      {
+        heading: 'Cuotas sin interés',
+        paragraphs: [
+          'Se muestran como “Hasta N cuotas sin interés”, con las condiciones que escribas (por ejemplo, “con tarjetas de crédito bancarias”). Es un solo número para la ficha y el listado: antes había uno por lugar y podían no coincidir.',
+          'Poné solo lo que de verdad ofrecés: depende de lo que acordaste con Mercado Pago o Payway y de cada tarjeta. Si tenés Payway conectado y anunciás más cuotas que las que ofrecés ahí, te avisamos.',
+        ],
+      },
+      {
+        heading: 'Si todavía no lo configuraste',
+        paragraphs: [
+          'Mientras no guardes esta sección, la tienda sigue mostrando el descuento y las cuotas que tenía el diseño. Si tu diseño anunciaba un descuento, te avisamos arriba de la sección: cargá los datos de la cuenta o poné el descuento en 0.',
+          'Si ninguna forma de pago está activa, el carrito y el checkout ofrecen escribirte por WhatsApp (el número del botón de WhatsApp o el de Contacto) en vez de dejar al comprador sin salida.',
+        ],
+      },
+    ],
+  },
   ventas: {
     title: 'Ventas y reembolsos',
     intro: 'Seguí cada pedido desde el pago hasta la entrega, y devolvé dinero cuando haga falta.',
