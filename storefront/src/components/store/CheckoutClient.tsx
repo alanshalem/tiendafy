@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type InputHTMLAttributes } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
@@ -19,7 +19,7 @@ import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
 import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
-import { finishPurchase } from '@/lib/cart-storage';
+import { finishPurchase, readBuyer, writeBuyer } from '@/lib/cart-storage';
 import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
@@ -98,6 +98,58 @@ type Step = 'entrega' | 'pago';
 // dejar al comprador mirando un spinner para siempre.
 const FETCH_TIMEOUT_MS = 10_000;
 
+/** Lo que escribe el comprador en el paso de entrega. */
+interface Buyer {
+  email: string;
+  name: string;
+  lastName: string;
+  phone: string;
+  doc: string;
+  street: string;
+  streetNumber: string;
+  apartment: string;
+  city: string;
+  zip: string;
+}
+type BuyerField = keyof Buyer;
+
+const EMPTY_BUYER: Buyer = {
+  email: '',
+  name: '',
+  lastName: '',
+  phone: '',
+  doc: '',
+  street: '',
+  streetNumber: '',
+  apartment: '',
+  city: '',
+  zip: '',
+};
+
+/** El orden de la pantalla: el foco va al primero que esté mal. */
+const FIELD_ORDER: BuyerField[] = [
+  'email',
+  'name',
+  'lastName',
+  'phone',
+  'doc',
+  'street',
+  'streetNumber',
+  'apartment',
+  'city',
+  'zip',
+];
+
+/** GET a la API con tope de espera; tira si no responde bien (no es lo mismo que "no configurado"). */
+async function getJson<T>(path: string, tenantId: string): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    headers: tenantHeaders(tenantId),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  return (await res.json()) as T;
+}
+
 export function CheckoutClient({ tenantId }: { tenantId: string }) {
   // El carrito es el de la tienda (el mismo del ícono): así lo que se reprecia
   // o se quita acá se ve en todos lados.
@@ -112,7 +164,6 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [step, setStep] = useState<Step>('entrega');
 
   // Paso Entrega
-  const [email, setEmail] = useState('');
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[] | null>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
 
@@ -129,16 +180,34 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
   const [agencyProvince, setAgencyProvince] = useState('B');
   const [agencies, setAgencies] = useState<CorreoAgency[] | null>(null);
   const [agencyCode, setAgencyCode] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [doc, setDoc] = useState('');
-  const [street, setStreet] = useState('');
-  const [streetNumber, setStreetNumber] = useState('');
-  const [apartment, setApartment] = useState('');
-  const [city, setCity] = useState('');
-  const [zip, setZip] = useState('');
-  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  // Datos del comprador (nunca los de la tarjeta). Se guardan en la pestaña a
+  // cada tecla: una recarga o volver de un rechazo de Mercado Pago no obliga a
+  // escribir todo de nuevo. Se borran cuando la compra sale bien.
+  const [buyer, setBuyer] = useState<Buyer>(EMPTY_BUYER);
+  const buyerRef = useRef<Buyer>(EMPTY_BUYER);
+  // Un error por campo (al lado del campo) y uno general arriba del botón.
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<BuyerField, string>>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const setField = (key: BuyerField, value: string) => {
+    const next = { ...buyerRef.current, [key]: value };
+    buyerRef.current = next;
+    setBuyer(next);
+    writeBuyer(tenantId, next);
+    // Corregido el campo, su error se va (el resto queda hasta reintentar).
+    if (fieldErrors[key])
+      setFieldErrors((prev) => {
+        const rest = { ...prev };
+        delete rest[key];
+        return rest;
+      });
+  };
+  const { email, name, lastName, phone, doc, street, streetNumber, apartment, city, zip } = buyer;
+  const formId = useId();
+  const fieldId = (key: BuyerField) => `${formId}-${key}`;
+  // Fallo al cargar lo que el checkout necesita (no "no está configurado").
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // Paso Pago
   const [notes, setNotes] = useState('');
@@ -158,6 +227,12 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     // revalida contra el servidor antes de cobrar (nunca se confía en el dato
     // guardado en el navegador).
     setCoupon(readJson<StoredCoupon | null>(couponStorageKey(tenantId), null));
+    // Lo que el comprador ya había escrito en esta pestaña (ver setField).
+    const saved = readBuyer<Buyer>(tenantId);
+    if (saved) {
+      buyerRef.current = { ...EMPTY_BUYER, ...saved };
+      setBuyer(buyerRef.current);
+    }
   }, [tenantId]);
 
   // Precio y stock de hoy, antes de mostrar un total: el carrito guarda los
@@ -169,38 +244,57 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     void refreshPrices();
   }, [hydrated, lines.length, refreshPrices]);
 
+  // Lo que el checkout necesita para dibujarse. Un error de la API NO es lo
+  // mismo que "no configurado": antes un 500 de la configuración de pagos
+  // decía "esta tienda todavía no tiene los pagos habilitados", y un error de
+  // los envíos dejaba pagar sin envío. Ahora un error se dice y se reintenta.
   useEffect(() => {
-    const headers = tenantHeaders(tenantId);
-    fetch(`${API}/api/v1/payments/mercadopago/public-config`, { headers })
-      .then((r) => r.json())
+    let alive = true;
+    const fail = () => alive && setLoadError(true);
+
+    getJson<{ connected?: boolean; checkoutMode?: string; publicKey?: string | null }>(
+      '/api/v1/payments/mercadopago/public-config',
+      tenantId,
+    )
       .then((c) => {
+        if (!alive) return;
         setConnected(Boolean(c.connected));
         setMode(c.checkoutMode === 'API' ? 'API' : 'PRO');
         setPubKey(c.publicKey ?? null);
         if (c.checkoutMode === 'API' && c.publicKey) initMercadoPago(c.publicKey, { locale: 'es-AR' });
       })
-      .catch(() => setMode('PRO'));
+      .catch(fail);
 
     // Payway se pide aparte: son dos medios de pago independientes y que uno
     // falle no tiene por qué dejar sin cobrar al otro.
-    fetch(`${API}/api/v1/payments/payway/public-config`, { headers })
-      .then((r) => r.json())
-      .then((c: PaywayPublicConfig) => setPayway(c.enabled ? c : null))
-      .catch(() => setPayway(null));
+    getJson<PaywayPublicConfig>('/api/v1/payments/payway/public-config', tenantId)
+      .then((c) => alive && setPayway(c.enabled ? c : null))
+      .catch(() => alive && setPayway(null));
 
-    fetch(`${API}/api/v1/checkout-settings`, { headers })
-      .then((r) => r.json())
-      .then((d: CheckoutSettings) => setSettings({ ...DEFAULT_SETTINGS, ...d }))
-      .catch(() => setSettings(DEFAULT_SETTINGS));
+    // Sin la configuración del comercio se sigue con la de fábrica.
+    getJson<CheckoutSettings>('/api/v1/checkout-settings', tenantId)
+      .then((d) => alive && setSettings({ ...DEFAULT_SETTINGS, ...d }))
+      .catch(() => alive && setSettings(DEFAULT_SETTINGS));
 
-    fetch(`${API}/api/v1/shipping/methods`, { headers })
-      .then((r) => r.json())
+    getJson<Record<string, unknown> & { items?: ShippingOption[] }>('/api/v1/shipping/methods', tenantId)
       .then((d) => {
+        if (!alive) return;
         setShippingOptions(d.items ?? []);
         setCarriers(enabledCarriers(d));
       })
-      .catch(() => setShippingOptions([]));
-  }, [tenantId]);
+      .catch(fail);
+
+    return () => {
+      alive = false;
+    };
+  }, [tenantId, attempt]);
+
+  const retryLoad = () => {
+    setLoadError(false);
+    setMode(null);
+    setShippingOptions(null);
+    setAttempt((a) => a + 1);
+  };
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0), [lines]);
   const currency = lines[0]?.currency ?? 'ARS';
@@ -282,8 +376,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         if (message) setQuoteErrors((prev) => ({ ...prev, [k]: message }));
       }),
     );
-    if (!zip.trim()) setZip(cp);
-    if (quoteCity.trim() && !city.trim()) setCity(quoteCity.trim());
+    // El código postal y la ciudad de la cotización completan la dirección.
+    if (!buyerRef.current.zip.trim()) setField('zip', cp);
+    if (quoteCity.trim() && !buyerRef.current.city.trim()) setField('city', quoteCity.trim());
     setQuoting(false);
   };
 
@@ -291,10 +386,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     setAgencies(null);
     setAgencyCode(null);
     try {
-      const res = await fetch(`${API}/api/v1/shipping/correo/agencies?province=${prov}`, {
-        headers: tenantHeaders(tenantId),
-      });
-      const data = await res.json();
+      const data = await getJson<{ items?: CorreoAgency[] }>(
+        `/api/v1/shipping/correo/agencies?province=${encodeURIComponent(prov)}`,
+        tenantId,
+      );
       setAgencies(data.items ?? []);
     } catch {
       setAgencies([]);
@@ -340,24 +435,49 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           .join(', ')
       : null;
 
-  const continueToPago = () => {
-    setFieldError(null);
-    if (!email.includes('@') || email.trim().length < 5) return setFieldError('Ingresá un email válido.');
+  /** Lo que falta o está mal en cada campo (vacío = todo bien). */
+  const validateFields = (): Partial<Record<BuyerField, string>> => {
+    const errors: Partial<Record<BuyerField, string>> = {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Ingresá un email válido.';
+    if (!name.trim()) errors.name = 'Completá tu nombre.';
+    if (!lastName.trim()) errors.lastName = 'Completá tu apellido.';
+    if (settings.requirePhone && !phone.trim()) errors.phone = 'Completá tu teléfono.';
+    if (settings.requireDocument && !doc.trim()) errors.doc = 'Completá tu DNI o CUIT para poder facturarte.';
+    if (needsAddress) {
+      if (!street.trim()) errors.street = 'Completá la calle.';
+      if (!streetNumber.trim()) errors.streetNumber = 'Completá el número.';
+      if (!city.trim()) errors.city = 'Completá la ciudad.';
+      if (!zip.trim()) errors.zip = 'Completá el código postal.';
+    }
+    return errors;
+  };
+
+  /** Lo que falta elegir del envío, si algo. */
+  const shippingProblem = (): string | null => {
     // Si la tienda envía (métodos propios o correos que cotizan), hay que elegir
     // cómo. Antes solo contaban las opciones ya cotizadas: con solo correos y
     // sin tocar "Calcular" se podía pagar sin envío.
     if (!hasShipping && carriers.length > 0 && quoteOptions.length === 0 && !shippingOptions?.length)
-      return setFieldError('Ingresá tu código postal y tocá «Calcular» para elegir el envío.');
+      return 'Ingresá tu código postal y tocá «Calcular» para elegir el envío.';
     if (!hasShipping && ((shippingOptions?.length ?? 0) > 0 || carriers.length > 0))
-      return setFieldError('Elegí cómo querés recibir tu compra.');
-    if (selectedQuote?.needsAgency && !agencyCode)
-      return setFieldError('Elegí la sucursal de Correo donde querés retirar.');
-    if (!name.trim() || !lastName.trim()) return setFieldError('Completá nombre y apellido.');
-    if (settings.requirePhone && !phone.trim()) return setFieldError('Completá tu teléfono.');
-    if (settings.requireDocument && !doc.trim())
-      return setFieldError('Completá tu DNI o CUIT para poder facturarte.');
-    if (needsAddress && (!street.trim() || !streetNumber.trim() || !city.trim() || !zip.trim()))
-      return setFieldError('Completá la dirección de entrega (calle, número, ciudad y código postal).');
+      return 'Elegí cómo querés recibir tu compra.';
+    if (selectedQuote?.needsAgency && !agencyCode) return 'Elegí la sucursal de Correo donde querés retirar.';
+    return null;
+  };
+
+  const continueToPago = () => {
+    const errors = validateFields();
+    const shipping = shippingProblem();
+    setFieldErrors(errors);
+    const first = FIELD_ORDER.find((k) => errors[k]);
+    if (shipping || first) {
+      setFormError(shipping ?? 'Revisá los datos marcados.');
+      // El foco va adonde hay que corregir: al primer campo mal o al envío.
+      if (first) document.getElementById(fieldId(first))?.focus();
+      else document.getElementById(`${formId}-shipping`)?.focus();
+      return;
+    }
+    setFormError(null);
     setStep('pago');
     window.scrollTo({ top: 0 });
   };
@@ -564,6 +684,22 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   if (result) return <CheckoutResult tenantId={tenantId} kind={result} />;
 
+  if (loadError && !leaving)
+    return (
+      <main className="mx-auto max-w-md px-4 py-20 text-center">
+        <p role="alert" className="opacity-80">
+          No pudimos cargar el checkout. Revisá tu conexión y probá de nuevo.
+        </p>
+        <button
+          type="button"
+          onClick={retryLoad}
+          className="mt-4 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg"
+        >
+          Reintentar
+        </button>
+      </main>
+    );
+
   if (leaving || !hydrated || mode === null || shippingOptions === null)
     return (
       <main className="flex min-h-[50vh] items-center justify-center">
@@ -593,6 +729,44 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
 
   const inputCls = `${INPUT_LIGHT_11} focus:outline-none focus:ring-2 focus:ring-black/30`;
 
+  /**
+   * Un campo del comprador con su etiqueta visible (el placeholder no es una
+   * etiqueta: desaparece al escribir y muchos lectores no lo leen) y su error
+   * al lado, atado al campo. Mismo patrón que el formulario de Payway.
+   */
+  const textField = (
+    key: BuyerField,
+    label: string,
+    extra: InputHTMLAttributes<HTMLInputElement> = {},
+    className = '',
+  ) => {
+    const id = fieldId(key);
+    const err = fieldErrors[key];
+    return (
+      <div className={className}>
+        <label htmlFor={id} className="mb-1 block text-sm font-medium">
+          {label}
+        </label>
+        <input
+          id={id}
+          name={key}
+          value={buyer[key]}
+          onChange={(e) => setField(key, e.target.value)}
+          enterKeyHint="next"
+          aria-invalid={err ? true : undefined}
+          aria-describedby={err ? `${id}-error` : undefined}
+          className={`${inputCls} ${err ? 'border-red-500' : ''}`}
+          {...extra}
+        />
+        {err && (
+          <p id={`${id}-error`} className="mt-1 text-xs text-red-600">
+            {err}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       {/* Indicador de pasos: Carrito → Entrega → Pago */}
@@ -619,289 +793,275 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       <div className={settings.singleColumn ? 'grid gap-8' : 'grid gap-8 lg:grid-cols-[1fr_360px]'}>
         <div>
           {step === 'entrega' ? (
-            <div className="space-y-7">
+            // Un <form> de verdad: Enter en el teclado del celular avanza el paso.
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                continueToPago();
+              }}
+              className="space-y-7"
+            >
               <section>
                 <h2 className="mb-3 text-lg font-bold">Datos de contacto</h2>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="E-mail"
-                  className={inputCls}
-                />
+                {textField('email', 'E-mail', {
+                  type: 'email',
+                  autoComplete: 'email',
+                  inputMode: 'email',
+                  autoCapitalize: 'none',
+                  spellCheck: false,
+                })}
               </section>
 
-              {shippingOptions.length > 0 && (
-                <section>
-                  <h2 className="mb-3 text-lg font-bold">Entrega</h2>
-                  <div className="space-y-2">
-                    {shippingOptions.map((o) => (
-                      <label
-                        key={o.id}
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
-                      >
-                        <input
-                          type="radio"
-                          name="shipping"
-                          checked={shippingId === o.id}
-                          onChange={() => setShippingId(o.id)}
-                          className="mt-1"
-                        />
-                        <span className="flex-1">
-                          <span className="flex items-center gap-1.5 font-semibold">
-                            {o.kind === 'PICKUP' ? (
-                              <Store className="h-4 w-4" />
-                            ) : (
-                              <Truck className="h-4 w-4" />
-                            )}
-                            {o.name}
-                          </span>
-                          {o.description && (
-                            <span className="mt-0.5 block text-xs text-fg-muted">{o.description}</span>
-                          )}
-                          {o.kind === 'PICKUP' && o.pickupAddress && (
-                            <span className="mt-0.5 block text-xs text-fg-muted">{o.pickupAddress}</span>
-                          )}
-                        </span>
-                        <span className="font-semibold">
-                          {o.price.amount === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {carriers.length > 0 && (
-                <section>
-                  {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
-                  <div className="rounded-lg border border-black/15 p-3.5">
-                    <div className="flex items-center gap-1.5 text-sm font-semibold">
-                      <Truck className="h-4 w-4" /> Calculá tu envío
-                    </div>
-                    <p className="mt-0.5 text-xs text-fg-muted">{quoteHint(carriers)}</p>
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      <input
-                        value={quoteCp}
-                        onChange={(e) => setQuoteCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        onKeyDown={(e) => {
-                          if (e.key !== 'Enter') return;
-                          e.preventDefault();
-                          quoteShipping();
-                        }}
-                        placeholder="Código postal"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        aria-label="Código postal para cotizar"
-                        className={`${inputCls} max-w-[140px]`}
-                      />
-                      {carriers.some((k) => CARRIERS[k].needsCityProvince) && (
-                        <>
+              {/* El foco viene acá si falta elegir el envío. */}
+              <div id={`${formId}-shipping`} tabIndex={-1} className="space-y-7 outline-none">
+                {shippingOptions.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-lg font-bold">Entrega</h2>
+                    <div className="space-y-2">
+                      {shippingOptions.map((o) => (
+                        <label
+                          key={o.id}
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition ${shippingId === o.id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                        >
                           <input
-                            value={quoteCity}
-                            onChange={(e) => setQuoteCity(e.target.value)}
-                            placeholder="Ciudad"
-                            autoComplete="address-level2"
-                            aria-label="Ciudad para cotizar"
-                            className={`${inputCls} max-w-[180px]`}
+                            type="radio"
+                            name="shipping"
+                            checked={shippingId === o.id}
+                            onChange={() => setShippingId(o.id)}
+                            className="mt-1"
                           />
-                          <input
-                            value={quoteProvince}
-                            onChange={(e) => setQuoteProvince(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key !== 'Enter') return;
-                              e.preventDefault();
-                              quoteShipping();
-                            }}
-                            placeholder="Provincia"
-                            autoComplete="address-level1"
-                            aria-label="Provincia para cotizar"
-                            className={`${inputCls} max-w-[180px]`}
-                          />
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={quoteShipping}
-                        disabled={quoting}
-                        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
-                      >
-                        {quoting && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
-                      </button>
-                    </div>
-                    {(['cp', ...CARRIER_KEYS] as const).map(
-                      (k) =>
-                        quoteErrors[k] && (
-                          <p key={k} className="mt-2 text-xs text-red-600">
-                            {quoteErrors[k]}
-                          </p>
-                        ),
-                    )}
-
-                    {quoteOptions.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {quoteOptions.map(({ id, option: o }) => (
-                          <label
-                            key={id}
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
-                          >
-                            <input
-                              type="radio"
-                              name="shipping"
-                              checked={shippingId === id}
-                              onChange={() => {
-                                setShippingId(id);
-                                if (o.needsAgency && agencies === null) loadAgencies(agencyProvince);
-                              }}
-                              className="mt-1"
-                            />
-                            <span className="flex-1">
-                              <span className="flex items-center gap-1.5 font-semibold">
-                                {o.pickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
-                                {o.name}
-                              </span>
-                              {o.detail && (
-                                <span className="mt-0.5 block text-xs text-fg-muted">{o.detail}</span>
+                          <span className="flex-1">
+                            <span className="flex items-center gap-1.5 font-semibold">
+                              {o.kind === 'PICKUP' ? (
+                                <Store className="h-4 w-4" />
+                              ) : (
+                                <Truck className="h-4 w-4" />
                               )}
+                              {o.name}
                             </span>
-                            <span className="font-semibold">
-                              {formatMoney(o.price.amount, o.price.currency)}
-                            </span>
-                          </label>
-                        ))}
-
-                        {selectedQuote?.needsAgency && (
-                          <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
-                            <div className="text-xs font-semibold">¿En qué sucursal retirás?</div>
-                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                              <select
-                                value={agencyProvince}
-                                onChange={(e) => {
-                                  setAgencyProvince(e.target.value);
-                                  loadAgencies(e.target.value);
-                                }}
-                                aria-label="Provincia"
-                                className={`${inputCls} appearance-none`}
-                              >
-                                {CORREO_PROVINCES.map(([code, label]) => (
-                                  <option key={code} value={code}>
-                                    {label}
-                                  </option>
-                                ))}
-                              </select>
-                              <select
-                                value={agencyCode ?? ''}
-                                onChange={(e) => setAgencyCode(e.target.value || null)}
-                                aria-label="Sucursal"
-                                className={`${inputCls} appearance-none`}
-                              >
-                                <option value="">
-                                  {agencies === null ? 'Cargando sucursales…' : 'Elegí la sucursal'}
-                                </option>
-                                {(agencies ?? []).map((a) => (
-                                  <option key={a.code} value={a.code}>
-                                    {a.name ?? a.code}
-                                    {a.address ? ` — ${a.address}` : ''}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            {agencies !== null && agencies.length === 0 && (
-                              <p className="mt-1.5 text-xs text-red-600">
-                                No encontramos sucursales en esa provincia. Probá con otra o elegí envío a
-                                domicilio.
-                              </p>
+                            {o.description && (
+                              <span className="mt-0.5 block text-xs text-fg-muted">{o.description}</span>
                             )}
-                          </div>
-                        )}
+                            {o.kind === 'PICKUP' && o.pickupAddress && (
+                              <span className="mt-0.5 block text-xs text-fg-muted">{o.pickupAddress}</span>
+                            )}
+                          </span>
+                          <span className="font-semibold">
+                            {o.price.amount === 0 ? 'Gratis' : formatMoney(o.price.amount, o.price.currency)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {carriers.length > 0 && (
+                  <section>
+                    {shippingOptions.length === 0 && <h2 className="mb-3 text-lg font-bold">Entrega</h2>}
+                    <div className="rounded-lg border border-black/15 p-3.5">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Truck className="h-4 w-4" /> Calculá tu envío
                       </div>
-                    )}
-                  </div>
-                </section>
-              )}
+                      <p className="mt-0.5 text-xs text-fg-muted">{quoteHint(carriers)}</p>
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        <input
+                          value={quoteCp}
+                          onChange={(e) => setQuoteCp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            quoteShipping();
+                          }}
+                          placeholder="Código postal"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          aria-label="Código postal para cotizar"
+                          className={`${inputCls} max-w-[140px]`}
+                        />
+                        {carriers.some((k) => CARRIERS[k].needsCityProvince) && (
+                          <>
+                            <input
+                              value={quoteCity}
+                              onChange={(e) => setQuoteCity(e.target.value)}
+                              placeholder="Ciudad"
+                              autoComplete="address-level2"
+                              aria-label="Ciudad para cotizar"
+                              className={`${inputCls} max-w-[180px]`}
+                            />
+                            <input
+                              value={quoteProvince}
+                              onChange={(e) => setQuoteProvince(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                e.preventDefault();
+                                quoteShipping();
+                              }}
+                              placeholder="Provincia"
+                              autoComplete="address-level1"
+                              aria-label="Provincia para cotizar"
+                              className={`${inputCls} max-w-[180px]`}
+                            />
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={quoteShipping}
+                          disabled={quoting}
+                          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-black/20 px-4 text-sm font-semibold disabled:opacity-60"
+                        >
+                          {quoting && <Loader2 className="h-4 w-4 animate-spin" />} Calcular
+                        </button>
+                      </div>
+                      {(['cp', ...CARRIER_KEYS] as const).map(
+                        (k) =>
+                          quoteErrors[k] && (
+                            <p key={k} className="mt-2 text-xs text-red-600">
+                              {quoteErrors[k]}
+                            </p>
+                          ),
+                      )}
+
+                      {quoteOptions.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {quoteOptions.map(({ id, option: o }) => (
+                            <label
+                              key={id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${shippingId === id ? 'border-black bg-black/[0.03] ring-1 ring-black' : 'border-black/15 hover:border-black/30'}`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={shippingId === id}
+                                onChange={() => {
+                                  setShippingId(id);
+                                  if (o.needsAgency && agencies === null) loadAgencies(agencyProvince);
+                                }}
+                                className="mt-1"
+                              />
+                              <span className="flex-1">
+                                <span className="flex items-center gap-1.5 font-semibold">
+                                  {o.pickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                                  {o.name}
+                                </span>
+                                {o.detail && (
+                                  <span className="mt-0.5 block text-xs text-fg-muted">{o.detail}</span>
+                                )}
+                              </span>
+                              <span className="font-semibold">
+                                {formatMoney(o.price.amount, o.price.currency)}
+                              </span>
+                            </label>
+                          ))}
+
+                          {selectedQuote?.needsAgency && (
+                            <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
+                              <div className="text-xs font-semibold">¿En qué sucursal retirás?</div>
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <select
+                                  value={agencyProvince}
+                                  onChange={(e) => {
+                                    setAgencyProvince(e.target.value);
+                                    loadAgencies(e.target.value);
+                                  }}
+                                  aria-label="Provincia"
+                                  className={`${inputCls} appearance-none`}
+                                >
+                                  {CORREO_PROVINCES.map(([code, label]) => (
+                                    <option key={code} value={code}>
+                                      {label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={agencyCode ?? ''}
+                                  onChange={(e) => setAgencyCode(e.target.value || null)}
+                                  aria-label="Sucursal"
+                                  className={`${inputCls} appearance-none`}
+                                >
+                                  <option value="">
+                                    {agencies === null ? 'Cargando sucursales…' : 'Elegí la sucursal'}
+                                  </option>
+                                  {(agencies ?? []).map((a) => (
+                                    <option key={a.code} value={a.code}>
+                                      {a.name ?? a.code}
+                                      {a.address ? ` — ${a.address}` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              {agencies !== null && agencies.length === 0 && (
+                                <p className="mt-1.5 text-xs text-red-600">
+                                  No encontramos sucursales en esa provincia. Probá con otra o elegí envío a
+                                  domicilio.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+              </div>
 
               <section>
                 <h2 className="mb-3 text-lg font-bold">
                   {needsAddress ? 'Datos del destinatario' : 'Tus datos'}
                 </h2>
-                <div className="grid gap-2.5 sm:grid-cols-2">
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Nombre"
-                    className={inputCls}
-                  />
-                  <input
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Apellido"
-                    className={inputCls}
-                  />
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={settings.requirePhone ? 'Teléfono' : 'Teléfono (opcional)'}
-                    className={inputCls}
-                  />
-                  <input
-                    value={doc}
-                    onChange={(e) => setDoc(e.target.value)}
-                    placeholder={
-                      settings.requireDocument ? 'DNI o CUIT (facturación)' : 'DNI o CUIT (opcional)'
-                    }
-                    className={inputCls}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {textField('name', 'Nombre', { autoComplete: 'given-name', autoCapitalize: 'words' })}
+                  {textField('lastName', 'Apellido', {
+                    autoComplete: 'family-name',
+                    autoCapitalize: 'words',
+                  })}
+                  {textField('phone', settings.requirePhone ? 'Teléfono' : 'Teléfono (opcional)', {
+                    type: 'tel',
+                    inputMode: 'tel',
+                    autoComplete: 'tel',
+                  })}
+                  {textField(
+                    'doc',
+                    settings.requireDocument ? 'DNI o CUIT (facturación)' : 'DNI o CUIT (opcional)',
+                    { inputMode: 'numeric', autoComplete: 'off' },
+                  )}
                 </div>
                 {needsAddress && (
-                  <div className="mt-2.5 grid gap-2.5">
-                    <div className="grid gap-2.5 sm:grid-cols-[1fr_140px]">
-                      <input
-                        value={street}
-                        onChange={(e) => setStreet(e.target.value)}
-                        placeholder="Calle"
-                        className={inputCls}
-                      />
-                      <input
-                        value={streetNumber}
-                        onChange={(e) => setStreetNumber(e.target.value)}
-                        placeholder="Número"
-                        className={inputCls}
-                      />
+                  <div className="mt-3 grid gap-3">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                      {textField('street', 'Calle', { autoComplete: 'address-line1' })}
+                      {/* El número va aparte (lo pide el correo); el autocompletado
+                          del navegador lo trae junto con la calle. */}
+                      {textField('streetNumber', 'Número', { inputMode: 'numeric', autoComplete: 'off' })}
                     </div>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      <input
-                        value={apartment}
-                        onChange={(e) => setApartment(e.target.value)}
-                        placeholder="Departamento (opcional)"
-                        className={inputCls}
-                      />
-                      <input
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="Ciudad"
-                        className={inputCls}
-                      />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {textField('apartment', 'Departamento (opcional)', { autoComplete: 'address-line2' })}
+                      {textField('city', 'Ciudad', { autoComplete: 'address-level2' })}
                     </div>
-                    <input
-                      value={zip}
-                      onChange={(e) => setZip(e.target.value)}
-                      placeholder="Código Postal"
-                      className={`${inputCls} sm:max-w-[200px]`}
-                    />
+                    {textField(
+                      'zip',
+                      'Código Postal',
+                      { inputMode: 'numeric', autoComplete: 'postal-code', enterKeyHint: 'go' },
+                      'sm:max-w-[200px]',
+                    )}
                   </div>
                 )}
               </section>
 
-              {fieldError && <p className="text-sm text-red-600">{fieldError}</p>}
+              {formError && (
+                <p role="alert" className="text-sm font-medium text-red-600">
+                  {formError}
+                </p>
+              )}
 
               <button
-                onClick={continueToPago}
+                type="submit"
                 disabled={blocked}
                 className="w-full rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-xs"
               >
                 Continuar para el pago
               </button>
-            </div>
+            </form>
           ) : (
             <div className="space-y-5">
               {/* Resumen de lo elegido, con Cambiar */}
@@ -960,6 +1120,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                         maxLength={500}
                         rows={2}
                         placeholder={settings.customerNoteLabel}
+                        aria-label={settings.customerNoteLabel}
                         className="flex-1 rounded-md border border-black/15 bg-white p-2 text-sm text-black"
                       />
                     ) : (
@@ -1105,6 +1266,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                   placeholder="Cupón de descuento"
+                  aria-label="Cupón de descuento"
                   className={INPUT_LIGHT_10}
                 />
                 <button

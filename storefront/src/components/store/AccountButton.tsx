@@ -218,6 +218,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Nombre"
+                    aria-label="Nombre"
+                    autoComplete="name"
                     required
                     className={INPUT_THEMED_11}
                   />
@@ -227,6 +229,10 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
+                  aria-label="Email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   required
                   className={INPUT_THEMED_11}
                 />
@@ -236,6 +242,10 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Contraseña"
+                    aria-label="Contraseña"
+                    // Que el gestor de contraseñas ofrezca la guardada al entrar
+                    // y una nueva (y la guarde) al registrarse.
+                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                     required
                     minLength={8}
                     className={INPUT_THEMED_11}

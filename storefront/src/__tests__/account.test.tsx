@@ -81,6 +81,15 @@ describe('entrar a la cuenta', () => {
     expect(screen.getByRole('button', { name: 'Mi cuenta' })).toHaveTextContent(me.name.split(' ')[0]!);
   });
 
+  it('el gestor de contraseñas sabe qué es cada campo: la guardada al entrar, una nueva al registrarse', async () => {
+    const { user } = await openModal();
+    expect(screen.getByLabelText('Email')).toHaveAttribute('autocomplete', 'email');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
+    await user.click(screen.getByRole('button', { name: 'Registrate' }));
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('autocomplete', 'name');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+  });
+
   it('una clave incorrecta muestra el motivo de la API', async () => {
     api.on('POST', '/api/v1/shop/auth/login', { detail: 'Email o contraseña incorrectos.' }, 401);
     const { user, submit } = await openModal();

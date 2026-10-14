@@ -9,12 +9,13 @@
  * tokenizan la tarjeta contra sus servidores) se reemplazan por un botón que
  * entrega lo mismo que ellos: acá se prueba qué hace el checkout con el token.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CheckoutClient } from '../components/store/CheckoutClient';
 import { cartStorageKey, couponStorageKey, type CartLine } from '../components/store/cart';
+import { buyerStorageKey } from '../lib/cart-storage';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
@@ -140,19 +141,33 @@ function offline(part: string) {
   );
 }
 
-const field = (placeholder: string | RegExp) => screen.getByPlaceholderText(placeholder);
+/** Los campos se buscan por su etiqueta, como los encuentra un lector de pantalla. */
+const field = (label: string | RegExp) => screen.getByLabelText(label);
 const posted = (suffix: string) =>
   api.calls
     .filter((c) => c.method === 'POST' && c.path.endsWith(suffix))
     .map((c) => c.body as Record<string, unknown>);
 
+const PAYWAY_CONFIG = {
+  enabled: true,
+  publicKey: 'pk',
+  baseUrl: 'https://pw',
+  siteId: '1',
+  installmentOptions: [1],
+};
+
 /** Completa el paso de entrega con retiro en el local y pasa al pago. */
 async function deliverAndContinue(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(field('E-mail'), 'ana@example.com');
+  // clear: el comprador puede venir con datos guardados de antes.
+  const fill = async (label: string | RegExp, value: string) => {
+    await user.clear(field(label));
+    await user.type(field(label), value);
+  };
+  await fill('E-mail', 'ana@example.com');
   await user.click(screen.getByRole('radio', { name: new RegExp(pickup.name) }));
-  await user.type(field('Nombre'), 'Ana');
-  await user.type(field('Apellido'), 'García');
-  await user.type(field(/^Teléfono/), '1155554444');
+  await fill('Nombre', 'Ana');
+  await fill('Apellido', 'García');
+  await fill(/^Teléfono/, '1155554444');
   await user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
   await settle(1);
 }
@@ -180,13 +195,43 @@ describe('checkout: antes de empezar', () => {
     expect(screen.getByText(/todavía no tiene los pagos habilitados/)).toBeInTheDocument();
   });
 
-  it('si la configuración de pagos no responde, sigue con Mercado Pago Pro', async () => {
+  it('si la configuración del comercio o Payway no responden, sigue con lo de fábrica y Mercado Pago', async () => {
     store();
-    offline('public-config');
     offline('/checkout-settings');
+    offline('/payway/public-config');
     const user = await open();
     await deliverAndContinue(user);
     expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      'la configuración de pagos',
+      '/api/v1/payments/mercadopago/public-config',
+      { connected: true, checkoutMode: 'PRO' },
+    ],
+    ['los envíos', '/api/v1/shipping/methods', fixture('/api/v1/shipping/methods')],
+  ])('si %s da error, lo dice (no "sin pagos" ni "sin envío") y deja reintentar', async (_, path, ok) => {
+    store();
+    api.on('GET', path, { title: 'boom' }, 500);
+    const user = await open();
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar el checkout');
+    expect(screen.queryByText(/todavía no tiene los pagos habilitados/)).not.toBeInTheDocument();
+
+    api.on('GET', path, ok);
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await settle(3);
+    expect(screen.getByRole('button', { name: 'Continuar para el pago' })).toBeInTheDocument();
+  });
+
+  it('cada pedido inicial lleva un tope de espera (el spinner no gira para siempre)', async () => {
+    store();
+    await open();
+    const initial = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => /public-config|shipping\/methods|checkout-settings/.test(String(url)));
+    expect(initial.length).toBe(4);
+    for (const [, init] of initial) expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 });
 
@@ -239,36 +284,46 @@ describe('checkout: precios y stock de hoy', () => {
 });
 
 describe('checkout: paso de entrega', () => {
-  it('valida cada dato en orden antes de pasar al pago', async () => {
+  it('marca cada dato al lado de su campo, enfoca el primero y Enter avanza', async () => {
     store({ methods: { items: [DELIVERY] }, settings: { requireDocument: true } });
     const user = await open();
     const go = () => user.click(screen.getByRole('button', { name: 'Continuar para el pago' }));
-    const says = (text: string) => expect(screen.getByText(text)).toBeInTheDocument();
+    const wrong = (label: string | RegExp, message: string) => {
+      expect(field(label)).toHaveAttribute('aria-invalid', 'true');
+      expect(field(label)).toHaveAccessibleDescription(message);
+    };
 
     await go();
-    says('Ingresá un email válido.');
+    // El envío no es un campo: va en el aviso general.
+    expect(screen.getByRole('alert')).toHaveTextContent('Elegí cómo querés recibir tu compra.');
+    wrong('E-mail', 'Ingresá un email válido.');
+    wrong('Nombre', 'Completá tu nombre.');
+    wrong('Apellido', 'Completá tu apellido.');
+    wrong('Teléfono', 'Completá tu teléfono.');
+    wrong(/DNI/, 'Completá tu DNI o CUIT para poder facturarte.');
+    expect(field('E-mail')).toHaveFocus();
+
+    // Corregir un campo le saca la marca en el momento.
     await user.type(field('E-mail'), 'ana@example.com');
-    await go();
-    says('Elegí cómo querés recibir tu compra.');
+    expect(field('E-mail')).not.toHaveAttribute('aria-invalid');
     await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
-    await go();
-    says('Completá nombre y apellido.');
     await user.type(field('Nombre'), 'Ana');
     await user.type(field('Apellido'), 'García');
-    await go();
-    says('Completá tu teléfono.');
     await user.type(field('Teléfono'), '1155554444');
-    await go();
-    says('Completá tu DNI o CUIT para poder facturarte.');
     await user.type(field(/DNI/), '30123456');
     await go();
-    says('Completá la dirección de entrega (calle, número, ciudad y código postal).');
+    expect(screen.getByRole('alert')).toHaveTextContent('Revisá los datos marcados.');
+    wrong('Calle', 'Completá la calle.');
+    wrong('Número', 'Completá el número.');
+    wrong('Ciudad', 'Completá la ciudad.');
+    wrong('Código Postal', 'Completá el código postal.');
+    expect(field('Calle')).toHaveFocus();
+
     await user.type(field('Calle'), 'Corrientes');
     await user.type(field('Número'), '1234');
     await user.type(field('Departamento (opcional)'), '3B');
     await user.type(field('Ciudad'), 'CABA');
-    await user.type(field('Código Postal'), '1043');
-    await go();
+    await user.type(field('Código Postal'), '1043{Enter}');
 
     // En el pago: la entrega elegida, el costo y el total con envío.
     expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeInTheDocument();
@@ -278,6 +333,57 @@ describe('checkout: paso de entrega', () => {
     // Volver a la entrega conserva lo cargado.
     await user.click(screen.getAllByRole('button', { name: /Cambiar|Editar|Entrega/ })[0]!);
     expect(field('E-mail')).toHaveValue('ana@example.com');
+  });
+
+  it('los campos piden el teclado y el autocompletado que corresponden', async () => {
+    store({ methods: { items: [DELIVERY] } });
+    const user = await open();
+    await user.click(screen.getByRole('radio', { name: /Envío en moto/ }));
+    const attrs = (label: string | RegExp) => {
+      const el = field(label);
+      return [
+        el.getAttribute('type') ?? 'text',
+        el.getAttribute('autocomplete'),
+        el.getAttribute('inputmode'),
+      ];
+    };
+    expect(attrs('E-mail')).toEqual(['email', 'email', 'email']);
+    expect(attrs('Nombre')).toEqual(['text', 'given-name', null]);
+    expect(attrs('Apellido')).toEqual(['text', 'family-name', null]);
+    expect(attrs('Teléfono')).toEqual(['tel', 'tel', 'tel']);
+    expect(attrs('Calle')).toEqual(['text', 'address-line1', null]);
+    expect(attrs('Número')).toEqual(['text', 'off', 'numeric']);
+    expect(attrs('Departamento (opcional)')).toEqual(['text', 'address-line2', null]);
+    expect(attrs('Ciudad')).toEqual(['text', 'address-level2', null]);
+    expect(attrs('Código Postal')).toEqual(['text', 'postal-code', 'numeric']);
+  });
+
+  it('lo escrito sobrevive a una recarga (no los datos de pago) y se borra al comprar', async () => {
+    store();
+    let user = await open();
+    await user.type(field('E-mail'), 'ana@example.com');
+    await user.type(field('Nombre'), 'Ana');
+    cleanup();
+
+    // Recarga (o vuelta de un rechazo de Mercado Pago): sigue ahí.
+    user = await open();
+    expect(field('E-mail')).toHaveValue('ana@example.com');
+    expect(field('Nombre')).toHaveValue('Ana');
+    expect(JSON.parse(sessionStorage.getItem(buyerStorageKey(fixtureTenantId))!)).toMatchObject({
+      email: 'ana@example.com',
+      name: 'Ana',
+    });
+
+    // Comprado con Payway: se va con el carrito.
+    store({ payway: PAYWAY_CONFIG });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { orderId: ORDER, status: 'APPROVED' });
+    cleanup();
+    user = await open();
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
+    await user.click(screen.getByRole('button', { name: /con Payway/ }));
+    await settle(3);
+    expect(sessionStorage.getItem(buyerStorageKey(fixtureTenantId))).toBeNull();
   });
 });
 
@@ -610,7 +716,7 @@ describe('checkout: envío cotizado', () => {
     // El CP y la ciudad de la cotización completan la dirección.
     await user.click(screen.getByRole('radio', { name: /Correo a domicilio/ }));
     expect(field('Código Postal')).toHaveValue('1043');
-    expect(screen.getAllByPlaceholderText('Ciudad').at(-1)).toHaveValue('CABA');
+    expect(field('Ciudad')).toHaveValue('CABA');
 
     // Retiro en sucursal de Correo: hay que elegir la sucursal.
     await user.click(screen.getByRole('radio', { name: /Correo a sucursal/ }));
@@ -651,7 +757,7 @@ describe('checkout: envío cotizado', () => {
     await user.click(screen.getByRole('button', { name: /Calcular/ }));
     await settle(2);
     await user.click(screen.getByRole('radio', { name: /Andreani a sucursal/ }));
-    expect(screen.queryByPlaceholderText('Calle')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Calle')).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /Andreani a domicilio/ }));
     expect(field('Calle')).toBeInTheDocument();
   });
