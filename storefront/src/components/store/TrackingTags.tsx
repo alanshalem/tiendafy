@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { setTrackSink, valueOf, type FunnelEvent } from '@/lib/track';
 
 interface TrackingConfig {
   requireConsent: boolean;
@@ -67,6 +68,32 @@ const consentKey = (tenantId: string) => `tiendafy.consent.${tenantId}`;
 
 /** Lo que el checkout dejó anotado antes de irse a pagar, para medir la venta. */
 const PURCHASE_KEY = 'tiendafy.purchase';
+
+/**
+ * Órdenes ya medidas en este navegador. La anotación de la pestaña se borra al
+ * medir, pero esto cubre lo que ella no: la misma orden anotada de nuevo (un
+ * reintento) o abierta en otra pestaña. Una venta contada dos veces infla el
+ * retorno de la publicidad, que es justo lo que el comercio mira para decidir.
+ */
+const PURCHASE_SENT_KEY = 'tiendafy.purchase.sent';
+
+function alreadySent(orderId: string): boolean {
+  try {
+    const sent = JSON.parse(localStorage.getItem(PURCHASE_SENT_KEY) ?? '[]') as string[];
+    if (sent.includes(orderId)) return true;
+    localStorage.setItem(PURCHASE_SENT_KEY, JSON.stringify([...sent, orderId].slice(-20)));
+  } catch {
+    /* sin almacenamiento: queda la anotación de la pestaña como único freno */
+  }
+  return false;
+}
+
+// Nombres de Meta para los mismos pasos del embudo.
+const META_EVENT: Record<FunnelEvent['type'], string> = {
+  view_item: 'ViewContent',
+  add_to_cart: 'AddToCart',
+  begin_checkout: 'InitiateCheckout',
+};
 
 interface StashedPurchase {
   orderId: string;
@@ -165,6 +192,8 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
   const [config, setConfig] = useState<TrackingConfig | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [asked, setAsked] = useState(false);
+  // La configuración ya respondió (bien o mal): recién ahí se sabe si se mide.
+  const [ready, setReady] = useState(false);
   const loaded = useRef(false);
   const lastPath = useRef<string | null>(null);
 
@@ -186,7 +215,8 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
     fetch(`${API}/api/v1/tracking/`, { headers: tenantHeaders(tenantId) })
       .then((r) => r.json())
       .then((d: TrackingConfig) => alive && setConfig(d))
-      .catch(() => alive && setConfig(null));
+      .catch(() => alive && setConfig(null))
+      .finally(() => alive && setReady(true));
 
     return () => {
       alive = false;
@@ -238,7 +268,7 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
     } catch {
       return;
     }
-    if (!stash || typeof stash.value !== 'number') return;
+    if (!stash || typeof stash.value !== 'number' || alreadySent(stash.orderId)) return;
 
     const win = w();
     if (ga4 || ads) {
@@ -250,6 +280,49 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
     }
     if (meta) win.fbq?.('track', 'Purchase', { value: stash.value, currency: stash.currency });
   }, [pathname, allowed, ga4, ads, meta]);
+
+  // El embudo (ver lib/track): ficha vista, agregado al carrito, inicio de la
+  // compra. Mismas reglas que todo lo demás: con permiso se manda; mientras
+  // no se sabe (o falta la respuesta del aviso) se encola; con un "no", en la
+  // página de pago o sin herramientas configuradas, se descarta.
+  const waiting =
+    !ready || (config?.requireConsent === true && decision === null && hasAny && !isPaymentPage(pathname));
+  useEffect(() => {
+    if (allowed && loaded.current) {
+      setTrackSink((e) => {
+        const win = w();
+        const items = e.type === 'begin_checkout' ? e.items : [e.item];
+        const currency = items[0]?.currency ?? 'ARS';
+        const value = valueOf(items);
+        if (ga4 || ads) {
+          win.gtag?.('event', e.type, {
+            currency,
+            value,
+            items: items.map((i) => ({
+              item_id: i.id,
+              item_name: i.name,
+              ...(i.variant ? { item_variant: i.variant } : {}),
+              price: i.price / 100,
+              quantity: i.quantity,
+            })),
+          });
+        }
+        if (meta) {
+          win.fbq?.('track', META_EVENT[e.type], {
+            content_ids: items.map((i) => i.id),
+            content_type: 'product',
+            contents: items.map((i) => ({ id: i.id, quantity: i.quantity })),
+            value,
+            currency,
+            ...(e.type === 'begin_checkout' ? { num_items: items.reduce((s, i) => s + i.quantity, 0) } : {}),
+          });
+        }
+      });
+    } else {
+      setTrackSink(waiting ? null : () => {});
+    }
+    return () => setTrackSink(null);
+  }, [allowed, waiting, ga4, ads, meta]);
 
   const decide = useCallback(
     (next: Decision) => {

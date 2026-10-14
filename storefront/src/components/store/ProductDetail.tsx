@@ -14,7 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
-import { useRouter } from 'next/navigation';
+import { track } from '@/lib/track';
 import { useCart } from './cart';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
@@ -94,9 +94,8 @@ export function ProductDetail({
   const cfg = live?.productDetail ?? config;
   const logos = live?.footer.paymentLogos ?? paymentLogos;
   const waPhone = (live?.whatsappButton.phone ?? whatsappPhone ?? '').replace(/\D/g, '');
-  const router = useRouter();
   const href = usePreviewHref();
-  const { add, setOpen } = useCart();
+  const { add, setOpen, beginCheckout } = useCart();
   const hasOptions = options.length > 0;
 
   // Unidades de una variante: la suya si vino; si no, lo que se deduce del total.
@@ -114,6 +113,25 @@ export function ProductDetail({
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [shared, setShared] = useState(false);
+
+  // Ficha vista, para los píxeles (ver lib/track): una vez por producto, con
+  // la variante con la que abre la ficha.
+  const viewedId = initial?.id;
+  useEffect(() => {
+    if (!initial) return;
+    track({
+      type: 'view_item',
+      item: {
+        id: initial.id,
+        name,
+        variant: initial.optionValues.join(' / ') || undefined,
+        price: initial.price.amount,
+        currency: initial.price.currency,
+        quantity: 1,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedId, name]);
 
   if (variants.length === 0) return null;
 
@@ -159,8 +177,10 @@ export function ProductDetail({
   };
 
   // Comprar ahora = agregar y saltar directo al checkout (un paso menos que el drawer).
+  // Con carga completa (beginCheckout): con el router, la página de pago
+  // quedaba con los scripts de medición que había cargado la ficha.
   const buyNow = () => {
-    if (addToCart()) router.push(href('/checkout'));
+    if (addToCart()) beginCheckout(href('/checkout'));
   };
 
   const share = async () => {

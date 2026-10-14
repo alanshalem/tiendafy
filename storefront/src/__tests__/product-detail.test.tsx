@@ -11,9 +11,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductDetail } from '../components/store/ProductDetail';
 import { cartStorageKey, type CartLine } from '../components/store/cart';
 import { fixtureTenantId, mockApi } from '../test/api';
-import { nav } from '../test/next';
 import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
+import { setTrackSink, type FunnelEvent } from '../lib/track';
+
+// jsdom no navega: se registra adónde quiso ir "Comprar ahora".
+const browser = vi.hoisted(() => ({ goTo: vi.fn() }));
+vi.mock('@/lib/navigation', () => ({ hardNavigate: browser.goTo }));
 
 const money = (amount: number) => ({ amount, currency: 'ARS' });
 const variant = (id: string, sku: string, optionValues: string[], amount = 100_000) => ({
@@ -76,6 +80,7 @@ let crashes: () => unknown[][];
 beforeEach(() => {
   mockApi();
   crashes = watchCrashes();
+  browser.goTo.mockClear();
 });
 afterEach(() => {
   expect(crashes()).toEqual([]);
@@ -135,7 +140,7 @@ describe('ficha de producto: comprar', () => {
     for (const b of off) expect(b).toBeDisabled();
     await user.click(off[0]!);
     expect(cart()).toEqual([]);
-    expect(nav.router.push).not.toHaveBeenCalled();
+    expect(browser.goTo).not.toHaveBeenCalled();
 
     // Volver a una combinación que existe habilita la compra; restar no baja de 1.
     await user.click(screen.getByRole('button', { name: 'Rojo' }));
@@ -143,7 +148,8 @@ describe('ficha de producto: comprar', () => {
     await user.click(screen.getByRole('button', { name: 'Comprar ahora' }));
     await settle(1);
     expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-m', quantity: 1 });
-    expect(nav.router.push).toHaveBeenCalledWith('/checkout');
+    // Con carga completa: la página de pago no hereda scripts de la ficha.
+    expect(browser.goTo).toHaveBeenCalledWith('/checkout');
   });
 
   it('sin opciones, las variantes se eligen de una lista', async () => {
@@ -152,6 +158,26 @@ describe('ficha de producto: comprar', () => {
     await user.click(screen.getByRole('button', { name: 'Comprar ahora' }));
     await settle(1);
     expect(cart()[0]).toMatchObject({ variantId: 'v-rojo-m', variantLabel: 'Única' });
+  });
+
+  it('mide la ficha vista, lo agregado y el inicio de la compra (para los píxeles)', async () => {
+    const events: FunnelEvent[] = [];
+    setTrackSink(() => {}); // descarta lo encolado por los tests anteriores
+    setTrackSink((e) => events.push(e));
+    try {
+      const { user } = await show();
+      await user.click(screen.getAllByRole('button', { name: 'Agregar al carrito' })[0]!);
+      await user.click(screen.getByRole('button', { name: 'Comprar ahora' }));
+    } finally {
+      setTrackSink(null);
+    }
+    const item = { id: 'v-rojo-s', name: 'Remera', variant: 'Rojo / S', price: 100_000, currency: 'ARS' };
+    expect(events).toEqual([
+      { type: 'view_item', item: { ...item, quantity: 1 } },
+      { type: 'add_to_cart', item: { ...item, quantity: 1 } },
+      { type: 'add_to_cart', item: { ...item, quantity: 1 } },
+      { type: 'begin_checkout', items: [{ ...item, quantity: 2 }] },
+    ]);
   });
 
   it('sin variantes no muestra nada', async () => {

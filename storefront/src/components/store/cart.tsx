@@ -6,6 +6,8 @@ import { formatMoney } from '@tiendafy/types';
 
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { CART_SYNC_EVENT, cartStorageKey, couponStorageKey } from '@/lib/cart-storage';
+import { hardNavigate } from '@/lib/navigation';
+import { track, type TrackItem } from '@/lib/track';
 import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
 import { usePreviewHref } from './preview';
@@ -63,7 +65,18 @@ interface CartContextValue {
   blocked: boolean;
   /** Unidades por variante según la última consulta (null = no se consultó). */
   availability: Availability | null;
+  /** Ir a pagar: mide el inicio de la compra y entra al checkout con carga completa. */
+  beginCheckout: (url?: string) => void;
 }
+
+const toTrackItem = (l: Omit<CartLine, 'quantity'>, quantity: number): TrackItem => ({
+  id: l.variantId,
+  name: l.productName,
+  variant: l.variantLabel,
+  price: l.priceAmount,
+  currency: l.currency,
+  quantity,
+});
 
 const CartContext = createContext<CartContextValue | null>(null);
 
@@ -157,7 +170,14 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       issues,
       blocked: Object.keys(issues).length > 0,
       availability,
-      add: (line, qty = 1) =>
+      beginCheckout: (url = '/checkout') => {
+        track({ type: 'begin_checkout', items: current.current.map((l) => toTrackItem(l, l.quantity)) });
+        // Carga completa a propósito: la página de pago no hereda los scripts
+        // de medición que cargó la anterior (ver lib/navigation).
+        hardNavigate(url);
+      },
+      add: (line, qty = 1) => {
+        track({ type: 'add_to_cart', item: toTrackItem(line, qty) });
         mutate((prev) => {
           const existing = prev.find((l) => l.variantId === line.variantId);
           if (existing) {
@@ -166,7 +186,8 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
             );
           }
           return [...prev, { ...line, quantity: qty }];
-        }),
+        });
+      },
       setQty: (variantId, qty) =>
         mutate((prev) =>
           qty <= 0
@@ -252,6 +273,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
     issues,
     blocked,
     availability,
+    beginCheckout,
   } = useCart();
   const threshold = cart?.freeShippingThreshold ?? 0;
   const remaining = Math.max(0, threshold - totalAmount);
@@ -549,9 +571,7 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                 </p>
               )}
               <button
-                onClick={() => {
-                  window.location.href = '/checkout';
-                }}
+                onClick={() => beginCheckout()}
                 disabled={blocked}
                 className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-fg disabled:cursor-not-allowed disabled:opacity-50"
               >
