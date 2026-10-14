@@ -649,6 +649,68 @@
           "kind": "boolean"
         }
       }
+    },
+    "icon-columns": {
+      "label": "Íconos con texto",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "items": {
+          "kind": "items",
+          "max": 12,
+          "fields": {
+            "icon": {
+              "kind": "enum",
+              "values": [
+                "shipping",
+                "card",
+                "security",
+                "gift",
+                "support",
+                "returns",
+                "heart",
+                "cart",
+                "chat",
+                "phone",
+                "mail",
+                "mapPin",
+                "user",
+                "search",
+                "none"
+              ]
+            },
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "text": {
+              "kind": "text",
+              "max": 2000
+            },
+            "link": {
+              "kind": "url"
+            }
+          }
+        },
+        "columnsDesktop": {
+          "kind": "number",
+          "min": 2,
+          "max": 6
+        },
+        "mobile": {
+          "kind": "enum",
+          "values": [
+            "1",
+            "2",
+            "swipe"
+          ]
+        }
+      }
     }
   },
   "defaultConfig": {

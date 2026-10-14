@@ -20,6 +20,7 @@ import { PromoPopupEditor } from './promo-popup';
 import { RichTextSectionEditor } from './rich-text';
 import { CategoryListEditor } from './category-list';
 import { VideoEditor } from './video';
+import { IconColumnsEditor } from './icon-columns';
 
 /**
  * Un editor por tipo de sección (espeja los renderers del storefront). El tipo
@@ -48,4 +49,5 @@ export const SECTION_EDITORS: { [K in SectionType]: ComponentType<SectionEditorP
   'rich-text': RichTextSectionEditor,
   'category-list': CategoryListEditor,
   video: VideoEditor,
+  'icon-columns': IconColumnsEditor,
 };

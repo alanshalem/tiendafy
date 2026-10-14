@@ -625,17 +625,15 @@ describe('video', () => {
     unmount();
 
     play.mockClear();
-    const reduce = vi
-      .spyOn(window, 'matchMedia')
-      .mockImplementation(
-        (q) =>
-          ({
-            matches: q.includes('reduce'),
-            media: q,
-            addEventListener() {},
-            removeEventListener() {},
-          }) as never,
-      );
+    const reduce = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q) =>
+        ({
+          matches: q.includes('reduce'),
+          media: q,
+          addEventListener() {},
+          removeEventListener() {},
+        }) as never,
+    );
     render(ui(mp4));
     expect(play).not.toHaveBeenCalled();
     reduce.mockRestore();
@@ -654,5 +652,48 @@ describe('video', () => {
     expect(container).toBeEmptyDOMElement();
     rerender(ui(bad, { preview: true }));
     expect(screen.getByText('Ese link no es de un video de YouTube o Vimeo.')).toBeInTheDocument();
+  });
+});
+
+describe('íconos con texto', () => {
+  const items = [
+    { icon: 'shipping', title: 'Envíos', text: 'A todo el país', link: '/paginas/envios' },
+    { icon: 'none', image: 'https://cdn.example.com/logo.png', title: 'Garantía', text: '12 meses' },
+    { icon: 'card', title: 'Cuotas', text: '', link: 'javascript:alert(1)' },
+    { icon: 'gift', title: '', text: '' },
+  ];
+
+  it('columnas con su ícono o imagen, título como h3 y link con nombre propio; las vacías no van', () => {
+    const { container } = render(ui(section('icon-columns', { title: 'Por qué', items, columnsDesktop: 4 })));
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Envíos',
+      'Garantía',
+      'Cuotas',
+    ]);
+    expect(screen.getByRole('link', { name: 'Ver más sobre Envíos' })).toHaveAttribute(
+      'href',
+      '/paginas/envios',
+    );
+    // El link peligroso no se dibuja.
+    expect(screen.queryByRole('link', { name: 'Ver más sobre Cuotas' })).not.toBeInTheDocument();
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/logo.png');
+    expect(container.querySelector('ul')).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-4');
+  });
+
+  it('en celular de a dos o deslizando; respeta la alineación de la sección', () => {
+    const { container, rerender } = render(ui(section('icon-columns', { items, mobile: '2' })));
+    expect(container.querySelector('ul')).toHaveClass('grid-cols-2');
+    rerender(ui(section('icon-columns', { items, mobile: 'swipe' })));
+    expect(container.querySelector('ul')).toHaveClass('overflow-x-auto', 'snap-x');
+    expect(container.querySelector('li > div')).toHaveClass('items-center');
+    rerender(ui({ ...section('icon-columns', { items }), style: { align: 'left' } }));
+    expect(container.querySelector('li > div')).toHaveClass('items-start');
+  });
+
+  it('sin columnas: nada en la tienda y un aviso en el editor', () => {
+    const { container, rerender } = render(ui(section('icon-columns', { items: [] })));
+    expect(container).toBeEmptyDOMElement();
+    rerender(ui(section('icon-columns', { items: [] }), { preview: true }));
+    expect(screen.getByText('Agregá columnas con un ícono y un texto.')).toBeInTheDocument();
   });
 });

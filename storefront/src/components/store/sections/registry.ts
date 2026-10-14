@@ -20,6 +20,7 @@ import { PromoPopupSection } from './promo-popup';
 import { RichTextSection } from './rich-text';
 import { CategoryListSection } from './category-list';
 import { VideoSection } from './video';
+import { IconColumnsSection } from './icon-columns';
 
 /**
  * Un renderer por tipo de sección. El tipo del mapa obliga a que estén todos:
@@ -47,4 +48,5 @@ export const SECTION_RENDERERS: { [K in SectionType]: ComponentType<SectionRende
   'rich-text': RichTextSection,
   'category-list': CategoryListSection,
   video: VideoSection,
+  'icon-columns': IconColumnsSection,
 };

@@ -155,6 +155,17 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     },
     shows: 'Mirá cómo se usa',
   },
+  'icon-columns': {
+    data: {
+      title: 'Por qué elegirnos',
+      items: [
+        { icon: 'shipping', title: 'Envíos', text: 'Rápidos', link: '/envios' },
+        { icon: 'none', image: img(10), title: 'Garantía' },
+      ],
+      mobile: 'swipe',
+    },
+    shows: 'Por qué elegirnos',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

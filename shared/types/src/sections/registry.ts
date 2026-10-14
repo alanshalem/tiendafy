@@ -366,6 +366,7 @@ export interface SectionDataMap {
   'rich-text': RichTextData;
   'category-list': CategoryListData;
   video: VideoData;
+  'icon-columns': IconColumnsData;
 }
 
 /* ---- El registro ---- */
@@ -747,6 +748,45 @@ export const SECTION_REGISTRY = {
     defaults: { source: 'link', ratio: '16:9', autoplay: true, title: 'Mirá cómo se usa' },
     limits: {},
     keywords: 'video youtube vimeo mp4 reel clip pelicula',
+  }),
+  'icon-columns': define({
+    type: 'icon-columns',
+    label: 'Íconos con texto',
+    previewLabel: 'los íconos con texto',
+    description: 'Columnas con un ícono, un título y un texto corto: beneficios, pasos, garantías.',
+    group: 'Confianza',
+    wireframe: 'columns',
+    fields: iconColumnsFields,
+    defaults: {
+      title: '¿Por qué comprarnos?',
+      columnsDesktop: 3,
+      mobile: '1',
+      items: [
+        {
+          icon: 'shipping',
+          image: '',
+          title: 'Envíos a todo el país',
+          text: 'Despachamos en 24 horas hábiles.',
+          link: '',
+        },
+        {
+          icon: 'card',
+          image: '',
+          title: 'Hasta 6 cuotas sin interés',
+          text: 'Con todas las tarjetas.',
+          link: '',
+        },
+        {
+          icon: 'returns',
+          image: '',
+          title: 'Cambios sin vueltas',
+          text: 'Tenés 30 días para cambiarlo.',
+          link: '',
+        },
+      ],
+    },
+    limits: {},
+    keywords: 'iconos columnas beneficios ventajas pasos multicolumna garantia',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

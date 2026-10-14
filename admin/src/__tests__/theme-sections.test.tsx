@@ -37,6 +37,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   'rich-text': true,
   'category-list': true,
   video: true,
+  'icon-columns': true,
 };
 
 let crashes: () => unknown[][];

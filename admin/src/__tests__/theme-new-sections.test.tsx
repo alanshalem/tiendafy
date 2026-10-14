@@ -322,3 +322,37 @@ describe('video', () => {
     expect(latest).toMatchObject({ source: 'file', autoplay: false, ratio: '9:16' });
   });
 });
+
+describe('íconos con texto', () => {
+  it('cada columna elige ícono, título, texto y link; columnas y celular aparte', async () => {
+    const { user } = await open('icon-columns', createSection('icon-columns').data);
+    await user.click(screen.getByRole('button', { name: /Agregar columna/ }));
+    await settle(1);
+    const icons = screen.getAllByLabelText('Ícono');
+    await user.selectOptions(icons[icons.length - 1]!, 'heart');
+    const titles = screen.getAllByLabelText('Título');
+    await user.type(titles[titles.length - 1]!, 'Hecho a mano');
+    const items = latest.items as { icon: string; title: string }[];
+    expect(items).toHaveLength(4);
+    expect(items[3]).toMatchObject({ icon: 'heart', title: 'Hecho a mano' });
+
+    fireEvent.change(screen.getByLabelText('Columnas en computadora'), { target: { value: '9' } });
+    expect(latest.columnsDesktop).toBe(6);
+    await user.selectOptions(screen.getByLabelText('En celular'), 'swipe');
+    expect(latest.mobile).toBe('swipe');
+  });
+
+  it('tolera datos rotos', () => {
+    const s = normalizeSection({
+      id: 'x',
+      type: 'icon-columns',
+      visible: true,
+      data: { items: [{ icon: 'cohete', title: 'A' }, null], columnsDesktop: 0, mobile: 3 },
+    })!;
+    expect(s.data).toMatchObject({
+      items: [{ icon: 'shipping', title: 'A', text: '', image: '', link: '' }],
+      columnsDesktop: 2,
+      mobile: '1',
+    });
+  });
+});
