@@ -94,6 +94,21 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           ))}
         </div>
       );
+    case 'countdown':
+      return (
+        <div className="space-y-1">
+          <div className="flex justify-center gap-0.5">
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} className="h-2.5 w-3 rounded-sm bg-primary/40" />
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={`h-5 flex-1 ${base}`} />
+            ))}
+          </div>
+        </div>
+      );
   }
 }
 

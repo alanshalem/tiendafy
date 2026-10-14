@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { field, normalizeFields, type DataOf, type FieldsSpec } from './schema';
+import { richDocFromText } from './rich-text';
 import {
   isSectionType,
   normalizeHideOn,
@@ -42,7 +43,13 @@ export type SectionWireframe =
   | 'video'
   | 'cards'
   | 'faq'
-  | 'logos';
+  | 'logos'
+  | 'countdown'
+  | 'product-feature'
+  | 'popup'
+  | 'categories'
+  | 'columns'
+  | 'collage';
 
 export interface SectionDefinition<F extends FieldsSpec = FieldsSpec> {
   type: SectionType;
@@ -168,6 +175,144 @@ const brandsFields = {
   images: field.strings('media', 40),
 } as const;
 
+/* ---- Campos de los tipos de la fase 2 (ofertas, producto, pop-up, editorial…) ---- */
+
+/*
+ * Las secciones con una lista de productos (ofertas con cronómetro) guardan su
+ * origen en `data.source` y su cantidad en `data.limit`, como destacados u
+ * ofertas: no son campos del esquema, los resuelve `sectionProductPlan`
+ * (product-source.ts).
+ */
+const countdownOfferFields = {
+  title: field.string(),
+  text: field.text(),
+  /** Cuándo termina, en UTC. El editor lo pide y lo muestra en hora de Argentina. */
+  endsAt: field.datetime(),
+  /** Al terminar: se oculta la sección, o queda con un mensaje. */
+  whenEnded: field.enum(['hide', 'message'], 'hide'),
+  endedText: field.string('Esta oferta terminó.'),
+  buttonText: field.string(),
+  link: field.url(),
+  carousel: field.boolean(true),
+} as const;
+
+const featuredProductFields = {
+  productId: field.string('', 100),
+  layout: field.enum(['image-left', 'image-right'], 'image-left'),
+  badge: field.string(''),
+  showDescription: field.boolean(true),
+  /** `cart`: agregar al carrito (con varias variantes lleva a la ficha); `link`: "Ver producto". */
+  button: field.enum(['cart', 'link'], 'cart'),
+} as const;
+
+const promoPopupFields = {
+  image: field.media(),
+  mobileImage: field.media(),
+  title: field.string(),
+  text: field.text(),
+  couponCode: field.string('', 40),
+  buttonText: field.string(),
+  link: field.url(),
+  newsletter: field.boolean(false),
+  trigger: field.enum(['delay', 'exit', 'both'], 'delay'),
+  delaySeconds: field.number(5, 0, 120),
+  frequency: field.enum(['once', 'session', 'days'], 'days'),
+  frequencyDays: field.number(7, 1, 365),
+} as const;
+
+const richTextFields = {
+  title: field.string(),
+  body: field.richtext(),
+  image: field.media(),
+  imagePosition: field.enum(['left', 'right', 'top'], 'left'),
+  buttonText: field.string(),
+  link: field.url(),
+} as const;
+
+const categoryListFields = {
+  title: field.string(),
+  /** `auto`: las categorías principales (las de primer nivel), hasta `count`. */
+  mode: field.enum(['auto', 'manual'], 'auto'),
+  count: field.number(6, 1, 24),
+  items: field.items({ categoryId: field.string('', 100), title: field.string(), image: field.media() }, 24),
+  layout: field.enum(['grid', 'carousel'], 'grid'),
+  columnsDesktop: field.number(6, 2, 8),
+  columnsMobile: field.number(2, 1, 3),
+  shape: field.enum(['circle', 'square', 'portrait'], 'circle'),
+  showAll: field.boolean(true),
+  showAllText: field.string('Ver todas'),
+} as const;
+
+export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3'] as const;
+
+const videoFields = {
+  /** `link`: YouTube o Vimeo; `file`: un MP4 subido a la tienda. */
+  source: field.enum(['link', 'file'], 'link'),
+  url: field.url(),
+  file: field.media(),
+  poster: field.media(),
+  title: field.string(),
+  text: field.text(),
+  buttonText: field.string(),
+  link: field.url(),
+  ratio: field.enum(VIDEO_RATIOS, '16:9'),
+  /** Solo el MP4: arranca solo, sin sonido y en loop (con botón de pausa). */
+  autoplay: field.boolean(true),
+} as const;
+
+/** Íconos que se pueden elegir en "Íconos con texto" (los del kit de la tienda). `none`: sin ícono. */
+export const COLUMN_ICONS = [
+  'shipping',
+  'card',
+  'security',
+  'gift',
+  'support',
+  'returns',
+  'heart',
+  'cart',
+  'chat',
+  'phone',
+  'mail',
+  'mapPin',
+  'user',
+  'search',
+  'none',
+] as const;
+
+const iconColumnsFields = {
+  title: field.string(),
+  items: field.items(
+    {
+      icon: field.enum(COLUMN_ICONS, 'shipping'),
+      /** Una imagen propia en lugar del ícono. */
+      image: field.media(),
+      title: field.string(),
+      text: field.text(),
+      link: field.url(),
+    },
+    12,
+  ),
+  columnsDesktop: field.number(3, 2, 6),
+  mobile: field.enum(['1', '2', 'swipe'], '1'),
+} as const;
+
+const collageFields = {
+  title: field.string(),
+  blocks: field.items(
+    {
+      kind: field.enum(['image', 'product', 'category'], 'image'),
+      image: field.media(),
+      title: field.string(),
+      link: field.url(),
+      productId: field.string('', 100),
+      categoryId: field.string('', 100),
+    },
+    3,
+  ),
+  layout: field.enum(['big-left', 'big-right'], 'big-left'),
+  mobile: field.enum(['stack', 'swipe'], 'stack'),
+} as const;
+
 /* ---- El tipo de la data de cada sección (normalizada: todos los campos presentes) ---- */
 
 export type HeroVideoData = DataOf<typeof heroVideoFields>;
@@ -186,6 +331,17 @@ export type TestimonialItem = TestimonialsData['items'][number];
 export type FaqData = DataOf<typeof faqFields>;
 export type FaqItem = FaqData['items'][number];
 export type BrandsData = DataOf<typeof brandsFields>;
+export type CountdownOfferData = DataOf<typeof countdownOfferFields>;
+export type FeaturedProductData = DataOf<typeof featuredProductFields>;
+export type PromoPopupData = DataOf<typeof promoPopupFields>;
+export type RichTextData = DataOf<typeof richTextFields>;
+export type CategoryListData = DataOf<typeof categoryListFields>;
+export type CategoryListItem = CategoryListData['items'][number];
+export type VideoData = DataOf<typeof videoFields>;
+export type IconColumnsData = DataOf<typeof iconColumnsFields>;
+export type IconColumnItem = IconColumnsData['items'][number];
+export type CollageData = DataOf<typeof collageFields>;
+export type CollageBlock = CollageData['blocks'][number];
 
 /** Tipo de sección → tipo de su data. */
 export interface SectionDataMap {
@@ -204,6 +360,7 @@ export interface SectionDataMap {
   testimonials: TestimonialsData;
   faq: FaqData;
   brands: BrandsData;
+  'countdown-offer': CountdownOfferData;
 }
 
 /* ---- El registro ---- */
@@ -476,7 +633,40 @@ export const SECTION_REGISTRY = {
     limits: {},
     keywords: 'instagram youtube vimeo video reel redes',
   }),
+  'countdown-offer': define({
+    type: 'countdown-offer',
+    label: 'Ofertas con cronómetro',
+    previewLabel: 'la oferta con cronómetro',
+    description: 'Productos en oferta con una cuenta regresiva hasta que termina la promo.',
+    group: 'Productos',
+    wireframe: 'countdown',
+    fields: countdownOfferFields,
+    defaults: {
+      title: 'Ofertas por tiempo limitado',
+      text: 'Aprovechá antes de que termine.',
+      // Una semana desde hoy (se calcula al agregarla): el cronómetro se ve andando.
+      get endsAt() {
+        return weekFromToday();
+      },
+      whenEnded: 'hide',
+      buttonText: 'Ver todas las ofertas',
+      link: '/productos',
+      carousel: true,
+    },
+    limits: {},
+    keywords: 'cuenta regresiva countdown reloj timer hot sale cyber monday black friday promo urgencia',
+  }),
 } satisfies Record<SectionType, SectionDefinition>;
+
+/**
+ * Dentro de una semana a las 23:59 de Argentina (UTC-3, sin horario de
+ * verano), en UTC: el ejemplo del cronómetro.
+ */
+export function weekFromToday(now = new Date()): string {
+  const ar = new Date(now.getTime() - 3 * 3600_000);
+  const end = Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + 7, 23, 59) + 3 * 3600_000;
+  return new Date(end).toISOString();
+}
 
 /** La definición de un tipo, o `undefined` si el tipo no existe (datos de una versión más nueva). */
 export function sectionDefinition(type: string): SectionDefinition | undefined {

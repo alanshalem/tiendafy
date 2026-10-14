@@ -130,6 +130,21 @@ public partial class ThemeContractTests
         Assert.NotEmpty(ValidateSections($$"""[{{Section("carousel", """{ "images": [null] }""")}}]"""));
     }
 
+    [Theory]
+    [InlineData("\"2026-11-20T02:59:00.000Z\"", true)]
+    [InlineData("\"2026-11-19T23:59-03:00\"", true)]
+    [InlineData("\"\"", true)]
+    [InlineData("\"2026-11-20T02:59:00\"", false)] // sin zona: se leería distinto según el servidor
+    [InlineData("\"2026-02-30T10:00:00Z\"", false)]
+    [InlineData("\"mañana\"", false)]
+    [InlineData("1763600000000", false)]
+    public void La_fecha_de_cierre_es_ISO_con_zona(string endsAt, bool ok)
+    {
+        var errors = ValidateSections($$"""[{{Section("countdown-offer", $$"""{ "endsAt": {{endsAt}} }""")}}]""");
+        Assert.Equal(ok, errors.Count == 0);
+        if (!ok) Assert.Contains("la fecha en que termina", errors[0].Message, StringComparison.Ordinal);
+    }
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

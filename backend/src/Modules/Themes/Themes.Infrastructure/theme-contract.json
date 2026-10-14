@@ -374,6 +374,43 @@
           "kind": "url"
         }
       }
+    },
+    "countdown-offer": {
+      "label": "Ofertas con cronómetro",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "endsAt": {
+          "kind": "datetime"
+        },
+        "whenEnded": {
+          "kind": "enum",
+          "values": [
+            "hide",
+            "message"
+          ]
+        },
+        "endedText": {
+          "kind": "string",
+          "max": 200
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "carousel": {
+          "kind": "boolean"
+        }
+      }
     }
   },
   "defaultConfig": {

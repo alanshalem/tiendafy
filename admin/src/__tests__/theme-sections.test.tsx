@@ -31,6 +31,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   testimonials: true,
   faq: true,
   brands: true,
+  'countdown-offer': true,
 };
 
 let crashes: () => unknown[][];

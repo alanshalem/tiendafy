@@ -104,6 +104,16 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     shows: 'Hacen envíos',
   },
   brands: { data: { title: 'Marcas', images: [1, 2, 3, 4, 5, 6].map(img) }, shows: 'Marcas' },
+  'countdown-offer': {
+    data: {
+      title: 'Hot Sale',
+      text: 'Hasta 50% off',
+      endsAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      buttonText: 'Ver ofertas',
+      link: '/productos',
+    },
+    shows: 'Hot Sale',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

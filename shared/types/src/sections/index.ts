@@ -25,6 +25,8 @@ export {
   SECTION_DEFINITIONS,
   SECTION_GROUPS,
   INFO_ICONS,
+  COLUMN_ICONS,
+  VIDEO_RATIOS,
   MAX_SECTIONS,
   sectionDefinition,
   sectionDisplayName,
@@ -55,6 +57,17 @@ export type {
   FaqData,
   FaqItem,
   BrandsData,
+  CountdownOfferData,
+  FeaturedProductData,
+  PromoPopupData,
+  RichTextData,
+  CategoryListData,
+  CategoryListItem,
+  VideoData,
+  IconColumnsData,
+  IconColumnItem,
+  CollageData,
+  CollageBlock,
 } from './registry';
 export {
   field,
@@ -86,3 +99,12 @@ export {
   richDocFromText,
 } from './rich-text';
 export type { RichDoc, RichBlock, RichInline, RichListItem, RichMark, RichHeadingLevel } from './rich-text';
+export {
+  ARGENTINA_OFFSET_MS,
+  isoToArgentinaLocal,
+  argentinaLocalToIso,
+  formatArgentinaEnd,
+  countdownParts,
+  countdownSpeech,
+} from './countdown';
+export type { CountdownParts } from './countdown';

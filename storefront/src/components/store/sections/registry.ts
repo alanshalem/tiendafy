@@ -4,6 +4,7 @@ import type { SectionRenderProps } from '../section-types';
 import { BrandsSection } from './brands';
 import { CarouselSection } from './carousel';
 import { CategoryBannersSection } from './category-banners';
+import { CountdownOfferSection } from './countdown-offer';
 import { FaqSection } from './faq';
 import { HeroVideoSection } from './hero-video';
 import { ImageTextSection } from './image-text';
@@ -35,4 +36,5 @@ export const SECTION_RENDERERS: { [K in SectionType]: ComponentType<SectionRende
   testimonials: TestimonialsSection,
   faq: FaqSection,
   brands: BrandsSection,
+  'countdown-offer': CountdownOfferSection,
 };
