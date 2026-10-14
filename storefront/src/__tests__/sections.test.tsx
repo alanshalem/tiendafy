@@ -122,6 +122,24 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
   'promo-popup': {
     data: { title: 'Promo', couponCode: 'HOLA', newsletter: true, image: img(7), mobileImage: img(8) },
   },
+  'rich-text': {
+    data: {
+      title: 'Nuestra historia',
+      body: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Empezamos en 2010', marks: [{ type: 'bold' }] }],
+          },
+        ],
+      },
+      image: img(9),
+      buttonText: 'Leer más',
+      link: '/paginas/nosotros',
+    },
+    shows: 'Nuestra historia',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

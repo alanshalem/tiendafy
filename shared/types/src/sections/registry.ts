@@ -363,6 +363,7 @@ export interface SectionDataMap {
   'countdown-offer': CountdownOfferData;
   'featured-product': FeaturedProductData;
   'promo-popup': PromoPopupData;
+  'rich-text': RichTextData;
 }
 
 /* ---- El registro ---- */
@@ -691,6 +692,25 @@ export const SECTION_REGISTRY = {
     },
     limits: { maxPerPage: 1 },
     keywords: 'popup modal ventana emergente cupon descuento bienvenida suscripcion',
+  }),
+  'rich-text': define({
+    type: 'rich-text',
+    label: 'Texto con formato',
+    previewLabel: 'el texto con formato',
+    description: 'Un texto largo con títulos, listas, links y citas; con imagen y botón si querés.',
+    group: 'Contenido',
+    wireframe: 'text',
+    fields: richTextFields,
+    defaults: {
+      title: 'Cómo trabajamos',
+      body: richDocFromText(
+        'Contá la historia de tu marca, cómo elegís los productos o qué hace distinta a tu tienda.',
+        'Podés usar títulos, negritas, listas y links.',
+      ),
+      imagePosition: 'left',
+    },
+    limits: {},
+    keywords: 'editorial texto enriquecido historia blog articulo parrafos formato',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

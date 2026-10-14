@@ -17,6 +17,7 @@ import type { SectionEditorProps } from './types';
 import { CountdownOfferEditor } from './countdown-offer';
 import { FeaturedProductEditor } from './featured-product';
 import { PromoPopupEditor } from './promo-popup';
+import { RichTextSectionEditor } from './rich-text';
 
 /**
  * Un editor por tipo de sección (espeja los renderers del storefront). El tipo
@@ -42,4 +43,5 @@ export const SECTION_EDITORS: { [K in SectionType]: ComponentType<SectionEditorP
   'countdown-offer': CountdownOfferEditor,
   'featured-product': FeaturedProductEditor,
   'promo-popup': PromoPopupEditor,
+  'rich-text': RichTextSectionEditor,
 };

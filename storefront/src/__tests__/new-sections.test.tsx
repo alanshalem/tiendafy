@@ -393,3 +393,95 @@ describe('pop-up promocional', () => {
     expect(screen.queryByRole('button', { name: 'Copiar' })).not.toBeInTheDocument();
   });
 });
+
+describe('texto con formato', () => {
+  const body = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Envíos' }] },
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Mandamos ' },
+          { type: 'text', text: 'a todo el país', marks: [{ type: 'bold' }] },
+          { type: 'text', text: ' ver ' },
+          { type: 'text', text: 'tarifas', marks: [{ type: 'link', attrs: { href: '/paginas/envios' } }] },
+        ],
+      },
+      {
+        type: 'bulletList',
+        content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Correo' }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Moto' }] }] },
+        ],
+      },
+      { type: 'heading', attrs: { level: 4 }, content: [{ type: 'text', text: 'Cambios' }] },
+      { type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Rápido' }] }] },
+    ],
+  };
+
+  it('dibuja títulos debajo del h2 de la sección, listas, citas y links de la tienda', () => {
+    render(ui(section('rich-text', { title: 'Cómo trabajamos', body })));
+    expect(screen.getByRole('heading', { level: 2, name: 'Cómo trabajamos' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Envíos' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: 'Cambios' })).toBeInTheDocument();
+    expect(screen.getByText('a todo el país').tagName).toBe('STRONG');
+    expect(screen.getByRole('link', { name: 'tarifas' })).toHaveAttribute('href', '/paginas/envios');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText('Rápido').closest('blockquote')).not.toBeNull();
+  });
+
+  it('nunca dibuja HTML del tema: un <script> escrito es texto y un link peligroso no es link', () => {
+    const { container } = render(
+      ui(
+        section('rich-text', {
+          title: '<img src=x onerror=alert(1)>',
+          body: {
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: '<script>alert(1)</script>' },
+                  {
+                    type: 'text',
+                    text: 'clic',
+                    marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }],
+                  },
+                ],
+              },
+              { type: 'html', html: '<iframe src="https://malo.com"></iframe>' },
+              { type: 'image', attrs: { src: 'https://malo.com/x.png', onerror: 'alert(1)' } },
+            ],
+          },
+        }),
+      ),
+    );
+    expect(container.querySelector('script, iframe, [onerror]')).toBeNull();
+    expect(screen.getByText('<script>alert(1)</script>', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'clic' })).not.toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('con imagen a un lado o arriba; sin nada no se muestra', () => {
+    const { container, rerender } = render(
+      ui(
+        section('rich-text', {
+          title: 'T',
+          body,
+          image: 'https://cdn.example.com/a.jpg',
+          imagePosition: 'right',
+        }),
+      ),
+    );
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/a.jpg');
+    expect(container.querySelector('.md\\:grid-cols-2')).not.toBeNull();
+    rerender(
+      ui(section('rich-text', { title: 'T', image: 'https://cdn.example.com/a.jpg', imagePosition: 'top' })),
+    );
+    expect(container.querySelector('.md\\:grid-cols-2')).toBeNull();
+    rerender(ui(section('rich-text', { body: { type: 'doc', content: [{ type: 'paragraph' }] } })));
+    expect(container).toBeEmptyDOMElement();
+  });
+});

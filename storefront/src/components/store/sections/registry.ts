@@ -17,6 +17,7 @@ import { PromoBannersSection } from './promo-banners';
 import { TestimonialsSection } from './testimonials';
 import { FeaturedProductSection } from './featured-product';
 import { PromoPopupSection } from './promo-popup';
+import { RichTextSection } from './rich-text';
 
 /**
  * Un renderer por tipo de sección. El tipo del mapa obliga a que estén todos:
@@ -41,4 +42,5 @@ export const SECTION_RENDERERS: { [K in SectionType]: ComponentType<SectionRende
   'countdown-offer': CountdownOfferSection,
   'featured-product': FeaturedProductSection,
   'promo-popup': PromoPopupSection,
+  'rich-text': RichTextSection,
 };

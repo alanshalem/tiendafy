@@ -10,6 +10,7 @@ import {
   normalizeSection,
   sectionData,
   sectionProductPlan,
+  type RichDoc,
   type SectionType,
   type ThemeSection,
 } from '@tiendafy/types';
@@ -189,5 +190,52 @@ describe('pop-up promocional', () => {
     expect(latest.delaySeconds).toBe(12);
     fireEvent.blur(input);
     expect(input).toHaveValue(12);
+  });
+});
+
+describe('texto con formato', () => {
+  it('el editor muestra el documento guardado y escribe un árbol, no HTML', async () => {
+    const { user } = await open('rich-text', createSection('rich-text').data);
+    const box = await screen.findByRole('textbox', { name: 'Texto' });
+    expect(box).toHaveTextContent('Contá la historia de tu marca');
+    await user.click(box);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.click(screen.getByRole('button', { name: 'Subtítulo' }));
+    await settle(1);
+    const body = latest.body as RichDoc;
+    expect(body.type).toBe('doc');
+    expect(body.content[0]).toMatchObject({ type: 'heading', attrs: { level: 3 } });
+    expect(JSON.stringify(body)).not.toContain('<');
+  });
+
+  it('el link pasa por el mismo control que el resto: completa https y descarta javascript:', async () => {
+    const { user } = await open('rich-text', createSection('rich-text').data);
+    const box = await screen.findByRole('textbox', { name: 'Texto' });
+    await user.click(box);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.click(screen.getByRole('button', { name: 'Link' }));
+    const field = await screen.findByRole('textbox', { name: /A dónde lleva/ });
+    await user.clear(field);
+    await user.type(field, 'javascript:alert(1){Enter}');
+    await settle(1);
+    expect(JSON.stringify(latest.body ?? {})).not.toContain('javascript');
+
+    await user.click(box);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.click(screen.getByRole('button', { name: 'Link' }));
+    const again = await screen.findByRole('textbox', { name: /A dónde lleva/ });
+    await user.clear(again);
+    await user.type(again, 'mitienda.com/envios{Enter}');
+    await settle(1);
+    expect(JSON.stringify(latest.body)).toContain('"href":"https://mitienda.com/envios"');
+  });
+
+  it('la imagen elige su lugar y el link del botón aparece con el texto', async () => {
+    const { user } = await open('rich-text', { image: 'https://cdn.example.com/a.jpg' });
+    await user.selectOptions(screen.getByLabelText('Dónde va la imagen'), 'top');
+    expect(latest.imagePosition).toBe('top');
+    expect(screen.queryByText('A dónde lleva el botón')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Texto del botón (opcional)'), 'Leer más');
+    expect(screen.getByText('A dónde lleva el botón')).toBeInTheDocument();
   });
 });

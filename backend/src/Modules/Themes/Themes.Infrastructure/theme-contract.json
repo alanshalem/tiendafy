@@ -500,6 +500,37 @@
           "max": 365
         }
       }
+    },
+    "rich-text": {
+      "label": "Texto con formato",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "body": {
+          "kind": "richtext",
+          "max": 20000
+        },
+        "image": {
+          "kind": "media"
+        },
+        "imagePosition": {
+          "kind": "enum",
+          "values": [
+            "left",
+            "right",
+            "top"
+          ]
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        }
+      }
     }
   },
   "defaultConfig": {
