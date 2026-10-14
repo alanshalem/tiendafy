@@ -52,7 +52,24 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
     variantCount: p.variants.length,
     stock: p.stock ?? null,
+    ...(p.description?.trim() ? { excerpt: excerptOf(p.description) } : {}),
   };
+}
+
+/** Largo del resumen de la descripción: lo que muestra el "Producto destacado". */
+export const EXCERPT_MAX = 200;
+
+/**
+ * La descripción en una línea y cortada en una palabra: el resumen del
+ * "Producto destacado". Va acá (y no la descripción entera) para no mandarle
+ * al navegador páginas de texto por cada card de la portada.
+ */
+export function excerptOf(description: string, max = EXCERPT_MAX): string {
+  const flat = description.replace(/\s+/g, ' ').trim();
+  if (flat.length <= max) return flat;
+  const cut = flat.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, '')}…`;
 }
 
 /** DTOs (posiblemente null) → StoreProduct, descartando inválidos. */

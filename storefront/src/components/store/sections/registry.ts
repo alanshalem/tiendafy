@@ -15,6 +15,7 @@ import { NewsletterSection } from './newsletter';
 import { ProductsSection } from './products';
 import { PromoBannersSection } from './promo-banners';
 import { TestimonialsSection } from './testimonials';
+import { FeaturedProductSection } from './featured-product';
 
 /**
  * Un renderer por tipo de sección. El tipo del mapa obliga a que estén todos:
@@ -37,4 +38,5 @@ export const SECTION_RENDERERS: { [K in SectionType]: ComponentType<SectionRende
   faq: FaqSection,
   brands: BrandsSection,
   'countdown-offer': CountdownOfferSection,
+  'featured-product': FeaturedProductSection,
 };

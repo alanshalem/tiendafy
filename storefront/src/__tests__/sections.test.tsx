@@ -114,6 +114,10 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     },
     shows: 'Hot Sale',
   },
+  'featured-product': {
+    data: { productId: products[1]!.id, badge: 'Elegido del mes', layout: 'image-right' },
+    shows: 'Elegido del mes',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

@@ -361,6 +361,7 @@ export interface SectionDataMap {
   faq: FaqData;
   brands: BrandsData;
   'countdown-offer': CountdownOfferData;
+  'featured-product': FeaturedProductData;
 }
 
 /* ---- El registro ---- */
@@ -655,6 +656,18 @@ export const SECTION_REGISTRY = {
     },
     limits: {},
     keywords: 'cuenta regresiva countdown reloj timer hot sale cyber monday black friday promo urgencia',
+  }),
+  'featured-product': define({
+    type: 'featured-product',
+    label: 'Producto destacado',
+    previewLabel: 'el producto destacado',
+    description: 'Un producto grande, con su foto, precio y botón de compra.',
+    group: 'Productos',
+    wireframe: 'product-feature',
+    fields: featuredProductFields,
+    defaults: { badge: 'Elegido del mes', layout: 'image-left', showDescription: true, button: 'cart' },
+    limits: {},
+    keywords: 'producto estrella vidriera lanzamiento elegido comprar',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

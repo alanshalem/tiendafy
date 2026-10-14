@@ -411,6 +411,36 @@
           "kind": "boolean"
         }
       }
+    },
+    "featured-product": {
+      "label": "Producto destacado",
+      "fields": {
+        "productId": {
+          "kind": "string",
+          "max": 100
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "image-left",
+            "image-right"
+          ]
+        },
+        "badge": {
+          "kind": "string",
+          "max": 200
+        },
+        "showDescription": {
+          "kind": "boolean"
+        },
+        "button": {
+          "kind": "enum",
+          "values": [
+            "cart",
+            "link"
+          ]
+        }
+      }
     }
   },
   "defaultConfig": {

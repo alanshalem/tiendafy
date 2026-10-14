@@ -15,6 +15,7 @@ import { PromoBannersEditor } from './promo-banners';
 import { TestimonialsEditor } from './testimonials';
 import type { SectionEditorProps } from './types';
 import { CountdownOfferEditor } from './countdown-offer';
+import { FeaturedProductEditor } from './featured-product';
 
 /**
  * Un editor por tipo de sección (espeja los renderers del storefront). El tipo
@@ -38,4 +39,5 @@ export const SECTION_EDITORS: { [K in SectionType]: ComponentType<SectionEditorP
   faq: FaqEditor,
   brands: BrandsEditor,
   'countdown-offer': CountdownOfferEditor,
+  'featured-product': FeaturedProductEditor,
 };

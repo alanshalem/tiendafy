@@ -94,6 +94,17 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           ))}
         </div>
       );
+    case 'product-feature':
+      return (
+        <div className="flex gap-1.5">
+          <span className={`h-9 w-9 shrink-0 ${base}`} />
+          <div className="flex flex-1 flex-col justify-center gap-1">
+            <span className="h-1.5 w-full rounded bg-fg/20" />
+            <span className="h-1.5 w-1/2 rounded bg-fg/15" />
+            <span className="h-2.5 w-8 rounded bg-primary/40" />
+          </div>
+        </div>
+      );
     case 'countdown':
       return (
         <div className="space-y-1">

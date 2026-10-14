@@ -16,6 +16,9 @@ import { PreviewContext } from '../components/store/preview';
 import { SectionProductsContext } from '../components/store/SectionProductsContext';
 import type { StoreProduct } from '../components/store/ProductCard';
 import { toStoreProducts, type ProductDto } from '../lib/catalog';
+import { excerptOf } from '../lib/catalog-map';
+import { useCart } from '../components/store/cart';
+import userEvent from '@testing-library/user-event';
 import { fixture, mockApi } from '../test/api';
 import { renderInStore as render, StoreProviders } from '../test/store';
 
@@ -148,5 +151,72 @@ describe('ofertas con cronómetro', () => {
     expect(screen.getByRole('link', { name: 'Ver todo' })).toHaveAttribute('href', '/productos');
     rerender(ui(s('javascript:alert(1)')));
     expect(screen.queryByText('Ver todo')).not.toBeInTheDocument();
+  });
+});
+
+/** Lo que hay en el carrito (para ver que "Agregar" agregó). */
+function CartProbe() {
+  const { count, open } = useCart();
+  return <output aria-label="carrito">{`${count} ${open ? 'abierto' : 'cerrado'}`}</output>;
+}
+
+describe('producto destacado', () => {
+  const s = (data: Record<string, unknown>) => section('featured-product', { productId: 'p-2', ...data });
+
+  it('con una sola variante agrega al carrito y lo abre', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        {ui(s({ badge: 'Elegido del mes' }))}
+        <CartProbe />
+      </>,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Producto 2' })).toBeInTheDocument();
+    expect(screen.getByText('Elegido del mes')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver producto' })).toHaveAttribute('href', '/productos/prod-2');
+    await user.click(screen.getByRole('button', { name: 'Agregar al carrito' }));
+    expect(screen.getByLabelText('carrito')).toHaveTextContent('1 abierto');
+  });
+
+  it('con varias variantes lleva a elegir; agotado no se agrega; "Ver producto" si se eligió así', () => {
+    const many = { ...products[2]!, variantCount: 3 };
+    const { rerender } = render(ui(s({}), { resolved: { 's-featured-product': [many] } }));
+    expect(screen.getByRole('link', { name: 'Elegir opciones' })).toHaveAttribute(
+      'href',
+      '/productos/prod-2',
+    );
+    expect(screen.queryByRole('button', { name: 'Agregar al carrito' })).not.toBeInTheDocument();
+
+    rerender(ui(s({}), { resolved: { 's-featured-product': [{ ...products[2]!, stock: 0 }] } }));
+    expect(screen.getByRole('button', { name: 'Sin stock' })).toBeDisabled();
+
+    rerender(ui(s({ button: 'link' })));
+    expect(screen.getByRole('link', { name: 'Ver producto' })).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('muestra precio tachado, descuento y el resumen de la descripción (si se pide)', () => {
+    const { rerender } = render(ui(s({ productId: 'p-0' })));
+    expect(screen.getByText('-50%')).toBeInTheDocument();
+    expect(screen.getByText(products[0]!.excerpt!)).toBeInTheDocument();
+    rerender(ui(s({ productId: 'p-0', showDescription: false })));
+    expect(screen.queryByText(products[0]!.excerpt!)).not.toBeInTheDocument();
+  });
+
+  it('lo resuelto por la API manda; sin producto, nada en la tienda y un aviso en el editor', () => {
+    const { container, rerender } = render(ui(s({}), { resolved: { 's-featured-product': [products[3]!] } }));
+    expect(screen.getByRole('heading', { name: 'Producto 3' })).toBeInTheDocument();
+    rerender(ui(s({}), { resolved: { 's-featured-product': [] } }));
+    expect(container).toBeEmptyDOMElement();
+    rerender(ui(s({}), { resolved: { 's-featured-product': [] }, preview: true }));
+    expect(screen.getByText('Elegí el producto que querés destacar')).toBeInTheDocument();
+  });
+
+  it('el resumen de la descripción va en una línea y cortado en una palabra', () => {
+    expect(excerptOf('  Banco\n\nregulable   de acero ')).toBe('Banco regulable de acero');
+    const long = 'palabra '.repeat(60);
+    const out = excerptOf(long, 50);
+    expect(out.length).toBeLessThanOrEqual(51);
+    expect(out.endsWith('palabra…')).toBe(true);
   });
 });

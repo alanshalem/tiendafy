@@ -112,3 +112,38 @@ describe('ofertas con cronómetro', () => {
     expect(s.data).toMatchObject({ endsAt: '', whenEnded: 'hide', carousel: true, title: '7' });
   });
 });
+
+describe('producto destacado', () => {
+  it('se elige un producto buscándolo, se cambia y se quita', async () => {
+    const { user } = await open('featured-product');
+    expect(screen.getByText('Si no elegís ninguno, se muestra el más vendido.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Buscar un producto'), 'banco');
+    await settle(4);
+    await user.click(await screen.findByRole('button', { name: /Banco plano regulable/ }));
+    expect(latest.productId).toEqual(expect.any(String));
+    const id = latest.productId as string;
+    expect(sectionProductPlan({ type: 'featured-product', data: latest })).toEqual({
+      source: { kind: 'manual', ids: [id] },
+      limit: 1,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar el producto' }));
+    expect(latest.productId).toBe('');
+    // Sin elegido: el más vendido (y si no hay ventas, lo último).
+    expect(sectionProductPlan({ type: 'featured-product', data: latest })).toEqual({
+      source: { kind: 'best-sellers' },
+      fallback: { kind: 'newest' },
+      limit: 1,
+    });
+  });
+
+  it('elige el lado de la foto, el botón y si va la descripción', async () => {
+    const { user } = await open('featured-product');
+    await user.selectOptions(screen.getByLabelText('Foto'), 'image-right');
+    await user.selectOptions(screen.getByLabelText('Botón'), 'link');
+    await user.click(screen.getByLabelText('Mostrar un resumen de la descripción'));
+    expect(latest).toMatchObject({ layout: 'image-right', button: 'link', showDescription: false });
+  });
+});
