@@ -9,8 +9,8 @@ export const EMPEZAR = {
       {
         heading: 'El camino completo',
         steps: [
-          'Diseñá tu tienda: en Canales de venta → Tienda online elegí colores, tipografía y subí tu logo (también aparece en los emails que reciben tus clientes).',
-          'Cargá tus productos: en Productos → Agregar, con fotos, precio, variantes y stock. Si tenés muchos, usá la importación por CSV.',
+          'Diseñá tu tienda: en Canales de venta → Tienda online arrancá con “Elegí un diseño listo” o una plantilla de inicio, subí tu logo (también aparece en los emails que reciben tus clientes) y seguí la guía “Poné tu tienda linda”. Acordate de tocar “Publicar cambios”.',
+          'Cargá tus productos: en Productos → Agregar, con fotos, precio, variantes, stock y el peso y las medidas para que los correos coticen bien. Si tenés muchos, usá la importación por CSV.',
           'Conectá Mercado Pago: en Configuración → Medios de pago, con un click autorizás tu cuenta. La plata va directo a vos.',
           'Definí los envíos: en Configuración → Medios de envío creá al menos uno (domicilio con precio fijo o retiro gratis). Sin esto el checkout no ofrece entrega.',
           'Revisá los e-mails automáticos: en Configuración → E-mails automáticos activá los que quieras; salen con tu logo y colores.',
@@ -55,13 +55,33 @@ export const EMPEZAR = {
               ],
               ['WhatsApp', '— (no tiene)', 'App de Meta propia por tienda'],
               ['ARCA', '— (URLs ya incluidas)', 'Certificado + punto de venta por tienda'],
-              ['Correo Argentino / Zipnova', '— (no tienen)', 'Credenciales por tienda, cifradas'],
+              [
+                'Payway, Correo Argentino, Zipnova y Andreani',
+                '— (no tienen)',
+                'Credenciales por tienda, cifradas',
+              ],
             ],
           },
           {
             type: 'callout',
             tone: 'tip',
             text: 'Todo lo de plataforma está junto en el centro de ayuda, en la categoría “Administrar la plataforma”: qué levantar y en qué orden, el inventario completo de credenciales y los trámites con cada proveedor.',
+          },
+        ],
+      },
+      {
+        heading: 'Moverte rápido por el panel',
+        blocks: [
+          {
+            type: 'checklist',
+            items: [
+              'Ctrl+K (⌘K en Mac) abre el buscador del panel: escribí el nombre de una pantalla o de un producto y vas directo.',
+              'En Inicio, la tarjeta “Para hacer hoy” junta lo que necesita tu atención: productos que se agotan antes del próximo embarque, ventas sin costo cargado, ventas de Mercado Libre sin facturar, redes para reconectar y posts que fallaron.',
+              'Los listados recuerdan la búsqueda, el filtro y la página en la dirección: si recargás o volvés atrás no perdés dónde estabas, y podés pasarle el link a alguien del equipo.',
+              'Si salís de un formulario con cambios sin guardar, el panel te pregunta antes de descartarlos.',
+              'Si se te vence la sesión, el panel te pide la contraseña encima de la pantalla en la que estabas, sin sacarte de ahí.',
+              'El panel se usa también desde el celular, incluido el editor de diseño.',
+            ],
           },
         ],
       },
@@ -116,6 +136,36 @@ export const EMPEZAR = {
               {
                 term: 'Contracargo',
                 def: 'El comprador desconoció el pago ante su tarjeta y el dinero se devuelve. Se disputa con evidencia de entrega.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Tu tienda online',
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Borrador / Publicar',
+                def: 'Lo que cambiás en el editor de diseño se guarda solo en un borrador que ven solo vos y tu equipo. Tus clientes lo ven recién cuando tocás “Publicar cambios”.',
+              },
+              {
+                term: 'Sección',
+                def: 'Cada bloque de la página de inicio: un carrusel, una grilla de productos, preguntas frecuentes, un pop-up. El inicio se arma apilando secciones.',
+              },
+              {
+                term: 'Precio tachado',
+                def: 'El precio anterior que se muestra tachado al lado del actual. Un producto con precio tachado cuenta como “en oferta” en toda la tienda.',
+              },
+              {
+                term: 'Pop-up',
+                def: 'Una ventana que aparece encima de la página con una promo o un cupón. Nunca aparece en el checkout.',
+              },
+              {
+                term: 'UTM',
+                def: 'Una marca que se agrega al final de un link (?utm_source=instagram) para que las estadísticas sepan de dónde vino cada visita y cada venta.',
               },
             ],
           },
