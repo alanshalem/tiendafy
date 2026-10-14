@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Api.Auth;
-using Api.Storefront;
 using Api.Orders;
+using Api.Storefront;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
 using Identity.Infrastructure;

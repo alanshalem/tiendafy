@@ -102,10 +102,22 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at_utc");
 
+                    b.Property<DateTime?>("PaymentDueAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payment_due_at_utc");
+
                     b.Property<string>("PaymentId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("payment_id");
+
+                    b.Property<string>("PaymentMethodDiscount")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("0|ARS")
+                        .HasColumnName("payment_method_discount");
 
                     b.Property<string>("PaymentProvider")
                         .IsRequired()
@@ -174,6 +186,9 @@ namespace Orders.Infrastructure.Migrations
 
                     b.HasIndex("PaymentId")
                         .HasDatabaseName("ix_orders_payment_id");
+
+                    b.HasIndex("Status", "PaymentDueAtUtc")
+                        .HasDatabaseName("ix_orders_status_payment_due_at_utc");
 
                     b.HasIndex("TenantId", "CreatedAtUtc")
                         .HasDatabaseName("ix_orders_tenant_id_created_at_utc");
