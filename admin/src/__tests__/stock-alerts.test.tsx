@@ -96,8 +96,7 @@ describe('stock bajo', () => {
     await user.click(await screen.findByRole('checkbox', { name: 'Elegir Cadena · 428H' }));
     await user.click(screen.getByRole('button', { name: /Armar orden de compra \(1\)/ }));
     // Compras abre la orden nueva con la cadena cargada y su cantidad.
-    expect(await screen.findByText(/Cadena · 428H/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('10')).toBeInTheDocument();
+    expect(await screen.findByRole('spinbutton', { name: 'Cantidad de Cadena · 428H' })).toHaveValue(10);
   });
 
   it('silenciar un producto y darse de baja de los emails', async () => {

@@ -169,7 +169,7 @@ describe('despacho', () => {
     expect(await screen.findByText('Pedido completo y verificado.')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Número de seguimiento' })).toHaveValue('AND-1');
 
-    await user.click(screen.getByRole('button', { name: /Despachar/ }));
+    await user.click(screen.getByRole('button', { name: 'Despachar' }));
     await waitFor(() =>
       expect(api.calls.find((c) => c.path === '/api/v1/fulfillment/scan-dispatch')?.body).toEqual({
         orderId: A,
@@ -196,7 +196,7 @@ describe('despacho', () => {
     );
     const input = await screen.findByRole('textbox', { name: 'Código del producto' });
     for (const code of ['REM-AZ', 'REM-AZ', 'GOR']) await user.type(input, `${code}{Enter}`);
-    await user.click(await screen.findByRole('button', { name: /Despachar/ }));
+    await user.click(await screen.findByRole('button', { name: 'Despachar' }));
     expect(await screen.findByText('0 despachados · 1 con error')).toBeInTheDocument();
   });
 });
