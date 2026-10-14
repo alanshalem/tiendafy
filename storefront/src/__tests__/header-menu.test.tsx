@@ -459,20 +459,24 @@ describe('barra de anuncio y pie: links seguros', () => {
   });
 
   it('pie: links propios (los inválidos o sin nombre no) y redes completadas con https', async () => {
+    // Un pie de antes de las columnas: sus links viejos pasan a una columna.
+    const { columns: _, ...legacy } = base.footer;
     await show(
       theme(MENU, {
-        footer: {
-          ...base.footer,
-          showSocial: true,
-          instagram: 'instagram.com/cking',
-          facebook: 'javascript:alert(1)',
-          links: [
-            { label: 'Envíos', href: '/paginas/envios' },
-            { label: 'Catálogo PDF', href: 'cdn.cking.com.ar/catalogo.pdf', newTab: true },
-            { label: 'Malo', href: 'data:text/html,hola' },
-            { label: '  ', href: '/x' },
-          ],
-        },
+        footer: normalizeTheme({
+          footer: {
+            ...legacy,
+            showSocial: true,
+            instagram: 'instagram.com/cking',
+            facebook: 'javascript:alert(1)',
+            links: [
+              { label: 'Envíos', href: '/paginas/envios' },
+              { label: 'Catálogo PDF', href: 'cdn.cking.com.ar/catalogo.pdf', newTab: true },
+              { label: 'Malo', href: 'data:text/html,hola' },
+              { label: '  ', href: '/x' },
+            ],
+          } as ThemeConfig['footer'],
+        }).footer,
       }),
     );
     const footer = within(screen.getByRole('contentinfo'));
