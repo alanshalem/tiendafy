@@ -22,6 +22,7 @@ const SHOWS: Record<string, RegExp | string> = {
   '/terminos': /t[ée]rminos/i,
   '/arrepentimiento': /arrepentimiento/i,
   '/contacto': /contacto/i,
+  '/seguimiento': /Seguí tu pedido/,
 };
 
 let errors: unknown[][] = [];

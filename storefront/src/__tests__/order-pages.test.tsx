@@ -166,8 +166,8 @@ describe('Seguí tu pedido', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No encontramos un pedido con esos datos.');
   });
 
-  it('con el link del mail abre solo; un link vencido deja el formulario', async () => {
-    api.on('POST', '/api/v1/shop/track-order', (body) =>
+  it('con el link del mail abre solo', async () => {
+    api.on('POST', '/api/v1/shop/track-order', (body: unknown) =>
       (body as { token?: string }).token === 'bueno' ? order() : undefined,
     );
     await show(<OrderTracker token="bueno" />);
