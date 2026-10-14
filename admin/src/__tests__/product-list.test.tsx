@@ -112,6 +112,33 @@ describe('listado de productos: en masa', () => {
     expect(did(api, 'DELETE', `/api/v1/products/${first.id}`)).toBe(true);
   });
 
+  it('si algunos fallan: hace los demás, refresca, dice cuáles fallaron y deja solo esos elegidos', async () => {
+    const { api, user } = await open();
+    const second = products[1]!;
+    api.on('DELETE', `/api/v1/products/${second.id}`, { detail: 'Tiene ventas asociadas.' }, 409);
+    await user.click(screen.getByLabelText('Seleccionar todos'));
+    const listCallsBefore = api.calls.filter((c) => c.path.startsWith('/api/v1/products?')).length;
+    await user.click(screen.getByRole('button', { name: /^Eliminar$/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Eliminar productos seleccionados' }));
+    await user.click(dialog.getByRole('button', { name: `Eliminar ${products.length}` }));
+    await settle(3);
+
+    for (const p of products) expect(did(api, 'DELETE', `/api/v1/products/${p.id}`)).toBe(true);
+    const summary = screen
+      .getAllByRole('status')
+      .find((s) => s.textContent?.includes('no se pudo eliminar'))!;
+    expect(summary).toHaveTextContent(`${products.length - 1} productos eliminados · 1 no se pudo eliminar`);
+    expect(summary).toHaveTextContent(`${second.name}: Tiene ventas asociadas.`);
+    // La lista se volvió a pedir (lo borrado no queda a la vista).
+    expect(api.calls.filter((c) => c.path.startsWith('/api/v1/products?')).length).toBeGreaterThan(
+      listCallsBefore,
+    );
+    expect(screen.getByText('1 seleccionados')).toBeInTheDocument();
+    expect(screen.getByLabelText(`Seleccionar ${second.name}`)).toBeChecked();
+    await user.click(within(summary).getByRole('button', { name: 'Cerrar el resumen' }));
+    expect(screen.queryByRole('button', { name: 'Cerrar el resumen' })).toBeNull();
+  });
+
   it('deseleccionar limpia la selección', async () => {
     const { user } = await open();
     await user.click(screen.getByLabelText('Seleccionar todos'));

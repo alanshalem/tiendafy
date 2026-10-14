@@ -96,7 +96,9 @@ export function ProductsPage() {
   // con miles de productos eso es descargar la tienda entera en cada visita, y
   // encima los filtros de categoría y envío no llegaban a aplicarse nunca.
   const { data, isLoading } = useQuery({
-    queryKey: ['products-admin', store?.id, debouncedSearch, filters, sort, page],
+    // Bajo ['products', tienda]: así lo refresca todo lo que invalida productos
+    // (antes la clave era otra y publicar o borrar no actualizaba la lista).
+    queryKey: ['products', store?.id, 'admin', debouncedSearch, filters, sort, page],
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -172,38 +174,60 @@ export function ProductsPage() {
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const toggleSelect = (id: string) => {
+  // Elegidos: id → nombre. El nombre hace falta para decir cuáles fallaron
+  // aunque estén en otra página (la selección sobrevive al paginar).
+  const [selected, setSelected] = useState<Map<string, string>>(new Map());
+  const toggleSelect = (product: ProductDto) => {
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      if (next.has(product.id)) next.delete(product.id);
+      else next.set(product.id, product.name);
       return next;
     });
   };
-  const clearSelection = () => setSelected(new Set());
+  const clearSelection = () => setSelected(new Map());
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
 
+  // Uno por uno y cada uno por su lado: si falla uno, los demás igual se
+  // hacen. Antes iban todos juntos con Promise.all y un solo error tiraba un
+  // "Error" genérico, sin refrescar (lo borrado seguía en la lista), sin
+  // limpiar la selección y sin decir qué sí había salido.
   const bulkAction = useMutation({
-    mutationFn: async ({ ids, action }: { ids: string[]; action: 'publish' | 'archive' | 'delete' }) => {
-      await Promise.all(
-        ids.map((id) =>
-          action === 'delete'
-            ? api.delete(`/api/v1/products/${id}`)
-            : api.post(`/api/v1/products/${id}/${action}`, {}),
-        ),
+    mutationFn: async ({ ids, action }: { ids: string[]; action: BulkKind }) => {
+      const outcomes = await settleInBatches(ids, (id) =>
+        action === 'delete'
+          ? api.delete(`/api/v1/products/${id}`)
+          : api.post(`/api/v1/products/${id}/${action}`, {}),
       );
-      return { count: ids.length, action };
+      return {
+        action,
+        done: ids.filter((_, i) => outcomes[i]!.status === 'fulfilled'),
+        failed: ids.flatMap((id, i) => {
+          const o = outcomes[i]!;
+          return o.status === 'rejected' ? [{ id, reason: errMsg(o.reason, 'No se pudo.') }] : [];
+        }),
+      };
     },
-    onSuccess: ({ count, action }) => {
+    onSuccess: ({ action, done, failed }) => {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
-      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ['catalog-health', store?.id] });
       setBulkDeleteOpen(false);
-      toast(
-        `${count} producto${count === 1 ? '' : 's'} ${action === 'delete' ? 'eliminado' : 'actualizado'}${count === 1 ? '' : 's'}`,
-        { variant: 'success' },
-      );
+      const names = new Map(selected);
+      // Los que salieron dejan de estar elegidos; los que fallaron quedan,
+      // para reintentar o revisarlos.
+      setSelected((prev) => {
+        const next = new Map(prev);
+        for (const id of done) next.delete(id);
+        return next;
+      });
+      const result: BulkResult = {
+        summary: bulkSummary(action, done.length, failed.length),
+        failed: failed.map((f) => ({ ...f, name: names.get(f.id) ?? f.id })),
+      };
+      setBulkResult(failed.length > 0 ? result : null);
+      toast(result.summary, { variant: failed.length > 0 ? 'error' : 'success' });
     },
-    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'No se pudo completar la acción.'), { variant: 'error' }),
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -226,11 +250,11 @@ export function ProductsPage() {
   const somePageSelected = selectedOnPage > 0 && !allPageSelected;
   const toggleSelectAll = () => {
     setSelected((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       if (allPageSelected) {
         pageItems.forEach((p) => next.delete(p.id));
       } else {
-        pageItems.forEach((p) => next.add(p.id));
+        pageItems.forEach((p) => next.set(p.id, p.name));
       }
       return next;
     });
@@ -403,6 +427,35 @@ export function ProductsPage() {
             )}
           </div>
 
+          {bulkResult && (
+            <div
+              role="status"
+              className="rounded-lg border border-warning/40 bg-warning-bg px-4 py-3 text-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-medium text-fg">{bulkResult.summary}.</p>
+                <button
+                  type="button"
+                  onClick={() => setBulkResult(null)}
+                  aria-label="Cerrar el resumen"
+                  className="rounded p-0.5 text-fg-muted hover:text-fg"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="mt-1.5 space-y-0.5 text-fg-muted">
+                {bulkResult.failed.map((f) => (
+                  <li key={f.id}>
+                    <span className="font-semibold text-fg">{f.name}</span>: {f.reason}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-xs text-fg-subtle">
+                Los que fallaron siguen seleccionados: podés reintentar o revisarlos uno por uno.
+              </p>
+            </div>
+          )}
+
           {/* Barra de acciones masivas. Se fija por debajo del encabezado del
               panel, que también es sticky: con `top` chico quedaba flotando
               encima y tapaba el selector de tienda. */}
@@ -413,7 +466,7 @@ export function ProductsPage() {
                 <button
                   type="button"
                   disabled={bulkAction.isPending}
-                  onClick={() => bulkAction.mutate({ ids: [...selected], action: 'publish' })}
+                  onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'publish' })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
                 >
                   <Upload className="h-4 w-4" /> Publicar
@@ -421,7 +474,7 @@ export function ProductsPage() {
                 <button
                   type="button"
                   disabled={bulkAction.isPending}
-                  onClick={() => bulkAction.mutate({ ids: [...selected], action: 'archive' })}
+                  onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'archive' })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
                 >
                   <Archive className="h-4 w-4" /> Archivar
@@ -505,7 +558,7 @@ export function ProductsPage() {
                         storeId={store.id}
                         readOnly={!canEdit}
                         selected={selected.has(product.id)}
-                        onToggleSelect={() => toggleSelect(product.id)}
+                        onToggleSelect={() => toggleSelect(product)}
                         onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
                         onDelete={() => deleteProduct.mutate(product.id)}
                         onDuplicate={() => duplicateProduct.mutate(product.id)}
@@ -586,7 +639,7 @@ export function ProductsPage() {
             <Button
               variant="danger"
               loading={bulkAction.isPending}
-              onClick={() => bulkAction.mutate({ ids: [...selected], action: 'delete' })}
+              onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'delete' })}
             >
               Eliminar {selected.size}
             </Button>
@@ -604,6 +657,46 @@ export function ProductsPage() {
       <HelpLink id="productos" />
     </div>
   );
+}
+
+type BulkKind = 'publish' | 'archive' | 'delete';
+
+interface BulkResult {
+  summary: string;
+  failed: { id: string; name: string; reason: string }[];
+}
+
+/**
+ * Corre `run` para cada id, de a `size` a la vez, y devuelve el resultado de
+ * cada uno en el mismo orden (como Promise.allSettled). De a pocos para no
+ * mandar cien pedidos juntos cuando la selección junta varias páginas.
+ */
+async function settleInBatches<T>(
+  ids: string[],
+  run: (id: string) => Promise<T>,
+  size = 6,
+): Promise<PromiseSettledResult<T>[]> {
+  const out: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    out.push(...(await Promise.allSettled(ids.slice(i, i + size).map(run))));
+  }
+  return out;
+}
+
+const BULK_DONE: Record<BulkKind, [string, string]> = {
+  publish: ['publicado', 'publicados'],
+  archive: ['archivado', 'archivados'],
+  delete: ['eliminado', 'eliminados'],
+};
+const BULK_VERB: Record<BulkKind, string> = { publish: 'publicar', archive: 'archivar', delete: 'eliminar' };
+
+/** "3 productos publicados · 1 no se pudo publicar" */
+function bulkSummary(action: BulkKind, done: number, failed: number): string {
+  const [one, many] = BULK_DONE[action];
+  const parts: string[] = [];
+  if (done > 0) parts.push(`${done} ${done === 1 ? `producto ${one}` : `productos ${many}`}`);
+  if (failed > 0) parts.push(`${failed} no se ${failed === 1 ? 'pudo' : 'pudieron'} ${BULK_VERB[action]}`);
+  return parts.join(' · ');
 }
 
 function HeaderBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
