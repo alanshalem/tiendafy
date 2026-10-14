@@ -412,7 +412,7 @@ public static class OrderEndpoints
                 if (OrderPayment.Of(order) == OrderPayment.CurrentAccount)
                     await ledger.PostSaleRefundAsync(
                         tenant.TenantId.Value, order.Id, audit.Id,
-                        $"Reembolso venta #{Api.Orders.OrderCsv.ShortNumber(order.Id)}",
+                        $"Reembolso venta {order.Label}",
                         amount.AmountInMinorUnits, order.Currency, DateTime.UtcNow, req.Reason, ct);
 
                 if (order.Status == OrderStatus.Refunded)
