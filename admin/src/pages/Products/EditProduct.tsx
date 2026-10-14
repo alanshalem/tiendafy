@@ -27,6 +27,7 @@ import {
 import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { ScreenSkeleton } from '../../components/Skeleton';
+import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
 
 interface VariantDto {
   id: string;
@@ -104,25 +105,38 @@ export function EditProductPage() {
   // volvía a copiar en cada recarga del producto —por ejemplo al subir una
   // foto— y se perdía lo que se estaba editando sin guardar.
   const [formFor, setFormFor] = useState<string | null>(null);
+  // Cómo estaba el form al cargarse: contra eso se sabe si hay cambios sin guardar.
+  const [loaded, setLoaded] = useState('');
   if (product && formFor !== product.id) {
-    setFormFor(product.id);
-    setName(product.name);
-    setDescription(product.description ?? '');
-    setBrand(product.brand ?? '');
-    setSeoTitle(product.seoTitle ?? '');
-    setSeoDescription(product.seoDescription ?? '');
-    setCategoryIds(product.categoryIds ?? []);
-    setSpecs(Object.fromEntries((product.specs ?? []).map((x) => [x.definitionId, x.value])));
-    setPrices(
-      Object.fromEntries(
+    const initial = {
+      name: product.name,
+      description: product.description ?? '',
+      brand: product.brand ?? '',
+      seoTitle: product.seoTitle ?? '',
+      seoDescription: product.seoDescription ?? '',
+      categoryIds: product.categoryIds ?? [],
+      specs: Object.fromEntries((product.specs ?? []).map((x) => [x.definitionId, x.value])) as SpecValues,
+      prices: Object.fromEntries(
         product.variants.map((v) => {
           const f = toFormPrice(v.price.amount, v.compareAtPrice?.amount ?? null);
           return [v.id, { price: toPesos(f.regular), promo: f.promo != null ? toPesos(f.promo) : '' }];
         }),
       ),
-    );
-    setBarcodes(Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])));
-    setShipping(Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])));
+      barcodes: Object.fromEntries(product.variants.map((v) => [v.id, v.barcode ?? ''])),
+      shipping: Object.fromEntries(product.variants.map((v) => [v.id, toShippingDraft(v)])),
+    };
+    setFormFor(product.id);
+    setLoaded(JSON.stringify(initial));
+    setName(initial.name);
+    setDescription(initial.description);
+    setBrand(initial.brand);
+    setSeoTitle(initial.seoTitle);
+    setSeoDescription(initial.seoDescription);
+    setCategoryIds(initial.categoryIds);
+    setSpecs(initial.specs);
+    setPrices(initial.prices);
+    setBarcodes(initial.barcodes);
+    setShipping(initial.shipping);
   }
 
   // El stock llega aparte: también se carga una sola vez por producto.
@@ -143,6 +157,24 @@ export function EditProductPage() {
     setImagesFor(imagesKey);
     setImageOrder(product?.images.map((img) => img.id) ?? []);
   }
+
+  // Mismo orden de claves que `initial`: la comparación es por texto.
+  const dirty =
+    !!formFor &&
+    (JSON.stringify({
+      name,
+      description,
+      brand,
+      seoTitle,
+      seoDescription,
+      categoryIds,
+      specs,
+      prices,
+      barcodes,
+      shipping,
+    }) !== loaded ||
+      Object.keys(stock).some((vid) => stock[vid] !== (stockSeen[vid] ?? '')));
+  const leave = useUnsavedChanges(dirty);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['product', id] });
@@ -272,7 +304,7 @@ export function EditProductPage() {
     onSuccess: () => {
       refresh();
       toast('Producto guardado', { variant: 'success' });
-      navigate('/productos');
+      leave(() => navigate('/productos'));
     },
     onError: (e) => {
       // El choque de stock se marca en su campo (y en un aviso, porque el
@@ -298,7 +330,7 @@ export function EditProductPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
       toast('Producto eliminado', { variant: 'success' });
-      navigate('/productos');
+      leave(() => navigate('/productos'));
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });

@@ -7,6 +7,7 @@ import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { replaceAt } from '../lib/arrays';
 import { formatMoney } from '../lib/format';
 import { VariantPicker } from '../components/VariantPicker';
+import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
 interface ManualItem {
   variantId: string;
@@ -39,6 +40,16 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+
+  // Una venta a medio cargar (productos, comprador, notas) no se pierde por un
+  // click afuera del modal o un Escape de más.
+  const dirty =
+    items.length > 0 ||
+    payment !== 'cash' ||
+    !!customer ||
+    [buyerName, buyerEmail, buyerPhone, notes].some((v) => v.trim() !== '');
+  const cancel = useGuardedClose(dirty && !paymentLink, onClose);
+  useBeforeUnload(dirty && !paymentLink);
 
   const totalMinor = items.reduce((sum, i) => {
     const price = Number(i.price) > 0 ? Math.round(Number(i.price) * 100) : 0;
@@ -138,11 +149,12 @@ export function ManualSaleModal({ onClose, onCreated }: { onClose: () => void; o
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title="Nueva venta manual"
       size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={cancel}>
             Cancelar
           </Button>
           <Button onClick={create} disabled={busy || items.length === 0}>

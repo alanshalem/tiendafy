@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, ConfirmProvider, PromptProvider } from '@tiendafy/ui';
 import App from './App';
@@ -35,6 +35,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Router "de datos" con una sola ruta comodín que dibuja la tabla de rutas de
+// App (<Routes>): con BrowserRouter no existe useBlocker, y sin él no hay
+// forma de frenar un cambio de pantalla con un formulario a medio cargar
+// (ver lib/useUnsavedChanges).
+const router = createBrowserRouter([{ path: '*', element: <App /> }]);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -45,9 +51,7 @@ createRoot(document.getElementById('root')!).render(
               <AuthGate>
                 <StoreProvider>
                   <PermissionsProvider>
-                    <BrowserRouter>
-                      <App />
-                    </BrowserRouter>
+                    <RouterProvider router={router} />
                   </PermissionsProvider>
                 </StoreProvider>
               </AuthGate>

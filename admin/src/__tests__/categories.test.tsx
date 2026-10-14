@@ -2,7 +2,8 @@
  * Categorías del catálogo: crear (con o sin padre), agregar una subcategoría
  * desde la fila, renombrar, ver en la tienda, eliminar con confirmación,
  * colapsar ramas y reordenar arrastrando (solo entre hermanas; el orden se
- * guarda en el navegador y se puede descartar).
+ * guarda en el navegador y se puede descartar; con cambios sin guardar,
+ * irse de la pantalla pregunta).
  */
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -159,5 +160,18 @@ describe('categorías', () => {
     fireEvent.drop(row('Fitness'));
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
     expect(screen.queryByText('Tenés cambios de orden sin guardar.')).not.toBeInTheDocument();
+  });
+
+  it('un orden sin guardar no se pierde por irse a otra pantalla sin querer', async () => {
+    const { user } = await open();
+    const row = (name: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>('[draggable="true"]')).find((r) =>
+        within(r).queryByText(name, { exact: true }),
+      )!;
+    fireEvent.dragStart(row('Ropa'));
+    fireEvent.drop(row('Fitness'));
+    await user.click(screen.getAllByRole('link', { name: /^Inicio$/ })[0]!);
+    await user.click(await screen.findByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByText('Tenés cambios de orden sin guardar.')).toBeInTheDocument();
   });
 });

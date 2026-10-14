@@ -167,7 +167,44 @@ describe('campañas', () => {
         name: /Enviar a/,
       }),
     );
+    // El aviso se ve DENTRO del modal: afuera quedaba debajo del fondo, inerte.
     expect(await screen.findByText('Sin dominio verificado.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Editar campaña' })).toContainElement(
+      screen.getByText('Sin dominio verificado.'),
+    );
+  });
+
+  it('con el asunto cambiado, cerrar pregunta antes de descartar (Cerrar, la X y el fondo)', async () => {
+    const { user, dialog, root } = await openCampaign();
+    // Sin cambios, cerrar no pregunta… pero primero se cambia el asunto.
+    const subject = dialog.getByRole('textbox', { name: 'Asunto' });
+    await user.type(subject, ' — último día');
+    // El "Cerrar" del pie (el otro es la X del encabezado).
+    await user.click(dialog.getAllByRole('button', { name: 'Cerrar' }).at(-1)!);
+    await user.click(await screen.findByRole('button', { name: 'Seguir editando' }));
+    expect(subject).toHaveValue(`${campaign.subject} — último día`);
+
+    await user.click(dialog.getAllByRole('button', { name: 'Cerrar' })[0]!);
+    await user.click(await screen.findByRole('button', { name: 'Seguir editando' }));
+
+    // Soltar el mouse afuera después de seleccionar texto del asunto no cierra.
+    fireEvent.pointerDown(subject);
+    fireEvent.click(root);
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(root);
+    fireEvent.click(root);
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }));
+    await settle(2);
+    expect(screen.queryByRole('dialog', { name: 'Editar campaña' })).not.toBeInTheDocument();
+  });
+
+  it('sin cambios, Cerrar no pregunta', async () => {
+    const { user, dialog } = await openCampaign();
+    await user.click(dialog.getAllByRole('button', { name: 'Cerrar' }).at(-1)!);
+    await settle(2);
+    expect(screen.queryByRole('dialog', { name: 'Editar campaña' })).not.toBeInTheDocument();
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
   });
 });
 

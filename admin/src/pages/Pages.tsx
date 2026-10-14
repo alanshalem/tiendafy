@@ -25,6 +25,7 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { HelpLink } from '../components/HelpLink';
 import { TableSkeleton } from '../components/Skeleton';
+import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
 interface PageDto {
   id: string;
@@ -190,6 +191,16 @@ function PageModal({
   const [published, setPublished] = useState(page?.published ?? true);
   const [error, setError] = useState<string>();
   const isEdit = !!page;
+  // El contenido con formato es lo que más cuesta rehacer: un click afuera o
+  // un Escape de más no lo tira.
+  const dirty =
+    open &&
+    (title !== (page?.title ?? '') ||
+      slug !== (page?.slug ?? '') ||
+      body !== (page?.body ?? '') ||
+      published !== (page?.published ?? true));
+  const cancel = useGuardedClose(dirty, onClose);
+  useBeforeUnload(dirty);
 
   const save = useMutation({
     mutationFn: () => {
@@ -213,10 +224,11 @@ function PageModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={isEdit ? 'Editar página' : 'Crear página'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={cancel}>
             Cancelar
           </Button>
           <Button loading={save.isPending} disabled={!title.trim()} onClick={() => save.mutate()}>

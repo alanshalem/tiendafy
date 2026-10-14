@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight,
@@ -21,6 +21,7 @@ import { useFlipList } from '../../lib/useFlip';
 import { FIXED_BAR_PADDING, TABLE_CARD } from '../../lib/styles';
 import { moveItem } from '../../lib/arrays';
 import { TableSkeleton } from '../../components/Skeleton';
+import { useUnsavedChanges } from '../../lib/useUnsavedChanges';
 
 interface CategoryDto {
   id: string;
@@ -104,16 +105,9 @@ export function CategoriesPage() {
   });
   const categories = useMemo(() => data?.items ?? [], [data]);
 
-  // Aviso del navegador si hay cambios sin guardar.
-  useEffect(() => {
-    if (!dirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty]);
+  // Un orden sin guardar no se pierde: ni yéndose a otra pantalla del panel
+  // ni cerrando la pestaña.
+  useUnsavedChanges(dirty);
 
   const tree = useMemo(() => buildTree(categories, order), [categories, order]);
 

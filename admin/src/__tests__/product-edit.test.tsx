@@ -173,6 +173,42 @@ describe('editar producto', () => {
     expect(sent(api, 'PUT', `/inventory/${variant.id}`)[1]).toMatchObject({ expectedAvailable: 3 });
   });
 
+  it('con cambios sin guardar, salir de la pantalla o cerrar la pestaña pregunta', async () => {
+    const api = mockApi();
+    const user = await open(api);
+    const unload = () => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    // Recién abierto no hay nada que perder.
+    expect(unload()).toBe(false);
+
+    await user.type(screen.getByLabelText(/Título SEO/), 'Nuevo');
+    expect(unload()).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByLabelText(/Título SEO/)).toHaveValue('Nuevo');
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Editar producto' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('sin cambios, Cancelar sale sin preguntar', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/inventory', { items: [{ variantId: variant.id, available: 5, reserved: 0 }] });
+    const user = await open(api);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Editar producto' })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
+  });
+
   it('sin tocar el paquete no lo reescribe', async () => {
     const api = mockApi();
     const single = { ...variant, barcode: 'X1', weightGrams: 800, lengthCm: 30, widthCm: 20, heightCm: 10 };

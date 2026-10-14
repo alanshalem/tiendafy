@@ -194,4 +194,19 @@ describe('nuevo producto', () => {
       expect(screen.queryByRole('heading', { name: 'Nuevo producto' })).not.toBeInTheDocument(),
     );
   });
+
+  it('con algo cargado, cancelar pregunta antes de descartar', async () => {
+    const api = mockApi();
+    const user = await open(api);
+    await user.type(screen.getByPlaceholderText('Remera oversize'), 'Remera');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByPlaceholderText('Remera oversize')).toHaveValue('Remera');
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Nuevo producto' })).not.toBeInTheDocument(),
+    );
+  });
 });

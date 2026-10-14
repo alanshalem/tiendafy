@@ -9,6 +9,7 @@ import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
 import { EmailPreviewPanel } from '../components/EmailPreview';
 import type { MoneyDto } from '@tiendafy/types';
 import { parseMoneyInput } from '../lib/price';
+import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -138,6 +139,13 @@ export function CampaignModal({
     products,
   });
 
+  // Lo que había al abrir: el asunto y el cuerpo (texto con formato, el que
+  // más cuesta rehacer) y la audiencia no se pierden por un click afuera.
+  const [opened] = useState(() => JSON.stringify(buildPayload()));
+  const dirty = JSON.stringify(buildPayload()) !== opened;
+  const close = useGuardedClose(dirty, onClose);
+  useBeforeUnload(dirty);
+
   // Conteo de audiencia en vivo (debounced).
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
   useEffect(() => {
@@ -247,10 +255,11 @@ export function CampaignModal({
       open
       size="xl"
       onClose={onClose}
+      dirty={dirty}
       title={campaign ? 'Editar campaña' : 'Nueva campaña'}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={close}>
             Cerrar
           </Button>
           <Button variant="secondary" onClick={saveDraft} disabled={save.isPending}>

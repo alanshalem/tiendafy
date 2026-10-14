@@ -6,8 +6,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { ConfirmProvider, PromptProvider, ToastProvider } from '@tiendafy/ui';
-import type { ReactElement, ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { createContext, useContext, useState, type ReactElement, type ReactNode } from 'react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import App from '../App';
 import { AuthProvider } from '../context/AuthContext';
 import { PermissionsProvider } from '../context/PermissionsContext';
@@ -19,6 +19,25 @@ import { preloadPages } from '../lib/lazyPage';
 // bajan todas antes: un import lento no tiene que parecer una pantalla que no
 // aparece.
 await preloadPages();
+
+// Lo que se dibuja adentro del router llega por contexto: el router se arma
+// una vez por render (como en main.tsx, uno de datos para que ande useBlocker)
+// y así un rerender con otra cosa adentro igual se ve.
+const Inside = createContext<ReactNode>(null);
+function RouteContent() {
+  return <>{useContext(Inside)}</>;
+}
+
+function TestRouter({ path, children }: { path: string; children: ReactNode }) {
+  const [router] = useState(() =>
+    createMemoryRouter([{ path: '*', element: <RouteContent /> }], { initialEntries: [path] }),
+  );
+  return (
+    <Inside.Provider value={children}>
+      <RouterProvider router={router} />
+    </Inside.Provider>
+  );
+}
 
 export function Providers({ children, path = '/' }: { children: ReactNode; path?: string }) {
   // Un cliente por test: sin reintentos (un 404 de las fixtures es definitivo)
@@ -35,7 +54,7 @@ export function Providers({ children, path = '/' }: { children: ReactNode; path?
               <AuthGate>
                 <StoreProvider>
                   <PermissionsProvider>
-                    <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter>
+                    <TestRouter path={path}>{children}</TestRouter>
                   </PermissionsProvider>
                 </StoreProvider>
               </AuthGate>

@@ -19,6 +19,7 @@ import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
 import { storefrontUrl } from '../lib/storefront';
 import { useProductSearch } from '../lib/useProductSearch';
+import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 import {
   localInputToUtcIso,
   providerMeta,
@@ -79,6 +80,13 @@ export function ComposerModal({
     return '';
   });
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Lo que había al abrir: un post escrito (y sus textos por red) no se pierde
+  // por un click afuera o un Escape de más.
+  const draft = { content, couponCode, mediaUrls, selected: [...selected].sort(), overrides, scheduleAt };
+  const [opened] = useState(() => JSON.stringify(draft));
+  const dirty = JSON.stringify(draft) !== opened;
+  const cancel = useGuardedClose(dirty, onClose);
+  useBeforeUnload(dirty);
   const aiEnabled = useAiEnabled();
   const [improving, setImproving] = useState(false);
 
@@ -192,6 +200,7 @@ export function ComposerModal({
     <Modal
       open
       onClose={onClose}
+      dirty={dirty}
       title={readOnly ? 'Ver post' : post ? 'Editar post' : 'Nuevo post'}
       size="xl"
       footer={
@@ -201,7 +210,7 @@ export function ComposerModal({
           </Button>
         ) : (
           <>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={cancel}>
               Cancelar
             </Button>
             <Button variant="secondary" onClick={() => save('draft')} disabled={busy}>
