@@ -254,7 +254,11 @@ describe('menú del encabezado', () => {
 describe('barra de anuncio y pie', () => {
   it('el link del anuncio sale del selector, con pestaña nueva', async () => {
     const user = await show((t, u) => <HeaderPanel theme={t} updateTheme={u} onBack={() => {}} />, {
-      announcement: { show: true, animation: 'static', items: [{ text: 'Envío gratis', link: '' }] },
+      announcement: {
+        ...baseTheme.announcement,
+        show: true,
+        items: [{ text: 'Envío gratis', link: '' }],
+      },
     });
     // Con la barra prendida, su bloque ya viene abierto.
     expect(screen.getByRole('button', { name: 'Barra de anuncio' })).toHaveAttribute('aria-expanded', 'true');

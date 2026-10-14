@@ -311,14 +311,14 @@ describe('barra de anuncio', () => {
   ];
 
   it.each(['static', 'marquee'] as const)('%s: los avisos con y sin link', async (animation) => {
-    await show(theme({}, { announcement: { show: true, animation, items } }));
+    await show(theme({}, { announcement: { ...base.announcement, show: true, animation, items } }));
     expect(screen.getAllByRole('link', { name: 'Envío gratis' }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Cuotas sin interés').length).toBeGreaterThan(0);
   });
 
   it('apagada o sin texto no se muestra', async () => {
     await show(
-      theme({}, { announcement: { show: true, animation: 'static', items: [{ text: ' ', link: '' }] } }),
+      theme({}, { announcement: { ...base.announcement, show: true, items: [{ text: ' ', link: '' }] } }),
     );
     expect(document.querySelector('[data-tf-focus="announcement"]')).toBeNull();
   });
@@ -333,7 +333,7 @@ describe('dentro del editor', () => {
       const { user } = await show(
         theme(
           { sticky: false },
-          { announcement: { show: true, animation: 'static', items: [{ text: 'Hola', link: '' }] } },
+          { announcement: { ...base.announcement, show: true, items: [{ text: 'Hola', link: '' }] } },
         ),
         { preview: true },
       );

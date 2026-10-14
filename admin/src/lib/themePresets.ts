@@ -9,6 +9,7 @@
  */
 
 import {
+  baseTheme,
   createSection,
   isSectionType,
   type BorderRadiusStyle,
@@ -713,13 +714,16 @@ export function presetToConfig(preset: ThemePreset) {
       sticky: true,
       logoSize: 'md' as const,
       showTabsMobile: false,
+      // Los colores por página eran para los colores de antes: con los del
+      // diseño nuevo quedarían encabezados que no combinan con nada.
+      pageColors: {},
       ...preset.header,
     },
     ...(preset.announcement
       ? {
           announcement: {
+            ...baseTheme.announcement,
             show: true,
-            animation: 'static' as const,
             items: [{ text: preset.announcement, link: '' }],
           },
         }

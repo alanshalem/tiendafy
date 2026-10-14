@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { EDITOR_MSG, contrastText, heroUnderHeader } from '@tiendafy/types';
+import { EDITOR_MSG, contrastText, headerColorsFor, heroUnderHeader } from '@tiendafy/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Pencil } from 'lucide-react';
@@ -17,7 +17,8 @@ import { buildHeaderMenu, type NavItem } from './header-menu';
 import { StoreLink } from './StoreLink';
 import { ADMIN_ORIGIN, PreviewContext, usePreviewHref } from './preview';
 import { type ThemeConfig } from '@/lib/theme';
-import { MarqueeTrack } from './MarqueeTrack';
+import { headerPageKind } from '@/lib/header-page';
+import { AnnouncementBar } from './AnnouncementBar';
 
 /**
  * Tamaños del logo: cada paso tiene que notarse. Antes iban de 16 a 24 px de
@@ -47,68 +48,6 @@ function CountBadge({ count }: { count: number }) {
     <span className="absolute right-0.5 top-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold leading-none text-primary-fg ring-2 ring-[rgb(var(--store-header-bg))]">
       {count}
     </span>
-  );
-}
-
-/**
- * Barra de anuncio: uno o varios textos (cada uno con link opcional), fija o
- * desplazándose (marquee). Sólo se muestra si hay al menos un texto con contenido.
- */
-function AnnouncementBar({ ann, preview }: { ann: ThemeConfig['announcement']; preview: boolean }) {
-  const [annHover, setAnnHover] = useState(false);
-  const annItems = (ann.items ?? []).filter((i) => i.text.trim());
-  const annMarquee = ann.animation === 'marquee';
-  if (!(ann.show && annItems.length > 0)) return null;
-  return (
-    <div
-      data-tf-focus="announcement"
-      className="relative overflow-hidden bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
-      onMouseEnter={preview ? () => setAnnHover(true) : undefined}
-      onMouseLeave={preview ? () => setAnnHover(false) : undefined}
-    >
-      {preview && annHover && (
-        <>
-          <div className="pointer-events-none absolute inset-0 z-[55] ring-2 ring-inset ring-white/70" />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              window.parent?.postMessage(
-                { type: EDITOR_MSG.editSection, target: 'announcement' },
-                ADMIN_ORIGIN,
-              );
-            }}
-            className="absolute right-3 top-1/2 z-[56] inline-flex -translate-y-1/2 items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1 text-xs font-semibold text-white shadow-lg hover:bg-black/40"
-          >
-            <Pencil className="h-3.5 w-3.5" /> Editar barra de anuncio
-          </button>
-        </>
-      )}
-      {annMarquee ? (
-        // Marquee: la pista se duplica para un loop continuo sin saltos.
-        <MarqueeTrack className="whitespace-nowrap">
-          {annItems.map((it, i) => (
-            <span key={i} className="flex items-center">
-              {/* Sin link válido, StoreLink deja el texto solo (nunca un href="#"). */}
-              <StoreLink href={it.link} newTab={it.newTab} className="px-6 [&[href]]:hover:underline">
-                {it.text}
-              </StoreLink>
-              <span className="opacity-50">•</span>
-            </span>
-          ))}
-        </MarqueeTrack>
-      ) : (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-          {annItems.map((it, i) => (
-            <span key={i} className="flex items-center gap-3">
-              {i > 0 && <span className="opacity-50">•</span>}
-              <StoreLink href={it.link} newTab={it.newTab} className="[&[href]]:hover:underline">
-                {it.text}
-              </StoreLink>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -251,12 +190,16 @@ function MobilePanel({
 }
 
 export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
-  const header = theme.header;
+  const pathname = usePathname();
+  const pageKind = headerPageKind(pathname);
+  // Los colores de esta página: los propios de su tipo (inicio, listado,
+  // producto…) o los generales. De acá para abajo `header` ya los trae, así
+  // el panel del celular, la búsqueda y el globito del carrito los siguen.
+  const header = { ...theme.header, ...headerColorsFor(theme.header, pageKind) };
   const { count, setOpen } = useCart();
   const fav = useFavorites();
   const href = usePreviewHref();
   const preview = useContext(PreviewContext);
-  const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [q, setQ] = useState('');
@@ -270,11 +213,12 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
     setSearchOpen(false);
   }, [pathname]);
 
-  const isHome = pathname === '/' || pathname === '/preview';
   // Transparente solo encima de una foto o un video de portada: sobre el fondo
   // liso de la tienda el menú (blanco) no se leía, y el encabezado desaparecía.
-  // El encabezado se superpone a la portada (no la empuja hacia abajo).
-  const overlay = header.transparentOnHome && isHome && heroUnderHeader(theme.sections);
+  // El encabezado se superpone a la portada (no la empuja hacia abajo). Gana
+  // sobre el color propio del inicio mientras se está arriba; al bajar, el
+  // encabezado se vuelve sólido con ese color.
+  const overlay = header.transparentOnHome && pageKind === 'home' && heroUnderHeader(theme.sections);
   const transparent = overlay && !scrolled;
 
   useEffect(() => {
@@ -473,6 +417,8 @@ export function Header({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
         style={{
           background: bg,
           color: textColor,
+          // El aro de los globitos (carrito, favoritos) recorta contra el fondo de ESTA página.
+          ['--store-header-bg' as string]: header.bg,
           ...(overlay && height !== null ? { marginBottom: -height } : {}),
         }}
         onMouseEnter={preview ? () => setEditHover(true) : undefined}

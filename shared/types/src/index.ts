@@ -68,6 +68,9 @@ export type { MoneyDto } from './wire';
 // Opciones globales del tema: menú armable, links del pie y estilo de botones.
 export type { ThemeMenuItemKind, FooterLink, ButtonStyle } from './theme';
 export { BUILTIN_MENU_IDS } from './theme';
+// Encabezado por tipo de página y barra de anuncio "uno por vez".
+export type { HeaderPageKind, HeaderPageColor, HeaderPageColors } from './theme';
+export { HEADER_PAGE_KINDS, ANNOUNCEMENT_INTERVAL, headerColorsFor } from './theme';
 // Links que escribe el comercio: validación y destinos de la tienda.
 export {
   normalizeLink,

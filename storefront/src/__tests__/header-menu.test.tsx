@@ -440,8 +440,8 @@ describe('barra de anuncio y pie: links seguros', () => {
     await show(
       theme(MENU, {
         announcement: {
+          ...base.announcement,
           show: true,
-          animation: 'static',
           items: [
             { text: 'Visitá el blog', link: 'blog.cking.com.ar', newTab: true },
             { text: 'Cuidado', link: 'javascript:alert(1)' },

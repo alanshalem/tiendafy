@@ -92,7 +92,32 @@ export interface ThemeHeader {
    * desplegable "Más", así que el orden decide qué queda a la vista.
    */
   menu: ThemeMenuItem[];
+  /**
+   * Colores propios por tipo de página. Una página que no figura usa los de
+   * arriba (`bg` y `textColor`). Sirve para, por ejemplo, un encabezado oscuro
+   * solo en el inicio y claro en el resto de la tienda.
+   */
+  pageColors: HeaderPageColors;
 }
+
+/**
+ * Tipos de página que pueden tener su propio color de encabezado. Los decide
+ * la ruta (ver el encabezado del storefront): el inicio, el listado (con o sin
+ * categoría), la ficha de un producto, las páginas de contenido (las que se
+ * publican, contacto y legales) y el checkout. El carrito no está: es un panel
+ * que se abre encima de cualquier página, no una página.
+ */
+export const HEADER_PAGE_KINDS = ['home', 'listing', 'product', 'content', 'checkout'] as const;
+export type HeaderPageKind = (typeof HEADER_PAGE_KINDS)[number];
+
+/** El color del encabezado en un tipo de página. */
+export interface HeaderPageColor {
+  /** Fondo en "R G B". */
+  bg: string;
+  /** Texto e íconos en "R G B". Vacío = automático (el que se lee sobre ese fondo). */
+  textColor: string;
+}
+export type HeaderPageColors = Partial<Record<HeaderPageKind, HeaderPageColor>>;
 
 /** Un anuncio de la barra superior: texto + link opcional. */
 interface AnnouncementItem {
@@ -101,12 +126,21 @@ interface AnnouncementItem {
   /** Abrir el link en otra pestaña. */
   newTab?: boolean;
 }
+/** Cuánto queda cada anuncio en "uno por vez", en segundos (default, mínimo y máximo). */
+export const ANNOUNCEMENT_INTERVAL = { fallback: 5, min: 3, max: 10 } as const;
 export interface ThemeAnnouncement {
   show: boolean;
-  /** 'static' = texto(s) fijo(s) centrado(s); 'marquee' = se desplazan de derecha a izquierda. */
-  animation: 'static' | 'marquee';
+  /**
+   * 'static' = texto(s) fijo(s) centrado(s); 'marquee' = se desplazan de
+   * derecha a izquierda; 'rotate' = uno por vez, cambiando cada `interval`.
+   */
+  animation: 'static' | 'marquee' | 'rotate';
   /** Uno o varios anuncios (cada uno con su link). */
   items: AnnouncementItem[];
+  /** Segundos que queda cada anuncio en 'rotate' (de 3 a 10). */
+  interval: number;
+  /** Velocidad del 'marquee': lo que tarda en dar la vuelta. */
+  speed: 'slow' | 'normal' | 'fast';
 }
 
 export interface ComingSoonConfig {
@@ -378,8 +412,15 @@ export const baseTheme: ThemeConfig = {
     cartStyle: 'icon',
     border: 'none',
     menu: [],
+    pageColors: {},
   },
-  announcement: { show: false, animation: 'static', items: [{ text: '', link: '' }] },
+  announcement: {
+    show: false,
+    animation: 'static',
+    items: [{ text: '', link: '' }],
+    interval: ANNOUNCEMENT_INTERVAL.fallback,
+    speed: 'normal',
+  },
   comingSoon: {
     enabled: false,
     collectEmails: false,
@@ -525,11 +566,50 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
   }
   if (items.length === 0) items = [{ text: '', link: '' }];
 
+  // Un tema guardado antes de "uno por vez" no trae ni intervalo ni velocidad:
+  // quedan los de siempre (5 s y la marquesina a 22 s por vuelta).
+  const { min, max, fallback } = ANNOUNCEMENT_INTERVAL;
+  const interval =
+    typeof raw.interval === 'number' && Number.isFinite(raw.interval)
+      ? Math.min(max, Math.max(min, Math.round(raw.interval)))
+      : fallback;
   return {
     show: typeof raw.show === 'boolean' ? raw.show : base.show,
-    animation: raw.animation === 'marquee' ? 'marquee' : 'static',
+    animation: raw.animation === 'marquee' || raw.animation === 'rotate' ? raw.animation : 'static',
     items,
+    interval,
+    speed: raw.speed === 'slow' || raw.speed === 'fast' ? raw.speed : base.speed,
   };
+}
+
+/**
+ * Colores del encabezado por tipo de página: solo los tipos conocidos con un
+ * fondo válido. Cualquier otra cosa (un tema viejo, un color roto) = sin
+ * colores propios, y esa página usa los del encabezado.
+ */
+function normalizeHeaderPageColors(raw: unknown): HeaderPageColors {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: HeaderPageColors = {};
+  for (const kind of HEADER_PAGE_KINDS) {
+    const entry = (raw as Record<string, Partial<HeaderPageColor> | undefined>)[kind];
+    const bg = rgbOrEmpty(entry?.bg);
+    if (bg) out[kind] = { bg, textColor: rgbOrEmpty(entry?.textColor) };
+  }
+  return out;
+}
+
+/**
+ * El fondo y el texto del encabezado en un tipo de página: los propios de esa
+ * página, o los generales. Con fondo propio y texto en automático, el texto es
+ * el que se lee sobre ESE fondo (no el elegido para el general, que pudo
+ * pensarse para otro color). `textColor` vacío = automático.
+ */
+export function headerColorsFor(
+  header: Pick<ThemeHeader, 'bg' | 'textColor' | 'pageColors'>,
+  kind: HeaderPageKind | null,
+): HeaderPageColor {
+  const own = kind ? header.pageColors?.[kind] : undefined;
+  return own ? { bg: own.bg, textColor: own.textColor } : { bg: header.bg, textColor: header.textColor };
 }
 
 /** Ids de los ítems fijos del menú (existen siempre; se ocultan, no se borran). */
@@ -642,6 +722,7 @@ export function normalizeTheme(
       // con el formato viejo ({ id, visible }): se migra acá.
       menu: normalizeMenu(raw.header?.menu),
       textColor: rgbOrEmpty(raw.header?.textColor),
+      pageColors: normalizeHeaderPageColors(raw.header?.pageColors),
       transparentLogo:
         typeof raw.header?.transparentLogo === 'string'
           ? raw.header.transparentLogo
