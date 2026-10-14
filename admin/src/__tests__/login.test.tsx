@@ -35,7 +35,7 @@ describe('sesión: no poder preguntar no es estar deslogueado', () => {
     const user = userEvent.setup();
     renderApp('/');
     expect(await screen.findByText('No pudimos conectar con el servidor')).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Contraseña')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
 
     // Vuelve la API: reintentar entra con la sesión que nunca se cerró.
     api.on('GET', '/api/v1/auth/me', fixture('/api/v1/auth/me'));
@@ -43,7 +43,7 @@ describe('sesión: no poder preguntar no es estar deslogueado', () => {
     await waitFor(() =>
       expect(screen.queryByText('No pudimos conectar con el servidor')).not.toBeInTheDocument(),
     );
-    expect(screen.queryByPlaceholderText('Contraseña')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
   });
 
   it('sin red: también avisa en vez de pedir la clave', async () => {
@@ -55,22 +55,29 @@ describe('sesión: no poder preguntar no es estar deslogueado', () => {
   it('un 401 sí es no tener sesión: muestra el login', async () => {
     loggedOut();
     renderApp('/');
-    expect(await screen.findByPlaceholderText('Contraseña')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Contraseña')).toBeInTheDocument();
   });
 });
 
 describe('login del panel', () => {
+  it('los campos tienen nombre y dicen qué completa el gestor de contraseñas', async () => {
+    loggedOut();
+    renderApp('/');
+    expect(await screen.findByLabelText('Email')).toHaveAttribute('autocomplete', 'username');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
+  });
+
   it('entra con email y contraseña', async () => {
     const api = loggedOut();
     api.on('POST', '/api/v1/auth/login', fixture('/api/v1/auth/me'));
     const user = userEvent.setup();
     renderApp('/');
 
-    await user.type(await screen.findByPlaceholderText('Email'), 'duenio@tienda.com');
-    await user.type(screen.getByPlaceholderText('Contraseña'), 'una-clave-larga');
+    await user.type(await screen.findByLabelText('Email'), 'duenio@tienda.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'una-clave-larga');
     await user.click(await submitButton('Iniciar sesión'));
 
-    await waitFor(() => expect(screen.queryByPlaceholderText('Contraseña')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument());
     expect(api.calls).toContainEqual(
       expect.objectContaining({
         method: 'POST',
@@ -91,8 +98,8 @@ describe('login del panel', () => {
     const user = userEvent.setup();
     renderApp('/');
 
-    await user.type(await screen.findByPlaceholderText('Email'), 'nuevo@tienda.com');
-    await user.type(screen.getByPlaceholderText('Contraseña'), 'una-clave-larga');
+    await user.type(await screen.findByLabelText('Email'), 'nuevo@tienda.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'una-clave-larga');
     await user.click(await submitButton('Iniciar sesión'));
 
     expect(await screen.findByText('Verificá tu email para entrar.')).toBeInTheDocument();
@@ -108,7 +115,7 @@ describe('login del panel', () => {
     renderApp('/');
 
     await user.click(await screen.findByRole('button', { name: '¿Olvidaste tu contraseña?' }));
-    await user.type(screen.getByPlaceholderText('Email'), 'alguien@tienda.com');
+    await user.type(screen.getByLabelText('Email'), 'alguien@tienda.com');
     await user.click(screen.getByRole('button', { name: 'Enviar link' }));
     expect(await screen.findByText(/te llegó un link/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Volver a iniciar sesión' }));
@@ -123,9 +130,9 @@ describe('login del panel', () => {
     renderApp('/');
 
     await user.click(await screen.findByRole('button', { name: 'Creá la cuenta de dueño' }));
-    await user.type(screen.getByPlaceholderText('Tu nombre'), 'Ana');
-    await user.type(screen.getByPlaceholderText('Email'), 'ana@tienda.com');
-    await user.type(screen.getByPlaceholderText('Contraseña'), 'una-clave-larga');
+    await user.type(screen.getByLabelText('Tu nombre'), 'Ana');
+    await user.type(screen.getByLabelText('Email'), 'ana@tienda.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'una-clave-larga');
     await user.click(await submitButton('Crear cuenta'));
 
     await waitFor(() => expect(api.calls.some((c) => c.path === '/api/v1/auth/register')).toBe(true));
@@ -141,7 +148,7 @@ describe('login del panel', () => {
     const user = userEvent.setup();
     renderApp('/restablecer');
 
-    await user.type(await screen.findByPlaceholderText('Nueva contraseña'), 'clave-nueva-larga');
+    await user.type(await screen.findByLabelText('Nueva contraseña'), 'clave-nueva-larga');
     await user.click(screen.getByRole('button'));
     await waitFor(() => expect(api.calls.some((c) => c.path === '/api/v1/auth/reset')).toBe(true));
     expect(api.calls.find((c) => c.path === '/api/v1/auth/reset')?.body).toEqual({
@@ -164,7 +171,7 @@ describe('login del panel', () => {
     const user = userEvent.setup();
     renderApp('/restablecer');
 
-    await user.type(await screen.findByPlaceholderText('Nueva contraseña'), 'clave-nueva-larga');
+    await user.type(await screen.findByLabelText('Nueva contraseña'), 'clave-nueva-larga');
     await user.click(screen.getByRole('button'));
     expect(await screen.findByText('El link no es válido o expiró.')).toBeInTheDocument();
   });

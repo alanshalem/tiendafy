@@ -43,6 +43,7 @@ export function ExpensesEditor({
           <div key={idx} className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <Input
+                aria-label={`Concepto del gasto ${idx + 1}`}
                 placeholder="Concepto (ej. Flete marítimo)"
                 value={e.label}
                 disabled={!editable}
@@ -58,6 +59,7 @@ export function ExpensesEditor({
                 type="number"
                 min={0}
                 step="0.01"
+                aria-label={`Monto del gasto ${idx + 1}`}
                 placeholder="Monto"
                 className="text-right"
                 value={e.amount}

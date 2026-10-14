@@ -257,6 +257,7 @@ function BuscarTab() {
         }}
       >
         <Input
+          aria-label="Código de barras o SKU"
           placeholder="Código de barras o SKU…"
           value={manual}
           onChange={(e) => setManual(e.target.value)}
@@ -277,6 +278,7 @@ function BuscarTab() {
           <div className="mt-2 flex gap-2">
             <Input
               compact
+              aria-label="SKU de la variante a la que se asigna el código"
               placeholder="SKU de la variante"
               value={assignSku}
               onChange={(e) => setAssignSku(e.target.value)}
@@ -482,6 +484,7 @@ function PickingTab() {
                   <div className="min-w-[12rem] flex-1">
                     <Input
                       compact
+                      aria-label="Número de seguimiento"
                       placeholder="Número de seguimiento (opcional)"
                       value={tracking}
                       onChange={(e) => setTracking(e.target.value)}
@@ -523,6 +526,7 @@ function ManualPickInput({ onCode }: { onCode: (code: string) => void }) {
       }}
     >
       <Input
+        aria-label="Código del producto a mano"
         placeholder="…o ingresá el código a mano"
         value={value}
         onChange={(e) => setValue(e.target.value)}
