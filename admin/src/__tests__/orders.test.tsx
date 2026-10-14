@@ -77,6 +77,67 @@ describe('ventas: una venta pagada', () => {
     expect(await screen.findByText(/No se pudo marcar como lista para retirar/)).toBeTruthy();
   });
 
+  it('el detalle muestra cliente (con su ficha), envío y cobro', async () => {
+    await openOrder({
+      ...paid,
+      buyerName: 'Ana Gómez',
+      shippingMethod: 'Correo Argentino',
+      shippingAddress: 'Av. Siempreviva 742, Springfield',
+      tracking: 'AR-555',
+      paymentMethod: 'online',
+      channel: 'web',
+    } as typeof paid);
+    const detail = within(document.getElementById(`venta-${paid.id}`)!);
+    expect(detail.getByText('Av. Siempreviva 742, Springfield')).toBeInTheDocument();
+    expect(screen.getByText('AR-555')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ver en Clientes/ })).toHaveAttribute(
+      'href',
+      `/clientes?q=${encodeURIComponent(paid.buyerEmail)}`,
+    );
+    expect(detail.getByText('Tienda online')).toBeInTheDocument();
+  });
+
+  it('reembolsar una venta en cuenta corriente baja la deuda: no habla de Mercado Pago', async () => {
+    const { user } = await openOrder({
+      ...paid,
+      paymentId: 'manual-cuenta_corriente',
+      paymentMethod: 'cuenta_corriente',
+    } as typeof paid);
+    await user.click(screen.getByRole('button', { name: /Reembolsar/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Reembolsar pedido' }));
+    expect(dialog.getByText(/se le baja la deuda al cliente/i)).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: /Reembolsar/ }));
+    const confirm = await screen.findByRole('dialog', { name: 'Confirmar reembolso' });
+    expect(confirm).toHaveTextContent(/baja la deuda/);
+    expect(confirm).not.toHaveTextContent(/Mercado Pago/);
+  });
+
+  it('una venta en efectivo: la plata la devolvés vos', async () => {
+    const { user } = await openOrder({ ...paid, paymentId: 'manual-cash' });
+    await user.click(screen.getByRole('button', { name: /Reembolsar/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Reembolsar pedido' }));
+    expect(dialog.getByText(/la devolución la hacés vos/)).toBeInTheDocument();
+  });
+
+  it('una venta sin cobrar se cancela con motivo (y no se reembolsa)', async () => {
+    const pending = {
+      ...paid,
+      status: 'PENDINGPAYMENT',
+      paymentId: null,
+      preferenceId: 'pref-1',
+    } as typeof paid;
+    const { api, user } = await openOrder(pending);
+    api.on('POST', `/api/v1/orders/${paid.id}/cancel`, { linkExpired: true, order: {} });
+    expect(screen.queryByRole('button', { name: /Reembolsar/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Cancelar venta/ }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.type(dialog.getByRole('textbox'), 'No pagó');
+    await user.click(dialog.getByRole('button', { name: 'Cancelar venta' }));
+    await settle(2);
+    expect(body(api, 'POST', `/api/v1/orders/${paid.id}/cancel`)).toEqual({ reason: 'No pagó' });
+    expect(await screen.findByText(/stock liberado y link de pago anulado/)).toBeInTheDocument();
+  });
+
   it('reembolso parcial validado, con historial', async () => {
     const { api, user } = await openOrder();
     api.on('GET', `/api/v1/orders/${paid.id}/refunds`, {
@@ -277,7 +338,7 @@ describe('ventas: venta manual', () => {
     await user.clear(qty);
     await user.type(qty, '2');
     await user.type(dialog.getByLabelText(rx(`Precio de ${product.name}`)), '1500');
-    await user.type(dialog.getByPlaceholderText('Nombre'), 'Ana');
+    await user.type(dialog.getByRole('combobox', { name: /Cliente/ }), 'Ana');
     await user.type(dialog.getByPlaceholderText('Ej: vendido por Instagram, retira el sábado'), 'Retira hoy');
     await user.click(dialog.getAllByRole('button').at(-1)!);
     await settle(2);
@@ -297,6 +358,60 @@ describe('ventas: venta manual', () => {
     await user.type(dialog.getByPlaceholderText('Para el email de confirmación'), 'ana@example.com');
     await user.click(dialog.getAllByRole('button').at(-1)!);
     expect(await screen.findByDisplayValue('https://mp.example.com/link/1')).toBeInTheDocument();
+  });
+
+  it('un solo campo de cliente: elegirlo de la agenda trae su ficha', async () => {
+    const { api, user, dialog } = await openManual();
+    api.on('GET', '/api/v1/customers', {
+      items: [{ id: 'c-ana', name: 'Ana Pérez', email: 'ana@perez.com', phone: '1155', priceListId: null }],
+      total: 1,
+    });
+    // Ya no hay un segundo campo "Cliente de la agenda".
+    expect(dialog.queryByText(/Cliente de la agenda \(opcional\)/)).toBeNull();
+    await user.type(dialog.getByRole('combobox', { name: /Cliente/ }), 'Ana');
+    await user.click(await dialog.findByRole('button', { name: /Ana Pérez/ }, { timeout: 4000 }));
+    expect(dialog.getByPlaceholderText('Para el email de confirmación')).toHaveValue('ana@perez.com');
+    await user.selectOptions(dialog.getByLabelText('Cobro'), 'cuenta_corriente');
+    await user.click(dialog.getAllByRole('button').at(-1)!);
+    await settle(2);
+    expect(body(api, 'POST', '/api/v1/orders/manual')).toMatchObject({
+      paymentMethod: 'cuenta_corriente',
+      customerId: 'c-ana',
+      buyerName: 'Ana Pérez',
+      buyerEmail: 'ana@perez.com',
+    });
+  });
+
+  it('si no está en la agenda, se crea desde el mismo campo', async () => {
+    const { api, user, dialog } = await openManual();
+    api.on('GET', '/api/v1/customers', { items: [], total: 0 });
+    api.on('POST', '/api/v1/customers', {
+      id: 'c-zoe',
+      name: 'Zoe Nueva',
+      email: null,
+      phone: null,
+      priceListId: null,
+    });
+    await user.type(dialog.getByRole('combobox', { name: /Cliente/ }), 'Zoe Nueva');
+    await user.click(
+      await dialog.findByRole('button', { name: /Crear «Zoe Nueva» en la agenda/ }, { timeout: 4000 }),
+    );
+    await settle(2);
+    expect(body(api, 'POST', '/api/v1/customers')).toMatchObject({ name: 'Zoe Nueva' });
+    expect(dialog.getByText(/Cliente de la agenda\./)).toBeInTheDocument();
+  });
+
+  it('el link de pago lleva a la venta para cancelarla si no paga', async () => {
+    const { api, user, dialog } = await openManual();
+    api.on('POST', '/api/v1/orders/manual', { id: paid.id, paymentLink: 'https://mp.example.com/link/2' });
+    await user.selectOptions(dialog.getByLabelText('Cobro'), 'link');
+    await user.type(dialog.getByPlaceholderText('Para el email de confirmación'), 'ana@example.com');
+    await user.click(dialog.getAllByRole('button').at(-1)!);
+    expect(await screen.findByText(/tocá/)).toHaveTextContent('Cancelar venta');
+    expect(screen.getByRole('link', { name: /Ver la venta/ })).toHaveAttribute(
+      'href',
+      `/ventas?order=${paid.id}`,
+    );
   });
 
   it('cuenta corriente exige un cliente de la agenda; se puede quitar un producto', async () => {
