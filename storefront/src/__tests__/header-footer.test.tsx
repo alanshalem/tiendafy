@@ -149,11 +149,25 @@ describe('encabezado', () => {
     expect(nav.router.push).toHaveBeenLastCalledWith('/productos');
   });
 
-  it('el panel del celular: abre, busca y se cierra al navegar', async () => {
+  it('el celular: la búsqueda a la vista con su botón, el menú aparte, y navegar cierra los dos', async () => {
     const { user, rerender } = await show(theme({ showTabsMobile: true, showSearch: true }));
-    await user.click(screen.getByRole('button', { name: 'Menú' }));
-    const searches = screen.getAllByRole('textbox', { name: 'Buscar' });
-    await user.type(searches.at(-1)!, 'soga{Enter}');
+    const menu = screen.getByRole('button', { name: 'Menú' });
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await user.click(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(menu.getAttribute('aria-controls')!)).not.toBeNull();
+
+    const toggle = screen.getByRole('button', { name: 'Buscar productos' });
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const box = within(document.getElementById(toggle.getAttribute('aria-controls')!)!).getByRole(
+      'searchbox',
+      {
+        name: 'Buscar',
+      },
+    );
+    expect(box).toHaveFocus(); // se abre para escribir
+    await user.type(box, 'soga{Enter}');
     expect(nav.router.push).toHaveBeenLastCalledWith('/productos?q=soga');
 
     nav.at('/productos');
@@ -163,8 +177,21 @@ describe('encabezado', () => {
       </PreviewContext.Provider>,
     );
     await settle(1);
-    // Navegar cierra el panel: queda solo la búsqueda del escritorio.
-    expect(screen.getAllByRole('textbox', { name: 'Buscar' })).toHaveLength(1);
+    // Navegar cierra los dos: queda solo la búsqueda del escritorio.
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Menú' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('con el menú del celular apagado, la búsqueda igual está a la vista', async () => {
+    const { user } = await show(theme({ showTabsMobile: false, showSearch: true }));
+    expect(screen.queryByRole('button', { name: 'Menú' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Buscar productos' }));
+    expect(screen.getByRole('searchbox', { name: 'Buscar' })).toBeInTheDocument();
+  });
+
+  it('sin búsqueda en el diseño, tampoco el botón del celular', async () => {
+    await show(theme({ showSearch: false }));
+    expect(screen.queryByRole('button', { name: 'Buscar productos' })).not.toBeInTheDocument();
   });
 
   it('transparente sobre la portada hasta que se scrollea; borde y nivel elegibles', async () => {
@@ -208,7 +235,8 @@ describe('encabezado', () => {
     localStorage.setItem(`tiendafy.favorites.${fixtureTenantId}`, JSON.stringify(['a', 'b']));
     mockApi().on('GET', '/api/v1/shop/auth/me', {}, 401);
     await show(theme());
-    expect(screen.getAllByRole('button', { name: 'Abrir carrito' })[0]).toHaveTextContent('3');
+    // El número también para el lector de pantalla, no solo en el globito.
+    expect(screen.getAllByRole('button', { name: 'Abrir carrito, 3 productos' })[0]).toHaveTextContent('3');
     expect(screen.getAllByRole('link', { name: 'Favoritos' })[0]).toHaveTextContent('2');
   });
 });
