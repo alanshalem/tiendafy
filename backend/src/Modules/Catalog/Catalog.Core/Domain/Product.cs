@@ -46,6 +46,13 @@ public sealed class Product : AggregateRoot
     public ProductStatus Status { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
+    /// <summary>
+    /// Último cambio del producto o de algo suyo (variantes, imágenes,
+    /// ficha). Lo pone la persistencia al guardar; null en lo que no se tocó
+    /// desde que existe la columna.
+    /// </summary>
+    public DateTime? UpdatedAtUtc { get; private set; }
+
     private readonly List<ProductOption> _options = [];
     public IReadOnlyList<ProductOption> Options => _options.AsReadOnly();
 

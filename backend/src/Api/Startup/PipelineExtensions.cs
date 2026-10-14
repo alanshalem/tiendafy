@@ -42,6 +42,7 @@ public static class PipelineExtensions
         apiV1.MapProductEndpoints();
         apiV1.MapPriceListEndpoints();
         apiV1.MapCategoryEndpoints();
+        apiV1.MapSearchEndpoints();
         apiV1.MapDiscountsEndpoints();
         apiV1.MapCustomerEndpoints();
         apiV1.MapPageEndpoints();

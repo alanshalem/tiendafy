@@ -144,7 +144,8 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         var baseQuery = context.Products.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active);
 
-        baseQuery = ProductTextSearch.Matching(baseQuery, filter.Query, includeSku: false);
+        var synonyms = await SearchRepository.LoadSynonymsAsync(context, tenantId, ct);
+        baseQuery = ProductTextSearch.Matching(baseQuery, filter.Query, includeSku: false, synonyms.Groups);
 
         if (filter.CategoryId is { } categoryId)
         {
@@ -168,14 +169,25 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             }
         }
 
-        // Ofertas: como la categoría, acota la base (las marcas y los precios
-        // del costado son los de las ofertas). El conteo es de antes del
-        // filtro, para saber si mostrar "Solo ofertas".
-        var onSaleIds = await OnSaleIdsAsync(baseQuery, ct);
+        // Stock: sin la lista de variantes con stock no se sabe nada, y no se
+        // mueve ni se filtra nada (es lo que pasaba antes con todo).
+        var stocked = filter.InStockVariantIds is { } known ? (known as List<Guid> ?? [.. known]) : null;
+        var onlyInStock = filter.OnlyInStock && stocked is not null;
+
+        // Ofertas y stock acotan la base, como la categoría (las marcas y los
+        // precios del costado son los de lo que se ve). Cada conteo es SIN su
+        // propio filtro y CON el otro: "Solo ofertas (3)" con el stock ya
+        // filtrado dice cuántas ofertas con stock hay.
+        var onSaleIds = await OnSaleIdsAsync(onlyInStock ? baseQuery.Where(InStock(stocked!)) : baseQuery, ct);
         if (filter.OnSale)
             baseQuery = baseQuery.Where(p => onSaleIds.Contains(p.Id));
 
-        var facets = await BuildFacetsAsync(context, tenantId, baseQuery, ct) with { OnSale = onSaleIds.Count };
+        var inStockCount = stocked is not null ? await baseQuery.CountAsync(InStock(stocked), ct) : 0;
+        if (onlyInStock)
+            baseQuery = baseQuery.Where(InStock(stocked!));
+
+        var built = await BuildFacetsAsync(context, tenantId, baseQuery, ct);
+        var facets = built with { OnSale = onSaleIds.Count, InStock = inStockCount };
 
         // Filtros que SÍ recortan el set mostrado.
         var query = baseQuery;
@@ -204,36 +216,75 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         }
 
         var total = await query.CountAsync(ct);
+        var skip = (filter.Page - 1) * filter.PageSize;
 
+        // Lo agotado, al final y en el mismo orden: primero la página dentro
+        // de lo que tiene stock, y si no alcanza, se completa con lo agotado
+        // desde donde corresponde. Dos tramos en vez de un ORDER BY por stock
+        // porque "Más vendidos" ordena en memoria (ver BestSellersSliceAsync).
+        // Antes, con "Más nuevos", las 24 cards de la página 1 decían "Sin
+        // stock" teniendo 297 de 424 productos para vender.
+        if (stocked is not null && !onlyInStock)
+        {
+            var withStock = query.Where(InStock(stocked));
+            var withStockTotal = await withStock.CountAsync(ct);
+            if (withStockTotal < total)
+            {
+                var head = skip < withStockTotal
+                    ? await SliceAsync(withStock, filter, skip, filter.PageSize, ct)
+                    : [];
+                var restTake = filter.PageSize - head.Count;
+                var tail = restTake > 0
+                    ? await SliceAsync(query.Where(OutOfStock(stocked)), filter, Math.Max(0, skip - withStockTotal), restTake, ct)
+                    : [];
+                return ([.. head, .. tail], total, facets);
+            }
+        }
+
+        return (await SliceAsync(query, filter, skip, filter.PageSize, ct), total, facets);
+    }
+
+    /// <summary>Con alguna variante en la lista de las que tienen stock.</summary>
+    private static Expression<Func<Product, bool>> InStock(List<Guid> stocked) =>
+        p => p.Variants.Any(v => stocked.Contains(v.Id));
+
+    /// <summary>
+    /// Ninguna variante con stock. Incluye a los productos sin variantes: no
+    /// se pueden comprar, así que van con lo agotado.
+    /// </summary>
+    private static Expression<Func<Product, bool>> OutOfStock(List<Guid> stocked) =>
+        p => !p.Variants.Any(v => stocked.Contains(v.Id));
+
+    /// <summary>Un tramo de <paramref name="query"/> en el orden pedido.</summary>
+    private static async Task<IReadOnlyList<Product>> SliceAsync(
+        IQueryable<Product> query, ProductSearchFilter filter, int skip, int take, CancellationToken ct)
+    {
         if (filter.Sort == ProductSort.BestSellers && filter.Ranking is { Count: > 0 } ranking)
-            return (await BestSellersPageAsync(query, ranking, filter.Page, filter.PageSize, ct), total, facets);
+            return await BestSellersSliceAsync(query, ranking, skip, take, ct);
 
-        // Orden por precio = mínimo precio entre las variantes (subconsulta correlacionada).
+        // Orden por precio = mínimo precio entre las variantes (subconsulta
+        // correlacionada). El id desempata: sin él, dos productos del mismo
+        // precio podían aparecer en dos páginas, o en ninguna.
         query = filter.Sort switch
         {
-            ProductSort.PriceAsc => query.OrderBy(MinVariantPrice),
-            ProductSort.PriceDesc => query.OrderByDescending(MinVariantPrice),
-            ProductSort.NameAsc => query.OrderBy(p => p.Name),
+            ProductSort.PriceAsc => query.OrderBy(MinVariantPrice).ThenBy(p => p.Id),
+            ProductSort.PriceDesc => query.OrderByDescending(MinVariantPrice).ThenBy(p => p.Id),
+            ProductSort.NameAsc => query.OrderBy(p => p.Name).ThenBy(p => p.Id),
             _ => query.OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id),
         };
 
-        var items = await query
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
-            .ToListAsync(ct);
-
-        return (items, total, facets);
+        return await query.Skip(skip).Take(take).ToListAsync(ct);
     }
 
     /// <summary>
-    /// Una página con lo más vendido primero, en el orden del ranking, y
+    /// Un tramo con lo más vendido primero, en el orden del ranking, y
     /// después el resto de lo más nuevo a lo más viejo. El orden por posición
     /// en una lista no se traduce a SQL: de lo rankeado se traen solo los ids
-    /// que pasan los filtros (el ranking tiene un tope), se ordenan acá, y la
-    /// página se completa con una consulta del resto si hace falta.
+    /// que pasan los filtros (el ranking tiene un tope), se ordenan acá, y el
+    /// tramo se completa con una consulta del resto si hace falta.
     /// </summary>
-    private static async Task<IReadOnlyList<Product>> BestSellersPageAsync(
-        IQueryable<Product> query, IReadOnlyList<Guid> ranking, int page, int pageSize, CancellationToken ct)
+    private static async Task<IReadOnlyList<Product>> BestSellersSliceAsync(
+        IQueryable<Product> query, IReadOnlyList<Guid> ranking, int skip, int take, CancellationToken ct)
     {
         var position = new Dictionary<Guid, int>();
         foreach (var id in ranking) position.TryAdd(id, position.Count);
@@ -242,13 +293,12 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         var matching = await query.Where(p => rankedIds.Contains(p.Id)).Select(p => p.Id).ToListAsync(ct);
         var ordered = matching.OrderBy(id => position[id]).ToList();
 
-        var skip = (page - 1) * pageSize;
-        var headIds = ordered.Skip(skip).Take(pageSize).ToList();
+        var headIds = ordered.Skip(skip).Take(take).ToList();
         var head = headIds.Count > 0
             ? (await query.Where(p => headIds.Contains(p.Id)).ToListAsync(ct)).ToDictionary(p => p.Id)
             : [];
 
-        var restTake = pageSize - headIds.Count;
+        var restTake = take - headIds.Count;
         var tail = restTake > 0
             ? await query.Where(p => !rankedIds.Contains(p.Id))
                 .OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id)
@@ -257,6 +307,80 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
             : [];
 
         return [.. headIds.Where(head.ContainsKey).Select(id => head[id]), .. tail];
+    }
+
+    public async Task<ProductSuggestions> SuggestAsync(
+        TenantId tenantId, string text, IReadOnlyCollection<Guid>? inStockVariantIds, int limit,
+        CancellationToken ct = default)
+    {
+        var synonyms = await SearchRepository.LoadSynonymsAsync(context, tenantId, ct);
+        var matching = ProductTextSearch.Matching(
+            context.Products.AsNoTracking()
+                .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active && p.Variants.Any()),
+            text, includeSku: false, synonyms.Groups);
+
+        var total = await matching.CountAsync(ct);
+
+        // Primero lo que se puede comprar, después lo que empieza con lo que se
+        // escribió ("pesa" → "Pesa rusa 8 kg" antes que "Set de pesas"), y
+        // después lo más nuevo. Sin la lista de stock, nadie sube por stock.
+        var stocked = inStockVariantIds?.ToList() ?? [];
+        var prefix = $"{text.Trim()}%";
+        var products = total == 0
+            ? []
+            : await matching
+                .OrderByDescending(p => p.Variants.Any(v => stocked.Contains(v.Id)))
+                .ThenByDescending(p => EF.Functions.ILike(EF.Functions.Unaccent(p.Name), EF.Functions.Unaccent(prefix)))
+                .ThenByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id)
+                .Take(Math.Clamp(limit, 1, 12))
+                .ToListAsync(ct);
+
+        // Las categorías primero las de arriba del árbol: "Pesas" antes que
+        // "Pesas / Rusas / Competición".
+        var categories = await ProductTextSearch.MatchingName(
+                context.Categories.AsNoTracking().Where(c => c.TenantId == tenantId),
+                c => c.Name, text, synonyms.Groups)
+            .OrderBy(c => c.Path.Length).ThenBy(c => c.Name)
+            .Take(4)
+            .ToListAsync(ct);
+
+        return new ProductSuggestions(products, total, categories);
+    }
+
+    public async Task<int> CountMatchingAsync(TenantId tenantId, string text, CancellationToken ct = default)
+    {
+        var synonyms = await SearchRepository.LoadSynonymsAsync(context, tenantId, ct);
+        return await ProductTextSearch.Matching(
+                context.Products.AsNoTracking().Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active),
+                text, includeSku: false, synonyms.Groups)
+            .CountAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Product>> ListRelatedAsync(
+        TenantId tenantId, RelatedProductsQuery query, CancellationToken ct = default)
+    {
+        var exclude = query.ExcludeIds.ToList();
+        var related = context.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active && p.Variants.Any()
+                && !exclude.Contains(p.Id));
+
+        if (query.InStockVariantIds is { } known)
+            related = related.Where(InStock(known as List<Guid> ?? [.. known]));
+        if (query.CategoryIds is { Count: > 0 } categories)
+        {
+            var categoryIds = categories.ToList();
+            related = related.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Any(id => categoryIds.Contains(id)));
+        }
+        if (query.Ids is { } only)
+        {
+            var ids = only.ToList();
+            related = related.Where(p => ids.Contains(p.Id));
+        }
+
+        return await related
+            .OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id)
+            .Take(Math.Clamp(query.Limit, 1, 100))
+            .ToListAsync(ct);
     }
 
     /// <summary>

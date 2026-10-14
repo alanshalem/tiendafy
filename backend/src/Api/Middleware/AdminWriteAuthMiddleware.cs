@@ -22,6 +22,9 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         "/api/v1/tenants",
         "/api/v1/checkout",
         "/api/v1/track",
+        // Una búsqueda hecha en la tienda (para "búsquedas populares"). Exacta:
+        // el resto de /search (los sinónimos) es del panel.
+        "/api/v1/search/log",
         "/api/v1/shop/",
         "/api/v1/coupons/validate",
         "/api/v1/payments/webhook",

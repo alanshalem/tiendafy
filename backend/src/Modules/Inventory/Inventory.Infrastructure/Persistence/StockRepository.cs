@@ -6,6 +6,12 @@ namespace Inventory.Infrastructure.Persistence;
 
 public sealed class StockRepository(InventoryDbContext context) : IStockRepository
 {
+    public async Task<List<Guid>> ListInStockVariantIdsAsync(TenantId tenantId, CancellationToken ct = default) =>
+        await context.StockItems.AsNoTracking()
+            .Where(s => s.TenantId == tenantId && s.Available > 0)
+            .Select(s => s.VariantId)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<StockItem>> GetByVariantsAsync(
         TenantId tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default) =>
         await context.StockItems.AsNoTracking()

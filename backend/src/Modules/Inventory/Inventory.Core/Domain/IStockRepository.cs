@@ -11,6 +11,13 @@ public interface IStockRepository
 {
     Task<IReadOnlyList<StockItem>> GetByVariantsAsync(TenantId tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default);
 
+    /// <summary>
+    /// Las variantes de la tienda con algo disponible para vender. Sin fila de
+    /// stock no hay stock (como en la reserva del checkout), así que esas no
+    /// están. La usa la tienda para mandar lo agotado al final del listado.
+    /// </summary>
+    Task<List<Guid>> ListInStockVariantIdsAsync(TenantId tenantId, CancellationToken ct = default);
+
     /// <summary>Setea el disponible (alta o ajuste manual). Crea el item si no existe.</summary>
     Task<StockItem> SetAvailableAsync(TenantId tenantId, Guid variantId, int available, string? reason, CancellationToken ct = default);
 

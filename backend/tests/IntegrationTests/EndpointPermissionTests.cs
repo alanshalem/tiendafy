@@ -39,6 +39,8 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/shipping/correo/quote",
             "POST /api/v1/shipping/zipnova/quote",
             "POST /api/v1/track",
+            "GET /api/v1/search/popular", // "Búsquedas populares" del buscador de la tienda
+            "POST /api/v1/search/log", // una búsqueda hecha en la tienda (lo encontrado lo cuenta el servidor)
         ],
         ["El checkout del comprador (la sesión es el id del checkout)"] =
         [

@@ -42,4 +42,6 @@ public sealed record ProductDto(
     IReadOnlyList<ProductSpecDto> Specs,
     DateTime CreatedAtUtc,
     // Stock total (suma de variantes). Solo lo llena la búsqueda del storefront; null = desconocido.
-    int? Stock = null);
+    int? Stock = null,
+    // Último cambio (o el alta, si no se tocó desde entonces): el lastmod del sitemap.
+    DateTime? UpdatedAtUtc = null);

@@ -17,6 +17,7 @@ public static class CatalogModule
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ISearchRepository, SearchRepository>();
         services.AddScoped<Catalog.Contracts.ICatalogCheckoutQuery, CatalogCheckoutQuery>();
         services.AddScoped<CreateCategoryHandler>(sp => new CreateCategoryHandler(
             sp.GetRequiredService<ICategoryRepository>(),

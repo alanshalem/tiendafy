@@ -207,7 +207,9 @@ public static partial class ProductEndpoints
             string[]? option = null,
             string[]? spec = null,
             // Solo lo que está en oferta: el "Ver todos" de la sección de ofertas.
-            bool onSale = false) =>
+            bool onSale = false,
+            // Solo lo que tiene stock ("Solo con stock" de la tienda).
+            bool inStock = false) =>
         {
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 48);
@@ -244,6 +246,13 @@ public static partial class ProductEndpoints
                 .Take(10)
                 .ToList();
 
+            // El stock vive en otro módulo: el catálogo recibe la lista de
+            // variantes con stock y con ella manda lo agotado al final (y
+            // filtra, si se pidió). Es una lista de ids por búsqueda; para el
+            // tamaño de estas tiendas (miles de variantes) es una consulta
+            // indexada y chica.
+            var inStockVariants = await stockRepository.ListInStockVariantIdsAsync(tenant.TenantId, ct);
+
             var (items, total, facets) = await repository.SearchAsync(
                 tenant.TenantId,
                 new ProductSearchFilter(q, category, sortEnum, page, pageSize,
@@ -252,7 +261,9 @@ public static partial class ProductEndpoints
                     options is { Count: > 0 } ? options : null,
                     specFilters.Count > 0 ? specFilters : null,
                     onSale,
-                    ranking),
+                    ranking,
+                    inStockVariants,
+                    inStock),
                 ct);
 
             // Stock por producto (suma de sus variantes) para badges en la card.
@@ -276,6 +287,7 @@ public static partial class ProductEndpoints
                     priceMin = facets.PriceMin,
                     priceMax = facets.PriceMax,
                     onSale = facets.OnSale,
+                    inStock = facets.InStock,
                     specs = facets.Specs.Select(f => new
                     {
                         definitionId = f.DefinitionId,
@@ -385,6 +397,8 @@ public static partial class ProductEndpoints
         MapPricing(products);
 
         MapSection(products);
+
+        MapShopFinders(products);
 
         // Asignar/cambiar las categorías de un producto (para el admin).
         products.MapPut("/{id:guid}/categories", async (
