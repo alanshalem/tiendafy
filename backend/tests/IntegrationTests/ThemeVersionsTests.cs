@@ -114,5 +114,34 @@ public sealed class ThemeVersionsTests
         Assert.Equal("5 5 5", published.GetProperty("colors").GetProperty("primary").GetString());
         Assert.Equal(JsonValueKind.Null, (await merchant.GetAsync("/api/v1/theme/schedule")).GetProperty("scheduledAtUtc").ValueKind);
         Assert.NotEmpty((await merchant.GetAsync("/api/v1/theme/history")).GetProperty("items").EnumerateArray());
+        // El borrador no tenía cambios propios: queda igual a lo publicado (si no,
+        // el editor mostraría "cambios sin publicar" que desharían lo programado).
+        Assert.Equal("5 5 5", (await merchant.GetAsync("/api/v1/theme/draft")).GetProperty("colors").GetProperty("primary").GetString());
+    }
+
+    [Fact]
+    public async Task Lo_que_se_edito_despues_de_programar_no_se_pierde_a_la_hora_programada()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "thwd");
+        await merchant.ExpectOkAsync(HttpMethod.Post, "/api/v1/theme/publish", Config("1 1 1"));
+        await merchant.ExpectOkAsync(HttpMethod.Post, "/api/v1/theme/schedule",
+            new { config = Config("5 5 5"), atUtc = DateTime.UtcNow.AddDays(1) });
+        // El comercio sigue trabajando en el borrador (lo próximo después del Hot Sale).
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/theme/draft", Config("7 7 7"));
+        var before = (await merchant.GetAsync("/api/v1/theme/draft")).GetProperty("draftVersion").GetInt32();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Themes.Infrastructure.ThemesDbContext>();
+            await db.Themes.IgnoreQueryFilters().Where(t => t.TenantId == merchant.TenantId)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.ScheduledAtUtc, DateTime.UtcNow.AddMinutes(-1)));
+        }
+        await Workers.RunOnceAsync<Api.Workers.ThemeScheduleWorker>(_factory);
+
+        Assert.Equal("5 5 5", (await merchant.GetAsync("/api/v1/theme/")).GetProperty("colors").GetProperty("primary").GetString());
+        var draft = await merchant.GetAsync("/api/v1/theme/draft");
+        Assert.Equal("7 7 7", draft.GetProperty("colors").GetProperty("primary").GetString());
+        // Y la pestaña abierta puede seguir guardando: su versión no cambió.
+        Assert.Equal(before, draft.GetProperty("draftVersion").GetInt32());
     }
 }

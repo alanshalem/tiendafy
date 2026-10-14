@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
+import { SECTION_DEFINITIONS } from '@tiendafy/types';
 import { foldText } from '../lib/text';
 
 /**
@@ -91,14 +92,14 @@ export const OPTION_INDEX: OptionEntry[] = [
     panel: 'Página de inicio',
     keywords: 'home banners carrusel destacados orden',
   },
-  { label: 'Preguntas frecuentes', view: 'home', panel: 'Página de inicio', keywords: 'faq dudas' },
-  { label: 'Testimonios', view: 'home', panel: 'Página de inicio', keywords: 'opiniones reseñas clientes' },
-  {
-    label: 'Sección de novedades',
+  // Un tipo de sección por entrada, del registro compartido: una sección nueva
+  // aparece sola en el buscador.
+  ...SECTION_DEFINITIONS.map((def) => ({
+    label: def.label,
     view: 'home',
     panel: 'Página de inicio',
-    keywords: 'newsletter suscripcion email',
-  },
+    keywords: `${def.keywords} ${def.description} seccion`,
+  })),
 
   {
     label: 'Orden con el que abre el listado',

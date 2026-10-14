@@ -3,9 +3,12 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ProductListConfig, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
-import { LeadSectionContext, SectionRenderer, SECTION_LABELS } from './sections';
+import { SectionRenderer, sectionPreviewLabel } from './sections';
+import { LeadSectionContext } from './section-context';
 import { PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
+import { faqPageJsonLd } from './sections/faq';
+import { jsonLd } from '@/lib/json-ld';
 
 /** Envoltorio con animación de entrada/salida: colapsa el alto + fade + leve desplazamiento. */
 function PresenceItem({ show, children }: { show: boolean; children: ReactNode }) {
@@ -30,16 +33,37 @@ interface PItem {
 }
 
 /**
- * ¿Alguna sección visible pone el título principal (h1) de la portada? Hoy
- * solo el video de portada con título. Si ninguna lo pone, la portada iba sin
+ * ¿Esta sección pone el título principal (h1) de la portada? Solo el video de
+ * portada con título, y solo si abre la página y se ve en todos los
+ * dispositivos: más abajo, su título es un h2 como el de cualquier sección
+ * (un h1 en el medio de la página desordena el índice que arman Google y los
+ * lectores de pantalla).
+ */
+export function isPageTitleSection(section: ThemeSection, index: number): boolean {
+  return (
+    index === 0 &&
+    section.visible &&
+    !section.hideOn &&
+    section.type === 'hero-video' &&
+    typeof section.data?.title === 'string' &&
+    section.data.title.trim() !== ''
+  );
+}
+
+/**
+ * ¿La portada ya tiene su h1? Si ninguna sección lo pone, la portada iba sin
  * h1 —Google y los lectores de pantalla no encontraban de qué es la página— y
  * va uno invisible con el nombre de la tienda.
  */
 export function homeHasTitle(sections: ThemeSection[]): boolean {
-  return sections.some(
-    (s) =>
-      s.visible && s.type === 'hero-video' && typeof s.data.title === 'string' && s.data.title.trim() !== '',
-  );
+  const first = sections.find((s) => s.visible);
+  return !!first && isPageTitleSection(first, 0);
+}
+
+/** Un solo FAQPage por página, con las preguntas de todas las secciones de preguntas. */
+function FaqJsonLd({ sections }: { sections: ThemeSection[] }) {
+  const data = faqPageJsonLd(sections);
+  return data ? <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(data)} /> : null;
 }
 
 /** Render de las secciones del home. En preview anima cuando se agregan/quitan/ocultan. */
@@ -60,20 +84,23 @@ export function HomeSections({
   // En la tienda real no hay altas/bajas en vivo: render directo.
   if (!preview) {
     return (
-      <main>
-        {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
-        {visible.map((s, i) => (
-          // La primera sección es la que se ve al abrir: su imagen va con prioridad.
-          <LeadSectionContext.Provider key={s.id} value={i === 0}>
-            <SectionRenderer
-              section={s}
-              products={products}
-              storeName={storeName}
-              productList={productList}
-            />
-          </LeadSectionContext.Provider>
-        ))}
-      </main>
+      <>
+        <FaqJsonLd sections={visible} />
+        <main>
+          {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
+          {visible.map((s, i) => (
+            // La primera sección es la que se ve al abrir: su imagen va con prioridad.
+            <LeadSectionContext.Provider key={s.id} value={i === 0}>
+              <SectionRenderer
+                section={s}
+                products={products}
+                storeName={storeName}
+                productList={productList}
+              />
+            </LeadSectionContext.Provider>
+          ))}
+        </main>
+      </>
     );
   }
   return (
@@ -143,20 +170,25 @@ function AnimatedSections({
   );
 
   return (
-    <main>
-      {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
-      {items.map((it) => (
-        <PresenceItem key={it.id} show={it.show}>
-          <EditableRegion target="section" id={it.section.id} label={SECTION_LABELS[it.section.type]}>
-            <SectionRenderer
-              section={it.section}
-              products={products}
-              storeName={storeName}
-              productList={productList}
-            />
-          </EditableRegion>
-        </PresenceItem>
-      ))}
-    </main>
+    <>
+      <FaqJsonLd sections={visible} />
+      <main>
+        {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
+        {items.map((it, i) => (
+          <PresenceItem key={it.id} show={it.show}>
+            <EditableRegion target="section" id={it.section.id} label={sectionPreviewLabel(it.section)}>
+              <LeadSectionContext.Provider value={i === 0}>
+                <SectionRenderer
+                  section={it.section}
+                  products={products}
+                  storeName={storeName}
+                  productList={productList}
+                />
+              </LeadSectionContext.Provider>
+            </EditableRegion>
+          </PresenceItem>
+        ))}
+      </main>
+    </>
   );
 }

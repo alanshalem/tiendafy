@@ -4,8 +4,17 @@ import { ChevronLeft } from 'lucide-react';
 import { Button, useConfirm, useToast } from '@tiendafy/ui';
 import { HelpLink } from '../components/HelpLink';
 import { useStore } from '../context/StoreContext';
+import { type ThemeConfig } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
-import { presetHeader, presetToConfig, themePresets, type ThemePreset } from '../lib/themePresets';
+import {
+  applyPreset,
+  listInWords,
+  presetChanges,
+  presetHeader,
+  themePresets,
+  type ThemePreset,
+} from '../lib/themePresets';
+import { readDraftVersion, withDefaults } from './theme-editor/useThemeDraft';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 
 /** Mini-mock del storefront pintado con los colores del preset. */
@@ -77,10 +86,17 @@ export function ThemeGalleryPage() {
   const navigate = useNavigate();
 
   // Aplica al BORRADOR (antes publicaba directo: pisaba el diseño en vivo y
-  // cualquier borrador sin publicar, sin aviso). Ahora el merchant revisa en el
-  // editor y publica cuando quiere.
+  // cualquier borrador sin publicar, sin aviso). Y lo mezcla con lo que ya
+  // hay: solo cambia el diseño, no el pie, el contacto ni el carrito. Va con
+  // la versión del borrador que se leyó, así no pisa una edición que esté
+  // haciendo otra pestaña.
   const apply = useMutation({
-    mutationFn: (preset: ThemePreset) => api.put('/api/v1/theme/draft', presetToConfig(preset)),
+    mutationFn: async (preset: ThemePreset) => {
+      const raw = await api.get<Partial<ThemeConfig>>('/api/v1/theme/draft');
+      const version = readDraftVersion(raw);
+      const next = applyPreset(withDefaults(raw), preset);
+      await api.put('/api/v1/theme/draft', version === undefined ? next : { ...next, draftVersion: version });
+    },
     onSuccess: (_, preset) => {
       queryClient.invalidateQueries({ queryKey: ['theme', store?.id] });
       toast(`Diseño "${preset.name}" aplicado al borrador. Revisalo y publicá.`, { variant: 'success' });
@@ -94,7 +110,10 @@ export function ThemeGalleryPage() {
   const applyWithConfirm = async (preset: ThemePreset) => {
     const ok = await confirm({
       title: 'Usar este diseño',
-      message: `Se reemplaza el borrador actual por "${preset.name}" (colores, encabezado y secciones). Tu tienda publicada no cambia hasta que publiques.`,
+      message:
+        `"${preset.name}" cambia en tu borrador: ${listInWords(presetChanges(preset))}. ` +
+        'El resto (pie de página, contacto, carrito, listado, WhatsApp y CSS propio) queda como está. ' +
+        'Tu tienda publicada no cambia hasta que publiques.',
       confirmLabel: 'Aplicar al borrador',
     });
     if (ok) apply.mutate(preset);

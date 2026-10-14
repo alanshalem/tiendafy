@@ -1,95 +1,38 @@
-import type { ProductListConfig, ThemeSection } from '@/lib/theme';
+import type { ProductListConfig, SectionDataMap, SectionType, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
 
-export interface CarouselData {
-  images?: string[];
-  fullHeightMobile?: boolean;
-}
-export interface HeroVideoData {
-  videoWebm?: string;
-  videoMp4?: string;
-  poster?: string;
-  title?: string;
-  subtitle?: string;
-  buttonText?: string;
-  link?: string;
-  align?: string;
-  height?: string;
-  overlay?: string;
-}
-export interface ProductsData {
-  productIds?: string[];
-  title?: string;
-  carousel?: boolean;
-}
-export interface BannerItem {
-  image?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-  show?: boolean;
-}
-export interface BannersData {
-  banners?: BannerItem[];
-  fullWidth?: boolean;
-}
-export interface InstitutionalData {
-  title?: string;
-  description?: string;
-}
-export interface ImageTextData {
-  image?: string;
-  title?: string;
-  description?: string;
-  buttonText?: string;
-  link?: string;
-  textColor?: string;
-}
-export interface InfoItemData {
-  icon?: string;
-  title?: string;
-  description?: string;
-  link?: string;
-}
-export interface InfoBarData {
-  items?: InfoItemData[];
-}
-export interface NewsletterData {
-  image?: string;
-  title?: string;
-  text?: string;
-}
-export interface InstagramData {
-  video?: string;
-}
-export interface TestimonialItem {
-  quote?: string;
-  name?: string;
-  detail?: string;
-  photo?: string;
-}
-export interface TestimonialsData {
-  title?: string;
-  items?: TestimonialItem[];
-}
-export interface FaqItem {
-  question?: string;
-  answer?: string;
-}
-export interface FaqData {
-  title?: string;
-  items?: FaqItem[];
-}
-export interface BrandsData {
-  title?: string;
-  images?: string[];
-}
+// Los tipos de la data de cada sección viven en el registro compartido
+// (@tiendafy/types, sections/registry.ts): de ahí salen también el
+// normalizador y la validación del backend. Se re-exportan para quien los
+// importaba desde acá.
+export type {
+  BannerItem,
+  BannersData,
+  BrandsData,
+  CarouselData,
+  FaqData,
+  FaqItem,
+  HeroVideoData,
+  ImageTextData,
+  InfoBarData,
+  InfoItemData,
+  InstagramData,
+  InstitutionalData,
+  NewsletterData,
+  ProductsData,
+  TestimonialItem,
+  TestimonialsData,
+} from '@/lib/theme';
 
-export interface SectionRenderProps {
+/**
+ * Lo que recibe el renderer de un tipo de sección. `data` ya viene
+ * normalizada (sectionData): todos los campos presentes y con su tipo, así
+ * el renderer no tiene que desconfiar de cada propiedad.
+ */
+export interface SectionRenderProps<T extends SectionType = SectionType> {
   section: ThemeSection;
+  data: SectionDataMap[T];
   products: StoreProduct[];
   storeName: string;
   productList: ProductListConfig;
 }
-
-/* ---- Un componente por tipo de sección (registry abajo) ---- */

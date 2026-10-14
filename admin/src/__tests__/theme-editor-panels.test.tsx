@@ -189,22 +189,33 @@ describe('editor de diseño: la página de inicio', () => {
     expect(crashes()).toEqual([]);
   });
 
-  it('agregar cada tipo de sección', { timeout: 60_000 }, async () => {
+  it('agregar cada tipo de sección (los de uno por página, una sola vez)', { timeout: 60_000 }, async () => {
     const { api, user } = await openPanel('Página de inicio');
     const before = rows().length;
+    const menu = () =>
+      within(panel())
+        .getAllByRole('group')
+        .flatMap((g) => within(g).getAllByRole('button'));
     await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
-    const types = within(panel())
-      .getAllByRole('button')
-      .filter((b) => b.closest('.p-1'));
-    const labels = types.map((b) => b.textContent!).filter((t) => t !== '');
+    // El menú va por grupos y cada tipo dice para qué sirve.
+    expect(within(panel()).getByRole('group', { name: 'Productos' })).toBeInTheDocument();
+    const names = menu()
+      .filter((b) => !b.hasAttribute('disabled'))
+      .map((b) => b.querySelector('span > span')!.textContent!);
+    expect(names.length).toBeGreaterThan(10);
     await user.click(within(panel()).getAllByRole('button', { name: 'Cerrar' }).at(-1)!);
 
-    for (const label of labels) {
+    for (const name of names) {
       await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
-      // La lista de tipos va debajo de las filas (que pueden repetir el nombre).
-      await user.click(within(panel()).getAllByRole('button', { name: label }).at(-1)!);
+      await user.click(menu().find((b) => b.querySelector('span > span')!.textContent === name)!);
     }
-    await waitFor(() => expect(last(api).sections).toHaveLength(before + labels.length), { timeout: 3000 });
+    await waitFor(() => expect(last(api).sections).toHaveLength(before + names.length), { timeout: 3000 });
+
+    // Un segundo hero no entra: va uno solo por página.
+    await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
+    const hero = menu().find((b) => b.textContent!.startsWith('Hero con video'))!;
+    expect(hero).toBeDisabled();
+    expect(hero).toHaveTextContent('va una sola');
     expect(crashes()).toEqual([]);
   });
 

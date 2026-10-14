@@ -28,6 +28,9 @@ public sealed class ThemesDbContext : DbContext
         theme.Property(t => t.PublishedConfig).HasColumnType("jsonb");
         theme.Property(t => t.DraftConfig).HasColumnType("jsonb");
         theme.Property(t => t.ScheduledConfig).HasColumnType("jsonb");
+        // Dos guardados que leyeron la misma versión no pueden pasar los dos:
+        // el UPDATE lleva "where draft_version = la leída".
+        theme.Property(t => t.DraftVersion).IsConcurrencyToken();
 
         var version = modelBuilder.Entity<ThemeVersion>();
         version.ToTable("theme_versions");

@@ -10,7 +10,7 @@ import type { SectionType, ThemeSection } from '@tiendafy/types';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SectionPanel } from '../pages/theme-editor-sections';
+import { SectionPanel } from '../pages/theme-editor/sections/SectionPanel';
 import { mockApi } from '../test/api';
 import { explore, settle, watchCrashes } from '../test/explore';
 import { renderWithProviders } from '../test/render';
@@ -45,15 +45,14 @@ afterEach(() => {
 
 /** La sección con estado propio, como la maneja el editor. */
 function Harness({ type, onData }: { type: SectionType; onData: (d: Record<string, unknown>) => void }) {
-  const [data, setData] = useState<Record<string, unknown>>({});
-  const section: ThemeSection = { id: 's1', type, visible: true, data };
+  const [section, setSection] = useState<ThemeSection>({ id: 's1', type, visible: true, data: {} });
   return (
     <SectionPanel
       section={section}
       onBack={() => {}}
       onChange={(next) => {
-        setData(next);
-        onData(next);
+        setSection(next);
+        onData(next.data);
       }}
     />
   );

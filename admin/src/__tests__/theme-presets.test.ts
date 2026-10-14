@@ -146,8 +146,8 @@ describe('presets de marca', () => {
     expect(cfg.logo).toBe('/marca/puente-oriente/logo-horizontal.svg');
     expect(cfg.favicon).toBe('/marca/puente-oriente/favicon.ico');
     expect(cfg.seoTitle).toBeTruthy();
-    expect(cfg.announcement.show).toBe(true);
-    expect(cfg.announcement.items[0]?.text).toContain('China');
+    expect(cfg.announcement?.show).toBe(true);
+    expect(cfg.announcement?.items[0]?.text).toContain('China');
 
     // La barra que pide la guía, no la calculada por contraste.
     expect(cfg.header.bg).toBe('255 255 255');

@@ -35,8 +35,6 @@ export type {
   ThemeMenuItem,
   ThemeAnnouncement,
   ComingSoonConfig,
-  SectionType,
-  ThemeSection,
   ProductListConfig,
   ProductDetailConfig,
   CartConfig,
@@ -49,6 +47,7 @@ export type {
   ThemeConfig,
 } from './theme';
 export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS } from './theme';
+export * from './sections';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText, contrastRatio, mixRgb, readableOn } from './color';

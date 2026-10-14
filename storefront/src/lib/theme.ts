@@ -34,6 +34,27 @@ export type {
   IconKit,
   ThemeConfig,
   ButtonStyle,
+  // Secciones del inicio (registro compartido).
+  SectionStyle,
+  SectionSpacing,
+  SectionHideOn,
+  SectionDataMap,
+  BannerItem,
+  BannersData,
+  BrandsData,
+  CarouselData,
+  FaqData,
+  FaqItem,
+  HeroVideoData,
+  ImageTextData,
+  InfoBarData,
+  InfoItemData,
+  InstagramData,
+  InstitutionalData,
+  NewsletterData,
+  ProductsData,
+  TestimonialItem,
+  TestimonialsData,
 } from '@tiendafy/types';
 import type { ButtonStyle, ProductListConfig } from '@tiendafy/types';
 
