@@ -4,7 +4,7 @@
  * JSON.stringify no escapa `<`: un nombre de producto, una pregunta frecuente
  * o una descripción con `</script>` cerraba el script ahí y lo que seguía se
  * interpretaba como HTML de la página (los textos los carga el comercio, o
- * llegan importados de un CSV). Escapados como < siguen siendo el mismo
+ * llegan importados de un CSV). Escapados como \u003c siguen siendo el mismo
  * JSON para Google, pero ya no pueden cortar el script. `>` y `&` van por las
  * dudas (comentarios HTML, entidades).
  */
