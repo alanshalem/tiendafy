@@ -71,8 +71,12 @@ function Form({ tenantId, source, compact, align, successMessage }: FormOptions 
     );
 
   return (
+    // Compacto (el pie): en una columna angosta el botón baja abajo del campo, en
+    // vez de dejar un campo donde no entra ni "tu@email".
     <form
-      className={compact ? 'flex gap-2' : `${align === 'center' ? 'mx-auto ' : ''}mt-4 flex max-w-sm gap-2`}
+      className={
+        compact ? 'flex flex-wrap gap-2' : `${align === 'center' ? 'mx-auto ' : ''}mt-4 flex max-w-sm gap-2`
+      }
       onSubmit={submit}
     >
       <input
@@ -83,7 +87,7 @@ function Form({ tenantId, source, compact, align, successMessage }: FormOptions 
         placeholder="tu@email.com"
         aria-label="Email"
         autoComplete="email"
-        className={INPUT_LIGHT_10}
+        className={compact ? `${INPUT_LIGHT_10} min-w-0 flex-[1_1_10rem]` : INPUT_LIGHT_10}
       />
       {/* Honeypot: invisible para una persona, irresistible para un bot. */}
       <input

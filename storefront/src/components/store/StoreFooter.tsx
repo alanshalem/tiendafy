@@ -130,7 +130,7 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
           <div
             className={cn(
               'flex flex-col gap-4 border-t border-current/10 pt-6 md:flex-row md:items-center md:justify-between',
-              columns.length > 0 && 'mt-10',
+              columns.length > 0 && 'mt-4 sm:mt-10',
             )}
           >
             <PaymentLogos footer={footer} className="justify-start" />
@@ -192,7 +192,7 @@ function GridColumn({ column, data }: { column: FooterColumn; data: FooterData }
       data-tf-focus={`footer-col:${column.id}`}
       className={cn(
         // Celular: una lista con separadores. Desde sm, la grilla sin líneas.
-        accordion ? '-mt-px border-y border-current/10 sm:mt-0 sm:border-0' : 'py-6 first:pt-0 sm:py-0',
+        accordion ? '-mt-px border-y border-current/10 sm:mt-0 sm:border-0' : 'py-5 first:pt-0 sm:py-0',
         column.kind === 'social' && !column.hideBrand && 'max-w-xs',
       )}
     >

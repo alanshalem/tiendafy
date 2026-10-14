@@ -142,10 +142,25 @@ export function FooterColumnsEditor({
     save(columns.map((c) => (c.id === id ? { ...c, ...change } : c)));
 
   const nameOf = (c: FooterColumn) => footerColumnTitle(c, footer) || KIND_LABEL[c.kind];
+  const contactCount = [...footer.whatsapps, ...footer.phones, ...footer.emails, ...footer.addresses].filter(
+    Boolean,
+  ).length;
+  /** Debajo del nombre: el tipo (si el nombre no lo dice ya) y qué tiene adentro. */
   const subtitleOf = (c: FooterColumn) => {
-    if (c.kind !== 'links') return KIND_LABEL[c.kind];
     const n = c.links?.length ?? 0;
-    return `${KIND_LABEL.links} · ${n === 1 ? '1 link' : `${n} links`}${c.withPages ? ' + páginas' : ''}`;
+    const detail: Record<FooterColumnKind, string> = {
+      social: c.hideBrand ? 'Solo los íconos de las redes' : 'Logo, texto del pie y redes',
+      links: `${n === 1 ? '1 link' : `${n} links`}${c.withPages ? ' + páginas' : ''}`,
+      pages: 'Tus páginas publicadas',
+      contact: contactCount
+        ? `${contactCount === 1 ? '1 dato' : `${contactCount} datos`}`
+        : 'Sin datos todavía',
+      newsletter: 'Campo para dejar el email',
+      text: c.text?.trim() ? 'Párrafo libre' : 'Sin texto todavía',
+    };
+    // Con un nombre propio, alcanza con el tipo (y cuántos links, que es lo que cambia).
+    if (nameOf(c) === KIND_LABEL[c.kind]) return detail[c.kind];
+    return c.kind === 'links' ? `${KIND_LABEL.links} · ${detail.links}` : KIND_LABEL[c.kind];
   };
 
   const open = (id: string | null) => {
