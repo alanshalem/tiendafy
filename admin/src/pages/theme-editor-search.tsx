@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { SECTION_DEFINITIONS } from '@tiendafy/types';
+import { SECTION_DEFINITIONS, sectionDisplayName, type ThemeConfig } from '@tiendafy/types';
 import { foldText } from '../lib/text';
+import { SECTION_VIEW } from './theme-editor/EditorViews';
+import { sectionSummary } from './theme-editor/sections/sectionSummary';
 
 /**
  * Buscador de opciones del editor de diseño.
@@ -56,6 +58,12 @@ export const OPTION_INDEX: OptionEntry[] = [
     keywords: 'animaciones transiciones scroll',
   },
   { label: 'Densidad', view: 'radius', panel: 'Estilo global', keywords: 'espaciado aire compacto amplio' },
+  {
+    label: 'Estilo de los botones',
+    view: 'radius',
+    panel: 'Estilo global',
+    keywords: 'botones forma recta redondeada pildora lleno contorno mayusculas comprar',
+  },
 
   {
     label: 'Disposición del encabezado',
@@ -77,6 +85,18 @@ export const OPTION_INDEX: OptionEntry[] = [
     panel: 'Encabezado',
     keywords: 'navegacion links paginas orden',
   },
+  {
+    label: 'Armar el menú: categorías, productos y links',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'menu agregar categoria producto pagina link enlace renombrar submenu anidar',
+  },
+  {
+    label: 'Subcategorías en el menú (mega-menú)',
+    view: 'header',
+    panel: 'Encabezado',
+    keywords: 'mega menu desplegable subcategorias columnas acordeon',
+  },
   { label: 'Buscador en el encabezado', view: 'header', panel: 'Encabezado', keywords: 'lupa buscar' },
   { label: 'Carrito en el encabezado', view: 'header', panel: 'Encabezado', keywords: 'icono carrito texto' },
   {
@@ -92,14 +112,6 @@ export const OPTION_INDEX: OptionEntry[] = [
     panel: 'Página de inicio',
     keywords: 'home banners carrusel destacados orden',
   },
-  // Un tipo de sección por entrada, del registro compartido: una sección nueva
-  // aparece sola en el buscador.
-  ...SECTION_DEFINITIONS.map((def) => ({
-    label: def.label,
-    view: 'home',
-    panel: 'Página de inicio',
-    keywords: `${def.keywords} ${def.description} seccion`,
-  })),
 
   {
     label: 'Orden con el que abre el listado',
@@ -109,6 +121,12 @@ export const OPTION_INDEX: OptionEntry[] = [
   },
   { label: 'Productos por página', view: 'products-list', panel: 'Listado', keywords: 'paginacion cuantos' },
   { label: 'Productos por fila', view: 'products-list', panel: 'Listado', keywords: 'columnas grilla' },
+  {
+    label: 'Productos por fila en el celular',
+    view: 'products-list',
+    panel: 'Listado',
+    keywords: 'columnas grilla celular movil mobile una dos',
+  },
   {
     label: 'Proporción de las fotos',
     view: 'products-list',
@@ -134,7 +152,18 @@ export const OPTION_INDEX: OptionEntry[] = [
     keywords: 'stock ultimas sin stock',
   },
 
-  { label: 'Estilo de galería', view: 'product-detail', panel: 'Detalle', keywords: 'fotos miniaturas' },
+  {
+    label: 'Estilo de galería',
+    view: 'product-detail',
+    panel: 'Detalle',
+    keywords: 'fotos miniaturas carrusel apilada',
+  },
+  {
+    label: 'Galería apilada',
+    view: 'product-detail',
+    panel: 'Detalle',
+    keywords: 'fotos una debajo de otra grandes scroll galeria',
+  },
   {
     label: 'Cuotas sin interés',
     view: 'product-detail',
@@ -216,6 +245,12 @@ export const OPTION_INDEX: OptionEntry[] = [
     keywords: 'newsletter email lista',
   },
   {
+    label: 'Links del pie',
+    view: 'footer',
+    panel: 'Pie de página',
+    keywords: 'links propios enlaces envios mayoristas catalogo pdf externo',
+  },
+  {
     label: 'Links a páginas de contenido',
     view: 'footer',
     panel: 'Pie de página',
@@ -237,9 +272,37 @@ export const OPTION_INDEX: OptionEntry[] = [
   },
 ];
 
-/** Sin acentos y en minúscula: "diseño" tiene que encontrarse escribiendo "diseno". */
+/**
+ * El índice completo para un tema: las opciones fijas, cada sección del
+ * inicio por su nombre (y lo que tiene adentro, así "envíos" encuentra las
+ * preguntas frecuentes que hablan de envíos) y cada tipo de sección del
+ * registro. Un tipo que ya está en el inicio lleva a esa sección (antes
+ * todos llevaban a la lista y había que buscarla de nuevo); uno que no está,
+ * a la lista, donde se agrega.
+ */
+export function buildOptionIndex(sections: ThemeConfig['sections'] = []): OptionEntry[] {
+  const own = sections.map((s) => {
+    const def = SECTION_DEFINITIONS.find((d) => d.type === s.type);
+    return {
+      label: sectionDisplayName(s),
+      view: `${SECTION_VIEW}${s.id}`,
+      panel: 'Tu inicio',
+      keywords: `${def?.label ?? s.type} ${def?.keywords ?? ''} ${sectionSummary(s)} seccion`,
+    };
+  });
+  const types = SECTION_DEFINITIONS.filter((def) => !sections.some((s) => s.type === def.type)).map(
+    (def) => ({
+      label: def.label,
+      view: 'home',
+      panel: 'Agregar al inicio',
+      keywords: `${def.keywords} ${def.description} seccion agregar`,
+    }),
+  );
+  return [...OPTION_INDEX, ...own, ...types];
+}
 
-export function searchOptions(query: string, index = OPTION_INDEX): OptionEntry[] {
+/** Sin acentos y en minúscula: "diseño" tiene que encontrarse escribiendo "diseno". */
+export function searchOptions(query: string, index: OptionEntry[] = buildOptionIndex()): OptionEntry[] {
   const q = foldText(query.trim());
   if (!q) return [];
   const terms = q.split(/\s+/);
@@ -251,11 +314,21 @@ export function searchOptions(query: string, index = OPTION_INDEX): OptionEntry[
     .slice(0, 12);
 }
 
-export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => void; onClose: () => void }) {
+export function OptionSearch({
+  onPick,
+  onClose,
+  sections,
+}: {
+  onPick: (view: string) => void;
+  onClose: () => void;
+  /** Las secciones del inicio, para encontrarlas por su nombre. */
+  sections?: ThemeConfig['sections'];
+}) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const results = useMemo(() => searchOptions(q), [q]);
+  const index = useMemo(() => buildOptionIndex(sections), [sections]);
+  const results = useMemo(() => searchOptions(q, index), [q, index]);
 
   useEffect(() => inputRef.current?.focus(), []);
 
@@ -270,6 +343,9 @@ export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => vo
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Buscar una opción del editor"
         className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-surface shadow-overlay"
         onClick={(e) => e.stopPropagation()}
       >
@@ -315,10 +391,11 @@ export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => vo
           {results.map((entry, i) => (
             <button
               key={`${entry.view}-${entry.label}`}
+              type="button"
               onMouseEnter={() => setActive(i)}
               onClick={() => pick(entry)}
               className={cn(
-                'flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm',
+                'flex min-h-10 w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm',
                 i === active ? 'bg-primary text-primary-fg' : 'text-fg hover:bg-bg-muted',
               )}
             >

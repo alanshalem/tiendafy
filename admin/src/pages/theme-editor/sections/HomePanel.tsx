@@ -1,11 +1,8 @@
 import { useState } from 'react';
-import { GripVertical, ChevronUp, ChevronDown, ChevronRight, Eye, EyeOff, X, Plus } from 'lucide-react';
-import { cn, useConfirm } from '@tiendafy/ui';
+import { LayoutTemplate, Plus } from 'lucide-react';
+import { useConfirm } from '@tiendafy/ui';
 import {
   MAX_SECTIONS,
-  SECTION_DEFINITIONS,
-  SECTION_GROUPS,
-  canAddSection,
   createSection,
   sectionDisplayName,
   templateSections,
@@ -13,59 +10,58 @@ import {
   type SectionType,
   type ThemeConfig,
 } from '@tiendafy/types';
-import { useFlipList } from '../../../lib/useFlip';
-import { moveItem } from '../../../lib/arrays';
+import { SortableList } from '../../../components/SortableList';
 import { BackHeader } from '../../theme-editor-inputs';
+import { focusEditorPanel } from '../panelFocus';
+import { AddSectionPicker } from './AddSectionPicker';
+import { ROW_MAIN_ATTR, SectionRow } from './SectionRow';
+import {
+  addBlockedReason,
+  duplicateSection,
+  freshSectionId,
+  insertSection,
+  moveSection,
+  renameSection,
+  setSectionHideOn,
+  toggleSectionVisible,
+} from './sectionOps';
 import { TemplatePicker } from './templates';
-import { MiniBlock } from './wireframes';
 
-/* ---- Panel "Página de inicio": lista de secciones (reordenar / ocultar / agregar / quitar) ---- */
+/** Cuando faltan pocas para el tope, se avisa cuántas van. */
+const NEAR_MAX = MAX_SECTIONS - 5;
+
+/** El foco, después de que React dibuje (la fila o el panel todavía no existen). */
+const focusSoon = (find: () => HTMLElement | null | undefined) =>
+  requestAnimationFrame(() => find()?.focus());
+
+const rowMain = (id: string) => document.querySelector<HTMLElement>(`[${ROW_MAIN_ATTR}="${CSS.escape(id)}"]`);
+
+/* ---- Panel "Página de inicio": la lista de secciones ---- */
 export function HomePanel({
   theme,
   onBack,
   onOpenSection,
+  onRemoveSection,
   updateTheme,
 }: {
   theme: ThemeConfig;
   onBack: () => void;
+  /** Abrir el panel de una sección. */
   onOpenSection: (id: string) => void;
+  /** Quitarla (el editor ofrece "Deshacer"; ver ThemeEditor). */
+  onRemoveSection: (id: string) => void;
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
 }) {
-  const move = (id: string, dir: -1 | 1) =>
-    updateTheme((t) => {
-      const idx = t.sections.findIndex((s) => s.id === id);
-      const next = moveItem(t.sections, idx, idx + dir);
-      return next === t.sections ? t : { ...t, sections: next };
-    });
-  const toggle = (id: string) =>
-    updateTheme((t) => ({
-      ...t,
-      sections: t.sections.map((s) => (s.id === id ? { ...s, visible: !s.visible } : s)),
-    }));
-
-  const reorder = (fromId: string, toId: string) =>
-    updateTheme((t) => {
-      const from = t.sections.findIndex((s) => s.id === fromId);
-      const to = t.sections.findIndex((s) => s.id === toId);
-      if (from < 0 || to < 0 || from === to) return t;
-      return { ...t, sections: moveItem(t.sections, from, to) };
-    });
-
-  const remove = (id: string) =>
-    updateTheme((t) => ({ ...t, sections: t.sections.filter((s) => s.id !== id) }));
-  // Nace con el contenido de ejemplo del registro: se ve apenas se agrega.
-  const addSection = (type: SectionType) =>
-    updateTheme((t) => ({ ...t, sections: [...t.sections, createSection(type)] }));
-
-  const listRef = useFlipList<HTMLDivElement>(theme.sections.map((s) => s.id).join(','));
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const sections = theme.sections;
+  // Dónde se va a meter la sección que se elija en el selector (null = cerrado).
+  const [pickerAt, setPickerAt] = useState<number | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const confirm = useConfirm();
-  const full = theme.sections.length >= MAX_SECTIONS;
+  const addBlocked = addBlockedReason(sections, '');
 
   const applyTemplate = async (tpl: HomeTemplate) => {
-    if (theme.sections.length > 0) {
+    if (sections.length > 0) {
       const ok = await confirm({
         title: `Usar plantilla "${tpl.name}"`,
         message:
@@ -78,6 +74,31 @@ export function HomePanel({
     setShowTemplates(false);
   };
 
+  // Nace con el contenido de ejemplo del registro (se ve apenas se agrega) y
+  // se abre su panel: lo siguiente que uno quiere es cambiarle el texto.
+  const add = (type: SectionType, at: number) => {
+    const section = { ...createSection(type), id: freshSectionId(type, sections) };
+    updateTheme(insertSection(section, at));
+    setPickerAt(null);
+    onOpenSection(section.id);
+    focusEditorPanel();
+  };
+
+  const where = (at: number) => {
+    if (sections.length === 0) return 'Va a ser la primera sección de tu inicio.';
+    if (at <= 0) return `Va arriba de todo, antes de «${sectionDisplayName(sections[0]!)}».`;
+    if (at >= sections.length) return 'Va al final del inicio.';
+    return `Va entre «${sectionDisplayName(sections[at - 1]!)}» y «${sectionDisplayName(sections[at]!)}».`;
+  };
+
+  const remove = (id: string, index: number) => {
+    // El foco pasa a la fila que queda en su lugar (o a "Agregar sección"):
+    // si no, se pierde en la nada y el teclado arranca de nuevo desde arriba.
+    const next = sections[index + 1] ?? sections[index - 1];
+    onRemoveSection(id);
+    focusSoon(() => (next ? rowMain(next.id) : document.getElementById(ADD_BUTTON_ID)));
+  };
+
   return (
     <div>
       <BackHeader title="Página de inicio" onBack={onBack} />
@@ -87,193 +108,166 @@ export function HomePanel({
         {showTemplates ? (
           <TemplatePicker onPick={applyTemplate} onClose={() => setShowTemplates(false)} />
         ) : (
-          <button
-            onClick={() => setShowTemplates(true)}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/[0.08] py-2.5 text-sm font-semibold text-primary hover:bg-primary/[0.14]"
-          >
-            Usar una plantilla de inicio
-          </button>
+          sections.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowTemplates(true)}
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-primary/[0.08] text-sm font-semibold text-primary hover:bg-primary/[0.14]"
+            >
+              <LayoutTemplate className="h-4 w-4" aria-hidden /> Usar una plantilla de inicio
+            </button>
+          )
         )}
       </div>
 
-      <p className="inline-flex flex-wrap items-center gap-1 px-4 pt-3 text-xs text-fg-muted">
-        Arrastrá <GripVertical className="h-3.5 w-3.5" /> para reordenar. El ojo muestra/oculta cada sección.
-      </p>
-      <div className="p-3" ref={listRef}>
-        {theme.sections.length === 0 && (
-          <div className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-fg-muted">
-            <p>Tu página de inicio está vacía: en la tienda solo se ven el encabezado y el pie.</p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="inline-flex h-10 items-center gap-1.5 rounded-md border border-primary/40 px-3 text-sm font-medium text-primary hover:bg-primary/[0.05]"
-              >
-                <Plus className="h-4 w-4" /> Agregar sección
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowTemplates(true)}
-                className="inline-flex h-10 items-center rounded-md px-3 text-sm font-medium text-primary hover:underline"
-              >
-                Usar una plantilla
-              </button>
-            </div>
-          </div>
-        )}
-        {theme.sections.map((s, i) => (
-          <div
-            key={s.id}
-            data-flip-key={s.id}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('text/plain', s.id);
-              setDragId(s.id);
-            }}
-            onDragEnd={() => setDragId(null)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragId(null);
-              reorder(e.dataTransfer.getData('text/plain'), s.id);
-            }}
-            className={cn(
-              'mb-2 flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-2 transition-shadow',
-              dragId === s.id ? 'opacity-50 shadow-lg' : 'shadow-none',
-            )}
-          >
-            <span className="cursor-grab select-none text-fg-subtle active:cursor-grabbing" title="Arrastrar">
-              <GripVertical className="h-4 w-4" />
-            </span>
-            <div className="flex flex-col text-fg-subtle">
-              <button
-                onClick={() => move(s.id, -1)}
-                disabled={i === 0}
-                aria-label="Subir"
-                className="leading-none disabled:opacity-30"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => move(s.id, 1)}
-                disabled={i === theme.sections.length - 1}
-                aria-label="Bajar"
-                className="leading-none disabled:opacity-30"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <button
-              onClick={() => onOpenSection(s.id)}
-              className={cn(
-                'min-w-0 flex-1 truncate text-left text-sm',
-                !s.visible && 'text-fg-subtle line-through',
-              )}
-            >
-              {sectionDisplayName(s)}
-            </button>
-            <button onClick={() => toggle(s.id)} aria-label="Mostrar/ocultar">
-              {s.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={() => remove(s.id)}
-              aria-label="Quitar sección"
-              className="text-fg-subtle hover:text-danger"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => onOpenSection(s.id)}
-              aria-label="Editar sección"
-              className="text-fg-subtle"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
+      {sections.length === 0 && !showTemplates && (
+        <EmptyHome onAdd={() => setPickerAt(0)} onTemplates={() => setShowTemplates(true)} />
+      )}
 
-      <div className="px-3 pb-4">
-        {adding ? (
-          <AddSectionMenu
-            sections={theme.sections}
-            onPick={(type) => {
-              setAdding(false);
-              addSection(type);
-            }}
-            onClose={() => setAdding(false)}
-          />
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            disabled={full}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-primary/40 py-2.5 text-sm font-medium text-primary hover:bg-primary/[0.05] disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Plus className="h-4 w-4" /> Agregar sección
-          </button>
-        )}
-        {full && (
-          <p className="mt-2 text-xs text-fg-subtle">
-            Llegaste al máximo de {MAX_SECTIONS} secciones. Quitá alguna para agregar otra.
+      {sections.length > 0 && (
+        <>
+          <p className="px-4 pt-3 text-xs text-fg-muted">
+            Tocá una sección para editarla. Para ordenarlas, arrastrá la manija o usá el menú ⋯.
           </p>
+          <div className="px-3 pt-3">
+            <SortableList
+              items={sections}
+              getId={(s) => s.id}
+              onReorder={(from, to) => updateTheme(moveSection(from, to))}
+              itemName={(s) => `«${sectionDisplayName(s)}»`}
+              className="space-y-2"
+              renderItem={(s, { handle, index, isDragging }) => (
+                <div className="relative">
+                  {!addBlocked && !isDragging && (
+                    <InsertPoint
+                      label={`Agregar una sección antes de «${sectionDisplayName(s)}»`}
+                      onClick={() => setPickerAt(index)}
+                    />
+                  )}
+                  <SectionRow
+                    section={s}
+                    index={index}
+                    total={sections.length}
+                    handle={handle}
+                    isDragging={isDragging}
+                    renaming={renaming === s.id}
+                    duplicateBlocked={addBlockedReason(sections, s.type)}
+                    addBlocked={addBlocked}
+                    actions={{
+                      onOpen: () => onOpenSection(s.id),
+                      onToggleVisible: () => updateTheme(toggleSectionVisible(s.id)),
+                      onStartRename: () => setRenaming(s.id),
+                      onRename: (name) => {
+                        if (name !== null) updateTheme(renameSection(s.id, name));
+                        setRenaming(null);
+                        focusSoon(() => rowMain(s.id));
+                      },
+                      onDuplicate: () => {
+                        const dup = duplicateSection(sections, s.id);
+                        if (!dup) return;
+                        updateTheme(insertSection(dup.copy, dup.at));
+                        focusSoon(() => rowMain(dup.copy.id));
+                      },
+                      onHideOn: (hideOn) => updateTheme(setSectionHideOn(s.id, hideOn)),
+                      onMove: (dir) => updateTheme(moveSection(index, index + dir)),
+                      onInsert: (pos) => setPickerAt(pos === 'before' ? index : index + 1),
+                      onRemove: () => remove(s.id, index),
+                    }}
+                  />
+                </div>
+              )}
+            />
+          </div>
+        </>
+      )}
+
+      <div className="px-3 pb-6 pt-3">
+        {sections.length > 0 && (
+          <button
+            id={ADD_BUTTON_ID}
+            type="button"
+            onClick={() => setPickerAt(sections.length)}
+            disabled={!!addBlocked}
+            className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 text-sm font-medium text-primary hover:bg-primary/[0.05] disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Agregar sección
+          </button>
+        )}
+        {addBlocked ? (
+          <p className="mt-2 text-xs text-fg-subtle">{addBlocked}</p>
+        ) : (
+          sections.length >= NEAR_MAX && (
+            <p className="mt-2 text-xs text-fg-subtle">
+              {sections.length} de {MAX_SECTIONS} secciones.
+            </p>
+          )
         )}
       </div>
+
+      {pickerAt !== null && (
+        <AddSectionPicker
+          sections={sections}
+          where={where(pickerAt)}
+          onPick={(type) => add(type, pickerAt)}
+          onClose={() => setPickerAt(null)}
+        />
+      )}
     </div>
   );
 }
 
-/** El menú de "Agregar sección", por grupos y con una línea que explica cada tipo. */
-function AddSectionMenu({
-  sections,
-  onPick,
-  onClose,
-}: {
-  sections: ThemeConfig['sections'];
-  onPick: (type: SectionType) => void;
-  onClose: () => void;
-}) {
+const ADD_BUTTON_ID = 'theme-editor-add-section';
+
+/**
+ * "+" entre dos filas: agrega justo ahí. Aparece al pasar el mouse o con el
+ * foco del teclado; con el dedo no hay "pasar por encima", así que en
+ * pantallas táctiles no está (para eso el menú ⋯ tiene "Agregar arriba/abajo").
+ */
+function InsertPoint({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <div className="rounded-md border border-border bg-surface p-1">
-      <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Elegí una sección</span>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="group/insert absolute left-1/2 top-0 z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none pointer-coarse:hidden"
+    >
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-fg shadow-md ring-4 ring-surface group-focus-visible/insert:ring-primary/30">
+        <Plus className="h-3.5 w-3.5" aria-hidden />
+      </span>
+    </button>
+  );
+}
+
+/** Inicio vacío: qué pasa en la tienda y las dos formas de arrancar. */
+function EmptyHome({ onAdd, onTemplates }: { onAdd: () => void; onTemplates: () => void }) {
+  return (
+    <div className="mx-3 mt-3 rounded-lg border border-dashed border-border px-4 py-8 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/[0.08] text-primary">
+        <LayoutTemplate className="h-6 w-6" aria-hidden />
+      </div>
+      <p className="text-sm font-semibold text-fg">Tu página de inicio está vacía</p>
+      <p className="mx-auto mt-1 max-w-[16rem] text-xs text-fg-muted">
+        En la tienda solo se ven el encabezado y el pie. Arrancá con una plantilla o agregá secciones de a
+        una.
+      </p>
+      <div className="mt-4 flex flex-col gap-2">
+        <button
+          id={ADD_BUTTON_ID}
+          type="button"
+          onClick={onAdd}
+          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-fg hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" aria-hidden /> Agregar sección
+        </button>
         <button
           type="button"
-          onClick={onClose}
-          aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-md hover:bg-bg-muted"
+          onClick={onTemplates}
+          className="inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium text-fg hover:bg-bg-muted"
         >
-          <X className="h-4 w-4 text-fg-subtle" />
+          Usar una plantilla
         </button>
       </div>
-      {SECTION_GROUPS.map((group) => (
-        <div key={group} role="group" aria-label={group} className="pb-1">
-          <div className="px-2 pb-0.5 pt-2 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">
-            {group}
-          </div>
-          {SECTION_DEFINITIONS.filter((d) => d.group === group).map((def) => {
-            const allowed = canAddSection(sections, def.type);
-            return (
-              <button
-                key={def.type}
-                type="button"
-                onClick={() => onPick(def.type)}
-                disabled={!allowed}
-                className="flex w-full items-start gap-2.5 rounded px-2 py-2 text-left hover:bg-bg-muted disabled:pointer-events-none disabled:opacity-40"
-              >
-                <span className="mt-0.5 w-12 shrink-0" aria-hidden>
-                  <MiniBlock wireframe={def.wireframe} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm text-fg">{def.label}</span>
-                  <span className="block text-xs text-fg-muted">
-                    {allowed ? def.description : 'Ya está en tu inicio: va una sola.'}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ))}
     </div>
   );
 }

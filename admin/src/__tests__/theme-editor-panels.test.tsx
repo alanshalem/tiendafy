@@ -158,33 +158,28 @@ describe('editor de diseño: cada panel, control por control', () => {
 describe('editor de diseño: la página de inicio', () => {
   type Saved = { sections: { id: string; type: string; visible: boolean }[] };
   const last = (api: MockApi) => drafts(api).at(-1)!.body as Saved;
-  const rows = () => within(panel()).getAllByRole('button', { name: 'Editar sección' });
+  const rows = () => within(panel()).getAllByRole('button', { name: /^Editar «/ });
+  const picker = () => screen.getByRole('dialog', { name: 'Agregar sección' });
+  /** Elige una opción del menú ⋯ de la fila `i`. */
+  async function rowAction(user: User, i: number, item: string) {
+    await user.click(within(panel()).getAllByRole('button', { name: /^Más acciones de «/ })[i]!);
+    await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: item }));
+  }
 
-  it('subir, bajar, ocultar, arrastrar y quitar secciones', { timeout: 60_000 }, async () => {
+  it('mover, ocultar y quitar secciones', { timeout: 60_000 }, async () => {
     const { api, user } = await openPanel('Página de inicio');
     const before = rows().length;
     expect(before).toBeGreaterThan(1);
+    const first = rows()[0]!.getAttribute('aria-label');
 
-    await user.click(within(panel()).getAllByRole('button', { name: 'Bajar' })[0]!);
-    await user.click(within(panel()).getAllByRole('button', { name: 'Subir' })[1]!);
-    await user.click(within(panel()).getAllByRole('button', { name: 'Mostrar/ocultar' })[0]!);
+    await rowAction(user, 0, 'Mover abajo');
+    expect(rows()[1]).toHaveAttribute('aria-label', first);
+    await rowAction(user, 1, 'Mover arriba');
+    expect(rows()[0]).toHaveAttribute('aria-label', first);
+    await user.click(within(panel()).getAllByRole('button', { name: /^Mostrar «.*» en la tienda$/ })[0]!);
     await waitFor(() => expect(last(api).sections[0]!.visible).toBe(false), { timeout: 3000 });
 
-    // Arrastrar la primera sobre la última.
-    const items = () => Array.from(panel().querySelectorAll<HTMLElement>('[draggable=true]'));
-    const first = items()[0]!.getAttribute('data-flip-key');
-    const store = new Map<string, string>();
-    const dataTransfer = {
-      setData: (k: string, v: string) => store.set(k, v),
-      getData: (k: string) => store.get(k) ?? '',
-    };
-    fireEvent.dragStart(items()[0]!, { dataTransfer });
-    fireEvent.dragOver(items().at(-1)!, { dataTransfer });
-    fireEvent.drop(items().at(-1)!, { dataTransfer });
-    fireEvent.dragEnd(items()[0]!, { dataTransfer });
-    await waitFor(() => expect(last(api).sections.at(-1)!.id).toBe(first), { timeout: 3000 });
-
-    await user.click(within(panel()).getAllByRole('button', { name: 'Quitar sección' })[0]!);
+    await rowAction(user, 0, 'Eliminar');
     await waitFor(() => expect(last(api).sections).toHaveLength(before - 1), { timeout: 3000 });
     expect(crashes()).toEqual([]);
   });
@@ -192,29 +187,34 @@ describe('editor de diseño: la página de inicio', () => {
   it('agregar cada tipo de sección (los de uno por página, una sola vez)', { timeout: 60_000 }, async () => {
     const { api, user } = await openPanel('Página de inicio');
     const before = rows().length;
-    const menu = () =>
-      within(panel())
+    const options = () =>
+      within(picker())
         .getAllByRole('group')
         .flatMap((g) => within(g).getAllByRole('button'));
-    await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
-    // El menú va por grupos y cada tipo dice para qué sirve.
-    expect(within(panel()).getByRole('group', { name: 'Productos' })).toBeInTheDocument();
-    const names = menu()
-      .filter((b) => !b.hasAttribute('disabled'))
-      .map((b) => b.querySelector('span > span')!.textContent!);
+    const nameOf = (b: HTMLElement) => b.querySelector('span > span')!.textContent!;
+    await user.click(within(panel()).getByRole('button', { name: 'Agregar sección' }));
+    // El selector va por grupos y cada tipo dice para qué sirve.
+    expect(within(picker()).getByRole('group', { name: 'Productos' })).toBeInTheDocument();
+    const names = options()
+      .filter((b) => !b.hasAttribute('aria-disabled'))
+      .map(nameOf);
     expect(names.length).toBeGreaterThan(10);
-    await user.click(within(panel()).getAllByRole('button', { name: 'Cerrar' }).at(-1)!);
+    await user.click(within(picker()).getByRole('button', { name: 'Cerrar' }));
 
     for (const name of names) {
-      await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
-      await user.click(menu().find((b) => b.querySelector('span > span')!.textContent === name)!);
+      // Cada una abre su panel: se vuelve a la lista para agregar la siguiente.
+      if (!within(panel()).queryByRole('button', { name: 'Agregar sección' }))
+        await user.click(within(panel()).getAllByRole('button')[0]!);
+      await user.click(within(panel()).getByRole('button', { name: 'Agregar sección' }));
+      await user.click(options().find((b) => nameOf(b) === name)!);
     }
     await waitFor(() => expect(last(api).sections).toHaveLength(before + names.length), { timeout: 3000 });
 
     // Un segundo hero no entra: va uno solo por página.
-    await user.click(within(panel()).getByRole('button', { name: /Agregar sección/ }));
-    const hero = menu().find((b) => b.textContent!.startsWith('Hero con video'))!;
-    expect(hero).toBeDisabled();
+    await user.click(within(panel()).getAllByRole('button')[0]!);
+    await user.click(within(panel()).getByRole('button', { name: 'Agregar sección' }));
+    const hero = options().find((b) => b.textContent!.startsWith('Hero con video'))!;
+    expect(hero).toHaveAttribute('aria-disabled', 'true');
     expect(hero).toHaveTextContent('va una sola');
     expect(crashes()).toEqual([]);
   });
@@ -243,10 +243,10 @@ describe('editor de diseño: la página de inicio', () => {
     expect(within(panel()).getByRole('button', { name: 'Usar una plantilla de inicio' })).toBeInTheDocument();
 
     // Con la portada vacía, la plantilla se aplica sin preguntar.
-    for (const remove of within(panel()).getAllByRole('button', { name: 'Quitar sección' }).reverse())
-      await user.click(remove);
+    while (within(panel()).queryAllByRole('button', { name: /^Más acciones de «/ }).length > 0)
+      await rowAction(user, 0, 'Eliminar');
     expect(await within(panel()).findByText(/Tu página de inicio está vacía/)).toBeInTheDocument();
-    await user.click(within(panel()).getByRole('button', { name: 'Usar una plantilla de inicio' }));
+    await user.click(within(panel()).getByRole('button', { name: 'Usar una plantilla' }));
     const again = within(panel())
       .getAllByRole('button')
       .filter((b) => /\d+ secciones/.test(b.textContent ?? ''));

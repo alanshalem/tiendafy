@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, SlidersHorizontal } from 'lucide-react';
 import { Button, Modal, cn, useToast, useConfirm } from '@tiendafy/ui';
-import { type ThemeConfig } from '@tiendafy/types';
+import { sectionDisplayName, type ThemeConfig } from '@tiendafy/types';
 import { storefrontUrl } from '../lib/storefront';
 import { useStore } from '../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../lib/api';
@@ -15,6 +15,11 @@ import { usePreviewBridge } from './theme-editor/usePreviewBridge';
 import { EditorTopBar, type Device } from './theme-editor/EditorTopBar';
 import { ConflictBanner } from './theme-editor/ConflictBanner';
 import { EditorViews, SECTION_VIEW } from './theme-editor/EditorViews';
+import { PreviewFrame } from './theme-editor/PreviewFrame';
+import { UndoSnackbar, type UndoNotice } from './theme-editor/UndoSnackbar';
+import { EDITOR_PANEL_ID } from './theme-editor/panelFocus';
+import { insertSection, removeSection } from './theme-editor/sections/sectionOps';
+import { ROW_MAIN_ATTR } from './theme-editor/sections/SectionRow';
 
 /* ============================================================
    Editor de diseño con preview en vivo (postMessage al storefront).
@@ -24,14 +29,6 @@ import { EditorViews, SECTION_VIEW } from './theme-editor/EditorViews';
    ============================================================ */
 
 const DEVICE_KEY = 'tiendafy.editor.device';
-const DEVICE_WIDTH: Record<Device, number | null> = { mobile: 390, tablet: 834, desktop: null };
-// En un celular la vista previa ocupa toda la pantalla y sin marco: el propio
-// teléfono ya es la vista de celular. El marco y el alto fijo, desde md.
-const DEVICE_FRAME: Record<Device, string> = {
-  mobile: 'h-full md:h-[780px]',
-  tablet: 'h-full md:h-[1000px]',
-  desktop: 'h-full md:min-h-[700px] md:rounded-lg md:border md:border-border md:shadow-card',
-};
 
 /**
  * Qué cambió respecto de lo publicado, en palabras. "Publicar" es irreversible
@@ -90,6 +87,11 @@ export function ThemeEditorPage() {
   // pestañas de abajo. El iframe no se desmonta al ocultarlo, así que los
   // cambios siguen llegando y la vista previa no se recarga.
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
+  // md+: esconder el panel para ver la vista previa más grande (en una tablet
+  // le quedaban 450 px). Clickear algo en la vista previa lo vuelve a abrir.
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [undoNotice, setUndoNotice] = useState<UndoNotice | null>(null);
+  const dismissUndo = useCallback(() => setUndoNotice(null), []);
   const [publishing, setPublishing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0); // bump = remontar el iframe del preview
   const [showChanges, setShowChanges] = useState(false);
@@ -109,26 +111,36 @@ export function ThemeEditorPage() {
       if (draft.theme) postToPreview(draft.theme);
     },
     onEdit: (target, sectionId) => {
+      setPanelCollapsed(false);
       if (target === 'header' || target === 'announcement') setView('header');
       else if (target === 'footer') setView('footer');
       else if (target === 'section' && sectionId) setView(`${SECTION_VIEW}${sectionId}`);
     },
-    onDeleteSection: (sectionId) => {
-      void confirm({
-        title: 'Eliminar sección',
-        message:
-          '¿Seguro que querés eliminar esta sección del inicio? Podés volver a agregarla cuando quieras.',
-        confirmLabel: 'Eliminar',
-        variant: 'danger',
-      }).then((ok) => {
-        if (!ok) return;
-        draft.updateTheme((t) => ({ ...t, sections: t.sections.filter((s) => s.id !== sectionId) }));
-        setView((v) => (v === `${SECTION_VIEW}${sectionId}` ? 'home' : v));
-      });
-    },
+    onDeleteSection: (sectionId) => removeSectionWithUndo(sectionId),
   });
   const draft = useThemeDraft(store?.id ?? null, postToPreview);
   const { theme, published } = draft;
+
+  // Borrar una sección (desde la lista o desde el tacho de la vista previa)
+  // es inmediato, con "Deshacer" a mano. Deshacer la vuelve a poner en su
+  // lugar aunque después se haya tocado otra cosa (no es un Ctrl+Z ciego).
+  const removeSectionWithUndo = (sectionId: string) => {
+    const index = theme?.sections.findIndex((s) => s.id === sectionId) ?? -1;
+    const section = theme?.sections[index];
+    if (!section) return;
+    draft.updateTheme(removeSection(sectionId));
+    setView((v) => (v === `${SECTION_VIEW}${sectionId}` ? 'home' : v));
+    setUndoNotice((prev) => ({
+      key: (prev?.key ?? 0) + 1,
+      message: `Eliminaste «${sectionDisplayName(section)}».`,
+      onUndo: () => {
+        draft.updateTheme(insertSection(section, index));
+        requestAnimationFrame(() =>
+          document.querySelector<HTMLElement>(`[${ROW_MAIN_ATTR}="${CSS.escape(section.id)}"]`)?.focus(),
+        );
+      },
+    }));
+  };
 
   // La sección abierta ya no existe (deshacer, restaurar, recargar): a la lista.
   if (
@@ -328,6 +340,12 @@ export function ThemeEditorPage() {
         scheduled={!!scheduledAt}
         device={device}
         previewBase={previewBase}
+        canUndo={draft.canUndo}
+        canRedo={draft.canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        panelCollapsed={panelCollapsed}
+        onTogglePanel={() => setPanelCollapsed((c) => !c)}
         onClose={() => navigate('/canales/tienda-online/disenios')}
         onRetrySave={() => void flushDraft()}
         onSelectStore={switchStore}
@@ -345,10 +363,12 @@ export function ThemeEditorPage() {
       <div className="flex min-h-0 flex-1">
         {/* Panel izquierdo (en celular, la pestaña "Editar" a todo el ancho) */}
         <aside
+          id={EDITOR_PANEL_ID}
           aria-label="Opciones del diseño"
           className={cn(
             'w-full shrink-0 overflow-y-auto border-border bg-surface md:block md:w-80 md:border-r',
             mobileTab === 'preview' && 'hidden',
+            panelCollapsed && 'md:hidden',
           )}
         >
           <EditorViews
@@ -362,53 +382,31 @@ export function ThemeEditorPage() {
             onSearch={() => setSearchOpen(true)}
             onHistory={() => setHistoryOpen(true)}
             onCopyFromStore={stores.length > 1 ? () => setCopyOpen(true) : undefined}
+            onRemoveSection={removeSectionWithUndo}
           />
         </aside>
 
         {/* Preview — UN solo iframe persistente; cambiar de device solo reestiliza
             el contenedor (no remonta el iframe), así no recarga ni parpadea. */}
-        <div
-          className={cn(
-            'min-w-0 flex-1 justify-center overflow-auto bg-bg-muted md:flex md:items-start md:p-6',
-            mobileTab === 'edit' ? 'hidden' : 'flex',
+        <PreviewFrame device={device} hidden={mobileTab === 'edit'}>
+          {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
+          {previewToken !== undefined ? (
+            <iframe
+              key={reloadKey}
+              ref={iframeRef}
+              src={previewUrl}
+              title="Preview"
+              className="h-full w-full bg-white"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-white text-sm text-fg-muted">
+              Cargando vista previa…
+            </div>
           )}
-        >
-          <div
-            className={cn(
-              'h-full w-full transition-all duration-300 ease-out',
-              device === 'mobile' &&
-                'md:h-auto md:w-[var(--device-w)] md:overflow-hidden md:rounded-[2rem] md:border-8 md:border-black md:bg-black md:shadow-2xl',
-              device === 'tablet' &&
-                'md:h-auto md:w-[var(--device-w)] md:overflow-hidden md:rounded-[1.5rem] md:border-8 md:border-black md:bg-black md:shadow-2xl',
-            )}
-            style={
-              DEVICE_WIDTH[device]
-                ? ({ '--device-w': `${DEVICE_WIDTH[device]}px` } as CSSProperties)
-                : undefined
-            }
-          >
-            {/* Esperar el token antes de montar el iframe: si no, carga sin ?pt y recarga al llegar. */}
-            {previewToken !== undefined ? (
-              <iframe
-                key={reloadKey}
-                ref={iframeRef}
-                src={previewUrl}
-                title="Preview"
-                className={cn('w-full bg-white', DEVICE_FRAME[device])}
-              />
-            ) : (
-              <div
-                className={cn(
-                  'flex w-full items-center justify-center bg-white text-sm text-fg-muted',
-                  DEVICE_FRAME[device],
-                )}
-              >
-                Cargando vista previa…
-              </div>
-            )}
-          </div>
-        </div>
+        </PreviewFrame>
       </div>
+
+      <UndoSnackbar key={undoNotice?.key} notice={undoNotice} onDismiss={dismissUndo} />
 
       {/* Pestañas de celular: editar o mirar cómo queda. */}
       <nav
@@ -437,7 +435,19 @@ export function ThemeEditorPage() {
         ))}
       </nav>
 
-      {searchOpen && <OptionSearch onPick={(v) => setView(v)} onClose={() => setSearchOpen(false)} />}
+      {searchOpen && (
+        <OptionSearch
+          sections={theme.sections}
+          onPick={(v) => {
+            // Lo encontrado se tiene que ver: con el panel escondido o en la
+            // pestaña de la vista previa (celular), se vuelve al panel.
+            setView(v);
+            setPanelCollapsed(false);
+            setMobileTab('edit');
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       {/* Historial, copiar de otra tienda y programar: lo restaurado o copiado
           entra por applyIncoming, que lo suma al deshacer. */}

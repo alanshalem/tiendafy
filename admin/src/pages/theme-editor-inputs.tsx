@@ -1,7 +1,7 @@
 import { Checkbox, cn, useConfirm } from '@tiendafy/ui';
 import { useId, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { ChevronLeft, Plus, X } from 'lucide-react';
-import { type ThemeConfig, baseTheme } from '@tiendafy/types';
+import { LONG_TEXT_MAX, SHORT_TEXT_MAX, URL_MAX, type ThemeConfig, baseTheme } from '@tiendafy/types';
 
 /** Texto legible (blanco u oscuro) según la luminancia de un color "R G B". */
 export { contrastText } from '@tiendafy/types';
@@ -188,6 +188,58 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
+/**
+ * El <label> de un control que no está adentro de un <Field> (Field le pasa
+ * el `id` y pone el suyo): el `label` que se le pasó (visible) o, si solo
+ * trae un ejemplo en el placeholder, ese texto para lectores de pantalla. Un
+ * campo con solo placeholder no tiene nombre: cuando se escribe algo, el
+ * placeholder desaparece y el lector de pantalla dice "campo de edición" a
+ * secas.
+ */
+function OwnLabel({
+  htmlFor,
+  labelled,
+  label,
+  fallback,
+}: {
+  htmlFor: string;
+  /** Ya tiene un <label for> afuera (vino con `id`). */
+  labelled: boolean;
+  label?: string;
+  fallback?: string;
+}) {
+  if (labelled && !label) return null;
+  if (label)
+    return (
+      <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-fg">
+        {label}
+      </label>
+    );
+  return fallback ? (
+    <label htmlFor={htmlFor} className="sr-only">
+      {fallback}
+    </label>
+  ) : null;
+}
+
+/** Desde qué parte del máximo se muestra la cuenta de caracteres. */
+const COUNTER_FROM = 0.8;
+
+/**
+ * "183/200" debajo del campo cuando se acerca al tope. El servidor rechaza un
+ * título de más de 200 o un texto de más de 2000, y antes uno se enteraba por
+ * un aviso de error después de escribir.
+ */
+function CharCounter({ id, length, max }: { id: string; length: number; max: number }) {
+  if (length < max * COUNTER_FROM) return null;
+  return (
+    <p id={id} className={cn('mt-1 text-right text-xs', length >= max ? 'text-warning' : 'text-fg-subtle')}>
+      {length}/{max}
+      {length >= max && <span className="sr-only"> Llegaste al máximo de caracteres.</span>}
+    </p>
+  );
+}
+
 export function ColorRow({
   label,
   hint,
@@ -235,12 +287,17 @@ export function Check({
   );
 }
 
+/** Tope por defecto según el tipo: el mismo que valida el servidor. */
+const DEFAULT_MAX: Record<string, number | undefined> = { text: SHORT_TEXT_MAX, url: URL_MAX };
+
 export function TextInput({
   value,
   onChange,
   placeholder,
   id,
   type = 'text',
+  maxLength,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -248,16 +305,31 @@ export function TextInput({
   id?: string;
   /** 'date' para fechas: el navegador pone su propio selector. */
   type?: 'text' | 'date' | 'number' | 'url';
+  /** Máximo de caracteres. Por defecto 200 (2000 en links); `false` = sin tope. */
+  maxLength?: number | false;
+  /** Nombre visible del campo cuando no va adentro de un <Field>. */
+  label?: string;
 }) {
+  const ownId = useId();
+  const inputId = id ?? ownId;
+  const counterId = `${inputId}-count`;
+  const max = maxLength === false ? undefined : (maxLength ?? DEFAULT_MAX[type]);
+  const nearMax = max !== undefined && value.length >= max * COUNTER_FROM;
   return (
-    <input
-      id={id}
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={INPUT_FIELD}
-    />
+    <>
+      <OwnLabel htmlFor={inputId} labelled={id !== undefined} label={label} fallback={placeholder} />
+      <input
+        id={inputId}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={max}
+        aria-describedby={nearMax ? counterId : undefined}
+        className={INPUT_FIELD}
+      />
+      {max !== undefined && <CharCounter id={counterId} length={value.length} max={max} />}
+    </>
   );
 }
 
@@ -265,19 +337,41 @@ export function TextArea({
   value,
   onChange,
   id,
+  placeholder,
+  rows = 3,
+  maxLength,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
   id?: string;
+  placeholder?: string;
+  rows?: number;
+  /** Máximo de caracteres. Por defecto 2000 (lo que acepta el servidor); `false` = sin tope. */
+  maxLength?: number | false;
+  /** Nombre visible del campo cuando no va adentro de un <Field>. */
+  label?: string;
 }) {
+  const ownId = useId();
+  const inputId = id ?? ownId;
+  const counterId = `${inputId}-count`;
+  const max = maxLength === false ? undefined : (maxLength ?? LONG_TEXT_MAX);
+  const nearMax = max !== undefined && value.length >= max * COUNTER_FROM;
   return (
-    <textarea
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      rows={3}
-      className={`w-full px-3 py-2 text-sm ${INPUT_BASE}`}
-    />
+    <>
+      <OwnLabel htmlFor={inputId} labelled={id !== undefined} label={label} fallback={placeholder} />
+      <textarea
+        id={inputId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        maxLength={max}
+        aria-describedby={nearMax ? counterId : undefined}
+        className={`w-full px-3 py-2 text-sm ${INPUT_BASE}`}
+      />
+      {max !== undefined && <CharCounter id={counterId} length={value.length} max={max} />}
+    </>
   );
 }
 
@@ -307,6 +401,9 @@ export function StringList({
           <div key={i} className="flex gap-2">
             <input
               id={i === 0 ? firstId : undefined}
+              // El primero lo nombra el <label>; los demás, "Teléfonos 2", "Teléfonos 3"…
+              aria-label={i === 0 ? undefined : `${label} ${i + 1}`}
+              maxLength={SHORT_TEXT_MAX}
               value={val}
               onChange={(e) => onChange(values.map((v, idx) => (idx === i ? e.target.value : v)))}
               placeholder={placeholder}
@@ -340,24 +437,32 @@ export function Select({
   onChange,
   options,
   id,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   id?: string;
+  /** Nombre visible del campo cuando no va adentro de un <Field>. */
+  label?: string;
 }) {
+  const ownId = useId();
+  const selectId = id ?? ownId;
   return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={`appearance-none ${INPUT_FIELD}`}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <OwnLabel htmlFor={selectId} labelled={id !== undefined} label={label} />
+      <select
+        id={selectId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none ${INPUT_FIELD}`}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }

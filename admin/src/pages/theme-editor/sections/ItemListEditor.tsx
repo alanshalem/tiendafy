@@ -290,15 +290,22 @@ function ActionButton({
   );
 }
 
-/** Campo para renombrar en el lugar: Enter o salir del campo guarda, Escape cancela. */
-function RenameInput({
+/**
+ * Campo para renombrar en el lugar: Enter o salir del campo guarda, Escape
+ * cancela. Lo usan los ítems de una lista y las filas de secciones del inicio.
+ */
+export function RenameInput({
   initial,
   placeholder,
   onDone,
+  label = 'Nombre del ítem',
+  className,
 }: {
   initial: string;
   placeholder: string;
   onDone: (value: string | null) => void;
+  label?: string;
+  className?: string;
 }) {
   const [value, setValue] = useState(initial);
   const done = useRef(false);
@@ -312,7 +319,7 @@ function RenameInput({
       autoFocus
       value={value}
       maxLength={LABEL_MAX}
-      aria-label="Nombre del ítem"
+      aria-label={label}
       placeholder={placeholder}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
@@ -326,7 +333,7 @@ function RenameInput({
         }
       }}
       onBlur={() => finish(value)}
-      className={`h-10 min-w-0 flex-1 px-2 text-sm ${INPUT_BASE}`}
+      className={cn(`h-10 min-w-0 flex-1 px-2 text-sm ${INPUT_BASE}`, className)}
     />
   );
 }
