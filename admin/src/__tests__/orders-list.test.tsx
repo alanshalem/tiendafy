@@ -344,11 +344,13 @@ describe('ventas: más acciones en lote', () => {
 
   it('sin la facturación lista, en vez de "Facturar" lleva a configurarla', async () => {
     await selectBoth((a) => a.on('GET', '/api/v1/fiscal/readiness', { ready: false }));
-    expect(screen.queryByRole('button', { name: /^Facturar$/ })).toBeNull();
-    expect(screen.getByRole('link', { name: /Configurá la facturación/ })).toHaveAttribute(
+    // Primero que llegue la respuesta de /fiscal/readiness (en CI tardaba más
+    // que el resto y el botón todavía estaba): recién ahí no tiene que haber "Facturar".
+    expect(await screen.findByRole('link', { name: /Configurá la facturación/ })).toHaveAttribute(
       'href',
       '/configuracion/facturacion',
     );
+    expect(screen.queryByRole('button', { name: /^Facturar$/ })).toBeNull();
   });
 });
 
