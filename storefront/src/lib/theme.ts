@@ -33,7 +33,9 @@ export type {
   FooterConfig,
   IconKit,
   ThemeConfig,
+  ButtonStyle,
 } from '@tiendafy/types';
+import type { ButtonStyle, ProductListConfig } from '@tiendafy/types';
 
 /** Defaults del storefront: incluye las secciones iniciales sembradas. */
 export const defaultTheme: ThemeConfig = { ...baseTheme, sections: DEFAULT_SECTIONS };
@@ -117,6 +119,23 @@ export const colClass: Record<number, string> = {
   4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
 };
 
+/** Lo mismo con una sola columna en el celular (una foto grande por fila). */
+const colClassOneMobile: Record<number, string> = {
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-3 lg:grid-cols-4',
+};
+
+/**
+ * Las columnas de la grilla de productos según el diseño: las de escritorio y
+ * cuántas en el celular. Las clases van escritas enteras (Tailwind solo genera
+ * las que encuentra literales en el código).
+ */
+export function productGridClass(list: Pick<ProductListConfig, 'columns' | 'mobileColumns'>): string {
+  const map = list.mobileColumns === 1 ? colClassOneMobile : colClass;
+  return map[list.columns] ?? map[4]!;
+}
+
 /** El color de la marca para texto: se lee a 4,5:1 sobre el fondo y sobre un tinte de hasta 15%. */
 export function primaryInk(theme: ThemeConfig): string {
   const { primary, bg } = theme.colors;
@@ -134,10 +153,42 @@ export function mutedText(theme: ThemeConfig): string {
   return readableOn(mixRgb(text, bg, 0.4), [bg, mixRgb(bg, '0 0 0', 0.05)]);
 }
 
+/** Radio de cada forma de botón. 'auto' no define nada: sigue a los bordes globales. */
+const BUTTON_RADIUS: Record<ButtonStyle['shape'], string | null> = {
+  auto: null,
+  square: '0px',
+  rounded: '0.5rem',
+  pill: '9999px',
+};
+
+/**
+ * Estilo global de botones → variables CSS que lee globals.css (regla de los
+ * botones primarios: `bg-primary text-primary-fg`). Así cada botón de la
+ * tienda lo hereda sin tocar su componente. Lo que está en su valor de
+ * siempre no se define: globals.css cae a lo que ya tenía el botón.
+ */
+export function buttonVars(buttons: ButtonStyle): Record<string, string> {
+  const vars: Record<string, string> = {};
+  const radius = BUTTON_RADIUS[buttons.shape];
+  if (radius) vars['--btn-radius'] = radius;
+  if (buttons.variant === 'outline') {
+    vars['--btn-bg'] = 'transparent';
+    vars['--btn-bg-hover'] = 'rgb(var(--color-primary) / 0.08)';
+    vars['--btn-fg'] = 'rgb(var(--color-primary-ink))';
+    vars['--btn-border-width'] = '1.5px';
+  }
+  if (buttons.textCase === 'uppercase') {
+    vars['--btn-case'] = 'uppercase';
+    vars['--btn-tracking'] = '0.06em';
+  }
+  return vars;
+}
+
 /** Config de tema → CSS custom properties para el wrapper del storefront. */
 export function themeToStyle(theme: ThemeConfig): Record<string, string> {
   const c = theme.colors;
   return {
+    ...buttonVars(theme.buttons ?? baseTheme.buttons),
     '--color-primary': c.primary,
     '--color-primary-hover': c.primary,
     // Texto sobre el color primario: oscuro si el primario es claro (lima, cian…), blanco si no.

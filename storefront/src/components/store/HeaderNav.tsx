@@ -1,24 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Icon } from './Icon';
-import { CategoryMenu } from './CategoryMenu';
+import { CategoryMegaMenu, CategoryMenu } from './CategoryMenu';
+import { StoreLink } from './StoreLink';
 import { useHoverMenu } from './useHoverMenu';
+import type { NavItem } from './header-menu';
 
-export interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-  /** El de categorías se dibuja como desplegable cuando entra. */
-  kind?: 'link' | 'categories';
-}
+export type { NavItem } from './header-menu';
 
 /** `useLayoutEffect` avisa en el render del servidor; ahí no hay nada que medir. */
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 /** Separación entre ítems, en píxeles. Tiene que coincidir con el `gap-x-5` de abajo. */
 const GAP = 20;
+
+/** ¿Se dibuja como desplegable? (lleva flechita: el medidor le reserva el lugar). */
+const hasDropdown = (item: NavItem) =>
+  item.kind === 'categories' || !!item.categoryId || (item.children?.length ?? 0) > 0;
 
 /**
  * Menú del encabezado en UNA sola línea.
@@ -32,6 +31,9 @@ const GAP = 20;
  * se esconde: sigue estando todo, a un clic. Y como el que sobra es el último,
  * el orden que elige el comercio en el editor de diseño decide qué queda a la
  * vista.
+ *
+ * En el servidor se dibujan TODOS (todavía no hay nada que medir): los links
+ * del menú, incluidos los de los desplegables, llegan en el HTML.
  */
 export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align?: 'center' | 'start' }) {
   const navRef = useRef<HTMLElement>(null);
@@ -98,7 +100,7 @@ export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align
         {items.map((item) => (
           <span key={item.id} className="flex items-center gap-1">
             {item.label}
-            {item.kind === 'categories' && <span className="h-4 w-4" />}
+            {hasDropdown(item) && <span className="h-4 w-4" />}
           </span>
         ))}
         <span className="flex items-center gap-1">
@@ -107,28 +109,91 @@ export function HeaderNav({ items, align = 'center' }: { items: NavItem[]; align
         </span>
       </div>
 
-      {visible.map((item) =>
-        item.kind === 'categories' ? (
-          <CategoryMenu key={item.id} label={item.label} />
-        ) : (
-          <Link key={item.id} href={item.href} className="shrink-0 opacity-90 hover:opacity-100">
-            {item.label}
-          </Link>
-        ),
-      )}
+      {visible.map((item) => (
+        <NavEntry key={item.id} item={item} />
+      ))}
 
       {hidden.length > 0 && <MoreMenu items={hidden} />}
     </nav>
   );
 }
 
+/** Un ítem del primer nivel: link, desplegable de categorías, mega-menú o desplegable propio. */
+function NavEntry({ item }: { item: NavItem }) {
+  if (item.kind === 'categories') return <CategoryMenu label={item.label} />;
+  if (item.categoryId)
+    return (
+      <CategoryMegaMenu
+        categoryId={item.categoryId}
+        label={item.label}
+        href={item.href}
+        extra={item.children}
+      />
+    );
+  if (item.children?.length) return <DropdownMenu item={item} />;
+  return (
+    <StoreLink href={item.href} newTab={item.newTab} className="shrink-0 opacity-90 hover:opacity-100">
+      {item.label}
+    </StoreLink>
+  );
+}
+
+/**
+ * Un ítem con subítems que armó el comercio. El botón abre la lista; adentro
+ * va primero el propio destino del ítem (sino quedaría inalcanzable: el clic
+ * abre el desplegable en vez de navegar) y después los anidados.
+ */
+function DropdownMenu({ item }: { item: NavItem }) {
+  const { open, close, container, trigger, panel } = useHoverMenu();
+  return (
+    <div className="relative shrink-0" {...container}>
+      <button
+        type="button"
+        {...trigger}
+        className="flex items-center gap-1 whitespace-nowrap opacity-90 hover:opacity-100"
+      >
+        {item.label}
+        <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {/* En el HTML aunque esté cerrado (los links llegan a Google). `pt-2`: puente para el hover. */}
+      <div className="absolute left-0 top-full z-50 pt-2" {...panel}>
+        <ul className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
+          <li>
+            <StoreLink
+              href={item.href}
+              newTab={item.newTab}
+              onClick={close}
+              className="block rounded-md px-3 py-2 text-sm font-semibold hover:bg-fg/5"
+            >
+              {item.label}
+            </StoreLink>
+          </li>
+          {item.children!.map((child) => (
+            <li key={child.id}>
+              <StoreLink
+                href={child.href}
+                newTab={child.newTab}
+                onClick={close}
+                className="block rounded-md px-3 py-2 text-sm hover:bg-fg/5"
+              >
+                {child.label}
+              </StoreLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Lo que no entró. Adentro va todo como link plano, incluso el de categorías:
  * un desplegable dentro de otro no se maneja bien con el dedo ni con el
- * teclado, y el listado de productos ya muestra las categorías al costado.
+ * teclado, y el listado de productos ya muestra las categorías al costado. Los
+ * subítems van debajo de su padre, con sangría.
  */
 function MoreMenu({ items }: { items: NavItem[] }) {
-  const { open, close, container, trigger } = useHoverMenu();
+  const { open, close, container, trigger, panel } = useHoverMenu();
 
   return (
     <div className="relative shrink-0" {...container}>
@@ -141,23 +206,34 @@ function MoreMenu({ items }: { items: NavItem[] }) {
         <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        // `pt-2`: puente transparente para no perder el hover al bajar el mouse.
-        <div className="absolute right-0 top-full z-50 pt-2">
-          <div className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
-            {items.map((item) => (
-              <Link
-                key={item.id}
+      {/* `pt-2`: puente transparente para no perder el hover al bajar el mouse. */}
+      <div className="absolute right-0 top-full z-50 pt-2" {...panel}>
+        <div className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
+          {items.map((item) => (
+            <div key={item.id}>
+              <StoreLink
                 href={item.href}
+                newTab={item.newTab}
                 onClick={close}
                 className="block rounded-md px-3 py-2 text-sm hover:bg-fg/5"
               >
                 {item.label}
-              </Link>
-            ))}
-          </div>
+              </StoreLink>
+              {item.children?.map((child) => (
+                <StoreLink
+                  key={child.id}
+                  href={child.href}
+                  newTab={child.newTab}
+                  onClick={close}
+                  className="block rounded-md py-2 pl-6 pr-3 text-sm opacity-80 hover:bg-fg/5"
+                >
+                  {child.label}
+                </StoreLink>
+              ))}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

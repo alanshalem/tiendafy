@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { buildPageWindow } from '@tiendafy/ui';
-import { colClass, type ProductListConfig } from '@/lib/theme';
+import { productGridClass, type ProductListConfig } from '@/lib/theme';
 import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
 import { categoryParam, readableQuery } from '@/lib/category-url';
 import { ProductCard, type StoreProduct } from './sections';
@@ -283,7 +283,7 @@ export function CatalogBrowser({
               cta={{ href: href('/productos'), label: 'Ver todo' }}
             />
           ) : (
-            <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
+            <div className={`grid gap-x-5 gap-y-8 ${productGridClass(list)}`}>
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} list={list} />
               ))}
@@ -708,6 +708,9 @@ function PageLink({
       rel={rel}
       aria-label={ariaLabel}
       aria-current={active ? 'page' : undefined}
+      // La página activa usa los colores de marca pero no es un botón: no sigue
+      // el estilo global de botones (globals.css).
+      data-tf-plain
       className={cls}
     >
       {children}
@@ -742,6 +745,7 @@ function SpecFacetChips({
               type="button"
               onClick={() => onToggle(facet.definitionId, v)}
               aria-pressed={active}
+              data-tf-plain
               className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
                 active
                   ? 'border-primary bg-primary text-primary-fg'

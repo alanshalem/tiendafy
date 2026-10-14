@@ -20,20 +20,40 @@ export interface ThemeFonts {
   body: string;
 }
 
+/** Qué es un ítem del menú del encabezado. */
+export type ThemeMenuItemKind = 'builtin' | 'page' | 'category' | 'product' | 'link';
+
 /**
- * Una preferencia del comercio sobre un ítem del menú del encabezado.
+ * Un ítem del menú del encabezado.
  *
- * Es una lista de PREFERENCIAS, no la fuente de verdad de qué existe: los
- * ítems reales los arma el storefront (los fijos + las páginas publicadas) y
- * después aplica esto. Así, una página nueva aparece sola al final —publicar y
- * que no se vea sería desconcertante— y una borrada deja un id que
- * simplemente no coincide con nada.
+ * Para los fijos y las páginas sigue siendo una PREFERENCIA, no la fuente de
+ * verdad de qué existe: el storefront arma los fijos + las páginas publicadas
+ * y después aplica esto. Así una página nueva aparece sola al final —publicar
+ * y que no se vea sería desconcertante— y una borrada deja un id que no
+ * coincide con nada.
  *
- * `id` es 'home' | 'products' | 'categories' | 'contact' | 'page:<id>'.
+ * Las categorías, productos y links propios sí existen solo acá: los agrega el
+ * comercio y guardan su destino (`href`) y su nombre, para que el servidor los
+ * dibuje sin esperar a nadie (y Google los vea).
+ *
+ * `id`: 'home' | 'products' | 'categories' | 'contact' | 'page:<id>' |
+ * 'cat:<id>' | 'prod:<id>' | 'link:<aleatorio>'.
  */
 export interface ThemeMenuItem {
   id: string;
   visible: boolean;
+  /** Sin `kind` (temas guardados antes): se deduce del id al normalizar. */
+  kind?: ThemeMenuItemKind;
+  /** Nombre a mostrar. Vacío = el de siempre (fijos) o el del destino. */
+  label?: string;
+  /** Destino (normalizado con normalizeLink). Los fijos no lo usan. */
+  href?: string;
+  /** Abrir en otra pestaña (links externos). */
+  newTab?: boolean;
+  /** Categoría: mostrar sus subcategorías en un desplegable (mega-menú en desktop). */
+  showChildren?: boolean;
+  /** Id del ítem de primer nivel del que cuelga (un solo nivel). Vacío = primer nivel. */
+  parent?: string;
 }
 
 export interface ThemeHeader {
@@ -65,6 +85,8 @@ export interface ThemeHeader {
 interface AnnouncementItem {
   text: string;
   link: string;
+  /** Abrir el link en otra pestaña. */
+  newTab?: boolean;
 }
 export interface ThemeAnnouncement {
   show: boolean;
@@ -123,6 +145,8 @@ export interface ThemeSection {
 
 export interface ProductListConfig {
   columns: number;
+  /** Columnas en el celular: 2 (grilla) o 1 (una foto grande por fila). */
+  mobileColumns: 1 | 2;
   showPrice: boolean;
   showBuyButton: boolean;
   showCompareAt: boolean;
@@ -185,7 +209,16 @@ interface WhatsAppButtonConfig {
   /** Al pasar el mouse, muestra un mini-preview estilo chat de WhatsApp del mensaje. */
   showPreview: boolean;
 }
+/** Un link propio del pie (Envíos, Mayoristas, un catálogo en PDF…). */
+export interface FooterLink {
+  label: string;
+  href: string;
+  newTab?: boolean;
+}
+
 export interface FooterConfig {
+  /** Links propios del comercio, en el orden en que se cargaron. */
+  links: FooterLink[];
   tiktok: string;
   youtube: string;
   /** Perfil de X (ex Twitter). */
@@ -251,6 +284,16 @@ export type DensityStyle = 'compact' | 'cozy' | 'spacious';
 /** Kit de íconos: cada uno usa una librería distinta (cambian todos a la vez). */
 export type IconKit = 'lucide' | 'phosphor' | 'tabler' | 'heroicons' | 'feather';
 
+/**
+ * Estilo global de los botones principales (Comprar, Agregar, Pagar…).
+ * `shape: 'auto'` sigue a los bordes globales (borderRadius), como siempre.
+ */
+export interface ButtonStyle {
+  shape: 'auto' | 'square' | 'rounded' | 'pill';
+  variant: 'filled' | 'outline';
+  textCase: 'normal' | 'uppercase';
+}
+
 export interface ThemeConfig {
   logo: string;
   favicon: string;
@@ -267,6 +310,8 @@ export interface ThemeConfig {
   density: DensityStyle;
   /** Kit de íconos del storefront (cambia el estilo de todos los íconos a la vez). */
   iconKit: IconKit;
+  /** Forma, relleno y texto de los botones principales. */
+  buttons: ButtonStyle;
   colors: ThemeColors;
   fonts: ThemeFonts;
   header: ThemeHeader;
@@ -304,6 +349,7 @@ export const baseTheme: ThemeConfig = {
   motion: 'subtle',
   density: 'cozy',
   iconKit: 'lucide',
+  buttons: { shape: 'auto', variant: 'filled', textCase: 'normal' },
   colors: { primary: '232 80 30', accent: '27 21 16', useAccent: false, bg: '255 255 255', text: '17 24 39' },
   fonts: { heading: 'sans', body: 'sans' },
   header: {
@@ -337,6 +383,7 @@ export const baseTheme: ThemeConfig = {
   sections: [],
   productList: {
     columns: 4,
+    mobileColumns: 2,
     showPrice: true,
     showBuyButton: true,
     showCompareAt: true,
@@ -373,6 +420,7 @@ export const baseTheme: ThemeConfig = {
   },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
   footer: {
+    links: [],
     text: '',
     showSocial: true,
     instagram: '',
@@ -422,7 +470,11 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
   if (Array.isArray(raw.items)) {
     items = raw.items
       .filter((it): it is AnnouncementItem => !!it && typeof it.text === 'string')
-      .map((it) => ({ text: it.text, link: typeof it.link === 'string' ? it.link : '' }));
+      .map((it) => ({
+        text: it.text,
+        link: typeof it.link === 'string' ? it.link : '',
+        ...(it.newTab === true ? { newTab: true } : {}),
+      }));
   }
   // Compat de lectura: temas persistidos con el shape v1 { message, link } (un
   // solo texto). El schema ya no expone esos campos, pero los datos viejos
@@ -437,6 +489,76 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
     show: typeof raw.show === 'boolean' ? raw.show : base.show,
     animation: raw.animation === 'marquee' ? 'marquee' : 'static',
     items,
+  };
+}
+
+/** Ids de los ítems fijos del menú (existen siempre; se ocultan, no se borran). */
+export const BUILTIN_MENU_IDS = ['home', 'products', 'categories', 'contact'] as const;
+
+const MENU_KINDS: ThemeMenuItemKind[] = ['builtin', 'page', 'category', 'product', 'link'];
+
+/** El tipo de un ítem guardado sin `kind` (temas anteriores): sale del id. */
+function menuKindFromId(id: string): ThemeMenuItemKind {
+  if ((BUILTIN_MENU_IDS as readonly string[]).includes(id)) return 'builtin';
+  if (id.startsWith('page:')) return 'page';
+  if (id.startsWith('cat:')) return 'category';
+  if (id.startsWith('prod:')) return 'product';
+  return 'link';
+}
+
+/**
+ * Menú del encabezado: descarta lo que no tiene forma, deduce el tipo de los
+ * ítems viejos ({ id, visible }) y deja el anidado en un solo nivel. Un hijo
+ * cuyo padre no existe, es otro hijo o es el desplegable de Categorías (que ya
+ * es un desplegable) vuelve al primer nivel en vez de perderse.
+ */
+function normalizeMenu(raw: unknown): ThemeMenuItem[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const items: ThemeMenuItem[] = [];
+  for (const m of raw as Partial<ThemeMenuItem>[]) {
+    if (typeof m?.id !== 'string' || !m.id || seen.has(m.id)) continue;
+    seen.add(m.id);
+    const kind = MENU_KINDS.includes(m.kind as ThemeMenuItemKind)
+      ? (m.kind as ThemeMenuItemKind)
+      : menuKindFromId(m.id);
+    const item: ThemeMenuItem = { id: m.id, visible: m.visible !== false, kind };
+    if (typeof m.label === 'string' && m.label.trim()) item.label = m.label.trim().slice(0, 80);
+    if (typeof m.href === 'string' && m.href.trim()) item.href = m.href.trim();
+    if (m.newTab === true) item.newTab = true;
+    if (m.showChildren === true && kind === 'category') item.showChildren = true;
+    if (typeof m.parent === 'string' && m.parent) item.parent = m.parent;
+    items.push(item);
+  }
+  const byId = new Map(items.map((m) => [m.id, m]));
+  for (const m of items) {
+    if (!m.parent) continue;
+    const parent = byId.get(m.parent);
+    if (!parent || parent.parent || parent.id === m.id || parent.id === 'categories' || m.id === 'categories')
+      delete m.parent;
+  }
+  // Quien tiene hijos no puede ser hijo (un solo nivel).
+  const parents = new Set(items.filter((m) => m.parent).map((m) => m.parent!));
+  for (const m of items) if (m.parent && parents.has(m.id)) delete m.parent;
+  return items;
+}
+
+/** Links propios del pie: solo los que tienen nombre y destino. */
+function normalizeFooterLinks(raw: unknown): FooterLink[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Partial<FooterLink>[])
+    .filter((l): l is FooterLink => typeof l?.label === 'string' && typeof l?.href === 'string')
+    .map((l) => ({ label: l.label, href: l.href, ...(l.newTab === true ? { newTab: true } : {}) }));
+}
+
+function normalizeButtons(raw?: Partial<ButtonStyle>): ButtonStyle {
+  const base = baseTheme.buttons;
+  return {
+    shape: (['auto', 'square', 'rounded', 'pill'] as const).includes(raw?.shape as ButtonStyle['shape'])
+      ? raw!.shape!
+      : base.shape,
+    variant: raw?.variant === 'outline' ? 'outline' : base.variant,
+    textCase: raw?.textCase === 'uppercase' ? 'uppercase' : base.textCase,
   };
 }
 
@@ -465,17 +587,15 @@ export function normalizeTheme(
     )
       ? raw.iconKit!
       : baseTheme.iconKit,
+    buttons: normalizeButtons(raw.buttons),
     colors: { ...baseTheme.colors, ...raw.colors },
     fonts: { ...baseTheme.fonts, ...raw.fonts },
     header: {
       ...baseTheme.header,
       ...raw.header,
-      // El menú puede venir de una config guardada antes de que existiera.
-      menu: Array.isArray(raw.header?.menu)
-        ? raw.header!.menu.filter(
-            (m): m is ThemeMenuItem => typeof m?.id === 'string' && typeof m?.visible === 'boolean',
-          )
-        : [],
+      // El menú puede venir de una config guardada antes de que existiera, o
+      // con el formato viejo ({ id, visible }): se migra acá.
+      menu: normalizeMenu(raw.header?.menu),
     },
     announcement: normalizeAnnouncement(raw.announcement),
     comingSoon: {
@@ -484,13 +604,18 @@ export function normalizeTheme(
       layout: raw.comingSoon?.layout === 'split' ? 'split' : 'centered',
     },
     sections: Array.isArray(raw.sections) && raw.sections.length > 0 ? raw.sections : fallbackSections,
-    productList: { ...baseTheme.productList, ...raw.productList },
+    productList: {
+      ...baseTheme.productList,
+      ...raw.productList,
+      mobileColumns: raw.productList?.mobileColumns === 1 ? 1 : 2,
+    },
     productDetail: { ...baseTheme.productDetail, ...raw.productDetail },
     cart: { ...baseTheme.cart, ...raw.cart },
     contact: { ...baseTheme.contact, ...raw.contact },
     footer: {
       ...baseTheme.footer,
       ...raw.footer,
+      links: normalizeFooterLinks(raw.footer?.links),
       paymentLogos: Array.isArray(raw.footer?.paymentLogos)
         ? raw.footer!.paymentLogos.filter((s) => PAYMENT_LOGO_SLUGS.includes(s))
         : baseTheme.footer.paymentLogos,

@@ -1,30 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useCart } from './cart';
-import { usePreviewHref } from './preview';
+import type { PublishedPage } from './header-menu';
 
 import { clientJsonTenant } from '@/lib/api-client';
 
-interface Pg {
-  id: string;
-  title: string;
-  slug: string;
-}
-
 /**
- * Páginas institucionales publicadas. Se expone como hook porque el menú del
- * encabezado necesita medirlas para decidir cuáles entran, y para eso las
- * necesita como datos y no como links ya dibujados.
+ * Páginas institucionales publicadas, o null mientras no llegaron. El menú del
+ * encabezado necesita distinguir "todavía no sé" de "no hay ninguna": con
+ * null dibuja lo que el comercio guardó (así está en el HTML del servidor) y
+ * recién con la lista descarta las que se despublicaron.
  */
-export function usePublishedPages(): Pg[] {
+export function usePublishedPagesState(): PublishedPage[] | null {
   const { tenantId } = useCart();
-  const [pages, setPages] = useState<Pg[]>([]);
+  const [pages, setPages] = useState<PublishedPage[] | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
-    clientJsonTenant<{ items?: Pg[] }>('/api/v1/pages/published', tenantId).then((d) =>
+    clientJsonTenant<{ items?: PublishedPage[] }>('/api/v1/pages/published', tenantId).then((d) =>
       setPages(d?.items ?? []),
     );
   }, [tenantId]);
@@ -32,24 +26,7 @@ export function usePublishedPages(): Pg[] {
   return pages;
 }
 
-/** Los mismos links, uno por línea. Lo usa el menú de mano del celular. */
-export function PagesNav() {
-  const href = usePreviewHref();
-  const pages = usePublishedPages();
-
-  if (pages.length === 0) return null;
-
-  return (
-    <>
-      {pages.map((p) => (
-        <Link
-          key={p.id}
-          href={href(`/paginas/${p.slug}`)}
-          className="whitespace-nowrap opacity-90 hover:opacity-100"
-        >
-          {p.title}
-        </Link>
-      ))}
-    </>
-  );
+/** Las mismas páginas como lista (vacía mientras no llegaron). Las usa el pie. */
+export function usePublishedPages(): PublishedPage[] {
+  return usePublishedPagesState() ?? [];
 }
