@@ -224,6 +224,15 @@ export const UPLOADS = {
     maxBytes: { default: 25 * MB },
     tip: 'Hasta 20.000 líneas por archivo.',
   },
+  /** Ícono propio de la barra de información (envíos, pagos…): se ve a 28 px. */
+  infoIcon: {
+    formats: ['png', 'svg', 'webp'],
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 96, height: 96 },
+    fit: 'contain',
+    tip: 'Cuadrado y con fondo transparente (PNG o SVG).',
+    heavyBytes: 100 * 1024,
+  },
 } satisfies Record<string, UploadSpec>;
 
 export type UploadKind = keyof typeof UPLOADS;

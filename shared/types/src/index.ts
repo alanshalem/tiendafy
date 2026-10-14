@@ -26,6 +26,9 @@ export {
   defaultProductSource,
   sectionProductPlan,
 } from './product-source';
+// Videos de YouTube, Vimeo e Instagram: qué link se puede embeber y cómo.
+export type { VideoEmbed } from './video-embed';
+export { parseVideoEmbed } from './video-embed';
 
 // Schema de tema del merchant (fuente única para storefront + admin).
 export type {

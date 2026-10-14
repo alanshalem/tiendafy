@@ -1,4 +1,4 @@
-import type { SectionDataMap, SectionType, ThemeSection } from '@tiendafy/types';
+import type { SectionDataMap, SectionType, ThemeConfig, ThemeSection } from '@tiendafy/types';
 
 /**
  * Lo que recibe el editor de un tipo de sección (uno por archivo en esta
@@ -13,4 +13,6 @@ export interface SectionEditorProps<T extends SectionType = SectionType> {
   section: ThemeSection;
   data: SectionDataMap[T];
   set: (patch: Partial<SectionDataMap[T]>) => void;
+  /** El tema entero, para avisos que dependen de otra parte (p. ej. el newsletter del pie). */
+  theme?: ThemeConfig;
 }

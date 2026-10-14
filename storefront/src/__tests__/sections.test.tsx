@@ -88,7 +88,10 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     shows: 'Envíos',
   },
   newsletter: { data: { image: img(5), title: 'Suscribite', text: 'Novedades' }, shows: 'Suscribite' },
-  instagram: { data: { video: 'https://www.youtube.com/watch?v=abc123' } },
+  instagram: {
+    data: { video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Mirá el video' },
+    shows: 'Mirá el video',
+  },
   testimonials: {
     data: {
       title: 'Opiniones',
@@ -196,7 +199,7 @@ describe('secciones de la portada', () => {
     const { rerender } = render(
       view([section('instagram', { video: 'https://www.instagram.com/reel/Cx1-ab_C/' })]),
     );
-    expect(screen.getByTitle('Instagram')).toHaveAttribute(
+    expect(screen.getByTitle('Publicación de Instagram')).toHaveAttribute(
       'src',
       'https://www.instagram.com/p/Cx1-ab_C/embed',
     );
@@ -209,7 +212,7 @@ describe('secciones de la portada', () => {
 
     rerender(view([section('instagram', { video: 'https://vimeo.com/123456' })]));
     expect(document.querySelector('iframe')?.getAttribute('src')).toBe(
-      'https://player.vimeo.com/video/123456',
+      'https://player.vimeo.com/video/123456?dnt=1',
     );
     expect(crashes()).toEqual([]);
   });

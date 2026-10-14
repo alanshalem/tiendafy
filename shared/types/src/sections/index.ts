@@ -26,6 +26,7 @@ export {
   SECTION_GROUPS,
   INFO_ICONS,
   MAX_SECTIONS,
+  TESTIMONIAL_RATINGS,
   sectionDefinition,
   sectionDisplayName,
   sectionData,
