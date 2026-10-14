@@ -174,7 +174,18 @@ export function BackHeader({
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  after,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  /** Algo entre el control y la ayuda (un contador de largo): `children` tiene que ser el control solo. */
+  after?: ReactNode;
+  children: ReactNode;
+}) {
   // Asocia programáticamente el <label> con su control: genera un id y lo
   // reenvía al hijo (TextInput/TextArea/Select/… aceptan `id`). Solo agrega
   // atributos: no cambia el render visual.
@@ -187,6 +198,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
         {label}
       </label>
       {el ? cloneElement(el, { id: controlId }) : children}
+      {after}
       {hint && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
     </div>
   );
