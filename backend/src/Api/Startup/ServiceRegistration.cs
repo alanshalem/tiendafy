@@ -161,6 +161,24 @@ public static class ServiceRegistration
         services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
+        // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
+        // El cache en memoria ahorra llamadas a ML: la bandeja y el contador
+        // del menú se refrescan solos desde cada panel abierto.
+        services.AddMemoryCache();
+        services.AddScoped<Api.Inbox.MeliInboxSource>();
+        services.AddScoped<Api.Inbox.InboxService>();
+
+        // Despacho: cola de pedidos, lista de picking, etiquetas en lote y
+        // despachar escaneando.
+        services.AddScoped<Api.Fulfillment.FulfillmentService>();
+        services.AddScoped<Api.Fulfillment.CarrierLabels>();
+
+        // Alertas de stock bajo: la misma señal de reposición de Compras, un
+        // aviso por cruce (inmediato o en un resumen diario).
+        services.AddScoped<Api.Purchasing.ReorderSignal>();
+        services.AddScoped<Api.Purchasing.StockAlertService>();
+        if (runPollingWorkers) services.AddHostedService<Api.Purchasing.StockAlertWorker>();
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
 

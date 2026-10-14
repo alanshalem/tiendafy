@@ -361,4 +361,59 @@ export const ENVIOS = {
       },
     ],
   },
+
+  despacho: {
+    title: 'Despacho de pedidos',
+    intro:
+      'Para cuando hay muchos pedidos juntos: la cola de lo cobrado sin despachar, una sola lista de picking, las etiquetas y los remitos en un PDF, y despachar escaneando para que no salga nada equivocado.',
+    category: 'Envíos',
+    keywords: [
+      'picking',
+      'fulfillment',
+      'preparar pedidos',
+      'etiquetas',
+      'remito',
+      'packing slip',
+      'expedición',
+    ],
+    sections: [
+      {
+        heading: 'La cola de pedidos para preparar',
+        paragraphs: [
+          'Lista todo lo cobrado y sin despachar, lo más viejo primero (es lo que más espera el comprador). Filtrá por carrier —Andreani, Zipnova, Correo Argentino, retiro en el local o envío propio— y por fecha de cobro.',
+          'Elegí los pedidos que vas a preparar juntos y usá las acciones de arriba.',
+        ],
+        blocks: [{ type: 'path', segments: ['Ventas', 'Despacho'] }],
+      },
+      {
+        heading: 'Lista de picking',
+        paragraphs: [
+          'Una línea por producto con el total a juntar, la ubicación en el depósito y para qué pedidos va. Viene ordenada por ubicación: es el recorrido por las estanterías. “Imprimir” la saca en una hoja limpia, con un casillero para tildar.',
+          'Los pedidos que ya no están para despachar (otra persona los despachó, o tienen un reembolso) quedan afuera, con el motivo.',
+        ],
+      },
+      {
+        heading: 'Etiquetas y remitos',
+        paragraphs: [
+          'Etiquetas junta en un solo PDF las de Andreani y Zipnova de los pedidos elegidos, y te dice cuáles no tienen: los que todavía no tienen envío creado (se crea desde la venta) y los de Correo Argentino, que no entrega la etiqueta por sistema y se imprime desde MiCorreo.',
+          'Remitos arma una hoja por pedido con lo que va en la caja (sin precios: puede ser un regalo), la ubicación de cada producto y un QR para escanear el pedido.',
+        ],
+      },
+      {
+        heading: 'Despachar escaneando',
+        steps: [
+          'Escaneá el QR del remito o el número de la etiqueta (#A1B2C3D4). También podés tocar “Escanear” en un pedido de la cola.',
+          'Escaneá cada producto al meterlo en la caja: la lista marca lo juntado, y si algo no va en ese pedido o sobra, avisa en el momento.',
+          'Con todo completo, cargá el seguimiento (si el envío ya está creado con el carrier, viene cargado) y tocá “Despachar”. El comprador recibe el aviso como siempre.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Antes de despachar, el sistema vuelve a contar lo escaneado contra lo vendido: si falta, sobra o hay un producto de otro pedido, no lo despacha y te dice qué pasó. Lo de esta tanda queda anotado al costado, con los errores.',
+          },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

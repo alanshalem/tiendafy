@@ -43,6 +43,54 @@ export const CLIENTES = {
     ],
   },
 
+  bandeja: {
+    title: 'Bandeja',
+    intro:
+      'Todo lo que te escriben, en un solo lugar: los mensajes del formulario de contacto, el chat posventa y las preguntas y mensajes de Mercado Libre. Asignás, respondés y archivás sin saltar de pantalla.',
+    category: 'Clientes y comunicación',
+    keywords: ['inbox', 'mensajes', 'consultas', 'preguntas', 'atención al cliente', 'asignar'],
+    sections: [
+      {
+        heading: 'Una lista para todos los canales',
+        paragraphs: [
+          'A la izquierda, las conversaciones de todos los canales, las más recientes arriba y las sin leer en negrita; a la derecha, la que abrís. En el celular se alternan: tocás una conversación y “Volver” te lleva a la lista.',
+          'Ves solo los canales que tu rol puede atender: quien atiende Mercado Libre pero no lee el formulario de contacto ve la bandeja sin contacto.',
+          'La bandeja se actualiza sola cada medio minuto mientras la tenés a la vista, y el número al lado de “Bandeja” en el menú te dice cuánto hay sin leer aunque estés en otra pantalla.',
+        ],
+        blocks: [{ type: 'path', segments: ['Bandeja'] }],
+      },
+      {
+        heading: 'Responder sin salir de la bandeja',
+        paragraphs: [
+          'Cada canal responde por donde siempre: el chat posventa le llega al comprador en su cuenta, el mensaje de contacto se contesta por email (las respuestas del cliente te llegan a vos) y en Mercado Libre la respuesta sale publicada.',
+          'Las preguntas de Mercado Libre muestran la publicación —foto, título, precio y stock—, así contestás sin abrir Mercado Libre.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Enter no publica',
+            text: 'Una respuesta a una pregunta de Mercado Libre es pública y no se puede editar, y un email no se puede volver atrás: en esos canales Enter es un salto de línea y se manda con el botón o con Ctrl+Enter. Solo el chat posventa envía con Enter.',
+          },
+        ],
+      },
+      {
+        heading: 'Asignar, marcar y archivar',
+        paragraphs: [
+          'Asigná cada conversación a alguien del equipo para que no la contesten dos personas (o nadie). Solo aparecen quienes pueden atender ese canal según Roles y permisos. “Tomarla” te la asigna a vos, y la solapa “Mías” junta las tuyas.',
+          'Abrir una conversación la marca leída (también en su pantalla de siempre). Si querés volver a mirarla después, “No leída”.',
+          'Archivar la saca de la lista hasta que el cliente vuelva a escribir: ahí reaparece sola, sin leer. Lo archivado se ve en la solapa “Archivadas”.',
+        ],
+      },
+      {
+        heading: 'Y las pantallas de siempre',
+        paragraphs: [
+          'Mensajes de contacto, Chat posventa y Mercado Libre siguen andando igual: la bandeja lee de ellas, no las reemplaza.',
+        ],
+      },
+    ],
+  },
+
   posventa: {
     title: 'Chat posventa',
     intro: 'Un chat por pedido entre tu tienda y el comprador, con fotos y archivos adjuntos.',
@@ -52,7 +100,7 @@ export const CLIENTES = {
         heading: 'Cómo funciona',
         paragraphs: [
           'El cliente, desde su cuenta → Mis pedidos, toca “Consultar sobre este pedido” y abre un chat ligado a esa compra. Puede escribir y adjuntar fotos (JPG/PNG) o PDF de hasta 10 MB.',
-          'Vos respondés desde Chat posventa en el menú: una bandeja con todas las conversaciones, las no leídas primero y con contador.',
+          'Vos respondés desde Chat posventa en el menú —una lista con todas las conversaciones, las no leídas primero y con contador— o desde la Bandeja, junto con el resto de los canales.',
         ],
         blocks: [{ type: 'path', segments: ['Chat posventa'] }],
       },

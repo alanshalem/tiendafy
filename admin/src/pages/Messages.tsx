@@ -106,6 +106,10 @@ export function MessagesPage() {
             </span>
           )}
           {(data?.unread ?? 0) > 0 && <Badge variant="info">{data!.unread} sin leer</Badge>}
+          {/* La bandeja junta esto con el chat posventa y Mercado Libre, y deja contestar por email. */}
+          <Link to="/bandeja?canal=contacto" className="text-sm font-medium text-primary hover:underline">
+            Responder desde la Bandeja
+          </Link>
         </div>
       </div>
 
