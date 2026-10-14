@@ -5,6 +5,8 @@ import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
 import { ProductDetail } from '@/components/store/ProductDetail';
 import { SectionRenderer } from '@/components/store/sections';
 import { EmptyState } from '@/components/store/EmptyState';
+import { ProductMeta } from '@/components/store/ProductMeta';
+import { RecentlyViewed } from '@/components/store/RecentlyViewed';
 import type { Metadata } from 'next';
 import { resolveStorefrontPage } from '@/lib/storefront-page';
 import { siteBase, type StorefrontData } from '@/lib/storefront';
@@ -105,22 +107,26 @@ export default async function ProductDetailPage({
   // comercio dejó una redirección para esta URL. Se pregunta ANTES de empezar
   // a mandar la página (después el status ya salió). Un 5xx de la API tira y
   // cae en la pantalla de error: no es "no existe".
-  if (!(await fetchProduct(slug, data.tenant.id))) await notFoundUnlessRedirected();
+  const found = await fetchProduct(slug, data.tenant.id);
+  if (!found) await notFoundUnlessRedirected();
 
   // El marco de la tienda sale ya; la ficha (producto, relacionados, miga y
   // ficha técnica: lo que tarda) llega después, con su esqueleto en el lugar.
   return (
-    <StorefrontView
-      tenantId={data.tenant.id}
-      tenantName={data.tenant.name}
-      theme={theme}
-      products={data.products}
-      live={preview}
-    >
-      <Suspense fallback={<ProductDetailSkeleton />}>
-        <ProductContent slug={slug} data={data} theme={theme} preview={preview} />
-      </Suspense>
-    </StorefrontView>
+    <>
+      {found && <ProductMeta product={found} />}
+      <StorefrontView
+        tenantId={data.tenant.id}
+        tenantName={data.tenant.name}
+        theme={theme}
+        products={data.products}
+        live={preview}
+      >
+        <Suspense fallback={<ProductDetailSkeleton />}>
+          <ProductContent slug={slug} data={data} theme={theme} preview={preview} />
+        </Suspense>
+      </StorefrontView>
+    </>
   );
 }
 
@@ -175,7 +181,11 @@ async function ProductContent({
       : null;
 
   // Rich results de producto en Google: precio, moneda y disponibilidad.
-  const productJsonLd = product ? buildProductJsonLd(product, base) : null;
+  const productJsonLd = product
+    ? buildProductJsonLd(product, base, {
+        freeShippingThreshold: theme.cart.freeShippingBar ? theme.cart.freeShippingThreshold : 0,
+      })
+    : null;
 
   return (
     <main className="mx-auto max-w-container px-4 py-8">
@@ -211,6 +221,7 @@ async function ProductContent({
               productList={theme.productList}
             />
           )}
+          <RecentlyViewed recordId={product.id} />
         </>
       ) : (
         <EmptyState

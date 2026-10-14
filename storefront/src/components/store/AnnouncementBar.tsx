@@ -179,8 +179,11 @@ export function AnnouncementBar({ ann, preview }: { ann: Announcement; preview: 
   if (!(ann.show && annItems.length > 0)) return null;
   // Con un solo anuncio no hay nada que rotar: se ve fijo.
   const mode = ann.animation === 'rotate' && annItems.length < 2 ? 'static' : ann.animation;
+  // Una región con nombre (landmark): antes quedaba suelta, fuera de todo
+  // landmark, y un lector de pantalla no tenía cómo encontrarla ni saltearla.
   return (
-    <div
+    <section
+      aria-label="Anuncios de la tienda"
       data-tf-focus="announcement"
       className={cn(
         'relative overflow-hidden bg-primary text-sm font-semibold text-primary-fg',
@@ -227,6 +230,6 @@ export function AnnouncementBar({ ann, preview }: { ann: Announcement; preview: 
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

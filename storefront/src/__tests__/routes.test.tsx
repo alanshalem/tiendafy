@@ -77,6 +77,22 @@ describe('sitemap y robots', () => {
     expect(xml).toContain('http://seed.localhost:3000/');
   });
 
+  it('cada producto lleva su lastmod (el último cambio, o el alta si la API no lo trae)', async () => {
+    api.on('GET', '/api/v1/products', {
+      items: [
+        { slug: 'cambiado', createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-10-10T12:00:00Z' },
+        { slug: 'viejo', createdAtUtc: '2026-02-02T00:00:00Z' },
+        { slug: 'sin-fecha' },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    });
+    const xml = await (await sitemap()).text();
+    expect(xml).toContain('/productos/cambiado</loc><lastmod>2026-10-10T12:00:00.000Z</lastmod>');
+    expect(xml).toContain('/productos/viejo</loc><lastmod>2026-02-02T00:00:00.000Z</lastmod>');
+    expect(xml).toContain('/productos/sin-fecha</loc></url>');
+  });
+
   it('si las páginas publicadas fallan, el sitemap sale igual', async () => {
     api.on('GET', '/api/v1/pages/published', {}, 500);
     const xml = await (await sitemap()).text();

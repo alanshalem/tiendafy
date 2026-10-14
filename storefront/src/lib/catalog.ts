@@ -49,7 +49,7 @@ export const SITEMAP_MAX_URLS = 50_000;
 
 /** Lo que devuelve el listado en modo cursor: lo que hace falta para seguir. */
 interface CursorPage {
-  items: { slug: string }[];
+  items: { slug: string; updatedAtUtc?: string | null; createdAtUtc?: string | null }[];
   nextCursor: string | null;
   hasMore: boolean;
 }
@@ -62,9 +62,28 @@ interface CursorPage {
  * un sitemap incompleto es mejor que uno vacío.
  */
 export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_URLS): Promise<string[]> {
-  // Set: con cada página cacheada por separado, dos páginas vencidas en
-  // momentos distintos pueden repetir un producto que cambió de lugar.
-  const slugs = new Set<string>();
+  return (await fetchAllActiveEntries(tenantId, max)).map((e) => e.slug);
+}
+
+/** Un producto en el sitemap: su slug y cuándo cambió por última vez (si la API lo dice). */
+export interface SitemapEntry {
+  slug: string;
+  /** ISO 8601. Falta en una respuesta de antes de existir el campo. */
+  lastmod?: string;
+}
+
+/**
+ * Lo mismo que fetchAllActiveSlugs, con la fecha del último cambio de cada
+ * producto: el lastmod del sitemap, para que Google vuelva primero a lo que
+ * cambió (un precio, una foto) en vez de recorrer todo igual.
+ */
+export async function fetchAllActiveEntries(
+  tenantId: string,
+  max = SITEMAP_MAX_URLS,
+): Promise<SitemapEntry[]> {
+  // Map por slug: con cada página cacheada por separado, dos páginas vencidas
+  // en momentos distintos pueden repetir un producto que cambió de lugar.
+  const slugs = new Map<string, SitemapEntry>();
   let after: string | null = null;
 
   do {
@@ -77,12 +96,15 @@ export async function fetchAllActiveSlugs(tenantId: string, max = SITEMAP_MAX_UR
     }).catch(() => null);
     if (!page) break;
 
-    for (const p of page.items) slugs.add(p.slug);
+    for (const p of page.items) {
+      const lastmod = p.updatedAtUtc ?? p.createdAtUtc ?? undefined;
+      if (!slugs.has(p.slug)) slugs.set(p.slug, lastmod ? { slug: p.slug, lastmod } : { slug: p.slug });
+    }
     // Un cursor que se repite cortaría en un bucle infinito: se corta ahí.
     after = page.hasMore && page.nextCursor !== after ? page.nextCursor : null;
   } while (after && slugs.size < max);
 
-  return [...slugs].slice(0, max);
+  return [...slugs.values()].slice(0, max);
 }
 
 /**

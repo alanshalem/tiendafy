@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { createContext, useContext, useState, type MouseEvent } from 'react';
+import { createContext, useContext, useRef, useState, type MouseEvent, type TouchEvent } from 'react';
 import { formatMoney } from '@tiendafy/types';
 import { Icon } from './Icon';
 import { ratioClass, type ProductListConfig } from '@/lib/theme';
@@ -52,6 +52,23 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
     e.stopPropagation();
     setImgIdx((i) => (i + dir + imgs.length) % imgs.length);
   };
+  // Con el dedo, las fotos se pasan deslizando (las flechas no se muestran:
+  // eran dos botones de 28 px encima de cada foto, difíciles de acertar).
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touchStart.current;
+    const t = e.changedTouches[0];
+    touchStart.current = null;
+    if (!start || !t || imgs.length < 2) return;
+    const dx = t.clientX - start.x;
+    // De costado y con decisión: un scroll vertical o un toque no cambian la foto.
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(t.clientY - start.y)) return;
+    setImgIdx((i) => (i + (dx < 0 ? 1 : -1) + imgs.length) % imgs.length);
+  };
   const boxed = list.cardStyle === 'boxed';
   const soldOut = product.stock != null && product.stock <= 0;
   return (
@@ -69,6 +86,8 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
         className={`relative block w-full overflow-hidden rounded-lg bg-fg/5 ${
           ratioClass[list.imageRatio] ?? ratioClass.square
         }`}
+        onTouchStart={imgs.length > 1 ? onTouchStart : undefined}
+        onTouchEnd={imgs.length > 1 ? onTouchEnd : undefined}
       >
         {/* Badge de descuento: el lever visual de conversión en LATAM. */}
         {onSale && discountPct > 0 && (
@@ -127,14 +146,15 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
             className="flex h-full w-full items-center justify-center text-5xl font-bold text-fg-muted"
           />
         )}
-        {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. */}
+        {/* Carrusel estilo ML: flechas + puntos si hay más de una imagen. Las
+            flechas, solo con mouse (40 px); en pantallas táctiles, deslizar. */}
         {imgs.length > 1 && (
           <>
             <button
               type="button"
               onClick={(e) => stepImg(e, -1)}
               aria-label="Imagen anterior"
-              className="absolute left-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              className="absolute left-1.5 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:hidden"
             >
               <Icon name="chevronLeft" className="h-4 w-4" />
             </button>
@@ -142,7 +162,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
               type="button"
               onClick={(e) => stepImg(e, 1)}
               aria-label="Imagen siguiente"
-              className="absolute right-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              className="absolute right-1.5 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black/70 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:hidden"
             >
               <Icon name="chevronRight" className="h-4 w-4" />
             </button>
