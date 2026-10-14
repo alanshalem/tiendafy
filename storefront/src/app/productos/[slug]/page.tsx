@@ -12,6 +12,7 @@ import { siteBase, type StorefrontData } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { jsonLd } from '@/lib/json-ld';
 import { productJsonLd as buildProductJsonLd } from '@/lib/product-json-ld';
+import { categoryHref } from '@/lib/category-url';
 import type { ThemeConfig } from '@/lib/theme';
 import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
@@ -151,7 +152,7 @@ async function ProductContent({
     ? [
         { label: 'Inicio', href: '/' },
         { label: 'Productos', href: '/productos' },
-        ...trail.map((c) => ({ label: c.name, href: `/productos?category=${c.id}` })),
+        ...trail.map((c) => ({ label: c.name, href: categoryHref(c) })),
         { label: product.name },
       ]
     : [];
@@ -264,6 +265,7 @@ interface CategoryDto {
   id: string;
   name: string;
   parentId: string | null;
+  path?: string;
 }
 
 /**

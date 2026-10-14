@@ -1,13 +1,23 @@
 import { headers } from 'next/headers';
 import { resolveTenant } from '@/lib/tenancy';
 import { apiGetTenant } from '@/lib/api';
-import { fetchAllActiveSlugs, SITEMAP_MAX_URLS } from '@/lib/catalog';
+import { fetchAllActiveSlugs, fetchCategories, SITEMAP_MAX_URLS } from '@/lib/catalog';
+import { categoryHref } from '@/lib/category-url';
 import { fetchPublishedTheme } from '@/lib/theme';
 import { REVALIDATE } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-// Sitemap por host: cada tienda lista sus productos + páginas publicadas.
+/** Lo que va dentro de <loc>: una ruta de categoría o un slug no pueden romper el XML. */
+const xmlText = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+// Sitemap por host: cada tienda lista sus categorías, productos y páginas publicadas.
 export async function GET() {
   const h = await headers();
   const host = h.get('host') ?? 'localhost:3000';
@@ -24,6 +34,11 @@ export async function GET() {
     : false;
   if (comingSoon) locs.splice(1);
   if (tenant && !comingSoon) {
+    // Cada categoría es su propio listado (título, canonical): sin esto Google
+    // solo las encontraba si seguía el menú.
+    const categories = await fetchCategories(tenant.id).catch(() => []);
+    categories.forEach((c) => locs.push(`${base}${categoryHref(c)}`));
+
     // Todo el catálogo activo, no la primera página: ver fetchAllActiveSlugs.
     const slugs = await fetchAllActiveSlugs(tenant.id, SITEMAP_MAX_URLS - locs.length);
     slugs.forEach((slug) => locs.push(`${base}/productos/${slug}`));
@@ -39,7 +54,7 @@ export async function GET() {
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-    locs.map((loc) => `  <url><loc>${loc}</loc></url>`).join('\n') +
+    locs.map((loc) => `  <url><loc>${xmlText(loc)}</loc></url>`).join('\n') +
     `\n</urlset>`;
 
   return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });

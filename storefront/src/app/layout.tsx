@@ -4,6 +4,7 @@ import './globals.css';
 import { serverRuntimeConfig } from '@/lib/runtime';
 import { resolveTenant } from '@/lib/tenancy';
 import { fetchPublishedTheme } from '@/lib/theme';
+import { StoreCategories } from '@/components/store/StoreCategories';
 import { storeFontVariables } from './store-fonts';
 
 /** El ícono de Tiendafy, para la tienda que no subió el suyo. */
@@ -53,7 +54,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       {/* Las fuentes del editor de diseño, servidas por la tienda (ver store-fonts). */}
-      <body className={`${storeFontVariables} min-h-screen antialiased`}>{children}</body>
+      <body className={`${storeFontVariables} min-h-screen antialiased`}>
+        <StoreCategories>{children}</StoreCategories>
+      </body>
     </html>
   );
 }

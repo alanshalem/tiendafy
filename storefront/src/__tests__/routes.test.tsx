@@ -55,6 +55,21 @@ describe('sitemap y robots', () => {
     if (pageSlug) expect(xml).toContain(`/paginas/${pageSlug}</loc>`);
   });
 
+  it('lista cada categoría con la URL de su listado (la ruta, legible)', async () => {
+    api.on('GET', '/api/v1/categories', {
+      items: [
+        { id: 'c1', name: 'Ropa', parentId: null, path: 'ropa', depth: 1 },
+        { id: 'c2', name: 'Remeras & musculosas', parentId: 'c1', path: 'ropa/remeras&musculosas', depth: 2 },
+      ],
+    });
+    const xml = await (await sitemap()).text();
+    expect(xml).toContain('<loc>http://seed.localhost:3000/productos?category=ropa</loc>');
+    // El & va codificado en la URL: suelto, rompería el XML del sitemap entero.
+    expect(xml).toContain(
+      '<loc>http://seed.localhost:3000/productos?category=ropa/remeras%26musculosas</loc>',
+    );
+  });
+
   it('sin tienda para el host, solo las fijas; sin proto, http en localhost', async () => {
     api.on('GET', '/api/v1/tenants/resolve', {}, 404);
     const xml = await (await sitemap()).text();
