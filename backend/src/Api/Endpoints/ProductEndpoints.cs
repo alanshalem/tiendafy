@@ -367,6 +367,8 @@ public static partial class ProductEndpoints
 
         MapPricing(products);
 
+        MapSection(products);
+
         // Asignar/cambiar las categorías de un producto (para el admin).
         products.MapPut("/{id:guid}/categories", async (
             Guid id,

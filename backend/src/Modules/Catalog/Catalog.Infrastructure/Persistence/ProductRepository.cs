@@ -215,6 +215,102 @@ public sealed class ProductRepository(CatalogDbContext context) : IProductReposi
         return (items, total, facets);
     }
 
+    public async Task<IReadOnlyList<Product>> ListForSectionAsync(
+        TenantId tenantId, SectionProductQuery query, CancellationToken ct = default)
+    {
+        var limit = Math.Max(1, query.Limit);
+
+        // Solo lo que se puede comprar: publicado y con alguna variante. Un
+        // producto sin variantes la tienda lo descarta al mapear, y antes
+        // ocupaba uno de los lugares de la sección.
+        var sellable = context.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active && p.Variants.Any());
+
+        switch (query.Kind)
+        {
+            case SectionProductKind.Manual:
+                {
+                    var ids = query.Ids ?? [];
+                    if (ids.Count == 0) return [];
+                    var found = await sellable.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
+                    // El orden es el que eligió el comercio; lo que se archivó, se
+                    // pasó a borrador o se borró desaparece sin dejar hueco.
+                    return [.. ids.Distinct().Where(found.ContainsKey).Select(id => found[id]).Take(limit)];
+                }
+
+            case SectionProductKind.Newest:
+                return await sellable
+                    .OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id)
+                    .Take(limit).ToListAsync(ct);
+
+            case SectionProductKind.Category when query.CategoryId is { } categoryId:
+                sellable = query.IncludeChildren
+                    ? await FilterBySubtreeAsync(sellable, tenantId, categoryId, ct)
+                    : sellable.Where(p => EF.Property<List<Guid>>(p, "_categoryIds").Contains(categoryId));
+                break;
+
+            case SectionProductKind.Brand when !string.IsNullOrWhiteSpace(query.Brand):
+                {
+                    // Sin distinguir mayúsculas: la marca se escribe a mano en cada
+                    // producto y "Nike" y "NIKE" son la misma para el comprador.
+                    var brand = query.Brand.Trim().ToLower();
+                    sellable = sellable.Where(p => p.Brand != null && p.Brand.ToLower() == brand);
+                    break;
+                }
+
+            case SectionProductKind.OnSale:
+                {
+                    // El precio tachado va serializado en texto ("monto|moneda") y
+                    // no se compara en SQL: se traen solo las variantes que lo
+                    // tienen cargado (id, precio y tachado, nada más) y se compara
+                    // acá. Antes la tienda filtraba entre los 24 más nuevos, así
+                    // que una oferta vieja nunca aparecía en "Ofertas".
+                    var priced = await sellable
+                        .SelectMany(p => p.Variants
+                            .Where(v => v.CompareAtPrice != null)
+                            .Select(v => new { ProductId = p.Id, Price = v.Price.AmountInMinorUnits, v.CompareAtPrice }))
+                        .ToListAsync(ct);
+                    var onSale = priced
+                        .Where(v => v.CompareAtPrice is { } cmp && cmp.AmountInMinorUnits > v.Price)
+                        .Select(v => v.ProductId)
+                        .Distinct()
+                        .ToList();
+                    if (onSale.Count == 0) return [];
+                    sellable = sellable.Where(p => onSale.Contains(p.Id));
+                    break;
+                }
+
+            default:
+                // Categoría sin id o marca vacía: no hay nada que mostrar.
+                return [];
+        }
+
+        var sorted = query.Sort switch
+        {
+            ProductSort.PriceAsc => sellable.OrderBy(MinVariantPrice).ThenBy(p => p.Id),
+            ProductSort.PriceDesc => sellable.OrderByDescending(MinVariantPrice).ThenBy(p => p.Id),
+            ProductSort.NameAsc => sellable.OrderBy(p => p.Name).ThenBy(p => p.Id),
+            _ => sellable.OrderByDescending(p => p.CreatedAtUtc).ThenBy(p => p.Id),
+        };
+        return await sorted.Take(limit).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, Guid>> ActiveProductIdsByVariantAsync(
+        TenantId tenantId, IReadOnlyCollection<Guid> variantIds, CancellationToken ct = default)
+    {
+        if (variantIds.Count == 0) return new Dictionary<Guid, Guid>();
+
+        // Solo los dos ids: no hace falta traer los productos enteros para
+        // saber de cuál es cada variante.
+        var pairs = await context.Products.AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active)
+            .SelectMany(p => p.Variants
+                .Where(v => variantIds.Contains(v.Id))
+                .Select(v => new { VariantId = v.Id, ProductId = p.Id }))
+            .ToListAsync(ct);
+        return pairs.ToDictionary(x => x.VariantId, x => x.ProductId);
+    }
+
     /// <summary>Marcas, opciones, rango de precio y ficha técnica disponibles en el set base.</summary>
     private static async Task<ProductFacets> BuildFacetsAsync(
         CatalogDbContext context, TenantId tenantId, IQueryable<Product> baseQuery, CancellationToken ct)
