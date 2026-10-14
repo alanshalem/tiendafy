@@ -1,0 +1,540 @@
+{
+  "schemaVersion": 1,
+  "limits": {
+    "maxSections": 40,
+    "shortText": 200,
+    "longText": 2000,
+    "url": 2000,
+    "label": 80
+  },
+  "envelope": {
+    "backgrounds": [
+      "none",
+      "subtle",
+      "accent",
+      "custom"
+    ],
+    "spacings": [
+      "none",
+      "sm",
+      "md",
+      "lg"
+    ],
+    "aligns": [
+      "left",
+      "center"
+    ],
+    "hideOn": [
+      "mobile",
+      "desktop"
+    ]
+  },
+  "sections": {
+    "hero-video": {
+      "label": "Hero con video",
+      "fields": {
+        "videoWebm": {
+          "kind": "media"
+        },
+        "videoMp4": {
+          "kind": "media"
+        },
+        "poster": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "subtitle": {
+          "kind": "text",
+          "max": 2000
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "align": {
+          "kind": "enum",
+          "values": [
+            "left",
+            "center"
+          ]
+        },
+        "height": {
+          "kind": "enum",
+          "values": [
+            "large",
+            "full"
+          ]
+        },
+        "overlay": {
+          "kind": "enum",
+          "values": [
+            "none",
+            "light",
+            "medium",
+            "strong"
+          ]
+        }
+      }
+    },
+    "carousel": {
+      "label": "Carrusel de imágenes",
+      "fields": {
+        "images": {
+          "kind": "strings",
+          "of": "media",
+          "max": 20
+        },
+        "fullHeightMobile": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "promo-banners": {
+      "label": "Banners promocionales",
+      "fields": {
+        "banners": {
+          "kind": "items",
+          "max": 12,
+          "fields": {
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "description": {
+              "kind": "text",
+              "max": 2000
+            },
+            "link": {
+              "kind": "url"
+            },
+            "show": {
+              "kind": "boolean"
+            }
+          }
+        },
+        "fullWidth": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "category-banners": {
+      "label": "Banners de categorías",
+      "fields": {
+        "banners": {
+          "kind": "items",
+          "max": 12,
+          "fields": {
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "description": {
+              "kind": "text",
+              "max": 2000
+            },
+            "link": {
+              "kind": "url"
+            },
+            "show": {
+              "kind": "boolean"
+            }
+          }
+        },
+        "fullWidth": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "featured": {
+      "label": "Productos destacados",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "productIds": {
+          "kind": "strings",
+          "of": "id",
+          "max": 60
+        },
+        "carousel": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "new-products": {
+      "label": "Productos nuevos",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "productIds": {
+          "kind": "strings",
+          "of": "id",
+          "max": 60
+        },
+        "carousel": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "sale-products": {
+      "label": "Productos en oferta",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "productIds": {
+          "kind": "strings",
+          "of": "id",
+          "max": 60
+        },
+        "carousel": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "institutional": {
+      "label": "Mensaje institucional",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "description": {
+          "kind": "text",
+          "max": 2000
+        }
+      }
+    },
+    "image-text": {
+      "label": "Módulo de imagen y texto",
+      "fields": {
+        "image": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "description": {
+          "kind": "text",
+          "max": 2000
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "textColor": {
+          "kind": "enum",
+          "values": [
+            "dark",
+            "light"
+          ]
+        }
+      }
+    },
+    "faq": {
+      "label": "Preguntas frecuentes",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "items": {
+          "kind": "items",
+          "max": 40,
+          "fields": {
+            "question": {
+              "kind": "string",
+              "max": 200
+            },
+            "answer": {
+              "kind": "text",
+              "max": 2000
+            }
+          }
+        }
+      }
+    },
+    "info-bar": {
+      "label": "Información de envíos, pagos y compra",
+      "fields": {
+        "items": {
+          "kind": "items",
+          "max": 4,
+          "fields": {
+            "icon": {
+              "kind": "enum",
+              "values": [
+                "shipping",
+                "card",
+                "security",
+                "gift",
+                "support",
+                "returns"
+              ]
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "description": {
+              "kind": "text",
+              "max": 2000
+            },
+            "link": {
+              "kind": "url"
+            }
+          }
+        }
+      }
+    },
+    "testimonials": {
+      "label": "Testimonios de clientes",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "items": {
+          "kind": "items",
+          "max": 24,
+          "fields": {
+            "quote": {
+              "kind": "text",
+              "max": 2000
+            },
+            "name": {
+              "kind": "string",
+              "max": 200
+            },
+            "detail": {
+              "kind": "string",
+              "max": 200
+            },
+            "photo": {
+              "kind": "media"
+            }
+          }
+        }
+      }
+    },
+    "brands": {
+      "label": "Marcas que vendemos",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "images": {
+          "kind": "strings",
+          "of": "media",
+          "max": 40
+        }
+      }
+    },
+    "newsletter": {
+      "label": "Newsletter",
+      "fields": {
+        "image": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        }
+      }
+    },
+    "instagram": {
+      "label": "Instagram / Video",
+      "fields": {
+        "video": {
+          "kind": "url"
+        }
+      }
+    }
+  },
+  "defaultConfig": {
+    "schemaVersion": 1,
+    "logo": "",
+    "favicon": "",
+    "shareImage": "",
+    "seoTitle": "",
+    "seoDescription": "",
+    "borderRadius": "rounded",
+    "motion": "subtle",
+    "density": "cozy",
+    "iconKit": "lucide",
+    "colors": {
+      "primary": "232 80 30",
+      "accent": "27 21 16",
+      "useAccent": false,
+      "bg": "255 255 255",
+      "text": "17 24 39"
+    },
+    "fonts": {
+      "heading": "sans",
+      "body": "sans"
+    },
+    "header": {
+      "bg": "27 21 16",
+      "sticky": true,
+      "logoSize": "md",
+      "showTabsMobile": true,
+      "layout": "classic",
+      "textColor": "",
+      "transparentOnHome": false,
+      "transparentLevel": "full",
+      "showSearch": false,
+      "showCart": true,
+      "cartStyle": "icon",
+      "border": "none",
+      "menu": []
+    },
+    "announcement": {
+      "show": false,
+      "animation": "static",
+      "items": [
+        {
+          "text": "",
+          "link": ""
+        }
+      ]
+    },
+    "comingSoon": {
+      "enabled": false,
+      "collectEmails": false,
+      "title": "Estamos en construcción",
+      "message": "Volvemos muy pronto con la tienda. ¡Gracias por tu paciencia!",
+      "eyebrow": "Próximamente",
+      "image": "",
+      "layout": "centered",
+      "showSocial": true,
+      "whatsapp": "",
+      "launchDate": ""
+    },
+    "sections": [
+      {
+        "id": "carousel",
+        "type": "carousel",
+        "visible": true,
+        "data": {
+          "images": [],
+          "fullHeightMobile": false
+        }
+      },
+      {
+        "id": "featured",
+        "type": "featured",
+        "visible": true,
+        "data": {
+          "title": "Destacados",
+          "carousel": true,
+          "productIds": []
+        }
+      },
+      {
+        "id": "info-bar",
+        "type": "info-bar",
+        "visible": true,
+        "data": {
+          "items": []
+        }
+      }
+    ],
+    "productList": {
+      "columns": 4,
+      "showPrice": true,
+      "showBuyButton": true,
+      "showCompareAt": true,
+      "filterCategories": true,
+      "filterPrice": true,
+      "filterBrand": true,
+      "filterOptions": true,
+      "showCashPrice": false,
+      "installmentsCount": 0,
+      "showStockBadge": false,
+      "defaultSort": "newest",
+      "pageSize": 24,
+      "imageRatio": "square",
+      "cardStyle": "plain"
+    },
+    "productDetail": {
+      "installmentsCount": 0,
+      "showPaymentLogos": false,
+      "askWhatsApp": false,
+      "showSku": false,
+      "showStock": true,
+      "galleryStyle": "thumbs",
+      "showRelated": true,
+      "cashDiscountPercent": 0
+    },
+    "cart": {
+      "showCoupon": true,
+      "showContinue": true,
+      "freeShippingBar": false,
+      "freeShippingThreshold": 5000000,
+      "checkoutButtonText": "Iniciar compra",
+      "showSuggested": true,
+      "notice": ""
+    },
+    "contact": {
+      "showForm": true,
+      "address": "",
+      "phone": "",
+      "email": "",
+      "whatsapp": ""
+    },
+    "footer": {
+      "text": "",
+      "showSocial": true,
+      "instagram": "",
+      "facebook": "",
+      "tiktok": "",
+      "youtube": "",
+      "x": "",
+      "showPages": false,
+      "showNewsletter": false,
+      "newsletterTitle": "Recibí novedades y ofertas",
+      "showPaymentLogos": true,
+      "paymentLogos": [
+        "mercadopago",
+        "visa",
+        "mastercard"
+      ],
+      "whatsapps": [],
+      "addresses": [],
+      "phones": [],
+      "emails": []
+    },
+    "whatsappButton": {
+      "enabled": false,
+      "phone": "",
+      "message": "¡Hola! Tengo una consulta.",
+      "showPreview": true
+    },
+    "customCss": ""
+  }
+}

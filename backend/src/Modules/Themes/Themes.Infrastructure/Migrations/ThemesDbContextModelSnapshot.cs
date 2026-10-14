@@ -33,6 +33,11 @@ namespace Themes.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("draft_config");
 
+                    b.Property<int>("DraftVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("draft_version");
+
                     b.Property<string>("PublishedConfig")
                         .IsRequired()
                         .HasColumnType("jsonb")

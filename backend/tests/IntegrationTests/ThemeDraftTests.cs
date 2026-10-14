@@ -84,6 +84,106 @@ public sealed class ThemeDraftTests(ApiFactory factory)
         Assert.NotEqual(HttpStatusCode.OK, await ReadDraftAs(merchant, otherToken));
     }
 
+    private static object WithSections(params object[] sections) => new
+    {
+        colors = new { primary = "1 2 3", accent = "0 0 0", useAccent = false, bg = "255 255 255", text = "17 24 39" },
+        sections,
+    };
+
+    [Fact]
+    public async Task Una_seccion_rota_se_rechaza_con_un_mensaje_que_la_nombra()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "thsec");
+        var broken = new object[]
+        {
+            WithSections(new object?[] { null }),
+            WithSections(new { id = "a", type = "no-existe", visible = true, data = new { } }),
+            WithSections(new { id = "a", type = "faq", visible = true, data = (object?)null }),
+            WithSections(new { id = "a", type = "promo-banners", visible = true, data = new { banners = new object?[] { null } } }),
+            WithSections(new { id = "a", type = "image-text", visible = true, data = new { link = "javascript:alert(1)" } }),
+            WithSections(new { id = "a", type = "institutional", visible = true, data = new { title = new string('x', 201) } }),
+        };
+        foreach (var body in broken)
+        {
+            foreach (var (method, path) in new[] { (HttpMethod.Put, "/api/v1/theme/draft"), (HttpMethod.Post, "/api/v1/theme/publish") })
+            {
+                var res = await merchant.SendAsync(method, path, body);
+                Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+                var problem = await res.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.Equal("Theme.InvalidSection", problem.GetProperty("title").GetString());
+                Assert.StartsWith("La sección 1", problem.GetProperty("detail").GetString(), StringComparison.Ordinal);
+                Assert.True(problem.GetProperty("errors").GetArrayLength() > 0);
+            }
+        }
+
+        // Una sección bien armada, con nombre propio, estilo y dispositivo, pasa y vuelve tal cual.
+        await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/theme/draft", WithSections(new
+        {
+            id = "faq-1",
+            type = "faq",
+            visible = true,
+            name = "Dudas de envío",
+            hideOn = "desktop",
+            style = new { background = "subtle", paddingTop = "lg" },
+            data = new { title = "Preguntas", items = new[] { new { question = "¿Envían?", answer = "Sí.", label = "Envíos" } } },
+        }));
+        var saved = (await merchant.GetAsync("/api/v1/theme/draft")).GetProperty("sections")[0];
+        Assert.Equal("Dudas de envío", saved.GetProperty("name").GetString());
+        Assert.Equal("Envíos", saved.GetProperty("data").GetProperty("items")[0].GetProperty("label").GetString());
+    }
+
+    [Fact]
+    public async Task El_borrador_lleva_version_y_no_se_pisa_lo_que_cambio_otra_pestana()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "thver");
+        var v0 = (await merchant.GetAsync("/api/v1/theme/draft")).GetProperty("draftVersion").GetInt32();
+
+        // Pestaña A guarda sobre la versión que leyó: pasa y la versión sube.
+        var saved = await merchant.SendAsync(HttpMethod.Put, "/api/v1/theme/draft", new
+        {
+            colors = new { primary = "1 1 1" },
+            sections = Array.Empty<object>(),
+            draftVersion = v0,
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var v1 = (await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("draftVersion").GetInt32();
+        Assert.Equal(v0 + 1, v1);
+
+        // La versión no se guarda dentro del diseño.
+        var draft = await merchant.GetAsync("/api/v1/theme/draft");
+        Assert.Equal(v1, draft.GetProperty("draftVersion").GetInt32());
+        Assert.Equal("1 1 1", draft.GetProperty("colors").GetProperty("primary").GetString());
+
+        // Pestaña B todavía tiene la versión vieja: guardar y publicar se rechazan.
+        var stale = new { colors = new { primary = "2 2 2" }, sections = Array.Empty<object>(), draftVersion = v0 };
+        foreach (var (method, path) in new[] { (HttpMethod.Put, "/api/v1/theme/draft"), (HttpMethod.Post, "/api/v1/theme/publish") })
+        {
+            var res = await merchant.SendAsync(method, path, stale);
+            Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+            var problem = await res.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("El diseño cambió en otra pestaña o lo editó otra persona.", problem.GetProperty("detail").GetString());
+            Assert.Equal(v1, problem.GetProperty("currentVersion").GetInt32());
+        }
+        Assert.Equal("1 1 1", (await merchant.GetAsync("/api/v1/theme/draft")).GetProperty("colors").GetProperty("primary").GetString());
+
+        // "Guardar el mío igual": con la versión actual, pasa. Publicar devuelve la nueva.
+        var published = await merchant.SendAsync(HttpMethod.Post, "/api/v1/theme/publish",
+            new { colors = new { primary = "2 2 2" }, sections = Array.Empty<object>(), draftVersion = v1 });
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        Assert.Equal(v1 + 1, (await published.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("draftVersion").GetInt32());
+        Assert.False((await merchant.GetAsync("/api/v1/theme")).TryGetProperty("draftVersion", out _));
+    }
+
+    [Fact]
+    public async Task Una_tienda_nueva_arranca_con_el_tema_por_defecto_del_registro()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "thdef");
+        var published = await merchant.GetAsync("/api/v1/theme");
+        var expected = JsonDocument.Parse(Themes.Infrastructure.ThemeContract.DefaultConfigJson).RootElement;
+        Assert.Equal(expected.GetProperty("schemaVersion").GetInt32(), published.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(expected.GetProperty("sections").GetArrayLength(), published.GetProperty("sections").GetArrayLength());
+    }
+
     [Fact]
     public async Task El_historial_guarda_las_ultimas_veinte_publicaciones()
     {
