@@ -148,7 +148,9 @@ de cada una — qué conseguir y dónde — está en
 En el servidor, todo en runtime: `API_URL` (la API por la red interna),
 `APP_ENV`, y las que viajan al navegador —
 `PUBLIC_API_URL`, `PUBLIC_ADMIN_ORIGIN` (link al panel y validación del origin
-del editor de temas), `PUBLIC_SENTRY_DSN`.
+del editor de temas), `PUBLIC_SENTRY_DSN`. `REVALIDATE_SECRET` (en `.env.prod`) lo
+comparten la API y el storefront: con él, publicar un diseño o cambiar el
+catálogo se ve en la tienda al toque; vacío, tarda 30 a 60 s.
 
 Las `NEXT_PUBLIC_*` de `storefront/.env.example` siguen existiendo para
 desarrollo: Next las hornea al compilar, así que en el servidor no se leen.

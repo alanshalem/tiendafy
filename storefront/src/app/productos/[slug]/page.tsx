@@ -18,15 +18,13 @@ import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
 import type { MoneyDto } from '@tiendafy/types';
-import { REVALIDATE } from '@/lib/cache';
+import { cacheFor } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
 /** La ficha por slug. Misma URL y opciones en la metadata, la página y el contenido: Next la pide una vez. */
 const fetchProduct = (slug: string, tenantId: string) =>
-  apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+  apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, tenantId, cacheFor('catalog', tenantId));
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -280,9 +278,11 @@ async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Prom
   const catId = categoryIds[0];
   if (!catId) return [];
   try {
-    const res = await apiGetTenant<{ items?: CategoryDto[] }>('/api/v1/categories', tenantId, {
-      next: { revalidate: REVALIDATE.categories },
-    });
+    const res = await apiGetTenant<{ items?: CategoryDto[] }>(
+      '/api/v1/categories',
+      tenantId,
+      cacheFor('categories', tenantId),
+    );
     const byId = new Map((res?.items ?? []).map((c) => [c.id, c]));
     const trail: CategoryDto[] = [];
     let cur = byId.get(catId);
@@ -303,9 +303,11 @@ async function buildSpecRows(
 ): Promise<{ name: string; value: string }[]> {
   if (values.length === 0) return [];
 
-  const defs = await apiGetTenant<{ items: SpecDefinitionDto[] }>('/api/v1/spec-definitions/', tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  }).catch(() => null);
+  const defs = await apiGetTenant<{ items: SpecDefinitionDto[] }>(
+    '/api/v1/spec-definitions/',
+    tenantId,
+    cacheFor('catalog', tenantId),
+  ).catch(() => null);
   if (!defs) return [];
 
   const byId = new Map(defs.items.map((d) => [d.id, d]));

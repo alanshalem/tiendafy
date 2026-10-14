@@ -1,5 +1,5 @@
 import { apiGetTenant } from './api';
-import { REVALIDATE } from './cache';
+import { cacheFor } from './cache';
 import {
   type ThemeConfig,
   baseTheme,
@@ -68,12 +68,10 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
 
 export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
   // Data Cache corta, por tienda (apiGetTenant pone el tenant en la URL). Antes
-  // era no-store y cada vista de página pedía el diseño entero. Lo publicado
-  // tarda hasta REVALIDATE.theme en verse; el borrador del editor no pasa por
-  // acá (fetchDraftTheme, siempre fresco).
-  const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, {
-    next: { revalidate: REVALIDATE.theme },
-  });
+  // era no-store y cada vista de página pedía el diseño entero. Al publicar, el
+  // backend avisa y la etiqueta se vence al toque; REVALIDATE.theme queda de
+  // respaldo. El borrador del editor no pasa por acá (fetchDraftTheme).
+  const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, cacheFor('theme', tenantId));
   return mergeTheme(cfg);
 }
 

@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import type { Tenant } from '@tiendafy/types';
 import { apiGet } from './api';
-import { REVALIDATE } from './cache';
+import { cacheTag, REVALIDATE } from './cache';
 
 /** Dominio base de la instalación: lo que queda al sacarle el subdominio a una tienda. */
 const BASE_DOMAIN = process.env.PLATFORM_BASE_DOMAIN ?? 'localhost';
@@ -34,7 +34,8 @@ const byHost = (host: string) =>
     // entrada de caché es por tienda. El costo: suspender o eliminar una
     // tienda tarda hasta un minuto en verse. Un host desconocido (404) no se
     // cachea: Next solo guarda las respuestas 200.
-    next: { revalidate: REVALIDATE.tenant },
+    // La etiqueta permite que el backend avise un cambio de estado al instante.
+    next: { revalidate: REVALIDATE.tenant, tags: [cacheTag('tenant', '')] },
   });
 
 /**

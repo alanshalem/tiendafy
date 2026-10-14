@@ -164,6 +164,13 @@ public static class ServiceRegistration
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
 
+        // Aviso al storefront para que vence su caché al publicar un diseño o
+        // cambiar el catálogo. Vacío = apagado (la tienda vence sola por tiempo).
+        services.Configure<Api.Storefront.StorefrontOptions>(configuration.GetSection(Api.Storefront.StorefrontOptions.SectionName));
+        services.AddHttpClient(Api.Storefront.StorefrontRevalidator.HttpClientName,
+            c => c.Timeout = Api.Storefront.StorefrontRevalidator.Timeout);
+        services.AddSingleton<Api.Storefront.IStorefrontRevalidator, Api.Storefront.StorefrontRevalidator>();
+
         return services;
     }
 

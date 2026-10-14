@@ -1,5 +1,6 @@
 using Api.Auth;
 using Api.Shop;
+using Api.Storefront;
 using Catalog.Core;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateProduct;
@@ -16,7 +17,9 @@ public static partial class ProductEndpoints
 {
     public static RouteGroupBuilder MapProductEndpoints(this RouteGroupBuilder group)
     {
-        var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
+        // Toda escritura del catálogo (precios, stock, fotos, estado) se ve en la tienda al toque.
+        var products = group.MapGroup("/products").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite)
+            .RevalidatesStorefront(StorefrontScope.Catalog);
 
         products.MapPost("/", async (
             CreateProductRequest request,
@@ -579,7 +582,7 @@ public static partial class ProductEndpoints
     /// </summary>
     private static void MapSpecDefinitions(RouteGroupBuilder group)
     {
-        var specs = group.MapGroup("/spec-definitions").RequireTenant();
+        var specs = group.MapGroup("/spec-definitions").RequireTenant().RevalidatesStorefront(StorefrontScope.Catalog);
 
         // Público: el storefront necesita el nombre y la unidad de cada campo
         // para mostrar la ficha. No hay nada privado acá.
