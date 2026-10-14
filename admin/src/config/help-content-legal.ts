@@ -254,7 +254,7 @@ export const LEGAL = {
           {
             type: 'callout',
             tone: 'warning',
-            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. La solapa “Arrepentimientos” de Mensajes de contacto existe para que ninguna se pierda entre las consultas comunes.',
+            text: 'Las solicitudes de arrepentimiento tienen plazo legal: atendelas primero. La solapa “Arrepentimientos” de Mensajes de contacto existe para que ninguna se pierda entre las consultas comunes, y en Inicio, “Para hacer hoy” muestra las que siguen sin leer con los días que quedan (el panel cuenta 10 días corridos desde la solicitud). Si el comprador no dejó número de pedido, el mensaje trae un link a sus compras, buscadas por su email.',
           },
         ],
       },

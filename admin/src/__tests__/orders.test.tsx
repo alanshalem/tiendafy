@@ -125,7 +125,7 @@ describe('ventas: una venta pagada', () => {
       status: 'PENDINGPAYMENT',
       paymentId: null,
       preferenceId: 'pref-1',
-    } as typeof paid;
+    } as unknown as typeof paid;
     const { api, user } = await openOrder(pending);
     api.on('POST', `/api/v1/orders/${paid.id}/cancel`, { linkExpired: true, order: {} });
     expect(screen.queryByRole('button', { name: /Reembolsar/ })).toBeNull();
