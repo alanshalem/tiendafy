@@ -70,6 +70,8 @@ export function ResetPassword() {
       <p className="mt-1 text-sm text-fg-muted">Elegí una contraseña de al menos 8 caracteres.</p>
       <input
         type="password"
+        aria-label="Nueva contraseña"
+        autoComplete="new-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Nueva contraseña"

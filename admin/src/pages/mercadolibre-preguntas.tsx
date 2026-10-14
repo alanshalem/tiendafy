@@ -119,6 +119,7 @@ export function PreguntasTab() {
               ) : (
                 <div className="mt-3 flex gap-2">
                   <Input
+                    aria-label={`Tu respuesta a: ${q.text ?? 'la pregunta'}`}
                     value={answers[q.id] ?? ''}
                     onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
                     placeholder="Escribí tu respuesta…"

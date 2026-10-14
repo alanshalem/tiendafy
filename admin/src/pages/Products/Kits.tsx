@@ -122,6 +122,8 @@ export function KitsPage() {
           </Card>
 
           <Input
+            type="search"
+            aria-label="Buscar kits"
             placeholder="Buscar kit por nombre, SKU o componente…"
             value={listSearch}
             onChange={(e) => setListSearch(e.target.value)}

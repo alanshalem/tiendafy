@@ -211,6 +211,7 @@ export function CheckoutOptionsPage() {
           {value.orderMessageEnabled && (
             <div>
               <Textarea
+                aria-label="Mensaje al terminar la compra"
                 value={value.orderMessageText}
                 maxLength={MESSAGE_MAX}
                 onChange={(e) => update({ orderMessageText: e.target.value })}

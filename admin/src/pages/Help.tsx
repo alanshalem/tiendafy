@@ -587,6 +587,8 @@ export function HelpIndexPage() {
         <div className="relative mx-auto mt-6 max-w-xl">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
           <input
+            type="search"
+            aria-label="Buscar en la ayuda"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscá: reembolsos, envíos, roles, cupones…"

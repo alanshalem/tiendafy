@@ -317,6 +317,7 @@ function MessagesModal({ order, onClose }: { order: MeliOrder; onClose: () => vo
       </div>
       <div className="mt-3 flex gap-2">
         <Input
+          aria-label="Mensaje para el comprador"
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={350}

@@ -47,25 +47,20 @@ export function SpecFields({
     <div className="grid gap-3 sm:grid-cols-2">
       {definitions.map((d) => {
         const value = values[d.id] ?? '';
-        return (
-          <FormField
-            key={d.id}
-            label={d.unit ? `${d.name} (${d.unit})` : d.name}
-            hint={d.filterable ? 'Se usa como filtro del catálogo.' : undefined}
-          >
-            {d.type === 'LIST' ? (
-              <Select
-                value={value}
-                onChange={(e) => set(d.id, e.target.value)}
-                placeholder="Sin definir"
-                options={d.options.map((o) => ({ value: o, label: o }))}
-              />
-            ) : d.type === 'BOOLEAN' ? (
-              // Tres estados: sin definir, sí, no. "Sin definir" no es lo mismo
-              // que "no", y en una ficha técnica esa diferencia importa.
+        const label = d.unit ? `${d.name} (${d.unit})` : d.name;
+        const hint = d.filterable ? 'Se usa como filtro del catálogo.' : undefined;
+        if (d.type === 'BOOLEAN')
+          // Tres estados: sin definir, sí, no. "Sin definir" no es lo mismo
+          // que "no", y en una ficha técnica esa diferencia importa. Va con el
+          // mismo aspecto que FormField pero sin su <label>: el control es el
+          // switch de adentro (con su nombre), y una etiqueta apuntando a la
+          // fila entera no enfocaba nada.
+          return (
+            <div key={d.id} className="space-y-1.5">
+              <p className="block text-sm font-medium text-fg">{label}</p>
               <div className="flex h-10 items-center gap-3">
                 <Switch
-                  aria-label={d.name}
+                  aria-label={label}
                   checked={value === 'Sí'}
                   onChange={(on) => set(d.id, on ? 'Sí' : 'No')}
                 />
@@ -80,6 +75,18 @@ export function SpecFields({
                   </button>
                 )}
               </div>
+              {hint && <p className="text-sm text-fg-muted">{hint}</p>}
+            </div>
+          );
+        return (
+          <FormField key={d.id} label={label} hint={hint}>
+            {d.type === 'LIST' ? (
+              <Select
+                value={value}
+                onChange={(e) => set(d.id, e.target.value)}
+                placeholder="Sin definir"
+                options={d.options.map((o) => ({ value: o, label: o }))}
+              />
             ) : (
               <Input
                 value={value}

@@ -382,9 +382,13 @@ export function CampaignModal({
           </div>
 
           <div className="rounded-md border border-border p-3">
-            <div className="text-sm font-medium text-fg">Enviate una prueba primero</div>
+            <label htmlFor={`${fid}-prueba`} className="text-sm font-medium text-fg">
+              Enviate una prueba primero
+            </label>
             <div className="mt-2 flex gap-2">
               <Input
+                id={`${fid}-prueba`}
+                type="email"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="tu@email.com"
@@ -618,6 +622,8 @@ function ProductFilterRow({
           <div className="border-b border-border p-1.5">
             <Input
               compact
+              type="search"
+              aria-label={`Buscar producto: ${label.toLowerCase()}`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar producto…"
@@ -692,6 +698,8 @@ function RecipientPicker({
       footer={<Button onClick={onClose}>Listo</Button>}
     >
       <Input
+        type="search"
+        aria-label="Buscar destinatarios por nombre o email"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Buscar por nombre o email…"
@@ -741,7 +749,13 @@ function ProductPicker({
       title="Agregar productos al email"
       footer={<Button onClick={onClose}>Listo</Button>}
     >
-      <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" />
+      <Input
+        type="search"
+        aria-label="Buscar productos para el email"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar producto…"
+      />
       <div className="mt-3 max-h-[50vh] space-y-1 overflow-y-auto">
         {products.map((p) => {
           const added = selected.some((s) => s.id === p.id);

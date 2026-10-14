@@ -413,6 +413,8 @@ function ProductFinder({
   return (
     <div>
       <Input
+        type="search"
+        aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => onSearch(e.target.value)}
         placeholder="Buscar producto por nombre o SKU…"

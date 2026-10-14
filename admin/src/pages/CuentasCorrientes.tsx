@@ -711,6 +711,7 @@ function ReceiptModal({
                   <Input
                     className="w-32"
                     inputMode="decimal"
+                    aria-label={`Monto a imputar a ${row.docLabel}`}
                     placeholder="0"
                     value={allocations[row.id] ?? ''}
                     onChange={(e) => setAllocations((cur) => ({ ...cur, [row.id]: e.target.value }))}

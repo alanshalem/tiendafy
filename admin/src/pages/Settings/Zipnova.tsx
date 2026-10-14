@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { Loader2, Package, Zap } from 'lucide-react';
-import { Button, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
+import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatNumber } from '../../lib/format';
@@ -310,13 +310,19 @@ function ConfigModal({
           <div className="rounded-md border border-border p-3">
             <div className="text-sm font-medium text-fg">Probar cotización (gratis, no crea nada)</div>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              <Input value={testCity} onChange={(e) => setTestCity(e.target.value)} placeholder="Ciudad" />
-              <Input
-                value={testState}
-                onChange={(e) => setTestState(e.target.value)}
-                placeholder="Provincia"
-              />
-              <Input value={testZip} onChange={(e) => setTestZip(e.target.value)} placeholder="CP" />
+              <FormField label="Ciudad">
+                <Input value={testCity} onChange={(e) => setTestCity(e.target.value)} placeholder="Ciudad" />
+              </FormField>
+              <FormField label="Provincia">
+                <Input
+                  value={testState}
+                  onChange={(e) => setTestState(e.target.value)}
+                  placeholder="Provincia"
+                />
+              </FormField>
+              <FormField label="CP">
+                <Input value={testZip} onChange={(e) => setTestZip(e.target.value)} placeholder="CP" />
+              </FormField>
             </div>
             <Button variant="secondary" className="mt-2" onClick={test} disabled={testing}>
               {testing && <Loader2 className="h-4 w-4 animate-spin" />} Cotizar

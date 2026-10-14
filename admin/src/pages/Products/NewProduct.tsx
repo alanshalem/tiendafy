@@ -447,6 +447,7 @@ export function NewProductPage() {
                               </td>
                               <td className="px-3 py-2">
                                 <Input
+                                  aria-label={`Precio de ${row.optionValues.join(' / ')}`}
                                   inputMode="decimal"
                                   error={priceInvalid}
                                   value={row.price}
@@ -457,6 +458,7 @@ export function NewProductPage() {
                               </td>
                               <td className="px-3 py-2">
                                 <Input
+                                  aria-label={`Precio promocional de ${row.optionValues.join(' / ')}`}
                                   inputMode="decimal"
                                   error={promoInvalid}
                                   value={row.promoPrice}
@@ -484,6 +486,7 @@ export function NewProductPage() {
                               </td>
                               <td className="px-3 py-2">
                                 <Input
+                                  aria-label={`Stock de ${row.optionValues.join(' / ')}`}
                                   inputMode="numeric"
                                   value={row.stock}
                                   onChange={(e) =>
@@ -529,7 +532,8 @@ export function NewProductPage() {
 
           {!hasVariants && (
             <Section title="Inventario">
-              <RadioGroup legend="">
+              {/* La sección ya lo titula a la vista; el grupo igual necesita nombre. */}
+              <RadioGroup legend={<span className="sr-only">Cómo se controla el stock</span>}>
                 <Radio
                   name="stock"
                   label="Sin límite"
@@ -546,6 +550,7 @@ export function NewProductPage() {
               {stockMode === 'limited' && (
                 <div className="mt-3 w-40">
                   <Input
+                    aria-label="Cantidad en stock"
                     inputMode="numeric"
                     value={stock}
                     onChange={(e) => setStock(e.target.value.replace(/\D/g, ''))}

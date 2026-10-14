@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { Loader2, Mail, Package } from 'lucide-react';
-import { Button, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
+import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
 import { formatNumber } from '../../lib/format';
@@ -255,22 +255,29 @@ function ConfigModal({
             (no se guardan: solo se usan una vez para obtener el ID).
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            <Input
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              placeholder="customerId (ej: 0090000025)"
-            />
-            <Input
-              value={miEmail}
-              onChange={(e) => setMiEmail(e.target.value)}
-              placeholder="Email de MiCorreo"
-            />
-            <Input
-              type="password"
-              value={miPassword}
-              onChange={(e) => setMiPassword(e.target.value)}
-              placeholder="Contraseña de MiCorreo"
-            />
+            <FormField label="customerId">
+              <Input
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                placeholder="customerId (ej: 0090000025)"
+              />
+            </FormField>
+            <FormField label="Email de MiCorreo">
+              <Input
+                type="email"
+                value={miEmail}
+                onChange={(e) => setMiEmail(e.target.value)}
+                placeholder="Email de MiCorreo"
+              />
+            </FormField>
+            <FormField label="Contraseña de MiCorreo">
+              <Input
+                type="password"
+                value={miPassword}
+                onChange={(e) => setMiPassword(e.target.value)}
+                placeholder="Contraseña de MiCorreo"
+              />
+            </FormField>
           </div>
         </div>
 

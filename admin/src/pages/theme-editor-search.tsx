@@ -276,6 +276,8 @@ export function OptionSearch({ onPick, onClose }: { onPick: (view: string) => vo
           <Search className="h-4 w-4 shrink-0 text-fg-muted" />
           <input
             ref={inputRef}
+            type="search"
+            aria-label="Buscar una opción del editor"
             value={q}
             onChange={(e) => {
               setQ(e.target.value);

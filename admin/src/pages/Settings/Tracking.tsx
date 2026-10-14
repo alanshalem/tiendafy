@@ -253,6 +253,7 @@ function Field({
           <p className="mt-0.5 text-sm text-fg-muted">{help}</p>
           <div className="mt-3">
             <Input
+              aria-label={title}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}

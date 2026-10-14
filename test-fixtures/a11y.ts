@@ -45,8 +45,7 @@ export async function a11yViolations(axe: Axe, root: Element = document.body) {
     help: v.error ? `axe no pudo correr la regla: ${String((v.error as Error).message ?? v.error)}` : v.help,
     nodes: v.nodes.map((n) => n.html.slice(0, 160)),
   }));
-  const orphans = orphanLabels(root);
-  return orphans.length > 0 ? [...found, orphans[0]!] : found;
+  return [...found, ...orphanLabels(root), ...placeholderOnly(root)];
 }
 
 /**
@@ -61,4 +60,39 @@ function orphanLabels(root: Element) {
   return nodes.length === 0
     ? []
     : [{ rule: 'label-sin-campo', help: 'La etiqueta no está asociada a ningún campo', nodes }];
+}
+
+/** Tipos de <input> que no son un campo para completar (o que no se ven). */
+const NOT_A_FIELD = ['hidden', 'file', 'submit', 'button', 'reset', 'image'];
+
+/**
+ * Un campo cuyo único nombre es el placeholder: axe lo acepta (lo toma como
+ * último recurso), pero el placeholder desaparece apenas se escribe, muchos
+ * lectores de pantalla no lo anuncian como nombre y suele ser un ejemplo
+ * ("tu@email.com"), no qué va ahí. Por eso pasaban campos sin nombre real.
+ * Vale una <label> asociada, aria-label, aria-labelledby o title.
+ */
+function placeholderOnly(root: Element) {
+  const nodes = [...root.querySelectorAll<HTMLElement>('input, select, textarea')]
+    .filter((el) => !(el instanceof HTMLInputElement && NOT_A_FIELD.includes(el.type)))
+    // Lo que no se ve (un <dialog> cerrado, por ejemplo el del aviso de
+    // confirmación que vive montado) no cuenta.
+    .filter((el) => !el.closest('[hidden], [aria-hidden="true"], [inert], dialog:not([open])'))
+    .filter((el) => {
+      if (el.getAttribute('aria-label')?.trim() || el.getAttribute('title')?.trim()) return false;
+      if (el.getAttribute('aria-labelledby')) return false;
+      const labels = (el as HTMLInputElement).labels;
+      return !labels || ![...labels].some((l) => l.textContent?.trim());
+    })
+    // Sin las clases: con Tailwind se comen los 160 caracteres y no queda cómo
+    // encontrar el campo.
+    .map((el) => {
+      const attrs = [...el.attributes]
+        .filter((a) => a.name !== 'class' && a.name !== 'style')
+        .map((a) => `${a.name}="${a.value}"`);
+      return `<${el.tagName.toLowerCase()} ${attrs.join(' ')}>`.slice(0, 200);
+    });
+  return nodes.length === 0
+    ? []
+    : [{ rule: 'campo-sin-nombre', help: 'El campo no tiene etiqueta (el placeholder no alcanza)', nodes }];
 }

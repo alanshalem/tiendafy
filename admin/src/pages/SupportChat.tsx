@@ -405,6 +405,7 @@ export function SupportChatPage() {
                   <Paperclip className="h-5 w-5" />
                 </button>
                 <input
+                  aria-label="Respuesta al cliente"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {

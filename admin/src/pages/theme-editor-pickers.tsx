@@ -122,6 +122,8 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
 
       {/* Buscador: resultados sólo al escribir */}
       <input
+        type="search"
+        aria-label="Buscar productos para agregar"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Buscar productos para agregar…"

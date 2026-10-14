@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useId, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   AlertTriangle,
   Bookmark,
@@ -62,6 +62,7 @@ export function ComposerModal({
 }) {
   const { toast } = useToast();
   const { store } = useStore();
+  const textId = useId();
   const [content, setContent] = useState(post?.content ?? '');
   const [couponCode, setCouponCode] = useState(post?.couponCode ?? '');
   const [mediaUrls, setMediaUrls] = useState<string[]>(post?.mediaUrls ?? []);
@@ -247,6 +248,9 @@ export function ComposerModal({
                       key={a.id}
                       type="button"
                       disabled={!a.authorized}
+                      // Elegida o no, también para un lector de pantalla (antes
+                      // solo lo decía el color).
+                      aria-pressed={selected.has(a.id)}
                       onClick={() => toggleAccount(a.id)}
                       title={a.authorized ? a.name : `${a.name} — reconectá la cuenta`}
                       className={cn(
@@ -269,7 +273,9 @@ export function ComposerModal({
             <div>
               <div className="mb-1.5 flex items-baseline justify-between">
                 <span className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-fg">Texto</p>
+                  <label htmlFor={textId} className="text-sm font-medium text-fg">
+                    Texto
+                  </label>
                   {aiEnabled && content.trim().length > 0 && (
                     <button
                       type="button"
@@ -299,6 +305,7 @@ export function ComposerModal({
                 )}
               </div>
               <Textarea
+                id={textId}
                 rows={5}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -350,6 +357,8 @@ export function ComposerModal({
               <div className="flex gap-2">
                 <div className="min-w-0 flex-1">
                   <Input
+                    type="url"
+                    aria-label="URL de una imagen para agregar"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUrl())}
@@ -474,6 +483,8 @@ function CatalogImagePicker({
   return (
     <Modal open onClose={onClose} title="Imagen del catálogo" size="lg">
       <Input
+        type="search"
+        aria-label="Buscar producto del catálogo"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Buscar producto…"
@@ -656,6 +667,7 @@ function PerNetworkOverrides({
               {isOpen && (
                 <div className="border-t border-border p-3">
                   <Textarea
+                    aria-label={`Texto solo para ${a.name} (${providerMeta(a.provider).label})`}
                     rows={3}
                     value={value}
                     onChange={(e) => setOverrides((prev) => ({ ...prev, [a.id]: e.target.value }))}
