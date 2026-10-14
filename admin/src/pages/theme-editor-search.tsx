@@ -287,22 +287,34 @@ export const OPTION_INDEX: OptionEntry[] = [
     keywords: 'tarjetas visa mastercard mercado pago',
   },
   {
+    label: 'Columnas del pie',
+    view: 'footer',
+    panel: 'Pie de página',
+    keywords: 'agregar columna ordenar titulo footer armar secciones del pie',
+  },
+  {
     label: 'Suscripción a novedades',
     view: 'footer',
     panel: 'Pie de página',
-    keywords: 'newsletter email lista',
+    keywords: 'newsletter email lista columna',
   },
   {
     label: 'Links del pie',
     view: 'footer',
     panel: 'Pie de página',
-    keywords: 'links propios enlaces envios mayoristas catalogo pdf externo',
+    keywords: 'links propios enlaces envios mayoristas catalogo pdf externo columna ayuda',
   },
   {
     label: 'Links a páginas de contenido',
     view: 'footer',
     panel: 'Pie de página',
-    keywords: 'como comprar preguntas envios',
+    keywords: 'como comprar preguntas envios columna paginas',
+  },
+  {
+    label: 'Texto libre en el pie',
+    view: 'footer',
+    panel: 'Pie de página',
+    keywords: 'quienes somos nosotros horarios parrafo columna de texto',
   },
   {
     label: 'Contacto en el pie',
