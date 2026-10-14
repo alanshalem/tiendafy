@@ -57,6 +57,10 @@ export const PAGES: Record<
   '/privacidad': { url: '/privacidad', load: () => import('../app/privacidad/page') },
   '/terminos': { url: '/terminos', load: () => import('../app/terminos/page') },
   '/preview': { url: '/preview?pt=token', load: () => import('../app/preview/page') },
+  '/resenas/escribir': {
+    url: '/resenas/escribir?t=token',
+    load: () => import('../app/resenas/escribir/page'),
+  },
 };
 
 /**
