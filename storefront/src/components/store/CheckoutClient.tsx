@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type InputHTMLAttributes } from 'react';
+import Image from 'next/image';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Check, CreditCard, Loader2, MapPin, Mail, MessageSquare, Store, Tag, Truck } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
@@ -1210,7 +1211,15 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
           {lines.map((l) => (
             <div key={l.variantId} className="py-1.5">
               <div className="flex items-center gap-3">
-                {l.image && <img src={l.image} alt="" className="h-12 w-12 rounded-md object-cover" />}
+                {l.image && (
+                  <Image
+                    src={l.image}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-md object-cover"
+                  />
+                )}
                 <span className="flex-1">
                   {l.productName}
                   {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}

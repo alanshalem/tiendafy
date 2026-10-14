@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
+import Image from 'next/image';
 import { track } from '@/lib/track';
 import { useCart } from './cart';
 import { useLiveTheme, usePreviewHref } from './preview';
@@ -211,10 +212,15 @@ export function ProductDetail({
                   onClick={() => setLightboxIndex(i)}
                   className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg"
                 >
-                  <img
+                  <Image
                     src={img.url}
                     alt={img.altText ?? name}
-                    className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    width={1200}
+                    height={1200}
+                    sizes={MAIN_SIZES}
+                    // La primera es la imagen grande de la página (LCP).
+                    {...(i === 0 ? LCP : {})}
+                    className="h-auto w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                   <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
                     <ZoomIn className="h-4 w-4" />
@@ -241,7 +247,7 @@ export function ProductDetail({
                     aria-label={`Ver imagen ${i + 1}`}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}
                   >
-                    <img src={img.url} alt="" className="h-full w-full object-cover" />
+                    <Thumb src={img.url} size={64} />
                   </button>
                 ))}
               </div>
@@ -285,7 +291,7 @@ export function ProductDetail({
                     aria-label={`Ver imagen ${i + 1}`}
                     className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}
                   >
-                    <img src={img.url} alt="" className="h-full w-full object-cover" />
+                    <Thumb src={img.url} size={64} />
                   </button>
                 ))}
               </div>
@@ -556,6 +562,22 @@ export function ProductDetail({
   );
 }
 
+/**
+ * Imágenes de la ficha por next/image (como las cards y el hero): tamaños
+ * a medida y formatos modernos. Antes las miniaturas de 64 px bajaban el
+ * original entero (en producción hay uno de 2,2 MB).
+ */
+// La imagen grande ocupa el ancho en el celular y media página en desktop.
+const MAIN_SIZES = '(max-width: 768px) 100vw, 50vw';
+// La imagen grande es el LCP: se pide ya y con prioridad. En Next 16
+// `priority` está deprecado; la documentación recomienda esto antes que
+// `preload` (la ficha llega en streaming, después del <head>).
+const LCP = { loading: 'eager', fetchPriority: 'high' } as const;
+
+function Thumb({ src, size }: { src: string; size: number }) {
+  return <Image src={src} alt="" width={size} height={size} className="h-full w-full object-cover" />;
+}
+
 /** El stock de la variante elegida, en palabras de comprador. */
 function StockLine({ available }: { available: number }) {
   if (available <= 0) return <div className="mt-1 text-sm font-medium text-red-600">● Sin stock</div>;
@@ -571,12 +593,12 @@ function StockLine({ available }: { available: number }) {
 /** Imagen principal estilo MercadoLibre: lens sobre la imagen + panel de zoom al costado (desktop). Click → pantalla completa. */
 const ZOOM = 2.6;
 function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen: () => void }) {
-  const boxRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLButtonElement>(null);
   const [show, setShow] = useState(false);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [lens, setLens] = useState({ x: 0, y: 0 });
 
-  const move = (e: MouseEvent<HTMLDivElement>) => {
+  const move = (e: MouseEvent<HTMLButtonElement>) => {
     const el = boxRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -595,25 +617,37 @@ function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen
 
   return (
     <div className="relative">
-      <div
+      {/* Un botón (no un div con onClick): se alcanza con Tab, se abre con
+          Enter o espacio, y al cerrar el visor el foco vuelve acá. */}
+      <button
         ref={boxRef}
-        className="group relative aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-black/5"
+        type="button"
+        aria-label={`Ampliar imagen: ${alt}`}
+        className="group relative block aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-black/5"
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         onMouseMove={move}
         onClick={onOpen}
       >
-        <img src={src} alt={alt} draggable={false} className="h-full w-full select-none object-cover" />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes={MAIN_SIZES}
+          {...LCP}
+          draggable={false}
+          className="select-none object-cover"
+        />
         {show && box.w > 0 && (
-          <div
+          <span
             className="pointer-events-none absolute hidden border border-white bg-white/25 shadow-[0_0_0_1px_rgba(0,0,0,0.2)] md:block"
             style={{ left: lens.x, top: lens.y, width: lensW, height: lensH }}
           />
         )}
-        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <ZoomIn className="h-4 w-4" />
         </span>
-      </div>
+      </button>
 
       {/* Panel de zoom al costado (solo desktop) */}
       {show && box.w > 0 && (
@@ -708,22 +742,26 @@ function Lightbox({
             <ChevronLeft className="h-7 w-7" />
           </button>
         )}
-        <img
-          key={img.url}
-          src={img.url}
-          alt={img.altText ?? alt}
-          draggable={false}
-          onClick={() => setZoomed((z) => !z)}
-          onMouseMove={(e) => {
-            if (!zoomed) return;
-            const r = e.currentTarget.getBoundingClientRect();
-            setOrigin(
-              `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
-            );
-          }}
-          className={`max-h-[80vh] max-w-[92vw] select-none object-contain transition-transform duration-200 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-          style={{ transformOrigin: origin, transform: zoomed ? 'scale(2.4)' : 'scale(1)' }}
-        />
+        <div className="relative h-[80vh] w-[92vw]">
+          <Image
+            key={img.url}
+            src={img.url}
+            alt={img.altText ?? alt}
+            fill
+            sizes="92vw"
+            draggable={false}
+            onClick={() => setZoomed((z) => !z)}
+            onMouseMove={(e) => {
+              if (!zoomed) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              setOrigin(
+                `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
+              );
+            }}
+            className={`select-none object-contain transition-transform duration-200 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+            style={{ transformOrigin: origin, transform: zoomed ? 'scale(2.4)' : 'scale(1)' }}
+          />
+        </div>
         {images.length > 1 && (
           <button
             onClick={() => go(1)}
@@ -751,7 +789,7 @@ function Lightbox({
               }}
               className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition ${i === index ? 'border-white' : 'border-transparent opacity-50 hover:opacity-100'}`}
             >
-              <img src={im.url} alt="" className="h-full w-full object-cover" />
+              <Thumb src={im.url} size={56} />
             </button>
           ))}
         </div>

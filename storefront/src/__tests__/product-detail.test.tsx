@@ -314,6 +314,26 @@ describe('ficha de producto: galería', () => {
     expect(within(viewer).getByText('2 / 3')).toBeInTheDocument();
   });
 
+  it('la imagen grande se abre con el teclado y al cerrar el visor el foco vuelve a ella', async () => {
+    const { user } = await show();
+    const opener = screen.getByRole('button', { name: 'Ampliar imagen: Frente' });
+    opener.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('dialog', { name: 'Remera' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('la imagen grande se pide primero; las miniaturas, chicas', async () => {
+    await show();
+    const main = screen.getByRole('img', { name: 'Frente' });
+    expect(main).toHaveAttribute('loading', 'eager');
+    expect(main).toHaveAttribute('fetchpriority', 'high');
+    const thumbs = screen.getAllByRole('button', { name: /Ver imagen/ }).map((b) => b.querySelector('img')!);
+    for (const t of thumbs) expect(t).toHaveAttribute('width', '64');
+  });
+
   it('el visor: flechas, teclado, miniaturas, zoom y cerrar', async () => {
     const { user } = await show({ config: { ...CONFIG, galleryStyle: 'stacked' } });
     await user.click(screen.getByRole('img', { name: 'Frente' }));

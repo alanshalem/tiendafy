@@ -8,6 +8,7 @@ import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { CART_SYNC_EVENT, cartStorageKey, couponStorageKey } from '@/lib/cart-storage';
 import { hardNavigate } from '@/lib/navigation';
 import { track, type TrackItem } from '@/lib/track';
+import Image from 'next/image';
 import Link from 'next/link';
 import { InitialFallback } from './InitialFallback';
 import { usePreviewHref } from './preview';
@@ -411,7 +412,13 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
               {lines.map((l) => (
                 <div key={l.variantId} className="flex gap-3 border-b border-black/10 pb-3">
                   {l.image ? (
-                    <img src={l.image} alt="" className="h-16 w-16 rounded-md object-cover" />
+                    <Image
+                      src={l.image}
+                      alt=""
+                      width={64}
+                      height={64}
+                      className="h-16 w-16 rounded-md object-cover"
+                    />
                   ) : (
                     <InitialFallback
                       name={l.productName}
@@ -421,13 +428,18 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{l.productName}</div>
                     <div className="text-xs text-fg-muted">{l.variantLabel}</div>
+                    {/* Los botones se ven de 24 px pero se tocan de 40: el
+                        relleno con margen negativo agranda el área sin mover
+                        nada (el mismo truco que el header). */}
                     <div className="mt-1 flex items-center gap-2">
                       <button
                         onClick={() => setQty(l.variantId, l.quantity - 1)}
                         aria-label="Restar"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15"
+                        className="-m-2 inline-flex p-2"
                       >
-                        <Minus className="h-4 w-4" />
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                          <Minus className="h-4 w-4" />
+                        </span>
                       </button>
                       <span className="w-6 text-center text-sm tabular-nums">{l.quantity}</span>
                       <button
@@ -435,13 +447,15 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                         aria-label="Sumar"
                         // Con el stock a la vista, no deja pedir más de lo que hay.
                         disabled={l.quantity >= (availability?.[l.variantId] ?? Infinity)}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15 disabled:opacity-40"
+                        className="-m-2 inline-flex p-2 disabled:opacity-40"
                       >
-                        <Plus className="h-4 w-4" />
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/15">
+                          <Plus className="h-4 w-4" />
+                        </span>
                       </button>
                       <button
                         onClick={() => remove(l.variantId)}
-                        className="ml-auto text-xs text-red-600 hover:underline"
+                        className="-my-2.5 ml-auto py-2.5 text-xs text-red-600 hover:underline"
                       >
                         Quitar
                       </button>
@@ -465,7 +479,13 @@ export function CartDrawer({ cart, suggested: all = [] }: { cart?: CartConfig; s
                       const body = (
                         <>
                           {s.image ? (
-                            <img src={s.image} alt="" className="h-20 w-20 rounded-md object-cover" />
+                            <Image
+                              src={s.image}
+                              alt=""
+                              width={80}
+                              height={80}
+                              className="h-20 w-20 rounded-md object-cover"
+                            />
                           ) : (
                             <InitialFallback
                               name={s.name}
