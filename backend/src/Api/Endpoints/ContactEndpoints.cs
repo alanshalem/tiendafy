@@ -84,11 +84,18 @@ public static class ContactEndpoints
             var items = new List<object>(rows.Count);
             foreach (var m in rows)
             {
+                // El comprador escribe el número de pedido ("#1042"); los pedidos
+                // de antes de la numeración llegaban con el id.
                 Guid? orderId = null;
-                if (m.Kind == ContactMessage.KindRepentance
-                    && Guid.TryParse(m.OrderRef, out var candidate)
-                    && await orders.GetByIdAsync(tenant.TenantId, candidate, ct) is not null)
-                    orderId = candidate;
+                if (m.Kind == ContactMessage.KindRepentance)
+                {
+                    var found = Guid.TryParse(m.OrderRef, out var candidate)
+                        ? await orders.GetByIdAsync(tenant.TenantId, candidate, ct)
+                        : global::Orders.Core.Domain.OrderLabel.ParseNumber(m.OrderRef) is { } number
+                            ? await orders.GetByNumberAsync(tenant.TenantId, number, ct)
+                            : null;
+                    orderId = found?.Id;
+                }
                 items.Add(new
                 {
                     m.Id,
@@ -116,6 +123,50 @@ public static class ContactEndpoints
             msg.MarkRead();
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
+        }).RequirePermission(Permission.MessagesRead);
+
+        // Lo que ya se le contestó (desde la bandeja). El formulario no tiene
+        // historia propia: sin esto, dos personas del equipo contestaban lo
+        // mismo y nadie sabía qué se le había dicho.
+        contact.MapGet("/messages/{id:guid}/replies", async (
+            Guid id, ITenantContext tenant, Support.Infrastructure.SupportDbContext support, CancellationToken ct) =>
+        {
+            var key = id.ToString();
+            var replies = await support.InboxReplies.AsNoTracking()
+                .Where(r => r.TenantId == tenant.TenantId.Value
+                    && r.Channel == Support.Infrastructure.InboxChannel.Contact && r.ExternalId == key)
+                .OrderBy(r => r.CreatedAtUtc)
+                .Select(r => new { r.Id, r.AuthorName, r.Body, r.CreatedAtUtc })
+                .ToListAsync(ct);
+            return Results.Ok(new { items = replies });
+        }).RequirePermission(Permission.MessagesRead);
+
+        // Contestar por email, sin salir del panel. Las respuestas del cliente
+        // le llegan a quien contestó (reply-to), no al no-reply de la tienda.
+        contact.MapPost("/messages/{id:guid}/reply", async (
+            Guid id, ContactReplyRequest req, HttpContext http, ITenantContext tenant, CustomersDbContext db,
+            Support.Infrastructure.SupportDbContext support, BrandedEmailSender emails, CancellationToken ct) =>
+        {
+            var body = req.Body?.Trim() ?? string.Empty;
+            if (body.Length is < 1 or > 4000) return Problem("Contact.InvalidReply", "Escribí la respuesta (hasta 4000 caracteres).");
+
+            var tid = tenant.TenantId.Value;
+            var msg = await db.ContactMessages.FirstOrDefaultAsync(m => m.Id == id && m.TenantId == tid, ct);
+            if (msg is null) return Results.NotFound();
+
+            var author = http.User.Identity?.Name ?? "staff";
+            await emails.SendAsync(tid, msg.Email, "Respuesta a tu consulta",
+                ContactReplyHtml(msg.Name, body, msg.Body), ct, template: "respuesta-contacto",
+                replyTo: author.Contains('@') ? author : null);
+
+            var reply = Support.Infrastructure.InboxReply.Create(
+                tid, Support.Infrastructure.InboxChannel.Contact, id.ToString(), http.User.GetUserId(), author, body);
+            support.InboxReplies.Add(reply);
+            await support.SaveChangesAsync(ct);
+
+            msg.MarkRead();
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { reply.Id, reply.AuthorName, reply.Body, reply.CreatedAtUtc });
         }).RequirePermission(Permission.MessagesRead);
 
         // Suscripción a novedades desde la tienda (anónima). El formulario estaba
@@ -174,6 +225,12 @@ public static class ContactEndpoints
         return $"ARR-{new string(chars)}";
     }
 
+    private static string ContactReplyHtml(string name, string reply, string original) =>
+        $@"<p style='margin:0 0 12px'>Hola {WebUtility.HtmlEncode(name)},</p>
+<p style='margin:0 0 16px;white-space:pre-line'>{WebUtility.HtmlEncode(reply)}</p>
+<p style='color:#8b8b8b;font-size:12px;margin:16px 0 4px'>Tu consulta:</p>
+<blockquote style='margin:0;padding:8px 12px;border-left:3px solid #ddd;color:#555;white-space:pre-line'>{WebUtility.HtmlEncode(original)}</blockquote>";
+
     private static string RepentanceReceiptHtml(string name, string reference, string? orderRef)
     {
         var pedido = string.IsNullOrWhiteSpace(orderRef)
@@ -189,6 +246,9 @@ public static class ContactEndpoints
 
 /// <summary>Suscripción a novedades. `Website` es el honeypot (siempre vacío).</summary>
 public sealed record NewsletterRequest(string? Email, string? Source = null, string? Website = null);
+
+/// <summary>Respuesta por email a un mensaje del formulario de contacto.</summary>
+public sealed record ContactReplyRequest(string? Body);
 
 public sealed record ContactSubmitRequest(
     string Name, string Email, string Body, string? Captcha, string? Kind = null, string? OrderRef = null);

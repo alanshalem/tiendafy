@@ -316,6 +316,49 @@ public static class OfflinePaymentEmail
           .Append("</td><td style='padding:2px 0;font-weight:bold'>").Append(Enc(value)).Append("</td></tr>");
     }
 
+    /// <summary>
+    /// El mismo "cómo pagar" en texto, para la vista del pedido del comprador
+    /// (página de gracias y "Seguí tu pedido", campo paymentInstructions). Null
+    /// si la orden no se paga a mano o ya no está pendiente: una vez acreditado
+    /// no hay nada que hacer. Los datos de la cuenta son los de hoy.
+    /// </summary>
+    public static object? ForOrderView(Order order, StorePaymentOptions? options)
+    {
+        if (!order.IsOfflinePayment || order.Status != OrderStatus.PendingPayment) return null;
+
+        var lines = new List<string>();
+        var total = MoneyFormat.ForNotification(order.Total);
+        var discount = order.PaymentMethodDiscount.AmountInMinorUnits > 0
+            ? $" (ya con {MoneyFormat.ForNotification(order.PaymentMethodDiscount)} de descuento)"
+            : string.Empty;
+        string title;
+        if (order.PaymentProvider == "cash")
+        {
+            title = "Pagás al retirar";
+            lines.Add($"Pagás {total} en efectivo cuando retirás{discount}.");
+            if (!string.IsNullOrWhiteSpace(order.ShippingAddress)) lines.Add($"Dónde: {order.ShippingAddress}");
+        }
+        else
+        {
+            title = "Datos para transferir";
+            lines.Add($"Transferí {total}{discount}.");
+            void Add(string label, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value)) lines.Add($"{label}: {value}");
+            }
+            Add("Titular", options?.AccountHolder);
+            Add("CUIT", options?.HolderTaxId);
+            Add("Banco", options?.BankName);
+            Add("CBU/CVU", options?.Cbu);
+            Add("Alias", options?.Alias);
+        }
+        if (order.PaymentDueAtUtc is { } due)
+            lines.Add($"Te guardamos los productos hasta el {Local(due)} (hora de Argentina). Si para entonces no registramos el pago, el pedido se cancela solo.");
+        if (!string.IsNullOrWhiteSpace(options?.Instructions))
+            lines.Add(options.Instructions);
+        return new { title, text = string.Join('\n', lines) };
+    }
+
     /// <summary>Lo que muestra la vista previa del editor de emails.</summary>
     public static string Sample() =>
         "<div style='margin:16px 0;padding:14px 16px;border:1px solid #e5e5e5;border-radius:8px;font-size:14px'>" +

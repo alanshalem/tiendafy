@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Api.Auth;
+using Api.Storefront;
 using Api.Orders;
 using Checkout.Core.Domain;
 using Checkout.Infrastructure.Persistence;
@@ -71,7 +72,9 @@ public static class PaymentOptionsEndpoints
             });
         }).RequireTenant();
 
-        var admin = group.MapGroup("/admin/payments/options");
+        // El descuento y las cuotas viajan con el diseño en el storefront: guardar
+        // refresca esa caché para que la ficha muestre lo nuevo al toque.
+        var admin = group.MapGroup("/admin/payments/options").RevalidatesStorefront(StorefrontScope.Theme);
 
         admin.MapGet("/", async (
             ITenantContext tenant, CheckoutDbContext db, ThemesDbContext themes,
@@ -125,19 +128,8 @@ public static class PaymentOptionsEndpoints
             return Results.Ok(OfflinePaymentService.InstructionsDto(placed.Value, options));
         }).RequireTenant().RequireRateLimiting("payments");
 
-        // Cómo pagar una orden por transferencia: lo lee la pantalla de "listo"
-        // del comprador, también al recargarla o al volver desde el email. Es
-        // público como el estado de la orden: el id es imposible de adivinar y
-        // acá no hay datos del comprador, solo los de la tienda y el monto, que
-        // es justamente lo que tiene que transferir.
-        group.MapGet("/orders/{id:guid}/payment-instructions", async (
-            Guid id, ITenantContext tenant, IOrderRepository orders, CheckoutDbContext db, CancellationToken ct) =>
-        {
-            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            if (order is null || !order.IsOfflinePayment) return Results.NotFound();
-            var options = await db.PaymentOptions.AsNoTracking().FirstOrDefaultAsync(ct);
-            return Results.Ok(OfflinePaymentService.InstructionsDto(order, options));
-        }).RequireTenant();
+        // Cómo pagarla al volver a la página de "listo" o desde el email: va en
+        // `paymentInstructions` de la vista del pedido (OrderTrackingView).
 
         // "Registrar pago": la transferencia llegó o se cobró en el mostrador.
         // Mismo permiso que cargar una venta a mano: es anotar plata que entró

@@ -1,5 +1,5 @@
 import { cn } from '@tiendafy/ui';
-import { PAYMENT_LOGOS, type ThemeConfig } from '@tiendafy/types';
+import { PAYMENT_LOGOS, PAYMENT_LOGO_SIZE, paymentLogoSrc, type ThemeConfig } from '@tiendafy/types';
 import {
   BackHeader,
   Field,
@@ -267,8 +267,10 @@ function PaymentLogoPicker({ selected, onChange }: { selected: string[]; onChang
               )}
             >
               <img
-                src={`/payment-logos/${logo.slug}.svg`}
+                src={paymentLogoSrc(logo.slug)}
                 alt={logo.label}
+                width={PAYMENT_LOGO_SIZE.width}
+                height={PAYMENT_LOGO_SIZE.height}
                 className="max-h-full max-w-full object-contain"
               />
             </button>

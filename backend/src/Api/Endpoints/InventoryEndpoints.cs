@@ -1,4 +1,5 @@
 using Api.Auth;
+using Api.Storefront;
 using Identity.Infrastructure;
 using Inventory.Core.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,9 @@ public static class InventoryEndpoints
     public static RouteGroupBuilder MapInventoryEndpoints(this RouteGroupBuilder group)
     {
         // Grupo 100% admin: stock/ledger. Exige membresía.
-        var inventory = group.MapGroup("/inventory").RequirePermission(Permission.InventoryRead).RequirePermissionForWrites(Permission.InventoryWrite);
+        // El stock se ve en la ficha ("quedan 2", "sin stock"): un ajuste tiene que llegar a la tienda.
+        var inventory = group.MapGroup("/inventory").RequirePermission(Permission.InventoryRead).RequirePermissionForWrites(Permission.InventoryWrite)
+            .RevalidatesStorefront(StorefrontScope.Catalog);
 
         // Stock por lista de variantes: /inventory?variantIds=a,b,c
         inventory.MapGet("/", async (

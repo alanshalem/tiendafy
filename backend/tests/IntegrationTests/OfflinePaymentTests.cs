@@ -93,8 +93,10 @@ public sealed class OfflinePaymentTests(ApiFactory factory)
         }
 
         // La pantalla de "listo" puede volver a pedir cómo pagar, sin sesión.
-        var instructions = await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/orders/{orderId}/payment-instructions");
-        Assert.Equal("0110599520000012345678", instructions.GetProperty("transfer").GetProperty("cbu").GetString());
+        var summary = await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/orders/{orderId}/summary");
+        var how = summary.GetProperty("paymentInstructions");
+        Assert.Equal("Datos para transferir", how.GetProperty("title").GetString());
+        Assert.Contains("0110599520000012345678", how.GetProperty("text").GetString());
 
         // Y el comprador recibe los datos por email.
         Assert.Contains(factory.ExternalHttp.SentTo(ApiFactory.ResendEmails),

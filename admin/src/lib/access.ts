@@ -66,9 +66,11 @@ export const SETTINGS_PERMISSIONS = {
   'medios-de-envio': 'shipping.config',
   mercadolibre: 'meli.config',
   facturacion: 'fiscal.config',
+  'datos-legales': 'store.config',
   'emails-automaticos': 'notifications.config',
   'whatsapp-automatico': 'notifications.config',
   'ficha-tecnica': 'catalog.write',
+  'alertas-de-stock': 'inventory.write',
   'opciones-del-checkout': 'store.config',
   usuarios: 'members.read',
   roles: 'members.read',
@@ -91,6 +93,8 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
 
   '/ventas': 'orders.read',
   '/ventas/carritos': 'orders.read',
+  '/ventas/despacho': 'orders.fulfill',
+  '/bandeja': ['messages.read', 'support.chat', 'meli.operate'],
   '/presupuestos': 'quotes.manage',
   '/mercadolibre': ['meli.operate', 'meli.publish'],
 
@@ -102,6 +106,7 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/productos/kits': 'catalog.write',
   '/productos/inventario': 'inventory.read',
   '/productos/escaner': 'inventory.read',
+  '/productos/stock-bajo': 'inventory.read',
   '/productos/costos': 'costs.read',
   '/productos/listas-de-precios': 'prices.manage',
   '/compras': 'purchasing.manage',

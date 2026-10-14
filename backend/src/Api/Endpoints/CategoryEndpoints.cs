@@ -1,4 +1,5 @@
 using Api.Auth;
+using Api.Storefront;
 using Catalog.Core.Domain;
 using Catalog.Core.Features.CreateCategory;
 using Catalog.Infrastructure.Persistence;
@@ -13,7 +14,9 @@ public static class CategoryEndpoints
 {
     public static RouteGroupBuilder MapCategoryEndpoints(this RouteGroupBuilder group)
     {
-        var categories = group.MapGroup("/categories").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite);
+        // Las categorías arman el menú y los filtros, y borrar una cambia los productos que la tenían.
+        var categories = group.MapGroup("/categories").RequireTenant().RequirePermissionForWrites(Permission.CatalogWrite)
+            .RevalidatesStorefront(StorefrontScope.Categories, StorefrontScope.Catalog);
 
         categories.MapPost("/", async (
             CreateCategoryRequest request,

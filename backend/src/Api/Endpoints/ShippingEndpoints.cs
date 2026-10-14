@@ -1,4 +1,5 @@
 using Api.Auth;
+using Api.Storefront;
 using Checkout.Core.Domain;
 using Identity.Infrastructure;
 using SharedKernel.Abstractions;
@@ -12,7 +13,10 @@ public static class ShippingEndpoints
 {
     public static RouteGroupBuilder MapShippingEndpoints(this RouteGroupBuilder group)
     {
-        var admin = group.MapGroup("/admin/shipping/methods").RequirePermission(Permission.ShippingConfig);
+        // El "gratis desde" de los medios alimenta la barra del carrito, que viaja
+        // con el diseño (ver /store-offers): un cambio acá refresca esa caché.
+        var admin = group.MapGroup("/admin/shipping/methods").RequirePermission(Permission.ShippingConfig)
+            .RevalidatesStorefront(StorefrontScope.Theme);
 
         admin.MapGet("/", async (ITenantContext tenant, IShippingMethodRepository repository, CancellationToken ct) =>
         {

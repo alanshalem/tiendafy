@@ -118,7 +118,8 @@ public static class EmailTemplateEndpoints
             {
                 ["store"] = branding.StoreName,
                 ["name"] = "Juan Pérez",
-                ["order_id"] = "a1b2c3d4-0000-0000-0000-000000000000",
+                ["order_id"] = "1042",
+                ["tracking_link"] = "#",
                 ["total"] = "ARS 45.381",
                 ["email"] = "cliente@ejemplo.com",
                 ["link"] = "#",

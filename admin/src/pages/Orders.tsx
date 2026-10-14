@@ -18,7 +18,7 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import { ORDER_STATUS } from '../lib/orderStatus';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
 import { HelpLink } from '../components/HelpLink';
@@ -40,6 +40,8 @@ interface OrderItem {
   unitPrice: Money;
 }
 export interface Order {
+  /** Número de la tienda (#1042). */
+  number?: number;
   id: string;
   status: string;
   buyerEmail: string;
@@ -713,7 +715,7 @@ function OrderRow({
             <Checkbox
               checked={selected}
               onChange={onSelect}
-              aria-label={`Seleccionar la venta ${orderNumber(o.id)}`}
+              aria-label={`Seleccionar la venta ${orderLabel(o)}`}
             />
           </td>
         )}
@@ -723,10 +725,10 @@ function OrderRow({
             onClick={onToggle}
             aria-expanded={open}
             aria-controls={open ? detailId : undefined}
-            aria-label={`Venta ${orderNumber(o.id)}: ${open ? 'ocultar' : 'ver'} detalle`}
+            aria-label={`Venta ${orderLabel(o)}: ${open ? 'ocultar' : 'ver'} detalle`}
             className="rounded font-mono text-xs font-semibold text-fg hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            {orderNumber(o.id)}
+            {orderLabel(o)}
           </button>
         </td>
         <td className="px-4 py-3 text-fg-muted">{formatDateTime(o.createdAtUtc)}</td>
@@ -770,11 +772,11 @@ function FocusedOrder({
   }
   return (
     <section
-      aria-label={`Venta ${orderNumber(order.id)}`}
+      aria-label={`Venta ${orderLabel(order)}`}
       className="mb-4 rounded-lg border border-primary/40 bg-surface p-4"
     >
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-mono font-semibold text-fg">{orderNumber(order.id)}</span>
+        <span className="font-mono font-semibold text-fg">{orderLabel(order)}</span>
         <span className="text-fg-muted">
           {formatDateTime(order.createdAtUtc)} · {order.buyerEmail} · {money(order.total)}
         </span>

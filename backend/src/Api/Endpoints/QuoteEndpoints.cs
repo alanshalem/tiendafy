@@ -256,7 +256,7 @@ public static class QuoteEndpoints
             if (accepted.IsFailure) return accepted.Error.ToProblem();
 
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { quote = ToDetailDto(quote), orderId = order.Value.Order.Id });
+            return Results.Ok(new { quote = ToDetailDto(quote), orderId = order.Value.Order.Id, orderNumber = order.Value.Order.Number });
         });
 
         return group;

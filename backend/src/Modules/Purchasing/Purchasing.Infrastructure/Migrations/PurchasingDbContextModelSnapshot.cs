@@ -124,6 +124,171 @@ namespace Purchasing.Infrastructure.Migrations
                     b.ToTable("purchase_orders", (string)null);
                 });
 
+            modelBuilder.Entity("Purchasing.Infrastructure.StockAlertOptOut", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_alert_opt_outs");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_alert_opt_outs_tenant_id_user_id");
+
+                    b.ToTable("stock_alert_opt_outs", (string)null);
+                });
+
+            modelBuilder.Entity("Purchasing.Infrastructure.StockAlertRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("MinUnits")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_units");
+
+                    b.Property<bool>("Muted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("muted");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("VariantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_alert_rules");
+
+                    b.HasIndex("TenantId", "VariantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_alert_rules_tenant_id_variant_id");
+
+                    b.ToTable("stock_alert_rules", (string)null);
+                });
+
+            modelBuilder.Entity("Purchasing.Infrastructure.StockAlertSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("DigestHourLocal")
+                        .HasColumnType("integer")
+                        .HasColumnName("digest_hour_local");
+
+                    b.Property<DateTime?>("LastDigestAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_digest_at_utc");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("mode");
+
+                    b.Property<DateTime>("NextRunAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_run_at_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_alert_settings");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_alert_settings_tenant_id");
+
+                    b.HasIndex("Mode", "NextRunAtUtc")
+                        .HasDatabaseName("ix_stock_alert_settings_mode_next_run_at_utc");
+
+                    b.ToTable("stock_alert_settings", (string)null);
+                });
+
+            modelBuilder.Entity("Purchasing.Infrastructure.StockAlertState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Available")
+                        .HasColumnType("integer")
+                        .HasColumnName("available");
+
+                    b.Property<DateTime?>("CrossedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("crossed_at_utc");
+
+                    b.Property<bool>("IsLow")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_low");
+
+                    b.Property<DateTime?>("NotifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notified_at_utc");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime?>("RecoveredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recovered_at_utc");
+
+                    b.Property<int>("SuggestedQty")
+                        .HasColumnType("integer")
+                        .HasColumnName("suggested_qty");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("VariantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_alert_states");
+
+                    b.HasIndex("TenantId", "IsLow")
+                        .HasDatabaseName("ix_stock_alert_states_tenant_id_is_low");
+
+                    b.HasIndex("TenantId", "VariantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_alert_states_tenant_id_variant_id");
+
+                    b.ToTable("stock_alert_states", (string)null);
+                });
+
             modelBuilder.Entity("Purchasing.Infrastructure.Supplier", b =>
                 {
                     b.Property<Guid>("Id")

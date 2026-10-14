@@ -713,7 +713,9 @@ export function presetToConfig(preset: ThemePreset) {
       textColor: hdr.textColor,
       sticky: true,
       logoSize: 'md' as const,
-      showTabsMobile: false,
+      // Sin showTabsMobile: mostrar el menú en el celular es una decisión de la
+      // tienda, no del diseño. El preset lo ponía en false y "Usar este
+      // diseño" dejaba a los visitantes del celular sin menú.
       // Los colores por página eran para los colores de antes: con los del
       // diseño nuevo quedarían encabezados que no combinan con nada.
       pageColors: {},

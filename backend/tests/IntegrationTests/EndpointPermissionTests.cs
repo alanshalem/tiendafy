@@ -40,6 +40,8 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/shipping/correo/quote",
             "POST /api/v1/shipping/zipnova/quote",
             "POST /api/v1/track",
+            "GET /api/v1/store/legal", // razón social, CUIT, Data Fiscal y la leyenda de precios: obligatorios a la vista
+            "POST /api/v1/shop/track-order", // "Seguí tu pedido": email + número o link firmado, con límite de intentos
         ],
         ["El checkout del comprador (la sesión es el id del checkout)"] =
         [
@@ -70,6 +72,13 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "DELETE /api/v1/shop/favorites/{productId:guid}",
             "GET /api/v1/shop/orders",
             "GET /api/v1/shop/checkout-prefill",
+            "GET /api/v1/shop/orders/{id:guid}",
+            "GET /api/v1/shop/orders/{id:guid}/invoice.pdf",
+            "GET /api/v1/shop/addresses/",
+            "POST /api/v1/shop/addresses/",
+            "PUT /api/v1/shop/addresses/{id:guid}",
+            "POST /api/v1/shop/addresses/{id:guid}/default",
+            "DELETE /api/v1/shop/addresses/{id:guid}",
             "GET /api/v1/shop/support/conversations",
             "GET /api/v1/shop/support/conversations/{id:guid}/messages",
             "POST /api/v1/shop/support/conversations",
@@ -80,7 +89,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
         [
             "GET /api/v1/orders/{id:guid}",
             "GET /api/v1/orders/{id:guid}/status",
-            "GET /api/v1/orders/{id:guid}/payment-instructions", // cuánto y a qué cuenta: datos de la tienda, sin los del comprador
+            "GET /api/v1/orders/{id:guid}/summary", // la página de gracias: sin teléfono ni DNI
         ],
         ["Entrar al panel: login, registro y la propia cuenta"] =
         [

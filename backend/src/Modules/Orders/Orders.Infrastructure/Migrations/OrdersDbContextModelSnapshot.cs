@@ -94,26 +94,18 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
 
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at_utc");
-
-                    b.Property<DateTime?>("PaymentDueAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("payment_due_at_utc");
 
                     b.Property<string>("PaymentId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("payment_id");
-
-                    b.Property<string>("PaymentMethodDiscount")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)")
-                        .HasDefaultValue("0|ARS")
-                        .HasColumnName("payment_method_discount");
 
                     b.Property<string>("PaymentProvider")
                         .IsRequired()
@@ -183,11 +175,12 @@ namespace Orders.Infrastructure.Migrations
                     b.HasIndex("PaymentId")
                         .HasDatabaseName("ix_orders_payment_id");
 
-                    b.HasIndex("Status", "PaymentDueAtUtc")
-                        .HasDatabaseName("ix_orders_status_payment_due_at_utc");
-
                     b.HasIndex("TenantId", "CreatedAtUtc")
                         .HasDatabaseName("ix_orders_tenant_id_created_at_utc");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_number");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -282,6 +275,22 @@ namespace Orders.Infrastructure.Migrations
                         .HasDatabaseName("ix_quotes_tenant_id_number");
 
                     b.ToTable("quotes", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderNumberCounter", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("TenantId")
+                        .HasName("pk_order_number_counters");
+
+                    b.ToTable("order_number_counters", (string)null);
                 });
 
             modelBuilder.Entity("Orders.Core.Domain.Order", b =>

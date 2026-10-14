@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Api.Auth;
+using Api.Storefront;
 using Identity.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -90,7 +91,7 @@ public static class ThemeEndpoints
             if (!await TrySaveAsync(db, ct)) return Conflict(await CurrentVersionAsync(tenant.TenantId.Value, db, ct));
             await TrimVersionsAsync(tenant.TenantId.Value, db, ct);
             return DraftResult(doc.PublishedConfig, doc);
-        });
+        }).RevalidatesStorefront(StorefrontScope.Theme); // lo publicado se ve en la tienda al toque
 
         // Programar la publicación (Hot Sale a las 00:00 sin quedarse despierto).
         // Se congela la config en el momento de programar: entre hoy y la fecha

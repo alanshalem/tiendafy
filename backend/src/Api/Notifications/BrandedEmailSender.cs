@@ -21,12 +21,13 @@ public sealed class BrandedEmailSender(
     global::Notifications.Infrastructure.NotificationsDbContext notifications,
     ILogger<BrandedEmailSender> logger)
 {
-    public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null)
+    /// <param name="replyTo">A dónde van las respuestas (la respuesta a un mensaje de contacto vuelve a quien la escribió).</param>
+    public async Task SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null, string? replyTo = null)
     {
         var branding = await ResolveBrandingAsync(tenantId, ct);
         // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
         await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
-            fromName: branding.StoreName, ct: ct, tenantTag: tenantId.ToString());
+            fromName: branding.StoreName, replyTo: replyTo, ct: ct, tenantTag: tenantId.ToString());
 
         // Contador de uso (panel de costos del merchant). Nunca rompe el envío.
         try

@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
-import { API_URL as API, tenantHeaders } from '@/lib/api-client';
+import { API_URL as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { finishPurchase } from '@/lib/cart-storage';
-import { OfflinePaymentInstructions } from './OfflinePaymentInstructions';
+import { trackingHref, type OrderView } from '@/lib/orders';
+import { OrderSummary } from './OrderSummary';
+import { OrderPaymentInstructions } from './OrderPaymentInstructions';
+import { usePreviewHref } from './preview';
 
 type Kind = 'success' | 'failure' | 'pending';
 
@@ -22,8 +26,12 @@ export function CheckoutResult({
   orderId?: string;
   kind: Kind;
 }) {
+  const href = usePreviewHref();
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(orderId));
+  // El pedido entero (productos, totales, envío): lo que el comprador quiere
+  // revisar apenas paga. Si no carga, la pantalla sigue andando sin él.
+  const [order, setOrder] = useState<OrderView | null>(null);
 
   // Mensaje propio del comercio para esta pantalla: cuándo despacha, cómo
   // sigue el pedido, a qué WhatsApp escribir. Es lo primero que el comprador
@@ -77,6 +85,19 @@ export function CheckoutResult({
     };
   }, [orderId, tenantId]);
 
+  // El resumen se pide al entrar y otra vez cuando el estado cambia: el paso
+  // de "pendiente" a "pagado" cambia lo que sigue.
+  useEffect(() => {
+    if (!orderId) return;
+    let active = true;
+    clientJsonTenant<OrderView>(`/api/v1/orders/${orderId}/summary`, tenantId).then((o) => {
+      if (active && o) setOrder(o);
+    });
+    return () => {
+      active = false;
+    };
+  }, [orderId, tenantId, status]);
+
   // Estado real de la orden manda; el `kind` del redirect es solo una pista inicial.
   const resolved: Kind =
     status === 'PAID'
@@ -105,14 +126,14 @@ export function CheckoutResult({
     },
     pending: {
       icon: loading ? (
-        <Loader2 className="h-14 w-14 animate-spin opacity-60" />
+        <Loader2 className="h-14 w-14 animate-spin text-fg-muted" />
       ) : (
         <Clock className="h-14 w-14 text-amber-500" />
       ),
       title: loading ? 'Confirmando tu pago…' : 'Pago pendiente',
       text: loading
-        ? 'Estamos verificando el pago con Mercado Pago.'
-        : 'Tu pago quedó pendiente (efectivo / transferencia). Te avisamos cuando se acredite.',
+        ? 'Estamos verificando el pago con el medio de pago.'
+        : 'Tu pago quedó pendiente. Te avisamos por email cuando se acredite.',
     },
     failure: {
       icon: <XCircle className="h-14 w-14 text-red-600" />,
@@ -121,28 +142,46 @@ export function CheckoutResult({
     },
   }[resolved];
 
+  // En un pago rechazado no hay pedido del que hablar.
+  const showOrder = order && resolved !== 'failure';
+
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-container flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 px-4 py-16 text-center">
       {view.icon}
       <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
         {view.title}
       </h1>
-      <p className="max-w-md opacity-70">{view.text}</p>
+      <p className="max-w-md text-fg-muted">{view.text}</p>
       {/* Solo cuando la compra salió bien o quedó esperando el pago: en un pago
           rechazado no hay pedido del que hablar. */}
       {ownMessage && resolved !== 'failure' && (
-        <p className="max-w-md whitespace-pre-line rounded-lg border border-black/10 bg-black/[0.03] px-4 py-3 text-sm">
+        <p className="max-w-md whitespace-pre-line rounded-lg border border-[rgb(var(--color-fg)/0.12)] bg-[rgb(var(--color-fg)/0.04)] px-4 py-3 text-sm">
           {ownMessage}
         </p>
       )}
-      {/* Transferencia o efectivo: cuánto, a qué cuenta y hasta cuándo (no muestra nada para otras órdenes). */}
-      {orderId && resolved === 'pending' && (
-        <OfflinePaymentInstructions tenantId={tenantId} orderId={orderId} />
+      {showOrder && (
+        <div className="w-full">
+          <OrderSummary order={order}>
+            <OrderPaymentInstructions order={{ ...order, status: status ?? order.status }} />
+          </OrderSummary>
+        </div>
       )}
-      {orderId && <p className="text-xs text-fg-muted">Orden {orderId}</p>}
-      <a href="/" className="mt-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg">
-        Volver a la tienda
-      </a>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+        {showOrder && (
+          <Link
+            href={href(trackingHref(order.trackingToken))}
+            className="rounded-md border border-[rgb(var(--color-fg)/0.2)] px-5 py-2.5 text-sm font-semibold hover:bg-[rgb(var(--color-fg)/0.05)]"
+          >
+            Seguí tu pedido
+          </Link>
+        )}
+        <a
+          href={href('/')}
+          className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg"
+        >
+          Volver a la tienda
+        </a>
+      </div>
     </main>
   );
 }

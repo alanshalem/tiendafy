@@ -10,12 +10,6 @@ namespace Api.Orders;
 /// </summary>
 public static class OrderCsv
 {
-    /// <summary>
-    /// El número corto de una venta: lo mismo que ve el panel, que le llega al
-    /// comprador por WhatsApp y que se imprime en la etiqueta de Correo.
-    /// </summary>
-    public static string ShortNumber(Guid id) => id.ToString("N")[..8].ToUpperInvariant();
-
     // Argentina no tiene horario de verano desde 2009: UTC−3 fijo evita
     // depender de la base de zonas horarias del contenedor.
     private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
@@ -25,7 +19,7 @@ public static class OrderCsv
 
     public static IEnumerable<string?> Row(Order o) =>
     [
-        $"#{ShortNumber(o.Id)}",
+        o.Label,
         LocalDateTime(o.CreatedAtUtc),
         StatusLabel(o),
         VatBookCsv.Text(o.BuyerName),

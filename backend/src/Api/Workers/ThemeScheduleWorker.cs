@@ -1,3 +1,4 @@
+using Api.Storefront;
 using Microsoft.EntityFrameworkCore;
 using Themes.Infrastructure;
 
@@ -13,6 +14,7 @@ namespace Api.Workers;
 /// </summary>
 public sealed class ThemeScheduleWorker(
     IServiceScopeFactory scopeFactory,
+    IStorefrontRevalidator storefront,
     ILogger<ThemeScheduleWorker> logger) : PollingWorker(TimeSpan.FromSeconds(30))
 {
     protected override void LogPollFailure(Exception ex) =>
@@ -55,6 +57,9 @@ public sealed class ThemeScheduleWorker(
             logger.LogInformation("Diseño programado publicado para el tenant {TenantId}.", doc.TenantId);
         }
 
-        if (due.Count > 0) await db.SaveChangesAsync(ct);
+        if (due.Count == 0) return;
+        await db.SaveChangesAsync(ct);
+        // Lo programado tiene que verse a la hora, no un rato después.
+        foreach (var doc in due) _ = storefront.RevalidateAsync(doc.TenantId, StorefrontScope.Theme);
     }
 }

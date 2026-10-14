@@ -1,3 +1,5 @@
+using Api.Orders;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Infrastructure;
 using Orders.Core.Domain;
@@ -11,7 +13,8 @@ namespace Api.Notifications;
 /// Sale envuelto en el layout brandeado de la tienda.
 /// </summary>
 public sealed class OrderNotifier(
-    IEmailTemplates templates, BrandedEmailSender email, OrderItemImages images, TenancyDbContext tenancy)
+    IEmailTemplates templates, BrandedEmailSender email, OrderItemImages images, TenancyDbContext tenancy,
+    IDataProtectionProvider dp, IConfiguration configuration)
 {
     public Task NotifyAsync(Order order, string templateKey, CancellationToken ct = default) =>
         NotifyAsync(order, templateKey, null, ct);
@@ -20,13 +23,21 @@ public sealed class OrderNotifier(
     public async Task NotifyAsync(
         Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
     {
-        var storeName = await tenancy.Tenants
-            .Where(t => t.Id == order.TenantId.Value)
-            .Select(t => t.Name)
-            .FirstOrDefaultAsync(ct) ?? "tu tienda";
+        var store = await tenancy.Tenants.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == order.TenantId.Value, ct);
+        var storeName = store?.Name ?? "tu tienda";
+
+        // "Seguí tu pedido" con el link firmado: abre ese pedido sin pedir nada.
+        string? trackingLink = null;
+        if (store is not null)
+        {
+            var platform = (configuration["Tenancy:PlatformBaseDomain"] ?? "localhost").ToLowerInvariant();
+            var storeUrl = StoreUrls.For(store.CustomDomain, store.Subdomain.Value, platform, "https");
+            trackingLink = $"{storeUrl}/seguimiento?t={Uri.EscapeDataString(OrderTrackingToken.Protect(dp, order.TenantId.Value, order.Id))}";
+        }
 
         var imageMap = await images.ForOrderAsync(order, ct);
-        var vars = OrderEmail.OrderVars(order, storeName, imageMap);
+        var vars = OrderEmail.OrderVars(order, storeName, imageMap, trackingLink);
         if (extraVars is not null)
             vars = vars.Concat(extraVars).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Last().Value);
         var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);

@@ -61,7 +61,7 @@ public static class VariantLabelsPdf
     private static string Clip(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 
     /// <summary>QR como SVG (rects por módulo) — sin dependencias de imágenes.</summary>
-    private static string QrSvg(string content)
+    internal static string QrSvg(string content)
     {
         var qr = QrCode.EncodeText(content, QrCode.Ecc.Medium);
         var size = qr.Size;

@@ -50,8 +50,8 @@ public sealed class KitStockService(
                 await stock.AdjustAvailableAsync(
                     tenant, componentVariantId, reverse ? total : -total,
                     reverse
-                        ? $"Componentes de kit (devolución {order.Id.ToString()[..8]})"
-                        : $"Componentes de kit (venta {order.Id.ToString()[..8]})", ct);
+                        ? $"Componentes de kit (devolución {order.Label})"
+                        : $"Componentes de kit (venta {order.Label})", ct);
             }
             catch (Exception ex)
             {

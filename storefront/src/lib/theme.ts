@@ -1,5 +1,5 @@
 import { apiGetTenant } from './api';
-import { REVALIDATE } from './cache';
+import { cacheFor } from './cache';
 import {
   type ThemeConfig,
   baseTheme,
@@ -69,13 +69,11 @@ export function mergeTheme(raw: Partial<ThemeConfig> | null): ThemeConfig {
 
 export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig> {
   // Data Cache corta, por tienda (apiGetTenant pone el tenant en la URL). Antes
-  // era no-store y cada vista de página pedía el diseño entero. Lo publicado
-  // tarda hasta REVALIDATE.theme en verse; el borrador del editor no pasa por
-  // acá (fetchDraftTheme, siempre fresco).
+  // era no-store y cada vista de página pedía el diseño entero. Al publicar, el
+  // backend avisa y la etiqueta se vence al toque; REVALIDATE.theme queda de
+  // respaldo. El borrador del editor no pasa por acá (fetchDraftTheme).
   const [cfg, offers] = await Promise.all([
-    apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, {
-      next: { revalidate: REVALIDATE.theme },
-    }),
+    apiGetTenant<ThemeConfig>('/api/v1/theme', tenantId, cacheFor('theme', tenantId)),
     fetchStoreOffers(tenantId),
   ]);
   return applyStoreOffers(mergeTheme(cfg), offers);
@@ -84,28 +82,46 @@ export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig
 /**
  * Descuento por transferencia, cuotas y envío gratis de la tienda (ver
  * lib/store-offers). Viajan con el tema porque son lo que el tema muestra; un
- * error acá no tumba la página: el tema sigue con sus propios números.
+ * error acá no tumba la página: el tema sigue con sus propios números. Misma
+ * etiqueta que el diseño: guardar las opciones de pago o un medio de envío
+ * la vence desde el backend.
  */
 async function fetchStoreOffers(tenantId: string): Promise<StoreOffers | null> {
-  return apiGetTenant<StoreOffers>('/api/v1/store-offers', tenantId, {
-    next: { revalidate: REVALIDATE.theme },
-  }).catch(() => null);
+  return apiGetTenant<StoreOffers>('/api/v1/store-offers', tenantId, cacheFor('theme', tenantId)).catch(
+    () => null,
+  );
 }
 
 /**
  * Tema del borrador para el preview del editor. `previewToken` es el token
  * firmado que el editor pasa en la URL del iframe (?pt=…) — el backend lo exige
- * porque el draft no es público. Sin token válido (o ante cualquier error) cae
- * al tema publicado, y en última instancia a los defaults: el preview nunca
- * debe quedar en blanco (el postMessage del editor pinta el draft igual).
+ * porque el draft no es público. Sin token, con uno vencido o ante cualquier
+ * error devuelve null: quien llama trata la visita como la de cualquiera.
+ * Antes caía en silencio al tema publicado y la página seguía en modo vista
+ * previa, así que `?preview=1` a secas salteaba "Tienda en construcción".
  */
-export async function fetchDraftTheme(tenantId: string, previewToken?: string): Promise<ThemeConfig> {
+export async function fetchDraftTheme(tenantId: string, previewToken?: string): Promise<ThemeConfig | null> {
+  if (!previewToken) return null;
   const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme/draft', tenantId, {
     cache: 'no-store',
-    headers: previewToken ? { 'X-Preview-Token': previewToken } : undefined,
+    headers: { 'X-Preview-Token': previewToken },
   }).catch(() => null);
-  if (cfg) return applyStoreOffers(mergeTheme(cfg), await fetchStoreOffers(tenantId));
-  return fetchPublishedTheme(tenantId).catch(() => mergeTheme(null));
+  return cfg ? applyStoreOffers(mergeTheme(cfg), await fetchStoreOffers(tenantId)) : null;
+}
+
+/**
+ * El tema de una página y si se ve como vista previa del editor. La vista
+ * previa (sin "en construcción", con los recuadros "Editar…" y el carrito de
+ * muestra) solo se habilita si el borrador llegó con un token válido; si no,
+ * la página es la del visitante, con el tema publicado.
+ */
+export async function resolvePageTheme(
+  tenantId: string,
+  sp: { preview?: string; pt?: string },
+): Promise<{ theme: ThemeConfig; preview: boolean }> {
+  const draft = sp.preview === '1' ? await fetchDraftTheme(tenantId, sp.pt) : null;
+  if (draft) return { theme: draft, preview: true };
+  return { theme: await fetchPublishedTheme(tenantId), preview: false };
 }
 
 // Catálogo compartido, con las fuentes que la tienda ya carga como variables.

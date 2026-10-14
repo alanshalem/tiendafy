@@ -8,7 +8,7 @@ public sealed record EmailTemplateDef(
 /// <summary>
 /// Catálogo de emails automáticos. Es la fuente de defaults; el tenant solo
 /// guarda los que edita (overrides en la tabla email_templates).
-/// Variables disponibles: {{store}}, {{name}}, {{order_id}}, {{total}}, {{items}}, {{link}}
+/// Variables disponibles: {{store}}, {{name}}, {{order_id}} (el número de pedido, sin #), {{total}}, {{items}}, {{tracking_link}} ("Seguí tu pedido"), {{link}}
 /// y, en las instrucciones de pago, {{payment_instructions}}.
 /// </summary>
 public static class EmailTemplateCatalog
@@ -58,7 +58,7 @@ public static class EmailTemplateCatalog
         new("confirmacion-compra", "Ventas", "Confirmación de compra",
             "Confirma el pedido apenas se realiza la compra.", true,
             "Recibimos tu pedido #{{order_id}}",
-            Wrap("¡Gracias por tu compra!", "<p>Tu pedido fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
+            Wrap("¡Gracias por tu compra!", "<p>Tu pedido #{{order_id}} fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p><p><a href=\"{{tracking_link}}\">Seguí tu pedido</a></p>")),
 
         // Encendida por defecto: sin este email el que eligió transferencia no
         // tiene adónde mirar los datos de la cuenta si cierra la pestaña.
@@ -70,18 +70,18 @@ public static class EmailTemplateCatalog
         new("confirmacion-pago", "Ventas", "Confirmación de pago",
             "Confirma cuando el pago fue acreditado.", true,
             "Confirmamos tu pago — pedido #{{order_id}}",
-            Wrap("¡Pago aprobado! 🎉", "<p>Recibimos tu pago. Estamos preparando tu pedido.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
+            Wrap("¡Pago aprobado! 🎉", "<p>Recibimos tu pago. Estamos preparando tu pedido #{{order_id}}.</p>{{items}}<p><strong>Total: {{total}}</strong></p><p><a href=\"{{tracking_link}}\">Seguí tu pedido</a></p>")),
 
         // Encendida por defecto: en un pedido de retiro reemplaza a la confirmación de envío.
         new("lista-para-retirar", "Ventas", "Lista para retirar",
             "Avisa a tu cliente que su pedido de retiro en el local está listo.", true,
             "Tu pedido #{{order_id}} está listo para retirar",
-            Wrap("Listo para retirar", "<p>Tu pedido ya está listo. Pasá a retirarlo cuando quieras.</p>{{items}}")),
+            Wrap("Listo para retirar", "<p>Tu pedido #{{order_id}} ya está listo. Pasá a retirarlo cuando quieras.</p>{{items}}<p><a href=\"{{tracking_link}}\">Ver tu pedido</a></p>")),
 
         new("confirmacion-envio", "Ventas", "Confirmación de envío",
             "Notifica a tu cliente cuando el pedido fue despachado.", true,
             "Despachamos tu pedido #{{order_id}}",
-            Wrap("¡Tu pedido está en camino!", "<p>Despachamos tu pedido. Pronto lo vas a recibir.</p>")),
+            Wrap("¡Tu pedido está en camino!", "<p>Despachamos tu pedido #{{order_id}}. Pronto lo vas a recibir.</p><p><a href=\"{{tracking_link}}\">Seguí tu envío</a></p>")),
 
         new("cancelacion-compra", "Ventas", "Cancelación de compra",
             "Notifica cuando un pedido fue cancelado.", false,
