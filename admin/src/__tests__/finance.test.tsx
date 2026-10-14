@@ -137,11 +137,36 @@ describe('cuentas corrientes', () => {
     expect(body.allocations).toEqual([{ ledgerEntryId: pending[0]!.id, amountMinor: 50_000 }]);
   });
 
+  it('el importe queda con separador de miles y sin cuentas en Tesorería lo explica', async () => {
+    const { api, user } = await open('/cuentas-corrientes');
+    await user.click(await screen.findByText(balance.partyName));
+    await user.click(await screen.findByRole('button', { name: /Registrar cobro/ }));
+    let dialog = within(await screen.findByRole('dialog', { name: 'Registrar un cobro' }));
+    const amount = dialog.getByLabelText('Importe');
+    await user.type(amount, '117187');
+    await user.tab();
+    expect(amount).toHaveValue('117.187');
+    await user.click(dialog.getByRole('button', { name: 'Imputar lo más viejo primero' }));
+    const first = dialog.getAllByLabelText(/Monto a imputar a/)[0]!;
+    expect((first as HTMLInputElement).value).not.toMatch(/\.\d{2}$/); // ni "500.00"
+    await user.click(dialog.getByRole('button', { name: 'Cancelar' }));
+
+    api.on('GET', '/api/v1/finance/accounts', { items: [], totals: [] });
+    await user.click(await screen.findByRole('button', { name: /Registrar cobro/ }));
+    dialog = within(await screen.findByRole('dialog', { name: 'Registrar un cobro' }));
+    expect(await dialog.findByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/tesoreria');
+    expect(dialog.getByLabelText('Entra en')).toBeDisabled();
+  });
+
   it('cobro desde la lista: se busca el cliente y se puede cambiar', async () => {
     const { api, user } = await open('/cuentas-corrientes');
     await user.click(screen.getByRole('button', { name: /Registrar cobro/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Registrar un cobro' }));
-    expect(dialog.getByRole('button', { name: /Registrar/ })).toBeDisabled();
+    // Recién abierto no hay errores: los faltantes se marcan al intentar registrar.
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: /Registrar/ }));
+    expect(dialog.getByRole('alert')).toHaveTextContent('Elegí el cliente.');
+    expect(api.calls.some((c) => c.method === 'POST' && c.path === '/api/v1/finance/receipts')).toBe(false);
     await user.type(dialog.getByPlaceholderText('Buscar por nombre...'), balance.partyName.slice(0, 5));
     // La búsqueda va con debounce: hasta que no sale el pedido con el texto, la
     // lista se vuelve a dibujar y un clic puede caer en una opción que ya no está.
