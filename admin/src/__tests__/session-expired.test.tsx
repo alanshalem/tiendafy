@@ -100,7 +100,7 @@ describe('sesión vencida', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     const dialog = await screen.findByRole('dialog', { name: 'Tu sesión venció' });
     await user.click(within(dialog).getByRole('button', { name: 'Entrar con otra cuenta' }));
-    expect(await screen.findByPlaceholderText('Contraseña')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Contraseña')).toBeInTheDocument();
     expect(api.calls.some((c) => c.path === '/api/v1/auth/logout')).toBe(true);
   });
 
