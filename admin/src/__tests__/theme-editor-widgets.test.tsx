@@ -46,17 +46,17 @@ describe('buscador de opciones', () => {
     await u.clear(input);
 
     await u.type(input, 'pie');
-    const results = screen.getAllByRole('button');
+    const results = screen.getAllByRole('option');
     expect(results.length).toBeGreaterThan(2);
     // Flechas: no pasan del primero ni del último.
     await u.keyboard('{ArrowDown}{ArrowDown}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowDown}');
-    expect(results[1]).toHaveClass('bg-primary');
+    expect(results[1]).toHaveAttribute('aria-selected', 'true');
     await u.keyboard('{Enter}');
     expect(onPick).toHaveBeenCalledWith('footer');
     expect(onClose).toHaveBeenCalledTimes(1);
 
     await u.hover(results[2]!);
-    expect(results[2]).toHaveClass('bg-primary');
+    expect(results[2]).toHaveAttribute('aria-selected', 'true');
     await u.click(results[2]!);
     expect(onPick).toHaveBeenCalledTimes(2);
 
