@@ -1,54 +1,77 @@
-import { SECTION_REGISTRY, type BannerItem } from '@tiendafy/types';
-import { MediaUpload } from '../../../components/upload/MediaUpload';
-import type { UploadKind } from '../../../lib/uploads';
-import { Check, TextInput } from '../../theme-editor-inputs';
-import { ItemListEditor } from './ItemListEditor';
-import type { SectionEditorProps } from './types';
+import type { BannerRatio, Overlay, TextPosition } from '@tiendafy/types';
+import { Field, Select, TextInput } from '../../theme-editor-inputs';
+import { CheckRow, EditorWarning, OverlayField, PositionPicker, ratioOptions } from './image-fields';
 
-const MAX_BANNERS = SECTION_REGISTRY['promo-banners'].fields.banners.max;
+/*
+ * Lo común a los banners de promo y de categorías: título de la sección,
+ * columnas por dispositivo, proporción, ancho y el texto sobre la foto.
+ */
 
-/** Lo común a los banners de promo y de categorías: ancho y la lista de banners. */
-export function BannersEditor({
+interface GridData {
+  title: string;
+  fullWidth: boolean;
+  columns: string;
+  columnsMobile: string;
+  ratio: BannerRatio;
+  textPosition: TextPosition;
+  overlay: Overlay;
+}
+
+const perRow = (n: string) => `${n} por fila`;
+
+export function BannerGridFields<D extends GridData>({
   data,
   set,
-  withDescription,
-  imageKind,
-  addLabel,
-}: SectionEditorProps<'promo-banners' | 'category-banners'> & {
-  withDescription?: boolean;
-  imageKind: UploadKind;
-  addLabel: string;
+  columns,
+  ratios,
+}: {
+  data: D;
+  set: (patch: Partial<D>) => void;
+  /** Las opciones de columnas en computadora. */
+  columns: readonly string[];
+  ratios: readonly BannerRatio[];
 }) {
   return (
     <>
-      <Check
+      <Field label="Título de la sección (opcional)">
+        <TextInput value={data.title} onChange={(v) => set({ title: v } as Partial<D>)} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="En computadora">
+          <Select
+            value={data.columns}
+            onChange={(v) => set({ columns: v } as Partial<D>)}
+            options={columns.map((n) => ({ value: n, label: perRow(n) }))}
+          />
+        </Field>
+        <Field label="En celular">
+          <Select
+            value={data.columnsMobile}
+            onChange={(v) => set({ columnsMobile: v } as Partial<D>)}
+            options={['1', '2'].map((n) => ({ value: n, label: perRow(n) }))}
+          />
+        </Field>
+      </div>
+      <Field label="Forma de las imágenes" hint="La medida recomendada para subir cambia con esto.">
+        <Select
+          value={data.ratio}
+          onChange={(v) => set({ ratio: v } as Partial<D>)}
+          options={ratioOptions(ratios)}
+        />
+      </Field>
+      <CheckRow
         label="Extender al ancho de la pantalla"
         checked={data.fullWidth}
-        onChange={(v) => set({ fullWidth: v })}
+        onChange={(v) => set({ fullWidth: v } as Partial<D>)}
       />
-      <ItemListEditor<BannerItem>
-        items={data.banners}
-        onChange={(banners) => set({ banners })}
-        max={MAX_BANNERS}
-        addLabel={addLabel}
-        listLabel="Banners"
-        createItem={() => ({ image: '', title: '', description: '', link: '', show: true })}
-        renderItem={(b, update) => (
-          <>
-            <Check label="Mostrar banner" checked={b.show} onChange={(v) => update({ show: v })} />
-            <MediaUpload kind={imageKind} value={b.image} onChange={(url) => update({ image: url })} />
-            <TextInput value={b.title} onChange={(v) => update({ title: v })} placeholder="Título" />
-            {withDescription && (
-              <TextInput
-                value={b.description}
-                onChange={(v) => update({ description: v })}
-                placeholder="Descripción"
-              />
-            )}
-            <TextInput value={b.link} onChange={(v) => update({ link: v })} placeholder="Link" />
-          </>
-        )}
+      <PositionPicker
+        value={data.textPosition}
+        onChange={(textPosition) => set({ textPosition } as Partial<D>)}
       />
+      <OverlayField value={data.overlay} onChange={(overlay) => set({ overlay } as Partial<D>)} />
+      {data.overlay === 'none' && (
+        <EditorWarning>Sin oscurecer, el texto blanco puede no leerse sobre fotos claras.</EditorWarning>
+      )}
     </>
   );
 }

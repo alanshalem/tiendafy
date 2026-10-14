@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { field, normalizeFields, type DataOf, type FieldsSpec } from './schema';
+import { upgradeSectionData } from './legacy';
 import {
   isSectionType,
   normalizeHideOn,
@@ -74,6 +75,31 @@ const define = <const F extends FieldsSpec>(def: SectionDefinition<F>) => def;
 
 /* ---- Campos de cada tipo (de acá sale el tipo de su data) ---- */
 
+/** Cuánto se oscurece una foto para que se lea el texto blanco encima. */
+export const OVERLAYS = ['none', 'light', 'medium', 'strong'] as const;
+export type Overlay = (typeof OVERLAYS)[number];
+
+/**
+ * Dónde va el texto sobre una imagen: "vertical-horizontal" (o `center`).
+ * El editor lo muestra como una grilla de 3×3.
+ */
+export const TEXT_POSITIONS = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'center-left',
+  'center',
+  'center-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+] as const;
+export type TextPosition = (typeof TEXT_POSITIONS)[number];
+
+/** Proporciones de un banner o una imagen ("ancho x alto"). */
+export const BANNER_RATIOS = ['3x1', '2x1', '16x9', '4x3', '1x1', '4x5', '3x4'] as const;
+export type BannerRatio = (typeof BANNER_RATIOS)[number];
+
 const heroVideoFields = {
   videoWebm: field.media(),
   videoMp4: field.media(),
@@ -82,14 +108,51 @@ const heroVideoFields = {
   subtitle: field.text(),
   buttonText: field.string(),
   link: field.url(),
-  align: field.enum(['left', 'center'], 'center'),
-  height: field.enum(['large', 'full'], 'large'),
-  overlay: field.enum(['none', 'light', 'medium', 'strong'], 'medium'),
+  align: field.enum(['left', 'center', 'right'], 'center'),
+  height: field.enum(['small', 'medium', 'large', 'full'], 'large'),
+  overlay: field.enum(OVERLAYS, 'medium'),
+  /** Video vertical para celular (MP4). Sin valor, el de computadora. */
+  videoMobile: field.media(),
+  /** Imagen de respaldo para celular. Sin valor, la de computadora. */
+  posterMobile: field.media(),
+  verticalAlign: field.enum(['top', 'center', 'bottom'], 'center'),
+  /** Antes el texto era siempre blanco: es el fallback. */
+  textColor: field.enum(['light', 'dark'], 'light'),
+  newTab: field.boolean(false),
+  secondButtonText: field.string(),
+  secondLink: field.url(),
+  secondNewTab: field.boolean(false),
 } as const;
 
+const carouselSlide = {
+  image: field.media(),
+  /** Imagen para celular (vertical o cuadrada). Sin valor, la de computadora. */
+  mobileImage: field.media(),
+  /** Texto alternativo: lo leen los lectores de pantalla y Google. */
+  alt: field.string(),
+  link: field.url(),
+  newTab: field.boolean(false),
+  title: field.string(),
+  subtitle: field.text(),
+  buttonText: field.string(),
+  textPosition: field.enum(TEXT_POSITIONS, 'center'),
+  overlay: field.enum(OVERLAYS, 'none'),
+} as const;
+
+/** Alto del carrusel. `adapt` = el de la imagen (sin recortes si respeta la medida recomendada). */
+export const CAROUSEL_HEIGHTS = ['adapt', 'small', 'medium', 'large', 'full'] as const;
+
 const carouselFields = {
-  images: field.strings('media', 20),
-  fullHeightMobile: field.boolean(false),
+  slides: field.items(carouselSlide, 20),
+  autoplay: field.boolean(true),
+  /** Segundos que se ve cada diapositiva. */
+  speed: field.enum(['3', '4', '5', '6', '7', '8', '9'], '5'),
+  /** `medium` es el alto de antes (300 px en celular, 460 en computadora). */
+  height: field.enum(CAROUSEL_HEIGHTS, 'medium'),
+  /** En celular. `auto` = la versión de celular del alto de computadora. */
+  heightMobile: field.enum(['auto', ...CAROUSEL_HEIGHTS], 'auto'),
+  arrows: field.boolean(true),
+  indicators: field.boolean(true),
 } as const;
 
 /** Destacados, recién llegados y ofertas comparten forma; cambia el título por defecto. */
@@ -100,17 +163,55 @@ const productsFields = (title: string) =>
     carousel: field.boolean(true),
   }) as const;
 
-const bannerItem = {
+const promoBannerItem = {
   image: field.media(),
+  mobileImage: field.media(),
+  alt: field.string(),
   title: field.string(),
   description: field.text(),
+  buttonText: field.string(),
   link: field.url(),
+  newTab: field.boolean(false),
   show: field.boolean(true),
 } as const;
 
-const bannersFields = {
-  banners: field.items(bannerItem, 12),
+/** Los fallbacks son el render de antes: 3 columnas (2 en tablet), 16:9, texto abajo con degradé. */
+const promoBannersFields = {
+  title: field.string(),
+  banners: field.items(promoBannerItem, 12),
   fullWidth: field.boolean(false),
+  columns: field.enum(['1', '2', '3', '4'], '3'),
+  columnsMobile: field.enum(['1', '2'], '1'),
+  ratio: field.enum(BANNER_RATIOS, '16x9'),
+  /** En celular (una columna angosta) un banner más alto deja lugar al texto. `same` = la misma. */
+  ratioMobile: field.enum(['same', ...BANNER_RATIOS], 'same'),
+  textPosition: field.enum(TEXT_POSITIONS, 'bottom-left'),
+  overlay: field.enum(OVERLAYS, 'medium'),
+} as const;
+
+const categoryBannerItem = {
+  image: field.media(),
+  alt: field.string(),
+  title: field.string(),
+  link: field.url(),
+  newTab: field.boolean(false),
+  show: field.boolean(true),
+} as const;
+
+/**
+ * En celular van de a 2 (antes, 1 por fila: cuatro categorías ocupaban dos
+ * pantallas de scroll). El resto, como antes: cuadradas, 3 por fila, nombre
+ * centrado sobre la foto oscurecida.
+ */
+const categoryBannersFields = {
+  title: field.string(),
+  banners: field.items(categoryBannerItem, 12),
+  fullWidth: field.boolean(false),
+  columns: field.enum(['2', '3', '4', '5', '6'], '3'),
+  columnsMobile: field.enum(['1', '2'], '2'),
+  ratio: field.enum(BANNER_RATIOS, '1x1'),
+  textPosition: field.enum(TEXT_POSITIONS, 'center'),
+  overlay: field.enum(OVERLAYS, 'medium'),
 } as const;
 
 const institutionalFields = {
@@ -125,6 +226,18 @@ const imageTextFields = {
   buttonText: field.string(),
   link: field.url(),
   textColor: field.enum(['dark', 'light'], 'dark'),
+  mobileImage: field.media(),
+  alt: field.string(),
+  newTab: field.boolean(false),
+  imagePosition: field.enum(['left', 'right'], 'left'),
+  /** En celular las columnas se apilan: qué va primero. */
+  mobileOrder: field.enum(['image', 'text'], 'image'),
+  verticalAlign: field.enum(['top', 'center', 'bottom'], 'center'),
+  /** `original` = la proporción de la foto, con un alto máximo. */
+  ratio: field.enum(['original', '16x9', '4x3', '1x1', '4x5', '3x4'], 'original'),
+  /** Recuadro detrás del texto. Con texto claro sobre una página clara, la tienda pone uno oscuro. */
+  textBackground: field.enum(['none', 'subtle', 'accent', 'dark'], 'none'),
+  buttonStyle: field.enum(['solid', 'outline', 'link'], 'solid'),
 } as const;
 
 export const INFO_ICONS = ['shipping', 'card', 'security', 'gift', 'support', 'returns'] as const;
@@ -165,7 +278,14 @@ const faqFields = {
 
 const brandsFields = {
   title: field.string(),
-  images: field.strings('media', 40),
+  logos: field.items(
+    { image: field.media(), name: field.string(), link: field.url(), newTab: field.boolean(false) },
+    40,
+  ),
+  /** `auto`: fijos y centrados con 4 o menos, en movimiento con más (como antes). */
+  layout: field.enum(['auto', 'marquee', 'grid'], 'auto'),
+  speed: field.enum(['slow', 'normal', 'fast'], 'normal'),
+  grayscale: field.boolean(false),
 } as const;
 
 /* ---- El tipo de la data de cada sección (normalizada: todos los campos presentes) ---- */
@@ -173,8 +293,14 @@ const brandsFields = {
 export type HeroVideoData = DataOf<typeof heroVideoFields>;
 export type CarouselData = DataOf<typeof carouselFields>;
 export type ProductsData = DataOf<ReturnType<typeof productsFields>>;
-export type BannersData = DataOf<typeof bannersFields>;
-export type BannerItem = BannersData['banners'][number];
+export type CarouselSlide = CarouselData['slides'][number];
+export type PromoBannersData = DataOf<typeof promoBannersFields>;
+export type PromoBannerItem = PromoBannersData['banners'][number];
+export type CategoryBannersData = DataOf<typeof categoryBannersFields>;
+export type CategoryBannerItem = CategoryBannersData['banners'][number];
+/** Nombres de antes (cuando las dos grillas compartían forma). */
+export type BannersData = PromoBannersData;
+export type BannerItem = PromoBannerItem;
 export type InstitutionalData = DataOf<typeof institutionalFields>;
 export type ImageTextData = DataOf<typeof imageTextFields>;
 export type InfoBarData = DataOf<typeof infoBarFields>;
@@ -186,6 +312,7 @@ export type TestimonialItem = TestimonialsData['items'][number];
 export type FaqData = DataOf<typeof faqFields>;
 export type FaqItem = FaqData['items'][number];
 export type BrandsData = DataOf<typeof brandsFields>;
+export type BrandLogo = BrandsData['logos'][number];
 
 /** Tipo de sección → tipo de su data. */
 export interface SectionDataMap {
@@ -194,8 +321,8 @@ export interface SectionDataMap {
   featured: ProductsData;
   'new-products': ProductsData;
   'sale-products': ProductsData;
-  'promo-banners': BannersData;
-  'category-banners': BannersData;
+  'promo-banners': PromoBannersData;
+  'category-banners': CategoryBannersData;
   institutional: InstitutionalData;
   'image-text': ImageTextData;
   'info-bar': InfoBarData;
@@ -207,6 +334,27 @@ export interface SectionDataMap {
 }
 
 /* ---- El registro ---- */
+
+/** Un banner de ejemplo (el editor pide la foto). */
+const promoBanner = (title: string, description: string): PromoBannerItem => ({
+  image: '',
+  mobileImage: '',
+  alt: '',
+  title,
+  description,
+  buttonText: '',
+  link: '/productos',
+  newTab: false,
+  show: true,
+});
+const categoryBanner = (title: string): CategoryBannerItem => ({
+  image: '',
+  alt: '',
+  title,
+  link: '/productos',
+  newTab: false,
+  show: true,
+});
 
 const DEFAULT_INFO_ITEMS = [
   { icon: 'shipping', title: 'Envíos a todo el país', description: '', link: '' },
@@ -236,12 +384,12 @@ export const SECTION_REGISTRY = {
     type: 'carousel',
     label: 'Carrusel de imágenes',
     previewLabel: 'el carrusel',
-    description: 'Fotos grandes a todo el ancho que se pasan solas.',
+    description: 'Fotos grandes a todo el ancho que se pasan solas, con texto y link en cada una.',
     group: 'Imágenes',
     wireframe: 'hero',
     fields: carouselFields,
-    // Sin imágenes, el storefront muestra una portada con el nombre de la tienda.
-    defaults: { images: [], fullHeightMobile: false },
+    // Sin diapositivas, el storefront muestra una portada con el nombre de la tienda.
+    defaults: { slides: [] },
     limits: {},
     keywords: 'slider portada fotos banner principal slideshow',
   }),
@@ -252,31 +400,12 @@ export const SECTION_REGISTRY = {
     description: 'Imágenes con promos o campañas, cada una con su link.',
     group: 'Imágenes',
     wireframe: 'banners',
-    fields: bannersFields,
+    fields: promoBannersFields,
     defaults: {
-      fullWidth: false,
       banners: [
-        {
-          image: '',
-          title: 'Hasta 30% off',
-          description: 'En productos seleccionados',
-          link: '/productos',
-          show: true,
-        },
-        {
-          image: '',
-          title: 'Envío gratis',
-          description: 'En compras desde un monto mínimo',
-          link: '/productos',
-          show: true,
-        },
-        {
-          image: '',
-          title: 'Nuevos ingresos',
-          description: 'Lo último que llegó',
-          link: '/productos',
-          show: true,
-        },
+        promoBanner('Hasta 30% off', 'En productos seleccionados'),
+        promoBanner('Envío gratis', 'En compras desde un monto mínimo'),
+        promoBanner('Nuevos ingresos', 'Lo último que llegó'),
       ],
     },
     limits: {},
@@ -286,17 +415,12 @@ export const SECTION_REGISTRY = {
     type: 'category-banners',
     label: 'Banners de categorías',
     previewLabel: 'los banners de categorías',
-    description: 'Imágenes cuadradas que llevan a cada categoría.',
+    description: 'Una imagen por categoría, con su nombre encima, que lleva a esa categoría.',
     group: 'Imágenes',
     wireframe: 'banners',
-    fields: bannersFields,
+    fields: categoryBannersFields,
     defaults: {
-      fullWidth: false,
-      banners: [
-        { image: '', title: 'Novedades', description: '', link: '/productos', show: true },
-        { image: '', title: 'Más vendidos', description: '', link: '/productos', show: true },
-        { image: '', title: 'Ofertas', description: '', link: '/productos', show: true },
-      ],
+      banners: [categoryBanner('Novedades'), categoryBanner('Más vendidos'), categoryBanner('Ofertas')],
     },
     limits: {},
     keywords: 'categorias rubros secciones imagenes',
@@ -365,6 +489,7 @@ export const SECTION_REGISTRY = {
       description: 'Usá este espacio para contar algo de tu marca, un lanzamiento o cómo trabajan.',
       buttonText: 'Ver productos',
       link: '/productos',
+      ratio: '4x3',
     },
     limits: {},
     keywords: 'imagen texto historia boton bloque',
@@ -448,7 +573,7 @@ export const SECTION_REGISTRY = {
     group: 'Confianza',
     wireframe: 'logos',
     fields: brandsFields,
-    defaults: { title: 'Marcas que vendemos', images: [] },
+    defaults: { title: 'Marcas que vendemos', logos: [] },
     limits: {},
     keywords: 'logos marcas fabricantes',
   }),
@@ -497,7 +622,9 @@ export function sectionDisplayName(section: Pick<ThemeSection, 'type' | 'name'>)
 /** La data de una sección, normalizada y con su tipo. Nunca tira. */
 export function sectionData<T extends SectionType>(section: { type: T; data: unknown }): SectionDataMap[T] {
   const def = sectionDefinition(section.type);
-  return (def ? normalizeFields(def.fields, section.data) : {}) as SectionDataMap[T];
+  return (
+    def ? normalizeFields(def.fields, upgradeSectionData(section.type, section.data)) : {}
+  ) as SectionDataMap[T];
 }
 
 /** ¿Entra otra sección de este tipo? (p. ej. un solo newsletter por página). */
@@ -516,7 +643,7 @@ export function createSection(type: SectionType, data?: Record<string, unknown>)
     id: `${type}-${randomId()}`,
     type,
     visible: true,
-    data: normalizeFields(def.fields, { ...clone(def.defaults), ...data }),
+    data: normalizeFields(def.fields, upgradeSectionData(type, { ...clone(def.defaults), ...data })),
   };
 }
 
@@ -546,7 +673,7 @@ export function normalizeSection(raw: unknown, index = 0): ThemeSection | null {
     // Sin `visible` explícito, la sección estaba oculta: se respeta.
     visible: r.visible === true,
     data: def
-      ? normalizeFields(def.fields, r.data)
+      ? normalizeFields(def.fields, upgradeSectionData(r.type, r.data))
       : typeof r.data === 'object' && r.data !== null && !Array.isArray(r.data)
         ? (r.data as Record<string, unknown>)
         : {},

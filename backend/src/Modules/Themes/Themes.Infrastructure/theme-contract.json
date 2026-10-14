@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "limits": {
     "maxSections": 40,
     "shortText": 200,
@@ -61,14 +61,268 @@
           "kind": "enum",
           "values": [
             "left",
-            "center"
+            "center",
+            "right"
           ]
         },
         "height": {
           "kind": "enum",
           "values": [
+            "small",
+            "medium",
             "large",
             "full"
+          ]
+        },
+        "overlay": {
+          "kind": "enum",
+          "values": [
+            "none",
+            "light",
+            "medium",
+            "strong"
+          ]
+        },
+        "videoMobile": {
+          "kind": "media"
+        },
+        "posterMobile": {
+          "kind": "media"
+        },
+        "verticalAlign": {
+          "kind": "enum",
+          "values": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "textColor": {
+          "kind": "enum",
+          "values": [
+            "light",
+            "dark"
+          ]
+        },
+        "newTab": {
+          "kind": "boolean"
+        },
+        "secondButtonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "secondLink": {
+          "kind": "url"
+        },
+        "secondNewTab": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "carousel": {
+      "label": "Carrusel de imágenes",
+      "fields": {
+        "slides": {
+          "kind": "items",
+          "max": 20,
+          "fields": {
+            "image": {
+              "kind": "media"
+            },
+            "mobileImage": {
+              "kind": "media"
+            },
+            "alt": {
+              "kind": "string",
+              "max": 200
+            },
+            "link": {
+              "kind": "url"
+            },
+            "newTab": {
+              "kind": "boolean"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "subtitle": {
+              "kind": "text",
+              "max": 2000
+            },
+            "buttonText": {
+              "kind": "string",
+              "max": 200
+            },
+            "textPosition": {
+              "kind": "enum",
+              "values": [
+                "top-left",
+                "top-center",
+                "top-right",
+                "center-left",
+                "center",
+                "center-right",
+                "bottom-left",
+                "bottom-center",
+                "bottom-right"
+              ]
+            },
+            "overlay": {
+              "kind": "enum",
+              "values": [
+                "none",
+                "light",
+                "medium",
+                "strong"
+              ]
+            }
+          }
+        },
+        "autoplay": {
+          "kind": "boolean"
+        },
+        "speed": {
+          "kind": "enum",
+          "values": [
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ]
+        },
+        "height": {
+          "kind": "enum",
+          "values": [
+            "adapt",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "heightMobile": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "adapt",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "arrows": {
+          "kind": "boolean"
+        },
+        "indicators": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "promo-banners": {
+      "label": "Banners promocionales",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "banners": {
+          "kind": "items",
+          "max": 12,
+          "fields": {
+            "image": {
+              "kind": "media"
+            },
+            "mobileImage": {
+              "kind": "media"
+            },
+            "alt": {
+              "kind": "string",
+              "max": 200
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "description": {
+              "kind": "text",
+              "max": 2000
+            },
+            "buttonText": {
+              "kind": "string",
+              "max": 200
+            },
+            "link": {
+              "kind": "url"
+            },
+            "newTab": {
+              "kind": "boolean"
+            },
+            "show": {
+              "kind": "boolean"
+            }
+          }
+        },
+        "fullWidth": {
+          "kind": "boolean"
+        },
+        "columns": {
+          "kind": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "columnsMobile": {
+          "kind": "enum",
+          "values": [
+            "1",
+            "2"
+          ]
+        },
+        "ratio": {
+          "kind": "enum",
+          "values": [
+            "3x1",
+            "2x1",
+            "16x9",
+            "4x3",
+            "1x1",
+            "4x5",
+            "3x4"
+          ]
+        },
+        "ratioMobile": {
+          "kind": "enum",
+          "values": [
+            "same",
+            "3x1",
+            "2x1",
+            "16x9",
+            "4x3",
+            "1x1",
+            "4x5",
+            "3x4"
+          ]
+        },
+        "textPosition": {
+          "kind": "enum",
+          "values": [
+            "top-left",
+            "top-center",
+            "top-right",
+            "center-left",
+            "center",
+            "center-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right"
           ]
         },
         "overlay": {
@@ -82,53 +336,13 @@
         }
       }
     },
-    "carousel": {
-      "label": "Carrusel de imágenes",
-      "fields": {
-        "images": {
-          "kind": "strings",
-          "of": "media",
-          "max": 20
-        },
-        "fullHeightMobile": {
-          "kind": "boolean"
-        }
-      }
-    },
-    "promo-banners": {
-      "label": "Banners promocionales",
-      "fields": {
-        "banners": {
-          "kind": "items",
-          "max": 12,
-          "fields": {
-            "image": {
-              "kind": "media"
-            },
-            "title": {
-              "kind": "string",
-              "max": 200
-            },
-            "description": {
-              "kind": "text",
-              "max": 2000
-            },
-            "link": {
-              "kind": "url"
-            },
-            "show": {
-              "kind": "boolean"
-            }
-          }
-        },
-        "fullWidth": {
-          "kind": "boolean"
-        }
-      }
-    },
     "category-banners": {
       "label": "Banners de categorías",
       "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
         "banners": {
           "kind": "items",
           "max": 12,
@@ -136,16 +350,19 @@
             "image": {
               "kind": "media"
             },
+            "alt": {
+              "kind": "string",
+              "max": 200
+            },
             "title": {
               "kind": "string",
               "max": 200
             },
-            "description": {
-              "kind": "text",
-              "max": 2000
-            },
             "link": {
               "kind": "url"
+            },
+            "newTab": {
+              "kind": "boolean"
             },
             "show": {
               "kind": "boolean"
@@ -154,6 +371,58 @@
         },
         "fullWidth": {
           "kind": "boolean"
+        },
+        "columns": {
+          "kind": "enum",
+          "values": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        },
+        "columnsMobile": {
+          "kind": "enum",
+          "values": [
+            "1",
+            "2"
+          ]
+        },
+        "ratio": {
+          "kind": "enum",
+          "values": [
+            "3x1",
+            "2x1",
+            "16x9",
+            "4x3",
+            "1x1",
+            "4x5",
+            "3x4"
+          ]
+        },
+        "textPosition": {
+          "kind": "enum",
+          "values": [
+            "top-left",
+            "top-center",
+            "top-right",
+            "center-left",
+            "center",
+            "center-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right"
+          ]
+        },
+        "overlay": {
+          "kind": "enum",
+          "values": [
+            "none",
+            "light",
+            "medium",
+            "strong"
+          ]
         }
       }
     },
@@ -247,6 +516,66 @@
           "values": [
             "dark",
             "light"
+          ]
+        },
+        "mobileImage": {
+          "kind": "media"
+        },
+        "alt": {
+          "kind": "string",
+          "max": 200
+        },
+        "newTab": {
+          "kind": "boolean"
+        },
+        "imagePosition": {
+          "kind": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        },
+        "mobileOrder": {
+          "kind": "enum",
+          "values": [
+            "image",
+            "text"
+          ]
+        },
+        "verticalAlign": {
+          "kind": "enum",
+          "values": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "ratio": {
+          "kind": "enum",
+          "values": [
+            "original",
+            "16x9",
+            "4x3",
+            "1x1",
+            "4x5",
+            "3x4"
+          ]
+        },
+        "textBackground": {
+          "kind": "enum",
+          "values": [
+            "none",
+            "subtle",
+            "accent",
+            "dark"
+          ]
+        },
+        "buttonStyle": {
+          "kind": "enum",
+          "values": [
+            "solid",
+            "outline",
+            "link"
           ]
         }
       }
@@ -344,10 +673,43 @@
           "kind": "string",
           "max": 200
         },
-        "images": {
-          "kind": "strings",
-          "of": "media",
-          "max": 40
+        "logos": {
+          "kind": "items",
+          "max": 40,
+          "fields": {
+            "image": {
+              "kind": "media"
+            },
+            "name": {
+              "kind": "string",
+              "max": 200
+            },
+            "link": {
+              "kind": "url"
+            },
+            "newTab": {
+              "kind": "boolean"
+            }
+          }
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "marquee",
+            "grid"
+          ]
+        },
+        "speed": {
+          "kind": "enum",
+          "values": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "grayscale": {
+          "kind": "boolean"
         }
       }
     },
@@ -377,7 +739,7 @@
     }
   },
   "defaultConfig": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "logo": "",
     "favicon": "",
     "shareImage": "",
@@ -446,8 +808,13 @@
         "type": "carousel",
         "visible": true,
         "data": {
-          "images": [],
-          "fullHeightMobile": false
+          "slides": [],
+          "autoplay": true,
+          "speed": "5",
+          "height": "medium",
+          "heightMobile": "auto",
+          "arrows": true,
+          "indicators": true
         }
       },
       {

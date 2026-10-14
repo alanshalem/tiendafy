@@ -1,20 +1,45 @@
 'use client';
 
+import { useState } from 'react';
+import { cn } from '@tiendafy/ui';
 import { MarqueeTrack } from '../MarqueeTrack';
-import { LAZY, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { StoreImage } from '../StoreImage';
+import { StoreLink } from '../StoreLink';
+import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
+import { usePrefersReducedMotion } from '../use-media';
 
-/** Marcas que vendemos: tira de logos auto-deslizante (marquee, se pausa al hover). */
+/** Segundos por vuelta (la de antes, 22 s, es "normal"). */
+const SPEED = { slow: 40, normal: 22, fast: 13 } as const;
+
+function PlayPauseIcon({ playing }: { playing: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+      {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l10.5-6.5z" />}
+    </svg>
+  );
+}
+
+/**
+ * Marcas que vendemos: logos fijos o en una tira que se desliza sola.
+ *
+ * Cada logo lleva su nombre (antes alt="": para un lector de pantalla y para
+ * Google la sección era una lista de imágenes mudas) y, si tiene, su link. La
+ * tira se pausa con el botón, al pasar el mouse o al entrar con el teclado,
+ * y queda quieta si el sistema pide menos movimiento.
+ */
 export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
   const placeholders = usePreviewPlaceholders();
-  const { images } = data;
-  if (images.length === 0 && !placeholders) return null;
+  const reduced = usePrefersReducedMotion();
+  const [paused, setPaused] = useState(false);
+  const logos = data.logos.filter((l) => l.image);
+  if (logos.length === 0 && !placeholders) return null;
   const title = data.title && (
     <SectionTitle className="mb-6 text-center text-sm font-bold uppercase tracking-widest text-fg-muted">
       {data.title}
     </SectionTitle>
   );
-  if (images.length === 0) {
+  if (logos.length === 0) {
     // En el editor, recién agregada: el lugar de los logos.
     return (
       <section className="store-section overflow-hidden border-y border-black/5 py-8">
@@ -29,24 +54,69 @@ export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
       </section>
     );
   }
-  const logos = images.map((src, i) => (
-    <img
-      key={i}
-      src={src}
-      alt=""
-      {...LAZY}
-      className="mx-8 h-10 w-auto shrink-0 object-contain opacity-70 transition-opacity hover:opacity-100 sm:h-12"
-    />
-  ));
+  const marquee = data.layout === 'marquee' || (data.layout === 'auto' && logos.length > 4);
+  const items = logos.map((logo, i) => {
+    const img = (
+      <span className="relative block h-10 w-28 sm:h-12 sm:w-36">
+        <StoreImage
+          src={logo.image}
+          alt={logo.name}
+          sizes="144px"
+          className={cn(
+            'object-contain transition duration-300',
+            data.grayscale
+              ? 'opacity-70 grayscale group-hover:opacity-100 group-hover:grayscale-0'
+              : 'opacity-80 group-hover:opacity-100',
+          )}
+        />
+      </span>
+    );
+    const cell = 'group mx-2 flex shrink-0 items-center justify-center p-2 sm:mx-4';
+    return logo.link ? (
+      <StoreLink
+        key={i}
+        href={logo.link}
+        newTab={logo.newTab}
+        className={cn(cell, 'rounded-md focus-visible:outline-2 focus-visible:outline-primary')}
+      >
+        {img}
+      </StoreLink>
+    ) : (
+      <span key={i} className={cell}>
+        {img}
+      </span>
+    );
+  });
   return (
-    <section className="store-section overflow-hidden border-y border-black/5 py-8">
+    <section
+      className={cn(
+        'store-section relative overflow-hidden border-y border-black/5 pt-8',
+        // Lugar para el botón de pausa, abajo a la derecha, sin tapar logos.
+        marquee && !reduced ? 'pb-12' : 'pb-8',
+      )}
+      aria-label={data.title ? undefined : 'Marcas'}
+    >
       {title}
-      {images.length <= 4 ? (
-        // Pocas marcas: fila estática centrada (un marquee con 2 logos queda raro).
-        <div className="flex flex-wrap items-center justify-center">{logos}</div>
+      {marquee ? (
+        <>
+          {/* Pista duplicada para loop continuo sin salto; reduced-motion la frena (CSS). */}
+          <MarqueeTrack className="items-center" durationSeconds={SPEED[data.speed]} paused={paused}>
+            {items}
+          </MarqueeTrack>
+          {!reduced && (
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              aria-label={paused ? 'Mover las marcas' : 'Pausar las marcas'}
+              className="absolute bottom-1 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-bg/90 text-fg-muted shadow-sm ring-1 ring-black/10 hover:text-fg"
+            >
+              <PlayPauseIcon playing={!paused} />
+            </button>
+          )}
+        </>
       ) : (
-        // Pista duplicada para loop continuo sin salto; reduced-motion la frena (CSS).
-        <MarqueeTrack className="items-center">{logos}</MarqueeTrack>
+        // Pocas marcas (o "grilla fija"): centradas, sin moverse.
+        <div className="flex flex-wrap items-center justify-center gap-y-2 px-4">{items}</div>
       )}
     </section>
   );
