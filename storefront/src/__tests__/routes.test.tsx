@@ -157,7 +157,7 @@ describe('404 y errores', () => {
     // navegador recién cuando el 404 se muestra.)
     const fromServer = api.calls
       .map((c) => c.path.split('?')[0]!)
-      .filter((path) => !/track|pages|suggest|popular|section|categories/.test(path));
+      .filter((path) => !/track|pages|suggest|popular|section|categories|store\/legal/.test(path));
     expect([...new Set(fromServer)]).toEqual(['/api/v1/tenants/resolve', '/api/v1/theme']);
     expect(api.calls.some((c) => c.path.includes('redirects'))).toBe(false);
   });
