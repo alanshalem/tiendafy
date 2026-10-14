@@ -300,7 +300,6 @@ function ReviewForm({ item, token, tenantId }: { item: InviteItem; token: string
         value={body}
         onChange={(e) => setBody(e.target.value.slice(0, 4000))}
         rows={5}
-        required
         placeholder="¿Cómo te resultó? ¿La calidad, el talle, el uso?"
         className={`${TEXTAREA_LIGHT} mt-1`}
       />
