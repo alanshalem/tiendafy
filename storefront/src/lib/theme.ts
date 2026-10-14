@@ -80,17 +80,33 @@ export async function fetchPublishedTheme(tenantId: string): Promise<ThemeConfig
 /**
  * Tema del borrador para el preview del editor. `previewToken` es el token
  * firmado que el editor pasa en la URL del iframe (?pt=…) — el backend lo exige
- * porque el draft no es público. Sin token válido (o ante cualquier error) cae
- * al tema publicado, y en última instancia a los defaults: el preview nunca
- * debe quedar en blanco (el postMessage del editor pinta el draft igual).
+ * porque el draft no es público. Sin token, con uno vencido o ante cualquier
+ * error devuelve null: quien llama trata la visita como la de cualquiera.
+ * Antes caía en silencio al tema publicado y la página seguía en modo vista
+ * previa, así que `?preview=1` a secas salteaba "Tienda en construcción".
  */
-export async function fetchDraftTheme(tenantId: string, previewToken?: string): Promise<ThemeConfig> {
+export async function fetchDraftTheme(tenantId: string, previewToken?: string): Promise<ThemeConfig | null> {
+  if (!previewToken) return null;
   const cfg = await apiGetTenant<ThemeConfig>('/api/v1/theme/draft', tenantId, {
     cache: 'no-store',
-    headers: previewToken ? { 'X-Preview-Token': previewToken } : undefined,
+    headers: { 'X-Preview-Token': previewToken },
   }).catch(() => null);
-  if (cfg) return mergeTheme(cfg);
-  return fetchPublishedTheme(tenantId).catch(() => mergeTheme(null));
+  return cfg ? mergeTheme(cfg) : null;
+}
+
+/**
+ * El tema de una página y si se ve como vista previa del editor. La vista
+ * previa (sin "en construcción", con los recuadros "Editar…" y el carrito de
+ * muestra) solo se habilita si el borrador llegó con un token válido; si no,
+ * la página es la del visitante, con el tema publicado.
+ */
+export async function resolvePageTheme(
+  tenantId: string,
+  sp: { preview?: string; pt?: string },
+): Promise<{ theme: ThemeConfig; preview: boolean }> {
+  const draft = sp.preview === '1' ? await fetchDraftTheme(tenantId, sp.pt) : null;
+  if (draft) return { theme: draft, preview: true };
+  return { theme: await fetchPublishedTheme(tenantId), preview: false };
 }
 
 // Catálogo compartido, con las fuentes que la tienda ya carga como variables.

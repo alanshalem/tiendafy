@@ -8,6 +8,7 @@ import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import HomePage, { generateMetadata } from '../app/page';
 import ContentPage, { generateMetadata as contentMetadata } from '../app/paginas/[slug]/page';
+import PreviewPage from '../app/preview/page';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../test/api';
 import { renderPage } from '../test/server';
 import { nav } from '../test/next';
@@ -109,6 +110,52 @@ describe('portada: según la tienda', () => {
     await renderPage(HomePage, '/?preview=1&pt=tok-firmado');
     expect(screen.getByText('Sólo en el borrador')).toBeInTheDocument();
     expect(api.calls.some((c) => c.path.startsWith('/api/v1/theme/draft'))).toBe(true);
+  });
+});
+
+describe('vista previa: solo con un borrador de verdad', () => {
+  const enConstruccion = () =>
+    withTheme({ comingSoon: { ...theme.comingSoon, enabled: true, title: 'Abrimos pronto' } });
+  const marcasDelEditor = () => document.querySelectorAll('[data-tf-focus^="section:"]');
+
+  it('?preview=1 sin token no saltea "en construcción" ni pide el borrador', async () => {
+    enConstruccion();
+    await renderPage(HomePage, '/?preview=1');
+    expect(screen.getByText('Abrimos pronto')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path.startsWith('/api/v1/theme/draft'))).toBe(false);
+  });
+
+  it('con un token que la API rechaza, la visita es la de cualquiera', async () => {
+    enConstruccion();
+    api.on('GET', '/api/v1/theme/draft', {}, 401);
+    await renderPage(HomePage, '/?preview=1&pt=vencido');
+    expect(screen.getByText('Abrimos pronto')).toBeInTheDocument();
+  });
+
+  it('sin "en construcción", un token inválido muestra la tienda publicada sin los recuadros del editor', async () => {
+    api.on('GET', '/api/v1/theme/draft', {}, 401);
+    await renderPage(HomePage, '/?preview=1&pt=vencido');
+    expect(marcasDelEditor()).toHaveLength(0);
+  });
+
+  it('con el borrador, sí: sin pantalla de espera y con los recuadros del editor', async () => {
+    enConstruccion();
+    api.on('GET', '/api/v1/theme/draft', { ...theme, comingSoon: { ...theme.comingSoon, enabled: true } });
+    await renderPage(HomePage, '/?preview=1&pt=tok-firmado');
+    expect(screen.queryByText('Abrimos pronto')).toBeNull();
+    expect(marcasDelEditor().length).toBeGreaterThan(0);
+  });
+
+  it('una página interna con ?preview=1 sin token también respeta "en construcción"', async () => {
+    enConstruccion();
+    await renderPage(ContentPage, `/paginas/${contentPage.slug}?preview=1`, { slug: contentPage.slug });
+    expect(screen.getByText('Abrimos pronto')).toBeInTheDocument();
+  });
+
+  it('/preview sin borrador manda a la portada de siempre', async () => {
+    await expect(renderPage(PreviewPage, '/preview')).rejects.toThrow('NEXT_REDIRECT /');
+    api.on('GET', '/api/v1/theme/draft', {}, 401);
+    await expect(renderPage(PreviewPage, '/preview?pt=vencido')).rejects.toThrow('NEXT_REDIRECT /');
   });
 });
 
