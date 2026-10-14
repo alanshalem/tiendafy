@@ -3,7 +3,7 @@
  * lo que trae la URL llega a la API, y un link a una lista de precios abre
  * esa lista (o avisa si ya no existe).
  */
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
@@ -85,6 +85,38 @@ describe('listados con la URL', () => {
   it('marketing: la página de campañas desde la URL', async () => {
     const { api } = await open('/marketing?pagina=2');
     expect(lastCall(api, '/api/v1/admin/campaigns')).toContain('offset=25');
+  });
+
+  it('cupones: búsqueda y página desde la URL; buscar va a la base y vuelve a la página 1', async () => {
+    const { api, user } = await open('/descuentos?q=ver&pagina=2');
+    let call = lastCall(api, '/api/v1/coupons?');
+    expect(call).toContain('q=ver');
+    expect(call).toContain('offset=25');
+    const box = screen.getByRole('searchbox', { name: 'Buscar cupón por código' });
+    expect(box).toHaveValue('ver');
+
+    // Sin resultados, el buscador sigue a la vista (antes desaparecía con la tabla).
+    api.on('GET', '/api/v1/coupons', { items: [], total: 0 });
+    await user.type(box, 'ano');
+    // La búsqueda espera a que se deje de tipear.
+    await waitFor(() => expect(lastCall(api, '/api/v1/coupons?')).toContain('q=verano'), { timeout: 3000 });
+    call = lastCall(api, '/api/v1/coupons?');
+    expect(call).toContain('offset=0');
+    expect(await screen.findByText('Ningún cupón coincide con la búsqueda.')).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Buscar cupón por código' })).toBeInTheDocument();
+  });
+
+  it('mercado libre: la página de ventas tiene su propio parámetro', async () => {
+    const { api } = await open('/mercadolibre?tab=ventas&pagina-ventas=3&pagina=7');
+    expect(lastCall(api, '/api/v1/admin/meli/orders')).toContain('offset=50');
+  });
+
+  it('mercado libre: el filtro de preguntas desde la URL', async () => {
+    const { api, user } = await open('/mercadolibre?tab=preguntas&preguntas=todas');
+    expect(lastCall(api, '/api/v1/admin/meli/questions')).toBe('/api/v1/admin/meli/questions');
+    await user.click(screen.getByRole('button', { name: 'Sin responder' }));
+    await settle(2);
+    expect(lastCall(api, '/api/v1/admin/meli/questions')).toContain('status=UNANSWERED');
   });
 });
 

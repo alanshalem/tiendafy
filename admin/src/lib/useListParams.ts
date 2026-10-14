@@ -26,7 +26,11 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
  */
 export type ListParamValue = string | number | boolean;
 
-/** Cambiar cualquiera de estos vuelve a la primera página. */
+/**
+ * El parámetro de la página. Cambiar cualquier otro parámetro del listado
+ * vuelve a la primera. Una pantalla con dos listados paginados le da a cada
+ * uno el suyo (`pageKey`), para que no se pisen `?pagina=`.
+ */
 const PAGE_KEY = 'pagina';
 
 function parseValue(raw: string | null, fallback: ListParamValue): ListParamValue {
@@ -85,9 +89,9 @@ export interface ListParams<D extends Record<string, ListParamValue>> {
 
 export function useListParams<D extends Record<string, ListParamValue>>(
   defaults: D,
-  options: { storageKey?: string | null } = {},
+  options: { storageKey?: string | null; pageKey?: string } = {},
 ): ListParams<D> {
-  const { storageKey = null } = options;
+  const { storageKey = null, pageKey = PAGE_KEY } = options;
   const [params, setParams] = useSearchParams();
   const keys = useMemo(() => Object.keys(defaults), [defaults]);
   const hasAny = keys.some((k) => params.has(k));
@@ -137,13 +141,13 @@ export function useListParams<D extends Record<string, ListParamValue>>(
             if (value === undefined || value === defaults[key] || value === '') next.delete(key);
             else next.set(key, encodeValue(value));
           }
-          if (PAGE_KEY in defaults && !(PAGE_KEY in patch)) next.delete(PAGE_KEY);
+          if (pageKey in defaults && !(pageKey in patch)) next.delete(pageKey);
           return next;
         },
         { replace },
       );
     },
-    [defaults, setParams],
+    [defaults, setParams, pageKey],
   );
 
   const reset = useCallback(() => {
@@ -154,7 +158,7 @@ export function useListParams<D extends Record<string, ListParamValue>>(
     });
   }, [keys, setParams]);
 
-  const filtered = keys.some((k) => k !== PAGE_KEY && values[k] !== defaults[k]);
+  const filtered = keys.some((k) => k !== pageKey && values[k] !== defaults[k]);
 
   return { values, set, reset, filtered };
 }
@@ -195,16 +199,16 @@ export function useSearchText(
   return [text, setText];
 }
 
-const PAGE_ONLY = { pagina: 1 };
-
 /**
- * Solo la página, en la URL: para los listados que no tienen filtros. Uno por
- * pantalla (si una pantalla tuviera dos paginados, se pisarían `?pagina=`).
+ * Solo la página, en la URL: para los listados que no tienen filtros. Si una
+ * pantalla tiene dos paginados, cada uno lleva su `key` (si no, se pisarían
+ * `?pagina=`).
  */
-export function usePageParam(): [number, (page: number) => void] {
-  const { values, set } = useListParams(PAGE_ONLY);
-  const setPage = useCallback((pagina: number) => set({ pagina }), [set]);
-  return [values.pagina, setPage];
+export function usePageParam(key: string = PAGE_KEY): [number, (page: number) => void] {
+  const defaults = useMemo(() => ({ [key]: 1 }), [key]);
+  const { values, set } = useListParams(defaults, { pageKey: key });
+  const setPage = useCallback((page: number) => set({ [key]: page }), [set, key]);
+  return [values[key] as number, setPage];
 }
 
 /** El buscador de un listado: `useSearchText` sobre el parámetro `key` (por defecto `q`). */

@@ -8,9 +8,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
+import { useListParams, useListSearch, usePageParam, useRecordParam } from '../lib/useListParams';
 
 const DEFAULTS = { q: '', estado: '', pagina: 1, inactivos: false };
+const PAGED = { estado: '', 'pagina-b': 1 };
 
 function Where() {
   const location = useLocation();
@@ -102,6 +103,44 @@ describe('useListParams', () => {
     fireEvent.click(screen.getByText('Limpiar'));
     expect(where()).toBe('/ventas');
     expect(values().pagina).toBe(1);
+  });
+
+  it('dos paginados en una pantalla, cada uno con su parámetro: no se pisan', () => {
+    function Two() {
+      const [ventas, setVentas] = usePageParam('pagina-ventas');
+      const [otros, setOtros] = usePageParam();
+      return (
+        <>
+          <span data-testid="pages">{`${ventas}/${otros}`}</span>
+          <button type="button" onClick={() => setVentas(ventas + 1)}>
+            Más ventas
+          </button>
+          <button type="button" onClick={() => setOtros(otros + 1)}>
+            Más otros
+          </button>
+        </>
+      );
+    }
+    renderAt('/ml?pagina-ventas=2&pagina=5', <Two />);
+    expect(screen.getByTestId('pages').textContent).toBe('2/5');
+    fireEvent.click(screen.getByText('Más ventas'));
+    expect(where()).toBe('/ml?pagina-ventas=3&pagina=5');
+    fireEvent.click(screen.getByText('Más otros'));
+    expect(where()).toBe('/ml?pagina-ventas=3&pagina=6');
+  });
+
+  it('con `pageKey`, un filtro vuelve a la página 1 de ESE listado', () => {
+    function Filtered() {
+      const list = useListParams(PAGED, { pageKey: 'pagina-b' });
+      return (
+        <button type="button" onClick={() => list.set({ estado: 'x' })}>
+          Filtrar
+        </button>
+      );
+    }
+    renderAt('/ml?pagina-b=4&pagina=2', <Filtered />);
+    fireEvent.click(screen.getByText('Filtrar'));
+    expect(where()).toBe('/ml?pagina=2&estado=x');
   });
 
   it('la búsqueda espera a que se deje de tipear y reemplaza la entrada del historial', () => {

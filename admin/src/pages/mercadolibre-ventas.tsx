@@ -17,6 +17,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { fecha, moneyMajor } from './mercadolibre-shared';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { usePageParam } from '../lib/useListParams';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -84,7 +85,9 @@ export function VentasTab() {
   const [stats, setStats] = useState<MeliStats | null>(null);
   const [chatOrder, setChatOrder] = useState<MeliOrder | null>(null);
   const [invoicing, setInvoicing] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
+  // La página va en la URL (ver usePageParam), con nombre propio: la pantalla
+  // de Mercado Libre tiene varias pestañas y cada listado guarda lo suyo.
+  const [page, setPage] = usePageParam('pagina-ventas');
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

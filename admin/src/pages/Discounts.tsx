@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Power, Trash2, Plus } from 'lucide-react';
 import {
   Badge,
@@ -29,6 +29,7 @@ import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
+import { useListParams, useListSearch } from '../lib/useListParams';
 
 type CouponType = 'Percentage' | 'FixedAmount' | 'FreeShipping';
 
@@ -67,6 +68,9 @@ function vigencia(c: Coupon): string {
 /** Cupones por página. */
 const PAGE_SIZE = 25;
 
+/** Búsqueda por código y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', pagina: 1 };
+
 export function DiscountsPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -76,21 +80,29 @@ export function DiscountsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
 
-  const [page, setPage] = useState(1);
+  // Búsqueda y página en la URL (ver useListParams); la búsqueda la resuelve la
+  // base: antes filtraba solo los 25 cupones de la página a la vista.
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const page = list.values.pagina;
+  const setPage = (pagina: number) => list.set({ pagina });
+  const q = list.values.q.trim();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['coupons', store?.id, page],
-    queryFn: () =>
-      api.get<{ items: Coupon[]; total: number }>(
-        `/api/v1/coupons?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
-      ),
+    queryKey: ['coupons', store?.id, page, q],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: Coupon[]; total: number }>(`/api/v1/coupons?${params}`);
+    },
     enabled: !!store,
+    placeholderData: keepPreviousData,
     meta: ERROR_SHOWN,
   });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
-  const [search, setSearch] = useState('');
-  const coupons = (data?.items ?? []).filter(
-    (c) => search.trim() === '' || c.code.toLowerCase().includes(search.trim().toLowerCase()),
-  );
+  const coupons = data?.items ?? [];
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['coupons', store?.id] });
 
@@ -219,7 +231,7 @@ export function DiscountsPage() {
           onRetry={() => void refetch()}
           retrying={isFetching}
         />
-      ) : coupons.length === 0 ? (
+      ) : coupons.length === 0 && !list.filtered ? (
         <EmptyState
           kicker="Descuentos"
           title="Creá tu primer cupón"
@@ -229,12 +241,19 @@ export function DiscountsPage() {
       ) : (
         <Card flush>
           <Input
+            type="search"
+            aria-label="Buscar cupón por código"
             placeholder="Buscar cupón por código…"
             className="mb-3"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Table columns={columns} rows={coupons} rowKey={(c) => c.id} emptyState="No hay cupones." />
+          <Table
+            columns={columns}
+            rows={coupons}
+            rowKey={(c) => c.id}
+            emptyState={list.filtered ? 'Ningún cupón coincide con la búsqueda.' : 'No hay cupones.'}
+          />
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </Card>
       )}

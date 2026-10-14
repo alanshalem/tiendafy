@@ -5,6 +5,7 @@ import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { fecha } from './mercadolibre-shared';
 import { useServerLoad } from '../lib/useServerLoad';
+import { useListParams } from '../lib/useListParams';
 
 interface MeliQuestion {
   id: number;
@@ -17,9 +18,16 @@ interface MeliQuestion {
 
 // ---- Preguntas ---------------------------------------------------------------
 
+/** `?preguntas=todas`; sin el parámetro, solo las que esperan respuesta. */
+const LIST_DEFAULTS = { preguntas: 'sin-responder' };
+
 export function PreguntasTab() {
   const { toast } = useToast();
-  const [soloSinResponder, setSoloSinResponder] = useState(true);
+  // El filtro va en la URL (ver useListParams): recargar o volver con «Atrás»
+  // no lo pierde, y se puede mandar el link a "todas".
+  const list = useListParams(LIST_DEFAULTS);
+  const soloSinResponder = list.values.preguntas !== 'todas';
+  const setSoloSinResponder = (only: boolean) => list.set({ preguntas: only ? 'sin-responder' : 'todas' });
   const [questions, setQuestions] = useState<MeliQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const aiEnabled = useAiEnabled();

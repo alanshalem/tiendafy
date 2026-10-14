@@ -15,10 +15,18 @@ public static class DiscountsEndpoints
 
         coupons.MapGet("/", async (
             ITenantContext tenant, DiscountsDbContext db, CancellationToken ct,
-            int? limit = null, int? offset = null) =>
+            int? limit = null, int? offset = null, string? q = null) =>
         {
             var tid = tenant.TenantId.Value;
             var query = db.Coupons.AsNoTracking().Where(c => c.TenantId == tid);
+            // La búsqueda por código va en la base: el panel antes filtraba solo
+            // la página que tenía a la vista y un cupón de la página 3 "no existía".
+            // Los códigos se guardan en mayúsculas (Coupon.Normalize).
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim().ToUpperInvariant();
+                query = query.Where(c => c.Code.Contains(term));
+            }
             var (items, total) = await query
                 .OrderByDescending(c => c.CreatedAtUtc)
                 .PageAsync(offset, limit, ct);

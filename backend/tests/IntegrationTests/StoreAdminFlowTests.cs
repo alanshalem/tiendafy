@@ -164,6 +164,10 @@ public sealed class StoreAdminFlowTests
         Assert.False((await merchant.PostAsync($"/api/v1/coupons/{couponId}/toggle", new { })).GetProperty("active").GetBoolean());
         Assert.False((await shopper.ExpectJsonAsync(HttpMethod.Post, "/api/v1/coupons/validate", new { code = "verano10", subtotal = 100_000_00L })).GetProperty("valid").GetBoolean());
         Assert.Equal(2, (await merchant.GetAsync("/api/v1/coupons")).GetProperty("total").GetInt32());
+        // Buscar por código (sin importar mayúsculas) filtra en la base, con su total.
+        var found = await merchant.GetAsync("/api/v1/coupons?q=erano");
+        Assert.Equal(1, found.GetProperty("total").GetInt32());
+        Assert.Equal("VERANO10", found.GetProperty("items")[0].GetProperty("code").GetString());
         await merchant.ExpectOkAsync(HttpMethod.Delete, $"/api/v1/coupons/{couponId}");
         var missing = Guid.NewGuid();
         Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Put, $"/api/v1/coupons/{missing}", new { code = "X", type = "fixed", value = 1, minPurchase = 0, active = true })).StatusCode);
