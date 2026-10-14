@@ -1,7 +1,5 @@
-import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
-import { PAYMENT_LOGOS, type FooterLink, type ThemeConfig } from '@tiendafy/types';
-import { LinkPicker } from '../components/LinkPicker';
+import { PAYMENT_LOGOS, type ThemeConfig } from '@tiendafy/types';
 import {
   BackHeader,
   Field,
@@ -18,7 +16,13 @@ import {
 } from './theme-editor-inputs';
 import { FooterThumb } from './theme-editor-thumbs';
 import type { PanelProps } from './theme-editor-pages';
+import { columnsPatch, FooterColumnsEditor, toggleColumnKind } from './theme-editor-footer-columns';
 
+/*
+ * Los estilos rápidos siguen hablando de "con páginas" y "con novedades": al
+ * aplicarlos, esos dos se traducen a columnas (agregarlas o quitarlas) y lo
+ * demás que armó el comercio (sus links, su texto) queda como estaba.
+ */
 const FOOTER_PRESETS: QuickStyle<ThemeConfig['footer']>[] = [
   {
     name: 'Mínimo',
@@ -61,15 +65,26 @@ const LAYOUTS: { value: ThemeConfig['footer']['layout']; label: string }[] = [
   { value: 'columns', label: 'En columnas' },
 ];
 
-export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
+export function FooterPanel({
+  theme,
+  onBack,
+  updateTheme,
+  onFocusPreview,
+}: PanelProps & { onFocusPreview?: (target: string) => void }) {
   const set = sectionSetter(updateTheme, 'footer');
   const reset = useSectionReset(updateTheme);
   const f = theme.footer;
+  const applyPreset = ({ showPages, showNewsletter, ...rest }: Partial<ThemeConfig['footer']>) => {
+    let columns = f.columns ?? [];
+    if (showPages !== undefined) columns = toggleColumnKind(columns, 'pages', showPages);
+    if (showNewsletter !== undefined) columns = toggleColumnKind(columns, 'newsletter', showNewsletter);
+    set({ ...rest, ...columnsPatch(columns) });
+  };
   return (
     <div>
       <BackHeader title="Pie de página" onBack={onBack} onReset={reset('footer', 'el pie de página')} />
       <div className="space-y-5 p-4">
-        <QuickStyles presets={FOOTER_PRESETS} current={f} onApply={set} />
+        <QuickStyles presets={FOOTER_PRESETS} current={f} onApply={applyPreset} />
 
         <fieldset>
           <legend className="mb-1.5 text-sm font-medium text-fg">Disposición</legend>
@@ -99,8 +114,8 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           </div>
           <p className="mt-1 text-xs text-fg-muted">
             {f.layout === 'columns'
-              ? 'En la compu: tu marca y redes, links, contacto y novedades lado a lado. En el celular, uno debajo del otro.'
-              : 'Todo apilado al centro: va bien con pocos datos.'}
+              ? 'En la compu: tus columnas lado a lado. En el celular, una debajo de la otra, con las listas de links plegadas.'
+              : 'Todo apilado al centro, en el orden de las columnas: va bien con pocos datos.'}
           </p>
         </fieldset>
 
@@ -115,7 +130,14 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           fallback="#ffffff"
         />
 
-        <Field label="Texto del pie" hint="Quiénes son, qué venden, desde dónde envían.">
+        <Collapsible title="Columnas">
+          <FooterColumnsEditor footer={f} set={set} onFocusPreview={onFocusPreview} />
+        </Collapsible>
+
+        <Field
+          label="Texto del pie"
+          hint="Quiénes son, qué venden, desde dónde envían. Va en la columna «Marca y redes»."
+        >
           <TextArea value={f.text} onChange={(v) => set({ text: v })} />
         </Field>
 
@@ -167,38 +189,6 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           </div>
         </Collapsible>
 
-        <Collapsible title="Links">
-          <div className="space-y-4">
-            <FooterLinksEditor links={f.links ?? []} onChange={(links) => set({ links })} />
-            <Check
-              label="Links a tus páginas de contenido"
-              hint="Cómo comprar, preguntas frecuentes, envíos… Arriba compiten por lugar en el menú; acá entran todas."
-              checked={f.showPages}
-              onChange={(v) => set({ showPages: v })}
-            />
-          </div>
-        </Collapsible>
-
-        <Collapsible title="Suscripción a novedades" defaultOpen={f.showNewsletter}>
-          <div className="space-y-3">
-            <Check
-              label="Pedir el email en el pie"
-              hint="Los emails quedan guardados y se pueden usar como audiencia en Email marketing."
-              checked={f.showNewsletter}
-              onChange={(v) => set({ showNewsletter: v })}
-            />
-            {f.showNewsletter && (
-              <Field label="Título">
-                <TextInput
-                  value={f.newsletterTitle}
-                  onChange={(v) => set({ newsletterTitle: v })}
-                  placeholder="Recibí novedades y ofertas"
-                />
-              </Field>
-            )}
-          </div>
-        </Collapsible>
-
         <Collapsible title="Medios de pago">
           <div className="space-y-3">
             <Check
@@ -243,69 +233,6 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           </div>
         </Collapsible>
       </div>
-    </div>
-  );
-}
-
-/**
- * Links propios del pie: Envíos, Mayoristas, un catálogo en PDF… Antes el pie
- * solo tenía las páginas de contenido y las legales: cualquier otro destino
- * no tenía dónde ir.
- */
-function FooterLinksEditor({
-  links,
-  onChange,
-}: {
-  links: FooterLink[];
-  onChange: (v: FooterLink[]) => void;
-}) {
-  const update = (i: number, patch: Partial<FooterLink>) =>
-    onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
-  return (
-    <div>
-      <div className="mb-1 text-sm font-medium text-fg">Links propios</div>
-      <p className="mb-3 text-xs text-fg-muted">
-        Cualquier destino: una categoría, un producto, una página o un sitio de afuera.
-      </p>
-      <div className="space-y-3">
-        {links.map((l, i) => (
-          <div key={i} className="space-y-2 rounded-md border border-border p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                Link {i + 1}
-              </span>
-              <button
-                type="button"
-                onClick={() => onChange(links.filter((_, idx) => idx !== i))}
-                aria-label={`Quitar link ${i + 1}`}
-                className="flex h-10 w-10 items-center justify-center rounded text-fg-muted hover:bg-danger/10 hover:text-danger"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-            <Field label="Texto">
-              <TextInput value={l.label} onChange={(v) => update(i, { label: v })} placeholder="Envíos" />
-            </Field>
-            <LinkPicker
-              label="A dónde lleva"
-              value={l.href}
-              onChange={(href, pick) =>
-                // Sin texto todavía: se propone el nombre de lo elegido.
-                update(i, { href, ...(!l.label.trim() && pick?.label ? { label: pick.label } : {}) })
-              }
-              newTab={l.newTab}
-              onNewTabChange={(v) => update(i, { newTab: v || undefined })}
-            />
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange([...links, { label: '', href: '' }])}
-        className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-      >
-        <Plus className="h-4 w-4" /> Agregar link
-      </button>
     </div>
   );
 }

@@ -107,6 +107,18 @@ export function usePreviewBridge(previewOrigin: string, view: string, callbacks:
     if (msg) win.postMessage(msg, previewOrigin || '*');
   }, [view, previewOrigin]);
 
+  // Resaltar una parte puntual mientras se edita (una columna del pie): el
+  // panel ya está abierto, así que no alcanza con el efecto de arriba.
+  const focusPreview = useCallback(
+    (target: string) => {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: EDITOR_MSG.focusSection, target },
+        previewOrigin || '*',
+      );
+    },
+    [previewOrigin],
+  );
+
   // Clic en una región del preview (sección / encabezado / pie) y tacho de una sección.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -122,5 +134,5 @@ export function usePreviewBridge(previewOrigin: string, view: string, callbacks:
     return () => window.removeEventListener('message', handler);
   }, [previewOrigin]);
 
-  return { iframeRef, postToPreview };
+  return { iframeRef, postToPreview, focusPreview };
 }
