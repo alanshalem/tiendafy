@@ -126,11 +126,36 @@ describe('404 y errores', () => {
     await expect(Unmatched()).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('la pantalla de 404 solo pinta: Next la arma en cada página, no puede consultar la API', async () => {
+  it('el 404 va adentro de la tienda, con buscador y por dónde seguir, sin preguntar redirecciones', async () => {
     nav.headers = { 'x-pathname': '/contacto' };
-    render(NotFound());
+    render(await NotFound());
+    await settle(3);
+    expect(screen.getByRole('heading', { level: 1, name: 'No encontramos esta página' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument(); // el encabezado de la tienda
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument(); // y su pie
+    expect(screen.getAllByRole('combobox', { name: 'Buscar' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Contacto/ })).toBeInTheDocument();
+    // Next lo arma en CADA página: del servidor, solo la tienda y su diseño
+    // (Data Cache, los mismos del layout). Nada de redirecciones acá.
+    // (Lo demás —medición, páginas del menú, lo más vendido— lo pide el
+    // navegador recién cuando el 404 se muestra.)
+    const fromServer = api.calls
+      .map((c) => c.path.split('?')[0]!)
+      .filter((path) => !/track|pages|suggest|popular|section|categories/.test(path));
+    expect([...new Set(fromServer)]).toEqual(['/api/v1/tenants/resolve', '/api/v1/theme']);
+    expect(api.calls.some((c) => c.path.includes('redirects'))).toBe(false);
+  });
+
+  it('en construcción (o sin tienda) el 404 queda solo', async () => {
+    api.on('GET', '/api/v1/tenants/resolve', {}, 404);
+    render(await NotFound());
     expect(screen.getByText('Esta página no existe')).toBeInTheDocument();
-    expect(api.calls).toEqual([]);
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+  });
+
+  it('una URL que no es de ninguna página se titula "Página no encontrada" y no se indexa', async () => {
+    const { metadata } = await import('../app/[...ruta]/page');
+    expect(metadata).toMatchObject({ title: 'Página no encontrada', robots: { index: false } });
   });
 
   it('la pantalla de error ofrece reintentar', async () => {

@@ -197,8 +197,9 @@ describe('listado: filtros', () => {
 
   it('precio: solo dígitos, en pesos, y vacío no filtra', async () => {
     const user = await show();
-    expect(screen.getByLabelText('Precio desde')).toHaveAttribute('placeholder', '25000');
-    expect(screen.getByLabelText('Precio hasta')).toHaveAttribute('placeholder', '125001');
+    // En pesos y con separador de miles (antes "2500000": los centavos crudos).
+    expect(screen.getByLabelText('Precio desde')).toHaveAttribute('placeholder', '25.000');
+    expect(screen.getByLabelText('Precio hasta')).toHaveAttribute('placeholder', '125.001');
     await user.type(screen.getByLabelText('Precio desde'), '1.000');
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     expect(pushed().params.get('priceMin')).toBe('1000');

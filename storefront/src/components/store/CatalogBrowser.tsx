@@ -2,16 +2,32 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { Search, SearchX, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
-import { buildPageWindow } from '@tiendafy/ui';
+import { useContext, useEffect, useId, useRef, useState } from 'react';
+import {
+  Search,
+  SearchX,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Check,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
+import { buildPageWindow, cn } from '@tiendafy/ui';
 import { productGridClass, type ProductListConfig } from '@/lib/theme';
 import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
 import { categoryParam, readableQuery } from '@/lib/category-url';
+import { facetLabel, formatPesos } from '@/lib/facet-label';
+import { logSearchClient } from '@/lib/catalog-client';
 import { ProductCard, type StoreProduct } from './sections';
-import { useLiveTheme, usePreviewHref } from './preview';
+import { PreviewContext, useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
 import { INPUT_LIGHT_10 } from './styles';
+import { useCart } from './cart';
+import { useFocusTrap } from './useFocusTrap';
+import { useMediaQuery } from './use-media';
+import { PredictiveSearch } from './PredictiveSearch';
+import { StoreDiscovery } from './StoreDiscovery';
 
 const SORTS: { value: string; label: string }[] = [
   { value: 'newest', label: 'Más nuevos' },
@@ -21,6 +37,9 @@ const SORTS: { value: string; label: string }[] = [
   { value: 'best_sellers', label: 'Más vendidos' },
 ];
 
+/** Desde acá los filtros van al costado; abajo, en un panel que se abre con "Filtrar". */
+const DESKTOP = '(min-width: 1024px)';
+
 interface Props {
   products: StoreProduct[];
   total: number;
@@ -29,6 +48,10 @@ interface Props {
   categories: CategoryDto[];
   facets: ProductFacets;
   productList: ProductListConfig;
+  /** El encabezado queda fijo arriba: la barra de filtros del celular se pega debajo de él. */
+  headerSticky?: boolean;
+  /** El WhatsApp de la tienda, para "¿No lo encontrás?" de una búsqueda sin resultados. */
+  whatsappPhone?: string;
   current: {
     q: string;
     sort: string;
@@ -40,6 +63,8 @@ interface Props {
     priceMax: string;
     /** Solo ofertas (`?onSale=1`). Puede faltar: sin él, todo el catálogo. */
     onSale?: boolean;
+    /** Solo con stock (`?inStock=1`). */
+    inStock?: boolean;
   };
 }
 
@@ -51,18 +76,24 @@ export function CatalogBrowser({
   categories,
   facets = { brands: [], options: [], priceMin: null, priceMax: null, specs: [] },
   productList,
+  headerSticky = false,
+  whatsappPhone,
   current,
 }: Props) {
   // En preview, refleja al instante los cambios de "Listado de productos".
   const live = useLiveTheme();
   const list = live?.productList ?? productList;
   const href = usePreviewHref();
+  const preview = useContext(PreviewContext);
+  const { tenantId } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(current.q);
   const [priceMin, setPriceMin] = useState(current.priceMin);
   const [priceMax, setPriceMax] = useState(current.priceMax);
+  const titleId = useId();
+  const filtersId = useId();
 
   // Ni las facetas ni los filtros elegidos se dan por presentes: una respuesta
   // cacheada de antes de agregar un campo no lo trae, y el listado no se puede
@@ -116,19 +147,21 @@ export function CatalogBrowser({
   const applyPrice = () =>
     navigate({ priceMin: priceMin.trim() || null, priceMax: priceMax.trim() || null, page: null });
 
-  const hasFilters = !!(
-    current.onSale ||
-    current.brand ||
-    current.options.length ||
-    specSelection.length ||
-    current.priceMin ||
-    current.priceMax
-  );
+  // Lo que saca "Limpiar filtros", y lo que cuenta el botón "Filtrar" del celular.
+  const activeFilters =
+    (current.onSale ? 1 : 0) +
+    (current.inStock ? 1 : 0) +
+    (current.brand ? 1 : 0) +
+    current.options.length +
+    specSelection.length +
+    (current.priceMin || current.priceMax ? 1 : 0);
+  const hasFilters = activeFilters > 0;
   const clearFilters = () => {
     setPriceMin('');
     setPriceMax('');
     const params = new URLSearchParams(searchParams.toString());
-    for (const k of ['onSale', 'brand', 'option', 'spec', 'priceMin', 'priceMax', 'page']) params.delete(k);
+    for (const k of ['onSale', 'inStock', 'brand', 'option', 'spec', 'priceMin', 'priceMax', 'page'])
+      params.delete(k);
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -137,6 +170,39 @@ export function CatalogBrowser({
     navigate({ q: search.trim() || null, page: null });
   };
 
+  // Una búsqueda hecha, para "búsquedas populares" y lo que no encuentra nada
+  // (Configuración › Búsqueda). Una vez por texto, en la primera página, y
+  // nunca en la vista previa del editor (no es un comprador).
+  const logged = useRef<string | null>(null);
+  useEffect(() => {
+    const q = current.q.trim();
+    if (!q || preview || !tenantId || page !== 1 || logged.current === q) return;
+    logged.current = q;
+    logSearchClient(tenantId, q);
+  }, [current.q, page, preview, tenantId]);
+
+  // Filtros del celular: un panel desde abajo. Se cierra con Escape, tocando
+  // afuera, con "Ver N productos" o si la pantalla pasa a ser de escritorio
+  // (ahí los filtros ya están al costado). El fondo no se desplaza mientras.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const desktop = useMediaQuery(DESKTOP);
+  const sheet = filtersOpen && !desktop;
+  const sheetRef = useFocusTrap<HTMLElement>(sheet);
+  useEffect(() => {
+    if (!sheet) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFiltersOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      root.style.overflow = previous;
+    };
+  }, [sheet]);
+
   const pageWindow = buildPageWindow(page, totalPages);
   // Sin productos: ocultamos el sidebar y centramos el estado vacío en todo el ancho
   // (con sidebar quedaba corrido a la derecha, centrado solo dentro de la columna 1fr).
@@ -144,14 +210,39 @@ export function CatalogBrowser({
 
   return (
     <div className="mx-auto max-w-container px-4 pb-16">
-      {/* Barra superior: total + orden */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 py-4">
-        <p className="text-sm text-fg-muted">
+      {/* Barra superior: total + orden. En el celular se pega arriba al bajar,
+          con "Filtrar" (los filtros ya no empujan los productos fuera de la
+          pantalla: antes el primero quedaba a 1.155 px). */}
+      <div
+        className={cn(
+          'sticky z-30 -mx-4 flex items-center gap-2 border-b border-fg/10 bg-bg px-4 py-2 md:static md:mx-0 md:flex-wrap md:justify-between md:gap-3 md:px-0 md:py-4',
+          headerSticky ? 'top-14' : 'top-0',
+        )}
+      >
+        {!empty && (
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            aria-expanded={sheet}
+            aria-controls={filtersId}
+            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] px-3 text-sm font-medium lg:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            Filtrar
+            {activeFilters > 0 && (
+              <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-fg">
+                {activeFilters}
+                <span className="sr-only"> activos</span>
+              </span>
+            )}
+          </button>
+        )}
+        <p className="hidden text-sm text-fg-muted md:block">
           {total} {total === 1 ? 'resultado' : 'resultados'}
           {current.q && <> para «{current.q}»</>}
         </p>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-fg-muted">Ordenar por</span>
+        <div className="ml-auto flex items-center gap-2 text-sm">
+          <span className="hidden text-fg-muted lg:inline">Ordenar por</span>
           {/* El orden por defecto lo elige el comercio; sigue en la URL solo
               cuando el visitante elige otro, así el link se puede compartir. */}
           <SortDropdown
@@ -160,135 +251,232 @@ export function CatalogBrowser({
           />
         </div>
       </div>
+      <p className="pt-3 text-sm text-fg-muted md:hidden">
+        {total} {total === 1 ? 'resultado' : 'resultados'}
+      </p>
 
-      <div className={empty ? 'pt-6' : 'grid gap-8 pt-6 lg:grid-cols-[15rem_1fr]'}>
-        {/* Sidebar: búsqueda + categorías (oculto si no hay resultados) */}
+      <div className={empty ? 'pt-6' : 'grid gap-8 pt-4 md:pt-6 lg:grid-cols-[15rem_1fr]'}>
+        {/* Filtros: al costado en la compu; en el celular, el mismo bloque se
+            abre como panel desde abajo (no se repite: los links de las
+            categorías están una sola vez en el HTML). Oculto sin resultados. */}
         {!empty && (
-          <aside className="space-y-6">
-            <form onSubmit={onSearch}>
-              <div className="flex gap-2">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar productos"
-                  aria-label="Buscar"
-                  className={INPUT_LIGHT_10}
-                />
-                <button
-                  type="submit"
-                  aria-label="Buscar"
-                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </div>
-              {current.q && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('');
-                    navigate({ q: null, page: null });
-                  }}
-                  className="mt-2 text-xs text-primary-ink hover:underline"
-                >
-                  Limpiar búsqueda
-                </button>
-              )}
-            </form>
-
-            {/* Solo si hay ofertas en lo que se está viendo (o ya está activo, para poder sacarlo). */}
-            {(current.onSale || (facets.onSale ?? 0) > 0) && (
-              <OnSaleToggle
-                on={!!current.onSale}
-                count={facets.onSale ?? 0}
-                onToggle={() => navigate({ onSale: current.onSale ? null : '1', page: null })}
+          <>
+            {sheet && (
+              <div
+                aria-hidden="true"
+                className="fixed inset-0 z-[65] bg-black/40"
+                onClick={() => setFiltersOpen(false)}
               />
             )}
-
-            {list.filterCategories && categories.length > 0 && (
-              <CategoryFacet
-                categories={categories}
-                current={current.category}
-                hrefFor={(c) => hrefWith({ category: c ? categoryParam(c) : null, page: null })}
-              />
-            )}
-
-            {/* Precio (Desde / Hasta) */}
-            {list.filterPrice && (
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-muted">Precio</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    inputMode="numeric"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value.replace(/\D/g, ''))}
-                    placeholder={
-                      facets.priceMin != null ? String(Math.floor(facets.priceMin / 100)) : 'Desde'
-                    }
-                    aria-label="Precio desde"
-                    className="h-9 w-full min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm text-black"
-                  />
-                  <span className="text-fg-muted">–</span>
-                  <input
-                    inputMode="numeric"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value.replace(/\D/g, ''))}
-                    placeholder={facets.priceMax != null ? String(Math.ceil(facets.priceMax / 100)) : 'Hasta'}
-                    aria-label="Precio hasta"
-                    className="h-9 w-full min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm text-black"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={applyPrice}
-                  className="mt-2 w-full rounded-md border border-fg/15 py-1.5 text-xs font-semibold hover:bg-fg/5"
-                >
-                  Aplicar
-                </button>
-              </div>
-            )}
-
-            {/* Marca (lista, single-select) */}
-            {list.filterBrand && facets.brands.length > 0 && (
-              <BrandFacet
-                brands={facets.brands}
-                current={current.brand}
-                onSelect={(b) => navigate({ brand: current.brand === b ? null : b, page: null })}
-              />
-            )}
-
-            {/* Opciones del producto (Color / Talle / …), chips multi-select */}
-            {list.filterOptions &&
-              facets.options.map((opt) => (
-                <OptionFacetChips
-                  key={opt.name}
-                  name={opt.name}
-                  values={opt.values}
-                  selected={current.options}
-                  onToggle={toggleOption}
-                />
-              ))}
-
-            {/* Ficha técnica: los campos que la tienda marcó como filtrables. */}
-            {specFacets.map((f) => (
-              <SpecFacetChips key={f.definitionId} facet={f} selected={specSelection} onToggle={toggleSpec} />
-            ))}
-
-            {hasFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-primary-ink hover:underline"
+            <aside
+              ref={sheetRef}
+              id={filtersId}
+              aria-labelledby={titleId}
+              {...(sheet ? { role: 'dialog', 'aria-modal': true, tabIndex: -1 } : {})}
+              className={
+                sheet
+                  ? 'fixed inset-x-0 bottom-0 z-[70] flex max-h-[88vh] flex-col rounded-t-2xl bg-bg text-fg shadow-2xl outline-none'
+                  : 'hidden lg:block'
+              }
+            >
+              <div
+                className={
+                  sheet ? 'flex items-center justify-between border-b border-fg/10 px-4 py-2' : 'sr-only'
+                }
               >
-                Limpiar filtros
-              </button>
-            )}
-          </aside>
+                <h2 id={titleId} className="text-base font-bold">
+                  Filtros
+                </h2>
+                {sheet && (
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(false)}
+                    aria-label="Cerrar filtros"
+                    className="-mr-2 inline-flex h-10 w-10 items-center justify-center opacity-70 hover:opacity-100"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+
+              <div
+                className={
+                  sheet ? 'flex-1 space-y-6 overflow-y-auto overscroll-contain px-4 py-4' : 'space-y-6'
+                }
+              >
+                <form onSubmit={onSearch}>
+                  <div className="flex gap-2">
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar productos"
+                      aria-label="Buscar"
+                      className={INPUT_LIGHT_10}
+                    />
+                    <button
+                      type="submit"
+                      aria-label="Buscar"
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg"
+                    >
+                      <Search className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {current.q && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        navigate({ q: null, page: null });
+                      }}
+                      className="mt-1 inline-flex min-h-10 items-center text-xs text-primary-ink hover:underline lg:min-h-0"
+                    >
+                      Limpiar búsqueda
+                    </button>
+                  )}
+                </form>
+
+                {/* Solo si hay ofertas en lo que se está viendo (o ya está activo, para poder sacarlo). */}
+                {(current.onSale || (facets.onSale ?? 0) > 0) && (
+                  <ToggleFilter
+                    title="Ofertas"
+                    label="Solo ofertas"
+                    on={!!current.onSale}
+                    count={facets.onSale ?? 0}
+                    onToggle={() => navigate({ onSale: current.onSale ? null : '1', page: null })}
+                  />
+                )}
+
+                {/* Lo agotado ya va al final; esto lo esconde del todo. Una
+                    respuesta vieja sin el conteo no lo ofrece. */}
+                {(current.inStock || (facets.inStock ?? 0) > 0) && (
+                  <ToggleFilter
+                    title="Disponibilidad"
+                    label="Solo con stock"
+                    on={!!current.inStock}
+                    count={facets.inStock ?? 0}
+                    onToggle={() => navigate({ inStock: current.inStock ? null : '1', page: null })}
+                  />
+                )}
+
+                {list.filterCategories && categories.length > 0 && (
+                  <CategoryFacet
+                    categories={categories}
+                    current={current.category}
+                    hrefFor={(c) => hrefWith({ category: c ? categoryParam(c) : null, page: null })}
+                  />
+                )}
+
+                {/* Precio (Desde / Hasta), en pesos */}
+                {list.filterPrice && (
+                  <div>
+                    <FacetTitle>Precio</FacetTitle>
+                    <div className="flex items-center gap-2">
+                      <PriceInput
+                        label="Precio desde"
+                        value={priceMin}
+                        onChange={setPriceMin}
+                        placeholder={
+                          facets.priceMin != null ? formatPesos(Math.floor(facets.priceMin / 100)) : 'Desde'
+                        }
+                      />
+                      <span className="text-fg-muted">–</span>
+                      <PriceInput
+                        label="Precio hasta"
+                        value={priceMax}
+                        onChange={setPriceMax}
+                        placeholder={
+                          facets.priceMax != null ? formatPesos(Math.ceil(facets.priceMax / 100)) : 'Hasta'
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={applyPrice}
+                      className="mt-2 min-h-10 w-full rounded-md border border-fg/15 text-xs font-semibold hover:bg-fg/5 lg:min-h-0 lg:py-1.5"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                )}
+
+                {/* Marca (lista, single-select) */}
+                {list.filterBrand && facets.brands.length > 0 && (
+                  <BrandFacet
+                    brands={facets.brands}
+                    current={current.brand}
+                    onSelect={(b) => navigate({ brand: current.brand === b ? null : b, page: null })}
+                  />
+                )}
+
+                {/* Opciones del producto (Color / Talle / …), chips multi-select */}
+                {list.filterOptions &&
+                  facets.options.map((opt) => (
+                    <OptionFacetChips
+                      key={opt.name}
+                      name={opt.name}
+                      values={opt.values}
+                      selected={current.options}
+                      onToggle={toggleOption}
+                    />
+                  ))}
+
+                {/* Ficha técnica: los campos que la tienda marcó como filtrables. */}
+                {specFacets.map((f) => (
+                  <SpecFacetChips
+                    key={f.definitionId}
+                    facet={f}
+                    selected={specSelection}
+                    onToggle={toggleSpec}
+                  />
+                ))}
+
+                {hasFilters && !sheet && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs text-primary-ink hover:underline"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+
+              {/* Los filtros se aplican al tocarlos (la URL es el estado del
+                  listado); el botón cierra el panel y dice cuántos quedaron. */}
+              {sheet && (
+                <div className="flex gap-2 border-t border-fg/10 px-4 py-3">
+                  {hasFilters && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="min-h-11 rounded-md border border-fg/15 px-4 text-sm font-semibold"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(false)}
+                    className="min-h-11 flex-1 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg"
+                  >
+                    Ver {total} {total === 1 ? 'producto' : 'productos'}
+                  </button>
+                </div>
+              )}
+            </aside>
+          </>
         )}
 
         {/* Grilla + paginado (o estado vacío centrado a todo el ancho) */}
         <div>
-          {empty ? (
+          {empty && current.q ? (
+            <SearchEmpty
+              q={current.q}
+              hasFilters={hasFilters}
+              onClearFilters={clearFilters}
+              whatsappPhone={whatsappPhone}
+            />
+          ) : empty ? (
             <EmptyState
               icon={<SearchX className="h-8 w-8" />}
               title="Sin resultados"
@@ -335,13 +523,123 @@ export function CatalogBrowser({
 }
 
 /**
- * "Solo ofertas": un interruptor que prende o apaga el filtro. Con el número
- * de ofertas, así se sabe qué se va a ver antes de tocarlo.
+ * Una búsqueda que no encontró nada. Antes decía lo mismo que un filtro sin
+ * resultados ("probá cambiar los filtros"), cuando lo que falla es lo que se
+ * escribió: va con otra búsqueda a mano, ideas para escribirla, lo que más se
+ * busca y se vende, lo visto y cómo preguntar.
  */
-function OnSaleToggle({ on, count, onToggle }: { on: boolean; count: number; onToggle: () => void }) {
+function SearchEmpty({
+  q,
+  hasFilters,
+  onClearFilters,
+  whatsappPhone,
+}: {
+  q: string;
+  hasFilters: boolean;
+  onClearFilters: () => void;
+  whatsappPhone?: string;
+}) {
+  return (
+    <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-xl text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgb(var(--color-primary)/0.1)] text-primary-ink">
+          <SearchX className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          No encontramos nada para «{q}»
+        </h2>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={onClearFilters}
+            className="mt-3 inline-flex min-h-10 items-center rounded-full border border-fg/15 px-4 text-sm font-semibold hover:bg-fg/5"
+          >
+            Buscar sin filtros
+          </button>
+        )}
+        <PredictiveSearch
+          key={q}
+          variant="page"
+          align="start"
+          initialQuery={q}
+          placeholder="Probá con otra búsqueda"
+          className="mt-5 text-left"
+        />
+        <div className="mt-6 rounded-lg bg-fg/[0.04] p-4 text-left text-sm">
+          <h3 className="font-semibold">Algunas ideas</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-fg-muted">
+            <li>Revisá cómo está escrito: una letra de más alcanza para no encontrar nada.</li>
+            <li>
+              Probá con menos palabras, o con una más general: «mancuerna» en vez de «mancuerna hexagonal 7,5
+              kg».
+            </li>
+            <li>Buscá por el tipo de producto antes que por la marca o el modelo.</li>
+          </ul>
+        </div>
+      </div>
+      <div className="mt-12">
+        <StoreDiscovery
+          whatsappPhone={whatsappPhone}
+          whatsappText={`¡Hola! Busco «${q}» y no lo encuentro en la tienda.`}
+          excludeSearch={q}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Un precio del filtro: solo dígitos, en pesos, con el "$" adelante. */
+function PriceInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <span className="relative block w-full min-w-0">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-black/50"
+      >
+        $
+      </span>
+      <input
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+        placeholder={placeholder}
+        aria-label={label}
+        className="h-10 w-full min-w-0 rounded-md border border-black/15 bg-white pl-5 pr-2 text-sm text-black lg:h-9"
+      />
+    </span>
+  );
+}
+
+/**
+ * Un filtro de prender y apagar ("Solo ofertas", "Solo con stock"). Con el
+ * número de productos, así se sabe qué se va a ver antes de tocarlo.
+ */
+function ToggleFilter({
+  title,
+  label,
+  on,
+  count,
+  onToggle,
+}: {
+  title: string;
+  label: string;
+  on: boolean;
+  count: number;
+  onToggle: () => void;
+}) {
   return (
     <div>
-      <FacetTitle>Ofertas</FacetTitle>
+      <FacetTitle>{title}</FacetTitle>
       <button
         type="button"
         onClick={onToggle}
@@ -355,7 +653,7 @@ function OnSaleToggle({ on, count, onToggle }: { on: boolean; count: number; onT
         >
           {on && <Check className="h-3.5 w-3.5" />}
         </span>
-        <span className={on ? 'font-semibold' : undefined}>Solo ofertas</span>
+        <span className={on ? 'font-semibold' : undefined}>{label}</span>
         {count > 0 && <span className="text-fg-muted">({count})</span>}
       </button>
     </div>
@@ -395,7 +693,7 @@ function FacetSearch({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={label}
-      className="mb-2 h-8 w-full rounded-md border border-black/15 bg-white px-2 text-xs text-black"
+      className="mb-2 h-10 w-full rounded-md border border-black/15 bg-white px-2 text-xs text-black lg:h-8"
     />
   );
 }
@@ -413,7 +711,7 @@ function ShowMore({
     <button
       type="button"
       onClick={onToggle}
-      className="mt-2 text-xs font-semibold text-primary-ink hover:underline"
+      className="mt-1 inline-flex min-h-10 items-center text-xs font-semibold text-primary-ink hover:underline lg:mt-2 lg:min-h-0"
     >
       {expanded ? 'Ver menos' : `Ver ${hidden} más`}
     </button>
@@ -446,9 +744,9 @@ function OptionFacetChips({
               type="button"
               onClick={() => onToggle(v)}
               aria-pressed={on}
-              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary-ink' : 'border-fg/15 hover:bg-fg/5'}`}
+              className={`min-h-10 rounded-full border px-3 py-1 text-xs transition lg:min-h-0 ${on ? 'border-primary bg-primary/10 font-semibold text-primary-ink' : 'border-fg/15 hover:bg-fg/5'}`}
             >
-              {v}
+              {facetLabel(v)}
             </button>
           );
         })}
@@ -553,17 +851,17 @@ function CategoryFacet({
               type="button"
               onClick={() => toggleOpen(node.id)}
               aria-label={isOpen ? 'Contraer' : 'Expandir'}
-              className="shrink-0 rounded p-0.5 opacity-50 hover:opacity-100"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded opacity-50 hover:opacity-100 lg:h-auto lg:w-auto lg:p-0.5"
             >
               <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
             </button>
           ) : (
-            <span className="w-[1.125rem] shrink-0" />
+            <span className="w-10 shrink-0 lg:w-[1.125rem]" />
           )}
           <Link
             href={hrefFor(node)}
             aria-current={current === node.id || undefined}
-            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-fg/5 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+            className={`flex min-h-10 flex-1 items-center truncate rounded px-1.5 py-1 text-left hover:bg-fg/5 lg:block lg:min-h-0 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
           >
             {node.name}
           </Link>
@@ -582,7 +880,7 @@ function CategoryFacet({
       <button
         type="button"
         onClick={() => setCatsOpen((o) => !o)}
-        className="mb-2 flex w-full items-center justify-between lg:pointer-events-none"
+        className="mb-2 flex min-h-10 w-full items-center justify-between lg:pointer-events-none lg:min-h-0"
       >
         <h3 className="text-xs font-bold uppercase tracking-widest text-fg-muted">
           Categorías{activeCat ? <span className="text-primary-ink">: {activeCat.name}</span> : ''}
@@ -598,7 +896,7 @@ function CategoryFacet({
             <Link
               href={hrefFor(null)}
               aria-current={!current || undefined}
-              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-fg/5 ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+              className={`flex min-h-10 w-full items-center rounded px-1.5 py-1 pl-[2.6rem] text-left hover:bg-fg/5 lg:block lg:min-h-0 lg:pl-[1.4rem] ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               Todas
             </Link>
@@ -608,7 +906,7 @@ function CategoryFacet({
                 <li key={c.id}>
                   <Link
                     href={hrefFor(c)}
-                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-fg/5 ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+                    className={`flex min-h-10 w-full items-center truncate rounded px-1.5 py-1 pl-[2.6rem] text-left hover:bg-fg/5 lg:block lg:min-h-0 lg:pl-[1.4rem] ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
                   >
                     {c.name}
                   </Link>
@@ -650,9 +948,9 @@ function BrandFacet({
             <button
               onClick={() => onSelect(b)}
               aria-pressed={current === b}
-              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-fg/5 ${current === b ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+              className={`flex min-h-10 w-full items-center truncate rounded px-2 py-1 text-left hover:bg-fg/5 lg:block lg:min-h-0 ${current === b ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
-              {b}
+              {facetLabel(b)}
             </button>
           </li>
         ))}
@@ -687,8 +985,9 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex items-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] px-3 py-1.5 text-sm font-medium transition-colors"
+        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[rgb(var(--color-fg)/0.2)] px-3 text-sm font-medium transition-colors lg:min-h-0 lg:py-1.5"
       >
+        <span className="text-fg-muted lg:hidden">Ordenar:</span>
         {currentOpt.label}
         <ChevronDown className={`h-4 w-4 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -704,7 +1003,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
                   onChange(s.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)] ${active ? 'font-semibold text-primary-ink' : ''}`}
+                className={`flex min-h-10 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-[rgb(var(--color-fg)/0.06)] ${active ? 'font-semibold text-primary-ink' : ''}`}
               >
                 {s.label}
                 {active && <Check className="h-4 w-4" />}
@@ -774,7 +1073,7 @@ function SpecFacetChips({
   if (facet.values.length === 0) return null;
   return (
     <div>
-      <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-fg-muted">{facet.name}</h3>
+      <FacetTitle>{facet.name}</FacetTitle>
       <div className="flex flex-wrap gap-1.5">
         {facet.values.map((v) => {
           const active = selected.includes(`${facet.definitionId}:${v}`);
@@ -785,13 +1084,13 @@ function SpecFacetChips({
               onClick={() => onToggle(facet.definitionId, v)}
               aria-pressed={active}
               data-tf-plain
-              className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+              className={`min-h-10 rounded-md border px-2.5 py-1 text-xs transition-colors lg:min-h-0 ${
                 active
                   ? 'border-primary bg-primary text-primary-fg'
                   : 'border-[rgb(var(--color-fg)/0.2)] hover:border-[rgb(var(--color-fg)/0.45)]'
               }`}
             >
-              {facet.unit ? `${v} ${facet.unit}` : v}
+              {facet.unit ? `${facetLabel(v)} ${facet.unit}` : facetLabel(v)}
             </button>
           );
         })}

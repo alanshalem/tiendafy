@@ -70,7 +70,8 @@ export function RecentlyViewed({
 }) {
   const { tenantId } = useCart();
   const ids = useRecentlyViewedIds(tenantId);
-  const [products, setProducts] = useState<StoreProduct[]>([]);
+  // Los productos, con la lista de ids que los trajo: si cambia, lo viejo no se muestra.
+  const [loaded, setLoaded] = useState<{ key: string; products: StoreProduct[] }>({ key: '', products: [] });
 
   useEffect(() => {
     if (recordId && tenantId) recordProductView(tenantId, recordId);
@@ -81,19 +82,17 @@ export function RecentlyViewed({
   const key = wanted.join(',');
 
   useEffect(() => {
-    if (!tenantId || !key) {
-      setProducts([]);
-      return;
-    }
+    if (!tenantId || !key) return;
     let current = true;
     void fetchProductsByIdsClient(key.split(','), tenantId).then((found) => {
-      if (current) setProducts(found);
+      if (current) setLoaded({ key, products: found });
     });
     return () => {
       current = false;
     };
   }, [key, tenantId]);
 
+  const products = key && loaded.key === key ? loaded.products : [];
   if (products.length === 0) return null;
   return variant === 'compact' ? (
     <CompactList title={title} products={products} onNavigate={onNavigate} />

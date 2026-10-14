@@ -10,6 +10,7 @@ import { resolveTenant } from '@/lib/tenancy';
 import type { StoreProduct } from '@/components/store/sections';
 import { siteBase } from '@/lib/storefront';
 import type { ThemeConfig } from '@/lib/theme';
+import { jsonLd } from '@/lib/json-ld';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +23,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** ¿Pidió solo las ofertas? (`?onSale=1`, el "Ver todos" de la sección de ofertas). */
 const onSaleOf = (sp: SearchParams) => ['1', 'true'].includes(one(sp.onSale));
 
-/** El título del listado: la categoría, las ofertas, o todo. */
-function listingTitle(category: CategoryDto | undefined, onSale: boolean): string | null {
+/** ¿Pidió solo lo que tiene stock? (`?inStock=1`). */
+const inStockOf = (sp: SearchParams) => ['1', 'true'].includes(one(sp.inStock));
+
+/**
+ * El título del listado: lo buscado, la categoría, las ofertas, o todo. Una
+ * búsqueda decía "Todos los productos" aunque mostrara tres.
+ */
+function listingTitle(category: CategoryDto | undefined, onSale: boolean, q = ''): string | null {
+  if (q.trim()) return `Resultados para «${q.trim()}»`;
   if (category) return onSale ? `${category.name} en oferta` : category.name;
   return onSale ? 'Ofertas' : null;
 }
@@ -60,9 +68,13 @@ export async function generateMetadata({
   const page = pageOf(sp);
   const base = await siteBase();
   const suffix = page > 1 ? ` (página ${page})` : '';
+  const q = one(sp.q);
   return {
     // La plantilla del layout le suma " · <Tienda>".
-    title: `${listingTitle(category, onSaleOf(sp)) ?? 'Productos'}${suffix}`,
+    title: `${listingTitle(category, onSaleOf(sp), q) ?? 'Productos'}${suffix}`,
+    // Una búsqueda no se indexa (es una variante del listado, y cualquiera
+    // puede inventar una URL con cualquier texto); sus links sí se siguen.
+    ...(q.trim() ? { robots: { index: false, follow: true } } : {}),
     description: category
       ? `${category.name} en ${tenant.name}. Comprá online con envíos a todo el país.`
       : `Todos los productos de ${tenant.name}. Comprá online con envíos a todo el país.`,
@@ -86,7 +98,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       live={preview}
     >
       <Suspense fallback={<ProductGridSkeleton count={12} />}>
-        <Catalog tenantId={data.tenant.id} theme={theme} searchParams={searchParams} />
+        <Catalog tenantId={data.tenant.id} theme={theme} searchParams={searchParams} indexable={!preview} />
       </Suspense>
     </StorefrontView>
   );
@@ -96,10 +108,12 @@ async function Catalog({
   tenantId,
   theme,
   searchParams,
+  indexable,
 }: {
   tenantId: string;
   theme: ThemeConfig;
   searchParams: Promise<SearchParams>;
+  indexable: boolean;
 }) {
   const sp = await searchParams;
   const many = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -113,6 +127,7 @@ async function Catalog({
   const priceMin = Number.parseInt(one(sp.priceMin), 10);
   const priceMax = Number.parseInt(one(sp.priceMax), 10);
   const onSale = onSaleOf(sp);
+  const inStock = inStockOf(sp);
 
   // Orden y tamaño de página salen del diseño. El 48 es el techo del backend:
   // pedir más de lo que sirve devolvería una página incompleta sin avisar.
@@ -139,15 +154,36 @@ async function Catalog({
     priceMin: Number.isFinite(priceMin) ? priceMin : undefined,
     priceMax: Number.isFinite(priceMax) ? priceMax : undefined,
     onSale,
+    inStock,
   });
 
   const products = result.items.map(toStoreProduct).filter((p): p is StoreProduct => p !== null);
 
+  // La lista de la página para Google (ItemList): qué productos hay en esta
+  // categoría o listado, con su URL. No en una búsqueda (no se indexa).
+  const base = await siteBase();
+  const itemList =
+    indexable && base && !q.trim() && products.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: listingTitle(active, onSale) ?? 'Todos los productos',
+          numberOfItems: result.total,
+          itemListElement: products.map((p, i) => ({
+            '@type': 'ListItem',
+            position: (result.page - 1) * pageSize + i + 1,
+            url: `${base}/productos/${p.slug}`,
+            name: p.name,
+          })),
+        }
+      : null;
+
   return (
     <main className="min-h-[60vh]">
+      {itemList && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(itemList)} />}
       <div className="mx-auto max-w-container px-4 pt-8">
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {listingTitle(active, onSale) ?? 'Todos los productos'}
+          {listingTitle(active, onSale, q) ?? 'Todos los productos'}
         </h1>
       </div>
       <CatalogBrowser
@@ -158,6 +194,8 @@ async function Catalog({
         categories={categories}
         facets={result.facets}
         productList={theme.productList}
+        headerSticky={theme.header.sticky}
+        whatsappPhone={theme.whatsappButton?.enabled ? theme.whatsappButton.phone || undefined : undefined}
         current={{
           q,
           sort,
@@ -168,6 +206,7 @@ async function Catalog({
           priceMin: one(sp.priceMin),
           priceMax: one(sp.priceMax),
           onSale,
+          inStock,
         }}
       />
     </main>

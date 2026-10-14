@@ -26,6 +26,8 @@ export interface ProductFacets {
   specs?: SpecFacet[];
   /** Cuántos de la búsqueda están en oferta (sin el filtro de ofertas). Puede faltar, como `specs`. */
   onSale?: number;
+  /** Cuántos tienen stock (sin el filtro "Solo con stock"). Puede faltar, como `specs`. */
+  inStock?: number;
 }
 
 interface ProductsPage {
@@ -145,6 +147,8 @@ interface SearchParams {
   specs?: string[];
   /** Solo lo que está en oferta (precio tachado). */
   onSale?: boolean;
+  /** Solo lo que tiene stock. Sin esto lo agotado igual va al final (lo ordena la API). */
+  inStock?: boolean;
 }
 
 export async function searchProducts(tenantId: string, params: SearchParams): Promise<ProductSearchResult> {
@@ -159,6 +163,7 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   // Ficha técnica: <definitionId>:<valor>, repetible.
   for (const sp of params.specs ?? []) qs.append('spec', sp);
   if (params.onSale) qs.set('onSale', 'true');
+  if (params.inStock) qs.set('inStock', 'true');
   qs.set('page', String(params.page ?? 1));
   qs.set('pageSize', String(params.pageSize ?? 24));
 

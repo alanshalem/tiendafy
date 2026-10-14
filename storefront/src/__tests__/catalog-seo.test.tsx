@@ -48,8 +48,47 @@ describe('el listado de una categoría', () => {
 
   it('la página 2 es su propia canónica; el orden y la búsqueda no entran', async () => {
     const m = await meta({ category: musculacion.path, page: '2', sort: 'price_asc', q: 'barra' });
-    expect(m.title).toBe('Musculación (página 2)');
     expect(m.alternates?.canonical).toBe(`${BASE}/productos?category=${musculacion.path}&page=2`);
+    expect((await meta({ category: musculacion.path, page: '2', sort: 'price_asc' })).title).toBe(
+      'Musculación (página 2)',
+    );
+  });
+
+  it('una búsqueda se titula con lo buscado y no se indexa (sus links sí se siguen)', async () => {
+    const m = await meta({ q: 'kettlebell' });
+    expect(m.title).toBe('Resultados para «kettlebell»');
+    expect(m.robots).toEqual({ index: false, follow: true });
+    await renderPage(ProductsPage, '/productos?q=kettlebell');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Resultados para «kettlebell»' }),
+    ).toBeInTheDocument();
+    expect(document.querySelector('script[type="application/ld+json"]')?.textContent ?? '').not.toContain(
+      'ItemList',
+    );
+  });
+
+  it('el listado lleva su ItemList para Google, con la URL de cada producto', async () => {
+    await renderPage(ProductsPage, `/productos?category=${musculacion.path}`);
+    const lists = [...document.querySelectorAll('script[type="application/ld+json"]')]
+      .map(
+        (s) =>
+          JSON.parse(s.textContent ?? '{}') as {
+            '@type'?: string;
+            itemListElement?: { url: string; position: number }[];
+          },
+      )
+      .filter((d) => d['@type'] === 'ItemList');
+    expect(lists).toHaveLength(1);
+    expect(lists[0]!.itemListElement![0]).toMatchObject({
+      position: 1,
+      url: expect.stringMatching(/\/productos\//),
+    });
+  });
+
+  it('"Solo con stock" llega a la API', async () => {
+    await renderPage(ProductsPage, '/productos?inStock=1');
+    const searched = api.calls.find((c) => c.path.startsWith('/api/v1/products/search'))!;
+    expect(new URLSearchParams(searched.path.split('?')[1]).get('inStock')).toBe('true');
   });
 
   it('sin categoría (o una que no existe), el listado entero', async () => {

@@ -115,7 +115,7 @@ describe('encabezado', () => {
       expect(header.getAllByText('Tienda Seed').length).toBeGreaterThan(0);
       expect(header.getAllByRole('link', { name: 'Productos' }).length).toBeGreaterThan(0);
       expect(header.getAllByRole('button', { name: 'Abrir carrito' })[0]).toHaveTextContent('Carrito');
-      expect(header.getAllByRole('textbox', { name: 'Buscar' }).length).toBeGreaterThan(0);
+      expect(header.getAllByRole('combobox', { name: 'Buscar' }).length).toBeGreaterThan(0);
     },
   );
 
@@ -188,7 +188,7 @@ describe('encabezado', () => {
 
   it('la búsqueda lleva al listado con la consulta (o al listado entero)', async () => {
     const { user } = await show(theme({ showSearch: true }));
-    const box = within(screen.getByRole('banner')).getAllByRole('textbox', { name: 'Buscar' })[0]!;
+    const box = within(screen.getByRole('banner')).getAllByRole('combobox', { name: 'Buscar' })[0]!;
     await user.type(box, ' pesas {Enter}');
     expect(nav.router.push).toHaveBeenLastCalledWith('/productos?q=pesas');
     await user.clear(box);
@@ -208,7 +208,7 @@ describe('encabezado', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const box = within(document.getElementById(toggle.getAttribute('aria-controls')!)!).getByRole(
-      'searchbox',
+      'combobox',
       {
         name: 'Buscar',
       },
@@ -225,7 +225,7 @@ describe('encabezado', () => {
     );
     await settle(1);
     // Navegar cierra los dos: queda solo la búsqueda del escritorio.
-    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Menú' })).toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -233,7 +233,7 @@ describe('encabezado', () => {
     const { user } = await show(theme({ showTabsMobile: false, showSearch: true }));
     expect(screen.queryByRole('button', { name: 'Menú' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Buscar productos' }));
-    expect(screen.getByRole('searchbox', { name: 'Buscar' })).toBeInTheDocument();
+    expect(screen.getAllByRole('combobox', { name: 'Buscar' })).toHaveLength(2);
   });
 
   it('sin búsqueda en el diseño, tampoco el botón del celular', async () => {
