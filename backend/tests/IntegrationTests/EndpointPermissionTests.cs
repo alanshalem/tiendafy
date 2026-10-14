@@ -24,6 +24,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
         [
             "GET /api/v1/captcha/config",
             "GET /api/v1/checkout-settings",
+            "GET /api/v1/store-offers", // descuento por transferencia, cuotas y envío gratis que anuncia la tienda
             "GET /api/v1/redirects/resolve",
             "GET /api/v1/spec-definitions/", // los nombres de la ficha técnica que muestra cada producto
             "GET /api/v1/shipping/correo/agencies",
@@ -47,6 +48,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "POST /api/v1/checkout/{id:guid}/pay",
             "POST /api/v1/checkout/{id:guid}/pay-onsite",
             "POST /api/v1/checkout/{id:guid}/pay-payway",
+            "POST /api/v1/checkout/{id:guid}/pay-offline",
             "POST /api/v1/checkout/{id:guid}/submit",
             "GET /api/v1/payments/mercadopago/callback",
         ],
@@ -67,6 +69,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "PUT /api/v1/shop/favorites/{productId:guid}",
             "DELETE /api/v1/shop/favorites/{productId:guid}",
             "GET /api/v1/shop/orders",
+            "GET /api/v1/shop/checkout-prefill",
             "GET /api/v1/shop/support/conversations",
             "GET /api/v1/shop/support/conversations/{id:guid}/messages",
             "POST /api/v1/shop/support/conversations",
@@ -77,6 +80,7 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
         [
             "GET /api/v1/orders/{id:guid}",
             "GET /api/v1/orders/{id:guid}/status",
+            "GET /api/v1/orders/{id:guid}/payment-instructions", // cuánto y a qué cuenta: datos de la tienda, sin los del comprador
         ],
         ["Entrar al panel: login, registro y la propia cuenta"] =
         [
