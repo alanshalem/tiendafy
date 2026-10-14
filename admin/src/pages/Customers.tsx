@@ -1,7 +1,22 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Loader2, MoreVertical, Pencil, Trash2, Plus, Search, UserPlus } from 'lucide-react';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Plus,
+  Search,
+  UserPlus,
+  UserRound,
+} from 'lucide-react';
+import {
+  Badge,
   Button,
   Card,
   Dropdown,
@@ -12,9 +27,8 @@ import {
   useToast,
   useConfirm,
   type TableColumn,
-  Table,
 } from '@tiendafy/ui';
-import { formatDate } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { api, errMsg } from '../lib/api';
@@ -23,10 +37,11 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
+import { ResponsiveList } from '../components/ListCards';
 import { downloadBlob } from '../lib/download';
 import { useListParams, useListSearch } from '../lib/useListParams';
 
-interface Customer {
+export interface Customer {
   id: string;
   name: string;
   email: string | null;
@@ -35,16 +50,70 @@ interface Customer {
   notes: string | null;
   priceListId: string | null;
   createdAtUtc: string;
+  tags: string[];
+  /** Resumen de compras que guarda la agenda (ver CustomerDirectory en el backend). */
+  ordersCount: number;
+  totalSpentMinor: number;
+  lastOrderAtUtc: string | null;
+}
+
+/**
+ * Lo que falta en una ficha, con su valor de "todavía nada". Una API anterior
+ * al resumen de compras (un deploy a medias, un entorno viejo) no los manda, y
+ * la agenda no puede romperse por eso.
+ */
+export function withCustomerDefaults(c: Customer): Customer {
+  return {
+    ...c,
+    tags: c.tags ?? [],
+    ordersCount: c.ordersCount ?? 0,
+    totalSpentMinor: c.totalSpentMinor ?? 0,
+    lastOrderAtUtc: c.lastOrderAtUtc ?? null,
+  };
 }
 
 /** Clientes por página. */
 const PAGE_SIZE = 25;
 
-/** Búsqueda y página, en la URL (ver useListParams). */
-const LIST_DEFAULTS = { q: '', pagina: 1 };
+/**
+ * Búsqueda, segmento, etiqueta, orden y página, en la URL (ver useListParams):
+ * "los que no compran hace 90 días" se puede linkear y sobrevive a recargar.
+ */
+const LIST_DEFAULTS = { q: '', pagina: 1, segmento: '', etiqueta: '', orden: '', asc: false };
+
+type SortKey = '' | 'name' | 'orders' | 'spent' | 'last';
+
+/**
+ * Segmentos simples, los que un comercio pregunta sin tener que armar un
+ * filtro: a quién volver a escribirle, quiénes son los fieles, quiénes nunca
+ * compraron. Cada uno es un parámetro de la API.
+ */
+const SEGMENTS: { value: string; label: string; params: Record<string, string> }[] = [
+  { value: '', label: 'Todos los clientes', params: {} },
+  { value: 'inactivos-90', label: 'Compraron hace más de 90 días', params: { inactiveDays: '90' } },
+  { value: 'inactivos-180', label: 'Compraron hace más de 180 días', params: { inactiveDays: '180' } },
+  { value: 'frecuentes', label: 'Compraron 3 veces o más', params: { minOrders: '3' } },
+  { value: 'recurrentes', label: 'Compraron 2 veces o más', params: { minOrders: '2' } },
+  { value: 'nunca', label: 'Todavía no compraron', params: { neverBought: 'true' } },
+];
+
+/** Los parámetros de la API para lo que está puesto en la pantalla (lista y export). */
+function listQuery(v: typeof LIST_DEFAULTS): URLSearchParams {
+  const params = new URLSearchParams();
+  if (v.q.trim()) params.set('q', v.q.trim());
+  for (const [k, val] of Object.entries(SEGMENTS.find((s) => s.value === v.segmento)?.params ?? {}))
+    params.set(k, val);
+  if (v.etiqueta) params.set('tag', v.etiqueta);
+  if (v.orden) {
+    params.set('sort', v.orden);
+    params.set('desc', String(!v.asc));
+  }
+  return params;
+}
 
 export function CustomersPage() {
   const { store } = useStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -54,19 +123,22 @@ export function CustomersPage() {
   const list = useListParams(LIST_DEFAULTS);
   const q = list.values.q.trim();
   const page = list.values.pagina;
+  const sort = list.values.orden as SortKey;
   const [term, setTerm] = useListSearch(list);
+  const filtered = !!(q || list.values.segmento || list.values.etiqueta);
 
-  // La agenda crece con cada venta: la página y la búsqueda las resuelve la
-  // base, no el navegador.
+  // La agenda crece con cada venta: la página, la búsqueda, los segmentos y
+  // el orden los resuelve la base, no el navegador.
+  const query = listQuery(list.values);
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', store?.id, q, page],
+    queryKey: ['customers', store?.id, query.toString(), page],
     queryFn: () => {
-      const params = new URLSearchParams({
-        limit: String(PAGE_SIZE),
-        offset: String((page - 1) * PAGE_SIZE),
-      });
-      if (q) params.set('q', q);
-      return api.get<{ items: Customer[]; total: number }>(`/api/v1/customers?${params}`);
+      const params = new URLSearchParams(query);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String((page - 1) * PAGE_SIZE));
+      return api
+        .get<{ items: Customer[]; total: number }>(`/api/v1/customers?${params}`)
+        .then((r) => ({ ...r, items: r.items.map(withCustomerDefaults) }));
     },
     enabled: !!store,
     placeholderData: keepPreviousData,
@@ -75,15 +147,25 @@ export function CustomersPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
+  // Las etiquetas que ya usa la tienda: sin ninguna, el filtro no aparece.
+  const { data: tagData } = useQuery({
+    queryKey: ['customer-tags', store?.id],
+    queryFn: () => api.get<{ items: { tag: string; count: number }[] }>('/api/v1/customers/tags'),
+    enabled: !!store,
+  });
+  const tags = tagData?.items ?? [];
 
-  // La agenda entera (con la búsqueda puesta) como planilla: la arma el
-  // servidor, así no tiene el tope de una página.
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
+  const open = (c: Customer) => navigate(`/clientes/${c.id}`);
+
+  // La agenda entera (con la búsqueda y el segmento puestos) como planilla: la
+  // arma el servidor, así no tiene el tope de una página.
   const [exporting, setExporting] = useState(false);
   const exportCsv = async () => {
     setExporting(true);
     try {
-      const blob = await api.download(`/api/v1/customers/export${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+      const qs = query.toString();
+      const blob = await api.download(`/api/v1/customers/export${qs ? `?${qs}` : ''}`);
       downloadBlob(blob, `clientes-${store?.subdomain ?? 'tienda'}.csv`);
     } catch (e) {
       toast(errMsg(e, 'No se pudo exportar.'), { variant: 'error' });
@@ -118,65 +200,130 @@ export function CustomersPage() {
     onError: (e) => toast(errMsg(e, 'No se pudieron traer los compradores.'), { variant: 'error' }),
   });
 
+  const askRemove = async (c: Customer) => {
+    if (
+      await confirm({
+        title: 'Eliminar cliente',
+        message: `¿Eliminar a ${c.name}?`,
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      })
+    )
+      remove.mutate(c);
+  };
+
+  const actions = (c: Customer) =>
+    canEdit && (
+      <Dropdown>
+        <Dropdown.Trigger label={`Acciones de ${c.name}`}>
+          <MoreVertical className="h-4 w-4" />
+        </Dropdown.Trigger>
+        <Dropdown.Menu align="end">
+          <Dropdown.Item onSelect={() => open(c)}>
+            <UserRound className="mr-2 inline h-4 w-4" /> Ver ficha
+          </Dropdown.Item>
+          <Dropdown.Item onSelect={() => setEditing(c)}>
+            <Pencil className="mr-2 inline h-4 w-4" /> Editar
+          </Dropdown.Item>
+          <Dropdown.Item destructive onSelect={() => askRemove(c)}>
+            <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
+    );
+
+  /** Encabezado que ordena: un click ordena por esa columna, otro invierte. */
+  const sortHeader = (key: Exclude<SortKey, ''>, label: string, align: 'left' | 'right' = 'left') => {
+    const active = sort === key;
+    const Icon = !active ? ArrowUpDown : list.values.asc ? ArrowUp : ArrowDown;
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          // Plata, compras y fechas arrancan de mayor a menor (lo que se busca
+          // primero); el nombre, de la A a la Z.
+          active ? list.set({ asc: !list.values.asc }) : list.set({ orden: key, asc: key === 'name' })
+        }
+        aria-label={`Ordenar por ${label.toLowerCase()}${active ? (list.values.asc ? ' (de menor a mayor)' : ' (de mayor a menor)') : ''}`}
+        className={`inline-flex items-center gap-1 font-medium hover:text-fg ${align === 'right' ? 'flex-row-reverse' : ''} ${active ? 'text-fg' : ''}`}
+      >
+        {label}
+        <Icon className={`h-3.5 w-3.5 ${active ? '' : 'opacity-40'}`} aria-hidden="true" />
+      </button>
+    );
+  };
+
   const columns: TableColumn<Customer>[] = [
-    { key: 'name', header: 'Nombre', cell: (c) => <span className="font-semibold text-fg">{c.name}</span> },
-    { key: 'email', header: 'Email', cell: (c) => c.email ?? <span className="text-fg-subtle">—</span> },
-    { key: 'phone', header: 'Teléfono', cell: (c) => c.phone ?? <span className="text-fg-subtle">—</span> },
     {
-      key: 'address',
-      header: 'Dirección',
+      key: 'name',
+      header: sortHeader('name', 'Nombre'),
+      cell: (c) => (
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => open(c)}
+            className="font-semibold text-fg hover:text-primary hover:underline"
+          >
+            {c.name}
+          </button>
+          {c.tags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {c.tags.map((t) => (
+                <Badge key={t} variant="neutral">
+                  {t}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'contact',
+      header: 'Contacto',
       cell: (c) =>
-        c.address ? (
-          <span className="block max-w-[16rem] truncate text-sm text-fg-muted" title={c.address}>
-            {c.address}
-          </span>
+        c.email || c.phone ? (
+          <div className="text-sm">
+            {c.email && <div className="text-fg">{c.email}</div>}
+            {c.phone && <div className="text-fg-muted">{c.phone}</div>}
+          </div>
         ) : (
           <span className="text-fg-subtle">—</span>
         ),
     },
     {
-      key: 'createdAtUtc',
-      header: 'Creado',
-      cell: (c) => <span className="text-sm text-fg-muted">{formatDate(c.createdAtUtc)}</span>,
+      key: 'orders',
+      header: sortHeader('orders', 'Compras', 'right'),
+      align: 'right',
+      cell: (c) => <span className="tabular-nums">{formatNumber(c.ordersCount)}</span>,
     },
     {
-      key: 'id',
-      header: '',
+      key: 'spent',
+      header: sortHeader('spent', 'Total gastado', 'right'),
+      align: 'right',
       cell: (c) =>
-        canEdit && (
-          <div className="flex justify-end">
-            <Dropdown>
-              <Dropdown.Trigger label={`Acciones de ${c.name}`}>
-                <MoreVertical className="h-4 w-4" />
-              </Dropdown.Trigger>
-              <Dropdown.Menu align="end">
-                <Dropdown.Item onSelect={() => setEditing(c)}>
-                  <Pencil className="mr-2 inline h-4 w-4" /> Editar
-                </Dropdown.Item>
-                <Dropdown.Item
-                  destructive
-                  onSelect={async () => {
-                    if (
-                      await confirm({
-                        title: 'Eliminar cliente',
-                        message: `¿Eliminar a ${c.name}?`,
-                        confirmLabel: 'Eliminar',
-                        variant: 'danger',
-                      })
-                    )
-                      remove.mutate(c);
-                  }}
-                >
-                  <Trash2 className="mr-2 inline h-4 w-4" /> Eliminar
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
+        c.totalSpentMinor > 0 ? (
+          <span className="font-medium tabular-nums">{formatMoney(c.totalSpentMinor)}</span>
+        ) : (
+          <span className="text-fg-subtle">—</span>
         ),
     },
+    {
+      key: 'last',
+      header: sortHeader('last', 'Última compra'),
+      cell: (c) =>
+        c.lastOrderAtUtc ? (
+          <span className="text-sm text-fg-muted">{formatDate(c.lastOrderAtUtc)}</span>
+        ) : (
+          <span className="text-sm text-fg-subtle">Nunca</span>
+        ),
+    },
+    { key: 'id', header: '', cell: (c) => <div className="flex justify-end">{actions(c)}</div> },
   ];
 
   if (!store) return <NoStoreSelected />;
+
+  const segmentLabel = SEGMENTS.find((s) => s.value === list.values.segmento)?.label;
 
   return (
     <div className="space-y-4">
@@ -184,38 +331,15 @@ export function CustomersPage() {
         <div>
           <h1 className="text-2xl font-bold text-fg">Clientes</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
-            Tu base de contactos: nombre, datos y notas internas.
+            Quiénes te compran: cuánto, cada cuánto y cómo escribirles.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <form
-            onSubmit={(e) => {
-              // Enter busca ya, sin esperar la pausa de tipeo.
-              e.preventDefault();
-              list.set({ q: term }, { replace: true });
-            }}
-            className="relative"
-          >
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-            <Input
-              type="search"
-              aria-label="Buscar clientes"
-              className="pl-8"
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              placeholder="Buscar cliente..."
-            />
-          </form>
-          {total > 0 && (
-            <span className="text-xs text-fg-subtle">
-              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
-            </span>
-          )}
           <Button
             variant="secondary"
             onClick={exportCsv}
             disabled={exporting || total === 0}
-            title="Descarga la agenda (con la búsqueda puesta) en un CSV para Excel."
+            title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
           >
             <span className="inline-flex items-center gap-1.5">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -228,7 +352,7 @@ export function CustomersPage() {
                 variant="secondary"
                 onClick={() => importFromOrders.mutate()}
                 disabled={importFromOrders.isPending}
-                title="Suma a la agenda los compradores de tus ventas anteriores"
+                title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
               >
                 <span className="inline-flex items-center gap-1.5">
                   {importFromOrders.isPending ? (
@@ -249,15 +373,61 @@ export function CustomersPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <form
+          onSubmit={(e) => {
+            // Enter busca ya, sin esperar la pausa de tipeo.
+            e.preventDefault();
+            list.set({ q: term }, { replace: true });
+          }}
+          className="relative min-w-[14rem] flex-1 sm:max-w-xs"
+        >
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+          <Input
+            type="search"
+            aria-label="Buscar clientes"
+            className="pl-8"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Nombre, email o teléfono"
+          />
+        </form>
+        <Select
+          aria-label="Segmento"
+          value={list.values.segmento}
+          onChange={(e) => list.set({ segmento: e.target.value })}
+          options={SEGMENTS.map((s) => ({ value: s.value, label: s.label }))}
+          className="w-auto"
+        />
+        {tags.length > 0 && (
+          <Select
+            aria-label="Etiqueta"
+            value={list.values.etiqueta}
+            onChange={(e) => list.set({ etiqueta: e.target.value })}
+            options={[
+              { value: '', label: 'Todas las etiquetas' },
+              ...tags.map((t) => ({ value: t.tag, label: `${t.tag} (${t.count})` })),
+            ]}
+            className="w-auto"
+          />
+        )}
+        {total > 0 && (
+          <span className="text-xs text-fg-subtle">
+            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
+          </span>
+        )}
+      </div>
+
       {isLoading ? (
         <Card>
           <TableSkeleton label="Cargando clientes…" />
         </Card>
       ) : customers.length === 0 ? (
-        q ? (
+        filtered ? (
           <Card>
             <p className="px-4 py-12 text-center text-sm text-fg-muted">
-              No se encontraron clientes para “{q}”.
+              {q ? `No se encontraron clientes para “${q}”` : 'Ningún cliente cumple ese filtro'}
+              {segmentLabel && list.values.segmento ? ` (${segmentLabel.toLowerCase()})` : ''}.
             </p>
           </Card>
         ) : (
@@ -272,7 +442,35 @@ export function CustomersPage() {
         )
       ) : (
         <Card flush>
-          <Table columns={columns} rows={customers} rowKey={(c) => c.id} emptyState="No hay clientes." />
+          <ResponsiveList
+            label="Clientes"
+            columns={columns}
+            rows={customers}
+            rowKey={(c) => c.id}
+            emptyState="No hay clientes."
+            card={(c) => ({
+              title: c.name,
+              subtitle: c.email ?? c.phone ?? undefined,
+              value: c.totalSpentMinor > 0 ? formatMoney(c.totalSpentMinor) : undefined,
+              meta: (
+                <span>
+                  {c.ordersCount === 0
+                    ? 'Todavía no compró'
+                    : `${formatNumber(c.ordersCount)} ${c.ordersCount === 1 ? 'compra' : 'compras'}${c.lastOrderAtUtc ? ` · última ${formatDate(c.lastOrderAtUtc)}` : ''}`}
+                </span>
+              ),
+              badges:
+                c.tags.length > 0
+                  ? c.tags.map((t) => (
+                      <Badge key={t} variant="neutral">
+                        {t}
+                      </Badge>
+                    ))
+                  : undefined,
+              onOpen: () => open(c),
+              actions: actions(c) || undefined,
+            })}
+          />
           <Pagination
             page={Math.min(page, totalPages)}
             totalPages={totalPages}
@@ -301,7 +499,7 @@ export function CustomersPage() {
   );
 }
 
-function CustomerModal({
+export function CustomerModal({
   open,
   customer,
   onClose,
@@ -372,24 +570,24 @@ function CustomerModal({
     >
       <div className="space-y-4">
         <FormField label="Nombre" required error={error}>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Pérez" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej.: Juan Pérez" />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Email" hint="Opcional">
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="juan@email.com"
+              placeholder="Ej.: juan@email.com"
             />
           </FormField>
-          <FormField label="Teléfono" hint="Opcional">
+          <FormField label="Teléfono" hint="Opcional. Con característica, para escribirle por WhatsApp.">
             <Input
               inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="11 1234 5678"
+              placeholder="Ej.: 11 1234 5678"
             />
           </FormField>
         </div>
@@ -398,7 +596,7 @@ function CustomerModal({
           <Input
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Av. Siempre Viva 742"
+            placeholder="Ej.: Av. Corrientes 1234, CABA"
           />
         </FormField>
 

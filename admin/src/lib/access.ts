@@ -108,6 +108,7 @@ const MAIN_PERMISSIONS: Record<string, PermRequirement> = {
   '/proveedores': 'purchasing.manage',
 
   '/clientes': 'customers.read',
+  '/clientes/:id': 'customers.read',
   '/mensajes': 'messages.read',
   '/posventa': 'support.chat',
 
