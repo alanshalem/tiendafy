@@ -120,7 +120,7 @@ export function CheckoutResult({
 
   const view = {
     success: {
-      icon: <CheckCircle2 className="h-14 w-14 text-green-600" />,
+      icon: <CheckCircle2 className="h-14 w-14 text-success" />,
       title: '¡Pago aprobado!',
       text: 'Recibimos tu pago. Te enviamos la confirmación por email.',
     },
@@ -128,7 +128,7 @@ export function CheckoutResult({
       icon: loading ? (
         <Loader2 className="h-14 w-14 animate-spin text-fg-muted" />
       ) : (
-        <Clock className="h-14 w-14 text-amber-500" />
+        <Clock className="h-14 w-14 text-warning" />
       ),
       title: loading ? 'Confirmando tu pago…' : 'Pago pendiente',
       text: loading
@@ -136,7 +136,7 @@ export function CheckoutResult({
         : 'Tu pago quedó pendiente. Te avisamos por email cuando se acredite.',
     },
     failure: {
-      icon: <XCircle className="h-14 w-14 text-red-600" />,
+      icon: <XCircle className="h-14 w-14 text-danger" />,
       title: 'No se pudo completar el pago',
       text: 'El pago fue rechazado o cancelado. Podés intentar de nuevo desde tu carrito.',
     },

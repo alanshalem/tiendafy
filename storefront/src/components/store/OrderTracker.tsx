@@ -93,7 +93,7 @@ export function OrderTracker({ token, initialNumber }: { token?: string; initial
             </span>
           </label>
           {error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="text-sm text-danger">
               {error}
             </p>
           )}

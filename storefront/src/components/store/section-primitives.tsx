@@ -173,7 +173,7 @@ export function useRail<T extends HTMLElement>(deps: readonly unknown[] = []) {
 }
 
 const ARROW =
-  'absolute z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex';
+  'absolute z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-fg/10 bg-bg text-fg/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex';
 
 /**
  * Las flechas de una tira deslizable, para la computadora (en el celular se

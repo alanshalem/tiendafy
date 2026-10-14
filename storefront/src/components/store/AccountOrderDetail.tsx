@@ -174,7 +174,7 @@ export function AccountOrderDetail({ orderId }: { orderId: string }) {
         )}
       </div>
       {downloadError && (
-        <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-sm text-red-500">
+        <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-sm text-danger">
           <RotateCcw className="h-4 w-4" aria-hidden /> {downloadError}
         </p>
       )}

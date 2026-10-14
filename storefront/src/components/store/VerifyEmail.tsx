@@ -43,7 +43,7 @@ export function VerifyEmail() {
       {state === 'loading' && <Loader2 className="mx-auto h-8 w-8 animate-spin opacity-60" />}
       {state === 'ok' && (
         <>
-          <CheckCircle2 className="mx-auto h-10 w-10 text-green-600" />
+          <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
           <h1 className="mt-3 text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             Email verificado
           </h1>
@@ -58,7 +58,7 @@ export function VerifyEmail() {
       )}
       {state === 'error' && (
         <>
-          <XCircle className="mx-auto h-10 w-10 text-red-500" />
+          <XCircle className="mx-auto h-10 w-10 text-danger" />
           <h1 className="mt-3 text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             Link inválido
           </h1>

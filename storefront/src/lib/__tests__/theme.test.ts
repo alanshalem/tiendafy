@@ -51,6 +51,15 @@ describe('themeToStyle', () => {
     expect(themeToStyle(conAcento)['--color-accent']).toBe('1 2 3');
     expect(themeToStyle(sinAcento)['--color-accent']).toBe(sinAcento.colors.primary);
   });
+
+  it('en una tienda oscura los controles nativos van oscuros y el ámbar de estado se lee', () => {
+    const oscura = themeToStyle(
+      mergeTheme({ colors: { ...defaultTheme.colors, bg: '17 17 17', text: '245 245 245' } }),
+    );
+    expect(oscura.colorScheme).toBe('dark');
+    expect(contrastRatio(oscura['--color-warning']!, '17 17 17')).toBeGreaterThanOrEqual(4.5);
+    expect(themeToStyle(defaultTheme).colorScheme).toBe('light');
+  });
 });
 
 describe('colClass', () => {

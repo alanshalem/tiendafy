@@ -17,7 +17,7 @@ export function ContactContent({ contact }: { contact: ContactConfig }) {
       <p className="mt-2 opacity-70">¿Tenés una consulta? Escribinos y te respondemos a la brevedad.</p>
 
       {(c.address || c.phone || c.email || c.whatsapp) && (
-        <div className="mt-5 space-y-1.5 rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm">
+        <div className="mt-5 space-y-1.5 rounded-lg border border-fg/10 bg-fg/[0.02] p-4 text-sm">
           {c.address && (
             <div className="flex items-center gap-2">
               <Icon name="mapPin" className="h-4 w-4 shrink-0" /> {c.address}

@@ -106,7 +106,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
   if (embed.kind === 'instagram') {
     return (
       <Frame data={data}>
-        <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border border-black/10 bg-white">
+        <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border border-fg/10 bg-white">
           <iframe
             src={embed.src}
             className="h-[560px] w-full"

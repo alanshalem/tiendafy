@@ -271,6 +271,12 @@ export function themeToStyle(theme: ThemeConfig): Record<string, string> {
     // fondo de la tienda: el red-600 fijo daba 3:1 sobre un fondo oscuro.
     '--color-danger': statusInk(theme, '220 38 38'),
     '--color-success': statusInk(theme, '22 163 74'),
+    // El ámbar de "pocas unidades" o "pendiente", con el mismo ajuste.
+    '--color-warning': statusInk(theme, '217 119 6'),
+    // Los controles nativos (la lista de un <select>, el tilde de un checkbox,
+    // la barra de scroll) siguen al fondo: con `light` fijo, la lista de un
+    // select en una tienda oscura salía blanca con el texto claro encima.
+    colorScheme: contrastText(c.bg) === '255 255 255' ? 'dark' : 'light',
     '--store-header-bg': theme.header.bg,
     '--font-heading': FONT_FAMILIES[theme.fonts.heading] ?? FONT_FAMILIES.sans!,
     '--font-body': FONT_FAMILIES[theme.fonts.body] ?? FONT_FAMILIES.sans!,

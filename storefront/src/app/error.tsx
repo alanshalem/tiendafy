@@ -18,7 +18,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={reset}
-          className="inline-flex min-h-10 items-center rounded-full bg-black px-6 text-sm font-semibold text-white transition-transform hover:scale-[1.03] dark:bg-white dark:text-black"
+          className="inline-flex min-h-10 items-center rounded-full bg-fg px-6 text-sm font-semibold text-bg transition-transform hover:scale-[1.03]"
         >
           Reintentar
         </button>

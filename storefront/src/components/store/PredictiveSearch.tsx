@@ -375,7 +375,7 @@ function OptionBody({ option }: { option: Option }) {
           <span className="min-w-0 flex-1">
             <span className="line-clamp-2 leading-snug">{p.name}</span>
             <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs">
-              <span className={cn('font-semibold', onSale && 'text-red-600')}>
+              <span className={cn('font-semibold', onSale && 'text-danger')}>
                 {formatMoney(p.priceAmount, p.currency)}
               </span>
               {onSale && (

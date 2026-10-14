@@ -158,7 +158,7 @@ function DropdownMenu({ item }: { item: NavItem }) {
       </button>
       {/* En el HTML aunque esté cerrado (los links llegan a Google). `pt-2`: puente para el hover. */}
       <div className="absolute left-0 top-full z-50 pt-2" {...panel}>
-        <ul className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
+        <ul className="min-w-52 rounded-lg border border-fg/10 bg-bg p-1.5 text-fg shadow-xl">
           <li>
             <StoreLink
               href={item.href}
@@ -209,7 +209,7 @@ function MoreMenu({ items }: { items: NavItem[] }) {
 
       {/* `pt-2`: puente transparente para no perder el hover al bajar el mouse. */}
       <div className="absolute right-0 top-full z-50 pt-2" {...panel}>
-        <div className="min-w-52 rounded-lg border border-black/10 bg-bg p-1.5 text-fg shadow-xl">
+        <div className="min-w-52 rounded-lg border border-fg/10 bg-bg p-1.5 text-fg shadow-xl">
           {items.map((item) => (
             <div key={item.id}>
               <StoreLink

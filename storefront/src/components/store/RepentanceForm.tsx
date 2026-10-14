@@ -5,7 +5,7 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useCart } from './cart';
 import { Captcha } from './Captcha';
 import { submitContact } from '@/lib/contact';
-import { BTN_SUBMIT_PUBLIC, INPUT_LIGHT_11, TEXTAREA_LIGHT } from './styles';
+import { BTN_SUBMIT_PUBLIC, INPUT_11, TEXTAREA } from './styles';
 
 /**
  * Formulario del Botón de Arrepentimiento (Res. 424/2020). Entra por el mismo
@@ -27,7 +27,7 @@ export function RepentanceForm({ initialOrder = '' }: { initialOrder?: string })
 
   if (receipt) {
     return (
-      <div className="mt-6 rounded-md border border-black/10 bg-black/[0.03] p-5 text-sm">
+      <div className="mt-6 rounded-md border border-fg/10 bg-fg/[0.03] p-5 text-sm">
         <div className="flex items-center gap-2 font-semibold">
           <CheckCircle2 className="h-5 w-5 text-primary-ink" /> Solicitud de arrepentimiento enviada
         </div>
@@ -72,7 +72,7 @@ export function RepentanceForm({ initialOrder = '' }: { initialOrder?: string })
         onChange={(e) => setName(e.target.value)}
         placeholder="Tu nombre"
         aria-label="Tu nombre"
-        className={INPUT_LIGHT_11}
+        className={INPUT_11}
       />
       <input
         required
@@ -81,14 +81,14 @@ export function RepentanceForm({ initialOrder = '' }: { initialOrder?: string })
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Tu email (el de la compra)"
         aria-label="Tu email"
-        className={INPUT_LIGHT_11}
+        className={INPUT_11}
       />
       <input
         value={order}
         onChange={(e) => setOrder(e.target.value)}
         placeholder="Número de pedido (ej. #1042), si lo tenés"
         aria-label="Número de pedido"
-        className={INPUT_LIGHT_11}
+        className={INPUT_11}
       />
       <textarea
         value={reason}
@@ -96,10 +96,10 @@ export function RepentanceForm({ initialOrder = '' }: { initialOrder?: string })
         placeholder="Motivo (opcional)"
         aria-label="Motivo"
         rows={3}
-        className={TEXTAREA_LIGHT}
+        className={TEXTAREA}
       />
       <Captcha onToken={setCaptcha} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button type="submit" disabled={busy || captcha === null} className={BTN_SUBMIT_PUBLIC}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Enviar solicitud de arrepentimiento

@@ -157,7 +157,7 @@ export function FeaturedProductSection({
             </Link>
           </SectionTitle>
           <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className={cn('text-2xl font-semibold', onSale && 'text-red-600')}>
+            <span className={cn('text-2xl font-semibold', onSale && 'text-danger')}>
               {formatMoney(product.priceAmount, product.currency)}
             </span>
             {onSale && (

@@ -218,7 +218,7 @@ export function PriceChangeNotice({
   return (
     <div
       role="status"
-      className={`space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 ${className}`}
+      className={`space-y-1 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg ${className}`}
     >
       {changes.map((c) => (
         <p key={c.variantId}>
@@ -622,7 +622,7 @@ export function CartDrawer({
                       onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                       placeholder="Cupón de descuento"
                       aria-label="Cupón de descuento"
-                      className="h-9 w-full rounded-md border border-black/15 bg-white px-3 text-sm text-black"
+                      className="h-9 w-full rounded-md border border-fg/20 bg-fg/[0.03] px-3 text-sm text-fg placeholder:text-fg-muted"
                     />
                     <button
                       type="submit"

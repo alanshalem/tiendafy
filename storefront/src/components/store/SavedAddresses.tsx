@@ -86,7 +86,7 @@ export function SavedAddresses({ tenantId }: { tenantId: string }) {
       </div>
 
       {error && (
-        <p role="alert" className="mb-3 text-sm text-red-500">
+        <p role="alert" className="mb-3 text-sm text-danger">
           {error}
         </p>
       )}

@@ -54,7 +54,7 @@ function BareNotFound() {
       </p>
       <Link
         href="/"
-        className="mt-7 inline-flex items-center rounded-full bg-black px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.03] dark:bg-white dark:text-black"
+        className="mt-7 inline-flex items-center rounded-full bg-fg px-6 py-2.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03]"
       >
         Volver al inicio
       </Link>

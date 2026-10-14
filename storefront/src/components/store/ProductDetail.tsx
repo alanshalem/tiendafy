@@ -22,7 +22,7 @@ import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import type { MoneyDto } from '@tiendafy/types';
-import { INPUT_LIGHT_10 } from './styles';
+import { INPUT_10 } from './styles';
 import { useStoreOffers } from './store-offers-context';
 import { offlineDiscountLabel } from '@/lib/store-offers';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
@@ -416,7 +416,7 @@ export function ProductDetail({
                           })
                         }
                         aria-pressed={active}
-                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-fg/15 hover:border-black/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
+                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-fg/15 hover:border-fg/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
                       >
                         {val}
                         {(missing || noStock) && (
@@ -438,7 +438,7 @@ export function ProductDetail({
                   value={variantId}
                   onChange={(e) => setVariantId(e.target.value)}
                   aria-label="Variante"
-                  className={INPUT_LIGHT_10}
+                  className={INPUT_10}
                 >
                   {variants.map((v) => (
                     <option key={v.id} value={v.id}>
@@ -515,7 +515,7 @@ export function ProductDetail({
               href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`¡Hola! Quería consultar por «${name}».`)}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-fg/15 text-sm font-semibold hover:border-black/40"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-fg/15 text-sm font-semibold hover:border-fg/40"
             >
               <MessageCircle className="h-4 w-4" /> Consultar por este producto
             </a>
@@ -632,10 +632,10 @@ function Thumb({ src, size }: { src: string; size: number }) {
 function StockLine({ available }: { available: number }) {
   const [dot, text] =
     available <= 0
-      ? ['bg-red-500', 'Sin stock']
+      ? ['bg-danger', 'Sin stock']
       : available <= LOW_STOCK
-        ? ['bg-amber-500', available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`]
-        : ['bg-green-500', 'En stock'];
+        ? ['bg-warning', available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`]
+        : ['bg-success', 'En stock'];
   return (
     <div data-stock-line className="mt-1 flex items-center gap-1.5 text-sm font-medium text-fg">
       <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full ${dot}`} />
@@ -706,7 +706,7 @@ function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen
       {/* Panel de zoom al costado (solo desktop) */}
       {show && box.w > 0 && (
         <div
-          className="pointer-events-none absolute left-[calc(100%+1.25rem)] top-0 z-50 hidden overflow-hidden rounded-lg border border-black/10 bg-white shadow-2xl md:block"
+          className="pointer-events-none absolute left-[calc(100%+1.25rem)] top-0 z-50 hidden overflow-hidden rounded-lg border border-fg/10 bg-bg shadow-2xl md:block"
           style={{
             width: box.w,
             height: box.h,

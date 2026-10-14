@@ -138,7 +138,7 @@ export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
           que estar en lo que manda el servidor para que Google los encuentre.
           `pt-2`: puente transparente para no perder el hover al bajar el mouse. */}
       <div className="absolute left-0 top-full z-50 pt-2" {...panel}>
-        <div className="max-h-[75vh] w-64 overflow-y-auto rounded-lg border border-black/10 bg-bg p-3 text-fg shadow-xl">
+        <div className="max-h-[75vh] w-64 overflow-y-auto rounded-lg border border-fg/10 bg-bg p-3 text-fg shadow-xl">
           <CategoryTree nodes={tree} onNavigate={close} />
         </div>
       </div>
@@ -207,7 +207,7 @@ export function CategoryMegaMenu({
         <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <div className="absolute inset-x-0 top-full z-50 pt-2" {...panel}>
-        <div className="max-h-[75vh] overflow-y-auto whitespace-normal rounded-lg border border-black/10 bg-bg p-5 text-left text-fg shadow-xl">
+        <div className="max-h-[75vh] overflow-y-auto whitespace-normal rounded-lg border border-fg/10 bg-bg p-5 text-left text-fg shadow-xl">
           <StoreLink
             href={href}
             onClick={close}
