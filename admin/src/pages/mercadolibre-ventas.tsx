@@ -126,7 +126,6 @@ export function VentasTab() {
   };
 
   useEffect(() => {
-    setLoadError(null);
     api
       .get<{ items: MeliOrder[]; total: number }>(
         `/api/v1/admin/meli/orders?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
@@ -170,7 +169,10 @@ export function VentasTab() {
         <LoadError
           title="No se pudieron cargar las ventas de Mercado Libre."
           error={loadError}
-          onRetry={() => setReloadKey((k) => k + 1)}
+          onRetry={() => {
+            setLoadError(null);
+            setReloadKey((k) => k + 1);
+          }}
         />
       ) : orders === null ? (
         <Spinner />
