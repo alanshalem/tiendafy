@@ -375,7 +375,7 @@ export function MeliSettingsPage() {
                 checked={c.autoInvoiceEnabled}
                 onChange={(enabled) => saveSettings({ autoInvoiceEnabled: enabled })}
                 label="Facturar automáticamente las ventas de ML"
-                description="Cada venta pagada que se importa emite su comprobante ARCA a consumidor final (necesita la facturación configurada). Si ARCA falla, queda el botón Facturar manual."
+                description="Cada venta pagada que se importa emite su comprobante ARCA a consumidor final (necesita la facturación configurada). Si ARCA falla, la venta se factura a mano con el botón Facturar de Mercado Libre → Ventas."
               />
             </div>
           </div>

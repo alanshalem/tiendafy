@@ -1,62 +1,6 @@
 import type { HelpArticle } from './helpContent';
 
 export const TIENDA = {
-  tema: {
-    title: 'Diseño de tu tienda',
-    intro: 'Editá colores, tipografías, logo y secciones sin tocar código, con vista previa en vivo.',
-    category: 'Tu tienda online',
-    sections: [
-      {
-        heading: 'El editor visual',
-        paragraphs: [
-          'En Canales de venta → Tienda online armás tu tienda por secciones: portada, productos destacados, banners, beneficios, carrito y más. Todo con vista previa al instante.',
-        ],
-        blocks: [
-          { type: 'path', segments: ['Canales de venta', 'Tienda online'] },
-          {
-            type: 'demo',
-            demo: 'storefrontPreview',
-            caption:
-              'Probalo acá mismo: tocá un color y mirá cómo cambia toda la tienda. En el editor real es igual, pero con TU tienda y tus productos.',
-          },
-        ],
-      },
-      {
-        heading: 'Borrador y publicar',
-        paragraphs: [
-          'Los cambios se guardan como borrador automáticamente; tu tienda pública no cambia hasta que toques “Publicar”. Podés experimentar tranquilo: nadie ve el borrador más que vos.',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'tip',
-            text: 'Si te arrepentís de un cambio, el editor tiene deshacer/rehacer. Y mientras no publiques, tu tienda pública sigue exactamente igual.',
-          },
-        ],
-      },
-      {
-        heading: 'Tu marca en todos lados',
-        paragraphs: [
-          'El logo y el color primario que definas acá se usan también en los e-mails automáticos que reciben tus clientes. Subí un logo de hasta ~160 px de ancho para que se vea nítido.',
-        ],
-        blocks: [
-          {
-            type: 'callout',
-            tone: 'warning',
-            title: 'Los emails usan el tema PUBLICADO',
-            text: 'Si cambiaste el logo y en los emails sigue apareciendo el anterior, es porque el cambio quedó en el borrador: tocá “Publicar”. Y para email usá PNG/JPG — los SVG no se muestran en Gmail ni Outlook — con colores que se vean sobre fondo blanco.',
-          },
-        ],
-      },
-      {
-        heading: 'Galería de diseños',
-        paragraphs: [
-          'Si preferís arrancar de una base, la galería trae combinaciones listas de colores y tipografías. Las aplicás y después ajustás lo que quieras.',
-        ],
-      },
-    ],
-  },
-
   paginas: {
     title: 'Páginas de contenido',
     intro: 'Creá páginas propias: quiénes somos, cómo comprar, política de cambios, lo que necesites.',
@@ -65,12 +9,12 @@ export const TIENDA = {
       {
         heading: 'Crear una página',
         steps: [
-          'En Páginas → Agregar, poné el título y escribí el contenido con el editor.',
-          'La URL se genera sola (ej: /paginas/como-comprar).',
-          'Publicala. Las no publicadas quedan como borrador, invisibles para tus clientes.',
+          'En Canales de venta → Páginas de contenido, tocá “Crear página”, poné el título y escribí el contenido con el editor.',
+          'La URL se genera sola a partir del título (ej: /paginas/como-comprar); si querés otra, escribila.',
+          'Dejá tildado “Publicada” para que se vea. Destildada queda como borrador, invisible para tus clientes.',
         ],
         blocks: [
-          { type: 'path', segments: ['Páginas', 'Agregar'] },
+          { type: 'path', segments: ['Páginas de contenido', 'Crear página'] },
           {
             type: 'callout',
             tone: 'tip',
@@ -81,7 +25,8 @@ export const TIENDA = {
       {
         heading: 'Dónde se ven',
         paragraphs: [
-          'Las páginas publicadas se pueden enlazar desde el pie de página de tu tienda y desde cualquier sección del editor de diseño.',
+          'Las páginas publicadas aparecen solas al final del menú del encabezado (ahí las podés ocultar, renombrar o mover desde Encabezado → Menú) y, si lo prendés, en el pie de página con “Mostrar links a tus páginas de contenido”.',
+          'Además se pueden elegir como destino de cualquier botón, banner o link del editor de diseño: en el selector de links, solapa Página → Tus páginas.',
         ],
       },
     ],
@@ -89,25 +34,72 @@ export const TIENDA = {
 
   estadisticas: {
     title: 'Estadísticas',
-    intro: 'Mirá cómo va tu negocio: ventas, productos, visitas y cupones.',
+    intro:
+      'Mirá cómo va tu negocio: ventas, productos, visitas, ganancia y cupones, comparado con el período anterior.',
     category: 'Tu tienda online',
+    keywords: ['métricas', 'reportes', 'dashboard', 'utm', 'conversión', 'roas'],
     sections: [
       {
         heading: 'Qué encontrás',
-        steps: [
-          'Visión general: facturación, pedidos y ticket promedio del período.',
-          'Productos: los más vendidos y los más vistos.',
-          'Ventas y clientes: evolución de ventas y compradores nuevos vs. recurrentes.',
-          'Visitas: tráfico de tu tienda y páginas más vistas.',
-          'Tiempo real: quién está navegando tu tienda ahora.',
-          'Reporte de cupones: uso y descuento total de cada código.',
+        blocks: [
+          { type: 'path', segments: ['Estadísticas'] },
+          {
+            type: 'table',
+            headers: ['Pantalla', 'Qué muestra'],
+            rows: [
+              [
+                'Visión general',
+                'Facturación, ventas cobradas, ticket promedio y clientes, cada uno con su variación contra el período anterior. Facturación por día, por dónde vendés (tienda online o Mercado Libre), de dónde llegan tus ventas y lo más vendido.',
+              ],
+              [
+                'Productos',
+                'Los más vendidos por unidades y los que más facturan, y lo que NO se vende: los publicados que no tuvieron ninguna venta en el período.',
+              ],
+              [
+                'Ventas y clientes',
+                'Clientes nuevos, pedidos por estado y los días de la semana con más ventas.',
+              ],
+              [
+                'Rentabilidad',
+                'Cuánto ganás de verdad: costos, comisiones, ganancia por canal y el retorno real de Meta Ads.',
+              ],
+              [
+                'Visitas',
+                'Visitas, visitantes únicos, la conversión (de cada 100 que entran, cuántos compran), las fuentes de tráfico y las páginas más vistas.',
+              ],
+              [
+                'Tiempo real',
+                'Quién está navegando tu tienda ahora, qué páginas, y cómo viene el día comparado con ayer a esta hora.',
+              ],
+              ['Reporte de cupones', 'Venta con cupón, descuento otorgado y usos, cupón por cupón.'],
+            ],
+          },
         ],
-        blocks: [{ type: 'path', segments: ['Estadísticas'] }],
+      },
+      {
+        heading: 'Elegir el período',
+        paragraphs: [
+          'Arriba de cada pantalla elegís las fechas: hoy, últimos 7, 30 o 90 días, este mes, este año o un rango personalizado. Las variaciones (el número verde o rojo al lado de cada indicador) comparan contra el período anterior del mismo largo. El período queda en la dirección, así que podés mandarle a alguien el link de lo que estás mirando.',
+        ],
+      },
+      {
+        heading: 'De dónde vienen tus ventas',
+        paragraphs: [
+          'Cada visita y cada venta guardan de dónde vino el comprador: la marca utm_source del link por el que entró la primera vez en esa visita. Con eso se arman “De dónde llegan tus ventas” (Visión general), “Fuentes de tráfico” (Visitas) y “Ganancia por canal” (Rentabilidad). Lo que llega sin marca cuenta como directo.',
+          'Los posts que armás en Redes sociales ya marcan sus links solos. Para el resto —el link de tu bio, un aviso, un mensaje masivo de WhatsApp— agregale vos la marca al final: tutienda.com/productos?utm_source=instagram.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'Usá siempre la misma palabra para el mismo canal (“instagram”, no a veces “ig” y a veces “Instagram”): cada forma distinta aparece como un canal aparte.',
+          },
+        ],
       },
       {
         heading: 'Quién las ve',
         paragraphs: [
-          'Dueño, administrador, vendedor y finanzas. Los roles catálogo y soporte no acceden a los números del negocio.',
+          'De fábrica: dueño, administrador, vendedor y finanzas; Rentabilidad, solo quien puede ver costos. Los roles catálogo y soporte no acceden a los números del negocio. Lo podés cambiar en Configuración → Roles y permisos.',
         ],
       },
     ],
@@ -129,22 +121,31 @@ export const TIENDA = {
       {
         heading: 'Lo que la tienda hace sola',
         paragraphs: [
-          'Cada tienda genera automáticamente su sitemap (/sitemap.xml), su robots.txt y las URLs canónicas. Los productos publican datos estructurados (precio, stock, fotos) para que Google pueda mostrarlos como resultados enriquecidos, y las páginas de producto usan la primera foto como imagen al compartir en redes.',
+          'Cada tienda genera automáticamente su sitemap (/sitemap.xml) con todo el catálogo, sus categorías y tus páginas, su robots.txt y las URLs canónicas. Los productos publican datos estructurados (precio, stock, fotos) para que Google pueda mostrarlos como resultados enriquecidos, y las páginas de producto usan la primera foto como imagen al compartir en redes.',
+          'Cada página se titula “Página · Tu tienda”, las categorías tienen su propia página que Google puede encontrar, un producto o una página que no existe responde como “no encontrada” (y no como una página vacía), y lo privado —el checkout, la cuenta del cliente y sus favoritos— queda fuera de Google.',
+          'Si tu inicio tiene una sección de Preguntas frecuentes, Google recibe esas preguntas y respuestas en el formato que usa para mostrarlas directo en los resultados.',
         ],
       },
       {
         heading: 'Conectá Google Search Console',
         steps: [
-          'Entrá a search.google.com/search-console y agregá tu dominio como propiedad.',
-          'Elegí verificación por “Etiqueta HTML”, copiá la etiqueta y pegala en Configuración → Códigos externos (sección <head>). Guardá y verificá.',
+          'Entrá a search.google.com/search-console y agregá tu dominio como propiedad de tipo “Dominio”.',
+          'Google te da un registro TXT: crealo en el panel de DNS de donde compraste el dominio y tocá Verificar. No hace falta pegar ningún código en la tienda.',
           'En Sitemaps, enviá la URL de tu sitemap: tudominio.com/sitemap.xml.',
           'En unos días vas a ver qué búsquedas te traen visitas y si hay errores de indexación.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'La verificación por DNS es la que Google recomienda: sobrevive a cualquier cambio de la tienda. Para conectar Google Analytics no hace falta Search Console: se carga el identificador en Configuración → Medición y píxeles.',
+          },
         ],
       },
       {
         heading: 'Buenas prácticas de contenido',
         paragraphs: [
-          'Nombres de producto descriptivos (lo que la gente busca, no códigos internos), descripciones únicas y completas, y categorías bien armadas. Si cambiás la URL de un producto, creá una redirección 301 en Configuración → Redireccionamientos para no perder el posicionamiento ganado.',
+          'Nombres de producto descriptivos (lo que la gente busca, no códigos internos), descripciones únicas y completas, y categorías bien armadas. Si cambiás la URL de un producto, creá una redirección en Configuración → Redirecciones para no perder el posicionamiento ganado.',
           'Un dominio propio (en vez del subdominio gratis) suma confianza y marca — conectalo cuando estés listo.',
         ],
       },
@@ -196,7 +197,7 @@ export const TIENDA = {
       {
         heading: 'El permiso del visitante',
         paragraphs: [
-          'Con "Pedir permiso" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga nunca y no se vuelve a preguntar. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
+          'Con "Pedir permiso antes de medir" encendido, la tienda muestra un aviso abajo de todo y no carga nada hasta que la persona acepte. Si dice que no, no se carga nunca y no se vuelve a preguntar. El aviso aparece solo si tenés al menos una herramienta cargada: sin nada que consentir, no molesta a nadie.',
           'Si el navegador manda la señal de "no me rastreen" (Global Privacy Control), se toma como un no sin preguntar.',
         ],
         blocks: [
@@ -289,7 +290,7 @@ export const TIENDA = {
           'En Configuración → Dominios, tocá “Conectar mi dominio” y escribilo sin https:// ni barra final.',
           'La pantalla te muestra el registro CNAME exacto que tenés que crear: tipo, nombre y valor. Copiá el valor con el botón.',
           'Entrá al panel de tu registrador, buscá la sección de DNS y creá ese registro.',
-          'Volvé a Dominios y tocá el botón de refrescar. Cuando el estado diga “Apuntando bien”, terminaste.',
+          'Volvé a Dominios y tocá “Volver a verificar” (el botón redondo). Cuando el estado diga “Apuntando bien”, terminaste.',
         ],
         blocks: [
           {

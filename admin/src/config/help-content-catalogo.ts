@@ -11,10 +11,32 @@ export const CATALOGO = {
         steps: [
           'En Productos → Agregar, cargá nombre, descripción, precio y fotos (la primera es la principal y sale en los emails).',
           'Si tiene talles o colores, definí opciones y variantes: cada combinación tiene su propio SKU, precio y stock.',
+          'Cargá el peso y las medidas del paquete de una unidad: con eso cotizan los correos en el checkout.',
           'Asignale categorías para que aparezca en los filtros de tu tienda.',
           'Publicalo. Los borradores y archivados no se ven en la tienda.',
         ],
-        blocks: [{ type: 'path', segments: ['Productos', 'Agregar'] }],
+        blocks: [
+          { type: 'path', segments: ['Productos', 'Agregar'] },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'La descripción, con IA',
+            text: 'Debajo de “Descripción” está “Escribir con IA”: arma un borrador a partir del nombre del producto, que después corregís. Aparece cuando ya escribiste el nombre, y solo si la plataforma tiene cargada la clave de IA.',
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Precio tachado = oferta',
+            text: 'Un producto con precio anterior (tachado) cuenta como “en oferta” en toda la tienda: entra al filtro “Solo ofertas” del listado y a las secciones de productos en oferta del inicio.',
+          },
+        ],
+      },
+      {
+        heading: 'La lista de productos',
+        paragraphs: [
+          'La búsqueda no distingue tildes ni el orden de las palabras: “remera negra” encuentra “Remera Negra Oversize” y “negra remera” también. Los filtros, la búsqueda y la página se recuerdan mientras trabajás.',
+          'Tildá varios productos para Publicar, Archivar o Eliminar en lote. Al terminar te dice cuántos salieron bien y cuáles no, y por qué.',
+        ],
       },
       {
         heading: 'Inventario y reservas',
@@ -29,12 +51,33 @@ export const CATALOGO = {
             title: 'Anti-sobreventa',
             text: 'Dos clientes no pueden pagar la última unidad a la vez: el primero que inicia el pago la reserva; el segundo ve “sin stock” hasta que la reserva se libere.',
           },
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Si el stock cambió mientras lo editabas',
+            text: 'En Inventario, en el producto y en el Escáner, si entra una venta o una compra mientras tenés el stock abierto, al guardar no se pisa: te avisa “El stock cambió mientras editabas: ahora hay N.” Revisá el número nuevo y guardá de nuevo.',
+          },
+        ],
+      },
+      {
+        heading: 'Subir o bajar precios en masa',
+        paragraphs: [
+          'En Productos → Costos, “Repreciar en masa” cambia los precios de todo el catálogo o de una categoría con un porcentaje (+ sube, − baja) y un redondeo: terminación $990, al $1.000 o al $100 más cercano, o sin redondeo. Los precios tachados se ajustan en la misma proporción, así una oferta sigue siendo oferta. Los productos archivados no se tocan.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Productos', 'Costos', 'Repreciar en masa'] },
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Se aplica a la tienda al instante y no se deshace en bloque. Si sincronizás precios con Mercado Libre, también viaja a tus publicaciones (con tu recargo). Probalo primero con una categoría chica.',
+          },
         ],
       },
       {
         heading: 'Importación y exportación masiva',
         paragraphs: [
-          'En Productos → Exportar e importar podés bajar todo tu catálogo a CSV, editarlo en Excel/Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. Las imágenes se importan por URL en una segunda pasada.',
+          'En la lista de productos, “Exportar e importar” baja todo tu catálogo a CSV para editarlo en Excel/Sheets y volver a subirlo. También sirve para migrar desde otra plataforma. La planilla incluye costo, código de barras, peso y medidas.',
+          'Las fotos entran de dos maneras: por URL en la columna «Imágenes» de la planilla (se descargan y quedan guardadas en tu tienda), o desde la solapa Imágenes, subiendo los archivos o un .zip. Ahí se asocian solas si el nombre del archivo es el identificador de URL del producto (remera-oversize.jpg, remera-oversize-2.jpg para la segunda).',
         ],
       },
     ],
@@ -50,8 +93,14 @@ export const CATALOGO = {
         heading: 'Cómo funciona',
         paragraphs: [
           'El kit es un producto normal del catálogo, con su precio y su propio stock (los combos pre-armados que tenés en el depósito). En Productos → Kits y combos le definís los componentes: qué variantes lo integran y cuántas unidades de cada una.',
-          'Cuando un cliente compra el kit, además del stock del kit se descuenta el de cada componente. Así el kit y las piezas sueltas dejan de venderse por separado sin enterarse el uno del otro.',
+          'Cuando un cliente compra el kit, además del stock del kit se descuenta el de cada componente. Así el kit y las piezas sueltas dejan de venderse por separado sin enterarse el uno del otro. Si la venta se devuelve con reingreso de stock, vuelven también las piezas.',
         ],
+        steps: [
+          'En Productos → Kits y combos, tocá “Convertir un producto en kit” y buscá la variante que se vende como kit.',
+          'Agregá sus componentes con la cantidad de cada uno.',
+          'La tabla te muestra cada kit con sus piezas y el costo de los componentes: una buena base para el costo del kit.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Kits y combos'] }],
       },
       {
         heading: 'Límites a tener en cuenta',
@@ -72,7 +121,7 @@ export const CATALOGO = {
         heading: 'Códigos de barras y etiquetas',
         paragraphs: [
           'Cada variante puede tener su código de barras: el EAN que ya trae el paquete del proveedor (columna «Código de barras» del CSV, o asignándolo desde el propio escáner) o una etiqueta QR generada por el sistema.',
-          'Desde Inventario podés imprimir una plancha A4 de etiquetas QR con nombre, SKU y precio para los productos que no traen código.',
+          'Desde Inventario, “Etiquetas QR de esta página” baja una plancha A4 de etiquetas QR con nombre, SKU y precio para los productos que no traen código.',
         ],
       },
       {
@@ -84,15 +133,29 @@ export const CATALOGO = {
       {
         heading: 'Preparar pedido (anti errores de despacho)',
         steps: [
-          'Elegí un pedido pagado sin despachar.',
+          'En la solapa “Preparar pedido”, elegí un pedido pagado sin despachar.',
           'Escaneá cada producto al meterlo en la caja: la lista marca en verde lo juntado.',
           'Si escaneás algo que NO va en ese pedido, la alerta salta antes de despachar — se acabó mandar el disco de 15 kg en vez del de 25.',
+          'Con todo verificado aparece “Pedido completo y verificado.”: cargá el número de seguimiento si lo tenés y tocá “Marcar enviada”. El comprador recibe el aviso en el momento, sin pasar por la computadora.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Marcar enviada desde el escáner pide el permiso de despachar ventas. Sin él, el escáner te deja preparar el pedido y te pide que lo cierre alguien que pueda despachar.',
+          },
         ],
       },
       {
         heading: 'Conteo',
         paragraphs: [
-          'Recorré una estantería escaneando unidad por unidad (o cargando cantidades). Al final ves las diferencias contra el sistema y un click aplica los ajustes, con su movimiento auditado.',
+          'Recorré una estantería escaneando unidad por unidad (o cargando cantidades). Al final ves las diferencias contra el sistema y “Aplicar ajustes” los guarda, con su movimiento auditado. Si mientras contabas se vendió algo de lo contado, ese producto no se pisa: te avisa para que lo revises.',
+        ],
+      },
+      {
+        heading: 'El escáner en la pantalla del celular',
+        paragraphs: [
+          'Desde el navegador del celular, usá “Agregar a la pantalla de inicio”: el panel queda como una app más y abre directo en el Escáner. La cámara lee códigos en los navegadores tipo Chrome; en los demás, tipeás el código a mano.',
         ],
       },
     ],
@@ -107,14 +170,14 @@ export const CATALOGO = {
       {
         heading: 'El ciclo de una compra',
         paragraphs: [
-          'Una orden de compra arranca como borrador: proveedor, moneda (típicamente USD), tipo de cambio estimado, lead time y los productos con su costo unitario FOB. Mientras es borrador podés editar todo.',
+          'En Compras e importaciones tocá “Nueva compra”. La orden arranca como borrador: proveedor, moneda (típicamente USD), tipo de cambio estimado, lead time y los productos con su costo unitario FOB. Mientras es borrador podés editar todo.',
           'Al confirmarla, la vas moviendo por los estados reales de una importación: en producción → en tránsito → en aduana. Es visibilidad para vos y tu equipo — el sistema no exige papeles.',
         ],
       },
       {
         heading: 'Landed cost: lo que de verdad cuesta cada unidad',
         paragraphs: [
-          'Cargá los gastos del embarque (flete, seguro, aranceles, despachante, IVA de aduana) en la moneda de la orden o directo en pesos. El sistema los prorratea entre los productos según su valor: la diferencia entre creer que un disco cuesta USD 4 y saber que puesto en tu depósito cuesta USD 6,80.',
+          'En la tarjeta “Gastos del embarque”, con “+ Gasto”, cargá el flete, el seguro, los aranceles, el despachante y el IVA de aduana, en la moneda de la orden o directo en pesos. El sistema los prorratea entre los productos según su valor: la diferencia entre creer que un disco cuesta USD 4 y saber que puesto en tu depósito cuesta USD 6,80.',
         ],
       },
       {
@@ -124,11 +187,34 @@ export const CATALOGO = {
           'Poné el tipo de cambio definitivo del despacho.',
           'Al confirmar: el stock sube solo y el costo de cada variante queda fijado al landed cost — Estadísticas → Rentabilidad pasa a calcular la ganancia con el costo real importado.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            title: 'Aviso de margen',
+            text: 'Si con el costo real alguna variante queda con menos de 15% de margen al precio actual, al recibir te lo avisa con la lista y un atajo a “Revisar precios en Costos”: es el momento de subir el precio, antes de vender a pérdida.',
+          },
+        ],
+      },
+      {
+        heading: 'La factura del proveedor y el libro de IVA compras',
+        paragraphs: [
+          'En la tarjeta “Comprobante del proveedor” de la orden cargás su factura: tipo, número, fecha, CUIT, neto e IVA (o “Leer factura” para que la IA te la proponga desde el PDF). Con la factura cargada nace la deuda con el proveedor en Cuentas corrientes.',
+          'Arriba de Compras e importaciones elegís el mes y tocás “Libro de IVA”: baja un CSV, listo para Excel, con todas las compras del mes que tienen la factura cargada. El de ventas sale de Configuración → Facturación.',
+        ],
       },
       {
         heading: 'Reposición con lead time',
         paragraphs: [
           'Para un importador, la alerta de «stock bajo» llega tarde: si el reabastecimiento tarda 90 días, hay que pedir meses antes. La pestaña «Reposición sugerida» cruza lo vendido por día (últimos 60 días) con tu stock y tu lead time, y te dice qué se agota antes de que llegue el próximo embarque y cuánto pedir.',
+          'Lo vendido incluye Mercado Libre (por las publicaciones vinculadas) y las piezas que se van dentro de kits. Podés ajustar los días de lead time, y “Armar orden de compra” crea el borrador con todo lo sugerido, listo para completar los costos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'En Inicio, la tarjeta “Para hacer hoy” te avisa cuando algo se va a agotar antes del próximo embarque, con un atajo a la reposición.',
+          },
         ],
       },
     ],

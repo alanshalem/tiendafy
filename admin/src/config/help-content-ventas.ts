@@ -18,7 +18,7 @@ export const VENTAS = {
       {
         heading: 'Conectá tu cuenta de Mercado Pago',
         paragraphs: [
-          'En Configuración → Medios de pago, tocá “Conectá tu cuenta”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
+          'En Configuración → Medios de pago, tocá “Conectá tu cuenta de Mercado Pago”. Te llevamos a Mercado Pago para que autorices; al volver, quedás conectado.',
           'Usamos OAuth oficial: guardamos un token cifrado, nunca tu usuario ni tu contraseña. Podés desconectar la cuenta cuando quieras (requiere rol dueño o administrador).',
         ],
         blocks: [{ type: 'path', segments: ['Configuración', 'Medios de pago'] }],
@@ -73,6 +73,12 @@ export const VENTAS = {
             title: 'El truco del titular',
             text: 'Con las tarjetas de prueba, el nombre del titular decide el resultado: “APRO” aprueba el pago, “OTHE” lo rechaza. Así probás los dos caminos.',
           },
+        ],
+      },
+      {
+        heading: 'Si aparece “Hay un aviso de pago que no se pudo procesar”',
+        paragraphs: [
+          'Mercado Pago le avisa a tu tienda cada vez que se aprueba un pago. Si uno de esos avisos no se pudo procesar, Medios de pago lo muestra arriba de todo, porque puede haber una venta cobrada que no quedó registrada. Tocá “Reintentar” en cada aviso; si vuelve a fallar, escribinos con el número de pago.',
         ],
       },
       {
@@ -208,24 +214,114 @@ export const VENTAS = {
         ],
       },
       {
+        heading: 'El número de venta, buscar y exportar',
+        paragraphs: [
+          'Cada venta tiene un número corto, como #A1B2C3D4: es el mismo que recibe el comprador, el que va en la etiqueta del correo y el del CSV. Buscá por ese número, por email o por nombre, y filtrá por estado. La búsqueda, el filtro y la página quedan en la dirección: si recargás o volvés atrás no se pierden, y podés pasarle el link a alguien del equipo.',
+          'Arriba ves lo facturado y las ventas de los últimos 30 días, y “Por despachar”: tocalo y la lista se filtra a las ventas pagadas que falta enviar.',
+          '“Exportar” baja un CSV, listo para Excel, con las ventas que estás viendo (respeta la búsqueda y el filtro): número, fecha, estado, comprador, productos, montos, envío, seguimiento, cupón y de dónde vino la venta.',
+        ],
+        blocks: [{ type: 'path', segments: ['Ventas', 'Lista de ventas'] }],
+      },
+      {
         heading: 'Despachar un pedido',
         steps: [
           'Expandí la venta y tocá “Marcar enviada”.',
           'Cargá el código de seguimiento (opcional).',
           'El cliente recibe el email de “pedido en camino” automáticamente.',
         ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Pedidos para retirar',
+            text: 'Si el comprador eligió retiro en punto, el botón dice “Lista para retirar”: al tocarlo le avisamos que ya puede pasar a buscarlo, y la venta queda como “Lista para retirar”.',
+          },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Desde el depósito',
+            text: 'El Escáner de depósito, en “Preparar pedido”, verifica cada producto contra la venta y al terminar la marca enviada desde el mismo celular.',
+          },
+        ],
+      },
+      {
+        heading: 'Marcar varias como enviadas',
+        steps: [
+          'Tildá las ventas en la lista: aparece una barra con “N seleccionadas”.',
+          'Tocá “Marcar como enviadas” y confirmá (hasta 100 por vez).',
+          'Cada comprador recibe su aviso. Las que no estaban pagadas o ya estaban enviadas se saltean, y al final ves cuáles no se pudieron y por qué.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'En lote se marcan sin código de seguimiento. Si querés mandarle el seguimiento a cada comprador, marcalas de a una.',
+          },
+        ],
+      },
+      {
+        heading: 'Venta manual: WhatsApp, teléfono o mostrador',
+        paragraphs: [
+          'Para lo que vendés fuera de la tienda online, tocá “Venta manual” en Ventas. La venta descuenta stock de verdad, cuenta en las estadísticas, manda el email de confirmación y, si tenés la facturación automática activa, sale con su factura, igual que una venta online.',
+        ],
+        steps: [
+          'Agregá los productos buscando por nombre o SKU, con la cantidad. El precio sale solo (de la lista de precios del cliente si tiene una); lo podés cambiar línea por línea.',
+          'Cargá el nombre del cliente, o elegilo de la agenda.',
+          'Elegí el cobro: Efectivo o Transferencia (la venta queda pagada), Link de pago (Mercado Pago), o Cuenta corriente (queda debiendo).',
+          'Escribí una nota si hace falta (“retira el sábado”) y confirmá.',
+        ],
+        blocks: [
+          {
+            type: 'terms',
+            items: [
+              {
+                term: 'Link de pago (Mercado Pago)',
+                def: 'Necesita el email del comprador. Te damos el link para copiar y mandárselo; la venta queda pendiente y se marca pagada sola cuando paga.',
+              },
+              {
+                term: 'Cuenta corriente',
+                def: 'Necesita un cliente de la agenda: el total queda como deuda en Tesorería → Cuentas corrientes.',
+              },
+            ],
+          },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si falta stock de algún producto, la venta no se crea y te dice de cuál. Así nunca vendés por WhatsApp lo que ya se vendió en la tienda.',
+          },
+        ],
       },
       {
         heading: 'Reembolsos totales y parciales',
         paragraphs: [
-          'Desde la venta, tocá “Reembolsar”. Podés devolver el total restante o un monto parcial (con motivo opcional). El dinero vuelve por Mercado Pago y la orden pasa a “Reembolsada” o “Reembolso parcial”.',
-          'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo.',
+          'Desde la venta, tocá “Reembolsar”. Podés devolver el total o un monto parcial (con motivo opcional). El dinero vuelve por Mercado Pago y la orden pasa a “Reembolsada” o “Reembolso parcial”.',
+          'Cada reembolso queda auditado: quién lo hizo, cuándo, cuánto y por qué. El historial se ve en el mismo diálogo. Cuando la venta queda reembolsada del todo, al comprador le llega el aviso de cancelación y, si tenía factura, sale sola la nota de crédito.',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'info',
-            text: 'Solo los roles dueño, administrador y finanzas pueden reembolsar. Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos.',
+            text: 'Reembolsar es de los roles dueño, administrador y finanzas (salvo que cambies los permisos). Los reembolsos hechos directo en el panel de Mercado Pago también se sincronizan solos.',
+          },
+        ],
+      },
+      {
+        heading: 'Devoluciones: que el stock vuelva',
+        paragraphs: [
+          'En un reembolso total aparece “Reingresar el stock de los productos”, tildado de entrada: los productos vuelven al stock disponible y queda en su historial como “Devolución”. Si la venta era un kit, vuelven también sus piezas.',
+          'Destildalo si el producto no vuelve a la venta (llegó roto, se perdió). En un reembolso parcial el stock no se toca: si te devolvieron una unidad, ajustala en Inventario.',
+        ],
+      },
+      {
+        heading: 'Reembolsar una venta manual',
+        paragraphs: [
+          'Una venta cobrada en efectivo o por transferencia no pasó por Mercado Pago, así que el sistema no puede devolver la plata: el reembolso deja la venta marcada (y el stock, si lo reingresás), y la plata se la devolvés vos.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Si la venta era en cuenta corriente, el reembolso no baja la deuda del cliente: corregila con un “Ajuste” en Cuentas corrientes.',
           },
         ],
       },
@@ -306,13 +402,13 @@ export const VENTAS = {
       {
         heading: 'Crear un cupón',
         steps: [
-          'En Descuentos → Agregar, elegí el código (ej: BIENVENIDA10).',
-          'Definí el tipo: porcentaje o monto fijo.',
-          'Opcional: monto mínimo de compra, vigencia (desde/hasta) y límite de usos.',
-          'Activalo. El cliente lo ingresa en el checkout y el descuento se aplica al instante.',
+          'En Cupones → Crear cupón, elegí el código (ej: BIENVENIDA10): es lo que el cliente escribe en el carrito.',
+          'Definí el tipo: Porcentaje, Monto fijo o Envío gratis (el envío le sale $0, sea cual sea el medio que elija).',
+          'Opcional: compra mínima, vigencia (válido desde / hasta) y límite de usos.',
+          'Dejalo activo. El cliente lo ingresa en el carrito o en el checkout y el descuento se aplica al instante; si lo puso en el carrito, viaja solo al checkout.',
         ],
         blocks: [
-          { type: 'path', segments: ['Descuentos', 'Agregar'] },
+          { type: 'path', segments: ['Cupones', 'Crear cupón'] },
           {
             type: 'demo',
             demo: 'coupon',
@@ -323,7 +419,8 @@ export const VENTAS = {
       {
         heading: 'Buenas prácticas',
         paragraphs: [
-          'Usá códigos cortos y memorables. Poné vigencia para generar urgencia. El reporte de cupones (Estadísticas → Reporte de cupones) te muestra cuánto se usó cada uno y cuánta plata moviste con ellos.',
+          'Usá códigos cortos y memorables. Poné vigencia para generar urgencia. La columna “Usos” de la lista muestra cuántas veces se usó cada uno (y el máximo, si le pusiste), y el reporte de cupones (Estadísticas → Reporte de cupones) cuánta plata moviste con ellos.',
+          'Desde el menú de cada cupón lo pausás sin borrarlo. El límite de usos es total, no por cliente.',
         ],
         blocks: [
           {
@@ -331,6 +428,12 @@ export const VENTAS = {
             tone: 'tip',
             text: 'Si asociás un cupón a una campaña de email, el detalle de la campaña te muestra cuántas ventas y cuánta plata generó — la forma más confiable de medir marketing.',
           },
+        ],
+      },
+      {
+        heading: 'Mostrar un cupón en la tienda',
+        paragraphs: [
+          'El Pop-up promocional del inicio puede mostrar un código con un botón “Copiar”, y una sección de ofertas o una barra de anuncio pueden mencionarlo. El cupón tiene que existir acá antes: la tienda solo lo muestra, no lo crea.',
         ],
       },
     ],
@@ -437,6 +540,31 @@ export const VENTAS = {
             tone: 'warning',
             text: 'Una publicación SIN vincular no sincroniza nada: la venta de ML aparece en el panel igual, pero no descuenta tu stock. Vinculá todo lo que vendas en los dos canales para no sobrevender.',
           },
+          {
+            type: 'callout',
+            tone: 'tip',
+            title: 'Colchón anti-sobreventa',
+            text: 'Con “Colchón anti-sobreventa (unidades)” Mercado Libre muestra un poco menos de lo que tenés: con 2 de colchón y 10 en stock, ML publica 8. Esas unidades cubren el rato entre una venta en tu tienda y la actualización en ML. Con 0 se publica todo el stock.',
+          },
+        ],
+      },
+      {
+        heading: 'Precio en Mercado Libre, con recargo',
+        paragraphs: [
+          'Con “Sincronizar precios” activado, el precio de tu catálogo viaja a las publicaciones vinculadas, más el “Recargo para Mercado Libre (%)” que elijas para cubrir la comisión: con 15, un producto de $10.000 se publica a $11.500. Si subís precios (a mano o con “Repreciar en masa”), ML se actualiza solo.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'warning',
+            text: 'Los precios viajan junto con el stock: para que se sincronicen, tené prendido también “Sincronizar stock”.',
+          },
+        ],
+      },
+      {
+        heading: 'Facturar las ventas de Mercado Libre',
+        paragraphs: [
+          'Con “Facturar automáticamente las ventas de ML” (necesita la facturación electrónica configurada) cada venta pagada que llega de ML sale con su comprobante de ARCA a consumidor final. Si está apagado, o ARCA rechazó alguna, en la pestaña Ventas del canal tocás “Facturar” en cada una. Las facturadas quedan marcadas “Facturada”.',
         ],
       },
       {
@@ -462,7 +590,7 @@ export const VENTAS = {
             items: [
               'La conversación posventa la inicia SIEMPRE el comprador; vos respondés.',
               'Los mensajes tienen un máximo de 350 caracteres.',
-              'Responder preguntas rápido mejora tu reputación como vendedor (y tus ventas).',
+              'Responder preguntas rápido mejora tu reputación como vendedor (y tus ventas). El botón con destellos al lado de cada pregunta sugiere una respuesta con IA, que editás antes de mandar.',
               'Todo lo que escribas pasa por la moderación de Mercado Libre: nada de datos de contacto ni links externos.',
             ],
           },
@@ -471,7 +599,7 @@ export const VENTAS = {
       {
         heading: 'Métricas multicanal',
         paragraphs: [
-          'En Estadísticas → Visión general aparece la tarjeta de Mercado Libre con lo facturado, las ventas y las unidades vendidas de los últimos 30 días — al lado de los números de tu tienda, para ver el negocio completo.',
+          'En Estadísticas → Visión general, “Por dónde vendés” compara lo facturado en tu tienda online con Mercado Libre, para ver el negocio completo. En Estadísticas → Rentabilidad, la tarjeta “Canal Mercado Libre” descuenta la comisión real que cobró ML en cada venta y te muestra la ganancia neta del canal.',
         ],
       },
     ],
@@ -497,7 +625,7 @@ export const VENTAS = {
       {
         heading: 'Qué muestra Estadísticas → Rentabilidad',
         paragraphs: [
-          'La ganancia real del período: ventas de productos (netas de cupones) menos el costo de lo vendido y menos la comisión exacta que cobró Mercado Pago en cada pago (el sistema la lee de MP al confirmarse el pago, no la estima).',
+          'La ganancia real del período (con el mismo selector de fechas que el resto de Estadísticas): ventas de productos (netas de cupones) menos el costo de lo vendido y menos la comisión exacta que cobró Mercado Pago en cada pago (el sistema la lee de MP al confirmarse el pago, no la estima).',
           'La tabla por producto expone lo importante: cuáles dejan plata y cuáles venden mucho pero dejan poco. Un margen menor al 15% se marca en rojo.',
           'El costo de cada venta queda congelado al momento de venderse: si mañana te sube el costo, las ganancias de ventas pasadas no cambian.',
         ],
@@ -507,6 +635,26 @@ export const VENTAS = {
         paragraphs: [
           'La ganancia solo se calcula sobre las ventas cuyos productos tenían costo cargado al momento de venderse — el resto se excluye para no inventar números. A medida que cargues costos, las ventas nuevas van a entrar completas.',
           'El envío cobrado al cliente no se cuenta como ganancia: se asume que cubre lo que le pagás al correo.',
+        ],
+      },
+      {
+        heading: 'Ganancia por canal y Mercado Libre',
+        paragraphs: [
+          '“Ganancia por canal” separa lo que te deja cada origen de venta, según la marca de origen (utm_source) del link que trajo al comprador: redes, email, publicidad o directo. Cómo marcar tus links está en el artículo “Estadísticas”. La tarjeta “Canal Mercado Libre” usa la comisión real que cobró ML en cada venta, así ves si ese canal te conviene de verdad o solo te mueve volumen.',
+        ],
+      },
+      {
+        heading: 'El retorno real de tu publicidad en Meta',
+        paragraphs: [
+          'Abajo de todo, en “Pauta de Meta Ads”, tocá “Conectar Meta Ads”, autorizá con tu usuario de Facebook y elegí la cuenta publicitaria. Desde ahí ves el gasto del período, la ganancia real del mismo período y el ROAS real, también por campaña.',
+          'El ROAS real es ganancia ÷ gasto, no facturación ÷ gasto como lo calcula Meta. Por eso da más bajo, y por eso sirve: menos de 1 (en rojo) significa que la publicidad te cuesta más de lo que te deja.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'La conexión con Meta dura unos 60 días; cuando vence, el botón pasa a “Reconectar Meta”. Esto no es el píxel: el píxel se carga aparte, en Configuración → Medición y píxeles. Si en vez del botón ves solo un texto, la plataforma todavía no tiene configurada la app de Meta.',
+          },
         ],
       },
     ],

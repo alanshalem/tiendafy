@@ -133,6 +133,29 @@ describe('índice de ayuda', () => {
     expect(screen.getByRole('heading', { name: /Los más consultados/ })).toBeInTheDocument();
   });
 
+  // Lo que un comerciante escribe de verdad cuando busca algo del editor de
+  // diseño, y el artículo que tiene que aparecer. Si un texto se reescribe y la
+  // palabra desaparece, este test lo avisa antes de que la búsqueda quede ciega.
+  it.each([
+    ['pop-up', 'Los tipos de sección del inicio'],
+    ['popup', 'Los tipos de sección del inicio'],
+    ['cronómetro', 'Los tipos de sección del inicio'],
+    ['slider', 'Los tipos de sección del inicio'],
+    ['más vendidos', 'Encabezado, menú, listado, ficha y carrito'],
+    ['solo ofertas', 'Encabezado, menú, listado, ficha y carrito'],
+    ['renombrar sección', 'Armar el inicio de tu tienda'],
+    ['deshacer', 'Diseño de tu tienda'],
+    ['mega-menú', 'Encabezado, menú, listado, ficha y carrito'],
+    ['en construcción', 'Diseño de tu tienda'],
+  ])('buscar "%s" encuentra "%s"', async (query, title) => {
+    const user = await openHelp('/ayuda');
+    await user.type(screen.getByPlaceholderText(/Buscá: reembolsos/), query);
+    const card = screen
+      .getAllByRole('link')
+      .find((a) => a.getAttribute('href')?.startsWith('/ayuda/') && a.textContent?.includes(title));
+    expect(card).toBeDefined();
+  });
+
   it('llegando con un ancla de categoría, va a esa categoría', async () => {
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;

@@ -137,7 +137,7 @@ export const FINANZAS = {
       {
         heading: 'Vender en cuenta corriente',
         paragraphs: [
-          'En Ventas → Nueva venta manual, elegí el medio de cobro "Cuenta corriente". La venta se cierra igual que cualquier otra —descuenta stock, factura si tenés la facturación automática activa, cuenta en las estadísticas— y lo único distinto es que la plata todavía no entró: el total queda como deuda del cliente.',
+          'En Ventas, tocá "Venta manual" y elegí el cobro "Cuenta corriente (queda debiendo)". La venta se cierra igual que cualquier otra —descuenta stock, factura si tenés la facturación automática activa, cuenta en las estadísticas— y lo único distinto es que la plata todavía no entró: el total queda como deuda del cliente.',
           'Hace falta elegir un cliente de la agenda. Sin ficha no hay a quién anotarle la deuda, así que el sistema no deja avanzar.',
         ],
       },
