@@ -91,7 +91,7 @@ describe('medios de pago: transferencia, efectivo y cuotas', () => {
   it('avisa si el diseño promete un descuento que el checkout no cobra, y guarda la cuenta', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/admin/payments/options', OPTIONS);
-    api.on('PUT', '/api/v1/admin/payments/options', (b) => ({
+    api.on('PUT', '/api/v1/admin/payments/options', (b: unknown) => ({
       ...OPTIONS,
       ...(b as object),
       configured: true,
