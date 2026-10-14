@@ -87,7 +87,9 @@ public sealed class SubmitCheckoutHandler(
                 return Result.Failure<CheckoutSession>(Error.Validation(
                     "Checkout.MissingAddress", "Falta la dirección de entrega."));
 
-            var ship = session.SetShipping(method.Id, method.Name, method.Price, address);
+            // "Gratis desde $X" se decide acá, con el subtotal del servidor: el
+            // carrito lo anuncia, pero el que cobra es este número.
+            var ship = session.SetShipping(method.Id, method.Name, method.PriceFor(session.Subtotal), address);
             if (ship.IsFailure) return Result.Failure<CheckoutSession>(ship.Error);
         }
 

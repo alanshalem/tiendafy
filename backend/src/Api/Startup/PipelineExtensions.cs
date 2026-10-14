@@ -69,12 +69,14 @@ public static class PipelineExtensions
         apiV1.MapSocialEndpoints();
         apiV1.MapAiEndpoints();
         apiV1.MapOrderEndpoints();
+        apiV1.MapPaymentOptionsEndpoints();
         apiV1.MapPaymentWebhookEndpoints();
         apiV1.MapTrackEndpoints();
         apiV1.MapEmailTemplateEndpoints();
         apiV1.MapShopAuthEndpoints();
         apiV1.MapShopFavoritesEndpoints();
         apiV1.MapShopOrdersEndpoints();
+        apiV1.MapShopCheckoutPrefillEndpoints();
         apiV1.MapContactEndpoints();
         apiV1.MapMembersEndpoints();
 

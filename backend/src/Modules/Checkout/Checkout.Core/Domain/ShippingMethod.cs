@@ -25,6 +25,14 @@ public sealed class ShippingMethod : AggregateRoot
     public string? PickupAddress { get; private set; }
     public bool Active { get; private set; }
     public int SortOrder { get; private set; }
+
+    /// <summary>
+    /// "Gratis desde $X": con un subtotal de productos igual o mayor, este medio
+    /// no cobra el envío. Null = siempre cobra su precio. Es lo que respalda la
+    /// barra "te faltan $X para el envío gratis" del carrito: antes ese número
+    /// vivía solo en el diseño y el checkout cobraba el envío igual.
+    /// </summary>
+    public Money? FreeAbove { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -34,7 +42,7 @@ public sealed class ShippingMethod : AggregateRoot
 
     public static Result<ShippingMethod> Create(
         TenantId tenantId, string name, ShippingKind kind, Money price,
-        string? description, string? pickupAddress, int sortOrder)
+        string? description, string? pickupAddress, int sortOrder, Money? freeAbove = null)
     {
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 2 or > 120)
@@ -43,6 +51,8 @@ public sealed class ShippingMethod : AggregateRoot
         if (price.IsNegative)
             return Result.Failure<ShippingMethod>(Error.Validation(
                 "Shipping.InvalidPrice", "El precio no puede ser negativo."));
+        if (freeAbove is { IsNegative: true })
+            return Result.Failure<ShippingMethod>(InvalidFreeAbove);
 
         var now = DateTime.UtcNow;
         return new ShippingMethod(Guid.NewGuid(), tenantId)
@@ -54,13 +64,14 @@ public sealed class ShippingMethod : AggregateRoot
             PickupAddress = Text.Clip(pickupAddress, 300),
             Active = true,
             SortOrder = sortOrder,
+            FreeAbove = NormalizeFreeAbove(price, freeAbove),
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
     }
 
     public Result Update(string name, ShippingKind kind, Money price,
-        string? description, string? pickupAddress, bool active, int sortOrder)
+        string? description, string? pickupAddress, bool active, int sortOrder, Money? freeAbove = null)
     {
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length is < 2 or > 120)
@@ -69,6 +80,8 @@ public sealed class ShippingMethod : AggregateRoot
         if (price.IsNegative)
             return Result.Failure(Error.Validation(
                 "Shipping.InvalidPrice", "El precio no puede ser negativo."));
+        if (freeAbove is { IsNegative: true })
+            return Result.Failure(InvalidFreeAbove);
 
         Name = trimmed;
         Kind = kind;
@@ -77,7 +90,29 @@ public sealed class ShippingMethod : AggregateRoot
         PickupAddress = Text.Clip(pickupAddress, 300);
         Active = active;
         SortOrder = sortOrder;
+        FreeAbove = NormalizeFreeAbove(price, freeAbove);
         UpdatedAtUtc = DateTime.UtcNow;
         return Result.Success();
     }
+
+    /// <summary>
+    /// Lo que cuesta este envío para un carrito de ese subtotal de productos
+    /// (antes de cupones y de descuentos por medio de pago: así la barra del
+    /// carrito, que todavía no sabe cómo va a pagar el comprador, dice lo mismo
+    /// que el cobro).
+    /// </summary>
+    public Money PriceFor(Money productsSubtotal) =>
+        FreeAbove is { } from && productsSubtotal.Currency == from.Currency && productsSubtotal >= from
+            ? Money.Zero(Price.Currency)
+            : Price;
+
+    private static readonly Error InvalidFreeAbove = Error.Validation(
+        "Shipping.InvalidFreeAbove", "El monto para el envío gratis no puede ser negativo.");
+
+    /// <summary>
+    /// Un umbral de 0, o en un medio que ya es gratis, no dice nada: se guarda
+    /// como "sin umbral" para que la barra del carrito no prometa algo vacío.
+    /// </summary>
+    private static Money? NormalizeFreeAbove(Money price, Money? freeAbove) =>
+        freeAbove is { } f && f.AmountInMinorUnits > 0 && !price.IsZero ? f : null;
 }

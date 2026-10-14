@@ -38,9 +38,17 @@ public static class OrderEmail
 
         sb.Append("<tr><td></td><td style='padding:12px 0 2px;color:#8b8b8b'>Subtotal</td><td style='padding:12px 0 2px;text-align:right'>")
           .Append(MoneyFormat.ForNotification(o.Subtotal)).Append("</td></tr>");
-        if (o.DiscountAmount.AmountInMinorUnits > 0)
+        // El descuento del medio de pago va en su propio renglón: el comprador
+        // tiene que poder ver que el "precio con transferencia" se respetó.
+        var couponDiscount = o.CouponDiscount;
+        if (couponDiscount.AmountInMinorUnits > 0)
             sb.Append("<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Descuento</td><td style='padding:2px 0;text-align:right'>- ")
-              .Append(MoneyFormat.ForNotification(o.DiscountAmount)).Append("</td></tr>");
+              .Append(MoneyFormat.ForNotification(couponDiscount)).Append("</td></tr>");
+        if (o.PaymentMethodDiscount.AmountInMinorUnits > 0)
+            sb.Append("<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Descuento por ")
+              .Append(o.PaymentProvider == "cash" ? "pago en efectivo" : "transferencia")
+              .Append("</td><td style='padding:2px 0;text-align:right'>- ")
+              .Append(MoneyFormat.ForNotification(o.PaymentMethodDiscount)).Append("</td></tr>");
         if (o.ShippingCost.AmountInMinorUnits > 0)
             sb.Append("<tr><td></td><td style='padding:2px 0;color:#8b8b8b'>Envío")
               .Append(string.IsNullOrEmpty(o.ShippingMethodName) ? string.Empty : $" · {Enc(o.ShippingMethodName)}")

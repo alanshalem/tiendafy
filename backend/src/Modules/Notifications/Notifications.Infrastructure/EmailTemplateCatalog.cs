@@ -8,7 +8,8 @@ public sealed record EmailTemplateDef(
 /// <summary>
 /// Catálogo de emails automáticos. Es la fuente de defaults; el tenant solo
 /// guarda los que edita (overrides en la tabla email_templates).
-/// Variables disponibles: {{store}}, {{name}}, {{order_id}}, {{total}}, {{items}}, {{link}}.
+/// Variables disponibles: {{store}}, {{name}}, {{order_id}}, {{total}}, {{items}}, {{link}}
+/// y, en las instrucciones de pago, {{payment_instructions}}.
 /// </summary>
 public static class EmailTemplateCatalog
 {
@@ -58,6 +59,13 @@ public static class EmailTemplateCatalog
             "Confirma el pedido apenas se realiza la compra.", true,
             "Recibimos tu pedido #{{order_id}}",
             Wrap("¡Gracias por tu compra!", "<p>Tu pedido fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
+
+        // Encendida por defecto: sin este email el que eligió transferencia no
+        // tiene adónde mirar los datos de la cuenta si cierra la pestaña.
+        new("instrucciones-pago", "Ventas", "Instrucciones de pago",
+            "Le manda a quien eligió transferencia o efectivo cuánto pagar, a qué cuenta y hasta cuándo.", true,
+            "Cómo pagar tu pedido #{{order_id}}",
+            Wrap("¡Recibimos tu pedido!", "<p>Hola {{name}}, te guardamos los productos. Para terminar la compra, pagá {{total}} así:</p>{{payment_instructions}}{{items}}")),
 
         new("confirmacion-pago", "Ventas", "Confirmación de pago",
             "Confirma cuando el pago fue acreditado.", true,

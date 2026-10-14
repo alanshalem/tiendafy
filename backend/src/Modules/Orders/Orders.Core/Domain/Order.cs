@@ -110,6 +110,7 @@ public sealed class Order : AggregateRoot
             DiscountAmount = discount ?? Money.Zero(currency),
             RefundedAmount = Money.Zero(currency),
             ShippingCost = Money.Zero(currency),
+            PaymentMethodDiscount = Money.Zero(currency),
             CouponCode = string.IsNullOrWhiteSpace(couponCode) ? null : couponCode.Trim().ToUpperInvariant(),
             CreatedAtUtc = DateTime.UtcNow,
         };
@@ -196,6 +197,96 @@ public sealed class Order : AggregateRoot
         Status = OrderStatus.Paid;
         PaymentId = paymentId;
         PaidAtUtc = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    // ------------------------------------------- Pago fuera de una pasarela
+
+    /// <summary>
+    /// Medios que se cobran a mano (transferencia, efectivo al retirar): la
+    /// orden espera a que el comercio registre el pago, con un plazo.
+    /// </summary>
+    public static readonly string[] OfflineProviders = ["transfer", "cash"];
+
+    /// <summary>
+    /// Hasta cuándo se guarda el stock esperando el pago. Vencido, la orden se
+    /// cancela sola (ver OfflinePaymentExpiryWorker). Null = no aplica.
+    /// </summary>
+    public DateTime? PaymentDueAtUtc { get; private set; }
+
+    /// <summary>
+    /// La parte de <see cref="DiscountAmount"/> que viene del medio de pago
+    /// (el % por transferencia o efectivo). Ya está sumada al descuento, así el
+    /// total y las estadísticas no cambian de fórmula; esto es para mostrar el
+    /// desglose ("Descuento por transferencia") en el panel, el email y la
+    /// pantalla del comprador.
+    /// </summary>
+    public Money PaymentMethodDiscount { get; private set; }
+
+    public bool IsOfflinePayment => OfflineProviders.Contains(PaymentProvider);
+
+    /// <summary>El descuento que no vino del medio de pago (el cupón, o el que cargó el vendedor).</summary>
+    public Money CouponDiscount =>
+        PaymentMethodDiscount.AmountInMinorUnits > 0 && PaymentMethodDiscount.Currency == Currency
+            ? DiscountAmount - PaymentMethodDiscount
+            : DiscountAmount;
+
+    /// <summary>
+    /// La orden se paga por transferencia o en efectivo: queda pendiente con un
+    /// plazo y con el descuento del medio aplicado. El monto lo calcula el
+    /// servidor con el subtotal de la orden: ningún número del navegador llega
+    /// hasta acá.
+    ///
+    /// El orden de los descuentos: precio de lista de los productos → cupón
+    /// (evaluado contra el subtotal de lista, así el mínimo de compra de un
+    /// cupón no cambia según cómo se pague) → % del medio de pago sobre lo que
+    /// queda → envío, que nunca se descuenta. Encadenados y no sumados: un
+    /// cupón del 10% más un 10% por transferencia dan 19%, porque cada uno se
+    /// aplica sobre lo que realmente se paga. Sin cupón, el resultado es
+    /// exactamente el "precio con transferencia" que anuncian la ficha y las
+    /// tarjetas de producto.
+    /// </summary>
+    public Result UseOfflinePayment(string provider, int discountPercent, DateTime dueAtUtc)
+    {
+        if (!OfflineProviders.Contains(provider))
+            return Result.Failure(Error.Validation("Order.BadOfflineProvider", "Medio de pago inválido."));
+        if (Status != OrderStatus.PendingPayment)
+            return Result.Failure(Error.Conflict("Order.NotPending", "Esta venta ya no está pendiente de pago."));
+        if (discountPercent is < 0 or > 100)
+            return Result.Failure(Error.Validation("Order.BadDiscount", "El descuento tiene que estar entre 0 y 100%."));
+
+        var methodDiscount = new Money(PercentOf(ProductsAfterCoupon.AmountInMinorUnits, discountPercent), Currency);
+
+        PaymentProvider = provider;
+        PaymentMethodDiscount = methodDiscount;
+        DiscountAmount += methodDiscount;
+        PaymentDueAtUtc = dueAtUtc;
+        return Result.Success();
+    }
+
+    /// <summary>El % redondeado al centavo, con el medio centavo para arriba (como la ficha del producto).</summary>
+    public static long PercentOf(long baseMinor, int percent) =>
+        baseMinor <= 0 || percent <= 0
+            ? 0
+            : (long)Math.Round(baseMinor * percent / 100m, MidpointRounding.AwayFromZero);
+
+    /// <summary>Lo que queda de los productos después del cupón: la base del descuento por medio de pago.</summary>
+    public Money ProductsAfterCoupon =>
+        DiscountAmount.AmountInMinorUnits >= Subtotal.AmountInMinorUnits
+            ? Money.Zero(Currency)
+            : Subtotal - DiscountAmount;
+
+    /// <summary>
+    /// Cancela una orden que nadie pagó (el comercio desde el panel, o el plazo
+    /// que venció). Solo una pendiente: una cobrada se devuelve con un reembolso.
+    /// </summary>
+    public Result CancelUnpaid()
+    {
+        if (Status == OrderStatus.Cancelled) return Result.Success();
+        if (Status != OrderStatus.PendingPayment)
+            return Result.Failure(Error.Conflict("Order.NotPending",
+                "Solo se puede cancelar una venta que todavía no se pagó."));
+        Status = OrderStatus.Cancelled;
         return Result.Success();
     }
 

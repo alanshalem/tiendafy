@@ -487,6 +487,11 @@ namespace Checkout.Infrastructure.Migrations
                         .HasColumnType("character varying(300)")
                         .HasColumnName("description");
 
+                    b.Property<string>("FreeAbove")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("free_above");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -529,6 +534,87 @@ namespace Checkout.Infrastructure.Migrations
                         .HasDatabaseName("ix_shipping_methods_tenant_id_sort_order");
 
                     b.ToTable("shipping_methods", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.StorePaymentOptions", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountHolder")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("account_holder");
+
+                    b.Property<string>("Alias")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("alias");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<bool>("CashOnPickupEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cash_on_pickup_enabled");
+
+                    b.Property<string>("Cbu")
+                        .HasMaxLength(22)
+                        .HasColumnType("character varying(22)")
+                        .HasColumnName("cbu");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("integer")
+                        .HasColumnName("discount_percent");
+
+                    b.Property<int>("HoldHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(48)
+                        .HasColumnName("hold_hours");
+
+                    b.Property<string>("HolderTaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("holder_tax_id");
+
+                    b.Property<int>("InstallmentsMax")
+                        .HasColumnType("integer")
+                        .HasColumnName("installments_max");
+
+                    b.Property<string>("InstallmentsNote")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("installments_note");
+
+                    b.Property<string>("Instructions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("instructions");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<bool>("TransferEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("transfer_enabled");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payment_options");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payment_options_tenant_id");
+
+                    b.ToTable("payment_options", (string)null);
                 });
 
             modelBuilder.Entity("Checkout.Core.Domain.ZipnovaConfig", b =>

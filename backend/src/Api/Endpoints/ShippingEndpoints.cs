@@ -26,7 +26,7 @@ public static class ShippingEndpoints
             var result = ShippingMethod.Create(
                 tenant.TenantId, req.Name ?? string.Empty, ParseKind(req.Kind),
                 Money.FromDecimal(req.Price ?? 0m, Money.DefaultCurrency),
-                req.Description, req.PickupAddress, req.SortOrder ?? 0);
+                req.Description, req.PickupAddress, req.SortOrder ?? 0, FreeAbove(req.FreeAbove));
             if (result.IsFailure) return result.Error.ToProblem();
 
             await repository.AddAsync(result.Value, ct);
@@ -44,7 +44,8 @@ public static class ShippingEndpoints
             var result = method.Update(
                 req.Name ?? string.Empty, ParseKind(req.Kind),
                 Money.FromDecimal(req.Price ?? 0m, Money.DefaultCurrency),
-                req.Description, req.PickupAddress, req.Active ?? true, req.SortOrder ?? method.SortOrder);
+                req.Description, req.PickupAddress, req.Active ?? true, req.SortOrder ?? method.SortOrder,
+                FreeAbove(req.FreeAbove));
             if (result.IsFailure) return result.Error.ToProblem();
 
             await repository.SaveChangesAsync(ct);
@@ -64,6 +65,10 @@ public static class ShippingEndpoints
         return group;
     }
 
+    /// <summary>Unidad mayor (como el precio) → Money; null o 0 = sin "gratis desde".</summary>
+    private static Money? FreeAbove(decimal? amount) =>
+        amount is { } a and not 0m ? Money.FromDecimal(a, Money.DefaultCurrency) : null;
+
     private static ShippingKind ParseKind(string? kind) =>
         string.Equals(kind, "PICKUP", StringComparison.OrdinalIgnoreCase)
             ? ShippingKind.Pickup
@@ -77,4 +82,5 @@ public sealed record ShippingMethodRequest(
     string? Description,
     string? PickupAddress,
     bool? Active,
-    int? SortOrder);
+    int? SortOrder,
+    decimal? FreeAbove = null);
