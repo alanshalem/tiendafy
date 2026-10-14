@@ -131,6 +131,83 @@ public partial class ThemeContractTests
         Assert.NotEmpty(ValidateSections($$"""[{{Section("carousel", """{ "slides": [{ "mobileImage": "javascript:alert(1)" }] }""")}}]"""));
     }
 
+    [Theory]
+    [InlineData("\"2026-11-20T02:59:00.000Z\"", true)]
+    [InlineData("\"2026-11-19T23:59-03:00\"", true)]
+    [InlineData("\"\"", true)]
+    [InlineData("\"2026-11-20T02:59:00\"", false)] // sin zona: se leería distinto según el servidor
+    [InlineData("\"2026-02-30T10:00:00Z\"", false)]
+    [InlineData("\"mañana\"", false)]
+    [InlineData("1763600000000", false)]
+    public void La_fecha_de_cierre_es_ISO_con_zona(string endsAt, bool ok)
+    {
+        var errors = ValidateSections($$"""[{{Section("countdown-offer", $$"""{ "endsAt": {{endsAt}} }""")}}]""");
+        Assert.Equal(ok, errors.Count == 0);
+        if (!ok) Assert.Contains("la fecha en que termina", errors[0].Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("5", true)]
+    [InlineData("0", true)]
+    [InlineData("120", true)]
+    [InlineData("121", false)]
+    [InlineData("-1", false)]
+    [InlineData("2.5", false)]
+    [InlineData("\"5\"", false)]
+    public void Los_numeros_son_enteros_dentro_de_su_rango(string seconds, bool ok)
+    {
+        var errors = ValidateSections($$"""[{{Section("promo-popup", $$"""{ "delaySeconds": {{seconds}} }""")}}]""");
+        Assert.Equal(ok, errors.Count == 0);
+        if (!ok)
+            Assert.Contains("los segundos de espera tiene que ser un número entero entre 0 y 120", errors[0].Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void El_texto_con_formato_acepta_titulos_listas_citas_y_links_seguros()
+    {
+        const string body = """
+            { "type": "doc", "content": [
+              { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "Envíos" }] },
+              { "type": "paragraph", "content": [
+                { "type": "text", "text": "a todo el país", "marks": [{ "type": "bold" }, { "type": "italic" }] },
+                { "type": "hardBreak" },
+                { "type": "text", "text": "tarifas", "marks": [{ "type": "link", "attrs": { "href": "/paginas/envios" } }] } ] },
+              { "type": "paragraph" },
+              { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Correo" }] }] }] },
+              { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Rápido" }] }] } ] }
+            """;
+        Assert.Empty(ValidateSections($$"""[{{Section("rich-text", $$"""{ "body": {{body}} }""")}}]"""));
+    }
+
+    [Theory]
+    [InlineData("\"<p>hola</p>\"", "no es un texto con formato válido")]
+    [InlineData("""{ "type": "paragraph" }""", "no es un texto con formato válido")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "image", "attrs": { "src": "x" } }] }""", "no se puede guardar («image»)")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "x", "marks": [{ "type": "link", "attrs": { "href": "javascript:alert(1)" } }] }] }] }""", "link que no es válido")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "x", "marks": [{ "type": "code" }] }] }] }""", "formato que no se puede guardar")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "heading", "attrs": { "level": 1 } }] }""", "nivel que no existe")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "bulletList", "content": [{ "type": "paragraph" }] }] }""", "elemento que no es válido")]
+    [InlineData("""{ "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text" }] }] }""", "texto que no es válido")]
+    public void El_texto_con_formato_rechaza_html_nodos_desconocidos_y_links_peligrosos(string body, string message)
+    {
+        var errors = ValidateSections($$"""[{{Section("rich-text", $$"""{ "body": {{body}} }""")}}]""");
+        Assert.Contains(errors, e => e.Path == "sections[0].data.body" && e.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void El_texto_con_formato_tiene_tope_de_tamano_y_de_anidamiento()
+    {
+        var text = new string('a', 25_000);
+        var big = $$"""{ "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "{{text}}" }] }] }""";
+        Assert.Contains(ValidateSections($$"""[{{Section("rich-text", $$"""{ "body": {{big}} }""")}}]"""),
+            e => e.Message.Contains("es demasiado largo", StringComparison.Ordinal));
+
+        var deep = """{ "type": "paragraph" }""";
+        for (var i = 0; i < 8; i++) deep = $$"""{ "type": "blockquote", "content": [{{deep}}] }""";
+        Assert.Contains(ValidateSections($$"""[{{Section("rich-text", $$"""{ "body": { "type": "doc", "content": [{{deep}}] } }""")}}]"""),
+            e => e.Message.Contains("niveles anidados", StringComparison.Ordinal));
+    }
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

@@ -122,7 +122,12 @@ export function productSourceQuery(source: ProductSource, limit?: number): strin
 }
 
 /** Las secciones de la portada que muestran una lista de productos. */
-export const PRODUCT_SECTION_TYPES = ['featured', 'new-products', 'sale-products'] as const;
+export const PRODUCT_SECTION_TYPES = [
+  'featured',
+  'new-products',
+  'sale-products',
+  'countdown-offer',
+] as const;
 export type ProductSectionType = (typeof PRODUCT_SECTION_TYPES)[number];
 
 /** Qué pedir para una sección: el origen, cuántos, y a qué recurrir si vuelve vacío. */
@@ -147,6 +152,7 @@ export function defaultProductSource(
     case 'new-products':
       return { source: { kind: 'newest' } };
     case 'sale-products':
+    case 'countdown-offer':
       return { source: { kind: 'on-sale' } };
   }
 }
@@ -162,6 +168,8 @@ export function sectionProductPlan(section: {
   type: string;
   data: Record<string, unknown>;
 }): SectionProductPlan | null {
+  const picked = pickedProductsPlan(section);
+  if (picked !== undefined) return picked;
   if (!(PRODUCT_SECTION_TYPES as readonly string[]).includes(section.type)) return null;
   const data = isRecord(section.data) ? section.data : {};
 
@@ -199,5 +207,35 @@ export function productSourceListingHref(source: ProductSource): string {
       return '/productos?sort=newest';
     default:
       return '/productos';
+  }
+}
+
+/**
+ * Secciones que muestran productos elegidos de a uno (no una lista con
+ * origen): el producto destacado y los bloques de producto del collage.
+ * undefined = la sección no es de estas. El destacado sin elegir muestra el
+ * más vendido (o lo último, si todavía no hay ventas).
+ */
+function pickedProductsPlan(section: {
+  type: string;
+  data: Record<string, unknown>;
+}): SectionProductPlan | null | undefined {
+  const data = isRecord(section.data) ? section.data : {};
+  switch (section.type) {
+    case 'featured-product': {
+      const ids = idsOf([data.productId]);
+      return ids.length > 0
+        ? { source: { kind: 'manual', ids }, limit: 1 }
+        : { source: { kind: 'best-sellers' }, fallback: { kind: 'newest' }, limit: 1 };
+    }
+    case 'collage': {
+      const blocks = Array.isArray(data.blocks) ? data.blocks : [];
+      const ids = idsOf(blocks.filter((b) => isRecord(b) && b.kind === 'product').map((b) => b.productId));
+      return ids.length > 0
+        ? { source: { kind: 'manual', ids }, limit: clampProductLimit(ids.length) }
+        : null;
+    }
+    default:
+      return undefined;
   }
 }

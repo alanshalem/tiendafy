@@ -903,6 +903,398 @@
           ]
         }
       }
+    },
+    "countdown-offer": {
+      "label": "Ofertas con cronómetro",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "endsAt": {
+          "kind": "datetime"
+        },
+        "whenEnded": {
+          "kind": "enum",
+          "values": [
+            "hide",
+            "message"
+          ]
+        },
+        "endedText": {
+          "kind": "string",
+          "max": 200
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "carousel": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "featured-product": {
+      "label": "Producto destacado",
+      "fields": {
+        "productId": {
+          "kind": "string",
+          "max": 100
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "image-left",
+            "image-right"
+          ]
+        },
+        "badge": {
+          "kind": "string",
+          "max": 200
+        },
+        "showDescription": {
+          "kind": "boolean"
+        },
+        "button": {
+          "kind": "enum",
+          "values": [
+            "cart",
+            "link"
+          ]
+        }
+      }
+    },
+    "promo-popup": {
+      "label": "Pop-up promocional",
+      "fields": {
+        "image": {
+          "kind": "media"
+        },
+        "mobileImage": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "couponCode": {
+          "kind": "string",
+          "max": 40
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "newsletter": {
+          "kind": "boolean"
+        },
+        "trigger": {
+          "kind": "enum",
+          "values": [
+            "delay",
+            "exit",
+            "both"
+          ]
+        },
+        "delaySeconds": {
+          "kind": "number",
+          "min": 0,
+          "max": 120
+        },
+        "frequency": {
+          "kind": "enum",
+          "values": [
+            "once",
+            "session",
+            "days"
+          ]
+        },
+        "frequencyDays": {
+          "kind": "number",
+          "min": 1,
+          "max": 365
+        }
+      }
+    },
+    "rich-text": {
+      "label": "Texto con formato",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "body": {
+          "kind": "richtext",
+          "max": 20000
+        },
+        "image": {
+          "kind": "media"
+        },
+        "imagePosition": {
+          "kind": "enum",
+          "values": [
+            "left",
+            "right",
+            "top"
+          ]
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        }
+      }
+    },
+    "category-list": {
+      "label": "Categorías principales",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "mode": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "manual"
+          ]
+        },
+        "count": {
+          "kind": "number",
+          "min": 1,
+          "max": 24
+        },
+        "items": {
+          "kind": "items",
+          "max": 24,
+          "fields": {
+            "categoryId": {
+              "kind": "string",
+              "max": 100
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "image": {
+              "kind": "media"
+            }
+          }
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "grid",
+            "carousel"
+          ]
+        },
+        "columnsDesktop": {
+          "kind": "number",
+          "min": 2,
+          "max": 8
+        },
+        "columnsMobile": {
+          "kind": "number",
+          "min": 1,
+          "max": 3
+        },
+        "shape": {
+          "kind": "enum",
+          "values": [
+            "circle",
+            "square",
+            "portrait"
+          ]
+        },
+        "showAll": {
+          "kind": "boolean"
+        },
+        "showAllText": {
+          "kind": "string",
+          "max": 200
+        }
+      }
+    },
+    "video": {
+      "label": "Video",
+      "fields": {
+        "source": {
+          "kind": "enum",
+          "values": [
+            "link",
+            "file"
+          ]
+        },
+        "url": {
+          "kind": "url"
+        },
+        "file": {
+          "kind": "media"
+        },
+        "poster": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "ratio": {
+          "kind": "enum",
+          "values": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3"
+          ]
+        },
+        "autoplay": {
+          "kind": "boolean"
+        }
+      }
+    },
+    "icon-columns": {
+      "label": "Íconos con texto",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "items": {
+          "kind": "items",
+          "max": 12,
+          "fields": {
+            "icon": {
+              "kind": "enum",
+              "values": [
+                "shipping",
+                "card",
+                "security",
+                "gift",
+                "support",
+                "returns",
+                "heart",
+                "cart",
+                "chat",
+                "phone",
+                "mail",
+                "mapPin",
+                "user",
+                "search",
+                "none"
+              ]
+            },
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "text": {
+              "kind": "text",
+              "max": 2000
+            },
+            "link": {
+              "kind": "url"
+            }
+          }
+        },
+        "columnsDesktop": {
+          "kind": "number",
+          "min": 2,
+          "max": 6
+        },
+        "mobile": {
+          "kind": "enum",
+          "values": [
+            "1",
+            "2",
+            "swipe"
+          ]
+        }
+      }
+    },
+    "collage": {
+      "label": "Collage",
+      "fields": {
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "blocks": {
+          "kind": "items",
+          "max": 3,
+          "fields": {
+            "kind": {
+              "kind": "enum",
+              "values": [
+                "image",
+                "product",
+                "category"
+              ]
+            },
+            "image": {
+              "kind": "media"
+            },
+            "title": {
+              "kind": "string",
+              "max": 200
+            },
+            "link": {
+              "kind": "url"
+            },
+            "productId": {
+              "kind": "string",
+              "max": 100
+            },
+            "categoryId": {
+              "kind": "string",
+              "max": 100
+            }
+          }
+        },
+        "layout": {
+          "kind": "enum",
+          "values": [
+            "big-left",
+            "big-right"
+          ]
+        },
+        "mobile": {
+          "kind": "enum",
+          "values": [
+            "stack",
+            "swipe"
+          ]
+        }
+      }
     }
   },
   "defaultConfig": {

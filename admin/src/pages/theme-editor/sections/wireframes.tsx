@@ -94,6 +94,72 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           ))}
         </div>
       );
+    case 'product-feature':
+      return (
+        <div className="flex gap-1.5">
+          <span className={`h-9 w-9 shrink-0 ${base}`} />
+          <div className="flex flex-1 flex-col justify-center gap-1">
+            <span className="h-1.5 w-full rounded bg-fg/20" />
+            <span className="h-1.5 w-1/2 rounded bg-fg/15" />
+            <span className="h-2.5 w-8 rounded bg-primary/40" />
+          </div>
+        </div>
+      );
+    case 'categories':
+      return (
+        <div className="flex justify-around gap-1">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-0.5">
+              <span className="h-5 w-5 rounded-full bg-fg/10" />
+              <span className="h-1 w-4 rounded bg-fg/20" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'columns':
+      return (
+        <div className="flex justify-around gap-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-1 flex-col items-center gap-0.5">
+              <span className="h-3 w-3 rounded-full bg-primary/40" />
+              <span className="h-1 w-6 rounded bg-fg/25" />
+              <span className="h-1 w-8 rounded bg-fg/15" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'collage':
+      return (
+        <div className="grid h-9 grid-cols-2 grid-rows-2 gap-1">
+          <span className={`row-span-2 ${base}`} />
+          <span className={base} />
+          <span className={base} />
+        </div>
+      );
+    case 'popup':
+      return (
+        <div className={`flex h-9 items-center justify-center ${base}`}>
+          <div className="flex h-7 w-12 flex-col items-center justify-center gap-1 rounded-[3px] bg-bg shadow-sm">
+            <span className="h-1 w-7 rounded bg-fg/25" />
+            <span className="h-2 w-5 rounded bg-primary/40" />
+          </div>
+        </div>
+      );
+    case 'countdown':
+      return (
+        <div className="space-y-1">
+          <div className="flex justify-center gap-0.5">
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} className="h-2.5 w-3 rounded-sm bg-primary/40" />
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={`h-5 flex-1 ${base}`} />
+            ))}
+          </div>
+        </div>
+      );
   }
 }
 

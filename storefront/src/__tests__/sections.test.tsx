@@ -107,6 +107,80 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     shows: 'Hacen envíos',
   },
   brands: { data: { title: 'Marcas', images: [1, 2, 3, 4, 5, 6].map(img) }, shows: 'Marcas' },
+  'countdown-offer': {
+    data: {
+      title: 'Hot Sale',
+      text: 'Hasta 50% off',
+      endsAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      buttonText: 'Ver ofertas',
+      link: '/productos',
+    },
+    shows: 'Hot Sale',
+  },
+  'featured-product': {
+    data: { productId: products[1]!.id, badge: 'Elegido del mes', layout: 'image-right' },
+    shows: 'Elegido del mes',
+  },
+  // No se ve hasta que se abre (a los segundos): en la página no ocupa lugar.
+  'promo-popup': {
+    data: { title: 'Promo', couponCode: 'HOLA', newsletter: true, image: img(7), mobileImage: img(8) },
+  },
+  'rich-text': {
+    data: {
+      title: 'Nuestra historia',
+      body: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Empezamos en 2010', marks: [{ type: 'bold' }] }],
+          },
+        ],
+      },
+      image: img(9),
+      buttonText: 'Leer más',
+      link: '/paginas/nosotros',
+    },
+    shows: 'Nuestra historia',
+  },
+  // Las categorías de la tienda sembrada (las pide el árbol del menú).
+  'category-list': {
+    data: { title: 'Por categoría', mode: 'auto', layout: 'carousel' },
+    shows: 'Musculación',
+  },
+  video: {
+    data: {
+      source: 'link',
+      url: 'https://youtu.be/dQw4w9WgXcQ',
+      title: 'Mirá cómo se usa',
+      buttonText: 'Comprar',
+      link: '/productos',
+    },
+    shows: 'Mirá cómo se usa',
+  },
+  'icon-columns': {
+    data: {
+      title: 'Por qué elegirnos',
+      items: [
+        { icon: 'shipping', title: 'Envíos', text: 'Rápidos', link: '/envios' },
+        { icon: 'none', image: img(10), title: 'Garantía' },
+      ],
+      mobile: 'swipe',
+    },
+    shows: 'Por qué elegirnos',
+  },
+  collage: {
+    data: {
+      title: 'Lookbook',
+      blocks: [
+        { kind: 'image', image: img(11), title: 'Temporada', link: '/productos' },
+        { kind: 'product', productId: products[0]!.id },
+        { kind: 'image', title: 'Ofertas', link: '/productos' },
+      ],
+      layout: 'big-right',
+    },
+    shows: 'Lookbook',
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

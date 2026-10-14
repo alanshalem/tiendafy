@@ -14,6 +14,14 @@ import { ProductsEditor } from './products';
 import { PromoBannersEditor } from './promo-banners';
 import { TestimonialsEditor } from './testimonials';
 import type { SectionEditorProps } from './types';
+import { CountdownOfferEditor } from './countdown-offer';
+import { FeaturedProductEditor } from './featured-product';
+import { PromoPopupEditor } from './promo-popup';
+import { RichTextSectionEditor } from './rich-text';
+import { CategoryListEditor } from './category-list';
+import { VideoEditor } from './video';
+import { IconColumnsEditor } from './icon-columns';
+import { CollageEditor } from './collage';
 
 /**
  * Un editor por tipo de sección (espeja los renderers del storefront). El tipo
@@ -36,4 +44,12 @@ export const SECTION_EDITORS: { [K in SectionType]: ComponentType<SectionEditorP
   testimonials: TestimonialsEditor,
   faq: FaqEditor,
   brands: BrandsEditor,
+  'countdown-offer': CountdownOfferEditor,
+  'featured-product': FeaturedProductEditor,
+  'promo-popup': PromoPopupEditor,
+  'rich-text': RichTextSectionEditor,
+  'category-list': CategoryListEditor,
+  video: VideoEditor,
+  'icon-columns': IconColumnsEditor,
+  collage: CollageEditor,
 };

@@ -14,6 +14,7 @@
 import { field, normalizeFields, type DataOf, type FieldsSpec } from './schema';
 import type { ProductSource } from '../product-source';
 import { upgradeSectionData } from './legacy';
+import { richDocFromText } from './rich-text';
 import {
   isSectionType,
   normalizeHideOn,
@@ -44,7 +45,13 @@ export type SectionWireframe =
   | 'video'
   | 'cards'
   | 'faq'
-  | 'logos';
+  | 'logos'
+  | 'countdown'
+  | 'product-feature'
+  | 'popup'
+  | 'categories'
+  | 'columns'
+  | 'collage';
 
 export interface SectionDefinition<F extends FieldsSpec = FieldsSpec> {
   type: SectionType;
@@ -345,6 +352,144 @@ const brandsFields = {
   grayscale: field.boolean(false),
 } as const;
 
+/* ---- Campos de los tipos de la fase 2 (ofertas, producto, pop-up, editorial…) ---- */
+
+/*
+ * Las secciones con una lista de productos (ofertas con cronómetro) guardan su
+ * origen en `data.source` y su cantidad en `data.limit`, como destacados u
+ * ofertas: no son campos del esquema, los resuelve `sectionProductPlan`
+ * (product-source.ts).
+ */
+const countdownOfferFields = {
+  title: field.string(),
+  text: field.text(),
+  /** Cuándo termina, en UTC. El editor lo pide y lo muestra en hora de Argentina. */
+  endsAt: field.datetime(),
+  /** Al terminar: se oculta la sección, o queda con un mensaje. */
+  whenEnded: field.enum(['hide', 'message'], 'hide'),
+  endedText: field.string('Esta oferta terminó.'),
+  buttonText: field.string(),
+  link: field.url(),
+  carousel: field.boolean(true),
+} as const;
+
+const featuredProductFields = {
+  productId: field.string('', 100),
+  layout: field.enum(['image-left', 'image-right'], 'image-left'),
+  badge: field.string(''),
+  showDescription: field.boolean(true),
+  /** `cart`: agregar al carrito (con varias variantes lleva a la ficha); `link`: "Ver producto". */
+  button: field.enum(['cart', 'link'], 'cart'),
+} as const;
+
+const promoPopupFields = {
+  image: field.media(),
+  mobileImage: field.media(),
+  title: field.string(),
+  text: field.text(),
+  couponCode: field.string('', 40),
+  buttonText: field.string(),
+  link: field.url(),
+  newsletter: field.boolean(false),
+  trigger: field.enum(['delay', 'exit', 'both'], 'delay'),
+  delaySeconds: field.number(5, 0, 120),
+  frequency: field.enum(['once', 'session', 'days'], 'days'),
+  frequencyDays: field.number(7, 1, 365),
+} as const;
+
+const richTextFields = {
+  title: field.string(),
+  body: field.richtext(),
+  image: field.media(),
+  imagePosition: field.enum(['left', 'right', 'top'], 'left'),
+  buttonText: field.string(),
+  link: field.url(),
+} as const;
+
+const categoryListFields = {
+  title: field.string(),
+  /** `auto`: las categorías principales (las de primer nivel), hasta `count`. */
+  mode: field.enum(['auto', 'manual'], 'auto'),
+  count: field.number(6, 1, 24),
+  items: field.items({ categoryId: field.string('', 100), title: field.string(), image: field.media() }, 24),
+  layout: field.enum(['grid', 'carousel'], 'grid'),
+  columnsDesktop: field.number(6, 2, 8),
+  columnsMobile: field.number(3, 1, 3),
+  shape: field.enum(['circle', 'square', 'portrait'], 'circle'),
+  showAll: field.boolean(true),
+  showAllText: field.string('Ver todas'),
+} as const;
+
+export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3'] as const;
+
+const videoFields = {
+  /** `link`: YouTube o Vimeo; `file`: un MP4 subido a la tienda. */
+  source: field.enum(['link', 'file'], 'link'),
+  url: field.url(),
+  file: field.media(),
+  poster: field.media(),
+  title: field.string(),
+  text: field.text(),
+  buttonText: field.string(),
+  link: field.url(),
+  ratio: field.enum(VIDEO_RATIOS, '16:9'),
+  /** Solo el MP4: arranca solo, sin sonido y en loop (con botón de pausa). */
+  autoplay: field.boolean(true),
+} as const;
+
+/** Íconos que se pueden elegir en "Íconos con texto" (los del kit de la tienda). `none`: sin ícono. */
+export const COLUMN_ICONS = [
+  'shipping',
+  'card',
+  'security',
+  'gift',
+  'support',
+  'returns',
+  'heart',
+  'cart',
+  'chat',
+  'phone',
+  'mail',
+  'mapPin',
+  'user',
+  'search',
+  'none',
+] as const;
+
+const iconColumnsFields = {
+  title: field.string(),
+  items: field.items(
+    {
+      icon: field.enum(COLUMN_ICONS, 'shipping'),
+      /** Una imagen propia en lugar del ícono. */
+      image: field.media(),
+      title: field.string(),
+      text: field.text(),
+      link: field.url(),
+    },
+    12,
+  ),
+  columnsDesktop: field.number(3, 2, 6),
+  mobile: field.enum(['1', '2', 'swipe'], '1'),
+} as const;
+
+const collageFields = {
+  title: field.string(),
+  blocks: field.items(
+    {
+      kind: field.enum(['image', 'product', 'category'], 'image'),
+      image: field.media(),
+      title: field.string(),
+      link: field.url(),
+      productId: field.string('', 100),
+      categoryId: field.string('', 100),
+    },
+    3,
+  ),
+  layout: field.enum(['big-left', 'big-right'], 'big-left'),
+  mobile: field.enum(['stack', 'swipe'], 'stack'),
+} as const;
+
 /* ---- El tipo de la data de cada sección (normalizada: todos los campos presentes) ---- */
 
 export type HeroVideoData = DataOf<typeof heroVideoFields>;
@@ -375,6 +520,17 @@ export type FaqData = DataOf<typeof faqFields>;
 export type FaqItem = FaqData['items'][number];
 export type BrandsData = DataOf<typeof brandsFields>;
 export type BrandLogo = BrandsData['logos'][number];
+export type CountdownOfferData = DataOf<typeof countdownOfferFields>;
+export type FeaturedProductData = DataOf<typeof featuredProductFields>;
+export type PromoPopupData = DataOf<typeof promoPopupFields>;
+export type RichTextData = DataOf<typeof richTextFields>;
+export type CategoryListData = DataOf<typeof categoryListFields>;
+export type CategoryListItem = CategoryListData['items'][number];
+export type VideoData = DataOf<typeof videoFields>;
+export type IconColumnsData = DataOf<typeof iconColumnsFields>;
+export type IconColumnItem = IconColumnsData['items'][number];
+export type CollageData = DataOf<typeof collageFields>;
+export type CollageBlock = CollageData['blocks'][number];
 
 /** Tipo de sección → tipo de su data. */
 export interface SectionDataMap {
@@ -393,6 +549,14 @@ export interface SectionDataMap {
   testimonials: TestimonialsData;
   faq: FaqData;
   brands: BrandsData;
+  'countdown-offer': CountdownOfferData;
+  'featured-product': FeaturedProductData;
+  'promo-popup': PromoPopupData;
+  'rich-text': RichTextData;
+  'category-list': CategoryListData;
+  video: VideoData;
+  'icon-columns': IconColumnsData;
+  collage: CollageData;
 }
 
 /* ---- El registro ---- */
@@ -665,7 +829,200 @@ export const SECTION_REGISTRY = {
     limits: {},
     keywords: 'instagram youtube vimeo video reel redes',
   }),
+  'countdown-offer': define({
+    type: 'countdown-offer',
+    label: 'Ofertas con cronómetro',
+    previewLabel: 'la oferta con cronómetro',
+    description: 'Productos en oferta con una cuenta regresiva hasta que termina la promo.',
+    group: 'Productos',
+    wireframe: 'countdown',
+    fields: countdownOfferFields,
+    defaults: {
+      title: 'Ofertas por tiempo limitado',
+      text: 'Aprovechá antes de que termine.',
+      // Una semana desde hoy (se calcula al agregarla): el cronómetro se ve andando.
+      get endsAt() {
+        return weekFromToday();
+      },
+      whenEnded: 'hide',
+      buttonText: 'Ver todas las ofertas',
+      link: '/productos',
+      carousel: true,
+    },
+    limits: {},
+    keywords: 'cuenta regresiva countdown reloj timer hot sale cyber monday black friday promo urgencia',
+  }),
+  'featured-product': define({
+    type: 'featured-product',
+    label: 'Producto destacado',
+    previewLabel: 'el producto destacado',
+    description: 'Un producto grande, con su foto, precio y botón de compra.',
+    group: 'Productos',
+    wireframe: 'product-feature',
+    fields: featuredProductFields,
+    defaults: { badge: 'Elegido del mes', layout: 'image-left', showDescription: true, button: 'cart' },
+    limits: {},
+    keywords: 'producto estrella vidriera lanzamiento elegido comprar',
+  }),
+  'promo-popup': define({
+    type: 'promo-popup',
+    label: 'Pop-up promocional',
+    previewLabel: 'el pop-up',
+    description: 'Una ventana con una promo o un cupón que aparece al entrar o al irse.',
+    group: 'Contenido',
+    wireframe: 'popup',
+    fields: promoPopupFields,
+    defaults: {
+      title: '10% off en tu primera compra',
+      text: 'Usá este código cuando pagues.',
+      couponCode: 'BIENVENIDA10',
+      buttonText: 'Ver productos',
+      link: '/productos',
+      trigger: 'delay',
+      delaySeconds: 5,
+      frequency: 'days',
+      frequencyDays: 7,
+    },
+    limits: { maxPerPage: 1 },
+    keywords: 'popup modal ventana emergente cupon descuento bienvenida suscripcion',
+  }),
+  'rich-text': define({
+    type: 'rich-text',
+    label: 'Texto con formato',
+    previewLabel: 'el texto con formato',
+    description: 'Un texto largo con títulos, listas, links y citas; con imagen y botón si querés.',
+    group: 'Contenido',
+    wireframe: 'text',
+    fields: richTextFields,
+    defaults: {
+      title: 'Cómo trabajamos',
+      body: richDocFromText(
+        'Contá la historia de tu marca, cómo elegís los productos o qué hace distinta a tu tienda.',
+        'Podés usar títulos, negritas, listas y links.',
+      ),
+      imagePosition: 'left',
+    },
+    limits: {},
+    keywords: 'editorial texto enriquecido historia blog articulo parrafos formato',
+  }),
+  'category-list': define({
+    type: 'category-list',
+    label: 'Categorías principales',
+    previewLabel: 'las categorías',
+    description: 'Tus categorías con foto, en grilla o carrusel, para entrar directo.',
+    group: 'Productos',
+    wireframe: 'categories',
+    fields: categoryListFields,
+    defaults: {
+      title: 'Comprá por categoría',
+      mode: 'auto',
+      count: 6,
+      layout: 'grid',
+      columnsDesktop: 6,
+      columnsMobile: 3,
+      shape: 'circle',
+      showAll: true,
+      showAllText: 'Ver todas',
+    },
+    limits: {},
+    keywords: 'categorias rubros colecciones departamentos circulos',
+  }),
+  video: define({
+    type: 'video',
+    label: 'Video',
+    previewLabel: 'el video',
+    description: 'Un video de YouTube, Vimeo o subido por vos, con título y botón.',
+    group: 'Imágenes',
+    wireframe: 'video',
+    fields: videoFields,
+    defaults: { source: 'link', ratio: '16:9', autoplay: true, title: 'Mirá cómo se usa' },
+    limits: {},
+    keywords: 'video youtube vimeo mp4 reel clip pelicula',
+  }),
+  'icon-columns': define({
+    type: 'icon-columns',
+    label: 'Íconos con texto',
+    previewLabel: 'los íconos con texto',
+    description: 'Columnas con un ícono, un título y un texto corto: beneficios, pasos, garantías.',
+    group: 'Confianza',
+    wireframe: 'columns',
+    fields: iconColumnsFields,
+    defaults: {
+      title: '¿Por qué comprarnos?',
+      columnsDesktop: 3,
+      mobile: '1',
+      items: [
+        {
+          icon: 'shipping',
+          image: '',
+          title: 'Envíos a todo el país',
+          text: 'Despachamos en 24 horas hábiles.',
+          link: '',
+        },
+        {
+          icon: 'card',
+          image: '',
+          title: 'Hasta 6 cuotas sin interés',
+          text: 'Con todas las tarjetas.',
+          link: '',
+        },
+        {
+          icon: 'returns',
+          image: '',
+          title: 'Cambios sin vueltas',
+          text: 'Tenés 30 días para cambiarlo.',
+          link: '',
+        },
+      ],
+    },
+    limits: {},
+    keywords: 'iconos columnas beneficios ventajas pasos multicolumna garantia',
+  }),
+  collage: define({
+    type: 'collage',
+    label: 'Collage',
+    previewLabel: 'el collage',
+    description: 'Dos o tres bloques (imagen, producto o categoría): uno grande y los otros al lado.',
+    group: 'Imágenes',
+    wireframe: 'collage',
+    fields: collageFields,
+    defaults: {
+      layout: 'big-left',
+      mobile: 'stack',
+      blocks: [
+        {
+          kind: 'image',
+          image: '',
+          title: 'Nueva temporada',
+          link: '/productos',
+          productId: '',
+          categoryId: '',
+        },
+        {
+          kind: 'image',
+          image: '',
+          title: 'Más vendidos',
+          link: '/productos',
+          productId: '',
+          categoryId: '',
+        },
+        { kind: 'image', image: '', title: 'Ofertas', link: '/productos', productId: '', categoryId: '' },
+      ],
+    },
+    limits: {},
+    keywords: 'collage mosaico bloques imagenes destacadas lookbook',
+  }),
 } satisfies Record<SectionType, SectionDefinition>;
+
+/**
+ * Dentro de una semana a las 23:59 de Argentina (UTC-3, sin horario de
+ * verano), en UTC: el ejemplo del cronómetro.
+ */
+export function weekFromToday(now = new Date()): string {
+  const ar = new Date(now.getTime() - 3 * 3600_000);
+  const end = Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + 7, 23, 59) + 3 * 3600_000;
+  return new Date(end).toISOString();
+}
 
 /** La definición de un tipo, o `undefined` si el tipo no existe (datos de una versión más nueva). */
 export function sectionDefinition(type: string): SectionDefinition | undefined {

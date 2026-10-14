@@ -29,6 +29,8 @@ export {
   TEXT_POSITIONS,
   BANNER_RATIOS,
   CAROUSEL_HEIGHTS,
+  COLUMN_ICONS,
+  VIDEO_RATIOS,
   MAX_SECTIONS,
   PRODUCT_SECTION_COLUMNS,
   PRODUCT_SECTION_MOBILE_COLUMNS,
@@ -71,6 +73,17 @@ export type {
   FaqItem,
   BrandsData,
   BrandLogo,
+  CountdownOfferData,
+  FeaturedProductData,
+  PromoPopupData,
+  RichTextData,
+  CategoryListData,
+  CategoryListItem,
+  VideoData,
+  IconColumnsData,
+  IconColumnItem,
+  CollageData,
+  CollageBlock,
 } from './registry';
 export { upgradeSectionData, upgradeCarouselData, upgradeBrandsData } from './legacy';
 export {
@@ -79,6 +92,7 @@ export {
   isSafeLink,
   isSafeMedia,
   isPlainObject,
+  isIsoDateTime,
   SHORT_TEXT_MAX,
   LONG_TEXT_MAX,
   URL_MAX,
@@ -90,3 +104,26 @@ export type { ThemeMigration, RawTheme } from './migrations';
 export { HOME_TEMPLATES, templateSections } from './templates';
 export type { HomeTemplate } from './templates';
 export { buildThemeContract, defaultThemeConfig } from './contract';
+export {
+  RICH_TEXT_MAX,
+  RICH_HEADING_LEVELS,
+  RICH_MAX_DEPTH,
+  RICH_NODES,
+  RICH_MARKS,
+  emptyRichDoc,
+  normalizeRichDoc,
+  richDocText,
+  richDocFromText,
+} from './rich-text';
+export type { RichDoc, RichBlock, RichInline, RichListItem, RichMark, RichHeadingLevel } from './rich-text';
+export {
+  ARGENTINA_OFFSET_MS,
+  isoToArgentinaLocal,
+  argentinaLocalToIso,
+  formatArgentinaEnd,
+  countdownParts,
+  countdownSpeech,
+} from './countdown';
+export type { CountdownParts } from './countdown';
+export { parseVideoUrl, videoEmbedUrl, videoThumbnail } from './video';
+export type { VideoLink } from './video';

@@ -29,6 +29,8 @@ export interface StoreProduct {
   /** Cuántas variantes tiene; con más de una, la card no elige por el comprador. */
   variantCount?: number;
   stock?: number | null;
+  /** La descripción resumida (ver excerptOf). Solo si el producto tiene descripción. */
+  excerpt?: string;
 }
 
 // Bajo este stock la card muestra "¡Últimas N!" (badge de urgencia).

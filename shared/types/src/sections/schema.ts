@@ -10,6 +10,8 @@
        ver contract.ts).
    ============================================================ */
 
+import { normalizeRichDoc, RICH_TEXT_MAX, type RichDoc } from './rich-text';
+
 /** Largo máximo de un texto de una línea (títulos, nombres, botones). */
 export const SHORT_TEXT_MAX = 200;
 /** Largo máximo de un texto largo (descripciones, respuestas, citas). */
@@ -33,7 +35,16 @@ export type FieldSpec =
   /** Lista de textos sueltos: URLs de imágenes o ids de productos. */
   | { kind: 'strings'; of: 'media' | 'id'; max: number }
   /** Lista de ítems (objetos), cada uno con sus campos y un `label` opcional. */
-  | { kind: 'items'; fields: FieldsSpec; max: number };
+  | { kind: 'items'; fields: FieldsSpec; max: number }
+  /** Número entero entre `min` y `max` (segundos, días, columnas). Fuera de rango se acota. */
+  | { kind: 'number'; min: number; max: number; fallback: number }
+  /**
+   * Fecha y hora en ISO 8601 con zona ("2026-11-20T03:00:00.000Z"). Se guarda
+   * en UTC; el editor la muestra y la pide en hora de Argentina. Vacío = sin fecha.
+   */
+  | { kind: 'datetime'; fallback: string }
+  /** Texto con formato como árbol (ver rich-text.ts), nunca HTML. `max`: caracteres del JSON. */
+  | { kind: 'richtext'; max: number };
 
 export type FieldsSpec = Readonly<Record<string, FieldSpec>>;
 
@@ -49,6 +60,9 @@ export const field = {
     ({ kind: 'enum', values, fallback }) as const,
   strings: (of: 'media' | 'id', max: number) => ({ kind: 'strings', of, max }) as const,
   items: <const F extends FieldsSpec>(fields: F, max: number) => ({ kind: 'items', fields, max }) as const,
+  number: (fallback: number, min: number, max: number) => ({ kind: 'number', min, max, fallback }) as const,
+  datetime: (fallback = '') => ({ kind: 'datetime', fallback }) as const,
+  richtext: (max = RICH_TEXT_MAX) => ({ kind: 'richtext', max }) as const,
 };
 
 /* ---- El tipo TS que sale de un esquema ---- */
@@ -69,7 +83,13 @@ type ValueOf<F> = F extends { kind: 'string' | 'text' | 'url' | 'media' }
         ? string[]
         : F extends { kind: 'items'; fields: infer S }
           ? (DataOf<S> & ItemBase)[]
-          : never;
+          : F extends { kind: 'number' }
+            ? number
+            : F extends { kind: 'datetime' }
+              ? string
+              : F extends { kind: 'richtext' }
+                ? RichDoc
+                : never;
 
 /** La data normalizada de un esquema: todos los campos presentes y con su tipo. */
 export type DataOf<S> = { -readonly [K in keyof S]: ValueOf<S[K]> };
@@ -138,7 +158,33 @@ function normalizeField(spec: FieldSpec, raw: unknown): unknown {
       // Un null o un número en medio de la lista (un borrador a medio guardar,
       // un JSON editado a mano) antes tiraba la portada entera. Se descarta.
       return raw.filter(isPlainObject).map((item) => normalizeItem(spec.fields, item));
+    case 'number':
+      return normalizeNumber(spec, raw);
+    case 'datetime':
+      return typeof raw === 'string' && (raw === '' || isIsoDateTime(raw)) ? raw : spec.fallback;
+    case 'richtext':
+      return normalizeRichDoc(raw, isSafeLink, spec.max);
   }
+}
+
+function normalizeNumber(spec: { min: number; max: number; fallback: number }, raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return spec.fallback;
+  return Math.min(spec.max, Math.max(spec.min, Math.round(n)));
+}
+
+/** ISO 8601 con fecha, hora y zona (Z u offset). Lo mismo que acepta el backend. */
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,7})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/** ¿Es una fecha y hora completa, con zona, que existe? ("2026-02-30T…" no). */
+export function isIsoDateTime(value: string): boolean {
+  if (!ISO_DATE_TIME.test(value)) return false;
+  const t = Date.parse(value);
+  if (!Number.isFinite(t)) return false;
+  // Date.parse "corrige" el 30 de febrero al 2 de marzo: se compara el día escrito.
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number) as [number, number, number];
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
 }
 
 function normalizeItem(fields: FieldsSpec, raw: Record<string, unknown>): Record<string, unknown> {

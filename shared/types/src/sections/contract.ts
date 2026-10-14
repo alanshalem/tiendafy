@@ -32,7 +32,10 @@ type ContractField =
   | { kind: 'url' | 'media' | 'boolean' }
   | { kind: 'enum'; values: readonly string[] }
   | { kind: 'strings'; of: 'media' | 'id'; max: number }
-  | { kind: 'items'; max: number; fields: Record<string, ContractField> };
+  | { kind: 'items'; max: number; fields: Record<string, ContractField> }
+  | { kind: 'number'; min: number; max: number }
+  | { kind: 'datetime' }
+  | { kind: 'richtext'; max: number };
 
 function contractField(spec: FieldSpec): ContractField {
   switch (spec.kind) {
@@ -49,6 +52,12 @@ function contractField(spec: FieldSpec): ContractField {
       return { kind: 'strings', of: spec.of, max: spec.max };
     case 'items':
       return { kind: 'items', max: spec.max, fields: contractFields(spec.fields) };
+    case 'number':
+      return { kind: 'number', min: spec.min, max: spec.max };
+    case 'datetime':
+      return { kind: 'datetime' };
+    case 'richtext':
+      return { kind: 'richtext', max: spec.max };
   }
 }
 

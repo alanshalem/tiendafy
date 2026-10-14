@@ -31,6 +31,14 @@ const ALL_TYPES: Record<SectionType, true> = {
   testimonials: true,
   faq: true,
   brands: true,
+  'countdown-offer': true,
+  'featured-product': true,
+  'promo-popup': true,
+  'rich-text': true,
+  'category-list': true,
+  video: true,
+  'icon-columns': true,
+  collage: true,
 };
 
 let crashes: () => unknown[][];

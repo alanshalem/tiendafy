@@ -280,6 +280,47 @@ export const UPLOADS = {
     tip: 'Cuadrado y con fondo transparente (PNG o SVG).',
     heavyBytes: 100 * 1024,
   },
+  /* ---- Secciones de la portada de la fase 2 ---- */
+  popupImage: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 960, height: 540 },
+    fit: 'cover',
+    tip: 'Apaisada: arriba del título del pop-up en computadoras.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  popupImageMobile: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 800, height: 600 },
+    fit: 'cover',
+    tip: 'Opcional: si no la subís, en celular va la otra.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  sectionImage: {
+    formats: PHOTO,
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1200, height: 1200 },
+    fit: 'cover',
+    tip: 'Con lo importante en el centro: según la pantalla se recortan los bordes.',
+    heavyBytes: HEAVY_IMAGE,
+  },
+  columnIcon: {
+    formats: [...PHOTO, 'svg'],
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 160, height: 160 },
+    fit: 'contain',
+    tip: 'Un ícono o logo simple, con fondo transparente (PNG o SVG).',
+    heavyBytes: 200 * 1024,
+  },
+  sectionVideo: {
+    formats: ['mp4'],
+    maxBytes: MEDIA_LIMITS,
+    ideal: { width: 1280, height: 720 },
+    fit: 'cover',
+    tip: 'MP4 bien comprimido: lo ven todos los navegadores, también iPhone.',
+    heavyBytes: HEAVY_VIDEO,
+  },
 } satisfies Record<string, UploadSpec>;
 
 export type UploadKind = keyof typeof UPLOADS;
