@@ -10,10 +10,36 @@ import { SETTINGS_CARD } from '../../lib/styles';
 const PRIMARY = 'rgb(var(--color-primary))';
 
 /* ---------------- Sparkline ---------------- */
-export function Sparkline({ data, className }: { data: number[]; className?: string }) {
+export function Sparkline({ data: raw, className }: { data: number[]; className?: string }) {
   const id = useId();
   const w = 280;
   const h = 64;
+
+  // Sin datos el path quedaba "L280,64 L0,64 Z", sin el M inicial, y el
+  // navegador lo rechazaba ("Expected moveto path command") en la consola de
+  // cada período sin ventas. Vacío: una línea plana tenue, para que la tarjeta
+  // no cambie de alto. Con un solo punto: ese valor de punta a punta.
+  if (raw.length === 0)
+    return (
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className={cn('w-full', className)}
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        <path
+          d={`M0,${h - 4} L${w},${h - 4}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+          vectorEffect="non-scaling-stroke"
+          className="text-border"
+        />
+      </svg>
+    );
+  const data = raw.length === 1 ? [raw[0]!, raw[0]!] : raw;
+
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
   const span = max - min || 1;
