@@ -6,6 +6,7 @@ import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { orderNumber } from '../../lib/orderNumber';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { usePermissions } from '../../context/PermissionsContext';
 import { TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../../lib/styles';
@@ -256,6 +257,7 @@ function BuscarTab() {
         }}
       >
         <Input
+          aria-label="Código de barras o SKU"
           placeholder="Código de barras o SKU…"
           value={manual}
           onChange={(e) => setManual(e.target.value)}
@@ -276,6 +278,7 @@ function BuscarTab() {
           <div className="mt-2 flex gap-2">
             <Input
               compact
+              aria-label="SKU de la variante a la que se asigna el código"
               placeholder="SKU de la variante"
               value={assignSku}
               onChange={(e) => setAssignSku(e.target.value)}
@@ -436,7 +439,7 @@ function PickingTab() {
         <option value="">Pedidos pagados sin despachar ({pending.length})…</option>
         {pending.map((o) => (
           <option key={o.id} value={o.id}>
-            #{o.id.slice(0, 8)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
+            {orderNumber(o.id)} · {o.buyerEmail} · {o.items.reduce((s, i) => s + i.quantity, 0)} u
           </option>
         ))}
       </select>
@@ -481,6 +484,7 @@ function PickingTab() {
                   <div className="min-w-[12rem] flex-1">
                     <Input
                       compact
+                      aria-label="Número de seguimiento"
                       placeholder="Número de seguimiento (opcional)"
                       value={tracking}
                       onChange={(e) => setTracking(e.target.value)}
@@ -522,6 +526,7 @@ function ManualPickInput({ onCode }: { onCode: (code: string) => void }) {
       }}
     >
       <Input
+        aria-label="Código del producto a mano"
         placeholder="…o ingresá el código a mano"
         value={value}
         onChange={(e) => setValue(e.target.value)}

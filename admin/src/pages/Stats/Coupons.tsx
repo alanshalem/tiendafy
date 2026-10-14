@@ -1,13 +1,12 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   KpiCard,
   StatsPageHeader,
   StatsToolbar,
-  defaultStatsRange,
   rangeLabel,
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
+import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { Delta, RankBars } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
@@ -48,8 +47,7 @@ const PAGE_SIZE = 20;
  */
 export function StatsCouponsPage() {
   const { store } = useStore();
-  const [range, setRange] = useState(defaultStatsRange('Últimos 90 días'));
-  const [page, setPage] = useState(1);
+  const { range, setRange, page, setPage } = useStatsRange('Últimos 90 días');
 
   const { data, isLoading } = useQuery({
     queryKey: ['stats-coupons', store?.id, range.from, range.to, page],
@@ -58,6 +56,7 @@ export function StatsCouponsPage() {
         `/api/v1/stats/coupons?${rangeQuery(range)}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
@@ -65,13 +64,7 @@ export function StatsCouponsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar
-        value={range}
-        onChange={(r) => {
-          setRange(r);
-          setPage(1);
-        }}
-      />
+      <StatsToolbar value={range} onChange={setRange} />
       <StatsPageHeader title="Reporte de cupones" />
       <p className="-mt-3 text-sm text-fg-muted">Período: {rangeLabel(range)}.</p>
 
@@ -159,7 +152,7 @@ export function StatsCouponsPage() {
                 </tbody>
               </table>
             </div>
-            <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+            <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
           </>
         )}
       </ChartCard>

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Select, useToast } from '@tiendafy/ui';
 import {
   KpiCard,
@@ -10,6 +9,7 @@ import {
   rangeLabel,
   rangeQuery,
 } from '../../components/stats/StatsToolbar';
+import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta } from '../../components/charts/viz';
 import { Pagination } from '../../components/Pagination';
@@ -82,8 +82,7 @@ const PAGE_SIZE = 20;
 
 export function StatsProfitabilityPage() {
   const { store } = useStore();
-  const [range, setRange] = useState(defaultStatsRange());
-  const [page, setPage] = useState(1);
+  const { range, setRange, page, setPage } = useStatsRange();
   const { data, isLoading } = useQuery({
     queryKey: ['stats-profitability', store?.id, range.from, range.to, page],
     queryFn: () =>
@@ -91,6 +90,7 @@ export function StatsProfitabilityPage() {
         `/api/v1/stats/profitability?${rangeQuery(range)}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
   const totalPages = Math.max(1, Math.ceil((data?.productsTotal ?? 0) / PAGE_SIZE));
 
@@ -242,7 +242,7 @@ export function StatsProfitabilityPage() {
                         ))}
                       </tbody>
                     </table>
-                    <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+                    <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
                   </div>
                 )}
               </ChartCard>

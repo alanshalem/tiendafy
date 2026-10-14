@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, MoreVertical, Pencil, Trash2, Plus, Search, UserPlus } from 'lucide-react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Loader2, MoreVertical, Pencil, Trash2, Plus, Search, UserPlus } from 'lucide-react';
 import {
   Button,
   Card,
@@ -23,6 +23,8 @@ import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
+import { downloadBlob } from '../lib/download';
+import { useListParams, useListSearch } from '../lib/useListParams';
 
 interface Customer {
   id: string;
@@ -38,6 +40,9 @@ interface Customer {
 /** Clientes por página. */
 const PAGE_SIZE = 25;
 
+/** Búsqueda y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', pagina: 1 };
+
 export function CustomersPage() {
   const { store } = useStore();
   const queryClient = useQueryClient();
@@ -46,10 +51,10 @@ export function CustomersPage() {
   const canEdit = usePermissions().can('customers.write');
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [term, setTerm] = useState('');
-  const [q, setQ] = useState('');
-
-  const [page, setPage] = useState(1);
+  const list = useListParams(LIST_DEFAULTS);
+  const q = list.values.q.trim();
+  const page = list.values.pagina;
+  const [term, setTerm] = useListSearch(list);
 
   // La agenda crece con cada venta: la página y la búsqueda las resuelve la
   // base, no el navegador.
@@ -64,12 +69,28 @@ export function CustomersPage() {
       return api.get<{ items: Customer[]; total: number }>(`/api/v1/customers?${params}`);
     },
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
   const customers = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['customers', store?.id] });
+
+  // La agenda entera (con la búsqueda puesta) como planilla: la arma el
+  // servidor, así no tiene el tope de una página.
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await api.download(`/api/v1/customers/export${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+      downloadBlob(blob, `clientes-${store?.subdomain ?? 'tienda'}.csv`);
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo exportar.'), { variant: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const remove = useMutation({
     mutationFn: (c: Customer) => api.delete(`/api/v1/customers/${c.id}`),
@@ -169,14 +190,16 @@ export function CustomersPage() {
         <div className="flex flex-wrap items-center gap-2">
           <form
             onSubmit={(e) => {
+              // Enter busca ya, sin esperar la pausa de tipeo.
               e.preventDefault();
-              setQ(term.trim());
-              setPage(1);
+              list.set({ q: term }, { replace: true });
             }}
             className="relative"
           >
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
             <Input
+              type="search"
+              aria-label="Buscar clientes"
               className="pl-8"
               value={term}
               onChange={(e) => setTerm(e.target.value)}
@@ -188,6 +211,17 @@ export function CustomersPage() {
               {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
             </span>
           )}
+          <Button
+            variant="secondary"
+            onClick={exportCsv}
+            disabled={exporting || total === 0}
+            title="Descarga la agenda (con la búsqueda puesta) en un CSV para Excel."
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Exportar
+            </span>
+          </Button>
           {canEdit && (
             <>
               <Button
@@ -239,7 +273,11 @@ export function CustomersPage() {
       ) : (
         <Card flush>
           <Table columns={columns} rows={customers} rowKey={(c) => c.id} emptyState="No hay clientes." />
-          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+          <Pagination
+            page={Math.min(page, totalPages)}
+            totalPages={totalPages}
+            onPage={(p) => list.set({ pagina: p })}
+          />
         </Card>
       )}
 

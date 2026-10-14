@@ -1,5 +1,51 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { cn } from './cn';
+
+/** Lo que dentro de una fila tiene su propio click: no abre la fila. */
+const OWN_CLICK = 'a, button, input, select, textarea, label, [role="menuitem"], [role="checkbox"]';
+
+/**
+ * Props para una fila de tabla que abre algo (un detalle, una ficha).
+ *
+ * Un `<tr onClick>` solo no se alcanza con el teclado: quien no usa mouse no
+ * tenía forma de abrir una venta o un presupuesto. Con esto la fila entra en
+ * el orden de Tab, se abre con Enter o Espacio y muestra el foco.
+ *
+ * Con `focusable: false` la fila solo se ocupa del mouse; es para cuando la
+ * primera celda ya tiene un link o un botón que hace lo mismo (no tiene
+ * sentido pasar dos veces por lo mismo con Tab).
+ *
+ * Los clicks en un control propio de la fila (un botón, un link, un checkbox)
+ * no la abren: hacen lo suyo.
+ */
+export function clickableRowProps(
+  onActivate: () => void,
+  { focusable = true }: { focusable?: boolean } = {},
+) {
+  return {
+    tabIndex: focusable ? 0 : undefined,
+    onClick: (e: MouseEvent<HTMLElement>) => {
+      const target = e.target as HTMLElement;
+      if (target !== e.currentTarget && target.closest(OWN_CLICK)) return;
+      onActivate();
+    },
+    onKeyDown: focusable
+      ? (e: KeyboardEvent<HTMLElement>) => {
+          // Solo la fila con el foco: un Enter en un botón de adentro es del botón.
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onActivate();
+          }
+        }
+      : undefined,
+    className: cn(
+      'cursor-pointer',
+      focusable &&
+        'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+    ),
+  };
+}
 
 export interface TableColumn<T> {
   key: string;
@@ -68,25 +114,29 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyState, classN
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={cn(
-                'border-b border-border last:border-b-0',
-                onRowClick && 'cursor-pointer hover:bg-bg-subtle',
-              )}
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn('px-4 py-3 text-fg', alignClasses[col.align ?? 'left'], col.className)}
-                >
-                  {col.cell ? col.cell(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const clickable = onRowClick ? clickableRowProps(() => onRowClick(row)) : null;
+            return (
+              <tr
+                key={rowKey(row)}
+                {...clickable}
+                className={cn(
+                  'border-b border-border last:border-b-0',
+                  clickable && 'hover:bg-bg-subtle',
+                  clickable?.className,
+                )}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={cn('px-4 py-3 text-fg', alignClasses[col.align ?? 'left'], col.className)}
+                  >
+                    {col.cell ? col.cell(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -39,6 +39,29 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
     public async Task<(IReadOnlyList<Order> Items, int Total)> ListPageAsync(
         TenantId tenantId, int limit, int offset, string? search, string? status, CancellationToken ct = default)
     {
+        var query = Filtered(tenantId, search, status);
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(o => o.CreatedAtUtc)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(ct);
+        return (items, total);
+    }
+
+    public IAsyncEnumerable<Order> StreamAsync(TenantId tenantId, string? search, string? status) =>
+        Filtered(tenantId, search, status)
+            .AsNoTracking()
+            .OrderByDescending(o => o.CreatedAtUtc)
+            .ThenBy(o => o.Id)
+            .AsAsyncEnumerable();
+
+    /// <summary>
+    /// La búsqueda y el filtro de estado del listado. Uno solo para la página y
+    /// para el export: el archivo tiene que traer exactamente lo que se ve.
+    /// </summary>
+    private IQueryable<Order> Filtered(TenantId tenantId, string? search, string? status)
+    {
         var query = context.Orders.Where(o => o.TenantId == tenantId);
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -47,9 +70,12 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             query = query.Where(o => o.Status.ToString().ToUpper() == wanted);
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
+        // El número de orden se muestra como "#A1B2C3D4": quien lo copia de la
+        // tabla, de un WhatsApp o de una etiqueta lo pega con el numeral.
+        var text = search?.Trim().TrimStart('#').Trim();
+        if (!string.IsNullOrEmpty(text))
         {
-            var term = $"%{search.Trim()}%";
+            var term = $"%{text}%";
             // Email, nombre del comprador o el principio del id (lo que se ve
             // en la tabla como número de orden).
             query = query.Where(o =>
@@ -58,13 +84,7 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
                 || EF.Functions.ILike(o.Id.ToString(), term));
         }
 
-        var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderByDescending(o => o.CreatedAtUtc)
-            .Skip(offset)
-            .Take(limit)
-            .ToListAsync(ct);
-        return (items, total);
+        return query;
     }
 
     public async Task AddAsync(Order order, CancellationToken ct = default) =>

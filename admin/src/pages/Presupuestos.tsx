@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Plus, Printer, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
+  clickableRowProps,
+  cn,
   FormField,
   Input,
   Modal,
@@ -25,6 +27,7 @@ import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { replaceAt } from '../lib/arrays';
 import { parseMoneyInput } from '../lib/price';
 
@@ -96,21 +99,27 @@ function inDays(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Valor de `?presupuesto=` para uno que se está armando. */
+const NEW_QUOTE = 'nuevo';
+
 export function PresupuestosPage() {
   const { store } = useStore();
-  const [view, setView] = useState<{ mode: 'list' } | { mode: 'edit'; id: string | null }>({ mode: 'list' });
+  // El presupuesto abierto va en la URL: Atrás vuelve a la lista, recargar no
+  // lo cierra y se puede mandar el link a alguien del equipo.
+  const record = useRecordParam('presupuesto');
 
   if (!store) return <NoStoreSelected />;
 
   return (
     <div className="space-y-4">
-      {view.mode === 'list' ? (
+      {!record.id ? (
         <QuoteList
-          onNew={() => setView({ mode: 'edit', id: null })}
-          onOpen={(id) => setView({ mode: 'edit', id })}
+          onNew={() => record.open(NEW_QUOTE)}
+          onOpen={record.open}
+          recordLink={(id) => ({ search: record.searchFor(id), state: record.linkState })}
         />
       ) : (
-        <QuoteEditor id={view.id} onBack={() => setView({ mode: 'list' })} />
+        <QuoteEditor key={record.id} id={record.id === NEW_QUOTE ? null : record.id} onBack={record.close} />
       )}
     </div>
   );
@@ -118,12 +127,26 @@ export function PresupuestosPage() {
 
 // ------------------------------------------------------------------- Listado
 
-function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) => void }) {
+/** Búsqueda, estado y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { q: '', estado: '', pagina: 1 };
+
+function QuoteList({
+  onNew,
+  onOpen,
+  recordLink,
+}: {
+  onNew: () => void;
+  onOpen: (id: string) => void;
+  /** Adónde lleva el link de cada presupuesto (la misma lista con ?presupuesto=<id>). */
+  recordLink: (id: string) => { search: string; state: unknown };
+}) {
   const { store } = useStore();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
-  const debounced = useDebouncedValue(search, 300).trim();
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list, 'q', 300);
+  const status = list.values.estado;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
+  const debounced = list.values.q.trim();
 
   const { data } = useQuery({
     queryKey: ['quotes', store?.id, debounced, status, page],
@@ -137,7 +160,7 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
       return api.get<{ items: QuoteRow[]; total: number }>(`/api/v1/quotes?${params}`);
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const { data: summary } = useQuery({
@@ -181,10 +204,7 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
               label: 'Abiertos',
               value: String(summary.open),
               hint: 'Presupuestos vigentes esperando respuesta.',
-              onClick: () => {
-                setStatus(status === 'sent' ? '' : 'sent');
-                setPage(1);
-              },
+              onClick: () => list.set({ estado: status === 'sent' ? '' : 'sent' }),
               active: status === 'sent',
             },
             {
@@ -210,22 +230,18 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
+          type="search"
+          aria-label="Buscar presupuestos"
           className="w-64"
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por cliente o número..."
         />
         <Select
           aria-label="Filtrar por estado"
           className="w-44"
           value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => list.set({ estado: e.target.value })}
           placeholder="Todos los estados"
           options={Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label }))}
         />
@@ -258,36 +274,46 @@ function QuoteList({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) 
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((q) => (
-                  <tr key={q.id} onClick={() => onOpen(q.id)} className="cursor-pointer hover:bg-bg-muted">
-                    <td className="whitespace-nowrap px-4 py-2 font-medium">{q.number}</td>
-                    <td className="px-4 py-2">
-                      {q.customerName}
-                      <div className="text-xs text-fg-subtle">
-                        {q.items} producto{q.items === 1 ? '' : 's'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
-                        {q.expired && <Badge variant="warning">Vencido</Badge>}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
-                      {formatDate(q.validUntilUtc)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                      {formatMoney(q.totalMinor, q.currency)}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((q) => {
+                  // El número es un link de verdad (Tab, Enter, abrir en otra
+                  // pestaña); el resto de la fila responde al mouse.
+                  const row = clickableRowProps(() => onOpen(q.id), { focusable: false });
+                  const link = recordLink(q.id);
+                  return (
+                    <tr key={q.id} {...row} className={cn('hover:bg-bg-muted', row.className)}>
+                      <td className="whitespace-nowrap px-4 py-2 font-medium">
+                        <Link to={{ search: link.search }} state={link.state} className="hover:underline">
+                          {q.number}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2">
+                        {q.customerName}
+                        <div className="text-xs text-fg-subtle">
+                          {q.items} producto{q.items === 1 ? '' : 's'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant={STATUS[q.status].variant}>{STATUS[q.status].label}</Badge>
+                          {q.expired && <Badge variant="warning">Vencido</Badge>}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-fg-muted">
+                        {formatDate(q.validUntilUtc)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
+                        {formatMoney(q.totalMinor, q.currency)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+      <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
 
       <HelpLink id="presupuestos" />
     </>
@@ -413,7 +439,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
       qc.invalidateQueries({ queryKey: ['quote', store?.id, id] });
       if (vars.path === 'accept' && res.orderId) {
         toast('Presupuesto aceptado: la venta ya está creada.', { variant: 'success' });
-        navigate('/ventas');
+        navigate(`/ventas?order=${res.orderId}`);
         return;
       }
       toast('Listo', { variant: 'success' });
@@ -452,7 +478,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
           {quote?.convertedOrderId && (
             <button
               type="button"
-              onClick={() => navigate('/ventas')}
+              onClick={() => navigate(`/ventas?order=${quote.convertedOrderId}`)}
               className="mt-0.5 text-sm text-primary hover:underline"
             >
               Se convirtió en una venta — verla en Ventas

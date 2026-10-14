@@ -19,22 +19,33 @@ public static class CustomersEndpoints
             ITenantContext tenant, CustomersDbContext db, CancellationToken ct,
             string? q = null, int? limit = null, int? offset = null) =>
         {
-            var tid = tenant.TenantId.Value;
-            var query = db.Customers.AsNoTracking().Where(c => c.TenantId == tid);
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = $"%{q.Trim()}%";
-                // Phone/Address están cifradas en reposo → no se pueden buscar (ni tendría
-                // sentido el ILIKE sobre ciphertext). Búsqueda por nombre + email.
-                query = query.Where(c => EF.Functions.ILike(c.Name, term)
-                    || (c.Email != null && EF.Functions.ILike(c.Email, term)));
-            }
-
-            var (items, total) = await query
+            var (items, total) = await Search(db, tenant.TenantId.Value, q)
                 .OrderByDescending(c => c.CreatedAtUtc)
                 .PageAsync(offset, limit, ct);
             return Results.Ok(new { items = items.Select(ToDto), total });
         });
+
+        // La agenda (con la misma búsqueda que la pantalla) como planilla, para
+        // llevarla a otro sistema o a una campaña. Se escribe a medida que sale
+        // de la base: no tiene el tope de una página.
+        customers.MapGet("/export", (ITenantContext tenant, CustomersDbContext db, CancellationToken ct, string? q = null) =>
+            Api.Fiscal.VatBookCsv.Download(
+                $"clientes-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd}.csv",
+                "Nombre;Email;Teléfono;Dirección;Notas;Alta",
+                Search(db, tenant.TenantId.Value, q)
+                    .OrderByDescending(c => c.CreatedAtUtc)
+                    .ThenBy(c => c.Id)
+                    .AsAsyncEnumerable()
+                    .Select(c => (IEnumerable<string?>)
+                    [
+                        Api.Fiscal.VatBookCsv.Text(c.Name),
+                        Api.Fiscal.VatBookCsv.Text(c.Email),
+                        Api.Fiscal.VatBookCsv.Text(c.Phone),
+                        Api.Fiscal.VatBookCsv.Text(c.Address),
+                        Api.Fiscal.VatBookCsv.Text(c.Notes),
+                        Api.Fiscal.VatBookCsv.Date(c.CreatedAtUtc),
+                    ]),
+                ct));
 
         // Trae a la agenda a los compradores de las ventas anteriores. De acá en
         // más cada venta pagada deja su ficha sola (PaidOrderSideEffects); esto
@@ -93,6 +104,21 @@ public static class CustomersEndpoints
         return group;
     }
 
+
+    /// <summary>La búsqueda de la agenda: una sola para la página y para el export.</summary>
+    private static IQueryable<Customer> Search(CustomersDbContext db, Guid tenantId, string? q)
+    {
+        var query = db.Customers.AsNoTracking().Where(c => c.TenantId == tenantId);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = $"%{q.Trim()}%";
+            // Phone/Address están cifradas en reposo → no se pueden buscar (ni tendría
+            // sentido el ILIKE sobre ciphertext). Búsqueda por nombre + email.
+            query = query.Where(c => EF.Functions.ILike(c.Name, term)
+                || (c.Email != null && EF.Functions.ILike(c.Email, term)));
+        }
+        return query;
+    }
 
     private static object ToDto(Customer c) => new
     {

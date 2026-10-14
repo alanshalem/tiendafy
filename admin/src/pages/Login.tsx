@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiRequestError } from '../lib/api';
@@ -9,6 +9,24 @@ const AUTH_INPUT =
   'h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg outline-none focus:border-primary';
 const AUTH_SUBMIT =
   'mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-fg hover:bg-primary-hover';
+
+/**
+ * Un campo del login con su etiqueta visible. Antes eran inputs con solo un
+ * placeholder: el lector de pantalla no los nombraba y el texto desaparecía
+ * apenas se empezaba a escribir. `autoComplete` es lo que usa el gestor de
+ * contraseñas para completar (y para ofrecer guardar la nueva).
+ */
+function AuthField({ label, ...input }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-fg">
+        {label}
+      </label>
+      <input id={id} className={AUTH_INPUT} {...input} />
+    </div>
+  );
+}
 
 function Shell({ children }: { children: ReactNode }) {
   return (
@@ -111,31 +129,35 @@ export function Login() {
       ) : (
         <form onSubmit={submit} className="mt-5 space-y-3">
           {mode === 'register' && (
-            <input
+            <AuthField
+              label="Tu nombre"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Tu nombre"
               required
-              className={AUTH_INPUT}
             />
           )}
-          <input
+          <AuthField
+            label="Email"
             type="email"
+            // Al entrar, el email es el usuario de la cuenta; al crearla, un email nuevo.
+            autoComplete={mode === 'login' ? 'username' : 'email'}
+            inputMode="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder="nombre@empresa.com"
             required
-            className={AUTH_INPUT}
           />
           {mode !== 'forgot' && (
-            <input
+            <AuthField
+              label="Contraseña"
               type="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
+              placeholder={mode === 'register' ? 'Mínimo 10 caracteres' : undefined}
               required
               minLength={10}
-              className={AUTH_INPUT}
             />
           )}
 
@@ -269,14 +291,14 @@ function ResetPasswordForm() {
       <h1 className="text-lg font-semibold text-fg">Nueva contraseña</h1>
       <p className="mt-1 text-sm text-fg-muted">Para {email}. Mínimo 10 caracteres.</p>
       <form onSubmit={submit} className="mt-5 space-y-3">
-        <input
+        <AuthField
+          label="Nueva contraseña"
           type="password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Nueva contraseña"
           required
           minLength={10}
-          className={AUTH_INPUT}
         />
         {error && <p className="text-sm text-danger">{error}</p>}
         <button

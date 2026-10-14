@@ -51,7 +51,13 @@ export function VariantPicker({
 
   return (
     <div className="relative">
-      <Input placeholder={placeholder} value={search} onChange={(e) => setSearch(e.target.value)} />
+      <Input
+        type="search"
+        aria-label={placeholder}
+        placeholder={placeholder}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
       {matches.length > 0 && (
         // Sin un z por encima del chrome fijo, la lista queda debajo del
         // encabezado de la tabla que suele haber abajo en la misma pantalla.

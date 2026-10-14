@@ -1,7 +1,19 @@
 import { useState, useId } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Package, Plus, Ship } from 'lucide-react';
-import { Badge, Button, Card, Input, Select, Tabs, useConfirm, useToast } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  clickableRowProps,
+  cn,
+  Input,
+  Select,
+  Tabs,
+  useConfirm,
+  useToast,
+} from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
@@ -12,7 +24,7 @@ import { StatusLegend } from '../components/StatusLegend';
 import { InfoDot } from '../components/charts';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
-import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
 import { PO_PAGE_SIZE, PO_STATUS, NEXT_STEPS } from './compras-tipos';
 import type { PoListItem, PoDetail, Suggestion, FormItem, PoForm, PurchasingSummary } from './compras-tipos';
 import { VatBookDownload, SupplierInvoiceCard } from './compras-factura';
@@ -20,10 +32,15 @@ import { ItemsEditor } from './compras-items';
 import { ExpensesEditor } from './compras-gastos';
 import { ReceiveButton, SupplierField } from './compras-recepcion';
 
+/** Valor de `?orden=` para una compra que se está armando. */
+const NEW_PO = 'nueva';
+
 export function ComprasPage() {
   const { store } = useStore();
-  const [view, setView] = useState<'list' | 'detail' | 'new'>('list');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // La compra abierta va en la URL (?orden=<id>): Atrás vuelve a la lista en
+  // vez de salir de Compras, recargar no la cierra y se puede linkear (la
+  // ficha de un proveedor lleva directo a cada una de sus compras).
+  const record = useRecordParam('orden');
   // Items precargados al armar una OC desde las sugerencias de reposición.
   const [draftItems, setDraftItems] = useState<FormItem[] | null>(null);
 
@@ -31,45 +48,55 @@ export function ComprasPage() {
 
   return (
     <div className="space-y-4">
-      {view === 'list' && (
+      {!record.id && (
         <ComprasList
           onNew={(items) => {
             setDraftItems(items ?? null);
-            setView('new');
+            record.open(NEW_PO);
           }}
-          onOpen={(id) => {
-            setSelectedId(id);
-            setView('detail');
-          }}
+          recordLink={(id) => ({ search: record.searchFor(id), state: record.linkState })}
+          onOpen={record.open}
         />
       )}
-      {view === 'new' && (
-        <PoEditor poId={null} initialItems={draftItems ?? undefined} onBack={() => setView('list')} />
+      {record.id === NEW_PO && (
+        <PoEditor poId={null} initialItems={draftItems ?? undefined} onBack={record.close} />
       )}
-      {view === 'detail' && selectedId && <PoEditor poId={selectedId} onBack={() => setView('list')} />}
+      {record.id && record.id !== NEW_PO && (
+        <PoEditor key={record.id} poId={record.id} onBack={record.close} />
+      )}
     </div>
   );
 }
 
 // ------------------------------------------------------------------- Lista
 
+/** Pestaña, búsqueda, estado, grupo y página, en la URL (ver useListParams). */
+const LIST_DEFAULTS = { vista: 'ordenes', q: '', estado: '', grupo: '', pagina: 1 };
+type PoGroup = '' | 'open' | 'inTransit' | 'invoiceMissing';
+const GROUPS: readonly string[] = ['open', 'inTransit', 'invoiceMissing'];
+
 function ComprasList({
   onNew,
   onOpen,
+  recordLink,
 }: {
   onNew: (items?: FormItem[]) => void;
   onOpen: (id: string) => void;
+  /** Adónde lleva el link de cada compra (la misma lista con ?orden=<id>). */
+  recordLink: (id: string) => { search: string; state: unknown };
 }) {
   const { store } = useStore();
-  const [tab, setTab] = useState('ordenes');
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-
-  const [page, setPage] = useState(1);
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const tab = list.values.vista === 'reposicion' ? 'reposicion' : 'ordenes';
+  const setTab = (vista: string) => list.set({ vista });
+  const statusFilter = list.values.estado;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
   // Grupo de estados que prendió una métrica: "abiertas" o "en camino" no son
   // un estado sino varios, así que no entran en el desplegable de estado.
-  const [group, setGroup] = useState<'' | 'open' | 'inTransit' | 'invoiceMissing'>('');
-  const debouncedSearch = useDebouncedValue(search, 350).trim();
+  const group = (GROUPS.includes(list.values.grupo) ? list.values.grupo : '') as PoGroup;
+  const debouncedSearch = list.values.q.trim();
 
   // Búsqueda, estado y grupo se resuelven en la base: filtrar en el navegador
   // solo alcanzaba a las 25 órdenes de la página visible.
@@ -86,15 +113,12 @@ function ComprasList({
       return api.get<{ items: PoListItem[]; total: number }>(`/api/v1/purchasing/purchase-orders?${params}`);
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   // Un grupo y un estado suelto se pisan: prender uno limpia el otro.
-  const toggleGroup = (next: 'open' | 'inTransit' | 'invoiceMissing') => {
-    setGroup((current) => (current === next ? '' : next));
-    setStatusFilter('');
-    setPage(1);
-  };
+  const toggleGroup = (next: Exclude<PoGroup, ''>) =>
+    list.set({ grupo: group === next ? '' : next, estado: '' });
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PO_PAGE_SIZE));
 
   // Sobre TODAS las órdenes, no sobre la página: cuánta plata está comprometida
@@ -176,12 +200,11 @@ function ComprasList({
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
               <Input
+                type="search"
+                aria-label="Buscar compras"
                 placeholder="Buscar por proveedor o referencia…"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             {/* Ancho por wrapper: acá el control comparte fila con el buscador,
@@ -190,11 +213,7 @@ function ComprasList({
               <Select
                 aria-label="Filtrar por estado"
                 value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setGroup('');
-                  setPage(1);
-                }}
+                onChange={(e) => list.set({ estado: e.target.value, grupo: '' })}
                 options={[
                   { value: '', label: 'Todos los estados' },
                   ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })),
@@ -232,31 +251,57 @@ function ComprasList({
                   </tr>
                 </thead>
                 <tbody>
-                  {(data?.items ?? []).map((po) => (
-                    <tr
-                      key={po.id}
-                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg-subtle"
-                      onClick={() => onOpen(po.id)}
-                    >
-                      <td className="px-4 py-2.5 font-medium text-fg">{po.supplierName}</td>
-                      <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
-                      <td className="px-4 py-2.5">
-                        <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
-                          {PO_STATUS[po.status]?.label ?? po.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                        {po.currency} {formatNumber(po.totalFob)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
-                      <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
-                    </tr>
-                  ))}
+                  {(data?.items ?? []).map((po) => {
+                    // El nombre es un link de verdad (Tab, Enter, abrir en otra
+                    // pestaña); el resto de la fila responde al mouse.
+                    const row = clickableRowProps(() => onOpen(po.id), { focusable: false });
+                    const link = recordLink(po.id);
+                    return (
+                      <tr
+                        key={po.id}
+                        {...row}
+                        className={cn(
+                          'border-b border-border last:border-b-0 hover:bg-bg-subtle',
+                          row.className,
+                        )}
+                      >
+                        <td className="px-4 py-2.5 font-medium text-fg">
+                          <Link to={{ search: link.search }} state={link.state} className="hover:underline">
+                            {po.supplierName}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-fg-muted">{po.reference ?? '—'}</td>
+                        <td className="px-4 py-2.5">
+                          <Badge variant={PO_STATUS[po.status]?.variant ?? 'neutral'}>
+                            {PO_STATUS[po.status]?.label ?? po.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-fg">
+                          {po.currency} {formatNumber(po.totalFob)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
+                        <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
+                      </tr>
+                    );
+                  })}
                   {(data?.items ?? []).length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-muted">
                         <Ship className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                        Todavía no hay compras. Creá la primera con «Nueva compra».
+                        {list.filtered ? (
+                          <>
+                            Ninguna compra coincide con la búsqueda o el filtro.{' '}
+                            <button
+                              type="button"
+                              onClick={() => list.set({ q: '', estado: '', grupo: '' })}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              Limpiar
+                            </button>
+                          </>
+                        ) : (
+                          'Todavía no hay compras. Creá la primera con «Nueva compra».'
+                        )}
                       </td>
                     </tr>
                   )}
@@ -316,6 +361,7 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
             compact
             type="number"
             min={1}
+            aria-label="Lead time en días"
             placeholder="Ajustar días"
             value={leadInput}
             onChange={(e) => setLeadInput(e.target.value)}

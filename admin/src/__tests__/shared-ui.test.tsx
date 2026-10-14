@@ -188,6 +188,30 @@ describe('Table', () => {
     await userEvent.click(screen.getByText('Ana'));
     expect(onRowClick).toHaveBeenCalledWith({ name: 'Ana' });
   });
+
+  it('una fila que se abre se alcanza con Tab y se abre con Enter o Espacio', async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    const withButton = [
+      ...columns,
+      { key: 'x', header: '', cell: () => <button type="button">Borrar</button> },
+    ];
+    render(
+      <Table columns={withButton} rows={[{ name: 'Ana' }]} rowKey={(r) => r.name} onRowClick={onRowClick} />,
+    );
+    await user.tab();
+    const row = screen.getByText('Ana').closest('tr')!;
+    expect(row).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await user.keyboard(' ');
+    expect(onRowClick).toHaveBeenCalledTimes(2);
+
+    // Un control propio de la fila hace lo suyo: no abre la fila.
+    await user.click(screen.getByRole('button', { name: 'Borrar' }));
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(onRowClick).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('Dropdown', () => {

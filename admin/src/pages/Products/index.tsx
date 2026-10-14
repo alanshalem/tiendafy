@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
@@ -9,7 +9,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
 import { useVariantStock, useCatalogHealth } from './queries';
 import { Pagination } from '../../components/Pagination';
-import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { useListParams, useListSearch } from '../../lib/useListParams';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
@@ -45,10 +45,46 @@ const SORTS = {
   'Nombre Z-A': 'nameDesc',
 } as const;
 
-type SortLabel = keyof typeof SORTS;
+type SortValue = (typeof SORTS)[keyof typeof SORTS];
+const SORT_VALUES: readonly string[] = Object.values(SORTS);
 
 /** Productos por página. */
 const PAGE_SIZE = 20;
+
+/**
+ * Los parámetros del listado en la URL. Los filtros van con nombre propio
+ * (y no como los del panel de filtros) para que la URL se lea:
+ * /productos?estado=draft&falta=image.
+ */
+const LIST_DEFAULTS = {
+  q: '',
+  ordenar: 'newest' as SortValue,
+  pagina: 1,
+  categoria: defaultFilters.category,
+  stock: defaultFilters.stock as string,
+  promo: defaultFilters.priceType as string,
+  estado: defaultFilters.status as string,
+  falta: defaultFilters.missing as string,
+};
+
+/** Solo lo que el panel conoce: una URL tocada a mano no mete valores raros. */
+function oneOf<T extends string>(value: string, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+}
+
+function filtersFrom(v: typeof LIST_DEFAULTS): ProductFilters {
+  return {
+    category: v.categoria,
+    stock: oneOf(v.stock, ['all', 'in', 'out'], defaultFilters.stock),
+    priceType: oneOf(v.promo, ['all', 'promo', 'noPromo'], defaultFilters.priceType),
+    status: oneOf(v.estado, ['all', 'active', 'draft', 'archived'], defaultFilters.status),
+    missing: oneOf(v.falta, ['all', 'image'], defaultFilters.missing),
+  };
+}
+
+function paramsFrom(f: ProductFilters): Partial<typeof LIST_DEFAULTS> {
+  return { categoria: f.category, stock: f.stock, promo: f.priceType, estado: f.status, falta: f.missing };
+}
 
 /** Cómo se lee el filtro puesto, para el cartel de arriba de la tabla. */
 const FILTER_LABEL: Record<string, string> = {
@@ -70,38 +106,43 @@ export function ProductsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortLabel>('Más nuevo');
+  // Búsqueda, filtros, orden y página viven en la URL y la pestaña los
+  // recuerda: después de editar un producto, la ficha vuelve a "/productos"
+  // y el listado reaparece como estaba (página y filtros), no en la página 1.
+  const list = useListParams(LIST_DEFAULTS, { storageKey: store ? `productos:${store.id}` : null });
+  const [search, setSearch] = useListSearch(list);
+  const filters = filtersFrom(list.values);
+  const sort = SORT_VALUES.includes(list.values.ordenar as SortValue)
+    ? (list.values.ordenar as SortValue)
+    : LIST_DEFAULTS.ordenar;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
+  const setFilters = (f: ProductFilters) => list.set(paramsFrom(f));
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
-  const [page, setPage] = useState(1);
 
   /**
    * Volver a tocar la misma métrica saca el filtro: es el gesto que espera
    * cualquiera que la usó para mirar y quiere volver al listado completo.
    */
-  const toggleFilter = <K extends keyof ProductFilters>(key: K, value: ProductFilters[K]) => {
-    setFilters((current) => ({
-      ...current,
-      [key]: current[key] === value ? defaultFilters[key] : value,
-    }));
-    setPage(1);
-  };
+  const toggleFilter = <K extends keyof ProductFilters>(key: K, value: ProductFilters[K]) =>
+    setFilters({ ...filters, [key]: filters[key] === value ? defaultFilters[key] : value });
   const [draftFilters, setDraftFilters] = useState<ProductFilters>(defaultFilters);
 
-  const debouncedSearch = useDebouncedValue(search, 350).trim();
+  const debouncedSearch = list.values.q.trim();
 
   // Una página por request, con búsqueda, filtros y orden resueltos en la base.
   // Antes se traía el catálogo COMPLETO al navegador para filtrar y paginar acá:
   // con miles de productos eso es descargar la tienda entera en cada visita, y
   // encima los filtros de categoría y envío no llegaban a aplicarse nunca.
   const { data, isLoading } = useQuery({
-    queryKey: ['products-admin', store?.id, debouncedSearch, filters, sort, page],
+    // Bajo ['products', tienda]: así lo refresca todo lo que invalida productos
+    // (antes la clave era otra y publicar o borrar no actualizaba la lista).
+    queryKey: ['products', store?.id, 'admin', debouncedSearch, filters, sort, page],
     queryFn: () => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
         offset: String((page - 1) * PAGE_SIZE),
-        sort: SORTS[sort],
+        sort,
       });
       if (debouncedSearch) params.set('q', debouncedSearch);
       if (filters.category) params.set('categoryId', filters.category);
@@ -112,7 +153,7 @@ export function ProductsPage() {
       return api.get<{ items: ProductDto[]; total: number }>(`/api/v1/products?${params}`);
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const pageItems = useMemo(() => data?.items ?? [], [data]);
@@ -172,38 +213,60 @@ export function ProductsPage() {
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const toggleSelect = (id: string) => {
+  // Elegidos: id → nombre. El nombre hace falta para decir cuáles fallaron
+  // aunque estén en otra página (la selección sobrevive al paginar).
+  const [selected, setSelected] = useState<Map<string, string>>(new Map());
+  const toggleSelect = (product: ProductDto) => {
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      if (next.has(product.id)) next.delete(product.id);
+      else next.set(product.id, product.name);
       return next;
     });
   };
-  const clearSelection = () => setSelected(new Set());
+  const clearSelection = () => setSelected(new Map());
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
 
+  // Uno por uno y cada uno por su lado: si falla uno, los demás igual se
+  // hacen. Antes iban todos juntos con Promise.all y un solo error tiraba un
+  // "Error" genérico, sin refrescar (lo borrado seguía en la lista), sin
+  // limpiar la selección y sin decir qué sí había salido.
   const bulkAction = useMutation({
-    mutationFn: async ({ ids, action }: { ids: string[]; action: 'publish' | 'archive' | 'delete' }) => {
-      await Promise.all(
-        ids.map((id) =>
-          action === 'delete'
-            ? api.delete(`/api/v1/products/${id}`)
-            : api.post(`/api/v1/products/${id}/${action}`, {}),
-        ),
+    mutationFn: async ({ ids, action }: { ids: string[]; action: BulkKind }) => {
+      const outcomes = await settleInBatches(ids, (id) =>
+        action === 'delete'
+          ? api.delete(`/api/v1/products/${id}`)
+          : api.post(`/api/v1/products/${id}/${action}`, {}),
       );
-      return { count: ids.length, action };
+      return {
+        action,
+        done: ids.filter((_, i) => outcomes[i]!.status === 'fulfilled'),
+        failed: ids.flatMap((id, i) => {
+          const o = outcomes[i]!;
+          return o.status === 'rejected' ? [{ id, reason: errMsg(o.reason, 'No se pudo.') }] : [];
+        }),
+      };
     },
-    onSuccess: ({ count, action }) => {
+    onSuccess: ({ action, done, failed }) => {
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
-      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ['catalog-health', store?.id] });
       setBulkDeleteOpen(false);
-      toast(
-        `${count} producto${count === 1 ? '' : 's'} ${action === 'delete' ? 'eliminado' : 'actualizado'}${count === 1 ? '' : 's'}`,
-        { variant: 'success' },
-      );
+      const names = new Map(selected);
+      // Los que salieron dejan de estar elegidos; los que fallaron quedan,
+      // para reintentar o revisarlos.
+      setSelected((prev) => {
+        const next = new Map(prev);
+        for (const id of done) next.delete(id);
+        return next;
+      });
+      const result: BulkResult = {
+        summary: bulkSummary(action, done.length, failed.length),
+        failed: failed.map((f) => ({ ...f, name: names.get(f.id) ?? f.id })),
+      };
+      setBulkResult(failed.length > 0 ? result : null);
+      toast(result.summary, { variant: failed.length > 0 ? 'error' : 'success' });
     },
-    onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
+    onError: (err) => toast(errMsg(err, 'No se pudo completar la acción.'), { variant: 'error' }),
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -226,11 +289,11 @@ export function ProductsPage() {
   const somePageSelected = selectedOnPage > 0 && !allPageSelected;
   const toggleSelectAll = () => {
     setSelected((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       if (allPageSelected) {
         pageItems.forEach((p) => next.delete(p.id));
       } else {
-        pageItems.forEach((p) => next.add(p.id));
+        pageItems.forEach((p) => next.set(p.id, p.name));
       }
       return next;
     });
@@ -334,7 +397,7 @@ export function ProductsPage() {
           body="Cargá tu primer producto con precio, fotos y descripción. En cuanto lo publiques, aparece en tu tienda."
           action={{
             label: 'Agregar mi primer producto',
-            onClick: () => (window.location.href = '/productos/nuevo'),
+            onClick: () => navigate('/productos/nuevo'),
           }}
         />
       ) : (
@@ -344,11 +407,10 @@ export function ProductsPage() {
             <div className="relative flex-1 min-w-[16rem]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
               <input
+                type="search"
+                aria-label="Buscar productos"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nombre, SKU o tags"
                 className="h-10 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
@@ -371,15 +433,12 @@ export function ProductsPage() {
             <select
               aria-label="Ordenar productos"
               value={sort}
-              onChange={(e) => {
-                setSort(e.target.value as SortLabel);
-                setPage(1);
-              }}
+              onChange={(e) => list.set({ ordenar: e.target.value as SortValue })}
               className="h-10 appearance-none rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {Object.keys(SORTS).map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {Object.entries(SORTS).map(([label, value]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -403,6 +462,35 @@ export function ProductsPage() {
             )}
           </div>
 
+          {bulkResult && (
+            <div
+              role="status"
+              className="rounded-lg border border-warning/40 bg-warning-bg px-4 py-3 text-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-medium text-fg">{bulkResult.summary}.</p>
+                <button
+                  type="button"
+                  onClick={() => setBulkResult(null)}
+                  aria-label="Cerrar el resumen"
+                  className="rounded p-0.5 text-fg-muted hover:text-fg"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="mt-1.5 space-y-0.5 text-fg-muted">
+                {bulkResult.failed.map((f) => (
+                  <li key={f.id}>
+                    <span className="font-semibold text-fg">{f.name}</span>: {f.reason}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-xs text-fg-subtle">
+                Los que fallaron siguen seleccionados: podés reintentar o revisarlos uno por uno.
+              </p>
+            </div>
+          )}
+
           {/* Barra de acciones masivas. Se fija por debajo del encabezado del
               panel, que también es sticky: con `top` chico quedaba flotando
               encima y tapaba el selector de tienda. */}
@@ -413,7 +501,7 @@ export function ProductsPage() {
                 <button
                   type="button"
                   disabled={bulkAction.isPending}
-                  onClick={() => bulkAction.mutate({ ids: [...selected], action: 'publish' })}
+                  onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'publish' })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
                 >
                   <Upload className="h-4 w-4" /> Publicar
@@ -421,7 +509,7 @@ export function ProductsPage() {
                 <button
                   type="button"
                   disabled={bulkAction.isPending}
-                  onClick={() => bulkAction.mutate({ ids: [...selected], action: 'archive' })}
+                  onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'archive' })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
                 >
                   <Archive className="h-4 w-4" /> Archivar
@@ -485,11 +573,7 @@ export function ProductsPage() {
                         <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSearch('');
-                            setFilters(defaultFilters);
-                            setPage(1);
-                          }}
+                          onClick={() => list.set({ q: '', ...paramsFrom(defaultFilters) })}
                           className="mt-2 text-sm font-medium text-primary hover:underline"
                         >
                           Limpiar búsqueda y filtros
@@ -505,7 +589,7 @@ export function ProductsPage() {
                         storeId={store.id}
                         readOnly={!canEdit}
                         selected={selected.has(product.id)}
-                        onToggleSelect={() => toggleSelect(product.id)}
+                        onToggleSelect={() => toggleSelect(product)}
                         onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
                         onDelete={() => deleteProduct.mutate(product.id)}
                         onDuplicate={() => duplicateProduct.mutate(product.id)}
@@ -567,6 +651,7 @@ export function ProductsPage() {
           Para confirmar, escribí <span className="font-mono font-semibold">ELIMINAR</span>:
         </p>
         <input
+          aria-label="Escribí ELIMINAR para confirmar"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder="ELIMINAR"
@@ -586,7 +671,7 @@ export function ProductsPage() {
             <Button
               variant="danger"
               loading={bulkAction.isPending}
-              onClick={() => bulkAction.mutate({ ids: [...selected], action: 'delete' })}
+              onClick={() => bulkAction.mutate({ ids: [...selected.keys()], action: 'delete' })}
             >
               Eliminar {selected.size}
             </Button>
@@ -604,6 +689,46 @@ export function ProductsPage() {
       <HelpLink id="productos" />
     </div>
   );
+}
+
+type BulkKind = 'publish' | 'archive' | 'delete';
+
+interface BulkResult {
+  summary: string;
+  failed: { id: string; name: string; reason: string }[];
+}
+
+/**
+ * Corre `run` para cada id, de a `size` a la vez, y devuelve el resultado de
+ * cada uno en el mismo orden (como Promise.allSettled). De a pocos para no
+ * mandar cien pedidos juntos cuando la selección junta varias páginas.
+ */
+async function settleInBatches<T>(
+  ids: string[],
+  run: (id: string) => Promise<T>,
+  size = 6,
+): Promise<PromiseSettledResult<T>[]> {
+  const out: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    out.push(...(await Promise.allSettled(ids.slice(i, i + size).map(run))));
+  }
+  return out;
+}
+
+const BULK_DONE: Record<BulkKind, [string, string]> = {
+  publish: ['publicado', 'publicados'],
+  archive: ['archivado', 'archivados'],
+  delete: ['eliminado', 'eliminados'],
+};
+const BULK_VERB: Record<BulkKind, string> = { publish: 'publicar', archive: 'archivar', delete: 'eliminar' };
+
+/** "3 productos publicados · 1 no se pudo publicar" */
+function bulkSummary(action: BulkKind, done: number, failed: number): string {
+  const [one, many] = BULK_DONE[action];
+  const parts: string[] = [];
+  if (done > 0) parts.push(`${done} ${done === 1 ? `producto ${one}` : `productos ${many}`}`);
+  if (failed > 0) parts.push(`${failed} no se ${failed === 1 ? 'pudo' : 'pudieron'} ${BULK_VERB[action]}`);
+  return parts.join(' · ');
 }
 
 function HeaderBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {

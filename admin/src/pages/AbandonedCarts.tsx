@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ShoppingCart } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -9,6 +8,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
+import { usePageParam } from '../lib/useListParams';
 
 interface Abandoned {
   count: number;
@@ -28,7 +28,7 @@ const PAGE_SIZE = 25;
 
 export function AbandonedCartsPage() {
   const { store } = useStore();
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const { data, isLoading } = useQuery({
     queryKey: ['abandoned-carts', store?.id, page],
     queryFn: () =>
@@ -36,6 +36,7 @@ export function AbandonedCartsPage() {
         `/api/v1/stats/abandoned-carts?days=30&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
       ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   const items = data?.items ?? [];
@@ -105,7 +106,7 @@ export function AbandonedCartsPage() {
         </div>
       )}
       <HelpLink id="ventas" />
-      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+      <Pagination page={Math.min(page, totalPages)} totalPages={totalPages} onPage={setPage} />
     </div>
   );
 }

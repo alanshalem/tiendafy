@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftRight, Banknote, Landmark, Plus, Wallet } from 'lucide-react';
 import { Badge, Button, FormField, Input, Modal, Select, Textarea, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
@@ -11,6 +11,7 @@ import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { ListStats } from '../components/stats/ListStats';
 import { parseMoneyInput } from '../lib/price';
+import { useListParams } from '../lib/useListParams';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -274,10 +275,15 @@ function AccountModal({ account, onClose }: { account?: FinanceAccount; onClose:
 
 // --------------------------------------------------------------- Movimientos
 
+/** Cuenta y página de los movimientos, en la URL (ver useListParams). */
+const MOVEMENTS_DEFAULTS = { cuenta: '', pagina: 1 };
+
 function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
   const { store } = useStore();
-  const [accountId, setAccountId] = useState('');
-  const [page, setPage] = useState(1);
+  const list = useListParams(MOVEMENTS_DEFAULTS);
+  const accountId = list.values.cuenta;
+  const page = list.values.pagina;
+  const setPage = (p: number) => list.set({ pagina: p });
 
   const { data } = useQuery({
     queryKey: ['finance-movements', store?.id, accountId, page],
@@ -290,7 +296,7 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
       return api.get<{ items: Movement[]; total: number }>(`/api/v1/finance/movements?${params}`);
     },
     enabled: !!store,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / MOVEMENTS_PAGE_SIZE));
@@ -317,10 +323,7 @@ function MovementsTable({ accounts }: { accounts: FinanceAccount[] }) {
           aria-label="Filtrar por cuenta"
           className="w-56"
           value={accountId}
-          onChange={(e) => {
-            setAccountId(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => list.set({ cuenta: e.target.value })}
           placeholder="Todas las cuentas"
           options={accounts.map((a) => ({ value: a.id, label: a.name }))}
         />

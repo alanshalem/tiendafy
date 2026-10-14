@@ -20,6 +20,9 @@ public static class OrderEndpoints
     // Serializa reembolsos concurrentes de la misma orden (por instancia).
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> RefundLocks = new();
 
+    /// <summary>Tope de ventas por despacho en lote: una página del listado entra holgada.</summary>
+    private const int MaxBulkOrders = 100;
+
     public static RouteGroupBuilder MapOrderEndpoints(this RouteGroupBuilder group)
     {
         // Pagar con Checkout Pro (redirect) → crea Order + preference MP.
@@ -227,24 +230,50 @@ public static class OrderEndpoints
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequirePermission(Permission.OrdersRead);
 
+        // El listado entero (con la misma búsqueda y el mismo filtro que la
+        // pantalla) como planilla. Se escribe a medida que sale de la base: no
+        // tiene el tope de 100 del listado ni junta miles de ventas en memoria.
+        group.MapGet("/orders/export", (
+            ITenantContext tenant, IOrderRepository orders, string? q, string? status, CancellationToken ct) =>
+            Api.Fiscal.VatBookCsv.Download(
+                $"ventas-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd}.csv",
+                Api.Orders.OrderCsv.Header,
+                orders.StreamAsync(tenant.TenantId, q, status).Select(Api.Orders.OrderCsv.Row),
+                ct))
+            .RequirePermission(Permission.OrdersRead);
+
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
-            Guid id, FulfillRequest req, ITenantContext tenant, IOrderRepository orders, OrderNotifier notifier, WhatsAppNotifier whatsapp,
-            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue, CancellationToken ct) =>
+            Guid id, FulfillRequest req, ITenantContext tenant, Api.Orders.OrderFulfillment fulfillment, CancellationToken ct) =>
         {
-            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            if (order is null) return Results.NotFound();
-            var r = order.MarkFulfilled(req.Tracking);
-            if (r.IsFailure) return r.Error.ToProblem();
-            await orders.SaveChangesAsync(ct);
-            // Retiro en el local: el aviso es "listo para retirar", no "en camino".
-            var notice = order.IsPickup ? "lista-para-retirar" : "confirmacion-envio";
-            await notifier.NotifyAsync(order, notice, ct);
-            await whatsapp.NotifyAsync(order, notice, ct);
-            // Factura automática si el trigger configurado es "al despachar".
-            await fiscalQueue.EnqueueInvoiceAsync(tenant.TenantId.Value, order.Id, order.Total.AmountInMinorUnits,
-                order.DocNumber, global::Fiscal.Core.Domain.EmissionTrigger.OnFulfillment, ct);
-            return Results.Ok(ToDto(order));
+            var result = await fulfillment.FulfillAsync(tenant.TenantId, id, req.Tracking, ct);
+            if (result.IsFailure)
+                return result.Error.Type == ErrorType.NotFound ? Results.NotFound() : result.Error.ToProblem();
+            return Results.Ok(ToDto(result.Value));
+        }).RequirePermission(Permission.OrdersFulfill);
+
+        // Varias ventas marcadas como enviadas de una vez (desde el listado).
+        // Cada una dispara lo mismo que desde su detalle —aviso al comprador,
+        // factura al despachar— y el resultado dice qué pasó con cada una: el
+        // panel tiene que poder contar "8 marcadas, 2 no (y por qué)", no un
+        // "Error" genérico con la mitad ya hecha.
+        group.MapPost("/orders/bulk/fulfill", async (
+            BulkFulfillRequest req, ITenantContext tenant, IServiceScopeFactory scopes, CancellationToken ct) =>
+        {
+            var ids = (req.Ids ?? []).Distinct().ToList();
+            if (ids.Count == 0)
+                return Error.Validation("Order.BulkEmpty", "Elegí al menos una venta.").ToProblem();
+            if (ids.Count > MaxBulkOrders)
+                return Error.Validation("Order.BulkTooMany", $"Se pueden marcar hasta {MaxBulkOrders} ventas por vez.").ToProblem();
+
+            var outcomes = await Api.Orders.OrderFulfillment.FulfillManyAsync(scopes, tenant.TenantId, ids, ct);
+            return Results.Ok(new
+            {
+                fulfilled = outcomes.Count(o => o.Result == "fulfilled"),
+                skipped = outcomes.Count(o => o.Result == "skipped"),
+                failed = outcomes.Count(o => o.Result == "failed"),
+                results = outcomes.Select(o => new { o.Id, number = $"#{Api.Orders.OrderCsv.ShortNumber(o.Id)}", o.Result, o.Reason }),
+            });
         }).RequirePermission(Permission.OrdersFulfill);
 
         // Reembolso total o parcial (admin). MP refund → estado + auditoría + email.
@@ -657,6 +686,8 @@ public static class OrderEndpoints
 }
 
 public sealed record FulfillRequest(string? Tracking);
+
+public sealed record BulkFulfillRequest(IReadOnlyList<Guid>? Ids);
 
 public sealed record RefundRequest(decimal? Amount, string? Reason, bool Restock = false);
 
