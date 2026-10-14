@@ -58,7 +58,9 @@ html {
 .tf-marquee {
   animation: tf-marquee 22s linear infinite;
 }
-.tf-marquee:hover {
+.tf-marquee:hover,
+.tf-marquee:focus-within {
+  /* Con el teclado adentro (un logo con link), quieta: si no, el foco se va de la pantalla. */
   animation-play-state: paused;
 }
 @media (prefers-reduced-motion: reduce) {
