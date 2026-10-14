@@ -39,7 +39,7 @@ public static class PackingSlipPdf
                         row.RelativeItem().Column(col =>
                         {
                             col.Item().Text(storeName).FontSize(16).Bold();
-                            col.Item().Text($"Pedido {FulfillmentService.Number(o.Id)}").FontSize(13).SemiBold();
+                            col.Item().Text($"Pedido {FulfillmentService.Number(o)}").FontSize(13).SemiBold();
                             col.Item().Text($"Fecha: {(o.PaidAtUtc ?? o.CreatedAtUtc).AddHours(-3):dd/MM/yyyy HH:mm}")
                                 .FontColor(Colors.Grey.Darken1);
                         });

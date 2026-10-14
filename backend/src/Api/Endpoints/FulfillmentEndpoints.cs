@@ -138,7 +138,7 @@ public static class FulfillmentEndpoints
             return Results.Ok(new
             {
                 id = order.Id,
-                number = FulfillmentService.Number(order.Id),
+                number = FulfillmentService.Number(order),
                 status = order.Status.ToString().ToUpperInvariant(),
                 buyerEmail = order.BuyerEmail,
                 buyerName = order.BuyerName,
@@ -198,7 +198,7 @@ public static class FulfillmentEndpoints
             return Results.Ok(new
             {
                 id = done.Id,
-                number = FulfillmentService.Number(done.Id),
+                number = FulfillmentService.Number(done),
                 status = done.Status.ToString().ToUpperInvariant(),
                 tracking = done.Tracking,
                 fulfilledAtUtc = done.FulfilledAtUtc,

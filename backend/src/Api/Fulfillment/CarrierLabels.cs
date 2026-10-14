@@ -52,8 +52,9 @@ public sealed class CarrierLabels(
 
         foreach (var id in ids)
         {
-            var number = FulfillmentService.Number(id);
             var order = await orders.GetByIdAsync(tenantId, id, ct);
+            // Sin la venta no hay número: va el id corto, para poder ubicarla igual.
+            var number = order is null ? OrderLabel.For(0, id) : FulfillmentService.Number(order);
             if (order is null)
             {
                 results.Add(new LabelOutcome(id, number, null, "error", "La venta no existe en esta tienda."));

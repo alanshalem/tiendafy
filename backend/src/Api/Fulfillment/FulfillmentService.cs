@@ -102,7 +102,8 @@ public sealed class FulfillmentService(
     /// <summary>Tope de la cola: más de esto pendiente es otro problema.</summary>
     private const int QueueLimit = 300;
 
-    public static string Number(Guid orderId) => $"#{Api.Orders.OrderCsv.ShortNumber(orderId)}";
+    /// <summary>Cómo se nombra un pedido en el despacho: su número (#1042).</summary>
+    public static string Number(Order order) => order.Label;
 
     /// <summary>
     /// Lo cobrado y todavía sin despachar, lo más viejo primero (es lo que
@@ -126,7 +127,7 @@ public sealed class FulfillmentService(
         {
             var shipment = shipments.GetValueOrDefault(o.Id);
             return new QueueOrder(
-                o.Id, Number(o.Id), o.CreatedAtUtc, o.PaidAtUtc,
+                o.Id, Number(o), o.CreatedAtUtc, o.PaidAtUtc,
                 o.BuyerEmail, o.BuyerName, o.ShippingMethodName, o.ShippingAddress, o.IsPickup,
                 shipment?.Carrier ?? Carrier.FromMethodName(o.ShippingMethodName, o.IsPickup),
                 shipment,
@@ -203,7 +204,7 @@ public sealed class FulfillmentService(
                     locations.GetValueOrDefault(g.Key),
                     g.Sum(x => x.Item.Quantity),
                     [.. g.GroupBy(x => x.Order.Id)
-                        .Select(og => new PickOrderRef(og.Key, Number(og.Key), og.Sum(x => x.Item.Quantity)))]);
+                        .Select(og => new PickOrderRef(og.Key, Number(og.First().Order), og.Sum(x => x.Item.Quantity)))]);
             })
             .OrderBy(l => l.Location is null)
             .ThenBy(l => l.Location, StringComparer.OrdinalIgnoreCase)
