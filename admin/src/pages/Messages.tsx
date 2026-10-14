@@ -213,7 +213,14 @@ export function MessagesPage() {
                       </span>
                     ) : (
                       <span className="text-fg-subtle">
-                        Sin número de pedido: buscá la compra por el email del cliente.
+                        Sin número de pedido:{' '}
+                        <Link
+                          to={`/ventas?q=${encodeURIComponent(m.email)}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          ver las compras de {m.email}
+                        </Link>
+                        .
                       </span>
                     )}
                   </div>

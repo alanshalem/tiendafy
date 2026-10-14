@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Archive, Loader2, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -321,7 +322,14 @@ export function SupportChatPage() {
                     ← Volver
                   </button>
                   <span className="text-sm font-semibold text-fg">{current.customerEmail}</span>
-                  <span className="ml-2 text-xs text-fg-muted">Pedido {orderNumber(current.orderId)}</span>
+                  {/* El pedido abre la venta (en la lista de la izquierda va como
+                      texto: es parte de un botón y no puede llevar otro link adentro). */}
+                  <Link
+                    to={`/ventas?order=${current.orderId}`}
+                    className="ml-2 text-xs font-medium text-primary hover:underline"
+                  >
+                    Pedido {orderNumber(current.orderId)}
+                  </Link>
                 </div>
                 {current.status === 'OPEN' && (
                   <button

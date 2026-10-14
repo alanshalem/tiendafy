@@ -204,6 +204,92 @@ interface Aviso {
   text: string;
   to: string;
   action: string;
+  /** Tiene plazo legal o vence pronto: va arriba y en rojo. */
+  urgent?: boolean;
+}
+
+/** Lo que devuelve /home/todo: cada cola en null si la persona no la puede ver. */
+interface HomeTodo {
+  toDispatch: number | null;
+  pendingTransfers: number | null;
+  messages: { unreadContact: number; repentance: number; oldestRepentanceAtUtc: string | null } | null;
+  mercadoLibre: { unbilled: number; unanswered: number | null } | null;
+  fiscalReady: boolean | null;
+}
+
+/**
+ * Plazo con el que el panel pide atender un arrepentimiento: los mismos 10
+ * días corridos que la Resolución 424/2020 le da al comprador para revocar.
+ * La norma no fija un plazo exacto para que el comercio devuelva la plata,
+ * pero exige no demorarlo; 10 días es la vara para que ninguno quede colgado.
+ */
+export const REPENTANCE_DAYS = 10;
+
+/** Días que quedan desde la solicitud más vieja (negativo = vencido). */
+export function repentanceDaysLeft(oldestAtUtc: string, now = Date.now()): number {
+  const elapsed = Math.floor((now - new Date(oldestAtUtc).getTime()) / 86_400_000);
+  return REPENTANCE_DAYS - elapsed;
+}
+
+const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+/** Las colas del día, en el orden en que conviene atenderlas; cada una lleva a su listado filtrado. */
+function todoAvisos(todo: HomeTodo | undefined): Aviso[] {
+  if (!todo) return [];
+  const out: Aviso[] = [];
+  const m = todo.messages;
+  if (m && m.repentance > 0) {
+    const left = m.oldestRepentanceAtUtc ? repentanceDaysLeft(m.oldestRepentanceAtUtc) : REPENTANCE_DAYS;
+    const plazo =
+      left > 1
+        ? `quedan ${left} días para resolver la más vieja`
+        : left === 1
+          ? 'queda 1 día para resolver la más vieja'
+          : left === 0
+            ? 'la más vieja vence hoy'
+            : `la más vieja está vencida hace ${n(-left, 'día', 'días')}`;
+    out.push({
+      text: `${n(m.repentance, 'arrepentimiento sin atender', 'arrepentimientos sin atender')} (plazo legal): ${plazo}.`,
+      to: '/mensajes?filtro=repentance',
+      action: 'Atender',
+      urgent: true,
+    });
+  }
+  if (todo.toDispatch && todo.toDispatch > 0)
+    out.push({
+      text: `${n(todo.toDispatch, 'venta cobrada para despachar', 'ventas cobradas para despachar')}.`,
+      to: '/ventas?estado=PAID',
+      action: 'Despachar',
+    });
+  if (todo.pendingTransfers && todo.pendingTransfers > 0)
+    out.push({
+      text: `${n(todo.pendingTransfers, 'transferencia por confirmar', 'transferencias por confirmar')}: revisá si entró la plata.`,
+      to: '/ventas?estado=PENDINGPAYMENT&cobro=transfer',
+      action: 'Revisar',
+    });
+  const ml = todo.mercadoLibre;
+  if (ml?.unanswered && ml.unanswered > 0)
+    out.push({
+      text: `${n(ml.unanswered, 'pregunta de Mercado Libre sin responder', 'preguntas de Mercado Libre sin responder')}.`,
+      to: '/mercadolibre?tab=preguntas',
+      action: 'Responder',
+    });
+  if (m && m.unreadContact > 0)
+    out.push({
+      text: `${n(m.unreadContact, 'mensaje de contacto sin leer', 'mensajes de contacto sin leer')}.`,
+      to: '/mensajes',
+      action: 'Leer',
+    });
+  if (ml && ml.unbilled > 0) {
+    // Mientras la facturación no esté lista, "Facturar" solo daría error.
+    const ready = todo.fiscalReady !== false;
+    out.push({
+      text: `${n(ml.unbilled, 'venta de Mercado Libre pagada sin facturar', 'ventas de Mercado Libre pagadas sin facturar')}${ready ? '' : ': antes hay que terminar de configurar la facturación'}.`,
+      to: ready ? '/mercadolibre?tab=ventas&estado=sin-facturar' : '/configuracion/facturacion',
+      action: ready ? 'Facturar' : 'Configurá la facturación',
+    });
+  }
+  return out;
 }
 
 /**
@@ -233,13 +319,13 @@ function AvisosCard() {
     queryFn: () => api.get<{ posts: unknown[] }>('/api/v1/admin/social/posts?status=Failed'),
     enabled: !!store && canSocial,
   });
-  const { data: meliOrders } = useQuery({
-    queryKey: ['meli-orders-home', store?.id],
-    queryFn: () =>
-      api.get<{ items: { status: string; fiscalDocumentId: string | null }[] }>(
-        '/api/v1/admin/meli/orders?limit=50',
-      ),
-    enabled: !!store && can('meli.operate'),
+  // Las colas del día, contadas en la base (antes "ML sin facturar" salía de
+  // las últimas 50 ventas y se clavaba en 50).
+  const { data: todo } = useQuery({
+    queryKey: ['home-todo', store?.id],
+    queryFn: () => api.get<HomeTodo>('/api/v1/home/todo'),
+    enabled: !!store && (can('orders.read') || can('messages.read') || can('meli.operate')),
+    retry: false,
   });
 
   const { data: profit } = useQuery({
@@ -251,7 +337,7 @@ function AvisosCard() {
     enabled: !!store && can('costs.read'),
   });
 
-  const avisos: Aviso[] = [];
+  const avisos: Aviso[] = todoAvisos(todo);
   const reorderCount = reorder?.items.length ?? 0;
   if (reorderCount > 0)
     avisos.push({
@@ -272,15 +358,6 @@ function AvisosCard() {
       text: `${failed} ${failed === 1 ? 'post salió' : 'posts salieron'} con errores en alguna red.`,
       to: '/redes',
       action: 'Revisar',
-    });
-  const unbilledMeli = (meliOrders?.items ?? []).filter(
-    (o) => o.status === 'paid' && !o.fiscalDocumentId,
-  ).length;
-  if (unbilledMeli > 0)
-    avisos.push({
-      text: `${unbilledMeli} ${unbilledMeli === 1 ? 'venta de Mercado Libre pagada sin facturar' : 'ventas de Mercado Libre pagadas sin facturar'}.`,
-      to: '/mercadolibre',
-      action: 'Facturar',
     });
   if (
     profit &&
@@ -303,7 +380,7 @@ function AvisosCard() {
       <ul className="mt-3 space-y-2.5">
         {avisos.map((a) => (
           <li key={a.text} className="flex items-start justify-between gap-3 text-sm">
-            <span className="text-fg-muted">{a.text}</span>
+            <span className={a.urgent ? 'font-medium text-danger' : 'text-fg-muted'}>{a.text}</span>
             <Link to={a.to} className="shrink-0 font-medium text-primary hover:underline">
               {a.action}
             </Link>
