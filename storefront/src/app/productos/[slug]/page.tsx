@@ -11,7 +11,10 @@ import { siteBase, type StorefrontData } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { notFoundUnlessRedirected } from '@/lib/redirects';
 import { jsonLd } from '@/lib/json-ld';
-import { productJsonLd as buildProductJsonLd } from '@/lib/product-json-ld';
+import { productJsonLd as buildProductJsonLd, reviewsJsonLd } from '@/lib/product-json-ld';
+import { reviewsPath, type ReviewsPage } from '@/lib/reviews';
+import { ProductReviews } from '@/components/store/ProductReviews';
+import type { ProductRating } from '@/components/store/ReviewStars';
 import { categoryHref } from '@/lib/category-url';
 import type { ThemeConfig } from '@/lib/theme';
 import { apiGetTenant } from '@/lib/api';
@@ -77,6 +80,8 @@ interface ProductDto {
   categoryIds: string[];
   specs: { definitionId: string; value: string }[];
   stock: number | null;
+  /** Promedio y cantidad de reseñas aprobadas (null = sin reseñas). */
+  rating?: ProductRating | null;
 }
 
 /** Definición de un campo de ficha técnica: da el nombre y la unidad. */
@@ -174,8 +179,21 @@ async function ProductContent({
         }
       : null;
 
-  // Rich results de producto en Google: precio, moneda y disponibilidad.
-  const productJsonLd = product ? buildProductJsonLd(product, base) : null;
+  // La primera página de opiniones: la sección la muestra sin esperar al
+  // navegador y el JSON-LD lleva las mismas que se ven. Si falla, la ficha
+  // sale igual (la sección las pide sola).
+  const reviews = product
+    ? await apiGetTenant<ReviewsPage>(reviewsPath(product.id), data.tenant.id, {
+        next: { revalidate: REVALIDATE.catalog },
+      }).catch(() => null)
+    : null;
+
+  // Rich results de producto en Google: precio, moneda y disponibilidad (y las
+  // estrellas, aparte: ver reviewsJsonLd).
+  const baseJsonLd = product ? buildProductJsonLd(product, base) : null;
+  const productJsonLd = baseJsonLd
+    ? { ...baseJsonLd, ...reviewsJsonLd(reviews?.enabled ? reviews : null) }
+    : null;
 
   return (
     <main className="mx-auto max-w-container px-4 py-8">
@@ -197,7 +215,9 @@ async function ProductContent({
             config={theme.productDetail}
             paymentLogos={theme.footer.paymentLogos}
             whatsappPhone={theme.whatsappButton.phone}
+            rating={product.rating ?? null}
           />
+          <ProductReviews productId={product.id} initial={reviews} />
           {theme.productDetail.showRelated && related.length > 0 && (
             <SectionRenderer
               section={{
