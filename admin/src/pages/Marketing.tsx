@@ -2,7 +2,7 @@ import { Suspense, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
 import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
-import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { formatAmount, formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { api, errMsg } from '../lib/api';
 import { lazyComponent } from '../lib/lazyPage';
 import { useStore } from '../context/StoreContext';
@@ -190,7 +190,7 @@ export function MarketingPage() {
                         {c.status === 'draft' && ` · creada el ${formatDate(c.createdAtUtc)}`}
                         {c.status === 'scheduled' &&
                           c.scheduledAtUtc &&
-                          ` · sale el ${new Date(c.scheduledAtUtc).toLocaleString('es-AR')}`}
+                          ` · sale el ${formatDateTime(c.scheduledAtUtc)}`}
                         {(c.status === 'sending' || c.status === 'sent') &&
                           ` · ${c.sentCount}/${c.recipientCount} enviados${c.failedCount > 0 ? ` · ${c.failedCount} fallidos` : ''}`}
                       </p>
@@ -310,7 +310,7 @@ function DetailModal({ campaignId, onClose }: { campaignId: string; onClose: () 
             <Stat label="Bajas de esta campaña" value={`${data.stats.unsubs}`} sub="" />
             <Stat
               label="Costo estimado"
-              value={`US$ ${formatNumber(data.stats.estimatedCostUsd)}`}
+              value={formatAmount(data.stats.estimatedCostUsd, 'US$')}
               sub="tarifa de referencia Resend"
             />
           </div>

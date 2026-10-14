@@ -56,14 +56,14 @@ describe('costos', () => {
     const cost = screen.getByLabelText(costLabel);
     const row = cost.closest('tr') as HTMLElement;
     expect(cost).toHaveValue(10000);
-    expect(within(row).getByText('60%')).toBeInTheDocument();
+    expect(within(row).getByText('60 %')).toBeInTheDocument();
     const save = within(row).getByRole('button', { name: 'Guardar' });
     expect(save).toBeDisabled();
 
     // Casi al costo: el margen se pinta de rojo.
     await user.clear(cost);
     await user.type(cost, '24000.5');
-    expect(within(row).getByText('4%')).toHaveClass('text-danger');
+    expect(within(row).getByText('4 %')).toHaveClass('text-danger');
     await user.click(save);
     expect(await screen.findByText('El costo no puede ser negativo.')).toBeInTheDocument();
     expect(api.calls.find((c) => c.method === 'PUT')!.body).toEqual({
@@ -132,7 +132,7 @@ describe('repreciación masiva', () => {
     await user.clear(dialog.getByLabelText('Porcentaje (+ sube / - baja)'));
     await user.type(dialog.getByLabelText('Porcentaje (+ sube / - baja)'), '-5');
     await user.click(apply);
-    expect(await screen.findByText(/Se bajan los precios 5% de TODO el catálogo/)).toBeInTheDocument();
+    expect(await screen.findByText(/Se bajan los precios 5 % de TODO el catálogo/)).toBeInTheDocument();
     await user.click(within(confirmDialog()).getByRole('button', { name: 'Cancelar' }));
     expect(api.calls.some((c) => c.path === '/api/v1/products/reprice')).toBe(false);
   });
@@ -148,7 +148,7 @@ describe('repreciación masiva', () => {
     const run = async () => {
       await user.click(dialog.getByRole('button', { name: /^Repreciar$/ }));
       expect(
-        await screen.findByText(/Se aumentan los precios 12% de la categoría elegida/),
+        await screen.findByText(/Se aumentan los precios 12 % de la categoría elegida/),
       ).toBeInTheDocument();
       await user.click(within(confirmDialog()).getByRole('button', { name: 'Repreciar' }));
     };

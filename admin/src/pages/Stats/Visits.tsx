@@ -9,7 +9,7 @@ import {
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
-import { formatDayShort, formatNumber } from '../../lib/format';
+import { formatDayShort, formatNumber, formatPercent } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -71,7 +71,7 @@ export function StatsVisitsPage() {
             <KpiCard
               title="Conversión"
               hint="De cada 100 visitantes distintos, cuántos terminaron comprando. Es la métrica que convierte «tuve mucha visita» en «sirvió»."
-              value={`${formatNumber(data.conversionPct)}%`}
+              value={formatPercent(data.conversionPct)}
             >
               <Delta current={data.conversionPct} previous={data.previous.conversionPct} />
             </KpiCard>

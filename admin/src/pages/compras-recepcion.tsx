@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatNumber } from '../lib/format';
+import { formatPercent } from '../lib/format';
 import { CameraBox, useScanner } from './Products/Scanner';
 import type { PoDetail } from './compras-tipos';
 
@@ -121,7 +121,7 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
                 <span
                   className={`shrink-0 tabular-nums font-semibold ${m.marginPct < 0 ? 'text-danger' : 'text-warning'}`}
                 >
-                  {formatNumber(m.marginPct)}%
+                  {formatPercent(m.marginPct)}
                 </span>
               </li>
             ))}

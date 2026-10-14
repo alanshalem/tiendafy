@@ -112,7 +112,7 @@ describe('compras: la orden', () => {
     expect((body.items as { receivedQuantity: number }[])[0]!.receivedQuantity).toBe(1);
 
     const warning = within(await screen.findByRole('dialog', { name: /Márgenes aplastados/ }));
-    expect(warning.getByText(/4,2%|4\.2%/)).toBeInTheDocument();
+    expect(warning.getByText('4,2 %')).toBeInTheDocument();
     await user.click(warning.getByRole('button', { name: 'Después' }));
   });
 

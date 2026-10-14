@@ -3,7 +3,7 @@ import { Loader2, Package, Zap } from 'lucide-react';
 import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
-import { formatNumber } from '../../lib/format';
+import { formatAmount } from '../../lib/format';
 
 interface ZipnovaConfig {
   configured: boolean;
@@ -337,7 +337,7 @@ function ConfigModal({
                     <span>
                       {o.carrier} — {o.service}
                     </span>
-                    <span className="font-medium tabular-nums text-fg">$ {formatNumber(o.price)}</span>
+                    <span className="font-medium tabular-nums text-fg">{formatAmount(o.price, '$')}</span>
                   </div>
                 ))}
               </div>

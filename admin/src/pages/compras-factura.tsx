@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, Loader2, Sparkles, Upload } from 'lucide-react';
 import { Badge, Button, Card, FormField, Input, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatNumber } from '../lib/format';
+import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { useAiEnabled } from '../lib/useAi';
 import { CONFIDENCE_TONE } from './compras-tipos';
@@ -223,9 +223,9 @@ function ScanReview({
     ['Tipo', scan.invoiceType],
     ['Número', scan.invoiceNumber],
     ['Fecha', scan.invoiceDateUtc ? formatDate(scan.invoiceDateUtc) : null],
-    ['Neto', scan.netAmount != null ? formatNumber(scan.netAmount) : null],
-    ['IVA', scan.vatAmount != null ? formatNumber(scan.vatAmount) : null],
-    ['Total', scan.totalAmount != null ? formatNumber(scan.totalAmount) : null],
+    ['Neto', scan.netAmount != null ? formatAmount(scan.netAmount) : null],
+    ['IVA', scan.vatAmount != null ? formatAmount(scan.vatAmount) : null],
+    ['Total', scan.totalAmount != null ? formatAmount(scan.totalAmount) : null],
   ];
   const read = rows.filter(([, value]) => value);
 
@@ -286,7 +286,7 @@ function ScanReview({
               <li key={`${l.description}-${i}`} className="flex justify-between gap-2">
                 <span className="truncate">{l.description}</span>
                 <span className="shrink-0 tabular-nums">
-                  {l.quantity ?? '—'} × {l.unitPrice != null ? formatNumber(l.unitPrice) : '—'}
+                  {l.quantity ?? '—'} × {l.unitPrice != null ? formatAmount(l.unitPrice) : '—'}
                 </span>
               </li>
             ))}

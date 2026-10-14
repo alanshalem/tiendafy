@@ -3,7 +3,7 @@ import { Mail, MessageCircle } from 'lucide-react';
 import { Card } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api } from '../lib/api';
-import { formatNumber } from '../lib/format';
+import { formatAmount, formatNumber } from '../lib/format';
 
 interface ChannelUsage {
   month: number;
@@ -53,7 +53,7 @@ export function NotificationUsage({ channel }: { channel: 'email' | 'whatsapp' }
           <div className="text-2xl font-bold tabular-nums text-fg">
             {u.estimatedMonthUsd < 0.01 && u.month > 0
               ? '< US$ 0,01'
-              : `US$ ${formatNumber(u.estimatedMonthUsd)}`}
+              : formatAmount(u.estimatedMonthUsd, 'US$')}
           </div>
           <div className="text-xs text-fg-subtle">costo estimado del mes</div>
         </div>
