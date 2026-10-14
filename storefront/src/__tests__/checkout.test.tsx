@@ -20,6 +20,10 @@ import { settle, watchCrashes } from '../test/explore';
 import { renderInStore } from '../test/store';
 
 const sdk = vi.hoisted(() => ({ initMercadoPago: vi.fn() }));
+const browser = vi.hoisted(() => ({ goTo: vi.fn() }));
+
+// jsdom no navega: se registra adónde quiso ir el checkout.
+vi.mock('@/lib/navigation', () => ({ hardNavigate: browser.goTo }));
 
 vi.mock('@mercadopago/sdk-react', () => ({
   initMercadoPago: sdk.initMercadoPago,
@@ -79,6 +83,7 @@ const LINE: CartLine = {
   quantity: 2,
 };
 const SESSION = '22222222-2222-2222-2222-222222222222';
+const ORDER = '44444444-4444-4444-4444-444444444444';
 
 const DELIVERY = {
   id: '33333333-3333-3333-3333-333333333333',
@@ -155,6 +160,7 @@ async function deliverAndContinue(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   crashes = watchCrashes();
   sdk.initMercadoPago.mockClear();
+  browser.goTo.mockClear();
 });
 afterEach(() => {
   expect(crashes()).toEqual([]);
@@ -231,7 +237,10 @@ describe('checkout: pago', () => {
   it('Mercado Pago Pro reserva el stock, manda todo lo cargado y redirige al link de pago', async () => {
     store();
     sessionStorage.setItem('tiendafy.utm', 'instagram');
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay`, { initPoint: 'https://mp.example.com/pay/1' });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay`, {
+      orderId: ORDER,
+      initPoint: 'https://mp.example.com/pay/1',
+    });
     const user = await open();
     await deliverAndContinue(user);
 
@@ -253,11 +262,15 @@ describe('checkout: pago', () => {
       shippingQuoteToken: null,
     });
     expect(posted('/pay')[0]).toMatchObject({ couponCode: null, utmSource: 'instagram' });
+    // La venta queda anotada con el id de la ORDEN: es el que vuelve en ?order=.
     expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toEqual({
-      orderId: SESSION,
+      orderId: ORDER,
       value: 3000,
       currency: 'ARS',
     });
+    expect(browser.goTo).toHaveBeenCalledWith('https://mp.example.com/pay/1');
+    // Se fue a pagar: el carrito sigue hasta que la compra se confirme.
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 
   it('si no hay stock, lo dice y deja reintentar', async () => {
@@ -299,13 +312,13 @@ describe('checkout: pago', () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
-  it.each([
-    ['approved', /confirm|aprob|gracias|listo/i],
-    ['rejected', /rechaz|no se pudo|fall/i],
-    ['in_process', /pendiente|proceso|revis/i],
-  ])('el Brick on-site cobra y muestra el resultado (%s)', async (status, shows) => {
-    store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { status });
+  it('el Brick on-site cobra con el token y, aprobado, cierra la compra y va a "listo"', async () => {
+    store({
+      mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' },
+      coupon: { code: 'HOLA', discount: 0, freeShipping: false },
+    });
+    api.on('POST', '/api/v1/coupons/validate', { valid: true, code: 'HOLA', discountAmount: 0 });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'approved' });
     const user = await open();
     expect(sdk.initMercadoPago).toHaveBeenCalledWith('APP_USR-pub', { locale: 'es-AR' });
     await deliverAndContinue(user);
@@ -321,7 +334,27 @@ describe('checkout: pago', () => {
       payerDocType: 'DNI',
       payerDocNumber: '30123456',
     });
-    expect(screen.getAllByText(shows).length).toBeGreaterThan(0);
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/success?order=${ORDER}`);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).toBeNull();
+    expect(localStorage.getItem(couponStorageKey(fixtureTenantId))).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('tiendafy.purchase')!)).toMatchObject({ orderId: ORDER });
+  });
+
+  it('el Brick: en proceso va a "pendiente" sin vaciar el carrito; rechazado lo dice ahí mismo', async () => {
+    store({ mp: { connected: true, checkoutMode: 'API', publicKey: 'APP_USR-pub' } });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'in_process' });
+    const user = await open();
+    await deliverAndContinue(user);
+    await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
+    await settle(3);
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/pending?order=${ORDER}`);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
+
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-onsite`, { orderId: ORDER, status: 'rejected' });
+    await user.click(screen.getByRole('button', { name: 'Pagar con el Brick' }));
+    await settle(3);
+    expect(screen.getAllByText(/rechaz|no se pudo|fall/i).length).toBeGreaterThan(0);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId))).not.toBeNull();
   });
 
   it('el Brick: un rechazo del backend y un error del formulario se muestran', async () => {
@@ -345,11 +378,11 @@ describe('checkout: pago', () => {
   };
 
   it.each([
-    ['APPROVED', undefined, /confirm|aprob|gracias|listo/i],
-    ['REVIEW', undefined, /pendiente|proceso|revis/i],
-  ])('Payway cobra con el token de la tarjeta (%s)', async (status, _msg, shows) => {
+    ['APPROVED', 'success', true],
+    ['REVIEW', 'pending', false],
+  ])('Payway cobra con el token de la tarjeta (%s)', async (status, page, emptied) => {
     store({ payway: PAYWAY });
-    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { status });
+    api.on('POST', `/api/v1/checkout/${SESSION}/pay-payway`, { orderId: ORDER, status });
     const user = await open();
     await deliverAndContinue(user);
     await user.click(screen.getByRole('button', { name: 'Tarjeta de crédito o débito' }));
@@ -363,7 +396,8 @@ describe('checkout: pago', () => {
       isDebit: false,
       installments: 6,
     });
-    expect(screen.getAllByText(shows).length).toBeGreaterThan(0);
+    expect(browser.goTo).toHaveBeenCalledWith(`/checkout/${page}?order=${ORDER}`);
+    expect(localStorage.getItem(cartStorageKey(fixtureTenantId)) === null).toBe(emptied);
   });
 
   it('Payway: un rechazo muestra el motivo y deja probar con otra tarjeta', async () => {

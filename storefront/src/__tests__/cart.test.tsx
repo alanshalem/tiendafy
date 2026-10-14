@@ -201,6 +201,26 @@ describe('carrito', () => {
     expect(screen.queryByRole('button', { name: 'Sumar' })).not.toBeInTheDocument();
   });
 
+  it('si otra pestaña cambia el carrito guardado, este se entera', async () => {
+    const user = await show();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Abrir carrito (1)' })).toBeInTheDocument();
+
+    // Otra pestaña de la misma tienda terminó la compra y lo vació.
+    localStorage.removeItem(cartStorageKey(fixtureTenantId));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: cartStorageKey(fixtureTenantId) }));
+    });
+    expect(screen.getByRole('button', { name: 'Abrir carrito (0)' })).toBeInTheDocument();
+
+    // Lo de otra tienda no le importa.
+    localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify([LINE]));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'tiendafy.cart.otra' }));
+    });
+    expect(screen.getByRole('button', { name: 'Abrir carrito (0)' })).toBeInTheDocument();
+  });
+
   it('abierto, el Tab da la vuelta dentro del carrito', async () => {
     // jsdom no hace layout: se simula que los botones se ven.
     vi.spyOn(Element.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList);

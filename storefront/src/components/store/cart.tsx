@@ -1,22 +1,16 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { X, Truck, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
 
 import { readJson, removeKey, writeJson } from '@/lib/storage';
+import { CART_SYNC_EVENT, cartStorageKey, couponStorageKey } from '@/lib/cart-storage';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 
-export const cartStorageKey = (storeKey: string) => `tiendafy.cart.${storeKey}`;
-
-/**
- * El cupón aplicado vive al lado del carrito (misma tienda, misma duración):
- * antes moría en el estado del drawer y el comprador tenía que volver a
- * escribirlo en el checkout — o se olvidaba y pagaba de más.
- */
-export const couponStorageKey = (storeKey: string) => `tiendafy.coupon.${storeKey}`;
+export { cartStorageKey, couponStorageKey };
 
 export interface StoredCoupon {
   code: string;
@@ -36,6 +30,8 @@ export interface CartLine {
 
 interface CartContextValue {
   lines: CartLine[];
+  /** false hasta leer el carrito guardado: antes de eso `lines` vacío no significa "vacío". */
+  hydrated: boolean;
   count: number;
   totalAmount: number;
   currency: string;
@@ -58,27 +54,53 @@ export function useCart(): CartContextValue {
 export function CartProvider({ storeKey, children }: { storeKey: string; children: ReactNode }) {
   const key = cartStorageKey(storeKey);
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [open, setOpen] = useState(false);
+  // Lo último que se guardó, leído y escrito en el momento (ver mutate).
+  const current = useRef<CartLine[]>([]);
 
   useEffect(() => {
-    setLines(readJson<CartLine[]>(key, []));
+    const load = () => {
+      current.current = readJson<CartLine[]>(key, []);
+      setLines(current.current);
+    };
+    load();
+    setHydrated(true);
+    // El guardado puede cambiar por afuera de este carrito: la pantalla de
+    // "listo" lo vacía al confirmar la compra, el checkout lo reprecia, u otra
+    // pestaña de la misma tienda compra. Sin esto el ícono seguía diciendo 3
+    // productos de una compra que ya estaba pagada.
+    const onSync = (e: Event) => {
+      if ((e as CustomEvent<{ key?: string }>).detail?.key === key) load();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === key || e.key === null) load();
+    };
+    window.addEventListener(CART_SYNC_EVENT, onSync);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(CART_SYNC_EVENT, onSync);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [key]);
 
-  // Persistencia SINCRÓNICA en cada mutación (no en un useEffect post-render):
-  // "Comprar ahora" agrega y navega al instante — si el write quedara para un
-  // effect, el desmontaje de la página podía perder el ítem (lo cazó el E2E).
-  const mutate = (fn: (prev: CartLine[]) => CartLine[]) =>
-    setLines((prev) => {
-      const next = fn(prev);
-      writeJson(key, next);
-      return next;
-    });
+  // Persistencia SINCRÓNICA en cada mutación (no en un useEffect post-render
+  // ni dentro del updater de setState, que React puede correr más tarde):
+  // "Comprar ahora" agrega y navega al instante — si el write quedara para
+  // después, el desmontaje de la página podía perder el ítem (lo cazó el E2E).
+  const mutate = (fn: (prev: CartLine[]) => CartLine[]) => {
+    const next = fn(current.current);
+    current.current = next;
+    writeJson(key, next);
+    setLines(next);
+  };
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((s, l) => s + l.quantity, 0);
     const totalAmount = lines.reduce((s, l) => s + l.priceAmount * l.quantity, 0);
     return {
       lines,
+      hydrated,
       count,
       totalAmount,
       currency: lines[0]?.currency ?? 'ARS',
@@ -104,7 +126,7 @@ export function CartProvider({ storeKey, children }: { storeKey: string; childre
       remove: (variantId) => mutate((prev) => prev.filter((l) => l.variantId !== variantId)),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, open, storeKey]);
+  }, [lines, hydrated, open, storeKey]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

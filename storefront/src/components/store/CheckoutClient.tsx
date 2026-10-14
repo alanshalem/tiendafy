@@ -11,6 +11,8 @@ import { API_URL as API, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
 import { cartStorageKey, couponStorageKey, type CartLine, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
+import { finishPurchase } from '@/lib/cart-storage';
+import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
 
@@ -452,21 +454,32 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       const p = await submitRes.json().catch(() => null);
       throw new Error(p?.detail ?? 'No hay stock suficiente para algún producto.');
     }
+    return session.id as string;
+  };
 
-    // El monto queda anotado en esta pestaña para que la pantalla de "listo"
-    // pueda medir la venta. Va acá y no en un endpoint público porque el total
-    // de una orden no puede quedar a mano de cualquiera que tenga el id; es un
-    // dato del propio comprador, guardado en su propio navegador.
+  // El monto queda anotado en esta pestaña para que la pantalla de "listo"
+  // pueda medir la venta. Va acá y no en un endpoint público porque el total
+  // de una orden no puede quedar a mano de cualquiera que tenga el id; es un
+  // dato del propio comprador, guardado en su propio navegador. Se anota con
+  // el id de la ORDEN (el que llega a "listo" en ?order=), que es distinto
+  // del de la sesión de checkout.
+  const stashPurchase = (orderId: string) => {
     try {
-      sessionStorage.setItem(
-        'tiendafy.purchase',
-        JSON.stringify({ orderId: session.id, value: total / 100, currency }),
-      );
+      sessionStorage.setItem('tiendafy.purchase', JSON.stringify({ orderId, value: total / 100, currency }));
     } catch {
       /* sin almacenamiento no se mide la venta, pero la compra sigue */
     }
+  };
 
-    return session.id as string;
+  /**
+   * Un cobro con tarjeta que se resolvió acá mismo (Brick o Payway) termina en
+   * la misma pantalla de resultado que el redirect de Mercado Pago: así el
+   * carrito se vacía en un solo lugar y la venta se mide (la página de pago no
+   * carga medición, a propósito). Carga completa: "listo" arranca de cero.
+   */
+  const finish = (orderId: string, kind: 'success' | 'pending') => {
+    if (kind === 'success') finishPurchase(tenantId, orderId);
+    hardNavigate(`/checkout/${kind}?order=${encodeURIComponent(orderId)}`);
   };
 
   // De dónde vino esta venta: el mismo first-touch que guarda el beacon de
@@ -507,14 +520,15 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     setError(null);
     try {
       const id = await reserve(email.trim());
-      const { initPoint } = await postPayment<{ initPoint?: string }>(
+      const { initPoint, orderId } = await postPayment<{ initPoint?: string; orderId?: string }>(
         id,
         'pay',
         { returnUrl: window.location.origin },
         'No se pudo iniciar el pago.',
       );
       if (!initPoint) throw new Error('Mercado Pago no devolvió el link de pago.');
-      window.location.href = initPoint;
+      stashPurchase(orderId ?? id);
+      hardNavigate(initPoint);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
       setPaying(false);
@@ -543,7 +557,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     const buyerEmail = payer.email || email;
     try {
       const id = await reserve(buyerEmail);
-      const data = await postPayment<{ status?: string }>(
+      const data = await postPayment<{ status?: string; orderId?: string }>(
         id,
         'pay-onsite',
         {
@@ -556,7 +570,10 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         },
         'El pago fue rechazado.',
       );
-      setResult(data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'failure' : 'pending');
+      const orderId = data.orderId ?? id;
+      if (data.status === 'rejected') return setResult('failure');
+      stashPurchase(orderId);
+      finish(orderId, data.status === 'approved' ? 'success' : 'pending');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
       throw e;
@@ -572,7 +589,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     setPaying(true);
     try {
       const id = await reserve(email.trim());
-      const data = await postPayment<{ status?: string; message?: string }>(
+      const data = await postPayment<{ status?: string; message?: string; orderId?: string }>(
         id,
         'pay-payway',
         {
@@ -586,11 +603,6 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         'No se pudo procesar el pago.',
       );
 
-      if (data.status === 'APPROVED') {
-        setResult('success');
-        return;
-      }
-
       // Un rechazo llega con el motivo ya redactado por el backend. Los estados
       // intermedios (revisión de antifraude, 3D Secure) NO son un fracaso: la
       // orden queda pendiente y se resuelve cuando Payway confirma.
@@ -600,7 +612,9 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
         return;
       }
 
-      setResult('pending');
+      const orderId = data.orderId ?? id;
+      stashPurchase(orderId);
+      finish(orderId, data.status === 'APPROVED' ? 'success' : 'pending');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar el pago.');
       setPaying(false);
