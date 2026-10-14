@@ -29,26 +29,34 @@ export function faqPageJsonLd(sections: readonly ThemeSection[]) {
   };
 }
 
-/** Preguntas frecuentes: accordion nativo (details/summary). */
+/**
+ * Preguntas frecuentes: accordion nativo (details/summary). La pregunta y la
+ * respuesta cortan palabras larguísimas (un link pegado): antes empujaban la
+ * flecha fuera de la caja. La respuesta respeta los saltos de línea.
+ */
 export function FaqSection({ data }: SectionRenderProps<'faq'>) {
   const items = answered(data.items);
   if (items.length === 0) return null;
   return (
     <section className="store-section mx-auto max-w-3xl px-6 py-14 sm:px-4">
-      <SectionTitle className="mb-6 text-center text-2xl font-bold">
-        {data.title || 'Preguntas frecuentes'}
-      </SectionTitle>
+      {data.title && (
+        <SectionTitle className="mb-6 text-center text-2xl font-bold wrap-anywhere">
+          {data.title}
+        </SectionTitle>
+      )}
       <div className="divide-y divide-black/10 rounded-lg border border-black/10">
         {items.map((f, i) => (
-          <details key={i} className="group px-5 py-1">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-              {f.question}
+          <details key={i} className="group px-5 py-1" open={data.openFirst && i === 0 ? true : undefined}>
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 wrap-anywhere">{f.question}</span>
               <Icon
                 name="chevronDown"
                 className="h-4 w-4 shrink-0 opacity-60 transition-transform group-open:rotate-180"
               />
             </summary>
-            <p className="pb-4 text-sm leading-relaxed opacity-75">{f.answer}</p>
+            <p className="whitespace-pre-line pb-4 text-sm leading-relaxed opacity-75 wrap-anywhere">
+              {f.answer}
+            </p>
           </details>
         ))}
       </div>

@@ -5,6 +5,7 @@ import {
   sectionData,
   sectionDefinition,
   sectionDisplayName,
+  type ThemeConfig,
   type ThemeSection,
 } from '@tiendafy/types';
 import { BackHeader, Field, TextInput } from '../../theme-editor-inputs';
@@ -21,10 +22,13 @@ export function SectionPanel({
   section,
   onBack,
   onChange,
+  theme,
 }: {
   section: ThemeSection;
   onBack: () => void;
   onChange: (next: ThemeSection) => void;
+  /** El tema entero: algunos editores avisan según otra parte (el newsletter, si el pie ya tiene uno). */
+  theme?: ThemeConfig;
 }) {
   const def = sectionDefinition(section.type);
   const data = useMemo(() => sectionData(section), [section]);
@@ -47,7 +51,7 @@ export function SectionPanel({
           <TextInput value={section.name ?? ''} onChange={setName} placeholder={def?.label ?? section.type} />
         </Field>
         {Editor ? (
-          <Editor section={section} data={data} set={set} />
+          <Editor section={section} data={data} set={set} theme={theme} />
         ) : (
           <p className="rounded-md bg-bg-muted p-2.5 text-xs text-fg-muted">
             Esta sección la creó una versión más nueva del editor. Recargá la página para editarla.

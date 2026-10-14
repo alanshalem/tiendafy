@@ -19,28 +19,37 @@ export function NewsletterForm({
   source,
   compact = false,
   tenantId,
+  align = 'center',
+  successMessage,
 }: {
   source: NewsletterSource;
   compact?: boolean;
   /** La pantalla de "en construcción" se dibuja sin el resto de la tienda: ahí llega por prop. */
   tenantId?: string;
+  /** Dónde va el formulario (no compacto): centrado o al principio de la línea. */
+  align?: 'center' | 'start';
+  /** Lo que se lee al suscribirse. Vacío = el mensaje de siempre. */
+  successMessage?: string;
 }) {
-  return tenantId ? (
-    <Form tenantId={tenantId} source={source} compact={compact} />
-  ) : (
-    <FormInStore source={source} compact={compact} />
-  );
-}
-
-/** Dentro de la tienda el id sale del carrito, que envuelve todo el storefront. */
-function FormInStore({ source, compact }: { source: Source; compact: boolean }) {
-  const { tenantId } = useCart();
-  return <Form tenantId={tenantId} source={source} compact={compact} />;
+  const opts = { source, compact, align, successMessage };
+  return tenantId ? <Form tenantId={tenantId} {...opts} /> : <FormInStore {...opts} />;
 }
 
 type Source = NewsletterSource;
+interface FormOptions {
+  source: Source;
+  compact: boolean;
+  align: 'center' | 'start';
+  successMessage?: string;
+}
 
-function Form({ tenantId, source, compact }: { tenantId: string; source: Source; compact: boolean }) {
+/** Dentro de la tienda el id sale del carrito, que envuelve todo el storefront. */
+function FormInStore(opts: FormOptions) {
+  const { tenantId } = useCart();
+  return <Form tenantId={tenantId} {...opts} />;
+}
+
+function Form({ tenantId, source, compact, align, successMessage }: FormOptions & { tenantId: string }) {
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState(''); // honeypot
   const [state, setState] = useState<State>('idle');
@@ -56,13 +65,16 @@ function Form({ tenantId, source, compact }: { tenantId: string; source: Source;
 
   if (state === 'done')
     return (
-      <p className={`text-sm font-medium ${compact ? '' : 'mt-4'}`}>
-        ¡Listo! Te vamos a escribir cuando haya novedades.
+      <p role="status" className={`text-sm font-medium whitespace-pre-line ${compact ? '' : 'mt-4'}`}>
+        {successMessage?.trim() || '¡Listo! Te vamos a escribir cuando haya novedades.'}
       </p>
     );
 
   return (
-    <form className={compact ? 'flex gap-2' : 'mx-auto mt-4 flex max-w-sm gap-2'} onSubmit={submit}>
+    <form
+      className={compact ? 'flex gap-2' : `${align === 'center' ? 'mx-auto ' : ''}mt-4 flex max-w-sm gap-2`}
+      onSubmit={submit}
+    >
       <input
         type="email"
         required

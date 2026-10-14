@@ -65,7 +65,13 @@ vi.mock('next/image', () => ({
     sizes: _s,
     ...rest
   }: Record<string, unknown>) =>
-    createElement('img', { src: typeof src === 'string' ? src : '', alt: String(alt ?? ''), ...rest }),
+    // Como next/image: lazy salvo que vaya con prioridad.
+    createElement('img', {
+      src: typeof src === 'string' ? src : '',
+      alt: String(alt ?? ''),
+      ...(_pl || _p ? {} : { loading: 'lazy' }),
+      ...rest,
+    }),
 }));
 
 vi.mock('next/script', () => ({ default: () => null }));

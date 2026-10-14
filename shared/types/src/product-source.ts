@@ -5,6 +5,8 @@
  * `GET /api/v1/products/section` con los mismos nombres de parámetros.
  */
 
+import { categoryLink } from './links';
+
 /** Los mismos órdenes que la búsqueda del storefront. */
 export type ProductSourceSort = 'newest' | 'price_asc' | 'price_desc' | 'name';
 
@@ -175,4 +177,27 @@ export function sectionProductPlan(section: {
   const manualSize = plan.source.kind === 'manual' ? plan.source.ids.length : 0;
   const limit = clampProductLimit(data.limit, manualSize > 0 ? manualSize : PRODUCT_SOURCE_LIMIT.default);
   return { ...plan, limit };
+}
+
+/**
+ * Adónde lleva "Ver todos" de una sección cuando el comercio no eligió un
+ * link: el listado que muestra lo mismo (la categoría, la marca, lo último).
+ * Lo que el listado no sabe filtrar —ofertas, lo más vendido, elegidos a
+ * mano— va al catálogo entero.
+ */
+export function productSourceListingHref(source: ProductSource): string {
+  const sort = 'sort' in source && source.sort ? source.sort : null;
+  switch (source.kind) {
+    case 'category':
+      return sort ? `${categoryLink(source.categoryId)}&sort=${sort}` : categoryLink(source.categoryId);
+    case 'brand': {
+      const qs = new URLSearchParams({ brand: source.brand });
+      if (sort) qs.set('sort', sort);
+      return `/productos?${qs.toString()}`;
+    }
+    case 'newest':
+      return '/productos?sort=newest';
+    default:
+      return '/productos';
+  }
 }

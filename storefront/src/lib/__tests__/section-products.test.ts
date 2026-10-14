@@ -1,12 +1,13 @@
 /**
  * De dónde salen los productos de las secciones de la portada: el origen de
  * cada una (lo guardado o el default de su tipo), la URL que va a la API (con
- * la tienda, por la caché), el respaldo de destacados y cómo llega al render
- * actual (productIds + lista de productos).
+ * la tienda, por la caché), el respaldo de destacados y cómo llega a cada
+ * sección (por id, vía useSectionProducts).
  */
 import {
   normalizeProductSource,
   productSourceQuery,
+  productSourceListingHref,
   sectionProductPlan,
   type ThemeSection,
 } from '@tiendafy/types';
@@ -14,14 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StoreProduct } from '@/components/store/ProductCard';
 import { fetchProductsByIdsClient, fetchSectionProductsClient } from '../catalog-client';
 import { fetchSectionProducts, type ProductDto } from '../catalog';
-import {
-  NO_PRODUCTS_ID,
-  applySectionProducts,
-  planKey,
-  productsBySection,
-  resolvePlan,
-  sectionPlans,
-} from '../section-products';
+import { planKey, productsBySection, resolvePlan, sectionPlans } from '../section-products';
 import { loadHomeSectionProducts, loadSectionProducts } from '../storefront';
 import { fixture, fixtureTenantId, mockApi, type MockApi } from '../../test/api';
 
@@ -132,7 +126,7 @@ describe('origen de una sección', () => {
 });
 
 describe('cómo llega al render', () => {
-  it('cada sección resuelta lleva sus ids y la lista suma sus productos sin duplicar', () => {
+  it('cada sección recibe lo de su plan, por id; lo que no se resolvió no está', () => {
     const featured = section('featured', { title: 'Lo mejor' });
     const sale = section('sale-products');
     const news = section('new-products');
@@ -140,32 +134,26 @@ describe('cómo llega al render', () => {
       [planKey(sectionProductPlan(featured)!)]: [card('a', 'A con stock'), card('b')],
       [planKey(sectionProductPlan(sale)!)]: [],
     };
-    const { sections, products } = applySectionProducts(
-      [featured, sale, news],
-      [card('a', 'A viejo'), card('z')],
-      resolved,
-    );
-
-    expect(sections[0]!.data).toEqual({ title: 'Lo mejor', productIds: ['a', 'b'] });
-    // Ofertas sin ofertas queda vacía (y oculta), no "los primeros del catálogo".
-    expect(sections[1]!.data.productIds).toEqual([NO_PRODUCTS_ID]);
-    // Lo que no se resolvió queda como estaba.
-    expect(sections[2]).toBe(news);
-    expect(products.map((p) => [p.id, p.name])).toEqual([
-      ['a', 'A con stock'],
-      ['z', 'z'],
-      ['b', 'b'],
-    ]);
     expect(productsBySection([featured, sale, news], resolved)).toEqual({
       featured: resolved[planKey(sectionProductPlan(featured)!)],
       'sale-products': [],
     });
+    expect(productsBySection([featured], {})).toEqual({});
   });
 
-  it('sin nada resuelto no toca nada', () => {
-    const sections = [section('featured')];
-    const products = [card('a')];
-    expect(applySectionProducts(sections, products, {})).toEqual({ sections, products });
+  it('"Ver todos" automático lleva al listado del origen', () => {
+    expect(productSourceListingHref({ kind: 'category', categoryId: 'c-1' })).toBe('/productos?category=c-1');
+    expect(productSourceListingHref({ kind: 'category', categoryId: 'c-1', sort: 'name' })).toBe(
+      '/productos?category=c-1&sort=name',
+    );
+    expect(productSourceListingHref({ kind: 'brand', brand: 'A & B', sort: 'price_asc' })).toBe(
+      '/productos?brand=A+%26+B&sort=price_asc',
+    );
+    expect(productSourceListingHref({ kind: 'newest' })).toBe('/productos?sort=newest');
+    // El listado no sabe filtrar ofertas ni lo más vendido: el catálogo entero.
+    expect(productSourceListingHref({ kind: 'on-sale' })).toBe('/productos');
+    expect(productSourceListingHref({ kind: 'best-sellers' })).toBe('/productos');
+    expect(productSourceListingHref({ kind: 'manual', ids: ['a'] })).toBe('/productos');
   });
 
   it('destacados de una tienda sin ventas muestra lo último; si la API falla, nada', async () => {

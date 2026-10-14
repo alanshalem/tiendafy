@@ -33,7 +33,19 @@ const MAX_RESULTS = 8;
  * —CKING tiene casi tres mil publicados— el producto ciento uno no se podía
  * elegir, y uno elegido fuera de esos cien aparecía sin nombre.
  */
-export function ProductPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+export function ProductPicker({
+  value,
+  onChange,
+  max,
+  id,
+}: {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  /** Tope de elegidos (una sección muestra hasta 24). Sin valor = sin tope. */
+  max?: number;
+  /** Para el <label> de afuera (Field): va al buscador. */
+  id?: string;
+}) {
   const [q, setQ] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
   // Lo recién agregado se conoce desde el resultado que se clickeó: así el
@@ -51,8 +63,9 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
   }, [picked, chosen.data]);
 
   const byId = (id: string) => known.get(id);
+  const full = max !== undefined && value.length >= max;
   const add = (p: PickProduct) => {
-    if (value.includes(p.id)) return;
+    if (value.includes(p.id) || full) return;
     setPicked((m) => ({ ...m, [p.id]: p }));
     onChange([...value, p.id]);
   };
@@ -108,9 +121,10 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
                 )}
                 <span className="flex-1 truncate">{p?.name ?? 'Producto'}</span>
                 <button
+                  type="button"
                   onClick={() => removeId(id)}
                   aria-label="Quitar"
-                  className="text-fg-subtle hover:text-danger"
+                  className="-my-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-fg-subtle hover:bg-bg-muted hover:text-danger"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -122,12 +136,14 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
 
       {/* Buscador: resultados sólo al escribir */}
       <input
+        id={id}
         type="search"
-        aria-label="Buscar productos para agregar"
+        aria-label={id ? undefined : 'Buscar productos para agregar'}
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Buscar productos para agregar…"
-        className={`h-9 w-full px-3 text-sm ${INPUT_BASE}`}
+        disabled={full}
+        placeholder={full ? `Llegaste al máximo de ${max}` : 'Buscar productos para agregar…'}
+        className={`h-10 w-full px-3 text-sm disabled:opacity-60 ${INPUT_BASE}`}
       />
       {query && (
         <div className="mt-1 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border p-1">
@@ -137,12 +153,13 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
           )}
           {results.map((p) => (
             <button
+              type="button"
               key={p.id}
               onClick={() => {
                 add(p);
                 setQ('');
               }}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-bg-muted"
+              className="flex min-h-10 w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-bg-muted"
             >
               {p.image ? (
                 <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
@@ -155,10 +172,7 @@ export function ProductPicker({ value, onChange }: { value: string[]; onChange: 
           ))}
         </div>
       )}
-      <p className="mt-1.5 text-xs text-fg-subtle">
-        {value.length > 0 ? 'Arrastrá para reordenar. ' : ''}Si no elegís ninguno, se muestran
-        automáticamente.
-      </p>
+      {value.length > 1 && <p className="mt-1.5 text-xs text-fg-subtle">Arrastrá para reordenar.</p>}
     </div>
   );
 }

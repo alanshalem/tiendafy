@@ -16,7 +16,6 @@ import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { fetchSectionProductsClient } from '@/lib/catalog-client';
 import {
-  applySectionProducts,
   productsBySection,
   resolvePlans,
   sectionPlans,
@@ -155,17 +154,9 @@ export function StorefrontView({
     });
   }, [live, plans, tenantId]);
 
-  // Lo resuelto entra al render de dos formas: por sección (contexto, para
-  // los renderers que lo lean) y, mientras tanto, como `productIds` + lista
-  // de productos, que es lo que lee el render actual de las secciones.
-  const view = useMemo(() => {
-    const applied = applySectionProducts(theme.sections, products, resolved);
-    return {
-      theme: applied.sections === theme.sections ? theme : { ...theme, sections: applied.sections },
-      products: applied.products,
-      bySection: productsBySection(theme.sections, resolved),
-    };
-  }, [theme, products, resolved]);
+  // Lo resuelto, por id de sección: cada renderer de productos lo lee con
+  // useSectionProducts.
+  const bySection = useMemo(() => productsBySection(theme.sections, resolved), [theme.sections, resolved]);
 
   // En la tienda, el favicon sale del servidor (metadata del layout). Acá solo
   // se cambia en vivo en el preview, cuando el comercio sube otro en el editor.
@@ -204,8 +195,8 @@ export function StorefrontView({
               <AuthProvider storeKey={tenantId}>
                 <FavoritesProvider storeKey={tenantId}>
                   <CartProvider storeKey={tenantId}>
-                    <SectionProductsContext.Provider value={view.bySection}>
-                      <Inner tenantName={tenantName} theme={view.theme} products={view.products}>
+                    <SectionProductsContext.Provider value={bySection}>
+                      <Inner tenantName={tenantName} theme={theme} products={products}>
                         {children}
                       </Inner>
                     </SectionProductsContext.Provider>

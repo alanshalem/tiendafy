@@ -51,8 +51,8 @@ export function productsForSection(
 
 /**
  * Lo resuelto, por id de sección: lo que reciben los renderers (vía
- * `useSectionProducts`). Por id y no por plan porque al render llega la
- * sección ya con los `productIds` de la transición, que cambian su plan.
+ * `useSectionProducts`). Una sección que no está acá (no se resolvió o la API
+ * no respondió) cae a su respaldo.
  */
 export function productsBySection(
   sections: ThemeSection[],
@@ -91,37 +91,4 @@ export async function resolvePlans(
   const out: SectionProductsMap = {};
   for (const [key, list] of entries) if (list) out[key] = list;
   return out;
-}
-
-/**
- * Id que no corresponde a ningún producto. El render de hoy, con
- * `productIds` vacío, cae a "los primeros del catálogo": una sección resuelta
- * sin resultados (ofertas sin ofertas) lleva este id para quedar vacía —y
- * oculta— en vez de mostrar cualquier cosa.
- */
-export const NO_PRODUCTS_ID = '__tf-sin-productos__';
-
-/**
- * Transición hasta que los renderers lean lo resuelto por su cuenta (con
- * `useSectionProducts`): el render actual elige por `data.productIds` dentro
- * de `products`. Acá cada sección resuelta lleva sus ids en ese campo y los
- * productos se suman a la lista (sin duplicar; lo recién resuelto, con stock,
- * pisa la copia vieja). Las secciones sin resolver quedan como estaban.
- */
-export function applySectionProducts(
-  sections: ThemeSection[],
-  products: StoreProduct[],
-  resolved: SectionProductsMap,
-): { sections: ThemeSection[]; products: StoreProduct[] } {
-  if (Object.keys(resolved).length === 0) return { sections, products };
-
-  const pool = new Map(products.map((p) => [p.id, p]));
-  const out = sections.map((s) => {
-    const list = productsForSection(s, resolved);
-    if (!list) return s;
-    for (const p of list) pool.set(p.id, p);
-    const productIds = list.length > 0 ? list.map((p) => p.id) : [NO_PRODUCTS_ID];
-    return { ...s, data: { ...s.data, productIds } };
-  });
-  return { sections: out, products: [...pool.values()] };
 }

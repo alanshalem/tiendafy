@@ -73,6 +73,7 @@ export function EditorViews({
     return (
       <SectionPanel
         section={section}
+        theme={theme}
         onBack={() => setView('home')}
         onChange={(next) =>
           updateTheme((t) => ({ ...t, sections: t.sections.map((s) => (s.id === id ? next : s)) }))

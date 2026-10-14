@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { field, normalizeFields, type DataOf, type FieldsSpec } from './schema';
+import type { ProductSource } from '../product-source';
 import {
   isSectionType,
   normalizeHideOn,
@@ -92,12 +93,32 @@ const carouselFields = {
   fullHeightMobile: field.boolean(false),
 } as const;
 
-/** Destacados, recién llegados y ofertas comparten forma; cambia el título por defecto. */
+/**
+ * Columnas propias de una sección de productos. 'auto' = las del listado
+ * (Diseño → Listado de productos), que es lo que hacían todas antes.
+ */
+export const PRODUCT_SECTION_COLUMNS = ['auto', '2', '3', '4', '5'] as const;
+export const PRODUCT_SECTION_MOBILE_COLUMNS = ['auto', '1', '2'] as const;
+
+/**
+ * Destacados, recién llegados y ofertas comparten forma; cambia el título por
+ * defecto. De dónde salen los productos (`source`) y cuántos (`limit`) no son
+ * campos del esquema: los lee `sectionProductPlan` (product-source.ts), que
+ * también entiende los `productIds` de antes.
+ */
 const productsFields = (title: string) =>
   ({
     title: field.string(title),
     productIds: field.strings('id', 60),
     carousel: field.boolean(true),
+    subtitle: field.text(),
+    columns: field.enum(PRODUCT_SECTION_COLUMNS, 'auto'),
+    mobileColumns: field.enum(PRODUCT_SECTION_MOBILE_COLUMNS, 'auto'),
+    /** Link "Ver todos" al lado del título. */
+    viewAll: field.boolean(false),
+    viewAllText: field.string(),
+    /** Vacío = automático: el listado que corresponde al origen (categoría, marca, lo nuevo). */
+    viewAllLink: field.url(),
   }) as const;
 
 const bannerItem = {
@@ -116,6 +137,9 @@ const bannersFields = {
 const institutionalFields = {
   title: field.string(),
   description: field.text(),
+  /** Botón opcional: sin texto o sin link no se dibuja. */
+  buttonText: field.string(),
+  link: field.url(),
 } as const;
 
 const imageTextFields = {
@@ -136,31 +160,64 @@ const infoBarFields = {
       title: field.string(),
       description: field.text(),
       link: field.url(),
+      /** Ícono propio (una imagen chica): si está, va en lugar del ícono del kit. */
+      image: field.media(),
     },
     4,
   ),
+  /** Cómo se acomodan en el celular: uno abajo del otro, de a dos, o deslizables. */
+  mobileLayout: field.enum(['stack', 'grid', 'carousel'], 'stack'),
 } as const;
+
+/*
+ * Los títulos con texto por defecto lo llevan como `fallback`: una sección
+ * vieja sin título se sigue viendo igual, y un título vaciado a propósito
+ * oculta el encabezado (como en las secciones de productos).
+ */
 
 const newsletterFields = {
   image: field.media(),
-  title: field.string(),
+  title: field.string('Recibí novedades'),
   text: field.text(),
+  /** Apilado (centrado) o partido: imagen a un lado, texto y formulario al otro. */
+  layout: field.enum(['stacked', 'split'], 'stacked'),
+  /** Lo que se lee al suscribirse. Vacío = el mensaje de siempre. */
+  successMessage: field.string(),
+  /** Letra chica debajo del formulario (bajas, privacidad). */
+  legalText: field.text(),
 } as const;
 
 // El video se mete en un <iframe>: es un link más, con las mismas reglas.
-const instagramFields = { video: field.url() } as const;
+const instagramFields = {
+  video: field.url(),
+  title: field.string(),
+  caption: field.text(),
+  /** 'auto': vertical para Shorts, horizontal para el resto. */
+  aspect: field.enum(['auto', '16:9', '9:16', '1:1'], 'auto'),
+} as const;
+
+export const TESTIMONIAL_RATINGS = ['none', '1', '2', '3', '4', '5'] as const;
 
 const testimonialsFields = {
-  title: field.string(),
+  title: field.string('Lo que dicen nuestros clientes'),
   items: field.items(
-    { quote: field.text(), name: field.string(), detail: field.string(), photo: field.media() },
+    {
+      quote: field.text(),
+      name: field.string(),
+      detail: field.string(),
+      photo: field.media(),
+      rating: field.enum(TESTIMONIAL_RATINGS, 'none'),
+    },
     24,
   ),
+  layout: field.enum(['grid', 'carousel'], 'grid'),
 } as const;
 
 const faqFields = {
-  title: field.string(),
+  title: field.string('Preguntas frecuentes'),
   items: field.items({ question: field.string(), answer: field.text() }, 40),
+  /** La primera pregunta arranca abierta: muestra que se despliegan. */
+  openFirst: field.boolean(false),
 } as const;
 
 const brandsFields = {
@@ -172,7 +229,12 @@ const brandsFields = {
 
 export type HeroVideoData = DataOf<typeof heroVideoFields>;
 export type CarouselData = DataOf<typeof carouselFields>;
-export type ProductsData = DataOf<ReturnType<typeof productsFields>>;
+export type ProductsData = DataOf<ReturnType<typeof productsFields>> & {
+  /** Origen de los productos. Crudo (lo escribió una persona): leer con `sectionProductPlan`. */
+  source?: ProductSource;
+  /** Cuántos (1–24). Crudo: leer con `sectionProductPlan` o `clampProductLimit`. */
+  limit?: number;
+};
 export type BannersData = DataOf<typeof bannersFields>;
 export type BannerItem = BannersData['banners'][number];
 export type InstitutionalData = DataOf<typeof institutionalFields>;
@@ -209,9 +271,9 @@ export interface SectionDataMap {
 /* ---- El registro ---- */
 
 const DEFAULT_INFO_ITEMS = [
-  { icon: 'shipping', title: 'Envíos a todo el país', description: '', link: '' },
-  { icon: 'card', title: 'Pagá con Mercado Pago', description: '', link: '' },
-  { icon: 'security', title: 'Compra protegida', description: '', link: '' },
+  { icon: 'shipping', title: 'Envíos a todo el país', description: '', link: '', image: '' },
+  { icon: 'card', title: 'Pagá con Mercado Pago', description: '', link: '', image: '' },
+  { icon: 'security', title: 'Compra protegida', description: '', link: '', image: '' },
 ] as const;
 
 export const SECTION_REGISTRY = {
@@ -305,11 +367,11 @@ export const SECTION_REGISTRY = {
     type: 'featured',
     label: 'Productos destacados',
     previewLabel: 'los destacados',
-    description: 'Los productos que elijas, en grilla o carrusel.',
+    description: 'Lo más vendido, una categoría, una marca o los que elijas, en grilla o carrusel.',
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Destacados'),
-    defaults: { title: 'Destacados', carousel: true, productIds: [] },
+    defaults: { title: 'Destacados', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'destacados elegidos vitrina grilla',
   }),
@@ -321,7 +383,7 @@ export const SECTION_REGISTRY = {
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Recién llegados'),
-    defaults: { title: 'Recién llegados', carousel: true, productIds: [] },
+    defaults: { title: 'Recién llegados', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'nuevos novedades recien llegados ultimos',
   }),
@@ -333,7 +395,7 @@ export const SECTION_REGISTRY = {
     group: 'Productos',
     wireframe: 'products',
     fields: productsFields('Ofertas'),
-    defaults: { title: 'Ofertas', carousel: true, productIds: [] },
+    defaults: { title: 'Ofertas', carousel: true, productIds: [], viewAll: true },
     limits: {},
     keywords: 'ofertas descuentos rebajas sale liquidacion',
   }),
@@ -428,12 +490,14 @@ export const SECTION_REGISTRY = {
           name: 'Nombre del cliente',
           detail: 'Ciudad',
           photo: '',
+          rating: 'none',
         },
         {
           quote: 'Las opiniones cortas y concretas convencen más que las largas.',
           name: 'Nombre del cliente',
           detail: 'Ciudad',
           photo: '',
+          rating: 'none',
         },
       ],
     },

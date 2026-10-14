@@ -205,7 +205,8 @@ describe('normalizar secciones', () => {
       { id: 'sin-tipo', data: {} },
     ])!;
     expect(list.map((s) => s.id)).toEqual(['f', 'p', 'c']);
-    expect(list[0]!.data).toEqual({ title: '', items: [] });
+    // Sin título guardado, el de siempre (vaciarlo a propósito sí lo oculta).
+    expect(list[0]!.data).toEqual({ title: 'Preguntas frecuentes', items: [], openFirst: false });
     expect(list[1]!.data.banners).toEqual([
       { image: '', title: 'Ok', description: '', link: '', show: true },
     ]);
@@ -269,7 +270,7 @@ describe('normalizar secciones', () => {
       type: 'faq',
       visible: false,
       hideOn: 'mobile',
-      data: { title: '', items: [] },
+      data: { title: 'Preguntas frecuentes', items: [], openFirst: false },
     });
     expect(normalizeSectionStyle('x')).toBeUndefined();
     expect(isRgbTriplet('10 20 30')).toBe(true);

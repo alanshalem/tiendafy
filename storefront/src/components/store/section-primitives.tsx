@@ -3,8 +3,9 @@
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@tiendafy/ui';
 import { Icon, type IconName } from './Icon';
-import { colClass, type ProductListConfig } from '@/lib/theme';
+import type { ProductListConfig } from '@/lib/theme';
 import { StoreImage } from './StoreImage';
+import { StoreLink } from './StoreLink';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { baseTheme } from '@tiendafy/types';
 import { useSectionStyle } from './section-context';
@@ -91,19 +92,88 @@ export function pickProducts(products: StoreProduct[], ids: string[]): StoreProd
   return ids.map((id) => byId.get(id)).filter((p): p is StoreProduct => !!p);
 }
 
-export function ProductGrid({
-  title,
-  products,
-  list,
-  carousel,
-}: {
+/*
+ * Columnas de las grillas y carruseles de productos de la portada. Las clases
+ * van escritas enteras: Tailwind solo genera las que encuentra literales.
+ * En la tablet (sm) nunca más de 3: cinco cards en 820 px no se leen.
+ */
+const GRID_MOBILE: Record<1 | 2, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2' };
+const GRID_DESKTOP: Record<number, string> = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-3 lg:grid-cols-4',
+  5: 'sm:grid-cols-3 lg:grid-cols-5',
+};
+// En el carrusel, el ancho de cada card sale de las mismas columnas (antes
+// era fijo, 160/208 px, y en una pantalla grande sobraba lugar al final). En
+// el celular se asoma la card siguiente: así se nota que se desliza.
+const RAIL_MOBILE: Record<1 | 2, string> = { 1: 'w-[78%]', 2: 'w-[calc((100%-1rem)/2.25)]' };
+const RAIL_DESKTOP: Record<number, string> = {
+  2: 'sm:w-[calc((100%-1.25rem)/2)]',
+  3: 'sm:w-[calc((100%-2.5rem)/3)]',
+  4: 'sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-3.75rem)/4)]',
+  5: 'sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-5rem)/5)]',
+};
+
+export interface GridColumns {
+  columns: number;
+  mobileColumns: 1 | 2;
+}
+
+/** Las columnas de una sección: las suyas, o las del listado de productos (Diseño → Listado). */
+export function sectionColumns(
+  list: Pick<ProductListConfig, 'columns' | 'mobileColumns'>,
+  own?: { columns?: number | null; mobileColumns?: 1 | 2 | null },
+): GridColumns {
+  const columns = own?.columns ?? list.columns;
+  return {
+    columns: GRID_DESKTOP[columns] ? columns : 4,
+    mobileColumns: own?.mobileColumns ?? (list.mobileColumns === 1 ? 1 : 2),
+  };
+}
+
+export const productGridClasses = (cols: GridColumns): string =>
+  `${GRID_MOBILE[cols.mobileColumns]} ${GRID_DESKTOP[cols.columns] ?? GRID_DESKTOP[4]}`;
+
+export const productRailItemClasses = (cols: GridColumns): string =>
+  `${RAIL_MOBILE[cols.mobileColumns]} ${RAIL_DESKTOP[cols.columns] ?? RAIL_DESKTOP[4]}`;
+
+export interface ProductGridProps {
   title: string;
+  subtitle?: string;
   products: StoreProduct[];
   list: ProductListConfig;
   carousel?: boolean;
-}) {
+  /** Columnas propias de la sección (escritorio). Sin valor, las del listado. */
+  columns?: number | null;
+  /** Columnas propias en el celular. Sin valor, las del listado. */
+  mobileColumns?: 1 | 2 | null;
+  /** Link "Ver todos" del encabezado. */
+  viewAll?: { href: string; text: string } | null;
+  /** Lo que se ve si no hay productos. Sin valor, la sección no se dibuja. */
+  empty?: ReactNode;
+}
+
+export function ProductGrid({
+  title,
+  subtitle,
+  products,
+  list,
+  carousel,
+  columns,
+  mobileColumns,
+  viewAll,
+  empty,
+}: ProductGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollByCards = (dir: number) => scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  const align = useSectionStyle()?.align;
+  // Una "página" del carrusel: lo que se ve, menos un poco, así la card que
+  // quedó a medias pasa a ser la primera de la vista siguiente.
+  const scrollPage = (dir: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.9), behavior: 'smooth' });
+  };
   // Flechas deshabilitadas en los extremos: antes "Anterior" quedaba activa al
   // abrir el carrusel y tocarla no hacía nada.
   const [edge, setEdge] = useState({ start: true, end: false });
@@ -119,26 +189,60 @@ export function ProductGrid({
     const ro = new ResizeObserver(measureEdges);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [measureEdges, products.length]);
-  if (products.length === 0) return null;
+  }, [measureEdges, products.length, carousel]);
+  if (products.length === 0 && !empty) return null;
+
+  const cols = sectionColumns(list, { columns, mobileColumns });
+  const centered = align === 'center';
+  const showViewAll = !!viewAll && products.length > 0;
+  const header =
+    title || subtitle || showViewAll ? (
+      <div
+        className={cn(
+          'mb-6 flex gap-x-6 gap-y-1',
+          centered ? 'flex-col items-center text-center' : 'items-end justify-between',
+        )}
+      >
+        <div className="min-w-0">
+          {title && (
+            <SectionTitle className="text-sm font-bold uppercase tracking-widest text-fg-muted wrap-anywhere">
+              {title}
+            </SectionTitle>
+          )}
+          {subtitle && (
+            <p className="mt-1 max-w-2xl whitespace-pre-line text-sm text-fg-muted wrap-anywhere">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {showViewAll && (
+          <StoreLink
+            href={viewAll.href}
+            className="-my-2 inline-flex min-h-10 shrink-0 items-center gap-1 text-sm font-semibold text-primary-ink hover:underline"
+          >
+            {viewAll.text}
+            <Icon name="chevronRight" className="h-4 w-4" />
+          </StoreLink>
+        )}
+      </div>
+    ) : null;
+
   return (
     <section className="store-section mx-auto max-w-container px-6 py-12 sm:px-4">
-      {title && (
-        <SectionTitle className="mb-6 text-sm font-bold uppercase tracking-widest text-fg-muted">
-          {title}
-        </SectionTitle>
-      )}
-      {carousel ? (
+      {header}
+      {products.length === 0 ? (
+        empty
+      ) : carousel ? (
         <div className="group/car relative">
           <div
             ref={scrollRef}
             onScroll={measureEdges}
-            className="flex snap-x gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] sm:gap-5 [&::-webkit-scrollbar]:hidden"
           >
             {products.map((p, i) => (
               <div
                 key={p.id}
-                className="tf-in w-40 shrink-0 snap-start sm:w-52"
+                className={cn('tf-in shrink-0 snap-start', productRailItemClasses(cols))}
                 style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
               >
                 <ProductCard product={p} list={list} />
@@ -150,7 +254,7 @@ export function ProductGrid({
             <>
               <button
                 type="button"
-                onClick={() => scrollByCards(-1)}
+                onClick={() => scrollPage(-1)}
                 disabled={edge.start}
                 aria-label="Anterior"
                 className="absolute -left-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
@@ -159,7 +263,7 @@ export function ProductGrid({
               </button>
               <button
                 type="button"
-                onClick={() => scrollByCards(1)}
+                onClick={() => scrollPage(1)}
                 disabled={edge.end}
                 aria-label="Siguiente"
                 className="absolute -right-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
@@ -170,7 +274,7 @@ export function ProductGrid({
           )}
         </div>
       ) : (
-        <div className={`grid gap-x-5 gap-y-8 ${colClass[list.columns] ?? colClass[4]}`}>
+        <div className={cn('grid gap-x-4 gap-y-8 sm:gap-x-5', productGridClasses(cols))}>
           {products.map((p, i) => (
             <div key={p.id} className="tf-in" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
               <ProductCard product={p} list={list} />

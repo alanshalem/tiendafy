@@ -73,6 +73,32 @@ describe('secciones de productos de la portada', () => {
     expect(screen.getByText('Lo que más sale')).toBeInTheDocument();
   });
 
+  it('una sección vieja (solo productIds) muestra los mismos elegidos, en su orden', async () => {
+    const legacy: ThemeSection[] = [
+      { id: 'viejo', type: 'featured', visible: true, data: { title: 'Elegidos', productIds: ['b', 'a'] } },
+    ];
+    api.on('GET', '/api/v1/theme', { ...theme, sections: legacy });
+    const base = vi.mocked(fetch);
+    const original = base.getMockImplementation()!;
+    base.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname !== SECTION) return original(input, init);
+      api.calls.push({ method: 'GET', path: url.pathname + url.search, body: undefined, headers: {} });
+      const ids = (url.searchParams.get('ids') ?? '').split(',');
+      const items = ids.map((id) => ({ ...dto, id, slug: `s-${id}`, name: `Elegido ${id}` }));
+      return new Response(JSON.stringify({ items }), { status: 200 });
+    });
+    await renderPage(HomePage, '/');
+
+    const asked = api.calls.filter((c) => c.path.startsWith(`${SECTION}?`));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.path).toContain('kind=manual&ids=b%2Ca&limit=2');
+    const names = within(grid('Elegidos'))
+      .getAllByText(/^Elegido /)
+      .map((e) => e.textContent);
+    expect(names).toEqual(['Elegido b', 'Elegido a']);
+  });
+
   it('la vista previa del editor arranca con lo resuelto en el servidor', async () => {
     api.on('GET', '/api/v1/theme/draft', { ...theme, sections });
     sectionsByKind({ 'best-sellers': [], newest: ['Lo último'], 'on-sale': ['Rebajado'] });
