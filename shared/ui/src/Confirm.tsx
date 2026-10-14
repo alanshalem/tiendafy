@@ -1,21 +1,11 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { useCallback, useContext, useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
-import { Button, type ButtonVariant } from './Button';
+import { Button } from './Button';
+import { ConfirmContext, type ConfirmFn, type ConfirmOptions } from './confirmContext';
 
-export interface ConfirmOptions {
-  title?: string;
-  message: ReactNode;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  /** Estilo del botón de confirmación (p.ej. 'danger' para acciones destructivas). */
-  variant?: ButtonVariant;
-}
-
-type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
-
-const ConfirmContext = createContext<ConfirmFn | null>(null);
+export type { ConfirmOptions } from './confirmContext';
 
 /**
  * Provider de un único diálogo de confirmación global. `useConfirm()` devuelve

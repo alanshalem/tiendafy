@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useContext, useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from './cn';
+import { ConfirmContext } from './confirmContext';
+import { topLayer } from './topLayer';
 
 export interface ModalProps {
   open: boolean;
@@ -11,6 +13,12 @@ export interface ModalProps {
   /** Footer para acciones (Cancelar / Confirmar). */
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /**
+   * Hay cambios sin guardar: cerrar con la X, con Escape o con un click afuera
+   * pregunta "¿Descartar los cambios?" antes. Lo que cierra el propio form (al
+   * guardar, su botón Cancelar) no pasa por acá.
+   */
+  dirty?: boolean;
   children: ReactNode;
 }
 
@@ -23,19 +31,30 @@ const sizeClasses = {
 
 /**
  * Modal controlado sobre <dialog> nativo: Escape, focus trap y top-layer
- * los da el browser. Backdrop click cierra.
+ * los da el browser. Click en el fondo cierra.
  */
-export function Modal({ open, onClose, title, footer, size = 'md', children }: ModalProps) {
+export function Modal({ open, onClose, title, footer, size = 'md', dirty = false, children }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // El título nombra al diálogo: sin esto un lector de pantalla anuncia
   // "diálogo" a secas, sin decir cuál.
   const titleId = useId();
+  const confirm = useContext(ConfirmContext);
+  // Si el apretón empezó en el fondo. Un click "en el fondo" también es el de
+  // seleccionar texto de un campo y soltar el mouse afuera de la tarjeta: el
+  // navegador lo manda al ancestro común —el <dialog>— y se perdía el form.
+  const pressedBackdrop = useRef(false);
+  const asking = useRef(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      topLayer.push(dialog);
+    }
     if (!open && dialog.open) dialog.close();
+    if (!open) topLayer.remove(dialog);
+    return () => topLayer.remove(dialog);
   }, [open]);
 
   // Scroll lock del body mientras está abierto.
@@ -48,16 +67,62 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
     };
   }, [open]);
 
+  /** Cerrar a pedido de la persona: con cambios, primero se confirma. */
+  const requestClose = async () => {
+    if (!dirty) return onClose();
+    if (asking.current) return;
+    asking.current = true;
+    try {
+      const discard = confirm
+        ? await confirm({
+            title: '¿Descartar los cambios?',
+            message: 'Lo que cargaste y no guardaste se va a perder.',
+            confirmLabel: 'Descartar',
+            cancelLabel: 'Seguir editando',
+            variant: 'danger',
+          })
+        : window.confirm('¿Descartar los cambios?');
+      if (discard) onClose();
+    } finally {
+      asking.current = false;
+    }
+  };
+
   if (typeof document === 'undefined') return null; // SSR
 
   return createPortal(
     <dialog
       ref={dialogRef}
       aria-labelledby={title ? titleId : undefined}
-      onClose={onClose}
+      onCancel={(e) => {
+        // Escape: con cambios, el diálogo no se cierra solo; se pregunta.
+        if (dirty) {
+          e.preventDefault();
+          void requestClose();
+        }
+      }}
+      onClose={() => {
+        const dialog = dialogRef.current;
+        if (dialog) topLayer.remove(dialog);
+        // El navegador puede cerrarlo sin dejar frenar el Escape (dos
+        // seguidos, sin otro gesto en el medio). Con cambios y todavía
+        // abierto para la pantalla, se vuelve a mostrar y se pregunta.
+        if (open && dirty && dialog && !dialog.open) {
+          dialog.showModal();
+          topLayer.push(dialog);
+          void requestClose();
+          return;
+        }
+        onClose();
+      }}
+      onPointerDown={(e) => {
+        pressedBackdrop.current = e.target === dialogRef.current;
+      }}
       onClick={(e) => {
-        // Click en el backdrop (el dialog mismo, no su contenido) cierra.
-        if (e.target === dialogRef.current) onClose();
+        // Click en el fondo (el dialog mismo, no su contenido), apretado y
+        // soltado ahí: cierra.
+        if (pressedBackdrop.current && e.target === dialogRef.current) void requestClose();
+        pressedBackdrop.current = false;
       }}
       className={cn(
         // overflow-hidden pisa el `overflow: auto` que el browser le pone a
@@ -82,7 +147,7 @@ export function Modal({ open, onClose, title, footer, size = 'md', children }: M
             </h2>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => void requestClose()}
               aria-label="Cerrar"
               className="rounded-sm p-1 text-fg-muted hover:bg-bg-muted hover:text-fg"
             >
