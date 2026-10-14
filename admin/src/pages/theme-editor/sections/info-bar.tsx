@@ -2,6 +2,7 @@ import { SECTION_REGISTRY, type InfoBarData, type InfoItemData } from '@tiendafy
 import { LinkPicker } from '../../../components/LinkPicker';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { Field, Select, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, ColumnsIcon, LayoutIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
 import type { SectionEditorProps } from './types';
 
@@ -14,12 +15,6 @@ const INFO_ICONS: { value: InfoItemData['icon']; label: string }[] = [
   { value: 'returns', label: 'Cambios' },
 ];
 const iconLabel = (icon: string) => INFO_ICONS.find((i) => i.value === icon)?.label ?? 'Ítem';
-
-const LAYOUTS: { value: InfoBarData['mobileLayout']; label: string }[] = [
-  { value: 'stack', label: 'Uno abajo del otro' },
-  { value: 'grid', label: 'De a dos' },
-  { value: 'carousel', label: 'Deslizables (carrusel)' },
-];
 
 const MAX_ITEMS = SECTION_REGISTRY['info-bar'].fields.items.max;
 /**
@@ -72,13 +67,26 @@ export function InfoBarEditor({ data, set }: SectionEditorProps<'info-bar'>) {
           </>
         )}
       />
-      <Field label="En el celular">
-        <Select
-          value={data.mobileLayout}
-          onChange={(v) => set({ mobileLayout: v as InfoBarData['mobileLayout'] })}
-          options={LAYOUTS}
-        />
-      </Field>
+      <ChoiceGroup
+        label="En el celular"
+        value={data.mobileLayout}
+        onChange={(mobileLayout: InfoBarData['mobileLayout']) => set({ mobileLayout })}
+        options={[
+          {
+            value: 'stack',
+            label: 'Apilados',
+            title: 'Uno abajo del otro',
+            icon: <LayoutIcon layout="stack" />,
+          },
+          { value: 'grid', label: 'De a dos', icon: <ColumnsIcon n={2} /> },
+          {
+            value: 'carousel',
+            label: 'Deslizando',
+            title: 'Deslizando de costado',
+            icon: <LayoutIcon layout="carousel" />,
+          },
+        ]}
+      />
     </>
   );
 }

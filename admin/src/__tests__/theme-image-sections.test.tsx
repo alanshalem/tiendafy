@@ -17,6 +17,7 @@ import {
   type ThemeSection,
 } from '@tiendafy/types';
 import { screen, waitFor, within } from '@testing-library/react';
+import { radio } from '../test/choice';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -319,8 +320,8 @@ describe('editores', () => {
       <Harness type="promo-banners" data={{ banners: [{ image: '', title: 'A' }] }} onData={onData} />,
     );
     await settle(2);
-    await u.selectOptions(screen.getByLabelText('Forma de las imágenes'), '1x1');
-    await u.selectOptions(screen.getByLabelText('En computadora'), '2');
+    await u.click(radio('Forma de las imágenes', 'Cuadrada (1:1)'));
+    await u.click(radio('Por fila en computadora', '2 por fila'));
     await u.type(screen.getByLabelText('Título de la sección (opcional)'), 'Promos');
     expect(last(onData)).toMatchObject({ ratio: '1x1', columns: '2', title: 'Promos' });
     // 2 columnas de 624 px al doble = 1248, cuadrada.
@@ -338,8 +339,8 @@ describe('editores', () => {
     expect(screen.getByText(/le pone un recuadro oscuro/)).toBeInTheDocument();
     await u.selectOptions(screen.getByLabelText('Fondo del texto'), 'dark');
     expect(screen.queryByText(/le pone un recuadro oscuro/)).not.toBeInTheDocument();
-    await u.selectOptions(screen.getByLabelText('Imagen en computadora'), 'right');
-    await u.selectOptions(screen.getByLabelText('En celular va primero'), 'text');
+    await u.click(radio('Imagen en computadora', 'A la derecha del texto'));
+    await u.click(radio('En celular va primero', 'El texto'));
     expect(last(onData)).toMatchObject({
       imagePosition: 'right',
       mobileOrder: 'text',

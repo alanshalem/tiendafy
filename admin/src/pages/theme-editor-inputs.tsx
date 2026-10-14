@@ -279,8 +279,9 @@ export function Check({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  // Toda la fila se toca, con 40 px de alto: el cuadradito solo (16 px) se erraba con el dedo.
   return (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
       <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>

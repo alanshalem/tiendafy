@@ -1,6 +1,7 @@
 import { SECTION_REGISTRY, type TestimonialItem, type TestimonialsData } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, LayoutIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
 import type { SectionEditorProps } from './types';
 
@@ -13,11 +14,6 @@ const RATINGS: { value: TestimonialItem['rating']; label: string }[] = [
   { value: '3', label: '★★★ (3)' },
   { value: '2', label: '★★ (2)' },
   { value: '1', label: '★ (1)' },
-];
-
-const LAYOUTS: { value: TestimonialsData['layout']; label: string }[] = [
-  { value: 'grid', label: 'Grilla' },
-  { value: 'carousel', label: 'Carrusel (se desliza)' },
 ];
 
 export function TestimonialsEditor({ data, set }: SectionEditorProps<'testimonials'>) {
@@ -70,13 +66,20 @@ export function TestimonialsEditor({ data, set }: SectionEditorProps<'testimonia
           </>
         )}
       />
-      <Field label="Cómo se muestran">
-        <Select
-          value={data.layout}
-          onChange={(v) => set({ layout: v as TestimonialsData['layout'] })}
-          options={LAYOUTS}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Cómo se muestran"
+        value={data.layout}
+        onChange={(layout: TestimonialsData['layout']) => set({ layout })}
+        options={[
+          { value: 'grid', label: 'Grilla', icon: <LayoutIcon layout="grid" /> },
+          {
+            value: 'carousel',
+            label: 'Carrusel',
+            title: 'Carrusel (se deslizan)',
+            icon: <LayoutIcon layout="carousel" />,
+          },
+        ]}
+      />
       <p className="text-xs text-fg-subtle">
         Consejo: usá opiniones reales (de WhatsApp o Instagram, con permiso). Cortas y concretas convencen
         más.
