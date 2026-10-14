@@ -166,7 +166,7 @@ public sealed class OrderListTests(ApiFactory factory)
         await foreign.PostAsync("/api/v1/customers", new { name = "Gimnasio Ajeno", email = "ajeno@test.local" });
 
         var all = await CsvAsync(merchant, "/api/v1/customers/export");
-        Assert.StartsWith("Nombre;Email;Teléfono;Dirección;Notas;Alta", all);
+        Assert.StartsWith("Nombre;Email;Teléfono;Dirección;Notas;Etiquetas;Compras;Total gastado;Última compra;Alta", all);
         // El teléfono y la dirección se guardan cifrados: el archivo los trae legibles.
         Assert.Contains("11 5555 0000", all);
         Assert.Contains("\"Av. Siempreviva 742\n2º B\"", all);
