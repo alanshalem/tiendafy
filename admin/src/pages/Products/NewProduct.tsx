@@ -8,7 +8,8 @@ import { api, errMsg } from '../../lib/api';
 import { toDomainPrice, toCents, isValidPrice } from '../../lib/price';
 import { Section } from './FormSection';
 import { StickyFormBar } from './StickyFormBar';
-import { AddImagesTile, RemovableThumb, UploadingThumb } from './ImageTiles';
+import { AddImagesTile, PhotoTile, UploadingThumb } from './ImageTiles';
+import { moveItem } from '../../lib/arrays';
 import { UploadNotes, UploadSpecHint, uploadMedia, useUploadQueue } from '../../components/upload/primitives';
 import { type SpecValues } from './SpecFields';
 import {
@@ -316,7 +317,7 @@ export function NewProductPage() {
             error={error}
           />
 
-          <Section title="Fotos" hint="Suben al guardar el producto.">
+          <Section title="Fotos" hint="Suben al guardar el producto. La primera es la portada.">
             <div className="flex flex-wrap gap-3">
               {previews.map((src, i) =>
                 saving && i < saving.index ? (
@@ -336,12 +337,17 @@ export function NewProductPage() {
                     started={i === saving.index}
                   />
                 ) : (
-                  <div key={src} className="relative">
-                    <RemovableThumb
-                      src={src}
-                      onRemove={() => setFiles((f) => f.filter((_, idx) => idx !== i))}
-                    />
-                  </div>
+                  // Suben en este orden, así que la primera es la portada.
+                  <PhotoTile
+                    key={src}
+                    src={src}
+                    cover={i === 0}
+                    onRemove={() => setFiles((f) => f.filter((_, idx) => idx !== i))}
+                    onMoveLeft={i > 0 ? () => setFiles((f) => moveItem(f, i, i - 1)) : undefined}
+                    onMoveRight={
+                      i < previews.length - 1 ? () => setFiles((f) => moveItem(f, i, i + 1)) : undefined
+                    }
+                  />
                 ),
               )}
               <AddImagesTile
@@ -379,7 +385,7 @@ export function NewProductPage() {
                               prev.map((o, idx) => (idx === i ? { ...o, name: e.target.value } : o)),
                             )
                           }
-                          placeholder="Talle"
+                          placeholder="Ej.: Talle"
                         />
                       </FormField>
                       <FormField
@@ -393,7 +399,7 @@ export function NewProductPage() {
                               prev.map((o, idx) => (idx === i ? { ...o, valuesText: e.target.value } : o)),
                             )
                           }
-                          placeholder="S, M, L"
+                          placeholder="Ej.: S, M, L"
                         />
                       </FormField>
                       <button
@@ -452,7 +458,7 @@ export function NewProductPage() {
                                   error={priceInvalid}
                                   value={row.price}
                                   onChange={(e) => setRowField(key, 'price', e.target.value)}
-                                  placeholder="28900"
+                                  placeholder="Ej.: 28.900"
                                   className="h-9 w-28"
                                 />
                               </td>
@@ -515,7 +521,7 @@ export function NewProductPage() {
                     inputMode="decimal"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="28900"
+                    placeholder="Ej.: 28.900"
                   />
                 </FormField>
                 <FormField label="Precio promocional" hint="Opcional">
@@ -568,7 +574,7 @@ export function NewProductPage() {
                   <Input
                     value={sku}
                     onChange={(e) => setSku(e.target.value.toUpperCase())}
-                    placeholder="REM-001"
+                    placeholder="Ej.: REM-001"
                   />
                 </FormField>
                 <FormField label="Código de barras" hint="EAN, UPC...">

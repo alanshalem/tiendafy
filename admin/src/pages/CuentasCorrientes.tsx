@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Ban, Plus, Receipt, Scale, Users } from 'lucide-react';
 import {
@@ -16,7 +16,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatDateTime, formatMoney } from '../lib/format';
+import { formatDate, formatDateTime, formatMoney, formatMoneyInput } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
 import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
@@ -500,6 +500,16 @@ function ReceiptsList({ kind }: { kind: PartyKind }) {
  * la imputación: decir a qué comprobantes se aplica la plata. Sin eso, el saldo
  * baja pero nadie sabe qué factura quedó saldada.
  */
+/**
+ * Lo escrito en un campo de importe, reescrito con separador de miles
+ * ("117187" → "117.187"). Si no se puede leer o está vacío queda como está,
+ * para que la validación lo marque en vez de borrarlo.
+ */
+function toMoneyText(text: string): string {
+  const cents = parseMoneyInput(text);
+  return Number.isFinite(cents) && cents >= 0 ? formatMoneyInput(cents) : text;
+}
+
 function ReceiptModal({
   partyKind,
   fixedParty,
@@ -558,13 +568,28 @@ function ReceiptModal({
     return s + (Number.isFinite(n) ? n : 0);
   }, 0);
 
-  const problem = useMemo(() => {
-    if (!party) return 'Elegí a quién.';
-    if (!accountId) return 'Elegí la cuenta donde entra o sale la plata.';
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) return 'Escribí el importe.';
-    if (allocated > amountMinor) return 'Estás imputando más de lo que cobrás: bajá alguna de las filas.';
-    return null;
-  }, [party, accountId, amountMinor, allocated]);
+  const overAllocated = Number.isFinite(amountMinor) && allocated > amountMinor;
+  const problem = !party
+    ? `Elegí ${partyKind === 'customer' ? 'el cliente' : 'el proveedor'}.`
+    : !accountId
+      ? 'Elegí la cuenta donde entra o sale la plata.'
+      : !Number.isFinite(amountMinor) || amountMinor <= 0
+        ? 'Escribí el importe.'
+        : overAllocated
+          ? 'Estás imputando más de lo que cobrás: bajá alguna de las filas.'
+          : null;
+  // El modal abría con "Elegí a quién." en rojo antes de tocar nada: un
+  // error por no haber hecho todavía lo que se está por hacer. Los faltantes
+  // se muestran recién al intentar registrar; imputar de más, en cambio, se
+  // avisa enseguida, porque es un error de lo que ya se escribió.
+  const [tried, setTried] = useState(false);
+  const shownProblem = tried || overAllocated ? problem : null;
+  const noAccounts = !!accounts && activeAccounts.length === 0;
+
+  const submit = () => {
+    setTried(true);
+    if (!problem) save.mutate();
+  };
 
   const save = useMutation({
     mutationFn: () =>
@@ -652,23 +677,40 @@ function ReceiptModal({
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label={partyKind === 'customer' ? 'Entra en' : 'Sale de'}>
-            <Select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              options={activeAccounts.map((a) => ({
-                value: a.id,
-                label: `${a.name} · ${formatMoney(a.balanceMinor, a.currency)}`,
-              }))}
-              placeholder={activeAccounts.length === 0 ? 'Creá una cuenta en Tesorería' : undefined}
-            />
-          </FormField>
+          <div>
+            <FormField label={partyKind === 'customer' ? 'Entra en' : 'Sale de'}>
+              <Select
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                options={activeAccounts.map((a) => ({
+                  value: a.id,
+                  label: `${a.name} · ${formatMoney(a.balanceMinor, a.currency)}`,
+                }))}
+                placeholder={noAccounts ? 'No hay cuentas activas' : undefined}
+                disabled={noAccounts}
+              />
+            </FormField>
+            {/* Sin cuentas no hay dónde asentar la plata, y el select vacío no
+                decía por qué ni dónde se arregla. */}
+            {noAccounts && (
+              <p className="mt-1.5 text-xs text-fg-muted">
+                La plata tiene que entrar en una caja o banco.{' '}
+                <Link to="/tesoreria" className="font-medium text-primary hover:underline">
+                  Crear cuenta
+                </Link>{' '}
+                en Tesorería.
+              </p>
+            )}
+          </div>
           <FormField label="Importe">
             <Input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              // Al salir del campo queda con separador de miles ("117.187"):
+              // "117187" se leía mal y era fácil cargar un cero de más.
+              onBlur={() => setAmount((v) => toMoneyText(v))}
               inputMode="decimal"
-              placeholder="0"
+              placeholder="Ej.: 15.000"
             />
           </FormField>
         </div>
@@ -688,7 +730,7 @@ function ReceiptModal({
                   for (const row of pending!.items) {
                     if (left <= 0) break;
                     const take = Math.min(left, row.pendingMinor);
-                    next[row.id] = (take / 100).toFixed(2);
+                    next[row.id] = formatMoneyInput(take);
                     left -= take;
                   }
                   setAllocations(next);
@@ -715,6 +757,11 @@ function ReceiptModal({
                     placeholder="0"
                     value={allocations[row.id] ?? ''}
                     onChange={(e) => setAllocations((cur) => ({ ...cur, [row.id]: e.target.value }))}
+                    onBlur={() =>
+                      setAllocations((cur) =>
+                        cur[row.id] ? { ...cur, [row.id]: toMoneyText(cur[row.id]!) } : cur,
+                      )
+                    }
                   />
                 </div>
               ))}
@@ -735,14 +782,18 @@ function ReceiptModal({
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </FormField>
 
-        {problem && <p className="text-sm text-danger">{problem}</p>}
+        {shownProblem && (
+          <p role="alert" className="text-sm text-danger">
+            {shownProblem}
+          </p>
+        )}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>
           Cancelar
         </Button>
-        <Button onClick={() => save.mutate()} disabled={!!problem || save.isPending} loading={save.isPending}>
+        <Button onClick={submit} disabled={save.isPending} loading={save.isPending}>
           <Receipt className="h-4 w-4" /> Registrar
         </Button>
       </div>

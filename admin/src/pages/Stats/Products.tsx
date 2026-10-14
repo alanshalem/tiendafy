@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  KpiCard,
-  StatsPageHeader,
-  StatsToolbar,
-  rangeLabel,
-  rangeQuery,
-} from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard } from '../../components/charts';
 import { RankBars } from '../../components/charts/viz';
@@ -45,9 +39,12 @@ export function StatsProductsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar value={range} onChange={setRange} />
-      <StatsPageHeader title="Productos" />
-      <p className="-mt-3 text-sm text-fg-muted">Qué se vendió y qué no — {rangeLabel(range)}.</p>
+      <StatsPageHeader
+        title="Productos"
+        description={`Qué se vendió y qué no — ${rangeLabel(range)}.`}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {isLoading ? (
         <ScreenSkeleton label="Cargando estadísticas…" />

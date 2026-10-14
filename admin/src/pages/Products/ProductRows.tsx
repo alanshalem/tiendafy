@@ -1,24 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Badge, Checkbox, Dropdown, useConfirm, useToast } from '@tiendafy/ui';
+import { Badge, Button, Checkbox, Dropdown, Modal, useConfirm, useToast } from '@tiendafy/ui';
 import { MoreVertical } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
+import { formatMoney } from '../../lib/format';
 import { toFormPrice, toDomainPrice } from '../../lib/price';
+import { CARD_MENU_TRIGGER, ListCard } from '../../components/ListCards';
 import { statusLabel, statusVariant, type StockItem } from './types';
 import type { ProductDto, VariantDto } from './index';
 
-export function ProductRows({
-  product,
-  stockMap,
-  storeId,
-  readOnly = false,
-  selected,
-  onToggleSelect,
-  onStatus,
-  onDelete,
-  onDuplicate,
-}: {
+interface RowProps {
   product: ProductDto;
   stockMap: Map<string, StockItem>;
   storeId: string;
@@ -29,13 +21,17 @@ export function ProductRows({
   onStatus: (publish: boolean) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-}) {
+}
+
+/** "Talle M / Rojo", o el nombre solo si es una variante única. */
+const variantName = (product: ProductDto, variant: VariantDto) =>
+  `${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`;
+
+/** Guardar el precio (y el promocional) de una variante: lo usan la fila y la hoja del teléfono. */
+function useSavePrice(product: ProductDto, storeId: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const confirm = useConfirm();
-
-  const savePrice = useMutation({
+  return useMutation({
     mutationFn: ({
       variant,
       regular,
@@ -58,6 +54,90 @@ export function ProductRows({
     },
     onError: (err) => toast(errMsg(err, 'Error'), { variant: 'error' }),
   });
+}
+
+/** El menú ⋮ de un producto: editar, duplicar, publicar/archivar, eliminar. */
+function ProductActions({
+  product,
+  onStatus,
+  onDelete,
+  onDuplicate,
+  onEditPrices,
+  compact = false,
+}: Pick<RowProps, 'product' | 'onStatus' | 'onDelete' | 'onDuplicate'> & {
+  onEditPrices?: () => void;
+  /** Solo el ícono, para la tarjeta del teléfono. */
+  compact?: boolean;
+}) {
+  const navigate = useNavigate();
+  const confirm = useConfirm();
+  return (
+    <Dropdown>
+      <Dropdown.Trigger
+        label={`Acciones de ${product.name}`}
+        bare={compact}
+        className={compact ? CARD_MENU_TRIGGER : undefined}
+      >
+        <MoreVertical className="h-4 w-4" />
+      </Dropdown.Trigger>
+      <Dropdown.Menu align="end">
+        <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>Editar</Dropdown.Item>
+        {onEditPrices && <Dropdown.Item onSelect={onEditPrices}>Cambiar precio</Dropdown.Item>}
+        <Dropdown.Item onSelect={onDuplicate}>Duplicar</Dropdown.Item>
+        {product.status === 'ACTIVE' ? (
+          <Dropdown.Item onSelect={() => onStatus(false)}>Archivar</Dropdown.Item>
+        ) : (
+          <Dropdown.Item onSelect={() => onStatus(true)}>Publicar</Dropdown.Item>
+        )}
+        <Dropdown.Item
+          destructive
+          onSelect={async () => {
+            if (
+              await confirm({
+                title: 'Eliminar producto',
+                message: `¿Eliminar "${product.name}"? No se puede deshacer.`,
+                confirmLabel: 'Eliminar',
+                variant: 'danger',
+              })
+            )
+              onDelete();
+          }}
+        >
+          Eliminar
+        </Dropdown.Item>
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+}
+
+function ProductThumb({ product, size = 'h-12 w-12' }: { product: ProductDto; size?: string }) {
+  return product.images[0] ? (
+    <img
+      src={product.images[0].url}
+      alt=""
+      className={`${size} shrink-0 rounded-md border border-border object-cover`}
+    />
+  ) : (
+    <div
+      className={`flex ${size} shrink-0 items-center justify-center rounded-md border border-border bg-bg-muted text-base font-bold text-fg-subtle`}
+    >
+      {product.name.charAt(0)}
+    </div>
+  );
+}
+
+export function ProductRows({
+  product,
+  stockMap,
+  storeId,
+  readOnly = false,
+  selected,
+  onToggleSelect,
+  onStatus,
+  onDelete,
+  onDuplicate,
+}: RowProps) {
+  const savePrice = useSavePrice(product, storeId);
 
   return (
     <>
@@ -82,17 +162,7 @@ export function ProductRows({
                 </td>
                 <td className="px-3 py-3 align-top" rowSpan={product.variants.length}>
                   <div className="flex items-start gap-3">
-                    {product.images[0] ? (
-                      <img
-                        src={product.images[0].url}
-                        alt=""
-                        className="h-12 w-12 shrink-0 rounded-md border border-border object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-bg-muted text-base font-bold text-fg-subtle">
-                        {product.name.charAt(0)}
-                      </div>
-                    )}
+                    <ProductThumb product={product} />
                     <div className="min-w-0">
                       {readOnly ? (
                         <span className="font-medium text-fg">{product.name}</span>
@@ -124,7 +194,7 @@ export function ProductRows({
             </td>
             <td className="px-3 py-2">
               <PriceInput
-                label={`Precio de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
+                label={`Precio de ${variantName(product, variant)}`}
                 value={form.regular}
                 readOnly={readOnly}
                 onSave={(amount) => savePrice.mutate({ variant, regular: amount, promo: form.promo })}
@@ -132,7 +202,7 @@ export function ProductRows({
             </td>
             <td className="px-3 py-2">
               <PriceInput
-                label={`Precio promocional de ${product.name}${variant.optionValues.length ? ` (${variant.optionValues.join(' / ')})` : ''}`}
+                label={`Precio promocional de ${variantName(product, variant)}`}
                 value={form.promo}
                 placeholder="—"
                 readOnly={readOnly}
@@ -145,38 +215,12 @@ export function ProductRows({
             {vi === 0 ? (
               <td className="px-3 py-3 text-right align-top" rowSpan={product.variants.length}>
                 {!readOnly && (
-                  <Dropdown>
-                    <Dropdown.Trigger label={`Acciones de ${product.name}`}>
-                      <MoreVertical className="h-4 w-4" />
-                    </Dropdown.Trigger>
-                    <Dropdown.Menu align="end">
-                      <Dropdown.Item onSelect={() => navigate(`/productos/${product.id}/editar`)}>
-                        Editar
-                      </Dropdown.Item>
-                      <Dropdown.Item onSelect={onDuplicate}>Duplicar</Dropdown.Item>
-                      {product.status === 'ACTIVE' ? (
-                        <Dropdown.Item onSelect={() => onStatus(false)}>Archivar</Dropdown.Item>
-                      ) : (
-                        <Dropdown.Item onSelect={() => onStatus(true)}>Publicar</Dropdown.Item>
-                      )}
-                      <Dropdown.Item
-                        destructive
-                        onSelect={async () => {
-                          if (
-                            await confirm({
-                              title: 'Eliminar producto',
-                              message: `¿Eliminar "${product.name}"? No se puede deshacer.`,
-                              confirmLabel: 'Eliminar',
-                              variant: 'danger',
-                            })
-                          )
-                            onDelete();
-                        }}
-                      >
-                        Eliminar
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
+                  <ProductActions
+                    product={product}
+                    onStatus={onStatus}
+                    onDelete={onDelete}
+                    onDuplicate={onDuplicate}
+                  />
                 )}
               </td>
             ) : null}
@@ -187,12 +231,177 @@ export function ProductRows({
   );
 }
 
+/**
+ * Un producto como tarjeta, para el teléfono. En 390 px el campo de precio de
+ * la tabla cortaba "$ 117.187" en "$ 11": acá el precio se lee entero (el
+ * rango si las variantes cuestan distinto) y se cambia en una hoja aparte,
+ * con un campo por variante del ancho de la pantalla.
+ */
+export function ProductCard({
+  product,
+  stockMap,
+  storeId,
+  readOnly = false,
+  selected,
+  onToggleSelect,
+  onStatus,
+  onDelete,
+  onDuplicate,
+}: RowProps) {
+  const navigate = useNavigate();
+  const [pricesOpen, setPricesOpen] = useState(false);
+  const prices = product.variants.map((v) => v.price.amount);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const currency = product.variants[0]?.price.currency;
+  const onSale = product.variants.some((v) => v.compareAtPrice != null);
+  const stock = product.variants.reduce<number | null>((sum, v) => {
+    const item = stockMap.get(v.id);
+    return item ? (sum ?? 0) + item.available : sum;
+  }, null);
+
+  return (
+    <>
+      <ListCard
+        leading={
+          <div className="flex items-start gap-3">
+            {!readOnly && (
+              <Checkbox
+                checked={selected}
+                onChange={onToggleSelect}
+                aria-label={`Seleccionar ${product.name}`}
+              />
+            )}
+            <ProductThumb product={product} />
+          </div>
+        }
+        title={product.name}
+        subtitle={
+          product.variants.length > 1
+            ? `${product.variants.length} variantes`
+            : product.variants[0]?.optionValues.join(' / ') || undefined
+        }
+        value={
+          product.variants.length === 0
+            ? '—'
+            : min === max
+              ? formatMoney(min, currency)
+              : `${formatMoney(min, currency)} – ${formatMoney(max, currency)}`
+        }
+        badges={
+          <>
+            <Badge variant={statusVariant[product.status]}>{statusLabel[product.status]}</Badge>
+            {onSale && <Badge variant="primary">En oferta</Badge>}
+          </>
+        }
+        meta={
+          stock == null ? undefined : (
+            <span className={stock === 0 ? 'text-danger' : undefined}>
+              {stock === 0 ? 'Sin stock' : `Stock ${stock}`}
+            </span>
+          )
+        }
+        onOpen={readOnly ? undefined : () => navigate(`/productos/${product.id}/editar`)}
+        actions={
+          readOnly ? undefined : (
+            <ProductActions
+              product={product}
+              onStatus={onStatus}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onEditPrices={() => setPricesOpen(true)}
+              compact
+            />
+          )
+        }
+      />
+      {!readOnly && (
+        <PriceSheet
+          key={pricesOpen ? 'abierta' : 'cerrada'}
+          open={pricesOpen}
+          onClose={() => setPricesOpen(false)}
+          product={product}
+          storeId={storeId}
+        />
+      )}
+    </>
+  );
+}
+
+/** La hoja para cambiar precios desde el teléfono: un par de campos por variante. */
+function PriceSheet({
+  open,
+  onClose,
+  product,
+  storeId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  product: ProductDto;
+  storeId: string;
+}) {
+  const savePrice = useSavePrice(product, storeId);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Precio de ${product.name}`}
+      footer={
+        <Button variant="secondary" onClick={onClose}>
+          Listo
+        </Button>
+      }
+    >
+      <p className="mb-3 text-sm text-fg-muted">
+        Cada precio se guarda al salir del campo. El promocional es opcional: si lo cargás, el precio de lista
+        se muestra tachado.
+      </p>
+      <div className="space-y-4">
+        {product.variants.map((variant) => {
+          const form = toFormPrice(variant.price.amount, variant.compareAtPrice?.amount ?? null);
+          return (
+            <div key={variant.id}>
+              {product.variants.length > 1 && (
+                <div className="mb-1.5 text-sm font-medium text-fg">
+                  {variant.optionValues.join(' / ') || 'Única'}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-xs text-fg-muted">
+                  Precio
+                  <PriceInput
+                    label={`Precio de ${variantName(product, variant)}`}
+                    value={form.regular}
+                    tall
+                    onSave={(amount) => savePrice.mutate({ variant, regular: amount, promo: form.promo })}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-fg-muted">
+                  Promocional
+                  <PriceInput
+                    label={`Precio promocional de ${variantName(product, variant)}`}
+                    value={form.promo}
+                    placeholder="Sin oferta"
+                    tall
+                    onSave={(amount) => savePrice.mutate({ variant, regular: form.regular, promo: amount })}
+                  />
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
 /** Input de precio inline: muestra en pesos, guarda en centavos al blur si cambió. */
 function PriceInput({
   label,
   value,
   placeholder,
   readOnly = false,
+  tall = false,
   onSave,
 }: {
   /** Nombre accesible: en la fila no hay un <label> visible, el encabezado de la columna lo da a entender. */
@@ -200,6 +409,8 @@ function PriceInput({
   value: number | null;
   placeholder?: string;
   readOnly?: boolean;
+  /** Más alto, para el dedo (la hoja del teléfono). */
+  tall?: boolean;
   onSave: (amountCents: number) => void;
 }) {
   const initial = value != null ? (value / 100).toString() : '';
@@ -227,7 +438,7 @@ function PriceInput({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={readOnly ? undefined : commit}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        className="h-8 w-full bg-transparent px-1.5 text-sm tabular-nums focus:outline-none"
+        className={`${tall ? 'h-11 text-base' : 'h-8 text-sm'} w-full min-w-0 bg-transparent px-1.5 tabular-nums text-fg focus:outline-none`}
         inputMode="decimal"
       />
     </div>

@@ -25,12 +25,19 @@ export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): stri
   return new Date(iso).toLocaleDateString('es-AR', opts);
 }
 
-/** Fecha + hora corta (es-AR): "05 jul, 14:30". */
+/**
+ * Fecha + hora (es-AR): "19/8/2026, 16:37". Misma forma de fecha que
+ * `formatDate`, para que una pantalla no muestre "12 ago, 04:37 p. m." al lado
+ * de "19/8/2026". La hora va en 24 h a la fuerza: según el navegador, es-AR
+ * caía en 12 h con "p. m.", que en un comercio nadie lee así.
+ */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit',
-    month: 'short',
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   });
 }

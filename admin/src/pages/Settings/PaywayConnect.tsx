@@ -163,12 +163,15 @@ export function PaywayConnect() {
               <strong>privada</strong> es la que cobra: se guarda cifrada y no se muestra nunca más, ni acá.
             </Helper>
 
+            {/* Los placeholders dicen qué pegar. Antes eran claves de ejemplo
+                con forma real y la pantalla parecía tener credenciales ya
+                guardadas: alguien podía dar Payway por configurado. */}
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Número de comercio (site ID)">
                 <Input
                   value={siteId}
                   onChange={(e) => setSiteId(e.target.value)}
-                  placeholder="00020220"
+                  placeholder="Ej.: 00012345"
                   disabled={readOnly}
                 />
               </FormField>
@@ -190,7 +193,7 @@ export function PaywayConnect() {
               <Input
                 value={publicKey}
                 onChange={(e) => setPublicKey(e.target.value)}
-                placeholder="e9cdb99fff374b5f91da4480c8dca741"
+                placeholder="Pegá tu clave pública"
                 disabled={readOnly}
               />
             </FormField>
@@ -207,7 +210,7 @@ export function PaywayConnect() {
                 type="password"
                 value={privateKey}
                 onChange={(e) => setPrivateKey(e.target.value)}
-                placeholder={conn?.hasPrivateKey ? '••••••••••••••••' : '92b71cf711ca41f78362a7134f87ff65'}
+                placeholder={conn?.hasPrivateKey ? 'Guardada (no se muestra)' : 'Pegá tu clave privada'}
                 autoComplete="new-password"
                 disabled={readOnly}
               />
@@ -220,7 +223,7 @@ export function PaywayConnect() {
               <Input
                 value={establishmentName}
                 onChange={(e) => setEstablishmentName(e.target.value)}
-                placeholder="MI TIENDA"
+                placeholder="Ej.: MI TIENDA"
                 maxLength={60}
                 disabled={readOnly}
               />
@@ -262,7 +265,7 @@ export function PaywayConnect() {
               <Input
                 value={baseUrlOverride}
                 onChange={(e) => setBaseUrlOverride(e.target.value)}
-                placeholder={conn?.baseUrl ?? 'https://…'}
+                placeholder={conn?.baseUrl ? `Por defecto: ${conn.baseUrl}` : 'https://…'}
                 disabled={readOnly}
               />
             </FormField>

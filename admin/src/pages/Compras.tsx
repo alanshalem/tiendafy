@@ -16,7 +16,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { formatAmount, formatDate, formatMoney, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../lib/styles';
@@ -182,7 +182,7 @@ function ComprasList({
             {
               label: 'Recibidas sin factura',
               value: formatNumber(summary.withoutInvoice),
-              hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA.',
+              hint: 'Compras ya recibidas a las que les falta cargar la factura del proveedor: no entran al libro de IVA compras.',
               tone: summary.withoutInvoice > 0 ? 'warning' : 'default',
               onClick: () => toggleGroup('invoiceMissing'),
               active: group === 'invoiceMissing',
@@ -229,7 +229,7 @@ function ComprasList({
           <StatusLegend
             flow
             items={[
-              { dot: 'bg-gray-400', text: 'Borrador' },
+              { dot: 'bg-fg-subtle', text: 'Borrador' },
               { dot: 'bg-info', text: 'Confirmada' },
               { dot: 'bg-info', text: 'En producción' },
               { dot: 'bg-warning', text: 'En tránsito' },
@@ -282,7 +282,7 @@ function ComprasList({
                           </Badge>
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-fg">
-                          {po.currency} {formatNumber(po.totalFob)}
+                          {formatAmount(po.totalFob, po.currency)}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{po.units}</td>
                         <td className="px-4 py-2.5 text-fg-muted">{formatDate(po.createdAtUtc)}</td>
@@ -741,7 +741,7 @@ function PoEditor({
 
           {po && (
             <p className="text-xs text-fg-muted">
-              FOB {po.currency} {formatNumber(po.totalFob)} · Gastos{' '}
+              FOB {formatAmount(po.totalFob, po.currency)} · Gastos{' '}
               {formatMoney(Math.round(po.totalExpensesArs * 100))} · El «landed» por unidad ya prorratea los
               gastos del embarque por valor.
             </p>

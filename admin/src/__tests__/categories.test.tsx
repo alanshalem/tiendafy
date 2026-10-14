@@ -49,6 +49,14 @@ async function action(user: ReturnType<typeof userEvent.setup>, name: string, it
 }
 
 describe('categorías', () => {
+  it('"Más sobre crear y organizar categorías" es un link de verdad al manual', async () => {
+    await open();
+    const link = screen.getByRole('link', { name: /Más sobre crear y organizar categorías/ });
+    expect(link).toHaveAttribute('href', '/ayuda/productos');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
   it('sin categorías invita a crear la primera', async () => {
     const { api, user } = await open({ items: [] });
     await user.click(screen.getByRole('button', { name: 'Crear mi primera categoría' }));

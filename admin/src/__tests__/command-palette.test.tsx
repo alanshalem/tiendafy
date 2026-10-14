@@ -11,6 +11,8 @@ import { settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
 
 const product = fixture<{ items: { id: string; name: string }[] }>('/api/v1/products').items[0]!;
+const ORDER_ID = 'abcdef12-3456-4789-8abc-def012345678';
+const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 
 let crashes: () => unknown[][];
 
@@ -26,6 +28,64 @@ afterEach(() => {
 async function openPanel(noProducts = false) {
   // El mock no filtra por q: para "sin resultados" la base no devuelve nada.
   const api = mockApi();
+  // El buscador del servidor (GET /api/v1/search): un producto, una venta y
+  // un cliente; sin resultados, todos los grupos vacíos.
+  const hit = (id: string, title: string, extra: object = {}) => ({
+    id,
+    title,
+    subtitle: null,
+    imageUrl: null,
+    detail: null,
+    amountMinor: null,
+    currency: null,
+    atUtc: null,
+    ...extra,
+  });
+  api.on(
+    'GET',
+    '/api/v1/search',
+    noProducts
+      ? { orders: [], customers: [], products: [], purchaseOrders: [], suppliers: [] }
+      : {
+          orders: [
+            hit(ORDER_ID, '#ABCDEF12 · Laura Gómez', {
+              subtitle: 'PAID',
+              amountMinor: 1_500_00,
+              currency: 'ARS',
+            }),
+          ],
+          customers: [hit(CUSTOMER_ID, 'Laura Gómez', { subtitle: 'laura@test.local', detail: '2 compras' })],
+          products: [hit(product.id, product.name, { subtitle: 'SKU MAN-1' })],
+          purchaseOrders: [],
+          suppliers: null,
+        },
+  );
+  api.on('GET', `/api/v1/customers/${CUSTOMER_ID}`, {
+    customer: {
+      id: CUSTOMER_ID,
+      name: 'Laura Gómez',
+      email: 'laura@test.local',
+      phone: null,
+      address: null,
+      notes: null,
+      priceListId: null,
+      createdAtUtc: '2026-01-01T00:00:00Z',
+      tags: [],
+      ordersCount: 2,
+      totalSpentMinor: 3_000_00,
+      lastOrderAtUtc: '2026-09-01T00:00:00Z',
+    },
+    stats: {
+      ordersCount: 2,
+      totalSpentMinor: 3_000_00,
+      averageTicketMinor: 1_500_00,
+      lastOrderAtUtc: '2026-09-01T00:00:00Z',
+      firstOrderAtUtc: '2026-08-01T00:00:00Z',
+      currency: 'ARS',
+    },
+    orders: [],
+    hasMoreOrders: false,
+  });
   if (noProducts) api.on('GET', '/api/v1/products', { items: [], total: 0 });
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp('/');
@@ -39,7 +99,7 @@ const palette = () => screen.queryByRole('dialog', { name: 'Buscar en el panel' 
 async function openPalette(user: ReturnType<typeof userEvent.setup>) {
   await user.keyboard('{Control>}k{/Control}');
   const dialog = await screen.findByRole('dialog', { name: 'Buscar en el panel' });
-  const input = within(dialog).getByLabelText('Buscar pantallas o productos');
+  const input = within(dialog).getByLabelText('Buscar en el panel');
   await waitFor(() => expect(input).toHaveFocus());
   return { dialog: within(dialog), input };
 }
@@ -59,7 +119,7 @@ describe('paleta de comandos', () => {
     fireEvent.keyDown(window, { key: 'K', metaKey: true });
     expect(await screen.findByRole('dialog', { name: 'Buscar en el panel' })).toBeInTheDocument();
     // Clic adentro no cierra; en el fondo, sí.
-    await user.click(screen.getByLabelText('Buscar pantallas o productos'));
+    await user.click(within(palette()!).getByRole('searchbox'));
     expect(palette()).toBeInTheDocument();
     await user.click(palette()!);
     expect(palette()).not.toBeInTheDocument();
@@ -120,5 +180,29 @@ describe('paleta de comandos', () => {
     expect(
       await screen.findByRole('heading', { name: /Editar|producto/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
+  });
+
+  it('ventas y clientes del servidor, agrupados, llevan a su pantalla', async () => {
+    const user = await openPanel();
+    const { dialog, input } = await openPalette(user);
+    await user.type(input, 'laura');
+    const sale = await dialog.findByRole('option', { name: /#ABCDEF12/ });
+    expect(dialog.getByText('Ventas')).toBeInTheDocument();
+    expect(dialog.getByText('Clientes')).toBeInTheDocument();
+    // La venta aparece con su estado y su total.
+    expect(sale).toHaveTextContent('Pagada');
+    await user.click(dialog.getByRole('option', { name: /laura@test\.local/ }));
+    expect(palette()).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Laura Gómez' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
+
+  it('el botón del encabezado abre el buscador y muestra el atajo', async () => {
+    const user = await openPanel();
+    const button = screen.getByRole('button', { name: 'Buscar en el panel' });
+    expect(button).toHaveTextContent(/Ctrl K|⌘ K/);
+    await user.click(button);
+    expect(await screen.findByRole('dialog', { name: 'Buscar en el panel' })).toBeInTheDocument();
   });
 });

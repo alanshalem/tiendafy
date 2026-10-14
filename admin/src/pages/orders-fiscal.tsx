@@ -143,7 +143,7 @@ export function FiscalPanel({
         <div className="space-y-1 text-xs">
           {invoice ? (
             <div className="flex items-center gap-2">
-              <span className="font-medium text-green-600">
+              <span className="font-medium text-success">
                 {CBTE_LABEL[invoice.cbteTipo] ?? invoice.cbteTipo} {nro(invoice)} · CAE {invoice.cae}
                 {invoice.caeVto ? ` (vence ${invoice.caeVto})` : ''}
               </span>
@@ -155,17 +155,17 @@ export function FiscalPanel({
               </button>
             </div>
           ) : awaiting ? (
-            <div className="text-amber-600">
+            <div className="text-warning">
               Esperando confirmación de ARCA para el {CBTE_LABEL[awaiting.cbteTipo] ?? awaiting.cbteTipo}{' '}
               {nro(awaiting)}: la respuesta no llegó y el próximo intento verifica con ARCA si quedó
               autorizado, para no facturar dos veces.
             </div>
           ) : activeJob ? (
-            <div className="flex items-center gap-1.5 text-amber-600">
+            <div className="flex items-center gap-1.5 text-warning">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Facturación en proceso…
             </div>
           ) : failedJob ? (
-            <div className="text-red-600">
+            <div className="text-danger">
               Falló la facturación automática{failedJob.lastError ? `: ${failedJob.lastError}` : ''}
             </div>
           ) : (
@@ -173,7 +173,7 @@ export function FiscalPanel({
           )}
           {creditNote && (
             <div className="flex items-center gap-2">
-              <span className="font-medium text-blue-600">
+              <span className="font-medium text-info">
                 {CBTE_LABEL[creditNote.cbteTipo] ?? creditNote.cbteTipo} {nro(creditNote)} · CAE{' '}
                 {creditNote.cae}
               </span>

@@ -3,7 +3,7 @@ import { Loader2, Mail, Package } from 'lucide-react';
 import { Button, FormField, Input, Modal, Select, Switch, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { CarrierCard, useCarrierConfig } from './CarrierCard';
-import { formatNumber } from '../../lib/format';
+import { formatAmount } from '../../lib/format';
 
 interface CorreoConfig {
   configured: boolean;
@@ -367,7 +367,7 @@ function ConfigModal({
                   {r.productName} — {r.deliveredType === 'S' ? 'sucursal' : 'domicilio'}
                   {r.deliveryTimeMin && ` (${r.deliveryTimeMin}-${r.deliveryTimeMax} días)`}
                 </span>
-                <span className="font-medium tabular-nums text-fg">$ {formatNumber(r.price)}</span>
+                <span className="font-medium tabular-nums text-fg">{formatAmount(r.price, '$')}</span>
               </div>
             ))}
           </div>

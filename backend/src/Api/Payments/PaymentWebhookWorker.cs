@@ -80,5 +80,10 @@ public sealed class PaymentWebhookWorker(
                 logger.LogWarning("Contracargo registrado en orden {OrderId}.", order.Id);
                 break;
         }
+
+        // Un reembolso o un contracargo bajan lo que el cliente gastó: la agenda
+        // ordena y filtra por ese número.
+        if (result.Value.Outcome is SettleOutcome.Refunded or SettleOutcome.PartiallyRefunded or SettleOutcome.ChargedBack)
+            await sp.GetRequiredService<Api.Crm.CustomerDirectory>().RefreshStatsAsync(order.TenantId.Value, order.BuyerEmail, ct);
     }
 }

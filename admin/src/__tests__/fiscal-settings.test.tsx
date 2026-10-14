@@ -49,6 +49,37 @@ const body = (api: MockApi, method: string, path: string) =>
   api.calls.filter((c) => c.method === method && c.path === path).at(-1)?.body;
 
 describe('facturación electrónica', () => {
+  it('la barra de progreso tiene los mismos pasos, nombres y orden que las tarjetas', async () => {
+    const { api, user } = await open({ ...BASE, certificate: ACTIVE_CERT }, [POS]);
+    const cards = screen.getAllByText(/^Paso \d$/).map((badge) => {
+      const heading = badge.parentElement!.querySelector('h2')!;
+      return `${badge.textContent} ${heading.textContent}`;
+    });
+    expect(cards).toEqual([
+      'Paso 1 Datos del emisor',
+      'Paso 2 Certificado digital',
+      'Paso 3 Puntos de venta',
+      'Paso 4 Probar la conexión',
+      'Paso 5 Preferencias de emisión',
+    ]);
+    const bar = screen.getByText(/Listo para facturar: los pasos 1 a 3/).parentElement!;
+    expect(bar.textContent).toMatch(
+      /Datos del emisor.*Certificado digital.*Puntos de venta.*Probar la conexión.*Preferencias de emisión/,
+    );
+
+    // Una prueba de conexión que sale bien marca su paso en la barra.
+    api.on('POST', '/api/v1/fiscal/test-connection', {
+      ok: true,
+      environment: 'HOMOLOGACION',
+      expiresAtUtc: null,
+      caveat: 'No se emitió ninguna factura.',
+      steps: [],
+    });
+    expect(within(bar).getByText('4')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Probar\s+conexión con ARCA/ }));
+    await waitFor(() => expect(within(bar).queryByText('4')).toBeNull());
+  });
+
   it('paso 1: guarda los datos del emisor (y avisa antes de pasar a producción)', async () => {
     const { api, user } = await open();
     await user.type(screen.getByPlaceholderText('20-12345678-6'), ' 20-12345678-6 ');

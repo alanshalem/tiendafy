@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, Loader2, Sparkles, Upload } from 'lucide-react';
 import { Badge, Button, Card, FormField, Input, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatNumber } from '../lib/format';
+import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { useAiEnabled } from '../lib/useAi';
 import { CONFIDENCE_TONE } from './compras-tipos';
@@ -48,7 +48,7 @@ export function VatBookDownload() {
       />
       <Button variant="secondary" onClick={download} disabled={busy} title="Libro de IVA compras del mes">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-        Libro de IVA
+        Libro IVA compras
       </Button>
     </div>
   );
@@ -223,9 +223,9 @@ function ScanReview({
     ['Tipo', scan.invoiceType],
     ['Número', scan.invoiceNumber],
     ['Fecha', scan.invoiceDateUtc ? formatDate(scan.invoiceDateUtc) : null],
-    ['Neto', scan.netAmount != null ? formatNumber(scan.netAmount) : null],
-    ['IVA', scan.vatAmount != null ? formatNumber(scan.vatAmount) : null],
-    ['Total', scan.totalAmount != null ? formatNumber(scan.totalAmount) : null],
+    ['Neto', scan.netAmount != null ? formatAmount(scan.netAmount) : null],
+    ['IVA', scan.vatAmount != null ? formatAmount(scan.vatAmount) : null],
+    ['Total', scan.totalAmount != null ? formatAmount(scan.totalAmount) : null],
   ];
   const read = rows.filter(([, value]) => value);
 
@@ -286,7 +286,7 @@ function ScanReview({
               <li key={`${l.description}-${i}`} className="flex justify-between gap-2">
                 <span className="truncate">{l.description}</span>
                 <span className="shrink-0 tabular-nums">
-                  {l.quantity ?? '—'} × {l.unitPrice != null ? formatNumber(l.unitPrice) : '—'}
+                  {l.quantity ?? '—'} × {l.unitPrice != null ? formatAmount(l.unitPrice) : '—'}
                 </span>
               </li>
             ))}
@@ -300,7 +300,7 @@ function ScanReview({
 
       <p className="mt-2 text-xs text-fg-subtle">
         Lo leyó la IA a partir del archivo. Revisá los números antes de guardar: de acá salen el libro de IVA
-        y la deuda con el proveedor.
+        compras y la deuda con el proveedor.
       </p>
     </div>
   );

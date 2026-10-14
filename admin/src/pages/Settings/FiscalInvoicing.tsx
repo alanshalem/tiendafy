@@ -31,6 +31,8 @@ export function FiscalInvoicingPage() {
 
   const [config, setConfig] = useState<FiscalConfigDto | null>(null);
   const [points, setPoints] = useState<PointOfSale[]>([]);
+  // Si la prueba de conexión salió bien en esta visita (el backend no la guarda).
+  const [tested, setTested] = useState(false);
   const { loading: fetching, reload: load } = useServerLoad(
     store && canConfig ? store.id : null,
     () =>
@@ -64,11 +66,11 @@ export function FiscalInvoicingPage() {
       ) : (
         <div className="space-y-5">
           <IntroBanner />
-          <ProgressChecklist config={config} points={points} />
+          <ProgressChecklist config={config} points={points} tested={tested} />
           <IssuerStep config={config} onSaved={load} />
           <CertificateStep config={config} onChanged={load} />
           <PointsOfSaleStep points={points} configured={!!config?.configured} onChanged={load} />
-          <ConnectionTestStep config={config} points={points} />
+          <ConnectionTestStep config={config} points={points} onTested={setTested} />
           <EmissionStep config={config} points={points} onSaved={load} />
         </div>
       )}
@@ -134,7 +136,7 @@ function ExportLibroIva() {
         title="CSV con los comprobantes aprobados del mes: fecha, tipo, número, neto, IVA, total y CAE."
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        Libro IVA
+        Libro IVA ventas
       </button>
     </div>
   );

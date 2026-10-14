@@ -2,7 +2,8 @@
  * Edición de un producto con sus datos reales (el sembrado: con categoría,
  * ficha técnica y fotos). Guardar manda solo lo que cambió de precios y
  * categorías, el stock de cada variante y la ficha entera; las fotos se
- * agregan, quitan y reordenan al instante; publicar/archivar y eliminar.
+ * agregan y reordenan al instante, y las quitadas se borran al guardar;
+ * publicar/archivar y eliminar.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -228,7 +229,7 @@ describe('editar producto', () => {
     expect(sent(api, 'PATCH', `/variants/${variant.id}/price`)).toEqual([]);
   });
 
-  it('fotos: agregar, quitar y reordenar al instante', async () => {
+  it('fotos: agregar y reordenar al instante (arrastrando o con las flechas)', async () => {
     const api = mockApi();
     api.on('POST', '/api/v1/media', { url: 'https://cdn.example.com/nueva.jpg' });
     const images = [
@@ -260,11 +261,79 @@ describe('editar producto', () => {
     fireEvent.dragStart(tiles[0]!);
     fireEvent.drop(tiles[0]!);
 
+    // Con las flechas, de a un lugar; en las puntas no hay a dónde ir.
+    const lefts = screen.getAllByRole('button', { name: 'Mover a la izquierda' });
+    const rights = screen.getAllByRole('button', { name: 'Mover a la derecha' });
+    expect(lefts[0]).toBeDisabled();
+    expect(rights[1]).toBeDisabled();
+    await user.click(rights[0]!);
+    await settle(2);
+    expect(sent(api, 'PUT', `/products/${product.id}/images/reorder`)[1]).toEqual({
+      imageIds: ['img-1', 'img-2'],
+    });
+  });
+
+  it('quitar una foto espera a "Guardar cambios" y se puede restaurar', async () => {
+    const api = mockApi();
+    const images = [
+      { id: 'img-1', url: 'https://cdn.example.com/1.jpg', altText: null, sortOrder: 0 },
+      { id: 'img-2', url: 'https://cdn.example.com/2.jpg', altText: null, sortOrder: 1 },
+    ];
+    const user = await open(api, { images } as Partial<Product>);
+    const deletes = () =>
+      api.calls.filter((c) => c.method === 'DELETE' && c.path.includes(`/products/${product.id}/images/`));
+    expect(screen.getAllByText('Portada')).toHaveLength(1);
+
+    // Quitar la primera: no se borra todavía, queda marcada y la portada pasa a la segunda.
     await user.click(screen.getAllByRole('button', { name: 'Quitar imagen' })[0]!);
     await settle(2);
-    expect(
-      api.calls.some((c) => c.method === 'DELETE' && c.path.includes(`/products/${product.id}/images/`)),
-    ).toBe(true);
+    expect(deletes()).toHaveLength(0);
+    expect(screen.getByText('Se quita al guardar')).toBeInTheDocument();
+    expect(screen.getAllByText('Portada')).toHaveLength(1);
+
+    // Restaurar la devuelve; volver a quitarla y guardar la borra.
+    await user.click(screen.getByRole('button', { name: /Restaurar/ }));
+    expect(screen.queryByText('Se quita al guardar')).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Quitar imagen' })[0]!);
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await settle(4);
+    expect(deletes().map((c) => c.path)).toEqual([`/api/v1/products/${product.id}/images/img-1`]);
+  });
+
+  it('categorías: con el nombre de la padre, no el slug, y un buscador sin tildes', async () => {
+    const api = mockApi();
+    const cat = (id: string, name: string, path: string, parentId: string | null = null) => ({
+      id,
+      name,
+      slug: path.split('/').pop(),
+      parentId,
+      path,
+      depth: path.split('/').length,
+    });
+    api.on('GET', '/api/v1/categories', {
+      items: [
+        cat('c-pesas', 'Pesas', 'pesas'),
+        cat('c-discos', 'Discos', 'pesas/bumpers-plates-discos', 'c-pesas'),
+        // Sin parentId: el ancestro sale del path.
+        cat('c-barras', 'Barras olímpicas', 'pesas/barras', null),
+        ...Array.from({ length: 8 }, (_, i) => cat(`c-${i}`, `Accesorio ${i}`, `acc-${i}`)),
+      ],
+    });
+    const user = await open(api, { categoryIds: ['c-pesas'] });
+    expect(screen.getByRole('button', { name: /Pesas › Discos/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Pesas › Barras olímpicas/ })).toBeInTheDocument();
+    expect(screen.queryByText(/bumpers-plates-discos/)).not.toBeInTheDocument();
+
+    // "olimpicas" sin tilde encuentra "olímpicas"; la elegida sigue a la vista.
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar categoría' }), 'olimpicas');
+    const chips = Array.from(
+      screen.getByRole('searchbox').closest('section')!.querySelectorAll('button[aria-pressed]'),
+    ).map((b) => b.textContent);
+    expect(chips).toEqual(['Pesas', 'Pesas › Barras olímpicas']);
+
+    await user.click(screen.getByRole('button', { name: /Barras olímpicas/ }));
+    expect(screen.getByRole('button', { name: /Barras olímpicas/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('publicar/archivar y eliminar con confirmación', async () => {

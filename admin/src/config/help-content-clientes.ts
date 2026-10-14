@@ -15,8 +15,10 @@ export const CLIENTES = {
       {
         heading: 'El panel de Clientes',
         paragraphs: [
-          'En Clientes ves y buscás tu agenda: nombre, email, teléfono y dirección. Cada venta pagada crea o actualiza sola la ficha del comprador, así la agenda se arma vendiendo.',
-          'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo). En la ficha también van notas y la lista de precios que le corresponde.',
+          'En Clientes ves y buscás tu agenda por nombre, email o teléfono. Cada venta pagada crea o actualiza sola la ficha del comprador, así la agenda se arma vendiendo.',
+          'Al lado de cada cliente están sus compras, el total que gastó (descontando reembolsos) y la fecha de su última compra. Tocá el encabezado de esas columnas para ordenar: por ejemplo, los que más gastaron primero.',
+          'El selector de segmento filtra lo que más se pregunta: los que compraron hace más de 90 o 180 días (a quién volver a escribirle), los que compraron 2 o 3 veces o más (tus fieles) y los que todavía no compraron. Si usás etiquetas, también podés filtrar por etiqueta. “Exportar” baja exactamente lo filtrado.',
+          'Con “Agregar cliente” cargás a alguien a mano (un mayorista que nunca compró online, por ejemplo).',
         ],
         blocks: [
           { type: 'path', segments: ['Clientes'] },
@@ -24,7 +26,23 @@ export const CLIENTES = {
             type: 'callout',
             tone: 'tip',
             title: '¿Tenías ventas de antes?',
-            text: '“Traer de mis ventas” recorre tus ventas anteriores y crea la ficha de cada comprador que todavía no estaba en la agenda.',
+            text: '“Traer de mis ventas” recorre tus ventas anteriores, crea la ficha de cada comprador que todavía no estaba en la agenda y recalcula lo que compró cada uno.',
+          },
+        ],
+      },
+      {
+        heading: 'La ficha del cliente',
+        paragraphs: [
+          'Tocá el nombre de un cliente para abrir su ficha. Arriba tenés los botones para escribirle por WhatsApp (con el número ya armado con el 54 9), por email o llamarlo, y el resumen: total gastado, cantidad de compras, ticket promedio y última compra.',
+          'Debajo está su historia de compras, de la más nueva a la más vieja, con el estado de cada venta; el número te lleva a esa venta en Ventas. Las ventas se vinculan por el email: si un cliente no tiene email cargado, cargáselo para ver lo que compró.',
+          'También tenés sus notas internas y etiquetas (“mayorista”, “VIP”, “gimnasio”), que se editan ahí mismo, y —si tenés acceso a Finanzas— el saldo de su cuenta corriente con los últimos movimientos.',
+        ],
+        blocks: [
+          { type: 'path', segments: ['Clientes', 'nombre del cliente'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'El historial de ventas lo ve quien tiene el permiso “Ver las ventas”. El resto del equipo ve el resumen y los datos de contacto.',
           },
         ],
       },

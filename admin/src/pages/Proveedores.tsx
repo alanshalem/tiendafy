@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, Loader2, PackagePlus, Plus, Truck } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -127,6 +127,27 @@ function SupplierList({
 
   const rows = data?.items ?? [];
   const debt = rows.filter((r) => r.balanceMinor < 0).reduce((s, r) => s + r.balanceMinor, 0);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Las compras cargadas con el proveedor escrito a mano (antes de que
+  // existieran las fichas) quedaban sueltas: Proveedores vacío al lado de un
+  // listado de compras lleno de nombres. Esto las ata a su ficha (o le crea
+  // una); de acá en más cada compra nueva ya queda atada sola.
+  const importFromPurchases = useMutation({
+    mutationFn: () =>
+      api.post<{ created: number; linked: number }>('/api/v1/suppliers/sync-from-purchases', {}),
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers', store?.id] });
+      toast(
+        r.linked > 0
+          ? `Se ataron ${r.linked} ${r.linked === 1 ? 'compra' : 'compras'} a sus proveedores${r.created > 0 ? ` (${r.created} ${r.created === 1 ? 'ficha nueva' : 'fichas nuevas'})` : ''}.`
+          : 'Tus compras ya estaban todas atadas a un proveedor.',
+        { variant: 'success' },
+      );
+    },
+    onError: (e) => toast(errMsg(e, 'No se pudieron traer los proveedores.'), { variant: 'error' }),
+  });
 
   return (
     <>
@@ -138,9 +159,26 @@ function SupplierList({
             compra podés elegir el proveedor de esta lista en vez de volver a escribir el nombre.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Nuevo proveedor
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => importFromPurchases.mutate()}
+            disabled={importFromPurchases.isPending}
+            title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {importFromPurchases.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PackagePlus className="h-4 w-4" />
+              )}
+              Traer de mis compras
+            </span>
+          </Button>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Nuevo proveedor
+          </Button>
+        </div>
       </div>
 
       {rows.length > 0 && (

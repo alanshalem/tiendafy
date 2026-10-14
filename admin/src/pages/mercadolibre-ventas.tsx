@@ -81,7 +81,7 @@ const LEGEND = [
   { dot: 'bg-success', text: 'Pagada: la plata ya está' },
   { dot: 'bg-warning', text: 'Amarillo: esperando el pago' },
   { dot: 'bg-danger', text: 'Cancelada' },
-  { dot: 'bg-gray-400', text: '✓ Stock aplicado: ya descontó stock local' },
+  { dot: 'bg-fg-subtle', text: '✓ Stock aplicado: ya descontó stock local' },
 ];
 
 /** Los mismos valores que entiende la API (MeliOrderFilters). */

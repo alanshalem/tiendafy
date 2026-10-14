@@ -1,17 +1,37 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, CornerDownLeft, Package } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
-import { useProductSearch } from '../lib/useProductSearch';
+import { useQuery } from '@tanstack/react-query';
+import { Building2, Package, Receipt, ShoppingCart, UserRound } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { visibleMainNav, visibleSettingsNav } from '../config/navigation';
 import { routePerm, satisfies, type Perm } from '../lib/access';
+import { api } from '../lib/api';
+import { formatMoney } from '../lib/format';
+import { ORDER_STATUS } from '../lib/orderStatus';
 import { foldText } from '../lib/text';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { SearchPalette, type PaletteItem } from './SearchPalette';
 
 /* ============================================================
-   Command palette (Ctrl/Cmd+K): saltar a cualquier pantalla del
-   admin o a un producto tipeando. Navegación + búsqueda, sin mouse.
+   Buscador del panel (Ctrl/Cmd+K o el botón del encabezado):
+   saltar a una pantalla, una venta, un cliente, un producto (por
+   nombre o SKU), una compra o un proveedor tipeando.
    ============================================================ */
+
+/** El evento con el que el botón del encabezado abre la paleta (vive montada en App). */
+const OPEN_EVENT = 'tiendafy:abrir-buscador';
+
+/** Abre el buscador desde cualquier lado (el botón del encabezado). */
+export function openCommandPalette() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+/** "Ctrl K" o "⌘ K", según la compu: lo que se muestra al lado del botón. */
+export function paletteShortcut(): string {
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '');
+  return mac ? '⌘ K' : 'Ctrl K';
+}
 
 interface NavCommand {
   label: string;
@@ -31,7 +51,10 @@ const KEYWORDS: Record<string, string> = {
   '/mensajes': 'arrepentimiento consultas',
   '/posventa': 'chat soporte',
   '/resenas': 'opiniones estrellas comentarios valoraciones reviews',
-  '/productos/esperando': 'sin stock agotado reposicion demanda avisame',
+  '/bandeja': 'inbox mensajes preguntas reclamos pendientes',
+  '/ventas/despacho': 'enviar preparar etiquetas envios pendientes',
+  '/productos/stock-bajo': 'reponer faltantes agotados alerta',
+  '/productos/esperando': 'sin stock agotado reposicion demanda avisame interesados lista de espera',
   '/paginas': 'cms institucionales',
   '/canales/tienda-online': 'tema tienda online personalizar editor diseño',
   '/estadisticas': 'reportes analytics',
@@ -78,19 +101,6 @@ function navCommands(can: (perm: Perm) => boolean): NavCommand[] {
     .map((c) => ({ ...c, keywords: KEYWORDS[c.to] ?? c.keywords }));
 }
 
-interface ProductHit {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
-/** Lo que devuelve /products: alcanza con el nombre y la primera foto. */
-interface ProductDto {
-  id: string;
-  name: string;
-  images: { url: string }[];
-}
-
 /** Match laxo: todas las palabras de la query aparecen en el texto (sin acentos). */
 function matches(query: string, text: string): boolean {
   const words = foldText(query).split(/\s+/).filter(Boolean);
@@ -98,12 +108,43 @@ function matches(query: string, text: string): boolean {
   return words.every((w) => hay.includes(w));
 }
 
-type Item = { kind: 'nav'; cmd: NavCommand } | { kind: 'product'; product: ProductHit };
+/** Un resultado de GET /api/v1/search (ver SearchEndpoints en el backend). */
+interface SearchHit {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  detail: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  atUtc: string | null;
+}
+
+/** Null = sin permiso para ese grupo. */
+interface SearchResults {
+  orders: SearchHit[] | null;
+  customers: SearchHit[] | null;
+  products: SearchHit[] | null;
+  purchaseOrders: SearchHit[] | null;
+  suppliers: SearchHit[] | null;
+}
+
+/** Lo mínimo para buscar en el servidor: con una letra coincide media tienda. */
+const MIN_REMOTE = 2;
+
+/** Los permisos que cubre el buscador del servidor: sin ninguno, ni se le pregunta. */
+const REMOTE_PERMS: Perm[] = [
+  'orders.read',
+  'customers.read',
+  'catalog.write',
+  'inventory.read',
+  'purchasing.manage',
+];
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
 
-  // Atajo global Ctrl/Cmd+K (y Esc para cerrar).
+  // Atajo global Ctrl/Cmd+K (y Esc para cerrar), y el botón del encabezado.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -113,8 +154,13 @@ export function CommandPalette() {
         setOpen(false);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
   // El diálogo se monta al abrir: arranca con la búsqueda vacía y el foco en
@@ -123,133 +169,135 @@ export function CommandPalette() {
   return open ? <PaletteDialog onClose={() => setOpen(false)} /> : null;
 }
 
+type Target = { to: string };
+
 function PaletteDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const { store } = useStore();
   const { can } = usePermissions();
   const [q, setQ] = useState('');
-  const [active, setActive] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
+  const term = useDebouncedValue(q.trim(), 250);
+  const remote = !!store && term.length >= MIN_REMOTE && REMOTE_PERMS.some(can);
 
-  // Productos: los busca la base, sin tildes y con las palabras en cualquier
-  // orden, igual que el filtro de abajo. Antes se traían los primeros cien y
-  // se filtraba acá: en una tienda con miles, el producto ciento uno no
-  // aparecía nunca en la paleta.
-  const productQuery = q.trim().length >= 2 && can('catalog.write') ? q : '';
-  const search = useProductSearch<ProductDto>(productQuery, { enabled: productQuery !== '' });
-  const products = useMemo<ProductHit[]>(
-    () =>
-      (search.data?.items ?? []).map((p) => ({ id: p.id, name: p.name, image: p.images[0]?.url ?? null })),
-    [search.data],
-  );
+  // Ventas, clientes, productos, compras y proveedores: los busca la base, con
+  // pocos resultados por grupo y solo los grupos que la persona puede abrir.
+  const search = useQuery({
+    queryKey: ['global-search', store?.id, term],
+    queryFn: () => api.get<SearchResults>(`/api/v1/search?q=${encodeURIComponent(term)}&limit=5`),
+    enabled: remote,
+    placeholderData: (previous) => previous,
+    staleTime: 15_000,
+  });
 
-  const items = useMemo<Item[]>(() => {
+  // Cada ítem con su destino: la paleta compartida no sabe de rutas.
+  const { items, targets } = useMemo(() => {
+    const targets = new Map<string, Target>();
+    const add = (item: PaletteItem, to: string) => {
+      targets.set(item.key, { to });
+      return item;
+    };
+    const r = remote && q.trim().length >= MIN_REMOTE ? search.data : undefined;
+    const icon = (Icon: typeof Package) => (
+      <Icon className="h-4 w-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+    );
+
+    const orders = (r?.orders ?? []).map((o) =>
+      add(
+        {
+          key: `order-${o.id}`,
+          group: 'Ventas',
+          icon: icon(Receipt),
+          label: o.title,
+          detail: o.subtitle ? (ORDER_STATUS[o.subtitle]?.label ?? o.subtitle) : undefined,
+          hint: o.amountMinor != null ? formatMoney(o.amountMinor, o.currency ?? undefined) : undefined,
+        },
+        `/ventas?order=${o.id}`,
+      ),
+    );
+    const customers = (r?.customers ?? []).map((c) =>
+      add(
+        {
+          key: `customer-${c.id}`,
+          group: 'Clientes',
+          icon: icon(UserRound),
+          label: c.title,
+          detail: c.subtitle ?? undefined,
+          hint: c.detail ?? undefined,
+        },
+        `/clientes/${c.id}`,
+      ),
+    );
+    // Sin permiso de catálogo no se puede abrir el formulario: lleva al
+    // listado buscando ese producto (lo que sí puede ver quien maneja stock).
+    const editProducts = can('catalog.write');
+    const products = (r?.products ?? []).map((p) =>
+      add(
+        {
+          key: `product-${p.id}`,
+          group: 'Productos',
+          icon: p.imageUrl ? (
+            <img src={p.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+          ) : (
+            icon(Package)
+          ),
+          label: p.title,
+          detail: p.subtitle ?? undefined,
+          hint: 'Producto',
+        },
+        editProducts ? `/productos/${p.id}/editar` : `/productos?q=${encodeURIComponent(p.title)}`,
+      ),
+    );
+    const purchases = (r?.purchaseOrders ?? []).map((po) =>
+      add(
+        { key: `po-${po.id}`, group: 'Compras', icon: icon(ShoppingCart), label: po.title, hint: 'Compra' },
+        `/compras?orden=${po.id}`,
+      ),
+    );
+    const suppliers = (r?.suppliers ?? []).map((s) =>
+      add(
+        {
+          key: `supplier-${s.id}`,
+          group: 'Proveedores',
+          icon: icon(Building2),
+          label: s.title,
+          detail: s.subtitle ?? undefined,
+          hint: 'Proveedor',
+        },
+        `/proveedores?proveedor=${s.id}`,
+      ),
+    );
+
     const nav = navCommands(can)
-      .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''}`))
-      .map((cmd): Item => ({ kind: 'nav', cmd }));
-    const prods = productQuery
-      ? products.slice(0, 6).map((product): Item => ({ kind: 'product', product }))
-      : [];
-    return [...prods, ...nav].slice(0, 14);
-  }, [q, productQuery, products, can]);
+      // El grupo cuenta: "configuración" trae todas las pantallas de Configuración.
+      .filter((c) => !q || matches(q, `${c.label} ${c.keywords ?? ''} ${c.group}`))
+      .slice(0, 8)
+      .map((c) => add({ key: `nav-${c.to}`, group: c.group, label: c.label }, c.to));
+    // Las pantallas, agrupadas por "Ir a" / "Configuración" sin intercalarse.
+    nav.sort((a, b) => (a.group === b.group ? 0 : a.group === 'Ir a' ? -1 : 1));
 
-  const run = useCallback(
-    (item: Item) => {
-      onClose();
-      if (item.kind === 'nav') navigate(item.cmd.to);
-      else navigate(`/productos/${item.product.id}/editar`);
-    },
-    [navigate, onClose],
-  );
-
-  const onInputKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActive((a) => Math.min(a + 1, items.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === 'Enter' && items[active]) {
-      e.preventDefault();
-      run(items[active]);
-    }
-  };
-
-  // Mantener la opción activa a la vista al navegar con flechas.
-  useEffect(() => {
-    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
-  }, [active]);
+    const items: PaletteItem[] = [...orders, ...customers, ...products, ...purchases, ...suppliers, ...nav];
+    return { items, targets };
+  }, [q, remote, search.data, can]);
 
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[12vh]"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Buscar en el panel"
-    >
-      <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-surface shadow-overlay"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2.5 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-fg-subtle" />
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setActive(0); // otra búsqueda, otra lista: se arranca por el primero
-            }}
-            onKeyDown={onInputKey}
-            placeholder="Buscar pantallas o productos…"
-            aria-label="Buscar pantallas o productos"
-            className="h-12 w-full bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
-          />
-          <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[0.65rem] text-fg-subtle">
-            Esc
-          </kbd>
-        </div>
-        <div ref={listRef} className="max-h-80 overflow-y-auto p-1.5" role="listbox">
-          {items.length === 0 && (
-            <p className="px-3 py-6 text-center text-sm text-fg-muted">Sin resultados para «{q}».</p>
-          )}
-          {items.map((item, i) => (
-            <button
-              key={item.kind === 'nav' ? item.cmd.to : item.product.id}
-              data-active={i === active}
-              role="option"
-              aria-selected={i === active}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => run(item)}
-              className={cn(
-                'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm',
-                i === active ? 'bg-primary/10 text-fg' : 'text-fg-muted',
-              )}
-            >
-              {item.kind === 'product' ? (
-                <>
-                  {item.product.image ? (
-                    <img src={item.product.image} alt="" className="h-6 w-6 rounded object-cover" />
-                  ) : (
-                    <Package className="h-4 w-4 shrink-0 text-fg-subtle" />
-                  )}
-                  <span className="flex-1 truncate">{item.product.name}</span>
-                  <span className="shrink-0 text-xs text-fg-subtle">Producto</span>
-                </>
-              ) : (
-                <>
-                  <span className="flex-1 truncate">{item.cmd.label}</span>
-                  <span className="shrink-0 text-xs text-fg-subtle">{item.cmd.group}</span>
-                </>
-              )}
-              {i === active && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-fg-subtle" />}
-            </button>
-          ))}
-        </div>
-        <div className="border-t border-border px-4 py-2 text-[0.7rem] text-fg-subtle">
-          ↑↓ para moverte · Enter para abrir · Ctrl+K para cerrar
-        </div>
-      </div>
-    </div>
+    <SearchPalette
+      label="Buscar en el panel"
+      inputLabel="Buscar en el panel"
+      placeholder="Buscar ventas, clientes, productos, SKU, pantallas…"
+      query={q}
+      onQueryChange={setQ}
+      items={items}
+      loading={remote && search.isFetching}
+      onPick={(item) => {
+        const target = targets.get(item.key);
+        if (!target) return;
+        onClose();
+        navigate(target.to);
+      }}
+      onClose={onClose}
+      idle="Escribí el número de una venta, un cliente, un producto o una pantalla."
+      empty={remote && search.isFetching ? 'Buscando…' : `Sin resultados para «${q}».`}
+      footer={<>↑↓ para moverte · Enter para abrir · Esc para cerrar</>}
+    />
   );
 }

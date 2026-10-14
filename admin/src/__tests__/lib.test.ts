@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import {
+  formatAmount,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatMoneyInput,
+  formatNumber,
+  formatPercent,
+} from '../lib/format';
+import { parseMoneyInput } from '../lib/price';
 import { ApiRequestError, errMsg } from '../lib/api';
 
 describe('formato compartido', () => {
@@ -23,6 +32,31 @@ describe('formato compartido', () => {
 
   it('formatDate produce fecha legible', () => {
     expect(formatDate('2026-07-27T12:00:00Z')).toMatch(/2026/);
+  });
+
+  it('formatDateTime usa la misma fecha que formatDate y hora de 24 h', () => {
+    const out = formatDateTime('2026-08-12T19:37:00Z');
+    expect(out).toContain(formatDate('2026-08-12T19:37:00Z'));
+    expect(out).not.toMatch(/[ap]\.\s?m\./);
+  });
+
+  it('formatPercent usa coma decimal', () => {
+    expect(formatPercent(38.7)).toBe('38,7 %');
+    expect(formatPercent(40)).toBe('40 %');
+    expect(formatPercent(12.345, 2)).toBe('12,35 %');
+  });
+
+  it('formatAmount muestra siempre dos decimales', () => {
+    expect(formatAmount(26106.5, 'USD')).toBe('USD 26.106,50');
+    expect(formatAmount(1000)).toBe('1.000,00');
+  });
+
+  it('formatMoneyInput agrupa miles y lo vuelve a leer parseMoneyInput', () => {
+    expect(formatMoneyInput(11718700)).toBe('117.187');
+    expect(formatMoneyInput(150050)).toBe('1.500,50');
+    for (const cents of [11718700, 150050, 990, 100000000]) {
+      expect(parseMoneyInput(formatMoneyInput(cents))).toBe(cents);
+    }
   });
 });
 

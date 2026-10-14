@@ -1,15 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  KpiCard,
-  StatsPageHeader,
-  StatsToolbar,
-  rangeLabel,
-  rangeQuery,
-} from '../../components/stats/StatsToolbar';
+import { KpiCard, StatsPageHeader, rangeLabel, rangeQuery } from '../../components/stats/StatsToolbar';
 import { useStatsRange } from '../../components/stats/useStatsRange';
 import { ChartCard, Sparkline } from '../../components/charts';
 import { BarChart, Delta, RankBars } from '../../components/charts/viz';
-import { formatDayShort, formatNumber } from '../../lib/format';
+import { formatDayShort, formatNumber, formatPercent } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 
@@ -26,7 +20,7 @@ interface Visits {
 
 export function StatsVisitsPage() {
   const { store } = useStore();
-  const { range, setRange } = useStatsRange('Últimos 7 días');
+  const { range, setRange } = useStatsRange();
   const { data, isLoading } = useQuery({
     queryKey: ['stats-visits', store?.id, range.from, range.to],
     queryFn: () => api.get<Visits>(`/api/v1/stats/visits?${rangeQuery(range)}`),
@@ -35,9 +29,12 @@ export function StatsVisitsPage() {
 
   return (
     <div className="space-y-5">
-      <StatsToolbar value={range} onChange={setRange} />
-      <StatsPageHeader title="Visitas" />
-      <p className="-mt-3 text-sm text-fg-muted">Período: {rangeLabel(range)}.</p>
+      <StatsPageHeader
+        title="Visitas"
+        description={`Período: ${rangeLabel(range)}.`}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {isLoading || !data ? (
         <div className="grid gap-4 lg:grid-cols-4">
@@ -71,7 +68,7 @@ export function StatsVisitsPage() {
             <KpiCard
               title="Conversión"
               hint="De cada 100 visitantes distintos, cuántos terminaron comprando. Es la métrica que convierte «tuve mucha visita» en «sirvió»."
-              value={`${formatNumber(data.conversionPct)}%`}
+              value={formatPercent(data.conversionPct)}
             >
               <Delta current={data.conversionPct} previous={data.previous.conversionPct} />
             </KpiCard>

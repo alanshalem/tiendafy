@@ -7,7 +7,7 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { renderApp } from '../test/render';
 import { settle } from '../test/explore';
@@ -20,8 +20,9 @@ interface Product {
 const products = fixture<{ items: Product[] }>('/api/v1/products#paged').items;
 const first = products[0]!;
 
-async function open() {
+async function open(setup?: (api: MockApi) => void) {
   const api = mockApi();
+  setup?.(api);
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp('/productos');
   await screen.findByText(first.name);
@@ -149,7 +150,10 @@ describe('listado de productos: en masa', () => {
   it('"Eliminar todos" exige escribir ELIMINAR', async () => {
     const { api, user } = await open();
     api.on('DELETE', '/api/v1/products', { deleted: products.length });
-    await user.click(screen.getByRole('button', { name: /Eliminar todos/ }));
+    // Escondido en el menú de más acciones, no a la vista en la barra.
+    expect(screen.queryByRole('button', { name: /Eliminar todos/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Más acciones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Eliminar todos los productos/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Eliminar todos los productos' }));
     const go = dialog.getByRole('button', { name: 'Eliminar todo' });
     await user.type(dialog.getByPlaceholderText('ELIMINAR'), 'eliminar');
@@ -160,6 +164,36 @@ describe('listado de productos: en masa', () => {
     await settle(2);
     expect(did(api, 'DELETE', '/api/v1/products')).toBe(true);
     expect(await screen.findByText(`${products.length} productos eliminados`)).toBeInTheDocument();
+  });
+});
+
+describe('listado de productos: permisos y teléfono', () => {
+  it('"Eliminar todos" es solo del dueño', async () => {
+    const perms = fixture<{ role: string; permissions: string[] }>('/api/v1/me/permissions');
+    await open((a) => a.on('GET', '/api/v1/me/permissions', { ...perms, role: 'catalogo' }));
+    expect(screen.queryByRole('button', { name: 'Más acciones' })).not.toBeInTheDocument();
+  });
+
+  it('en el teléfono son tarjetas con el precio entero y se cambia en una hoja', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+    const { user } = await open();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const cards = within(screen.getByRole('list', { name: 'Productos' }));
+    // Ningún campo de precio en la tarjeta: el precio se lee.
+    expect(cards.queryByRole('textbox', { name: /^Precio de/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: `Acciones de ${first.name}` }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Cambiar precio' }));
+    const sheet = within(await screen.findByRole('dialog', { name: `Precio de ${first.name}` }));
+    expect(sheet.getAllByRole('textbox', { name: /^Precio de/ }).length).toBeGreaterThan(0);
   });
 });
 

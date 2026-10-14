@@ -281,7 +281,7 @@ describe('buscador del editor (Ctrl+K)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Buscar una opción del editor' });
     await user.type(within(dialog).getByRole('searchbox'), 'productos destacados');
     const featured = draft.sections.find((s) => s.type === 'featured')!;
-    await user.click(within(dialog).getByRole('button', { name: /^Productos destacados\s*Tu inicio$/ }));
+    await user.click(within(dialog).getByRole('option', { name: /^Productos destacados\s*Tu inicio$/ }));
     expect(await within(panel()).findByRole('textbox', { name: 'Nombre de la sección' })).toHaveAttribute(
       'placeholder',
       'Productos destacados',

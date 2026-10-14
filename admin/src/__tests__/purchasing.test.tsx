@@ -112,7 +112,7 @@ describe('compras: la orden', () => {
     expect((body.items as { receivedQuantity: number }[])[0]!.receivedQuantity).toBe(1);
 
     const warning = within(await screen.findByRole('dialog', { name: /Márgenes aplastados/ }));
-    expect(warning.getByText(/4,2%|4\.2%/)).toBeInTheDocument();
+    expect(warning.getByText('4,2 %')).toBeInTheDocument();
     await user.click(warning.getByRole('button', { name: 'Después' }));
   });
 
@@ -358,5 +358,23 @@ describe('compras: recibir con el escáner', () => {
     await user.click(dialog.getByRole('button', { name: /Apagar cámara/ }));
     delete (window as { BarcodeDetector?: unknown }).BarcodeDetector;
     vi.restoreAllMocks();
+  });
+});
+
+describe('proveedores: traer de mis compras', () => {
+  it('ata las compras sueltas y dice cuántas', async () => {
+    const api = mockApi();
+    api.on('POST', '/api/v1/suppliers/sync-from-purchases', { created: 2, linked: 3 });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderApp('/proveedores');
+    await screen.findByRole('heading', { name: 'Proveedores' });
+    await settle(2);
+    await user.click(screen.getByRole('button', { name: /Traer de mis compras/ }));
+    expect(
+      await screen.findByText(/Se ataron 3 compras a sus proveedores \(2 fichas nuevas\)/),
+    ).toBeInTheDocument();
+    expect(
+      api.calls.some((c) => c.method === 'POST' && c.path === '/api/v1/suppliers/sync-from-purchases'),
+    ).toBe(true);
   });
 });

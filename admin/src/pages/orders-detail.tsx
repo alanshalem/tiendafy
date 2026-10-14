@@ -14,7 +14,7 @@ import { money, type Order } from './Orders';
 
 /** El pill de estado, con "Lista para retirar" para un retiro ya avisado. */
 export function OrderStatusPill({ order }: { order: Order }) {
-  const known = ORDER_STATUS[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-600' };
+  const known = ORDER_STATUS[order.status] ?? { label: order.status, cls: 'bg-bg-muted text-fg-muted' };
   const st =
     order.isPickup && order.status === 'FULFILLED' ? { ...known, label: 'Lista para retirar' } : known;
   return (

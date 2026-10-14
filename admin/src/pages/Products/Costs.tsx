@@ -5,7 +5,7 @@ import { Button, Card, Input, Modal, Select, useConfirm, useToast } from '@tiend
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import type { CatalogProduct } from '../../lib/products';
-import { formatMoney, formatNumber } from '../../lib/format';
+import { formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
 import { InfoDot } from '../../components/charts';
 import { ListStats } from '../../components/stats/ListStats';
@@ -160,13 +160,13 @@ export function CostsPage() {
           items={[
             {
               label: 'Costos cargados',
-              value: `${Math.round((health.variantsWithCost / health.variants) * 100)}%`,
+              value: formatPercent((health.variantsWithCost / health.variants) * 100, 0),
               hint: `${health.variantsWithCost} de ${health.variants} variantes. La rentabilidad solo mira las que tienen costo.`,
               tone: health.variantsWithoutCost > 0 ? 'warning' : 'success',
             },
             {
               label: 'Margen promedio',
-              value: `${health.averageMarginPct}%`,
+              value: formatPercent(health.averageMarginPct),
               hint: 'Cuánto queda del precio de venta después del costo, promediando las variantes con costo cargado. No descuenta comisiones ni envío.',
             },
             {
@@ -249,7 +249,7 @@ export function CostsPage() {
                           margin != null && margin < 15 ? 'text-danger' : 'text-fg-muted'
                         }`}
                       >
-                        {margin != null ? `${margin}%` : '—'}
+                        {margin != null ? formatPercent(margin) : '—'}
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="mx-auto w-28 shrink-0">
@@ -332,7 +332,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
     }
     const ok = await confirm({
       title: 'Repreciar en masa',
-      message: `Se ${pct > 0 ? 'aumentan' : 'bajan'} los precios ${Math.abs(pct)}%${categoryId ? ' de la categoría elegida' : ' de TODO el catálogo'}. Impacta en la tienda al instante y no se puede deshacer en bloque.`,
+      message: `Se ${pct > 0 ? 'aumentan' : 'bajan'} los precios ${formatPercent(Math.abs(pct))}${categoryId ? ' de la categoría elegida' : ' de TODO el catálogo'}. Impacta en la tienda al instante y no se puede deshacer en bloque.`,
       confirmLabel: 'Repreciar',
       variant: 'danger',
     });

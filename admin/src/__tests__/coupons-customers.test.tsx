@@ -152,7 +152,7 @@ describe('clientes', () => {
 
   it('buscar con Enter consulta a la base', async () => {
     const { api, user } = await open('/clientes', 'Clientes');
-    await user.type(screen.getByPlaceholderText('Buscar cliente...'), 'julieta{Enter}');
+    await user.type(screen.getByPlaceholderText('Nombre, email o teléfono'), 'julieta{Enter}');
     await waitFor(() => expect(api.calls.some((c) => c.path.includes('q=julieta'))).toBe(true));
   });
 
@@ -164,10 +164,10 @@ describe('clientes', () => {
     });
     await user.click(screen.getByRole('button', { name: /Agregar cliente/ }));
     const m = await modal('Agregar cliente');
-    await user.type(m.getByPlaceholderText('Juan Pérez'), 'Ana Gómez');
-    await user.type(m.getByPlaceholderText('juan@email.com'), 'ana@example.com');
-    await user.type(m.getByPlaceholderText('11 1234 5678'), '1155554444');
-    await user.type(m.getByPlaceholderText('Av. Siempre Viva 742'), 'Belgrano 890');
+    await user.type(m.getByPlaceholderText('Ej.: Juan Pérez'), 'Ana Gómez');
+    await user.type(m.getByPlaceholderText('Ej.: juan@email.com'), 'ana@example.com');
+    await user.type(m.getByPlaceholderText('Ej.: 11 1234 5678'), '1155554444');
+    await user.type(m.getByPlaceholderText('Ej.: Av. Corrientes 1234, CABA'), 'Belgrano 890');
     await user.type(m.getByPlaceholderText('Notas internas sobre el cliente...'), 'Mayorista');
     const create = m
       .getAllByRole('button')
@@ -180,7 +180,7 @@ describe('clientes', () => {
 
     await action(user, customer.name, /Editar/);
     const e = await modal('Editar cliente');
-    expect(e.getByPlaceholderText('Juan Pérez')).toHaveValue(customer.name);
+    expect(e.getByPlaceholderText('Ej.: Juan Pérez')).toHaveValue(customer.name);
     await user.click(e.getByRole('button', { name: 'Guardar' }));
     expect(await screen.findByText('Cliente actualizado')).toBeInTheDocument();
 

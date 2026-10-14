@@ -201,7 +201,7 @@ export const CATALOGO = {
         heading: 'La factura del proveedor y el libro de IVA compras',
         paragraphs: [
           'En la tarjeta “Comprobante del proveedor” de la orden cargás su factura: tipo, número, fecha, CUIT, neto e IVA (o “Leer factura” para que la IA te la proponga desde el PDF). Con la factura cargada nace la deuda con el proveedor en Cuentas corrientes.',
-          'Arriba de Compras e importaciones elegís el mes y tocás “Libro de IVA”: baja un CSV, listo para Excel, con todas las compras del mes que tienen la factura cargada. El de ventas sale de Configuración → Facturación.',
+          'Arriba de Compras e importaciones elegís el mes y tocás “Libro IVA compras”: baja un CSV, listo para Excel, con todas las compras del mes que tienen la factura cargada. El de ventas sale de Configuración → Facturación.',
         ],
       },
       {
@@ -376,6 +376,7 @@ export const CATALOGO = {
         paragraphs: [
           'Antes el proveedor era un nombre escrito a mano en cada orden de compra, así que "Importadora del Sur", "Import. del Sur" e "importadora sur" eran tres proveedores distintos. Sin ficha no hay historial, no hay saldo y no hay forma de comparar precios entre compras.',
           'Con la ficha, cada orden de compra se elige de una lista, y la pantalla del proveedor junta lo que le compraste con lo que le debés.',
+          'Si escribís el nombre a mano en una compra, igual queda atada a una ficha: la que ya existe con ese nombre (sin importar mayúsculas) o una nueva. Para las compras que cargaste antes, tocá “Traer de mis compras” en Proveedores: crea las fichas que falten, las ata y les pasa el CUIT de la factura. Las facturas viejas no se asientan solas en la cuenta corriente, para no mostrar deudas que ya pagaste.',
         ],
         blocks: [{ type: 'path', segments: ['Compras e importaciones', 'Proveedores'] }],
       },

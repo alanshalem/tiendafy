@@ -199,10 +199,10 @@ export function MessagesPage() {
                     {!m.read && (
                       <button
                         onClick={() => markRead(m.id)}
-                        title="Marcar leído"
+                        title="Marcar como leído"
                         className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg"
                       >
-                        <MailOpen className="h-4 w-4" /> Leído
+                        <MailOpen className="h-4 w-4" /> Marcar como leído
                       </button>
                     )}
                   </div>

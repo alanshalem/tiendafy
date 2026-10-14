@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { useMemo, useState } from 'react';
 import { SECTION_DEFINITIONS, sectionDisplayName, type ThemeConfig } from '@tiendafy/types';
 import { foldText } from '../lib/text';
+import { SearchPalette } from '../components/SearchPalette';
 import { SECTION_VIEW } from './theme-editor/EditorViews';
 import { sectionSummary } from './theme-editor/sections/sectionSummary';
 
@@ -397,88 +396,30 @@ export function OptionSearch({
   sections?: ThemeConfig['sections'];
 }) {
   const [q, setQ] = useState('');
-  const [active, setActive] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const index = useMemo(() => buildOptionIndex(sections), [sections]);
   const results = useMemo(() => searchOptions(q, index), [q, index]);
 
-  useEffect(() => inputRef.current?.focus(), []);
-
-  const pick = (entry: OptionEntry) => {
-    onPick(entry.view);
-    onClose();
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[12vh]"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Buscar una opción del editor"
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-surface shadow-overlay"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2.5 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-fg-muted" />
-          <input
-            ref={inputRef}
-            type="search"
-            aria-label="Buscar una opción del editor"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setActive(0); // otra búsqueda, otra lista: se arranca por el primero
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setActive((a) => Math.min(a + 1, results.length - 1));
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setActive((a) => Math.max(a - 1, 0));
-              } else if (e.key === 'Enter' && results[active]) {
-                pick(results[active]);
-              } else if (e.key === 'Escape') {
-                onClose();
-              }
-            }}
-            placeholder="Buscar una opción: cuotas, logo, cupón, menú…"
-            className="h-12 w-full bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
-          />
-        </div>
-        <div className="max-h-80 overflow-y-auto p-1.5">
-          {q && results.length === 0 && (
-            <p className="px-3 py-6 text-center text-sm text-fg-muted">
-              Nada con «{q}». Probá con otra palabra.
-            </p>
-          )}
-          {!q && (
-            <p className="px-3 py-6 text-center text-sm text-fg-subtle">
-              Escribí qué querés cambiar y te llevo al panel.
-            </p>
-          )}
-          {results.map((entry, i) => (
-            <button
-              key={`${entry.view}-${entry.label}`}
-              type="button"
-              onMouseEnter={() => setActive(i)}
-              onClick={() => pick(entry)}
-              className={cn(
-                'flex min-h-10 w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm',
-                i === active ? 'bg-primary text-primary-fg' : 'text-fg hover:bg-bg-muted',
-              )}
-            >
-              <span className="truncate">{entry.label}</span>
-              <span className={cn('shrink-0 text-xs', i === active ? 'opacity-80' : 'text-fg-subtle')}>
-                {entry.panel}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <SearchPalette
+      label="Buscar una opción del editor"
+      inputLabel="Buscar una opción del editor"
+      placeholder="Buscar una opción: cuotas, logo, cupón, menú…"
+      query={q}
+      onQueryChange={setQ}
+      items={results.map((entry) => ({
+        key: `${entry.view}-${entry.label}`,
+        label: entry.label,
+        hint: entry.panel,
+      }))}
+      onPick={(item) => {
+        const entry = results.find((e) => `${e.view}-${e.label}` === item.key);
+        if (!entry) return;
+        onPick(entry.view);
+        onClose();
+      }}
+      onClose={onClose}
+      idle="Escribí qué querés cambiar y te llevo al panel."
+      empty={`Nada con «${q}». Probá con otra palabra.`}
+    />
   );
 }

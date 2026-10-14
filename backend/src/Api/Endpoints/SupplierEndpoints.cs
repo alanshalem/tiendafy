@@ -117,6 +117,16 @@ public static class SupplierEndpoints
             });
         });
 
+        // "Traer de mis compras": las compras cargadas con el proveedor escrito a
+        // mano, antes de que existieran las fichas, se atan a la suya (o a una
+        // nueva). Como "Traer de mis ventas" en Clientes.
+        suppliers.MapPost("/sync-from-purchases", async (
+            ITenantContext tenant, PurchasingDbContext db, CancellationToken ct) =>
+        {
+            var (created, linked) = await Api.Purchasing.SupplierLinker.LinkHistoryAsync(db, tenant.TenantId.Value, ct);
+            return Results.Ok(new { created, linked });
+        });
+
         suppliers.MapPost("/", async (
             SupplierRequest req, ITenantContext tenant, PurchasingDbContext db, CancellationToken ct) =>
         {

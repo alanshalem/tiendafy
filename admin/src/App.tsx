@@ -46,6 +46,7 @@ const MercadoLibrePage = lazyPage(() => import('./pages/MercadoLibre'), 'Mercado
 const RedesPage = lazyPage(() => import('./pages/Redes'), 'RedesPage');
 const MeliSettingsPage = lazyPage(() => import('./pages/Settings/MercadoLibre'), 'MeliSettingsPage');
 const CustomersPage = lazyPage(() => import('./pages/Customers'), 'CustomersPage');
+const CustomerProfilePage = lazyPage(() => import('./pages/CustomerProfile'), 'CustomerProfilePage');
 const MessagesPage = lazyPage(() => import('./pages/Messages'), 'MessagesPage');
 const SupportChatPage = lazyPage(() => import('./pages/SupportChat'), 'SupportChatPage');
 const InboxPage = lazyPage(() => import('./pages/Inbox'), 'InboxPage');
@@ -128,6 +129,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/mercadolibre', el: <MercadoLibrePage /> },
   { path: '/redes', el: <RedesPage /> },
   { path: '/clientes', el: <CustomersPage /> },
+  { path: '/clientes/:id', el: <CustomerProfilePage /> },
 
   // Finanzas
   { path: '/tesoreria', el: <TesoreriaPage /> },

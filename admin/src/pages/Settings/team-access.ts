@@ -1,3 +1,4 @@
+import { badgeVariantClass } from '@tiendafy/ui';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Perm, PermissionInfo } from '../../lib/access';
@@ -35,15 +36,22 @@ export function useAccessMatrix() {
   });
 }
 
-/** Color de la etiqueta de cada rol (los textos vienen del backend). */
+/**
+ * Color de la etiqueta de cada rol (los textos vienen del backend). Tonos del
+ * Badge, con modo oscuro; el rol no es un estado, así que los tonos solo
+ * ayudan a distinguirlos de un vistazo, no quieren decir "bien" o "mal".
+ */
 export const ROLE_BADGE: Record<string, string> = {
-  owner: 'bg-amber-100 text-amber-700',
-  admin: 'bg-purple-100 text-purple-700',
-  vendedor: 'bg-sky-100 text-sky-700',
-  catalogo: 'bg-green-100 text-green-700',
-  finanzas: 'bg-blue-100 text-blue-700',
-  soporte: 'bg-rose-100 text-rose-700',
+  owner: badgeVariantClass.primary,
+  admin: badgeVariantClass.info,
+  vendedor: badgeVariantClass.success,
+  catalogo: badgeVariantClass.warning,
+  finanzas: badgeVariantClass.neutral,
+  soporte: badgeVariantClass.neutral,
 };
+
+/** La etiqueta de un rol que la tienda inventó (sin color propio). */
+export const ROLE_BADGE_FALLBACK = badgeVariantClass.neutral;
 
 /** Las claves sensibles del catálogo. */
 export const sensitiveKeys = (matrix: AccessMatrix | undefined): Set<string> =>

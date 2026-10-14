@@ -19,7 +19,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatPercent } from '../lib/format';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { VariantPicker } from '../components/VariantPicker';
 import { HelpLink } from '../components/HelpLink';
@@ -221,7 +221,7 @@ function QuoteList({
             },
             {
               label: 'Conversión',
-              value: `${summary.conversionPercent}%`,
+              value: formatPercent(summary.conversionPercent),
               tone: summary.conversionPercent >= 50 ? 'success' : 'default',
               hint: 'De los presupuestos ya decididos, cuántos terminaron en venta. Los que siguen abiertos no cuentan.',
             },

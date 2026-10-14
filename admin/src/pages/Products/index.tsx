@@ -1,8 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowUpDown, Filter, Plus, Search, Trash2, Upload, X } from 'lucide-react';
-import { Button, Checkbox, Modal, useToast } from '@tiendafy/ui';
+import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { Button, Checkbox, Dropdown, Modal, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -15,7 +15,10 @@ import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
 import { type Category } from './types';
-import { ProductRows } from './ProductRows';
+import { ProductCard, ProductRows } from './ProductRows';
+import { ListCardList } from '../../components/ListCards';
+import { useIsMobile } from '../../lib/useMediaQuery';
+import { OWNER } from '../Settings/team-access';
 import { TABLE_CARD, TABLE_HEAD_STICKY_UNDER_BAR, TABLE_SCROLL_X } from '../../lib/styles';
 import { ListStats } from '../../components/stats/ListStats';
 import { formatNumber } from '../../lib/format';
@@ -101,7 +104,12 @@ const FILTER_LABEL: Record<string, string> = {
 export function ProductsPage() {
   const { store } = useStore();
   // Quien solo ve el stock mira la lista; editar, crear y exportar es de catálogo.
-  const canEdit = usePermissions().can('catalog.write');
+  const { can, role } = usePermissions();
+  const canEdit = can('catalog.write');
+  // Borrar el catálogo entero es del dueño: alguien de catálogo arregla
+  // productos, no los vacía todos de un golpe.
+  const canDeleteAll = canEdit && role === OWNER;
+  const mobile = useIsMobile();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -326,6 +334,29 @@ export function ProductsPage() {
                   </span>
                 </Button>
               </Link>
+              {/* "Eliminar todos" era un link rojo siempre a la vista en la
+                  barra del listado, al alcance de cualquiera con permiso de
+                  catálogo. Va escondido en este menú, y solo para el dueño. */}
+              {canDeleteAll && total > 0 && (
+                <Dropdown>
+                  <Dropdown.Trigger label="Más acciones">
+                    <MoreVertical className="h-4 w-4" />
+                  </Dropdown.Trigger>
+                  <Dropdown.Menu align="end">
+                    <Dropdown.Item
+                      destructive
+                      onSelect={() => {
+                        setConfirmText('');
+                        setDeleteAllOpen(true);
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Trash2 className="h-4 w-4" /> Eliminar todos los productos
+                      </span>
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+              )}
             </>
           )}
         </div>
@@ -444,22 +475,8 @@ export function ProductsPage() {
             </select>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-fg-muted">
-              {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
-            </div>
-            {total > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmText('');
-                  setDeleteAllOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-danger hover:underline"
-              >
-                <Trash2 className="h-4 w-4" /> Eliminar todos
-              </button>
-            )}
+          <div className="text-sm text-fg-muted">
+            {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
           </div>
 
           {bulkResult && (
@@ -533,73 +550,110 @@ export function ProductsPage() {
             </div>
           )}
 
-          {/* Tabla agrupada */}
-          <div
-            className={TABLE_CARD}
-            style={{ '--bulk-bar': selected.size > 0 ? '4rem' : '0px' } as CSSProperties}
-          >
-            <div className={TABLE_SCROLL_X}>
-              <table className="w-full text-sm">
-                <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
-                  <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
-                    <th className="w-10 px-3 py-2.5">
-                      {canEdit && (
-                        <Checkbox
-                          checked={allPageSelected}
-                          indeterminate={somePageSelected}
-                          onChange={toggleSelectAll}
-                          aria-label="Seleccionar todos"
-                        />
-                      )}
-                    </th>
-                    <th className="px-3 py-2.5">Producto</th>
-                    <th className="w-20 px-3 py-2.5 text-center">Stock</th>
-                    <th className="w-32 px-3 py-2.5">Precio</th>
-                    <th className="w-32 px-3 py-2.5">Promocional</th>
-                    <th className="w-28 px-3 py-2.5">Variantes</th>
-                    <th className="w-24 px-3 py-2.5 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7}>
-                        <TableSkeleton label="Cargando productos…" />
-                      </td>
-                    </tr>
-                  ) : noResults ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center">
-                        <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
-                        <button
-                          type="button"
-                          onClick={() => list.set({ q: '', ...paramsFrom(defaultFilters) })}
-                          className="mt-2 text-sm font-medium text-primary hover:underline"
-                        >
-                          Limpiar búsqueda y filtros
-                        </button>
-                      </td>
-                    </tr>
-                  ) : (
-                    pageItems.map((product) => (
-                      <ProductRows
-                        key={product.id}
-                        product={product}
-                        stockMap={stockMap}
-                        storeId={store.id}
-                        readOnly={!canEdit}
-                        selected={selected.has(product.id)}
-                        onToggleSelect={() => toggleSelect(product)}
-                        onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
-                        onDelete={() => deleteProduct.mutate(product.id)}
-                        onDuplicate={() => duplicateProduct.mutate(product.id)}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
+          {/* En el teléfono, tarjetas: la tabla cortaba los precios. */}
+          {mobile ? (
+            <div className={TABLE_CARD}>
+              {isLoading ? (
+                <TableSkeleton label="Cargando productos…" />
+              ) : noResults ? (
+                <div className="px-4 py-12 text-center">
+                  <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
+                  <button
+                    type="button"
+                    onClick={() => list.set({ q: '', ...paramsFrom(defaultFilters) })}
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    Limpiar búsqueda y filtros
+                  </button>
+                </div>
+              ) : (
+                <ListCardList label="Productos">
+                  {pageItems.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      stockMap={stockMap}
+                      storeId={store.id}
+                      readOnly={!canEdit}
+                      selected={selected.has(product.id)}
+                      onToggleSelect={() => toggleSelect(product)}
+                      onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
+                      onDelete={() => deleteProduct.mutate(product.id)}
+                      onDuplicate={() => duplicateProduct.mutate(product.id)}
+                    />
+                  ))}
+                </ListCardList>
+              )}
             </div>
-          </div>
+          ) : (
+            /* Tabla agrupada */
+            <div
+              className={TABLE_CARD}
+              style={{ '--bulk-bar': selected.size > 0 ? '4rem' : '0px' } as CSSProperties}
+            >
+              <div className={TABLE_SCROLL_X}>
+                <table className="w-full text-sm">
+                  <thead className={TABLE_HEAD_STICKY_UNDER_BAR}>
+                    <tr className="border-b border-border bg-bg-subtle text-left text-xs font-medium uppercase tracking-wide text-fg-muted">
+                      <th className="w-10 px-3 py-2.5">
+                        {canEdit && (
+                          <Checkbox
+                            checked={allPageSelected}
+                            indeterminate={somePageSelected}
+                            onChange={toggleSelectAll}
+                            aria-label="Seleccionar todos"
+                          />
+                        )}
+                      </th>
+                      <th className="px-3 py-2.5">Producto</th>
+                      <th className="w-20 px-3 py-2.5 text-center">Stock</th>
+                      <th className="w-32 px-3 py-2.5">Precio</th>
+                      <th className="w-32 px-3 py-2.5">Promocional</th>
+                      <th className="w-28 px-3 py-2.5">Variantes</th>
+                      <th className="w-24 px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={7}>
+                          <TableSkeleton label="Cargando productos…" />
+                        </td>
+                      </tr>
+                    ) : noResults ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center">
+                          <p className="text-fg-muted">Ningún producto coincide con la búsqueda.</p>
+                          <button
+                            type="button"
+                            onClick={() => list.set({ q: '', ...paramsFrom(defaultFilters) })}
+                            className="mt-2 text-sm font-medium text-primary hover:underline"
+                          >
+                            Limpiar búsqueda y filtros
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      pageItems.map((product) => (
+                        <ProductRows
+                          key={product.id}
+                          product={product}
+                          stockMap={stockMap}
+                          storeId={store.id}
+                          readOnly={!canEdit}
+                          selected={selected.has(product.id)}
+                          onToggleSelect={() => toggleSelect(product)}
+                          onStatus={(publish) => setStatus.mutate({ id: product.id, publish })}
+                          onDelete={() => deleteProduct.mutate(product.id)}
+                          onDuplicate={() => duplicateProduct.mutate(product.id)}
+                        />
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <Pagination page={pageClamped} totalPages={totalPages} onPage={setPage} />
         </>

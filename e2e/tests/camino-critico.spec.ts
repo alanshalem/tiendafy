@@ -120,7 +120,7 @@ test('admin: login del seed de dev y command palette', async ({ page }) => {
 
   // Ctrl+K abre la paleta y navega (esperar la opción antes de Enter: sin carrera).
   await page.keyboard.press('Control+k');
-  await page.getByPlaceholder('Buscar pantallas o productos…').fill('factu');
+  await page.getByRole('searchbox', { name: 'Buscar en el panel' }).fill('factu');
   await page.getByRole('option', { name: /Facturación/ }).click();
   await expect(page).toHaveURL(/facturacion/, { timeout: 15_000 });
 });

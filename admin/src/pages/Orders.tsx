@@ -575,11 +575,11 @@ export function OrdersPage() {
         <>
           <StatusLegend
             items={[
-              { dot: 'bg-amber-400', text: 'Pendiente: esperando el pago' },
-              { dot: 'bg-green-500', text: 'Pagada / Enviada: cobrada' },
-              { dot: 'bg-blue-400', text: 'Reembolsada' },
-              { dot: 'bg-red-400', text: 'Fallida / Contracargo' },
-              { dot: 'bg-gray-400', text: 'Cancelada' },
+              { dot: 'bg-warning', text: 'Pendiente: esperando el pago' },
+              { dot: 'bg-success', text: 'Pagada / Enviada: cobrada' },
+              { dot: 'bg-info', text: 'Reembolsada' },
+              { dot: 'bg-danger', text: 'Fallida / Contracargo' },
+              { dot: 'bg-fg-subtle', text: 'Cancelada' },
             ]}
           />
           <div className={cn(TABLE_CARD, ordersQuery.isPlaceholderData && 'opacity-60 transition-opacity')}>
