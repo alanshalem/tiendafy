@@ -132,6 +132,95 @@ describe('compras: la orden', () => {
   });
 });
 
+describe('compras: el borrador con cambios sin guardar', () => {
+  /** Un servidor con memoria: lo que se guarda o confirma es lo que vuelve después. */
+  function serverState(api: MockApi) {
+    let current: Po = { ...po, status: 'DRAFT' };
+    api.on('GET', `/api/v1/purchasing/purchase-orders/${po.id}`, () => current);
+    api.on('PUT', `/api/v1/purchasing/purchase-orders/${po.id}`, (body: unknown) => {
+      current = { ...current, reference: (body as { reference: string }).reference };
+      return current;
+    });
+    api.on('POST', `/api/v1/purchasing/purchase-orders/${po.id}/status`, (body: unknown) => {
+      current = { ...current, status: (body as { status: string }).status };
+      return current;
+    });
+  }
+
+  async function editReference(user: ReturnType<typeof userEvent.setup>, value: string) {
+    const reference = screen.getByLabelText('Referencia (proforma / contenedor)');
+    await user.clear(reference);
+    await user.type(reference, value);
+    return reference;
+  }
+
+  it('"Confirmada" guarda primero lo editado y después muestra lo que quedó en el servidor', async () => {
+    const { api, user } = await openPo();
+    serverState(api);
+    await editReference(user, 'CONT-77');
+
+    await user.click(screen.getByRole('button', { name: 'Confirmada' }));
+    await settle(3);
+    const writes = api.calls.filter((c) => c.method !== 'GET' && c.path.includes(po.id));
+    expect(writes.map((c) => `${c.method} ${c.path}`)).toEqual([
+      `PUT /api/v1/purchasing/purchase-orders/${po.id}`,
+      `POST /api/v1/purchasing/purchase-orders/${po.id}/status`,
+    ]);
+    expect(writes[0]!.body).toMatchObject({ reference: 'CONT-77' });
+
+    // Ya confirmada: de solo lectura, con lo guardado, y sin "cambios sin guardar".
+    const reference = screen.getByLabelText('Referencia (proforma / contenedor)');
+    expect(reference).toHaveValue('CONT-77');
+    expect(reference).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'En producción' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Compras$/ }));
+    expect(await screen.findByRole('searchbox', { name: 'Buscar compras' })).toBeInTheDocument();
+    expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
+  });
+
+  it('si guardar falla, el estado no cambia y lo editado sigue ahí', async () => {
+    const { api, user } = await openPo();
+    api.on(
+      'PUT',
+      `/api/v1/purchasing/purchase-orders/${po.id}`,
+      { detail: 'La compra necesita al menos un ítem.' },
+      400,
+    );
+    await editReference(user, 'CONT-88');
+    await user.click(screen.getByRole('button', { name: 'Confirmada' }));
+    expect(await screen.findByText('La compra necesita al menos un ítem.')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/status'))).toBe(false);
+    expect(screen.getByLabelText('Referencia (proforma / contenedor)')).toHaveValue('CONT-88');
+    expect(screen.getByLabelText('Referencia (proforma / contenedor)')).toBeEnabled();
+  });
+
+  it('cerrar la compra con cambios pregunta antes; seguir editando no pierde nada', async () => {
+    const { user } = await openPo();
+    await editReference(user, 'CONT-99');
+
+    await user.click(screen.getByRole('button', { name: /^Compras$/ }));
+    expect(await screen.findByText('¿Descartar los cambios?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByRole('heading', { name: po.supplierName })).toBeInTheDocument();
+    expect(screen.getByLabelText('Referencia (proforma / contenedor)')).toHaveValue('CONT-99');
+
+    await user.click(screen.getByRole('button', { name: /^Compras$/ }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin guardar' }));
+    expect(await screen.findByRole('searchbox', { name: 'Buscar compras' })).toBeInTheDocument();
+  });
+
+  it('guardada, se puede salir sin que pregunte', async () => {
+    const { api, user } = await openPo();
+    serverState(api);
+    await editReference(user, 'CONT-55');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Compra guardada')).toBeInTheDocument();
+    await settle(2);
+    await user.click(screen.getByRole('button', { name: /^Compras$/ }));
+    expect(await screen.findByRole('searchbox', { name: 'Buscar compras' })).toBeInTheDocument();
+  });
+});
+
 describe('compras: factura del proveedor', () => {
   it('se carga a mano y queda para el libro de IVA', async () => {
     const { api, user } = await openPo({ status: 'RECEIVED' });

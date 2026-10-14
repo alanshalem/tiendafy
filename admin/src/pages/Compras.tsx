@@ -25,6 +25,7 @@ import { InfoDot } from '../components/charts';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { ListStats } from '../components/stats/ListStats';
 import { useListParams, useListSearch, useRecordParam } from '../lib/useListParams';
+import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { PO_PAGE_SIZE, PO_STATUS, NEXT_STEPS } from './compras-tipos';
 import type { PoListItem, PoDetail, Suggestion, FormItem, PoForm, PurchasingSummary } from './compras-tipos';
 import { VatBookDownload, SupplierInvoiceCard } from './compras-factura';
@@ -420,6 +421,73 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
 
 // ------------------------------------------------------- Detalle / creación
 
+const EMPTY_FORM: PoForm = {
+  supplierId: '',
+  supplierName: '',
+  reference: '',
+  notes: '',
+  currency: 'USD',
+  exchangeRate: '',
+  leadTimeDays: '90',
+  items: [],
+  expenses: [],
+};
+
+function toForm(po: PoDetail): PoForm {
+  return {
+    supplierId: po.supplierId ?? '',
+    supplierName: po.supplierName,
+    reference: po.reference ?? '',
+    notes: po.notes ?? '',
+    currency: po.currency,
+    exchangeRate: String(po.exchangeRate),
+    leadTimeDays: po.leadTimeDays != null ? String(po.leadTimeDays) : '',
+    items: po.items.map((i) => ({
+      variantId: i.variantId,
+      label: `${i.productName}${i.variantDescription ? ` · ${i.variantDescription}` : ''}`,
+      sku: i.sku,
+      quantity: String(i.quantity),
+      unitCost: String(i.unitCost),
+    })),
+    expenses: po.expenses.map((e) => ({ label: e.label, amount: String(e.amount), isLocal: e.isLocal })),
+  };
+}
+
+/** Lo que cuenta para "hay cambios": los datos, no el orden de las claves ni las etiquetas. */
+function formKey(f: PoForm): string {
+  return JSON.stringify([
+    f.supplierId,
+    f.supplierName,
+    f.reference,
+    f.notes,
+    f.currency,
+    f.exchangeRate,
+    f.leadTimeDays,
+    f.items.map((i) => [i.variantId, i.quantity, i.unitCost]),
+    f.expenses.map((e) => [e.label, e.amount, e.isLocal]),
+  ]);
+}
+
+function toBody(form: PoForm) {
+  return {
+    supplierId: form.supplierId || null,
+    supplierName: form.supplierName,
+    reference: form.reference || null,
+    notes: form.notes || null,
+    currency: form.currency,
+    exchangeRate: Number(form.exchangeRate) > 0 ? Number(form.exchangeRate) : 1,
+    leadTimeDays: form.leadTimeDays !== '' ? Number(form.leadTimeDays) : null,
+    items: form.items.map((i) => ({
+      variantId: i.variantId,
+      quantity: Number(i.quantity) || 0,
+      unitCost: Number(i.unitCost) || 0,
+    })),
+    expenses: form.expenses
+      .filter((e) => e.label.trim() !== '')
+      .map((e) => ({ label: e.label, amount: Number(e.amount) || 0, isLocal: e.isLocal })),
+  };
+}
+
 function PoEditor({
   poId,
   initialItems,
@@ -443,89 +511,79 @@ function PoEditor({
 
   const editable = poId === null || po?.status === 'DRAFT';
 
-  // Form state (se hidrata del detalle una vez que llega).
+  // Form state (se hidrata del detalle una vez que llega). `saved` es lo que
+  // tiene el servidor (o el form vacío, si es nueva): contra eso se mide si
+  // hay cambios sin guardar.
   const [form, setForm] = useState<PoForm | null>(
-    poId === null
-      ? {
-          supplierId: '',
-          supplierName: '',
-          reference: '',
-          notes: '',
-          currency: 'USD',
-          exchangeRate: '',
-          leadTimeDays: '90',
-          items: initialItems ?? [],
-          expenses: [],
-        }
-      : null,
+    poId === null ? { ...EMPTY_FORM, items: initialItems ?? [] } : null,
   );
+  const [saved, setSaved] = useState<PoForm | null>(poId === null ? EMPTY_FORM : null);
 
   if (poId !== null && po && form === null) {
-    setForm({
-      supplierId: po.supplierId ?? '',
-      supplierName: po.supplierName,
-      reference: po.reference ?? '',
-      notes: po.notes ?? '',
-      currency: po.currency,
-      exchangeRate: String(po.exchangeRate),
-      leadTimeDays: po.leadTimeDays != null ? String(po.leadTimeDays) : '',
-      items: po.items.map((i) => ({
-        variantId: i.variantId,
-        label: `${i.productName}${i.variantDescription ? ` · ${i.variantDescription}` : ''}`,
-        sku: i.sku,
-        quantity: String(i.quantity),
-        unitCost: String(i.unitCost),
-      })),
-      expenses: po.expenses.map((e) => ({ label: e.label, amount: String(e.amount), isLocal: e.isLocal })),
-    });
+    const fresh = toForm(po);
+    setForm(fresh);
+    setSaved(fresh);
   }
 
+  const dirty = editable && !!form && !!saved && formKey(form) !== formKey(saved);
+  // Cerrar la compra (volver, «Atrás», otra pantalla) con cambios pregunta.
+  const leave = useUnsavedChanges(dirty, { param: 'orden' });
+
+  /**
+   * Después de guardar o cambiar de estado, el form muestra lo que quedó en
+   * el servidor: si no, una orden ya confirmada (y de solo lectura) seguía
+   * mostrando lo que se había tipeado como si fuera suyo.
+   */
+  const showServerTruth = async () => {
+    queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, poId] });
+    const fresh = queryClient.getQueryData<PoDetail>(['purchase-order', store?.id, poId]);
+    if (fresh?.items) {
+      setForm(toForm(fresh));
+      setSaved(toForm(fresh));
+    }
+  };
+
   const save = useMutation({
-    mutationFn: (body: unknown) =>
+    mutationFn: (current: PoForm) =>
       poId === null
-        ? api.post<PoDetail>('/api/v1/purchasing/purchase-orders', body)
-        : api.put<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}`, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, poId] });
+        ? api.post<PoDetail>('/api/v1/purchasing/purchase-orders', toBody(current))
+        : api.put<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}`, toBody(current)),
+    onSuccess: async () => {
       toast('Compra guardada', { variant: 'success' });
-      if (poId === null) onBack();
+      if (poId === null) {
+        queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
+        leave(onBack);
+        return;
+      }
+      await showServerTruth();
     },
     onError: (e) => toast(errMsg(e, 'No se pudo guardar la compra'), { variant: 'error' }),
   });
 
   const setStatus = useMutation({
-    mutationFn: (status: string) =>
-      api.post<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}/status`, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', store?.id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, poId] });
+    mutationFn: async (next: string) => {
+      // Confirmar un borrador con cambios sin guardar los guarda primero: la
+      // orden pasa a solo lectura y esos cambios se perdían sin aviso. Si el
+      // guardado falla, el estado no cambia. Cancelar, en cambio, descarta.
+      if (dirty && form && next !== 'CANCELLED') {
+        await api.put<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}`, toBody(form));
+        setSaved(form);
+      }
+      return api.post<PoDetail>(`/api/v1/purchasing/purchase-orders/${poId}/status`, { status: next });
+    },
+    onSuccess: async () => {
       toast('Estado actualizado', { variant: 'success' });
+      await showServerTruth();
     },
     onError: (e) => toast(errMsg(e, 'No se pudo cambiar el estado'), { variant: 'error' }),
   });
 
   const doSave = () => {
-    if (!form) return;
-    save.mutate({
-      supplierId: form.supplierId || null,
-      supplierName: form.supplierName,
-      reference: form.reference || null,
-      notes: form.notes || null,
-      currency: form.currency,
-      exchangeRate: Number(form.exchangeRate) > 0 ? Number(form.exchangeRate) : 1,
-      leadTimeDays: form.leadTimeDays !== '' ? Number(form.leadTimeDays) : null,
-      items: form.items.map((i) => ({
-        variantId: i.variantId,
-        quantity: Number(i.quantity) || 0,
-        unitCost: Number(i.unitCost) || 0,
-      })),
-      expenses: form.expenses
-        .filter((e) => e.label.trim() !== '')
-        .map((e) => ({ label: e.label, amount: Number(e.amount) || 0, isLocal: e.isLocal })),
-    });
+    if (form) save.mutate(form);
   };
 
+  const busy = save.isPending || setStatus.isPending;
   const status = poId === null ? 'DRAFT' : (po?.status ?? 'DRAFT');
   const canReceive = po && !['DRAFT', 'RECEIVED', 'CANCELLED'].includes(po.status);
 
@@ -545,7 +603,7 @@ function PoEditor({
         </div>
         <div className="flex items-center gap-2">
           {editable && form && (
-            <Button onClick={doSave} loading={save.isPending}>
+            <Button onClick={doSave} loading={save.isPending} disabled={setStatus.isPending}>
               Guardar
             </Button>
           )}
@@ -554,7 +612,9 @@ function PoEditor({
               <Button
                 key={next}
                 variant="secondary"
-                disabled={setStatus.isPending}
+                disabled={busy}
+                loading={setStatus.isPending && setStatus.variables === next}
+                title={dirty ? 'Guarda los cambios y después cambia el estado' : undefined}
                 onClick={() => setStatus.mutate(next)}
               >
                 {PO_STATUS[next]?.label ?? next}
@@ -564,11 +624,14 @@ function PoEditor({
           {poId !== null && !['RECEIVED', 'CANCELLED'].includes(status) && (
             <Button
               variant="ghost"
+              disabled={busy}
               onClick={async () => {
                 if (
                   await confirm({
                     title: '¿Cancelar esta compra?',
-                    message: 'No impacta stock ni costos.',
+                    message: dirty
+                      ? 'No impacta stock ni costos. Los cambios sin guardar se descartan.'
+                      : 'No impacta stock ni costos.',
                     confirmLabel: 'Cancelar OC',
                     variant: 'danger',
                   })

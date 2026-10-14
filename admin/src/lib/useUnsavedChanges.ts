@@ -10,20 +10,32 @@ import { useConfirm } from '@tiendafy/ui';
  * Solo frena los cambios de pantalla (otro pathname): los filtros y pestañas
  * que viven en la query de la misma pantalla no se pierden al cambiar.
  *
+ * Con `param`, también frena cerrar el registro abierto por la URL
+ * (`?orden=<id>`, ver useRecordParam): el botón de volver, «Atrás» del
+ * navegador o un link que saque o cambie ese parámetro. Son la misma pantalla
+ * para el router, pero para la persona es salir de la ficha.
+ *
  * Devuelve `leave(fn)`: para salir a propósito después de guardar (en ese
  * momento el form todavía cuenta como modificado) sin que pregunte.
  *
  * Una pantalla, un llamado: el router atiende un solo bloqueo a la vez. Los
  * forms en modal usan la prop `dirty` del Modal y useBeforeUnload.
  */
-export function useUnsavedChanges(dirty: boolean): (go: () => void) => void {
+export function useUnsavedChanges(
+  dirty: boolean,
+  options: { param?: string } = {},
+): (go: () => void) => void {
+  const { param } = options;
   const confirm = useConfirm();
   const leaving = useRef(false);
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      dirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname,
-  );
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (!dirty || leaving.current) return false;
+    if (currentLocation.pathname !== nextLocation.pathname) return true;
+    if (!param) return false;
+    const record = (search: string) => new URLSearchParams(search).get(param);
+    return record(currentLocation.search) !== record(nextLocation.search);
+  });
 
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
