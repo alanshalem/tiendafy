@@ -13,22 +13,23 @@ import { siteBase, type StorefrontData } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { notFoundUnlessRedirected } from '@/lib/redirects';
 import { jsonLd } from '@/lib/json-ld';
-import { productJsonLd as buildProductJsonLd } from '@/lib/product-json-ld';
+import { productJsonLd as buildProductJsonLd, reviewsJsonLd } from '@/lib/product-json-ld';
+import { reviewsPath, type ReviewsPage } from '@/lib/reviews';
+import { ProductReviews } from '@/components/store/ProductReviews';
+import type { ProductRating } from '@/components/store/ReviewStars';
 import { categoryHref } from '@/lib/category-url';
 import type { ThemeConfig } from '@/lib/theme';
 import { apiGetTenant } from '@/lib/api';
 import { searchProducts, toStoreProduct } from '@/lib/catalog';
 import type { StoreProduct } from '@/components/store/sections';
 import type { MoneyDto } from '@tiendafy/types';
-import { REVALIDATE } from '@/lib/cache';
+import { cacheFor } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
 /** La ficha por slug. Misma URL y opciones en la metadata, la página y el contenido: Next la pide una vez. */
 const fetchProduct = (slug: string, tenantId: string) =>
-  apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+  apiGetTenant<ProductDto>(`/api/v1/products/by-slug/${slug}`, tenantId, cacheFor('catalog', tenantId));
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -79,6 +80,8 @@ interface ProductDto {
   categoryIds: string[];
   specs: { definitionId: string; value: string }[];
   stock: number | null;
+  /** Promedio y cantidad de reseñas aprobadas (null = sin reseñas). */
+  rating?: ProductRating | null;
 }
 
 /** Definición de un campo de ficha técnica: da el nombre y la unidad. */
@@ -180,11 +183,26 @@ async function ProductContent({
         }
       : null;
 
-  // Rich results de producto en Google: precio, moneda y disponibilidad.
-  const productJsonLd = product
+  // La primera página de opiniones: la sección la muestra sin esperar al
+  // navegador y el JSON-LD lleva las mismas que se ven. Si falla, la ficha
+  // sale igual (la sección las pide sola).
+  const reviews = product
+    ? await apiGetTenant<ReviewsPage>(
+        reviewsPath(product.id),
+        data.tenant.id,
+        cacheFor('catalog', data.tenant.id),
+      ).catch(() => null)
+    : null;
+
+  // Rich results de producto en Google: precio, moneda y disponibilidad (y las
+  // estrellas, aparte: ver reviewsJsonLd).
+  const baseJsonLd = product
     ? buildProductJsonLd(product, base, {
         freeShippingThreshold: theme.cart.freeShippingBar ? theme.cart.freeShippingThreshold : 0,
       })
+    : null;
+  const productJsonLd = baseJsonLd
+    ? { ...baseJsonLd, ...reviewsJsonLd(reviews?.enabled ? reviews : null) }
     : null;
 
   return (
@@ -207,7 +225,9 @@ async function ProductContent({
             config={theme.productDetail}
             paymentLogos={theme.footer.paymentLogos}
             whatsappPhone={theme.whatsappButton.phone}
+            rating={product.rating ?? null}
           />
+          <ProductReviews productId={product.id} initial={reviews} />
           {theme.productDetail.showRelated && related.length > 0 && (
             <SectionRenderer
               section={{
@@ -291,9 +311,11 @@ async function buildCategoryTrail(tenantId: string, categoryIds: string[]): Prom
   const catId = categoryIds[0];
   if (!catId) return [];
   try {
-    const res = await apiGetTenant<{ items?: CategoryDto[] }>('/api/v1/categories', tenantId, {
-      next: { revalidate: REVALIDATE.categories },
-    });
+    const res = await apiGetTenant<{ items?: CategoryDto[] }>(
+      '/api/v1/categories',
+      tenantId,
+      cacheFor('categories', tenantId),
+    );
     const byId = new Map((res?.items ?? []).map((c) => [c.id, c]));
     const trail: CategoryDto[] = [];
     let cur = byId.get(catId);
@@ -314,9 +336,11 @@ async function buildSpecRows(
 ): Promise<{ name: string; value: string }[]> {
   if (values.length === 0) return [];
 
-  const defs = await apiGetTenant<{ items: SpecDefinitionDto[] }>('/api/v1/spec-definitions/', tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  }).catch(() => null);
+  const defs = await apiGetTenant<{ items: SpecDefinitionDto[] }>(
+    '/api/v1/spec-definitions/',
+    tenantId,
+    cacheFor('catalog', tenantId),
+  ).catch(() => null);
   if (!defs) return [];
 
   const byId = new Map(defs.items.map((d) => [d.id, d]));

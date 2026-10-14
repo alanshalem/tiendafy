@@ -30,6 +30,8 @@ const KEYWORDS: Record<string, string> = {
   '/descuentos': 'descuentos cupon',
   '/mensajes': 'arrepentimiento consultas',
   '/posventa': 'chat soporte',
+  '/resenas': 'opiniones estrellas comentarios valoraciones reviews',
+  '/productos/esperando': 'sin stock agotado reposicion demanda avisame',
   '/paginas': 'cms institucionales',
   '/canales/tienda-online': 'tema tienda online personalizar editor diseño',
   '/estadisticas': 'reportes analytics',

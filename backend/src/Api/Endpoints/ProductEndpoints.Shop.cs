@@ -28,6 +28,7 @@ public static partial class ProductEndpoints
             ITenantContext tenant,
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct,
             string? q = null,
             int limit = 6) =>
@@ -40,7 +41,7 @@ public static partial class ProductEndpoints
             var found = await repository.SuggestAsync(tenant.TenantId, text, inStock, limit, ct);
             return Results.Ok(new
             {
-                items = await WithStockAsync(found.Products, stockRepository, tenant.TenantId, ct),
+                items = await ForCardsAsync(found.Products, stockRepository, reviewsDb, tenant.TenantId, ct),
                 total = found.Total,
                 categories = found.Categories.Select(c => c.ToDto()),
             });
@@ -53,6 +54,7 @@ public static partial class ProductEndpoints
             IProductRepository repository,
             Inventory.Core.Domain.IStockRepository stockRepository,
             OrdersDbContext ordersDb,
+            global::Reviews.Infrastructure.ReviewsDbContext reviewsDb,
             CancellationToken ct,
             string? variants = null,
             int limit = 3) =>
@@ -60,19 +62,30 @@ public static partial class ProductEndpoints
             var inStock = await stockRepository.ListInStockVariantIdsAsync(tenant.TenantId, ct);
             var picked = await CartSuggestions.PickAsync(repository, ordersDb, tenant.TenantId,
                 ParseIds(variants), inStock, limit, ct);
-            return Results.Ok(new { items = await WithStockAsync(picked, stockRepository, tenant.TenantId, ct) });
+            return Results.Ok(new { items = await ForCardsAsync(picked, stockRepository, reviewsDb, tenant.TenantId, ct) });
         });
     }
 
-    /// <summary>El DTO de la tienda, con el stock del producto (suma de sus variantes) para la card.</summary>
-    private static async Task<List<ProductDto>> WithStockAsync(
+    /// <summary>
+    /// El DTO de la tienda, con lo que muestra la card: el stock del producto
+    /// (suma de sus variantes) y las estrellas de sus reseñas.
+    /// </summary>
+    private static async Task<List<ProductDto>> ForCardsAsync(
         IReadOnlyList<Product> items, Inventory.Core.Domain.IStockRepository stockRepository,
-        TenantId tenantId, CancellationToken ct)
+        global::Reviews.Infrastructure.ReviewsDbContext reviewsDb, TenantId tenantId, CancellationToken ct)
     {
         var variantIds = items.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
         var stockByVariant = variantIds.Count > 0
             ? (await stockRepository.GetByVariantsAsync(tenantId, variantIds, ct)).ToDictionary(s => s.VariantId, s => s.Available)
             : new Dictionary<Guid, int>();
-        return [.. items.Select(p => p.ToDto() with { Stock = p.Variants.Sum(v => stockByVariant.GetValueOrDefault(v.Id)) })];
+        var ratings = await Api.Reviews.ProductRatings.ForAsync(reviewsDb, tenantId.Value, items.Select(p => p.Id).ToList(), ct);
+        return
+        [
+            .. items.Select(p => p.ToDto() with
+            {
+                Stock = p.Variants.Sum(v => stockByVariant.GetValueOrDefault(v.Id)),
+                Rating = ratings.GetValueOrDefault(p.Id),
+            }),
+        ];
     }
 }

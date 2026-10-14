@@ -8,7 +8,7 @@ public sealed record EmailTemplateDef(
 /// <summary>
 /// Catálogo de emails automáticos. Es la fuente de defaults; el tenant solo
 /// guarda los que edita (overrides en la tabla email_templates).
-/// Variables disponibles: {{store}}, {{name}}, {{order_id}}, {{total}}, {{items}}, {{link}}.
+/// Variables disponibles: {{store}}, {{name}}, {{order_id}} (el número de pedido, sin #), {{total}}, {{items}}, {{tracking_link}} ("Seguí tu pedido"), {{link}}.
 /// </summary>
 public static class EmailTemplateCatalog
 {
@@ -39,6 +39,14 @@ public static class EmailTemplateCatalog
             Wrap("Volvió lo que esperabas 🎉",
                 "<p>Hola {{name}}, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
 
+        // Lo pidió el comprador con "Avisame cuando ingrese": por eso sale
+        // encendido (no es promoción, es la respuesta a un pedido).
+        new("aviso-stock", "Promociones", "Avisame cuando ingrese",
+            "Avisa a quien dejó su email en un producto agotado cuando vuelve a haber stock.", true,
+            "Ya ingresó: {{product}}",
+            Wrap("¡Ya ingresó lo que esperabas! 🎉",
+                "<p>Hola, <strong>{{product}}</strong> vuelve a estar disponible en {{store}} a {{price}}.</p><p>Si todavía lo querés, ahora es el momento.</p><p><a href=\"{{link}}\">Comprarlo ahora</a></p>")),
+
         new("activacion-cuenta", "Cuenta de usuarios", "Activación de cuenta",
             "Ayuda al cliente a confirmar su cuenta.", true,
             "Confirmá tu cuenta en {{store}}",
@@ -57,23 +65,31 @@ public static class EmailTemplateCatalog
         new("confirmacion-compra", "Ventas", "Confirmación de compra",
             "Confirma el pedido apenas se realiza la compra.", true,
             "Recibimos tu pedido #{{order_id}}",
-            Wrap("¡Gracias por tu compra!", "<p>Tu pedido fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
+            Wrap("¡Gracias por tu compra!", "<p>Tu pedido #{{order_id}} fue registrado.</p>{{items}}<p><strong>Total: {{total}}</strong></p><p><a href=\"{{tracking_link}}\">Seguí tu pedido</a></p>")),
 
         new("confirmacion-pago", "Ventas", "Confirmación de pago",
             "Confirma cuando el pago fue acreditado.", true,
             "Confirmamos tu pago — pedido #{{order_id}}",
-            Wrap("¡Pago aprobado! 🎉", "<p>Recibimos tu pago. Estamos preparando tu pedido.</p>{{items}}<p><strong>Total: {{total}}</strong></p>")),
+            Wrap("¡Pago aprobado! 🎉", "<p>Recibimos tu pago. Estamos preparando tu pedido #{{order_id}}.</p>{{items}}<p><strong>Total: {{total}}</strong></p><p><a href=\"{{tracking_link}}\">Seguí tu pedido</a></p>")),
 
         // Encendida por defecto: en un pedido de retiro reemplaza a la confirmación de envío.
         new("lista-para-retirar", "Ventas", "Lista para retirar",
             "Avisa a tu cliente que su pedido de retiro en el local está listo.", true,
             "Tu pedido #{{order_id}} está listo para retirar",
-            Wrap("Listo para retirar", "<p>Tu pedido ya está listo. Pasá a retirarlo cuando quieras.</p>{{items}}")),
+            Wrap("Listo para retirar", "<p>Tu pedido #{{order_id}} ya está listo. Pasá a retirarlo cuando quieras.</p>{{items}}<p><a href=\"{{tracking_link}}\">Ver tu pedido</a></p>")),
 
         new("confirmacion-envio", "Ventas", "Confirmación de envío",
             "Notifica a tu cliente cuando el pedido fue despachado.", true,
             "Despachamos tu pedido #{{order_id}}",
-            Wrap("¡Tu pedido está en camino!", "<p>Despachamos tu pedido. Pronto lo vas a recibir.</p>")),
+            Wrap("¡Tu pedido está en camino!", "<p>Despachamos tu pedido #{{order_id}}. Pronto lo vas a recibir.</p><p><a href=\"{{tracking_link}}\">Seguí tu envío</a></p>")),
+
+        // Encendido de fábrica (se apaga desde Reseñas o desde acá): las
+        // reseñas casi nunca llegan solas. Sale unos días después del despacho.
+        new("pedir-resena", "Ventas", "Pedido de reseña",
+            "Le pide al comprador que opine de lo que compró, unos días después del despacho.", true,
+            "¿Qué te pareció tu compra en {{store}}?",
+            Wrap("¿Nos contás qué te pareció?",
+                "<p>Hola {{name}}, esperamos que estés disfrutando tu compra.</p>{{items}}<p>Tu opinión ayuda a otros compradores a decidir (y a nosotros a mejorar). Te lleva un minuto:</p><p><a href=\"{{link}}\">Dejar mi reseña</a></p>")),
 
         new("cancelacion-compra", "Ventas", "Cancelación de compra",
             "Notifica cuando un pedido fue cancelado.", false,

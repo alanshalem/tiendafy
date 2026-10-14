@@ -6,6 +6,8 @@ import { downloadBlob } from '../lib/download';
 import { InvoiceDialog, type InvoiceBuyer } from './orders-invoice-dialog';
 import { useServerLoad } from '../lib/useServerLoad';
 import { orderNumber } from '../lib/orderNumber';
+import { useFiscalReady } from '../lib/useFiscalReady';
+import { SetupInvoicingLink } from '../components/SetupInvoicingLink';
 
 interface FiscalDoc {
   id: string;
@@ -57,6 +59,7 @@ export function FiscalPanel({
   const [data, setData] = useState<FiscalStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
+  const fiscalReady = useFiscalReady();
 
   const { loading, reload: load } = useServerLoad(
     orderId,
@@ -182,7 +185,10 @@ export function FiscalPanel({
               </button>
             </div>
           )}
-          {canEmit && !invoice && !awaiting && payable && (
+          {canEmit && !invoice && !awaiting && payable && !fiscalReady && (
+            <SetupInvoicingLink compact className="mt-1" />
+          )}
+          {canEmit && !invoice && !awaiting && payable && fiscalReady && (
             <button
               onClick={() => setInvoicing(true)}
               disabled={busy}

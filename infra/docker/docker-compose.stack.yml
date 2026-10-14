@@ -144,6 +144,11 @@ services:
       Media__EnsureBucketOnStartup: ${MEDIA_ENSURE_BUCKET:-false}
       Ai__ApiKey: ${AI_API_KEY:-}
       Ai__Model: ${AI_MODEL:-claude-sonnet-5}
+      # Aviso al storefront (por la red interna, con el nombre del servicio)
+      # para que un diseño publicado o un cambio de catálogo se vea al toque.
+      # Sin secreto queda apagado y la tienda vence su caché sola (30 a 60 s).
+      Storefront__RevalidateUrl: http://storefront:3000/internal/revalidate
+      Storefront__RevalidateSecret: ${REVALIDATE_SECRET:-}
       Sentry__Dsn: ${SENTRY_DSN_BACKEND:-}
       Sentry__Environment: ${APP_ENV}
       Workers__Enabled: ${WORKERS_ENABLED:-true}
@@ -177,6 +182,8 @@ services:
       PUBLIC_API_URL: https://api.${STACK_DOMAIN}
       PUBLIC_ADMIN_ORIGIN: https://admin.${STACK_DOMAIN}
       PUBLIC_SENTRY_DSN: ${SENTRY_DSN_STOREFRONT:-}
+      # El mismo que Storefront__RevalidateSecret de la API (ver arriba).
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
 
   admin:
     image: ${REGISTRY:-ghcr.io/OWNER/tiendafy}-admin:${TAG:-latest}

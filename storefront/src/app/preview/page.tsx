@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { fetchDraftTheme } from '@/lib/theme';
 import { loadStorefront, loadHomeSectionProducts } from '@/lib/storefront';
@@ -20,6 +21,10 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
 
   const { pt } = await searchParams;
   const theme = await fetchDraftTheme(data.tenant.id, pt);
+  // Sin borrador (sin token o con uno vencido) esto no es el editor: a la
+  // portada de siempre, que respeta "Tienda en construcción". Antes se armaba
+  // la vista previa con el tema publicado y cualquiera la salteaba.
+  if (!theme) redirect('/');
   // Los productos de cada sección de la portada, según su origen (elegidos,
   // más vendidos, lo último, ofertas…): un pedido por origen y solo publicados.
   const sectionProducts = await loadHomeSectionProducts(data.tenant.id, theme.sections);

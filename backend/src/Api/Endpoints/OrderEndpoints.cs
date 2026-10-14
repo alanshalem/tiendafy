@@ -150,7 +150,7 @@ public static class OrderEndpoints
                 order.BuyerEmail,
                 http.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0",
                 request.CardLastFour, request.CardBrand, request.IsDebit,
-                $"Pedido {order.Id.ToString()[..8]}"), ct);
+                $"Pedido {order.Label}"), ct);
 
             if (payResult.IsFailure) return payResult.Error.ToProblem();
             var charge = payResult.Value;
@@ -216,13 +216,13 @@ public static class OrderEndpoints
         // recorre las ventas pendientes de despacho.
         group.MapGet("/orders", async (
             ITenantContext tenant, IOrderRepository orders, Guid? after, int? limit,
-            int? offset, string? q, string? status, CancellationToken ct) =>
+            int? offset, [AsParameters] OrderListQuery query, CancellationToken ct) =>
         {
             var take = Math.Clamp(limit ?? 20, 1, 100);
             if (after is null)
             {
                 var (page, total) = await orders.ListPageAsync(
-                    tenant.TenantId, take, Math.Max(0, offset ?? 0), q, status, ct);
+                    tenant.TenantId, take, Math.Max(0, offset ?? 0), query.ToFilter(), ct);
                 return Results.Ok(new { items = page.Select(ToDto), total });
             }
 
@@ -230,17 +230,69 @@ public static class OrderEndpoints
             return Results.Ok(new { items = items.Select(ToDto) });
         }).RequirePermission(Permission.OrdersRead);
 
-        // El listado entero (con la misma búsqueda y el mismo filtro que la
+        // El listado entero (con la misma búsqueda y los mismos filtros que la
         // pantalla) como planilla. Se escribe a medida que sale de la base: no
         // tiene el tope de 100 del listado ni junta miles de ventas en memoria.
+        // Con ids= baja solo esas (las elegidas en la tabla).
         group.MapGet("/orders/export", (
-            ITenantContext tenant, IOrderRepository orders, string? q, string? status, CancellationToken ct) =>
+            ITenantContext tenant, IOrderRepository orders, [AsParameters] OrderListQuery query, CancellationToken ct) =>
             Api.Fiscal.VatBookCsv.Download(
                 $"ventas-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd}.csv",
                 Api.Orders.OrderCsv.Header,
-                orders.StreamAsync(tenant.TenantId, q, status).Select(Api.Orders.OrderCsv.Row),
+                orders.StreamAsync(tenant.TenantId, query.ToFilter()).Select(Api.Orders.OrderCsv.Row),
                 ct))
             .RequirePermission(Permission.OrdersRead);
+
+        // Cancelar una venta que nunca se cobró: el link de pago que no se
+        // pagó, el pedido que el cliente ya no quiere. Anula el link (para que
+        // no pague algo que ya no existe), libera el stock reservado y deja
+        // escrito quién la canceló y por qué. Una venta cobrada no se cancela:
+        // se reembolsa.
+        group.MapPost("/orders/{id:guid}/cancel", async (
+            Guid id, CancelOrderRequest? req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            Inventory.Core.Domain.IStockRepository stock, IMercadoPagoPaymentService mp,
+            ILoggerFactory loggers, CancellationToken ct) =>
+        {
+            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
+            if (order is null) return Results.NotFound();
+            var cancellable = order.EnsureCancellable();
+            if (cancellable.IsFailure) return cancellable.Error.ToProblem();
+
+            // El link primero: si se anulara después, entre cancelar y anular
+            // el comprador todavía podría pagar una venta ya cancelada.
+            var linkExpired = false;
+            if (order.PreferenceId is { Length: > 0 } preference)
+            {
+                var expired = await mp.ExpirePreferenceAsync(tenant.TenantId, preference, ct);
+                linkExpired = expired.IsSuccess;
+                if (expired.IsFailure)
+                    loggers.CreateLogger("Orders").LogWarning(
+                        "No se pudo vencer la preference {Preference} de la venta {OrderId}: {Error}",
+                        preference, order.Id, expired.Error.Code);
+            }
+
+            var by = http.User.Identity?.Name ?? http.User.GetUserId()?.ToString() ?? "admin";
+            var cancelled = order.Cancel(by, req?.Reason);
+            if (cancelled.IsFailure) return cancelled.Error.ToProblem();
+            try
+            {
+                await orders.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Error.Conflict("Order.Concurrent",
+                    "La venta cambió mientras se cancelaba (puede que se haya pagado). Recargá y revisala.").ToProblem();
+            }
+
+            // Una reserva que ya venció (o ya se liberó) no es un error: el
+            // stock ya había vuelto solo.
+            var released = 0;
+            foreach (var reservationId in order.ReservationIds)
+                if ((await stock.ReleaseReservationAsync(tenant.TenantId, reservationId, ct)).IsSuccess)
+                    released++;
+
+            return Results.Ok(new { order = ToDto(order), linkExpired, releasedReservations = released });
+        }).RequireAnyPermission(Permission.OrdersCreate, Permission.OrdersRefund);
 
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
         group.MapPost("/orders/{id:guid}/fulfill", async (
@@ -272,7 +324,7 @@ public static class OrderEndpoints
                 fulfilled = outcomes.Count(o => o.Result == "fulfilled"),
                 skipped = outcomes.Count(o => o.Result == "skipped"),
                 failed = outcomes.Count(o => o.Result == "failed"),
-                results = outcomes.Select(o => new { o.Id, number = $"#{Api.Orders.OrderCsv.ShortNumber(o.Id)}", o.Result, o.Reason }),
+                results = outcomes.Select(o => new { o.Id, o.Number, o.Result, o.Reason }),
             });
         }).RequirePermission(Permission.OrdersFulfill);
 
@@ -286,7 +338,7 @@ public static class OrderEndpoints
             IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
             global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
             Inventory.Core.Domain.IStockRepository stock, Api.Orders.KitStockService kits,
-            CancellationToken ct) =>
+            Api.Finance.LedgerPoster ledger, CancellationToken ct) =>
         {
 
             var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
@@ -327,7 +379,7 @@ public static class OrderEndpoints
                 // del pago; con parciales previos siempre mandamos monto explícito.
                 // Ventas manuales (efectivo/transferencia): la plata se devuelve a
                 // mano — solo se registra el estado y la auditoría.
-                var isManualPayment = order.PaymentId!.StartsWith("manual-", StringComparison.Ordinal);
+                var isManualPayment = order.PaymentId!.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal);
                 if (!isManualPayment)
                 {
                     var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
@@ -354,6 +406,15 @@ public static class OrderEndpoints
                 paymentsDb.PaymentRefunds.Add(audit);
                 await paymentsDb.SaveChangesAsync(ct);
 
+                // Venta a cuenta corriente: la plata nunca entró, así que no hay
+                // nada que devolver — lo que baja es la deuda del cliente. Antes
+                // el reembolso marcaba la venta y la deuda quedaba entera.
+                if (OrderPayment.Of(order) == OrderPayment.CurrentAccount)
+                    await ledger.PostSaleRefundAsync(
+                        tenant.TenantId.Value, order.Id, audit.Id,
+                        $"Reembolso venta {order.Label}",
+                        amount.AmountInMinorUnits, order.Currency, DateTime.UtcNow, req.Reason, ct);
+
                 if (order.Status == OrderStatus.Refunded)
                 {
                     await notifier.NotifyAsync(order, "cancelacion-compra", ct);
@@ -373,7 +434,7 @@ public static class OrderEndpoints
                             {
                                 await stock.AdjustAvailableAsync(
                                     tenant.TenantId, item.VariantId, item.Quantity,
-                                    $"Devolución venta {order.Id.ToString()[..8]}", ct);
+                                    $"Devolución venta {order.Label}", ct);
                             }
                             catch
                             {
@@ -537,6 +598,7 @@ public static class OrderEndpoints
             return Results.Created($"/api/v1/orders/{order.Id}", new
             {
                 order.Id,
+                order.Number,
                 total = order.Total.AmountInMinorUnits,
                 status = order.Status.ToString().ToUpperInvariant(),
                 paymentLink = result.Value.PaymentLink,
@@ -548,23 +610,9 @@ public static class OrderEndpoints
             global::Fiscal.Infrastructure.Persistence.FiscalDbContext fiscalDb,
             global::Fiscal.Core.Abstractions.IComprobantePdfRenderer pdf, CancellationToken ct) =>
         {
-            var tid = tenant.TenantId.Value;
             var wantNc = string.Equals(type, "creditnote", StringComparison.OrdinalIgnoreCase);
-
-            var docs = await fiscalDb.Documents.AsNoTracking()
-                .Where(d => d.TenantId == tid && d.OrderId == id
-                    && d.Result == global::Fiscal.Core.Domain.FiscalResult.Authorized)
-                .OrderByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
-            var doc = docs.FirstOrDefault(d => OrderComprobantePresenter.IsNc(d.CbteTipo) == wantNc);
-            if (doc is null) return Results.NotFound();
-
             var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tid, ct);
-            if (cfg is null) return Results.NotFound();
-
-            var data = OrderComprobantePresenter.BuildPdfData(doc, order, cfg);
-            var bytes = pdf.Render(data);
-            return Results.File(bytes, "application/pdf", $"comprobante-{doc.PtoVta:0000}-{doc.Number:00000000}.pdf");
+            return await OrderInvoicePdf.DownloadAsync(fiscalDb, pdf, tenant.TenantId.Value, id, order, wantNc, ct);
         }).RequirePermission(Permission.OrdersRead);
 
         return group;
@@ -649,6 +697,7 @@ public static class OrderEndpoints
     private static object ToDto(Order order) => new
     {
         order.Id,
+        order.Number,
         status = order.Status.ToString().ToUpperInvariant(),
         order.BuyerEmail,
         order.Currency,
@@ -660,6 +709,12 @@ public static class OrderEndpoints
         order.PaidAtUtc,
         order.Tracking,
         order.FulfilledAtUtc,
+        channel = order.Channel,
+        paymentMethod = OrderPayment.Of(order),
+        shippingStatus = OrderShipping.Of(order),
+        order.CancelledAtUtc,
+        order.CancelledBy,
+        order.CancelReason,
         subtotal = ApiJson.MoneyJson(order.Subtotal),
         discount = ApiJson.MoneyJson(order.DiscountAmount),
         shipping = ApiJson.MoneyJson(order.ShippingCost),
@@ -686,6 +741,54 @@ public static class OrderEndpoints
 }
 
 public sealed record FulfillRequest(string? Tracking);
+
+public sealed record CancelOrderRequest(string? Reason);
+
+/// <summary>
+/// Los filtros del listado de Ventas tal como viajan en la URL del panel. Las
+/// fechas son días de Argentina: "hasta el 14" incluye todo el 14 hasta la
+/// medianoche de acá, no hasta las 21 h.
+/// </summary>
+public sealed record OrderListQuery(
+    string? Q,
+    string? Status,
+    DateOnly? From,
+    DateOnly? To,
+    string? Channel,
+    string? Shipping,
+    string? Payment,
+    string? Ids)
+{
+    // Argentina no tiene horario de verano desde 2009: UTC−3 fijo.
+    private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
+
+    public OrderListFilter ToFilter() => new(
+        Q,
+        Status,
+        From is { } from ? StartOfDayUtc(from) : null,
+        To is { } to ? StartOfDayUtc(to.AddDays(1)) : null,
+        Channel,
+        Shipping,
+        Payment,
+        ParseIds(Ids));
+
+    private static DateTime StartOfDayUtc(DateOnly day) =>
+        DateTime.SpecifyKind(day.ToDateTime(TimeOnly.MinValue) - Argentina, DateTimeKind.Utc);
+
+    /// <summary>"a,b,c" → ids; lo que no es un id se ignora, y hay tope (es una selección de la tabla).</summary>
+    private static List<Guid>? ParseIds(string? ids)
+    {
+        if (string.IsNullOrWhiteSpace(ids)) return null;
+        var parsed = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty)
+            .Distinct()
+            .Take(500)
+            .ToList();
+        // Pidió ids y ninguno era válido: no tiene que bajar todas las ventas.
+        return parsed.Count > 0 ? parsed : [Guid.Empty];
+    }
+}
 
 public sealed record BulkFulfillRequest(IReadOnlyList<Guid>? Ids);
 

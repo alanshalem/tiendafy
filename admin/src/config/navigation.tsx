@@ -1,8 +1,10 @@
 import {
   BarChart3,
+  BellRing,
   ListChecks,
   CreditCard,
   FileText,
+  Landmark,
   Globe,
   Mail,
   MessageCircle,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 import { isNavVisible } from './features';
 import { routePerm, satisfies, type Perm } from '../lib/access';
+import type { NavBadge } from '../lib/useNavCounts';
 
 /*
  * Los menús del panel: el lateral, el de Configuración y, armado a partir de
@@ -30,6 +33,8 @@ export interface NavChild {
   /** Una línea que explica la página (tooltip al pasar el mouse). */
   desc?: string;
   soon?: boolean;
+  /** Contador que muestra al lado (sin leer de la bandeja, stock bajo). */
+  badge?: NavBadge;
 }
 
 export interface NavItem {
@@ -38,6 +43,7 @@ export interface NavItem {
   /** Una línea que explica la página (tooltip al pasar el mouse). */
   desc?: string;
   soon?: boolean;
+  badge?: NavBadge;
   children?: NavChild[];
 }
 
@@ -104,6 +110,12 @@ export const MAIN_NAV: NavSection[] = [
     heading: 'Gestión',
     items: [
       {
+        to: '/bandeja',
+        label: 'Bandeja',
+        desc: 'Contacto, chat posventa y Mercado Libre en una sola lista: asigná, respondé y archivá.',
+        badge: 'inbox',
+      },
+      {
         to: '/ventas',
         label: 'Ventas',
         desc: 'Los pedidos de tu tienda: cobro, envío, factura y reembolsos.',
@@ -112,6 +124,11 @@ export const MAIN_NAV: NavSection[] = [
             to: '/ventas',
             label: 'Lista de ventas',
             desc: 'Todos los pedidos con su estado de pago y de envío.',
+          },
+          {
+            to: '/ventas/despacho',
+            label: 'Despacho',
+            desc: 'Prepará varios pedidos juntos: picking, etiquetas, remitos y despachar escaneando.',
           },
           {
             to: '/presupuestos',
@@ -141,6 +158,12 @@ export const MAIN_NAV: NavSection[] = [
             desc: 'Stock disponible y reservado por variante, con ajuste rápido.',
           },
           {
+            to: '/productos/stock-bajo',
+            label: 'Stock bajo',
+            desc: 'Lo que se agota antes de que llegue la próxima compra, con el pedido sugerido.',
+            badge: 'stock',
+          },
+          {
             to: '/productos/costos',
             label: 'Costos',
             desc: 'Cuánto te cuesta cada variante — la base de Rentabilidad.',
@@ -154,6 +177,11 @@ export const MAIN_NAV: NavSection[] = [
             to: '/productos/escaner',
             label: 'Escáner',
             desc: 'El depósito en el celu: buscá, ajustá stock y prepará pedidos escaneando.',
+          },
+          {
+            to: '/productos/esperando',
+            label: 'Avisame cuando ingrese',
+            desc: 'Cuánta gente espera cada producto agotado: la lista de compras que te pide la tienda.',
           },
           {
             to: '/productos/kits',
@@ -215,6 +243,11 @@ export const MAIN_NAV: NavSection[] = [
         to: '/posventa',
         label: 'Chat posventa',
         desc: 'El chat privado con cada comprador sobre SU pedido.',
+      },
+      {
+        to: '/resenas',
+        label: 'Reseñas',
+        desc: 'Las opiniones de tus compradores: aprobalas, ocultalas o respondelas.',
       },
       {
         to: '/descuentos',
@@ -310,6 +343,12 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
         desc: 'Factura electrónica ARCA: certificado, punto de venta y emisión automática.',
         icon: FileText,
       },
+      {
+        to: '/configuracion/datos-legales',
+        label: 'Datos legales',
+        desc: 'Razón social, CUIT, domicilio y QR de Data Fiscal en el pie, y el precio sin impuestos nacionales.',
+        icon: Landmark,
+      },
     ],
   },
   {
@@ -343,6 +382,12 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'Búsqueda',
         desc: 'Sinónimos del buscador de la tienda y lo que buscan tus clientes.',
         icon: Search,
+      },
+      {
+        to: '/configuracion/alertas-de-stock',
+        label: 'Alertas de stock',
+        desc: 'Cuándo te avisamos que algo hay que reponer: al toque, en un resumen diario o nunca.',
+        icon: BellRing,
       },
     ],
   },

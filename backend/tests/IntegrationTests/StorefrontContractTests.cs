@@ -42,7 +42,12 @@ public sealed class StorefrontContractTests
         "/api/v1/shop/auth/verify",
         "/api/v1/shop/auth/logout",
         "/api/v1/shop/favorites/merge",
-        "/api/v1/shop/support/conversations");
+        "/api/v1/shop/support/conversations",
+        "/api/v1/reviews",
+        "/api/v1/reviews/photos",
+        "/api/v1/reviews/00000000-0000-0000-0000-000000000000/helpful",
+        "/api/v1/reviews/00000000-0000-0000-0000-000000000000/report",
+        "/api/v1/stock-alerts");
 
     [Theory]
     [MemberData(nameof(EscriturasDeLaTienda))]

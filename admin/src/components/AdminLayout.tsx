@@ -12,6 +12,7 @@ import { StoreSwitcher } from './StoreSwitcher';
 import { storePublicUrl } from '../lib/storefront';
 import { LogoMark } from './LogoMark';
 import { PanelShell } from './PanelShell';
+import { useNavCounts, type NavBadge } from '../lib/useNavCounts';
 
 // Fuera del menú hasta que existan de verdad (las rutas stub siguen vivas):
 // Marketing, Instagram/Facebook, Google Shopping, Marketplaces, Aplicaciones.
@@ -24,11 +25,32 @@ function SoonBadge() {
   );
 }
 
-function SidebarItem({ item }: { item: NavItem }) {
+/**
+ * El número al lado de una entrada del menú (sin leer de la bandeja, stock
+ * bajo). Con 0 no se dibuja: un "0" fijo es ruido que enseña a no mirarlo.
+ */
+function CountBadge({ count, label }: { count: number; label: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-label={`${count} ${label}`}
+      className="ml-auto min-w-5 rounded-full bg-primary px-1.5 py-px text-center text-[0.68rem] font-bold tabular-nums text-primary-fg"
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+const BADGE_LABEL: Record<NavBadge, string> = { inbox: 'sin leer', stock: 'con stock bajo' };
+
+function SidebarItem({ item, counts }: { item: NavItem; counts: Record<NavBadge, number> }) {
   const location = useLocation();
   const isSectionActive =
     item.children?.some((c) => location.pathname === c.to) ?? location.pathname === item.to;
   const [open, setOpen] = useState(isSectionActive);
+  const closedCount = open
+    ? 0
+    : (item.children ?? []).reduce((sum, c) => sum + (c.badge ? counts[c.badge] : 0), 0);
 
   const linkClass = (isActive: boolean) =>
     cn(
@@ -42,6 +64,7 @@ function SidebarItem({ item }: { item: NavItem }) {
         <NavLink to={item.to} end className={({ isActive }) => linkClass(isActive)}>
           {item.label}
           {item.soon && <SoonBadge />}
+          {item.badge && <CountBadge count={counts[item.badge]} label={BADGE_LABEL[item.badge]} />}
         </NavLink>
       </Tooltip>
     );
@@ -58,11 +81,13 @@ function SidebarItem({ item }: { item: NavItem }) {
         >
           {item.label}
           {item.soon && <SoonBadge />}
+          {/* Cerrado, el grupo muestra lo de sus hijos para que no se pierda. */}
+          {closedCount > 0 && <CountBadge count={closedCount} label="pendientes" />}
           <svg
             className={cn(
               'ml-auto h-3.5 w-3.5 shrink-0 transition-transform',
               open && 'rotate-90',
-              item.soon && 'ml-1',
+              (item.soon || closedCount > 0) && 'ml-1',
             )}
             viewBox="0 0 20 20"
             fill="none"
@@ -94,6 +119,7 @@ function SidebarItem({ item }: { item: NavItem }) {
               >
                 {child.label}
                 {child.soon && <SoonBadge />}
+                {child.badge && <CountBadge count={counts[child.badge]} label={BADGE_LABEL[child.badge]} />}
               </NavLink>
             </Tooltip>
           ))}
@@ -107,6 +133,7 @@ export function AdminLayout() {
   const { store } = useStore();
   const { user, logout } = useAuth();
   const { can } = usePermissions();
+  const counts = useNavCounts();
 
   const visibleSections = visibleMainNav(can);
 
@@ -130,7 +157,7 @@ export function AdminLayout() {
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => (
-                <SidebarItem key={item.to} item={item} />
+                <SidebarItem key={item.to} item={item} counts={counts} />
               ))}
             </div>
           </div>

@@ -43,6 +43,12 @@ public sealed class AdminWriteAuthMiddleware(RequestDelegate next)
         // Baja de campañas: el destinatario no tiene sesión (el token firmado
         // es la autorización).
         "/api/v1/marketing/unsubscribe",
+        // Reseñas: el alta va con el link firmado de una venta despachada, y
+        // "me sirvió"/denuncias son de cualquier visitante (con límite por IP).
+        // NO cubre /admin/reviews (moderación), que exige su permiso.
+        "/api/v1/reviews",
+        // "Avisame cuando ingrese" y su baja desde el email (token firmado).
+        "/api/v1/back-in-stock",
         // Webhook de Resend (firma svix propia; sin secret configurado, 404).
         "/api/v1/webhooks/resend",
         // Webhook de Mercado Libre (sin firma; el worker re-consulta el

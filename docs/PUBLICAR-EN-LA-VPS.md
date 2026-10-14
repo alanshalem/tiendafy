@@ -257,6 +257,7 @@ Completá así (lo que no figura acá, dejalo como viene):
 | `EMAIL_FROM` | `Puente Oriente <no-responder@puenteoriente.com.ar>` |
 | `RESEND_API_KEY` / `EMAIL_WEBHOOK_SECRET` | las de Resend (1.6) |
 | `MP_CLIENT_ID` / `MP_CLIENT_SECRET` / `MP_WEBHOOK_SECRET` | las de Mercado Pago (1.7) |
+| `REVALIDATE_SECRET` | otro generado con `openssl rand -hex 32` (lo publicado se ve en la tienda al toque) |
 
 Los puertos (`API_PORT=5080`, `WEB_PORT=3000`, `ADMIN_PORT=8090`) ya vienen y
 **no chocan** con cking (3001, 5100) ni con ckinsight (8082, 8083).

@@ -44,4 +44,10 @@ public sealed record ProductDto(
     // Stock total (suma de variantes). Solo lo llena la búsqueda del storefront; null = desconocido.
     int? Stock = null,
     // Último cambio (o el alta, si no se tocó desde entonces): el lastmod del sitemap.
-    DateTime? UpdatedAtUtc = null);
+    DateTime? UpdatedAtUtc = null,
+    // Estrellas de las reseñas aprobadas. Las llenan las lecturas del storefront
+    // (las reseñas viven en otro módulo); null = sin reseñas o la tienda no las muestra.
+    ProductRatingDto? Rating = null);
+
+/// <summary>Promedio (1 decimal) y cantidad de reseñas aprobadas de un producto.</summary>
+public sealed record ProductRatingDto(decimal Average, int Count);

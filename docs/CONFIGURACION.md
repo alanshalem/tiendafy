@@ -68,6 +68,7 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `DataProtection:KeyPath` | Claves de cifrado (¡todos los secretos de tiendas dependen de esto!) | default local | volumen `dpkeys` del compose — **backupear siempre** |
 | `Database:MigrateOnStartup` | Migrar al arrancar | `true` | `false` (se migra con `dotnet Api.dll migrate`) |
 | `Workers:Enabled` | Workers de fondo (carritos, campañas) | `true` | `true` solo en la instancia principal |
+| `Storefront:RevalidateUrl` / `:RevalidateSecret` | Aviso al storefront para que un diseño publicado o un cambio de catálogo se vea al toque | `http://localhost:3000/internal/revalidate` / `dev-revalidate-secret` | `http://storefront:3000/internal/revalidate` (red interna) / el mismo valor que `REVALIDATE_SECRET` del storefront. Vacío = apagado (la tienda vence su caché sola en 30-60 s) |
 | `Notifications:EmailCostUsdPer1000` / `:WhatsAppCostUsdPerMessage` | Tarifas del panel de costos | defaults 0.40 / 0.034 | ajustar a tu plan real |
 | `Fiscal:Endpoints:*` | URLs de WSAA/WSFE de ARCA | defaults de homologación | defaults de producción (built-in) |
 
@@ -82,7 +83,8 @@ En **prod**: `.env.prod` (ver §4) — el compose las mapea a estas claves.
 | `NEXT_PUBLIC_ADMIN_ORIGIN` | `http://localhost:5173` | **REQUERIDA**: `https://admin.TUDOMINIO` (link al panel + seguridad del editor de temas) |
 | `PLATFORM_BASE_DOMAIN` (server-side) | `localhost` | `TUDOMINIO` |
 | `PRIMARY_STORE_SUBDOMAIN` (server-side) | `puenteoriente` | el subdominio de la tienda que atiende `TUDOMINIO` pelado |
-| `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront |
+| `NEXT_PUBLIC_SENTRY_DSN` | vacío | DSN del storefront (en el contenedor: `PUBLIC_SENTRY_DSN`) |
+| `REVALIDATE_SECRET` (server-side) | sin setear = `dev-revalidate-secret` | el mismo que `Storefront:RevalidateSecret` de la API; vacío = la ruta de revalidación queda apagada |
 
 **Admin** (`admin/.env.local` en dev; build arg en prod):
 

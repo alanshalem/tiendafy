@@ -36,10 +36,10 @@ Fijos (`Roles.All`): lo que se edita es qué puede cada uno.
 | ----------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `owner` (Dueño)         | 3    | Todo, siempre. Su columna no se edita.                                                                                                  |
 | `admin` (Administrador) | 2    | Todo menos lo que es solo del dueño.                                                                                                    |
-| `vendedor`              | 1    | Ventas (ver, registrar, despachar), presupuestos, atender ML, clientes (ver), chat, mensajes, cupones (ver), estadísticas, stock (ver). |
+| `vendedor`              | 1    | Ventas (ver, registrar, despachar), presupuestos, atender ML, clientes (ver), chat, mensajes, reseñas, cupones (ver), estadísticas, stock (ver). |
 | `catalogo`              | 1    | Productos, precios y repreciación, stock, costos, publicar en ML.                                                                       |
 | `finanzas`              | 1    | Ventas (ver), devoluciones, facturación, tesorería, compras, cobros (ver), costos, estadísticas.                                        |
-| `soporte`               | 1    | Ventas (ver), clientes (ver), chat, mensajes, atender ML.                                                                               |
+| `soporte`               | 1    | Ventas (ver), clientes (ver), chat, mensajes, reseñas, atender ML.                                                                      |
 
 El rol `staff` (de cuando había dos) se migró a `admin`.
 

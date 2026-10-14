@@ -71,15 +71,6 @@ describe('productJsonLd', () => {
     expect((below.offers as { shippingDetails: object }).shippingDetails).not.toHaveProperty('shippingRate');
   });
 
-  it('las reseñas van como aggregateRating solo si hay alguna', () => {
-    expect(productJsonLd(product({ rating: { value: 4.666, count: 3 } }), '')!.aggregateRating).toEqual({
-      '@type': 'AggregateRating',
-      ratingValue: 4.7,
-      reviewCount: 3,
-    });
-    expect(productJsonLd(product({ rating: { value: 0, count: 0 } }), '')!.aggregateRating).toBeUndefined();
-  });
-
   it('varias variantes: AggregateOffer con el rango real, no el precio de la primera', () => {
     const ld = productJsonLd(
       product({

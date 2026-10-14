@@ -22,6 +22,7 @@ using Notifications.Infrastructure;
 using Orders.Infrastructure;
 using Payments.Infrastructure;
 using Purchasing.Infrastructure;
+using Reviews.Infrastructure;
 using Serilog;
 using SharedKernel.Abstractions;
 using Social.Contracts;
@@ -68,6 +69,7 @@ public static class ServiceRegistration
         services.AddThemesModule(configuration);
         services.AddMediaModule(configuration, isProduction);
         services.AddSupportModule(configuration);
+        services.AddReviewsModule(configuration);
         services.AddPurchasingModule(configuration);
         services.AddFinanceModule(configuration);
         services.AddScoped<Api.Finance.LedgerPoster>();
@@ -114,6 +116,9 @@ public static class ServiceRegistration
         // Los carriers (MiCorreo, Zipnova, Andreani) los registra su módulo: AddCheckoutModule.
         if (runPollingWorkers) services.AddHostedService<AbandonedCartWorker>();
         if (runPollingWorkers) services.AddHostedService<FavoriteAlertWorker>();
+        // "Avisame cuando ingrese" y el pedido de reseña unos días después del despacho.
+        if (runPollingWorkers) services.AddHostedService<BackInStockWorker>();
+        if (runPollingWorkers) services.AddHostedService<ReviewRequestWorker>();
         if (runPollingWorkers) services.AddHostedService<CampaignWorker>();
         // Diseños programados (ej. una portada de Hot Sale que sale a las 00:00).
         if (runPollingWorkers) services.AddHostedService<Api.Workers.ThemeScheduleWorker>();
@@ -129,6 +134,7 @@ public static class ServiceRegistration
         services.AddScoped<DemoDataSeeder>();   // datos de ejemplo; solo se usa desde /dev
         services.AddScoped<Api.Orders.PaidOrderSideEffects>();
         services.AddScoped<Api.Orders.OrderFulfillment>();
+        services.AddScoped<Api.Orders.OrderTrackingView>();
         services.AddScoped<Api.Orders.ManualOrderService>();
         services.AddSingleton<Api.Auth.IGoogleIdTokenValidator, Api.Auth.GoogleIdTokenValidator>(); // login de compradores con Google
         // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
@@ -161,8 +167,33 @@ public static class ServiceRegistration
         services.AddHttpClient<Api.Ai.AiClient>(c => c.Timeout = TimeSpan.FromSeconds(120));
         services.AddScoped<Api.Purchasing.InvoiceScanner>();
 
+        // Bandeja unificada (contacto + posventa + preguntas y mensajes de ML).
+        // El cache en memoria ahorra llamadas a ML: la bandeja y el contador
+        // del menú se refrescan solos desde cada panel abierto.
+        services.AddMemoryCache();
+        services.AddScoped<Api.Inbox.MeliInboxSource>();
+        services.AddScoped<Api.Inbox.InboxService>();
+
+        // Despacho: cola de pedidos, lista de picking, etiquetas en lote y
+        // despachar escaneando.
+        services.AddScoped<Api.Fulfillment.FulfillmentService>();
+        services.AddScoped<Api.Fulfillment.CarrierLabels>();
+
+        // Alertas de stock bajo: la misma señal de reposición de Compras, un
+        // aviso por cruce (inmediato o en un resumen diario).
+        services.AddScoped<Api.Purchasing.ReorderSignal>();
+        services.AddScoped<Api.Purchasing.StockAlertService>();
+        if (runPollingWorkers) services.AddHostedService<Api.Purchasing.StockAlertWorker>();
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
+
+        // Aviso al storefront para que vence su caché al publicar un diseño o
+        // cambiar el catálogo. Vacío = apagado (la tienda vence sola por tiempo).
+        services.Configure<Api.Storefront.StorefrontOptions>(configuration.GetSection(Api.Storefront.StorefrontOptions.SectionName));
+        services.AddHttpClient(Api.Storefront.StorefrontRevalidator.HttpClientName,
+            c => c.Timeout = Api.Storefront.StorefrontRevalidator.Timeout);
+        services.AddSingleton<Api.Storefront.IStorefrontRevalidator, Api.Storefront.StorefrontRevalidator>();
 
         return services;
     }

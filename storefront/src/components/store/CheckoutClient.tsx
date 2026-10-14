@@ -21,6 +21,7 @@ import type { MoneyDto } from '@tiendafy/types';
 import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { finishPurchase, readBuyer, writeBuyer } from '@/lib/cart-storage';
+import { readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
 import { INPUT_LIGHT_10, INPUT_LIGHT_11 } from './styles';
@@ -234,6 +235,8 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
       buyerRef.current = { ...EMPTY_BUYER, ...saved };
       setBuyer(buyerRef.current);
     }
+    // El código postal con el que calculó el envío en la ficha (ver ShippingEstimate).
+    setQuoteCp((cp) => cp || readPostalCode(tenantId));
   }, [tenantId]);
 
   // Precio y stock de hoy, antes de mostrar un total: el carrito guarda los
@@ -334,6 +337,7 @@ export function CheckoutClient({ tenantId }: { tenantId: string }) {
     });
     setQuoteErrors(errors);
     if (ready.length === 0) return;
+    savePostalCode(tenantId, cp);
 
     setQuoting(true);
     setQuotes({});

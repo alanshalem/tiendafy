@@ -131,4 +131,114 @@ public sealed class ManualOrderTests(ApiFactory factory)
         Assert.Contains($"{returnUrl}/checkout/success?order={sale.GetProperty("id").GetGuid()}", preference, StringComparison.Ordinal);
         Assert.Equal(3, await merchant.AvailableAsync(variant)); // reservado hasta que pague
     }
+
+    [Fact]
+    public async Task Reembolsar_una_venta_en_cuenta_corriente_baja_la_deuda_del_cliente()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "mo5");
+        var (_, variant) = await merchant.CreateProductAsync("Barra olímpica", priceMinor: 40_000_00, stock: 5);
+        var customerId = (await merchant.PostAsync("/api/v1/customers", new { name = "Club Sur", email = "sur@test.local" }))
+            .GetProperty("id").GetGuid();
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual",
+                Sale(variant, "cuenta_corriente", quantity: 2, extra: new() { ["customerId"] = customerId })))
+            .GetProperty("id").GetGuid();
+        Assert.Equal("cuenta_corriente", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("paymentMethod").GetString());
+
+        Task<JsonElement> LedgerAsync() => merchant.GetAsync($"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
+        Assert.Equal(80_000_00, (await LedgerAsync()).GetProperty("balanceMinor").GetInt64());
+        var mpCalls = factory.ExternalHttp.SentTo($"{MercadoPago}/v1/payments").Count;
+
+        // Parcial: la deuda baja lo devuelto, y la venta queda pendiente solo por el resto.
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = 30_000m, reason = "una barra fallada" });
+        var ledger = await LedgerAsync();
+        Assert.Equal(50_000_00, ledger.GetProperty("balanceMinor").GetInt64());
+        var items = ledger.GetProperty("items").EnumerateArray().ToList();
+        var credit = Assert.Single(items, i => i.GetProperty("docType").GetString() == "creditnote");
+        Assert.Equal(30_000_00, credit.GetProperty("creditMinor").GetInt64());
+        Assert.Equal("una barra fallada", credit.GetProperty("notes").GetString());
+        var saleEntry = Assert.Single(items, i => i.GetProperty("docType").GetString() == "sale");
+        Assert.Equal(50_000_00, saleEntry.GetProperty("pendingMinor").GetInt64());
+
+        // El resto: la deuda queda en cero, la venta reembolsada y el stock de vuelta.
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = (decimal?)null, reason = (string?)null, restock = true });
+        Assert.Equal(0, (await LedgerAsync()).GetProperty("balanceMinor").GetInt64());
+        Assert.Equal("REFUNDED", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("status").GetString());
+        Assert.Equal(5, await merchant.AvailableAsync(variant));
+
+        // Nunca se habló con Mercado Pago: la plata no había entrado por ahí.
+        Assert.Equal(mpCalls, factory.ExternalHttp.SentTo($"{MercadoPago}/v1/payments").Count);
+    }
+
+    [Fact]
+    public async Task Reembolsar_una_venta_en_efectivo_no_toca_ninguna_cuenta_corriente()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "mo7");
+        var (_, variant) = await merchant.CreateProductAsync("Disco 10 kg", priceMinor: 10_000_00, stock: 5);
+        var customerId = (await merchant.PostAsync("/api/v1/customers", new { name = "Mostrador", email = "mostrador@test.local" }))
+            .GetProperty("id").GetGuid();
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual",
+                Sale(variant, "cash", extra: new() { ["customerId"] = customerId })))
+            .GetProperty("id").GetGuid();
+        Assert.Equal("cash", (await merchant.GetAsync($"/api/v1/orders/{orderId}")).GetProperty("paymentMethod").GetString());
+
+        await merchant.PostAsync($"/api/v1/orders/{orderId}/refund", new { amount = (decimal?)null, reason = "cambio de idea" });
+        var ledger = await merchant.GetAsync($"/api/v1/finance/ledger?partyKind=customer&partyId={customerId}");
+        Assert.Empty(ledger.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Cancelar_una_venta_con_link_anula_el_link_libera_el_stock_y_deja_rastro()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "mo6");
+        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        var (_, variant) = await merchant.CreateProductAsync("Soga de saltar", priceMinor: 8_000_00, stock: 5);
+        var returnUrl = $"http://{merchant.Subdomain}.localhost:3000";
+        var preferenceId = $"pref-{Guid.NewGuid():N}"[..20];
+        factory.ExternalHttp.OnJson(HttpMethod.Post, $"{MercadoPago}/v1/checkout/preferences",
+            new { id = preferenceId, init_point = $"https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id={preferenceId}" });
+        var sale = await merchant.PostAsync("/api/v1/orders/manual", Sale(variant, "link", quantity: 2, extra: new() { ["returnUrl"] = returnUrl }));
+        var orderId = sale.GetProperty("id").GetGuid();
+        Assert.Equal(3, await merchant.AvailableAsync(variant));
+
+        factory.ExternalHttp.OnJson(HttpMethod.Put, $"{MercadoPago}/checkout/preferences/{preferenceId}", new { id = preferenceId });
+        var cancelled = await merchant.PostAsync($"/api/v1/orders/{orderId}/cancel", new { reason = "  no pagó nunca  " });
+        Assert.True(cancelled.GetProperty("linkExpired").GetBoolean());
+        var order = cancelled.GetProperty("order");
+        Assert.Equal("CANCELLED", order.GetProperty("status").GetString());
+        Assert.Equal("no pagó nunca", order.GetProperty("cancelReason").GetString());
+        Assert.Equal(merchant.Email, order.GetProperty("cancelledBy").GetString());
+        Assert.NotEqual(JsonValueKind.Null, order.GetProperty("cancelledAtUtc").ValueKind);
+        Assert.Equal(5, await merchant.AvailableAsync(variant));
+        var put = Assert.Single(factory.ExternalHttp.SentTo($"{MercadoPago}/checkout/preferences/{preferenceId}"));
+        Assert.Contains("\"expires\":true", put.Body);
+
+        // Dos veces no: ya está cancelada. Y una cobrada tampoco: se reembolsa.
+        var again = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{orderId}/cancel", new { reason = (string?)null });
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("Order.AlreadyCancelled", await CodeAsync(again));
+        var paid = await merchant.CreateSaleAsync();
+        var notPending = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{paid}/cancel", new { reason = (string?)null });
+        Assert.Equal(HttpStatusCode.Conflict, notPending.StatusCode);
+        Assert.Equal("Order.NotCancellable", await CodeAsync(notPending));
+    }
+
+    [Fact]
+    public async Task Cancelar_aunque_Mercado_Pago_no_conteste_igual_libera_el_stock()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "mo8");
+        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        var (_, variant) = await merchant.CreateProductAsync("Guantes", priceMinor: 5_000_00, stock: 4);
+        var preferenceId = $"pref-{Guid.NewGuid():N}"[..20];
+        factory.ExternalHttp.OnJson(HttpMethod.Post, $"{MercadoPago}/v1/checkout/preferences",
+            new { id = preferenceId, init_point = "https://www.mercadopago.com.ar/x" });
+        var orderId = (await merchant.PostAsync("/api/v1/orders/manual",
+                Sale(variant, "link", extra: new() { ["returnUrl"] = $"http://{merchant.Subdomain}.localhost:3000" })))
+            .GetProperty("id").GetGuid();
+
+        // Sin respuesta programada para el PUT: Mercado Pago "caído".
+        var cancelled = await merchant.PostAsync($"/api/v1/orders/{orderId}/cancel", new { reason = (string?)null });
+        Assert.False(cancelled.GetProperty("linkExpired").GetBoolean());
+        Assert.Equal("CANCELLED", cancelled.GetProperty("order").GetProperty("status").GetString());
+        Assert.Equal(4, await merchant.AvailableAsync(variant));
+    }
 }

@@ -9,11 +9,6 @@ export interface ProductForJsonLd {
   images: { url: string }[];
   variants: { sku: string; price: MoneyDto }[];
   stock: number | null;
-  /**
-   * Las reseñas del producto, si tiene (las suma la ficha cuando existan).
-   * Sin reseñas no va el bloque: Google rechaza un aggregateRating en cero.
-   */
-  rating?: { value: number; count: number } | null;
 }
 
 /** Lo que el schema necesita de la tienda (no del producto). */
@@ -124,15 +119,44 @@ export function productJsonLd(
     ...(product.brand?.trim() ? { brand: { '@type': 'Brand', name: product.brand.trim() } } : {}),
     // Un SKU por producto: el de la única variante (con varias, cada una tiene el suyo).
     ...(skus.length === 1 && variants.length === 1 ? { sku: skus[0] } : {}),
-    ...(product.rating && product.rating.count > 0
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: Number(product.rating.value.toFixed(1)),
-            reviewCount: product.rating.count,
-          },
-        }
-      : {}),
     offers,
+  };
+}
+
+// ------------------------------------------------------------------ reseñas
+
+/** Lo que el schema necesita de las reseñas (la primera página de la ficha). */
+export interface ReviewsForJsonLd {
+  summary: { average: number; count: number };
+  items: { rating: number; title: string | null; body: string; authorName: string; createdAtUtc: string }[];
+}
+
+/**
+ * Las estrellas en el resultado de Google: aggregateRating (promedio y
+ * cantidad) y hasta cinco reseñas. Va aparte de productJsonLd y se suma al
+ * objeto que devuelve: así lo de precio/envío y lo de reseñas no se pisan.
+ *
+ * Solo con reseñas aprobadas de compradores (las únicas que manda la API): un
+ * aggregateRating que no coincide con lo que ve la página es motivo de
+ * penalización.
+ */
+export function reviewsJsonLd(reviews: ReviewsForJsonLd | null | undefined): Record<string, unknown> {
+  if (!reviews || reviews.summary.count === 0) return {};
+  return {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: reviews.summary.average.toFixed(1),
+      reviewCount: reviews.summary.count,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: reviews.items.slice(0, 5).map((r) => ({
+      '@type': 'Review',
+      reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+      author: { '@type': 'Person', name: r.authorName },
+      datePublished: r.createdAtUtc.slice(0, 10),
+      ...(r.title ? { name: r.title } : {}),
+      reviewBody: r.body.slice(0, 500),
+    })),
   };
 }

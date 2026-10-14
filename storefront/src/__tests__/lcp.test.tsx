@@ -91,4 +91,18 @@ describe('el pie', () => {
     expect(logos).toHaveLength(2);
     logos.forEach((l) => expect(l).toHaveAttribute('loading', 'lazy'));
   });
+
+  it('los logos dicen qué medio son y reservan su lugar', () => {
+    const theme = {
+      ...defaultTheme,
+      footer: { ...defaultTheme.footer, showPaymentLogos: true, paymentLogos: ['visa', 'pago-facil'] },
+    };
+    const { container } = render(<Footer theme={theme} tenantName="Tienda" />);
+    const logos = [...container.querySelectorAll('img[src^="/payment-logos/"]')];
+    expect(logos.map((l) => l.getAttribute('alt'))).toEqual(['Visa', 'Pago Fácil']);
+    logos.forEach((l) => {
+      expect(l).toHaveAttribute('width');
+      expect(l).toHaveAttribute('height');
+    });
+  });
 });

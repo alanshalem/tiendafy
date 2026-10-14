@@ -71,6 +71,13 @@ public interface IMercadoPagoPaymentService
     /// por intento de refund (no por pago) para permitir múltiples parciales.
     /// </summary>
     Task<Result<RefundResult>> RefundAsync(TenantId tenantId, string paymentId, decimal? amount, string idempotencyKey, CancellationToken ct = default);
+
+    /// <summary>
+    /// Vence una preference de Checkout Pro: el link de pago deja de aceptar
+    /// pagos. Se usa al cancelar una venta pendiente, para que el comprador no
+    /// pague algo que ya no existe.
+    /// </summary>
+    Task<Result> ExpirePreferenceAsync(TenantId tenantId, string preferenceId, CancellationToken ct = default);
 }
 
 public sealed record WebhookValidationResult(bool IsValid, string? Type, string? DataId);

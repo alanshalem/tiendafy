@@ -32,6 +32,8 @@ export interface ProductDto {
   variants: VariantDto[];
   images: ProductImageDto[];
   stock: number | null;
+  /** Promedio y cantidad de reseñas aprobadas (puede faltar en respuestas cacheadas de antes). */
+  rating?: { average: number; count: number } | null;
 }
 
 export function toStoreProduct(p: ProductDto): StoreProduct | null {
@@ -52,6 +54,7 @@ export function toStoreProduct(p: ProductDto): StoreProduct | null {
     variantLabel: v.optionValues.length > 0 ? v.optionValues.join(' / ') : 'Única',
     variantCount: p.variants.length,
     stock: p.stock ?? null,
+    rating: p.rating ?? null,
     ...(p.description?.trim() ? { excerpt: excerptOf(p.description) } : {}),
   };
 }

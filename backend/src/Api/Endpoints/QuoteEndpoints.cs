@@ -249,14 +249,14 @@ public static class QuoteEndpoints
                 DiscountMinor: quote.DiscountAmount.AmountInMinorUnits > 0
                     ? quote.DiscountAmount.AmountInMinorUnits
                     : null,
-                CustomerId: quote.CustomerId), null, ct);
+                CustomerId: quote.CustomerId), null, ct, global::Orders.Core.Domain.Order.ChannelQuote);
             if (order.IsFailure) return order.Error.ToProblem();
 
             var accepted = quote.Accept(order.Value.Order.Id);
             if (accepted.IsFailure) return accepted.Error.ToProblem();
 
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { quote = ToDetailDto(quote), orderId = order.Value.Order.Id });
+            return Results.Ok(new { quote = ToDetailDto(quote), orderId = order.Value.Order.Id, orderNumber = order.Value.Order.Number });
         });
 
         return group;

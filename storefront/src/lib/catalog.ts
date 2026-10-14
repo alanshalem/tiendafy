@@ -1,7 +1,7 @@
 import { productSourceQuery, type ProductSource } from '@tiendafy/types';
 import { apiGetTenant } from './api';
 import type { ProductDto } from './catalog-map';
-import { REVALIDATE } from './cache';
+import { cacheFor, REVALIDATE } from './cache';
 
 interface OptionFacet {
   name: string;
@@ -38,9 +38,11 @@ interface ProductsPage {
 export async function fetchActiveProducts(tenantId: string): Promise<ProductDto[]> {
   // Data cache 30s (keyed por tenant vía _mt): baja TTFB y crawl budget sin
   // riesgo cross-tenant. Un producto nuevo aparece en ≤30s.
-  const page = await apiGetTenant<ProductsPage>('/api/v1/products?status=ACTIVE&limit=24', tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+  const page = await apiGetTenant<ProductsPage>(
+    '/api/v1/products?status=ACTIVE&limit=24',
+    tenantId,
+    cacheFor('catalog', tenantId),
+  );
   return page?.items ?? [];
 }
 
@@ -91,9 +93,11 @@ export async function fetchAllActiveEntries(
     if (after) qs.set('after', after);
     // Cada página del cursor queda en la Data Cache una hora: el sitemap se
     // arma recorriendo todo el catálogo, y antes lo hacía entero en cada pedido.
-    const page: CursorPage | null = await apiGetTenant<CursorPage>(`/api/v1/products?${qs}`, tenantId, {
-      next: { revalidate: REVALIDATE.sitemap },
-    }).catch(() => null);
+    const page: CursorPage | null = await apiGetTenant<CursorPage>(
+      `/api/v1/products?${qs}`,
+      tenantId,
+      cacheFor('catalog', tenantId, REVALIDATE.sitemap),
+    ).catch(() => null);
     if (!page) break;
 
     for (const p of page.items) {
@@ -127,7 +131,7 @@ export async function fetchSectionProducts(
     const res = await apiGetTenant<{ items: ProductDto[] }>(
       `/api/v1/products/section?${productSourceQuery(source, limit)}`,
       tenantId,
-      { next: { revalidate: REVALIDATE.catalog } },
+      cacheFor('catalog', tenantId),
     );
     return res?.items ?? null;
   } catch {
@@ -189,9 +193,11 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
   qs.set('page', String(params.page ?? 1));
   qs.set('pageSize', String(params.pageSize ?? 24));
 
-  const res = await apiGetTenant<ProductSearchResult>(`/api/v1/products/search?${qs.toString()}`, tenantId, {
-    next: { revalidate: REVALIDATE.catalog },
-  });
+  const res = await apiGetTenant<ProductSearchResult>(
+    `/api/v1/products/search?${qs.toString()}`,
+    tenantId,
+    cacheFor('catalog', tenantId),
+  );
   return (
     res ?? {
       items: [],
@@ -205,9 +211,11 @@ export async function searchProducts(tenantId: string, params: SearchParams): Pr
 }
 
 export async function fetchCategories(tenantId: string): Promise<CategoryDto[]> {
-  const res = await apiGetTenant<{ items: CategoryDto[] }>('/api/v1/categories', tenantId, {
-    next: { revalidate: REVALIDATE.categories },
-  });
+  const res = await apiGetTenant<{ items: CategoryDto[] }>(
+    '/api/v1/categories',
+    tenantId,
+    cacheFor('categories', tenantId),
+  );
   return res?.items ?? [];
 }
 

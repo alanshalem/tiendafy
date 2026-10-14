@@ -1,3 +1,4 @@
+using Api.Storefront;
 using Catalog.Core.Domain;
 using Catalog.Infrastructure.Persistence;
 using Inventory.Core.Domain;
@@ -17,6 +18,7 @@ public sealed class ProductImportWorker(
     IServiceScopeFactory scopeFactory,
     IMediaStorage media,
     IHttpClientFactory httpFactory,
+    IStorefrontRevalidator storefront,
     ILogger<ProductImportWorker> logger) : ImportQueueWorker<ImportJob>(queue, logger)
 {
     protected override async Task ProcessJobAsync(ImportJob job, CancellationToken ct)
@@ -58,6 +60,8 @@ public sealed class ProductImportWorker(
 
         job.Status = ImportStatus.Completed;
         job.FinishedAtUtc = DateTime.UtcNow;
+        // El endpoint que encoló el CSV ya avisó, pero antes de que se cargara nada.
+        _ = storefront.RevalidateAsync(job.TenantId, StorefrontScope.Catalog, StorefrontScope.Categories);
         logger.LogInformation(
             "Importación {JobId} lista: +{Created} ~{Updated} ={Skipped} ✗{Errors}",
             job.Id, job.Created, job.Updated, job.Skipped, job.ErrorCount);

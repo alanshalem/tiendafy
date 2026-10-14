@@ -10,22 +10,16 @@ namespace Api.Orders;
 /// </summary>
 public static class OrderCsv
 {
-    /// <summary>
-    /// El número corto de una venta: lo mismo que ve el panel, que le llega al
-    /// comprador por WhatsApp y que se imprime en la etiqueta de Correo.
-    /// </summary>
-    public static string ShortNumber(Guid id) => id.ToString("N")[..8].ToUpperInvariant();
-
     // Argentina no tiene horario de verano desde 2009: UTC−3 fijo evita
     // depender de la base de zonas horarias del contenedor.
     private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
 
     public const string Header =
-        "Número;Fecha;Estado;Cliente;Email;Teléfono;DNI/CUIT;Productos;Unidades;Subtotal;Descuento;Envío;Total;Reembolsado;Moneda;Medio de envío;Dirección;Seguimiento;Cobrada;Enviada;Cupón;Origen";
+        "Número;Fecha;Estado;Cliente;Email;Teléfono;DNI/CUIT;Productos;Unidades;Subtotal;Descuento;Envío;Total;Reembolsado;Moneda;Medio de envío;Dirección;Seguimiento;Cobrada;Enviada;Cupón;Origen;Canal;Cobro";
 
     public static IEnumerable<string?> Row(Order o) =>
     [
-        $"#{ShortNumber(o.Id)}",
+        o.Label,
         LocalDateTime(o.CreatedAtUtc),
         StatusLabel(o),
         VatBookCsv.Text(o.BuyerName),
@@ -48,7 +42,26 @@ public static class OrderCsv
         o.FulfilledAtUtc is { } sent ? LocalDateTime(sent) : "",
         VatBookCsv.Text(o.CouponCode),
         VatBookCsv.Text(o.UtmSource),
+        ChannelLabel(o.Channel),
+        PaymentLabel(OrderPayment.Of(o)),
     ];
+
+    /// <summary>Los mismos nombres que el filtro de canal del panel.</summary>
+    private static string ChannelLabel(string channel) => channel switch
+    {
+        Order.ChannelManual => "Venta manual",
+        Order.ChannelQuote => "Presupuesto",
+        _ => "Tienda online",
+    };
+
+    private static string PaymentLabel(string? method) => method switch
+    {
+        OrderPayment.Cash => "Efectivo",
+        OrderPayment.Transfer => "Transferencia",
+        OrderPayment.CurrentAccount => "Cuenta corriente",
+        OrderPayment.Gateway => "Pago online",
+        _ => "",
+    };
 
     private static string LocalDateTime(DateTime utc) =>
         (DateTime.SpecifyKind(utc, DateTimeKind.Utc) + Argentina).ToString("dd/MM/yyyy HH:mm");
@@ -63,7 +76,8 @@ public static class OrderCsv
         OrderStatus.Refunded => "Reembolsada",
         OrderStatus.PartiallyRefunded => "Reembolso parcial",
         OrderStatus.ChargedBack => "Contracargo",
-        OrderStatus.Fulfilled => o.IsPickup ? "Lista para retirar" : "Entregada",
+        // Despachada, no entregada: el sistema no se entera de la entrega.
+        OrderStatus.Fulfilled => o.IsPickup ? "Lista para retirar" : "Enviada",
         _ => o.Status.ToString(),
     };
 }

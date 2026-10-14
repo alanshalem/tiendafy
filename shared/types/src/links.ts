@@ -164,6 +164,7 @@ export const STORE_PAGES: { href: string; label: string }[] = [
   { href: '/terminos', label: 'Términos y condiciones' },
   { href: '/privacidad', label: 'Privacidad' },
   { href: '/arrepentimiento', label: 'Botón de arrepentimiento' },
+  { href: '/seguimiento', label: 'Seguí tu pedido' },
 ];
 
 /** Link a un producto por su slug. */

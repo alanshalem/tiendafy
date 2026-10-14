@@ -44,6 +44,28 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("buyer_phone");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<string>("CancelledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("cancelled_by");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("web")
+                        .HasColumnName("channel");
+
                     b.Property<Guid>("CheckoutSessionId")
                         .HasColumnType("uuid")
                         .HasColumnName("checkout_session_id");
@@ -93,6 +115,10 @@ namespace Orders.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
 
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -173,6 +199,10 @@ namespace Orders.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "CreatedAtUtc")
                         .HasDatabaseName("ix_orders_tenant_id_created_at_utc");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_number");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -267,6 +297,22 @@ namespace Orders.Infrastructure.Migrations
                         .HasDatabaseName("ix_quotes_tenant_id_number");
 
                     b.ToTable("quotes", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderNumberCounter", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("TenantId")
+                        .HasName("pk_order_number_counters");
+
+                    b.ToTable("order_number_counters", (string)null);
                 });
 
             modelBuilder.Entity("Orders.Core.Domain.Order", b =>

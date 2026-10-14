@@ -1,17 +1,31 @@
-import { useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
-import { Button, EmptyList, Input, Spinner, useToast } from '@tiendafy/ui';
+import { useId, useState } from 'react';
+import { ExternalLink, ImageOff, Loader2, Sparkles } from 'lucide-react';
+import { Button, EmptyList, Spinner, Textarea, cn, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
-import { fecha } from './mercadolibre-shared';
+import { fecha, moneyMajor } from './mercadolibre-shared';
 import { useServerLoad } from '../lib/useServerLoad';
 import { useListParams } from '../lib/useListParams';
+
+/** La publicación de la pregunta, tal como la manda la API (MeliItemSummary). */
+interface MeliItemSummary {
+  id: string;
+  title: string | null;
+  thumbnail: string | null;
+  price: number;
+  currencyId: string | null;
+  availableQuantity: number;
+  permalink: string | null;
+  status: string | null;
+}
 
 interface MeliQuestion {
   id: number;
   text: string | null;
   status: string | null;
   itemId: string | null;
+  /** Null si ML no devolvió la ficha (o la publicación ya no existe). */
+  item?: MeliItemSummary | null;
   dateCreated: string | null;
   answer: { text: string | null; dateCreated: string | null } | null;
 }
@@ -20,6 +34,10 @@ interface MeliQuestion {
 
 /** `?preguntas=todas`; sin el parámetro, solo las que esperan respuesta. */
 const LIST_DEFAULTS = { preguntas: 'sin-responder' };
+
+/** Mac usa ⌘ donde Windows y Linux usan Ctrl: el aviso dice la tecla de verdad. */
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+const SEND_KEYS = isMac ? '⌘ + Enter' : 'Ctrl + Enter';
 
 export function PreguntasTab() {
   const { toast } = useToast();
@@ -48,13 +66,15 @@ export function PreguntasTab() {
     },
   );
 
-  // La IA sugiere, el vendedor decide: llena el input, editable antes de enviar.
+  // La IA sugiere, el vendedor decide: llena el campo, editable antes de enviar.
+  // Con el título de la publicación (antes le llegaba el id "MLA123…", con el
+  // que no puede saber de qué producto se habla).
   const suggest = async (q: MeliQuestion) => {
     setSuggesting(q.id);
     try {
       const r = await api.post<{ text: string }>('/api/v1/ai/ml-answer', {
         question: q.text,
-        itemTitle: q.itemId,
+        itemTitle: q.item?.title ?? q.itemId,
       });
       setAnswers((a) => ({ ...a, [q.id]: r.text }));
     } catch (err) {
@@ -66,7 +86,7 @@ export function PreguntasTab() {
 
   const answer = async (q: MeliQuestion) => {
     const text = (answers[q.id] ?? '').trim();
-    if (!text) return;
+    if (!text || sendingId === q.id) return;
     setSendingId(q.id);
     try {
       await api.post(`/api/v1/admin/meli/questions/${q.id}/answer`, { text });
@@ -108,6 +128,7 @@ export function PreguntasTab() {
         <div className="space-y-3">
           {questions.map((q) => (
             <div key={q.id} className="rounded-lg border border-border bg-surface p-4 shadow-card">
+              <ItemHeader item={q.item ?? null} itemId={q.itemId} />
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm text-fg">{q.text}</p>
                 <span className="shrink-0 text-xs text-fg-subtle">{fecha(q.dateCreated)}</span>
@@ -117,40 +138,139 @@ export function PreguntasTab() {
                   <span className="font-medium text-fg">Tu respuesta:</span> {q.answer.text}
                 </p>
               ) : (
-                <div className="mt-3 flex gap-2">
-                  <Input
-                    aria-label={`Tu respuesta a: ${q.text ?? 'la pregunta'}`}
-                    value={answers[q.id] ?? ''}
-                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                    placeholder="Escribí tu respuesta…"
-                    onKeyDown={(e) => e.key === 'Enter' && answer(q)}
-                  />
-                  {aiEnabled && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => suggest(q)}
-                      disabled={suggesting === q.id}
-                      title="Sugerir una respuesta con IA (después la editás)"
-                    >
-                      {suggesting === q.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => answer(q)}
-                    disabled={sendingId === q.id || !(answers[q.id] ?? '').trim()}
-                  >
-                    {sendingId === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Responder'}
-                  </Button>
-                </div>
+                <AnswerBox
+                  question={q}
+                  value={answers[q.id] ?? ''}
+                  onChange={(text) => setAnswers((a) => ({ ...a, [q.id]: text }))}
+                  onSend={() => answer(q)}
+                  sending={sendingId === q.id}
+                  onSuggest={aiEnabled ? () => suggest(q) : null}
+                  suggesting={suggesting === q.id}
+                />
               )}
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * De qué publicación es la pregunta: foto, título, precio y stock. Sin esto
+ * había que abrir Mercado Libre en otra pestaña para saber si "¿tenés en
+ * talle L?" hablaba de una remera o de un buzo, o si quedaba stock.
+ */
+function ItemHeader({ item, itemId }: { item: MeliItemSummary | null; itemId: string | null }) {
+  if (!item) {
+    return itemId ? <p className="mb-2 font-mono text-xs text-fg-subtle">Publicación {itemId}</p> : null;
+  }
+  return (
+    <div className="mb-3 flex items-center gap-3 border-b border-border pb-3">
+      {item.thumbnail ? (
+        <img
+          src={item.thumbnail}
+          alt=""
+          loading="lazy"
+          className="h-12 w-12 shrink-0 rounded-md border border-border bg-bg-subtle object-contain"
+        />
+      ) : (
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-bg-subtle text-fg-subtle">
+          <ImageOff className="h-5 w-5" aria-hidden="true" />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-fg">{item.title ?? item.id}</p>
+        <p className="text-xs text-fg-muted">
+          {item.price > 0 && (
+            <span className="font-semibold text-fg">{moneyMajor(item.price, item.currencyId ?? 'ARS')}</span>
+          )}
+          {item.price > 0 && ' · '}
+          <span className={cn(item.availableQuantity <= 0 && 'font-medium text-danger')}>
+            {item.availableQuantity > 0
+              ? `${item.availableQuantity} ${item.availableQuantity === 1 ? 'disponible' : 'disponibles'}`
+              : 'Sin stock'}
+          </span>
+          {item.status &&
+            item.status !== 'active' &&
+            ` · ${item.status === 'paused' ? 'Pausada' : 'Finalizada'}`}
+        </p>
+      </div>
+      {item.permalink && (
+        <a
+          href={item.permalink}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Ver “${item.title ?? item.id}” en Mercado Libre`}
+          className="shrink-0 rounded p-1 text-fg-subtle hover:text-fg"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      )}
+    </div>
+  );
+}
+
+/**
+ * La respuesta. Es pública y no se puede editar ni borrar en ML: por eso
+ * Enter hace un salto de línea y no la publica (antes un Enter de más
+ * mandaba una respuesta a medio escribir). Se publica con el botón o con
+ * Ctrl/⌘ + Enter, y el atajo está escrito al lado.
+ */
+function AnswerBox({
+  question: q,
+  value,
+  onChange,
+  onSend,
+  sending,
+  onSuggest,
+  suggesting,
+}: {
+  question: MeliQuestion;
+  value: string;
+  onChange: (text: string) => void;
+  onSend: () => void;
+  sending: boolean;
+  onSuggest: (() => void) | null;
+  suggesting: boolean;
+}) {
+  const hintId = useId();
+  return (
+    <div className="mt-3">
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={2}
+          aria-label={`Tu respuesta a: ${q.text ?? 'la pregunta'}`}
+          aria-describedby={hintId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Escribí tu respuesta…"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+        />
+        {onSuggest && (
+          <Button
+            variant="secondary"
+            onClick={onSuggest}
+            disabled={suggesting}
+            title="Sugerir una respuesta con IA (después la editás)"
+          >
+            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          </Button>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <p id={hintId} className="text-xs text-fg-subtle">
+          Se publica en Mercado Libre y no se puede editar. {SEND_KEYS} para publicar.
+        </p>
+        <Button onClick={onSend} disabled={sending || !value.trim()}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publicar respuesta'}
+        </Button>
+      </div>
     </div>
   );
 }

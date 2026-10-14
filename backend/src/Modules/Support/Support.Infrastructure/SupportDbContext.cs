@@ -16,6 +16,8 @@ public sealed class SupportDbContext : DbContext
 
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<SupportMessage> Messages => Set<SupportMessage>();
+    public DbSet<InboxThreadState> InboxStates => Set<InboxThreadState>();
+    public DbSet<InboxReply> InboxReplies => Set<InboxReply>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,5 +43,29 @@ public sealed class SupportDbContext : DbContext
         msg.Property(m => m.AttachmentContentType).HasMaxLength(60);
         msg.HasQueryFilter(m => !_filterByTenant || m.TenantId == _tenantGuid);
         msg.HasIndex(m => new { m.ConversationId, m.CreatedAtUtc }); // paginado del hilo
+
+        // Bandeja unificada: una fila por conversación de cualquier canal.
+        var state = modelBuilder.Entity<InboxThreadState>();
+        state.ToTable("inbox_thread_states");
+        state.HasKey(s => s.Id);
+        state.Property(s => s.Id).ValueGeneratedNever();
+        state.Property(s => s.Channel).HasMaxLength(20).IsRequired();
+        state.Property(s => s.ExternalId).HasMaxLength(64).IsRequired();
+        state.Property(s => s.AssignedUserName).HasMaxLength(200);
+        state.Property(s => s.Title).HasMaxLength(200);
+        state.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        state.HasIndex(s => new { s.TenantId, s.Channel, s.ExternalId }).IsUnique();
+        state.HasIndex(s => new { s.TenantId, s.AssignedUserId }); // "asignadas a mí"
+
+        var reply = modelBuilder.Entity<InboxReply>();
+        reply.ToTable("inbox_replies");
+        reply.HasKey(r => r.Id);
+        reply.Property(r => r.Id).ValueGeneratedNever();
+        reply.Property(r => r.Channel).HasMaxLength(20).IsRequired();
+        reply.Property(r => r.ExternalId).HasMaxLength(64).IsRequired();
+        reply.Property(r => r.AuthorName).HasMaxLength(200).IsRequired();
+        reply.Property(r => r.Body).HasMaxLength(4000).IsRequired();
+        reply.HasQueryFilter(r => !_filterByTenant || r.TenantId == _tenantGuid);
+        reply.HasIndex(r => new { r.TenantId, r.Channel, r.ExternalId, r.CreatedAtUtc });
     }
 }

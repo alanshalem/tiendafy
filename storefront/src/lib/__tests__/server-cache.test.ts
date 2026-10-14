@@ -31,6 +31,8 @@ describe('qué tienda es (por host)', () => {
     expect(url).toContain('host=una.localhost%3A3000');
     expect(init.next?.revalidate).toBe(60);
     expect(init.cache).toBeUndefined();
+    // El backend la vence al toque cuando cambia el estado de una tienda.
+    expect((init.next as { tags?: string[] }).tags).toEqual(['tenants']);
   });
 });
 
@@ -47,6 +49,8 @@ describe('el diseño', () => {
     expect(path).toBe('/api/v1/theme');
     expect(tenantId).toBe('t1'); // apiGetTenant: la tienda va en la URL
     expect(init.next?.revalidate).toBe(30);
+    // Al publicar, el backend vence esta etiqueta y el cambio se ve al instante.
+    expect((init.next as { tags?: string[] }).tags).toEqual(['theme:t1']);
   });
 
   it('el borrador del editor nunca sale de la caché', async () => {

@@ -35,6 +35,44 @@ public sealed class LedgerPoster(FinanceDbContext db)
     }
 
     /// <summary>
+    /// Reembolso de una venta a cuenta corriente: la plata nunca entró, así
+    /// que "devolverla" es bajarle la deuda al cliente. Queda como nota de
+    /// crédito (Haber) y, lo que alcance, se imputa a la venta: así la venta
+    /// deja de figurar pendiente por lo que ya se devolvió y un cobro posterior
+    /// no se puede imputar dos veces contra lo mismo.
+    ///
+    /// Si la venta ya estaba cobrada, no queda nada que imputar y el crédito
+    /// deja al cliente con saldo a favor, que es exactamente lo que pasó.
+    ///
+    /// Idempotente por reembolso (<paramref name="refundId"/>). Devuelve false
+    /// si la venta no tiene asiento en la cuenta corriente (no se fió, o el
+    /// asiento falló al venderla): no hay deuda que bajar.
+    /// </summary>
+    public async Task<bool> PostSaleRefundAsync(
+        Guid tenantId, Guid orderId, Guid refundId, string label, long amountMinor, string currency,
+        DateTime occurredAtUtc, string? reason, CancellationToken ct)
+    {
+        if (amountMinor <= 0) return false;
+
+        var sale = await db.LedgerEntries.FirstOrDefaultAsync(
+            l => l.TenantId == tenantId && l.DocType == LedgerDocType.Sale && l.DocId == orderId, ct);
+        if (sale is null) return false;
+        if (await ExistsAsync(tenantId, LedgerDocType.CreditNote, refundId, ct)) return true;
+
+        var entry = LedgerEntry.Create(
+            tenantId, sale.PartyKind, sale.PartyId, LedgerEntryKind.Credit, amountMinor, currency,
+            LedgerDocType.CreditNote, label, refundId, occurredAtUtc, reason);
+        if (entry.IsFailure) return false;
+
+        var toSettle = Math.Min(sale.PendingMinor, amountMinor);
+        if (toSettle > 0) sale.Settle(toSettle);
+
+        db.LedgerEntries.Add(entry.Value);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
     /// La factura de un proveedor: le empezamos a deber. Si el importe cambia
     /// (corrigieron la carga), se reemplaza el movimiento anterior en vez de
     /// sumar uno nuevo — la deuda es una sola.
