@@ -173,6 +173,12 @@ public static class ServiceRegistration
         services.AddScoped<Api.Fulfillment.FulfillmentService>();
         services.AddScoped<Api.Fulfillment.CarrierLabels>();
 
+        // Alertas de stock bajo: la misma señal de reposición de Compras, un
+        // aviso por cruce (inmediato o en un resumen diario).
+        services.AddScoped<Api.Purchasing.ReorderSignal>();
+        services.AddScoped<Api.Purchasing.StockAlertService>();
+        if (runPollingWorkers) services.AddHostedService<Api.Purchasing.StockAlertWorker>();
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
 
