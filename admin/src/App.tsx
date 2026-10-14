@@ -47,6 +47,8 @@ const MeliSettingsPage = lazyPage(() => import('./pages/Settings/MercadoLibre'),
 const CustomersPage = lazyPage(() => import('./pages/Customers'), 'CustomersPage');
 const MessagesPage = lazyPage(() => import('./pages/Messages'), 'MessagesPage');
 const SupportChatPage = lazyPage(() => import('./pages/SupportChat'), 'SupportChatPage');
+const ReviewsPage = lazyPage(() => import('./pages/Reviews'), 'ReviewsPage');
+const StockAlertsPage = lazyPage(() => import('./pages/Products/StockAlerts'), 'StockAlertsPage');
 const OrdersPage = lazyPage(() => import('./pages/Orders'), 'OrdersPage');
 const AbandonedCartsPage = lazyPage(() => import('./pages/AbandonedCarts'), 'AbandonedCartsPage');
 const PresupuestosPage = lazyPage(() => import('./pages/Presupuestos'), 'PresupuestosPage');
@@ -103,6 +105,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/proveedores', el: <ProveedoresPage /> },
   { path: '/productos/escaner', el: <ScannerPage /> },
   { path: '/productos/kits', el: <KitsPage /> },
+  { path: '/productos/esperando', el: <StockAlertsPage /> },
 
   // Tienda online
   { path: '/canales/tienda-online', el: <ThemeEditorPage /> },
@@ -123,6 +126,7 @@ const MAIN_ROUTES: AppRoute[] = [
   { path: '/cuentas-corrientes', el: <CuentasCorrientesPage /> },
   { path: '/mensajes', el: <MessagesPage /> },
   { path: '/posventa', el: <SupportChatPage /> },
+  { path: '/resenas', el: <ReviewsPage /> },
   { path: '/paginas', el: <PagesPage /> },
   { path: '/tenants', el: <TenantsPage /> },
 ];

@@ -410,4 +410,33 @@ export const CATALOGO = {
       },
     ],
   },
+  avisoStock: {
+    title: 'Avisame cuando ingrese',
+    intro: 'Quien encuentra un producto agotado deja su email, y le avisamos cuando vuelve a haber stock.',
+    category: 'Catálogo',
+    keywords: ['sin stock', 'agotado', 'reposición', 'back in stock', 'lista de espera', 'notificar stock'],
+    sections: [
+      {
+        heading: 'Cómo funciona',
+        paragraphs: [
+          'En la ficha de una variante agotada, en lugar de un botón de compra muerto, el comprador ve “Avisame cuando ingrese”: deja su email (no hace falta cuenta) y listo.',
+          'Cuando esa variante vuelve a tener stock —por un ajuste en Inventario, una compra recibida, una reserva que venció o Mercado Libre—, le llega un solo email con el link al producto. Cada pedido de aviso se usa una vez, y el email trae un link para dejar de esperar.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'tip',
+            text: 'El email es la plantilla “Avisame cuando ingrese” de Configuración → E-mails automáticos: viene encendida (lo pidió el comprador) y su texto se puede editar.',
+          },
+        ],
+      },
+      {
+        heading: 'La demanda que no veías',
+        paragraphs: [
+          'En Productos → Avisame cuando ingrese ves cuánta gente espera cada producto y variante, desde cuándo y cuánto stock hay hoy: es la lista de compras que te está pidiendo la tienda. En la edición de cada producto también aparece cuántas personas lo esperan.',
+        ],
+        blocks: [{ type: 'path', segments: ['Productos', 'Avisame cuando ingrese'] }],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

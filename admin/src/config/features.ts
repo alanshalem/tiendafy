@@ -86,6 +86,8 @@ export const HELP_LINKS = {
   kits: { label: 'Más sobre kits y combos' },
   clientes: { label: 'Más sobre clientes' },
   posventa: { label: 'Más sobre el chat posventa' },
+  resenas: { label: 'Más sobre reseñas de productos' },
+  avisoStock: { label: 'Más sobre “Avisame cuando ingrese”' },
   autoEmails: { label: 'Más sobre e-mails automáticos' },
   emailMarketing: { label: 'Más sobre campañas de email' },
   whatsappAuto: { label: 'Más sobre WhatsApp automático' },

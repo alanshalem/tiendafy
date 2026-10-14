@@ -155,6 +155,11 @@ export const MAIN_NAV: NavSection[] = [
             desc: 'El depósito en el celu: buscá, ajustá stock y prepará pedidos escaneando.',
           },
           {
+            to: '/productos/esperando',
+            label: 'Avisame cuando ingrese',
+            desc: 'Cuánta gente espera cada producto agotado: la lista de compras que te pide la tienda.',
+          },
+          {
             to: '/productos/kits',
             label: 'Kits y combos',
             desc: 'Productos compuestos: al venderse descuentan el stock de sus piezas.',
@@ -214,6 +219,11 @@ export const MAIN_NAV: NavSection[] = [
         to: '/posventa',
         label: 'Chat posventa',
         desc: 'El chat privado con cada comprador sobre SU pedido.',
+      },
+      {
+        to: '/resenas',
+        label: 'Reseñas',
+        desc: 'Las opiniones de tus compradores: aprobalas, ocultalas o respondelas.',
       },
       {
         to: '/descuentos',
