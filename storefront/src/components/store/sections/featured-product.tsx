@@ -121,7 +121,7 @@ export function FeaturedProductSection({
           tabIndex={-1}
           aria-hidden="true"
           className={cn(
-            'relative block aspect-square w-full overflow-hidden rounded-lg bg-black/5',
+            'relative block aspect-square w-full overflow-hidden rounded-lg bg-fg/5',
             data.layout === 'image-right' && 'md:order-2',
           )}
         >

@@ -44,7 +44,7 @@ export function FaqSection({ data }: SectionRenderProps<'faq'>) {
           {data.title}
         </SectionTitle>
       )}
-      <div className="divide-y divide-black/10 rounded-lg border border-black/10">
+      <div className="divide-y divide-fg/10 rounded-lg border border-fg/10">
         {items.map((f, i) => (
           <details key={i} className="group px-5 py-1" open={data.openFirst && i === 0 ? true : undefined}>
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">

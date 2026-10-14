@@ -57,10 +57,45 @@ export function usePreviewPlaceholders(): boolean {
 export function ImagePlaceholder({
   className,
   label = 'Subí una imagen',
+  chip,
 }: {
   className?: string;
   label?: string;
+  /**
+   * Con texto encima (un banner, una diapositiva): el aviso va chico, arriba
+   * o abajo, del lado donde no hay texto. Centrado quedaba tapado por el título.
+   */
+  chip?: 'top' | 'bottom';
 }) {
+  const icon = (
+    <svg
+      viewBox="0 0 24 24"
+      className={chip ? 'h-4 w-4' : 'h-8 w-8 opacity-60'}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10" r="2" />
+      <path d="m21 16-5-5-9 9" />
+    </svg>
+  );
+  if (chip)
+    return (
+      <div
+        className={cn(
+          'flex h-full w-full bg-fg/5 p-3',
+          chip === 'top' ? 'items-start' : 'items-end',
+          className,
+        )}
+      >
+        <span className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-bg/80 px-2.5 py-1 text-xs font-medium text-fg-muted shadow-sm">
+          {icon}
+          {label}
+        </span>
+      </div>
+    );
   return (
     <div
       className={cn(
@@ -68,18 +103,7 @@ export function ImagePlaceholder({
         className,
       )}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-8 w-8 opacity-60"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        aria-hidden="true"
-      >
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <circle cx="9" cy="10" r="2" />
-        <path d="m21 16-5-5-9 9" />
-      </svg>
+      {icon}
       {label}
     </div>
   );
@@ -113,6 +137,82 @@ const RAIL_DESKTOP: Record<number, string> = {
   4: 'sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-3.75rem)/4)]',
   5: 'sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-5rem)/5)]',
 };
+
+/**
+ * Una tira que se desliza de costado (productos, testimonios, categorías):
+ * el ref del contenedor con scroll, si está en una punta o en la otra, y
+ * cómo avanzar una "página". `deps`: lo que cambia el ancho del contenido.
+ */
+export function useRail<T extends HTMLElement>(deps: readonly unknown[] = []) {
+  const ref = useRef<T>(null);
+  // Flechas deshabilitadas en los extremos: antes "Anterior" quedaba activa al
+  // abrir el carrusel y tocarla no hacía nada.
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    // Al montar y cuando cambia el ancho (rotar el teléfono, más ítems).
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps: lo que cambia el contenido
+  }, [measure, ...deps]);
+  // Una "página": lo que se ve, menos un poco, así lo que quedó a medias
+  // pasa a ser lo primero de la vista siguiente.
+  const page = (dir: number) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.9), behavior: 'smooth' });
+  };
+  return { ref, edge, measure, page };
+}
+
+const ARROW =
+  'absolute z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex';
+
+/**
+ * Las flechas de una tira deslizable, para la computadora (en el celular se
+ * desliza con el dedo). Sin ellas, con mouse y sin trackpad no había forma de
+ * ver lo que quedaba a la derecha. Van adentro de un contenedor `relative`.
+ */
+export function RailArrows({
+  edge,
+  page,
+  top = 'top-1/2',
+}: {
+  edge: { start: boolean; end: boolean };
+  page: (dir: number) => void;
+  /** A qué altura van (en las de productos, a la altura de la foto). */
+  top?: string;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => page(-1)}
+        disabled={edge.start}
+        aria-label="Anterior"
+        className={cn(ARROW, '-left-3', top)}
+      >
+        <Icon name="chevronLeft" className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => page(1)}
+        disabled={edge.end}
+        aria-label="Siguiente"
+        className={cn(ARROW, '-right-3', top)}
+      >
+        <Icon name="chevronRight" className="h-5 w-5" />
+      </button>
+    </>
+  );
+}
 
 export interface GridColumns {
   columns: number;
@@ -164,31 +264,8 @@ export function ProductGrid({
   viewAll,
   empty,
 }: ProductGridProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { ref: railRef, edge, measure, page } = useRail<HTMLDivElement>([products.length, carousel]);
   const align = useSectionStyle()?.align;
-  // Una "página" del carrusel: lo que se ve, menos un poco, así la card que
-  // quedó a medias pasa a ser la primera de la vista siguiente.
-  const scrollPage = (dir: number) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.9), behavior: 'smooth' });
-  };
-  // Flechas deshabilitadas en los extremos: antes "Anterior" quedaba activa al
-  // abrir el carrusel y tocarla no hacía nada.
-  const [edge, setEdge] = useState({ start: true, end: false });
-  const measureEdges = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
-  }, []);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    // Al montar y cuando cambia el ancho (rotar el teléfono, más productos).
-    const ro = new ResizeObserver(measureEdges);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [measureEdges, products.length, carousel]);
   if (products.length === 0 && !empty) return null;
 
   const cols = sectionColumns(list, { columns, mobileColumns });
@@ -234,8 +311,8 @@ export function ProductGrid({
       ) : carousel ? (
         <div className="group/car relative">
           <div
-            ref={scrollRef}
-            onScroll={measureEdges}
+            ref={railRef}
+            onScroll={measure}
             className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] sm:gap-5 [&::-webkit-scrollbar]:hidden"
           >
             {products.map((p, i) => (
@@ -249,28 +326,7 @@ export function ProductGrid({
             ))}
           </div>
           {/* Flechas: scrollean el carrusel (desktop; en mobile se desliza). */}
-          {products.length > 2 && (
-            <>
-              <button
-                type="button"
-                onClick={() => scrollPage(-1)}
-                disabled={edge.start}
-                aria-label="Anterior"
-                className="absolute -left-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
-              >
-                <Icon name="chevronLeft" className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollPage(1)}
-                disabled={edge.end}
-                aria-label="Siguiente"
-                className="absolute -right-3 top-[38%] z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0 sm:flex"
-              >
-                <Icon name="chevronRight" className="h-5 w-5" />
-              </button>
-            </>
-          )}
+          {products.length > 2 && <RailArrows edge={edge} page={page} top="top-[38%]" />}
         </div>
       ) : (
         <div className={cn('grid gap-x-4 gap-y-8 sm:gap-x-5', productGridClasses(cols))}>

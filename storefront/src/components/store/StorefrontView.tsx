@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { EDITOR_MSG, sanitizeCss } from '@tiendafy/types';
+import { contrastText, EDITOR_MSG, sanitizeCss } from '@tiendafy/types';
 import { IconKitContext } from './Icon';
 import { CartProvider, CartDrawer, useCart } from './cart';
 import { FavoritesProvider } from './favorites';
@@ -22,6 +22,7 @@ import {
   type SectionProductsMap,
 } from '@/lib/section-products';
 import { SectionProductsContext } from './SectionProductsContext';
+import { DarkPageContext } from './section-context';
 import { Header } from './StoreHeader';
 import { Footer } from './StoreFooter';
 
@@ -175,6 +176,9 @@ export function StorefrontView({
     };
   }, [live, theme.favicon]);
 
+  // Fondo oscuro = el texto que se le calcula encima es blanco.
+  const darkPage = contrastText(theme.colors.bg) === '255 255 255';
+
   return (
     <div
       data-store-radius={theme.borderRadius}
@@ -196,9 +200,11 @@ export function StorefrontView({
                 <FavoritesProvider storeKey={tenantId}>
                   <CartProvider storeKey={tenantId}>
                     <SectionProductsContext.Provider value={bySection}>
-                      <Inner tenantName={tenantName} theme={theme} products={products}>
-                        {children}
-                      </Inner>
+                      <DarkPageContext.Provider value={darkPage}>
+                        <Inner tenantName={tenantName} theme={theme} products={products}>
+                          {children}
+                        </Inner>
+                      </DarkPageContext.Provider>
                     </SectionProductsContext.Provider>
                   </CartProvider>
                 </FavoritesProvider>

@@ -47,6 +47,27 @@ function markSeen(data: PromoPopupData, key: string) {
   }
 }
 
+/**
+ * Cuándo y cada cuánto aparece, en palabras: en el preview el pop-up se abre
+ * a mano, así que esto es lo único que muestra qué cambian esas opciones.
+ */
+export function popupWhen(data: PromoPopupData): string {
+  const secs = `a los ${data.delaySeconds} ${data.delaySeconds === 1 ? 'segundo' : 'segundos'} de entrar`;
+  const when =
+    data.trigger === 'exit'
+      ? 'cuando el mouse se va de la página (solo en computadoras)'
+      : data.trigger === 'both'
+        ? `${secs} o al querer irse, lo que pase primero`
+        : secs;
+  const freq =
+    data.frequency === 'once'
+      ? 'una sola vez por persona'
+      : data.frequency === 'session'
+        ? 'una vez por visita'
+        : `y otra vez a los ${data.frequencyDays} ${data.frequencyDays === 1 ? 'día' : 'días'}`;
+  return `${when}, ${freq}`;
+}
+
 /** ¿Se ve donde está? (`hideOn` lo oculta con CSS en un dispositivo: ahí no se abre.) */
 function isRendered(el: HTMLElement | null): boolean {
   for (let n = el; n && n !== document.body; n = n.parentElement)
@@ -212,10 +233,12 @@ export function PromoPopupSection({ section, data }: SectionRenderProps<'promo-p
         <div className="mx-auto max-w-container px-4 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-fg/25 px-4 py-3 text-sm text-fg-muted">
             <span>
-              Pop-up: {data.title || 'sin título'}. En la tienda no ocupa lugar: aparece encima de la página.
+              Pop-up: {data.title || 'sin título'}. En la tienda no ocupa lugar: aparece encima de la página{' '}
+              {popupWhen(data)}.
             </span>
             <button
               type="button"
+              data-region-action="passthrough"
               onClick={() => show(true)}
               className="min-h-10 rounded-md bg-primary px-4 font-semibold text-primary-fg"
             >
@@ -226,6 +249,9 @@ export function PromoPopupSection({ section, data }: SectionRenderProps<'promo-p
       )}
       <dialog
         ref={dialog}
+        // En el editor, la sección entera abre su panel al tocarla: sin esto,
+        // la X, "Copiar" y el fondo del pop-up abierto no hacían nada.
+        data-region-action="passthrough"
         aria-labelledby={data.title ? titleId : undefined}
         aria-label={data.title ? undefined : 'Promoción'}
         onClose={() => setOpen(false)}

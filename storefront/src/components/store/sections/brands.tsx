@@ -42,7 +42,7 @@ export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
   if (logos.length === 0) {
     // En el editor, recién agregada: el lugar de los logos.
     return (
-      <section className="store-section overflow-hidden border-y border-black/5 py-8">
+      <section className="store-section overflow-hidden border-y border-fg/5 py-8">
         {title}
         <div className="flex flex-wrap items-center justify-center gap-6 px-4 text-xs text-fg-muted">
           {[0, 1, 2, 3].map((i) => (
@@ -90,7 +90,7 @@ export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
   return (
     <section
       className={cn(
-        'store-section relative overflow-hidden border-y border-black/5 pt-8',
+        'store-section relative overflow-hidden border-y border-fg/5 pt-8',
         // Lugar para el botón de pausa, abajo a la derecha, sin tapar logos.
         marquee && !reduced ? 'pb-12' : 'pb-8',
       )}
@@ -108,7 +108,7 @@ export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
               type="button"
               onClick={() => setPaused((p) => !p)}
               aria-label={paused ? 'Mover las marcas' : 'Pausar las marcas'}
-              className="absolute bottom-1 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-bg/90 text-fg-muted shadow-sm ring-1 ring-black/10 hover:text-fg"
+              className="absolute bottom-1 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-bg/90 text-fg-muted shadow-sm ring-1 ring-fg/10 hover:text-fg"
             >
               <PlayPauseIcon playing={!paused} />
             </button>
