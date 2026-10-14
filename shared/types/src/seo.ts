@@ -22,6 +22,23 @@ export function homeSeoDescription(seoDescription: string | null | undefined, st
   return seoDescription?.trim() || `Comprá online en ${storeName}. Envíos a todo el país y pago seguro.`;
 }
 
+/**
+ * La imagen al compartir el link de la portada: la que eligió el comercio o,
+ * si no cargó ninguna, su logo. Sin ninguna, WhatsApp y las redes muestran
+ * una tarjeta chica sin foto. Un SVG no sirve (las redes no lo leen).
+ * Con el logo la tarjeta sale chica (es cuadrado o casi), pero con la marca.
+ */
+export function homeShareImage(
+  shareImage: string | null | undefined,
+  logo: string | null | undefined,
+): { url: string; fromLogo: boolean } | null {
+  const own = shareImage?.trim();
+  if (own) return { url: own, fromLogo: false };
+  const brand = logo?.trim();
+  if (brand && !/\.svg(?:[?#]|$)/i.test(brand)) return { url: brand, fromLogo: true };
+  return null;
+}
+
 /** Un texto cortado como lo corta Google: en una palabra, con "…". */
 export function truncateForSnippet(text: string, max: number): string {
   const clean = text.replace(/\s+/g, ' ').trim();

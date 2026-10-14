@@ -9,6 +9,7 @@ import { useState } from 'react';
 import {
   homeSeoDescription,
   homeSeoTitle,
+  homeShareImage,
   normalizeTheme,
   SEO_TITLE_IDEAL,
   truncateForSnippet,
@@ -59,6 +60,16 @@ describe('textos de la portada para Google', () => {
     expect(homeSeoDescription(undefined, 'Volxen')).toMatch(/^Comprá online en Volxen\./);
   });
 
+  it('la imagen al compartir: la propia, si no el logo (nunca un SVG)', () => {
+    expect(homeShareImage(' https://x/og.jpg ', 'https://x/logo.png')).toEqual({
+      url: 'https://x/og.jpg',
+      fromLogo: false,
+    });
+    expect(homeShareImage('', 'https://x/logo.png')).toEqual({ url: 'https://x/logo.png', fromLogo: true });
+    expect(homeShareImage('', 'https://x/logo.SVG?v=2')).toBeNull();
+    expect(homeShareImage(null, '')).toBeNull();
+  });
+
   it('se cortan en una palabra, con "…", como los corta Google', () => {
     expect(truncateForSnippet('corto', 60)).toBe('corto');
     const cut = truncateForSnippet(
@@ -94,9 +105,10 @@ describe('vista previa en el panel de identidad', () => {
 
     await user.type(title, ' para entrenar en casa con envíos a todo el país');
     expect(screen.getByText('Largo: Google lo va a cortar.')).toBeInTheDocument();
-    const shown = google().getByText(/^Volxen — Ropa/).textContent!;
-    expect(shown.endsWith('…')).toBe(true);
-    expect(shown.length).toBeLessThanOrEqual(SEO_TITLE_IDEAL);
+    // Como en el celular: el título entero, hasta dos renglones (el resto lo corta el ancho).
+    const shown = google().getByText(/^Volxen — Ropa/);
+    expect(shown.textContent).toBe(current.seoTitle);
+    expect(shown).toHaveClass('line-clamp-2');
     expect(screen.getByText(`${current.seoTitle.length} de ${SEO_TITLE_IDEAL}`)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Descripción para buscadores'), 'Pesas y bancos.');
@@ -112,12 +124,23 @@ describe('vista previa en el panel de identidad', () => {
     expect(
       screen.getByRole('figure', { name: 'Vista previa al compartir por WhatsApp' }).querySelector('img'),
     ).toHaveAttribute('src', 'https://cdn.test/og.jpg');
-    expect(screen.queryByText(/Sin imagen, el link se ve chico/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sin imagen, el link sale chico/)).not.toBeInTheDocument();
   });
 
-  it('sin imagen al compartir, la tarjeta es chica y sugiere subir una', async () => {
-    await show();
+  it('sin imagen al compartir va el logo en chico; sin logo (o SVG), solo el texto', async () => {
+    await show({ logo: 'https://cdn.test/logo.png' });
+    expect(
+      screen.getByRole('figure', { name: 'Vista previa al compartir por WhatsApp' }).querySelector('img'),
+    ).toHaveAttribute('src', 'https://cdn.test/logo.png');
+    expect(screen.getByText(/va tu logo en chico/)).toBeInTheDocument();
+  });
+
+  it('sin imagen ni logo, la tarjeta es solo texto y sugiere subir una', async () => {
+    await show({ logo: 'https://cdn.test/logo.svg' });
     expect(whatsapp().getByText('Volxen — Tienda online')).toBeInTheDocument();
-    expect(screen.getByText(/Sin imagen, el link se ve chico/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('figure', { name: 'Vista previa al compartir por WhatsApp' }).querySelector('img'),
+    ).toBeNull();
+    expect(screen.getByText(/Sin imagen, el link sale chico/)).toBeInTheDocument();
   });
 });

@@ -17,7 +17,7 @@ import { Button, Input, Modal, Select, Spinner, Textarea, cn, useToast } from '@
 import { api, errMsg } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { useAiEnabled } from '../lib/useAi';
-import { storefrontUrl } from '../lib/storefront';
+import { storePublicUrl } from '../lib/storefront';
 import { useProductSearch } from '../lib/useProductSearch';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 import {
@@ -446,9 +446,7 @@ export function ComposerModal({
             const cover = coverUrl(product);
             if (cover) setMediaUrls((prev) => [...prev, cover]);
             // El post además VENDE: link al producto con UTM para atribuir el tráfico.
-            const link = store
-              ? storefrontUrl(store.subdomain, `/productos/${product.slug}?utm_source=redes`)
-              : null;
+            const link = store ? storePublicUrl(store, `/productos/${product.slug}?utm_source=redes`) : null;
             if (link && !content.includes(link)) {
               setContent((c) => (c.trim().length > 0 ? `${c.trimEnd()}\n${link}` : link));
               toast('Imagen y link del producto agregados al post', { variant: 'success' });

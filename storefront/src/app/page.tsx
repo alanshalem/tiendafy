@@ -4,7 +4,7 @@ import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
 import { loadStorefront, siteBase, loadHomeSectionProducts } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { jsonLd } from '@/lib/json-ld';
-import { homeSeoDescription, homeSeoTitle } from '@tiendafy/types';
+import { homeSeoDescription, homeSeoTitle, homeShareImage } from '@tiendafy/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +21,7 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
   // con el mismo texto que todas las demás tiendas.
   const title = homeSeoTitle(theme?.seoTitle, tenant.name);
   const description = homeSeoDescription(theme?.seoDescription, tenant.name);
+  const image = homeShareImage(theme?.shareImage, theme?.logo);
   const base = await siteBase();
   return {
     // La plantilla del layout ("… · Tienda") no aplica a la portada: es del
@@ -28,7 +29,8 @@ export async function generateMetadata(): Promise<import('next').Metadata> {
     title,
     description,
     ...(base ? { alternates: { canonical: `${base}/` } } : {}),
-    openGraph: { title, description, images: theme?.shareImage ? [theme.shareImage] : [] },
+    // Sin imagen propia va el logo: una tarjeta sin foto en WhatsApp no la toca nadie.
+    openGraph: { title, description, images: image ? [image.url] : [] },
   };
 }
 

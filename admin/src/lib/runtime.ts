@@ -19,6 +19,11 @@ export interface RuntimeConfig {
    */
   brandName?: string;
   storefrontOrigin?: string;
+  /**
+   * La tienda que atiende el dominio pelado (PRIMARY_STORE_SUBDOMAIN de la
+   * tienda). Su dirección pública es el dominio a secas, no {sub}.dominio.
+   */
+  primaryStoreSubdomain?: string;
   sentryDsn?: string;
   /** 'production' | 'staging' | … — se usa para etiquetar los errores en Sentry. */
   envName?: string;
@@ -43,6 +48,11 @@ export const runtime = {
     import.meta.env.VITE_STOREFRONT_ORIGIN as string | undefined,
     'http://{sub}.localhost:3000',
   ),
+  primaryStoreSubdomain: pick(
+    injected.primaryStoreSubdomain,
+    import.meta.env.VITE_PRIMARY_STORE_SUBDOMAIN as string | undefined,
+    '',
+  ).toLowerCase(),
   sentryDsn: pick(injected.sentryDsn, import.meta.env.VITE_SENTRY_DSN as string | undefined, ''),
   envName: pick(injected.envName, undefined, import.meta.env.MODE),
   brandName: pick(injected.brandName, import.meta.env.VITE_BRAND_NAME as string | undefined, 'Tiendafy'),

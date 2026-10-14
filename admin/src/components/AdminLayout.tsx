@@ -9,7 +9,7 @@ import { firstSettingsPath } from '../lib/access';
 import { visibleMainNav, type NavItem } from '../config/navigation';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { StoreSwitcher } from './StoreSwitcher';
-import { storefrontUrl } from '../lib/storefront';
+import { storePublicUrl } from '../lib/storefront';
 import { LogoMark } from './LogoMark';
 import { PanelShell } from './PanelShell';
 
@@ -179,7 +179,7 @@ export function AdminLayout() {
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             {store && (
               <a
-                href={storefrontUrl(store.subdomain)}
+                href={storePublicUrl(store)}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Ver mi tienda"

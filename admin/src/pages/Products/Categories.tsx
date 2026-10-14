@@ -13,7 +13,7 @@ import {
 import { Button, Dropdown, FormField, Input, Modal, Select, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../../lib/api';
-import { storefrontUrl } from '../../lib/storefront';
+import { storePublicUrl } from '../../lib/storefront';
 import { EmptyState } from '../../components/EmptyState';
 import { HelpLink } from '../../components/HelpLink';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -216,7 +216,7 @@ export function CategoriesPage() {
     setCreateOpen(true);
   };
   const onView = (node: TreeNode) =>
-    window.open(storefrontUrl(store?.subdomain ?? '', `/productos?category=${node.id}`), '_blank');
+    store && window.open(storePublicUrl(store, `/productos?category=${node.id}`), '_blank');
   const onDelete = async (node: TreeNode) => {
     const ok = await confirm({
       title: `Eliminar “${node.name}”`,

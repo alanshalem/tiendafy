@@ -194,6 +194,8 @@ services:
       APP_ENV: ${APP_ENV}
       VITE_API_URL: https://api.${STACK_DOMAIN}
       VITE_STOREFRONT_ORIGIN: https://{sub}.${STACK_DOMAIN}
+      # La misma que la de la tienda: su dirección pública es el dominio a secas.
+      VITE_PRIMARY_STORE_SUBDOMAIN: ${PRIMARY_STORE_SUBDOMAIN:-}
       VITE_SENTRY_DSN: ${SENTRY_DSN_ADMIN:-}
       # Marca de ESTA instalación (el panel). Vacío = Tiendafy.
       VITE_BRAND_NAME: ${BRAND_NAME:-}

@@ -42,6 +42,15 @@ describe('portada: metadata', () => {
     });
   });
 
+  it('sin imagen para compartir va el logo (un SVG no: las redes no lo leen)', async () => {
+    withTheme({ shareImage: '', logo: 'https://cdn.example.com/logo.png' });
+    expect((await generateMetadata()).openGraph).toMatchObject({
+      images: ['https://cdn.example.com/logo.png'],
+    });
+    withTheme({ shareImage: '', logo: 'https://cdn.example.com/logo.svg' });
+    expect((await generateMetadata()).openGraph).toMatchObject({ images: [] });
+  });
+
   it('sin SEO cargado, uno con la marca; sin tema, también', async () => {
     withTheme({ seoTitle: '', seoDescription: '' });
     expect((await generateMetadata()).title).toBe(`${tenant.name} — Tienda online`);

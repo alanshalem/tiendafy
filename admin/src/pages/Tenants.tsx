@@ -18,7 +18,7 @@ import {
 import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import type { Tenant } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
-import { storefrontUrl, storefrontHost } from '../lib/storefront';
+import { storefrontHost, storePublicHost, storePublicUrl } from '../lib/storefront';
 import { ListStats } from '../components/stats/ListStats';
 import { Delta } from '../components/charts/viz';
 import { TableSkeleton } from '../components/Skeleton';
@@ -160,12 +160,12 @@ export function TenantsPage() {
       header: 'Tienda',
       cell: (t) => (
         <a
-          href={storefrontUrl(t.subdomain)}
+          href={storePublicUrl({ subdomain: t.subdomain })}
           target="_blank"
           rel="noreferrer"
           className="text-primary hover:underline"
         >
-          {storefrontHost(t.subdomain)}
+          {storePublicHost({ subdomain: t.subdomain })}
         </a>
       ),
     },

@@ -9,7 +9,7 @@ import { formatMoney, formatNumber } from '../lib/format';
 import { Sparkline } from '../components/charts';
 import { NoStoreSelected } from '../components/NoStoreSelected';
 import { HelpLink } from '../components/HelpLink';
-import { storefrontHost } from '../lib/storefront';
+import { storefrontHost, storePublicHost } from '../lib/storefront';
 import { InlineSkeleton } from '../components/Skeleton';
 
 interface ProductsResponse {
@@ -155,9 +155,7 @@ export function HomePage() {
           <div className="mt-1 text-2xl font-bold text-fg">
             {store.status === 'ACTIVE' ? 'Activa' : store.status}
           </div>
-          <div className="mt-1 text-xs text-fg-subtle">
-            {store.customDomain ?? storefrontHost(store.subdomain)}
-          </div>
+          <div className="mt-1 text-xs text-fg-subtle">{storePublicHost(store)}</div>
         </Card>
       </div>
 

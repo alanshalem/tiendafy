@@ -37,6 +37,7 @@ export {
   SEO_DESCRIPTION_SHORT,
   homeSeoTitle,
   homeSeoDescription,
+  homeShareImage,
   truncateForSnippet,
 } from './seo';
 

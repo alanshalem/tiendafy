@@ -1,7 +1,7 @@
-import type { ThemeConfig } from '@tiendafy/types';
+import { homeShareImage, type ThemeConfig } from '@tiendafy/types';
 import { MediaUpload } from '../../components/upload/MediaUpload';
 import { useStore } from '../../context/StoreContext';
-import { storefrontHost } from '../../lib/storefront';
+import { storePublicHost } from '../../lib/storefront';
 import { BackHeader, Field, SegField, TextArea, TextInput } from '../theme-editor-inputs';
 import { GoogleResultPreview, LengthMeter, SharePreview } from './SearchPreview';
 
@@ -18,8 +18,10 @@ export function LogoPanel({
   updateTheme: (u: (t: ThemeConfig) => ThemeConfig) => void;
 }) {
   const { store } = useStore();
-  // El dominio con el que la ve la gente: el propio si lo conectó, si no el subdominio.
-  const host = store ? (store.customDomain ?? storefrontHost(store.subdomain)) : 'tu-tienda';
+  // El dominio con el que la ve la gente: el propio si lo conectó, el dominio
+  // a secas si es la tienda principal, si no el subdominio.
+  const host = store ? storePublicHost(store) : 'tu-tienda';
+  const share = homeShareImage(theme.shareImage, theme.logo);
   const preview = {
     storeName,
     host,
@@ -27,6 +29,7 @@ export function LogoPanel({
     seoDescription: theme.seoDescription,
     favicon: theme.favicon,
     shareImage: theme.shareImage,
+    logo: theme.logo,
   };
   return (
     <div>
@@ -83,13 +86,17 @@ export function LogoPanel({
           <div className="mb-2 text-xs font-medium text-fg-muted">
             Así se ve el link en un chat de WhatsApp
           </div>
-          <div className="rounded-lg bg-[#efeae2] p-3">
-            <SharePreview {...preview} />
-          </div>
-          {!theme.shareImage && (
+          <SharePreview {...preview} />
+          {!share && (
             <p className="mt-2 text-xs text-fg-muted">
-              Sin imagen, el link se ve chico y sin foto. Subí una de 1200 × 630 px (tu logo sobre un fondo de
+              Sin imagen, el link sale chico y sin foto. Subí una de 1200 × 630 px (tu logo sobre un fondo de
               marca, o una foto de tus productos) y se ve grande.
+            </p>
+          )}
+          {share?.fromLogo && (
+            <p className="mt-2 text-xs text-fg-muted">
+              Como no subiste una imagen al compartir, va tu logo en chico. Con una de 1200 × 630 px (tu logo
+              sobre un fondo de marca, o una foto de tus productos) el link se ve grande.
             </p>
           )}
         </div>
