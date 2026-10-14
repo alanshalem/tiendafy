@@ -253,6 +253,7 @@ export function ColorRow({
   onAuto,
   autoLabel = 'Automático',
   autoValue,
+  autoHint,
 }: {
   label: string;
   hint?: string;
@@ -269,6 +270,8 @@ export function ColorRow({
   autoLabel?: string;
   /** El color "R G B" que se usa en automático: el selector lo muestra mientras el valor está vacío. */
   autoValue?: string;
+  /** Lo que se lee debajo mientras está en automático. */
+  autoHint?: string;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -285,7 +288,7 @@ export function ColorRow({
               Volver a {autoLabel.toLowerCase()}
             </button>
           ) : (
-            <p className="mt-0.5 text-xs text-fg-muted">{autoLabel}: el que mejor se lee</p>
+            <p className="mt-0.5 text-xs text-fg-muted">{autoHint ?? `${autoLabel}: el que mejor se lee`}</p>
           ))}
       </div>
       <input

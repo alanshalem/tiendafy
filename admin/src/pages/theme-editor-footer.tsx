@@ -29,7 +29,7 @@ const FOOTER_PRESETS: QuickStyle<ThemeConfig['footer']>[] = [
       showNewsletter: false,
       showPaymentLogos: true,
     },
-    thumb: <FooterThumb layout="centered" />,
+    thumb: <FooterThumb layout="centered" minimal />,
   },
   {
     name: 'Completo',
@@ -110,6 +110,7 @@ export function FooterPanel({ theme, onBack, updateTheme }: PanelProps) {
           onChange={(v) => set({ bg: v })}
           onAuto={() => set({ bg: '' })}
           autoLabel="Como la tienda"
+          autoHint="El mismo fondo que la tienda. Con otro, el texto se ajusta solo."
           autoValue={theme.colors.bg}
           fallback="#ffffff"
         />

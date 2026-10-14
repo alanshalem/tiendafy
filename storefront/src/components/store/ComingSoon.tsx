@@ -1,5 +1,5 @@
 import { safeHref } from '@tiendafy/types';
-import { primaryInk, type ThemeConfig } from '@/lib/theme';
+import { primaryInk, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { NewsletterForm } from './NewsletterForm';
 
 /** "2026-11-15" → "15 de noviembre". Sin año: una apertura nunca es a un año vista. */
@@ -53,6 +53,10 @@ export function ComingSoon({
   const ink = `rgb(${primaryInk(theme)})`;
   const fecha = launchDate ? apertura(launchDate) : null;
   const dividido = layout === 'split' && !!image;
+  // Las variables del tema (tipografías, color de los botones): en la tienda
+  // publicada esta página se dibuja sin el resto de la tienda, y sin ellas los
+  // títulos salían con la letra del navegador en vez de la de la marca.
+  const vars = themeToStyle(theme) as React.CSSProperties;
 
   // El redondeo es del tema: `rounded-full` fijo le rompía la identidad a las
   // marcas de esquinas rectas justo en su página más vista.
@@ -74,7 +78,9 @@ export function ComingSoon({
       {theme.logo ? (
         <img src={theme.logo} alt={tenantName} className="mx-auto mb-8 max-h-16 w-auto object-contain" />
       ) : (
-        <div className="mb-8 text-2xl font-bold tracking-tight">{tenantName}</div>
+        <div className="mb-8 text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+          {tenantName}
+        </div>
       )}
 
       {eyebrow && (
@@ -141,6 +147,7 @@ export function ComingSoon({
       <main
         className="grid min-h-screen grid-cols-1 md:grid-cols-2"
         style={{
+          ...vars,
           background: `rgb(${theme.colors.bg})`,
           color: `rgb(${theme.colors.text})`,
           fontFamily: 'var(--font-body)',
@@ -162,6 +169,7 @@ export function ComingSoon({
     <main
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
       style={{
+        ...vars,
         background: `rgb(${theme.colors.bg})`,
         color: `rgb(${theme.colors.text})`,
         fontFamily: 'var(--font-body)',

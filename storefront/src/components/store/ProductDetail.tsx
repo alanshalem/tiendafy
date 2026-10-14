@@ -524,7 +524,10 @@ export function ProductDetail({
       </div>
 
       {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden">
+      <div
+        data-tf-buybar
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
+      >
         <div className="min-w-0">
           <div className="truncate text-xs text-fg-muted">{name}</div>
           <div className="flex items-baseline gap-2">

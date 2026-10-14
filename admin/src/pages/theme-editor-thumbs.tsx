@@ -139,9 +139,12 @@ export function HeaderThumb({
 export function FooterThumb({
   layout,
   dark = false,
+  minimal = false,
 }: {
   layout: ThemeConfig['footer']['layout'];
   dark?: boolean;
+  /** Solo lo justo (medios de pago y legales). */
+  minimal?: boolean;
 }) {
   const H = 40;
   const bg = dark ? 'fill-fg/75' : 'fill-fg/[0.05]';
@@ -166,6 +169,11 @@ export function FooterThumb({
           <rect x={6} y={29} width={84} height={0.6} className={soft} />
           <Bar x={6} y={33} w={22} h={2.5} className={soft} />
           <Bar x={66} y={33} w={24} h={2} className={soft} />
+        </>
+      ) : minimal ? (
+        <>
+          <Bar x={W / 2 - 18} y={16} w={36} h={4} className={soft} />
+          <Bar x={W / 2 - 20} y={26} w={40} h={2} className={soft} />
         </>
       ) : (
         <>

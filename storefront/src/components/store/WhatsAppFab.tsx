@@ -38,7 +38,7 @@ export function WhatsAppFab({
     // "Aceptar". Sin el aviso la variable no existe y queda donde siempre.
     <div
       data-tf-focus="whatsapp"
-      className={`group fixed z-[70] ${left ? 'left-5' : 'right-5'}`}
+      className={`group fixed z-[45] ${left ? 'left-5' : 'right-5'}`}
       style={{ bottom: 'calc(1.25rem + var(--tf-consent-h, 0px))' }}
     >
       {showPreview && (
