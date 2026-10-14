@@ -2,7 +2,7 @@
 
 import { cn } from '@tiendafy/ui';
 import { Icon } from '../Icon';
-import { SectionTitle } from '../section-primitives';
+import { RailArrows, SectionTitle, useRail } from '../section-primitives';
 import { StoreImage } from '../StoreImage';
 import type { SectionRenderProps, TestimonialItem } from '../section-types';
 
@@ -34,7 +34,7 @@ function Card({ t, index }: { t: TestimonialItem; index: number }) {
   const initial = t.name.trim().charAt(0).toUpperCase();
   return (
     <figure
-      className="tf-in flex h-full flex-col rounded-lg border border-black/10 bg-black/[0.02] p-6"
+      className="tf-in flex h-full flex-col rounded-lg border border-fg/10 bg-fg/[0.02] p-6"
       style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}
     >
       {rating > 0 ? (
@@ -76,8 +76,9 @@ function Card({ t, index }: { t: TestimonialItem; index: number }) {
  */
 export function TestimonialsSection({ data }: SectionRenderProps<'testimonials'>) {
   const items = data.items.filter((t) => t.quote.trim());
-  if (items.length === 0) return null;
   const carousel = data.layout === 'carousel' && items.length > 1;
+  const { ref: railRef, edge, measure, page } = useRail<HTMLDivElement>([items.length, carousel]);
+  if (items.length === 0) return null;
   return (
     <section className="store-section mx-auto max-w-container px-6 py-14 sm:px-4">
       {data.title && (
@@ -86,15 +87,22 @@ export function TestimonialsSection({ data }: SectionRenderProps<'testimonials'>
         </SectionTitle>
       )}
       {carousel ? (
-        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] sm:gap-5 [&::-webkit-scrollbar]:hidden">
-          {items.map((t, i) => (
-            <div
-              key={i}
-              className="w-[85%] shrink-0 snap-start sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
-            >
-              <Card t={t} index={i} />
-            </div>
-          ))}
+        <div className="relative">
+          <div
+            ref={railRef}
+            onScroll={measure}
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] sm:gap-5 [&::-webkit-scrollbar]:hidden"
+          >
+            {items.map((t, i) => (
+              <div
+                key={i}
+                className="w-[85%] shrink-0 snap-start sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+              >
+                <Card t={t} index={i} />
+              </div>
+            ))}
+          </div>
+          <RailArrows edge={edge} page={page} />
         </div>
       ) : (
         // flex-wrap + centrado: con 4 o 5 testimonios la fila de abajo queda al

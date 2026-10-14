@@ -2,6 +2,7 @@ import { parsePlayableVideo, VIDEO_RATIOS, type PlayableVideo } from '@tiendafy/
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { Check, Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, RatioIcon } from './choice-group';
 import type { SectionEditorProps } from './types';
 
 const RATIO_LABELS: Record<(typeof VIDEO_RATIOS)[number], string> = {
@@ -64,13 +65,17 @@ export function VideoEditor({ data, set }: SectionEditorProps<'video'>) {
       <Field label="Imagen de portada (opcional)">
         <MediaUpload kind="sectionImage" value={data.poster} onChange={(poster) => set({ poster })} />
       </Field>
-      <Field label="Proporción">
-        <Select
-          value={data.ratio}
-          onChange={(v) => set({ ratio: v as typeof data.ratio })}
-          options={VIDEO_RATIOS.map((r) => ({ value: r, label: RATIO_LABELS[r] }))}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Proporción"
+        value={data.ratio}
+        onChange={(ratio) => set({ ratio })}
+        options={VIDEO_RATIOS.map((r) => ({
+          value: r,
+          label: r,
+          title: RATIO_LABELS[r],
+          icon: <RatioIcon ratio={r} />,
+        }))}
+      />
       <Field label="Título">
         <TextInput value={data.title} onChange={(v) => set({ title: v })} />
       </Field>

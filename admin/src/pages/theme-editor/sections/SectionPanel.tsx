@@ -14,6 +14,13 @@ import { SectionStyleFields } from './SectionStyleFields';
 import type { SectionEditorProps } from './types';
 
 /**
+ * Tipos donde "Alineación de los títulos" no cambia nada: no tienen título de
+ * sección (el carrusel, la barra de envíos, el pop-up) o lo ubican con su
+ * propia posición (el hero).
+ */
+const NO_TITLE_ALIGN = new Set<string>(['hero-video', 'carousel', 'info-bar', 'promo-popup']);
+
+/**
  * El panel de una sección: su nombre propio arriba, el editor de su tipo en
  * el medio y "Diseño de la sección" abajo. `onChange` recibe la sección
  * entera ya modificada.
@@ -59,6 +66,7 @@ export function SectionPanel({
         )}
         <SectionStyleFields
           section={section}
+          showAlign={!NO_TITLE_ALIGN.has(section.type)}
           onChange={({ style, hideOn }) => {
             const next = { ...section, style, hideOn };
             if (!style) delete next.style;

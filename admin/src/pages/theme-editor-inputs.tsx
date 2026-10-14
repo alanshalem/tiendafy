@@ -415,8 +415,9 @@ export function Check({
   /** Para qué sirve, debajo (alineado con el texto, no con la casilla). */
   hint?: string;
 }) {
+  // Toda la fila se toca, con 40 px de alto: el cuadradito solo (16 px) se erraba con el dedo.
   const box = (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
       <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>

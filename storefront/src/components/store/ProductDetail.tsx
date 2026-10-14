@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
+import { cn } from '@tiendafy/ui';
 import Image from 'next/image';
 import { track } from '@/lib/track';
 import { useCart } from './cart';
@@ -203,14 +204,25 @@ export function ProductDetail({
     <div className="mt-4 grid gap-8 md:grid-cols-2">
       <div>
         {cfg.galleryStyle === 'stacked' ? (
-          <div className="space-y-3">
-            {(images.length > 0 ? images : [null]).map((img, i) =>
+          // En la computadora, una debajo de la otra (y la info acompaña al
+          // bajar, ver abajo). En el celular, apiladas empujaban el nombre, el
+          // precio y el botón de compra tres o cuatro pantallas más abajo: ahí
+          // se deslizan de costado, con la siguiente asomando.
+          <div
+            data-testid="gallery-stacked"
+            className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 [scrollbar-width:none] md:mx-0 md:block md:space-y-3 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+          >
+            {(images.length > 0 ? images : [null]).map((img, i, all) =>
               img ? (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setLightboxIndex(i)}
-                  className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg"
+                  aria-label={`Ampliar la imagen ${i + 1} de ${all.length}`}
+                  className={cn(
+                    'group relative block shrink-0 cursor-zoom-in snap-start overflow-hidden rounded-lg md:w-full',
+                    all.length > 1 ? 'w-[86%]' : 'w-full',
+                  )}
                 >
                   <Image
                     src={img.url}
@@ -230,7 +242,7 @@ export function ProductDetail({
                 <InitialFallback
                   key={i}
                   name={name}
-                  className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+                  className="flex aspect-square w-full shrink-0 items-center justify-center rounded-lg bg-fg/5 text-6xl font-bold opacity-30"
                 />
               ),
             )}
@@ -245,7 +257,7 @@ export function ProductDetail({
                     onClick={() => setActiveImg(i)}
                     onMouseEnter={() => setActiveImg(i)}
                     aria-label={`Ver imagen ${i + 1}`}
-                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-black/10 hover:border-black/30'}`}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-fg/10 hover:border-fg/30'}`}
                   >
                     <Thumb src={img.url} size={64} />
                   </button>
@@ -262,7 +274,7 @@ export function ProductDetail({
               ) : (
                 <InitialFallback
                   name={name}
-                  className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+                  className="flex aspect-square items-center justify-center rounded-lg bg-fg/5 text-6xl font-bold opacity-30"
                 />
               )}
             </div>
@@ -278,7 +290,7 @@ export function ProductDetail({
             ) : (
               <InitialFallback
                 name={name}
-                className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-6xl font-bold opacity-30"
+                className="flex aspect-square items-center justify-center rounded-lg bg-fg/5 text-6xl font-bold opacity-30"
               />
             )}
             {images.length > 1 && (
@@ -289,7 +301,7 @@ export function ProductDetail({
                     onClick={() => setActiveImg(i)}
                     onMouseEnter={() => setActiveImg(i)}
                     aria-label={`Ver imagen ${i + 1}`}
-                    className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-black/20'}`}
+                    className={`h-16 w-16 overflow-hidden rounded-md border-2 transition-colors ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-fg/20'}`}
                   >
                     <Thumb src={img.url} size={64} />
                   </button>
@@ -300,7 +312,8 @@ export function ProductDetail({
         )}
       </div>
 
-      <div>
+      {/* Con la galería apilada, la info queda a la vista mientras se bajan las fotos. */}
+      <div className={cn(cfg.galleryStyle === 'stacked' && 'md:sticky md:top-24 md:self-start')}>
         <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {name}
         </h1>
@@ -388,7 +401,7 @@ export function ProductDetail({
                           })
                         }
                         aria-pressed={active}
-                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-black/15 hover:border-black/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
+                        className={`min-w-11 rounded-md border-2 px-3 py-2 text-sm transition-colors ${active ? 'border-primary font-semibold' : 'border-fg/15 hover:border-black/40'} ${missing || noStock ? 'text-fg-muted line-through' : ''}`}
                       >
                         {val}
                         {(missing || noStock) && (
@@ -439,7 +452,7 @@ export function ProductDetail({
 
           {/* Cantidad + Agregar al carrito */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center rounded-md border border-black/15">
+            <div className="flex items-center rounded-md border border-fg/15">
               <button
                 onClick={() => setQty(Math.max(1, quantity - 1))}
                 aria-label="Restar"
@@ -476,7 +489,7 @@ export function ProductDetail({
               href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`¡Hola! Quería consultar por «${name}».`)}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-black/15 text-sm font-semibold hover:border-black/40"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-fg/15 text-sm font-semibold hover:border-black/40"
             >
               <MessageCircle className="h-4 w-4" /> Consultar por este producto
             </a>
@@ -513,7 +526,7 @@ export function ProductDetail({
           </button>
 
           {/* Compra protegida */}
-          <div className="mt-1 flex items-start gap-2.5 rounded-md border border-black/10 bg-black/[0.02] p-3 text-sm">
+          <div className="mt-1 flex items-start gap-2.5 rounded-md border border-fg/10 bg-fg/[0.02] p-3 text-sm">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 opacity-70" />
             <div>
               <div className="font-semibold">Compra protegida</div>
@@ -526,7 +539,7 @@ export function ProductDetail({
       {/* Mobile: barra fija de compra (el CTA no se pierde al scrollear). */}
       <div
         data-tf-buybar
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-black/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-fg/10 bg-bg px-4 py-2.5 text-fg shadow-[0_-4px_14px_rgba(0,0,0,0.08)] md:hidden"
       >
         <div className="min-w-0">
           <div className="truncate text-xs text-fg-muted">{name}</div>
@@ -626,7 +639,7 @@ function MagnifierImage({ src, alt, onOpen }: { src: string; alt: string; onOpen
         ref={boxRef}
         type="button"
         aria-label={`Ampliar imagen: ${alt}`}
-        className="group relative block aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-black/5"
+        className="group relative block aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-fg/5"
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         onMouseMove={move}

@@ -2,6 +2,7 @@ import { SECTION_REGISTRY, type CollageBlock } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { Field, Select, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, CollageIcon, LayoutIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
 import { CategorySelect, SingleProductPicker } from './section-pickers';
 import type { SectionEditorProps } from './types';
@@ -84,26 +85,39 @@ export function CollageEditor({ data, set }: SectionEditorProps<'collage'>) {
           El collage luce con dos o tres bloques: el primero va grande.
         </p>
       )}
-      <Field label="El bloque grande va">
-        <Select
-          value={data.layout}
-          onChange={(v) => set({ layout: v as typeof data.layout })}
-          options={[
-            { value: 'big-left', label: 'A la izquierda' },
-            { value: 'big-right', label: 'A la derecha' },
-          ]}
-        />
-      </Field>
-      <Field label="En celular">
-        <Select
-          value={data.mobile}
-          onChange={(v) => set({ mobile: v as typeof data.mobile })}
-          options={[
-            { value: 'stack', label: 'Uno debajo del otro' },
-            { value: 'swipe', label: 'Deslizando de costado' },
-          ]}
-        />
-      </Field>
+      <ChoiceGroup
+        label="El bloque grande va"
+        value={data.layout}
+        onChange={(layout) => set({ layout })}
+        options={[
+          {
+            value: 'big-left',
+            label: 'Izquierda',
+            title: 'A la izquierda',
+            icon: <CollageIcon big="left" />,
+          },
+          { value: 'big-right', label: 'Derecha', title: 'A la derecha', icon: <CollageIcon big="right" /> },
+        ]}
+      />
+      <ChoiceGroup
+        label="En celular"
+        value={data.mobile}
+        onChange={(mobile) => set({ mobile })}
+        options={[
+          {
+            value: 'stack',
+            label: 'Apilados',
+            title: 'Uno debajo del otro',
+            icon: <LayoutIcon layout="stack" />,
+          },
+          {
+            value: 'swipe',
+            label: 'Deslizando',
+            title: 'Deslizando de costado',
+            icon: <LayoutIcon layout="carousel" />,
+          },
+        ]}
+      />
     </>
   );
 }

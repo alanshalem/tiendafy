@@ -1,13 +1,19 @@
 import { parseVideoEmbed, type InstagramData, type VideoEmbed } from '@tiendafy/types';
 import { CheckCircle2, TriangleAlert } from 'lucide-react';
-import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { Field, TextArea, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, RatioIcon, type Choice } from './choice-group';
 import type { SectionEditorProps } from './types';
 
-const ASPECTS: { value: InstagramData['aspect']; label: string }[] = [
-  { value: 'auto', label: 'Automático (vertical para Shorts)' },
-  { value: '16:9', label: 'Horizontal (16:9)' },
-  { value: '9:16', label: 'Vertical (9:16)' },
-  { value: '1:1', label: 'Cuadrado (1:1)' },
+const ASPECTS: Choice<InstagramData['aspect']>[] = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    title: 'Automático (vertical para Shorts)',
+    icon: <RatioIcon ratio="auto" />,
+  },
+  { value: '16:9', label: '16:9', title: 'Horizontal (16:9)', icon: <RatioIcon ratio="16:9" /> },
+  { value: '9:16', label: '9:16', title: 'Vertical (9:16)', icon: <RatioIcon ratio="9:16" /> },
+  { value: '1:1', label: '1:1', title: 'Cuadrado (1:1)', icon: <RatioIcon ratio="1:1" /> },
 ];
 
 /** Qué va a mostrar la tienda con el link pegado, en castellano. */
@@ -64,13 +70,17 @@ export function InstagramEditor({ data, set }: SectionEditorProps<'instagram'>) 
         <TextArea value={data.caption} onChange={(v) => set({ caption: v })} />
       </Field>
       {embed?.kind !== 'instagram' && embed?.kind !== 'instagram-profile' && (
-        <Field label="Proporción del video">
-          <Select
-            value={data.aspect}
-            onChange={(v) => set({ aspect: v as InstagramData['aspect'] })}
-            options={ASPECTS}
-          />
-        </Field>
+        <ChoiceGroup
+          label="Proporción del video"
+          hint={
+            data.aspect === 'auto'
+              ? 'Automático: vertical para los Shorts, horizontal para el resto.'
+              : undefined
+          }
+          value={data.aspect}
+          onChange={(aspect) => set({ aspect })}
+          options={ASPECTS}
+        />
       )}
     </>
   );

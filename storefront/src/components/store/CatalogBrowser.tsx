@@ -145,7 +145,7 @@ export function CatalogBrowser({
   return (
     <div className="mx-auto max-w-container px-4 pb-16">
       {/* Barra superior: total + orden */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 py-4">
         <p className="text-sm text-fg-muted">
           {total} {total === 1 ? 'resultado' : 'resultados'}
           {current.q && <> para «{current.q}»</>}
@@ -241,7 +241,7 @@ export function CatalogBrowser({
                 <button
                   type="button"
                   onClick={applyPrice}
-                  className="mt-2 w-full rounded-md border border-black/15 py-1.5 text-xs font-semibold hover:bg-black/5"
+                  className="mt-2 w-full rounded-md border border-fg/15 py-1.5 text-xs font-semibold hover:bg-fg/5"
                 >
                   Aplicar
                 </button>
@@ -446,7 +446,7 @@ function OptionFacetChips({
               type="button"
               onClick={() => onToggle(v)}
               aria-pressed={on}
-              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary-ink' : 'border-black/15 hover:bg-black/5'}`}
+              className={`rounded-full border px-3 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-semibold text-primary-ink' : 'border-fg/15 hover:bg-fg/5'}`}
             >
               {v}
             </button>
@@ -563,7 +563,7 @@ function CategoryFacet({
           <Link
             href={hrefFor(node)}
             aria-current={current === node.id || undefined}
-            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-black/5 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+            className={`block flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-fg/5 ${current === node.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
           >
             {node.name}
           </Link>
@@ -598,7 +598,7 @@ function CategoryFacet({
             <Link
               href={hrefFor(null)}
               aria-current={!current || undefined}
-              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+              className={`block w-full rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-fg/5 ${!current ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               Todas
             </Link>
@@ -608,7 +608,7 @@ function CategoryFacet({
                 <li key={c.id}>
                   <Link
                     href={hrefFor(c)}
-                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-black/5 ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+                    className={`block w-full truncate rounded px-1.5 py-1 pl-[1.4rem] text-left hover:bg-fg/5 ${current === c.id ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
                   >
                     {c.name}
                   </Link>
@@ -650,7 +650,7 @@ function BrandFacet({
             <button
               onClick={() => onSelect(b)}
               aria-pressed={current === b}
-              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-black/5 ${current === b ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
+              className={`block w-full truncate rounded px-2 py-1 text-left hover:bg-fg/5 ${current === b ? 'font-semibold text-primary-ink' : 'opacity-80'}`}
             >
               {b}
             </button>
@@ -732,9 +732,7 @@ function PageLink({
   ariaLabel?: string;
 }) {
   const cls = `flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-sm transition-colors ${
-    active
-      ? 'border-transparent bg-primary font-semibold text-primary-fg'
-      : 'border-black/15 hover:bg-black/5'
+    active ? 'border-transparent bg-primary font-semibold text-primary-fg' : 'border-fg/15 hover:bg-fg/5'
   }`;
   if (!href) {
     return (

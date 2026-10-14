@@ -342,10 +342,10 @@ describe('newsletter', () => {
 
   it('con un fondo elegido en "Diseño de la sección" no pone el suyo', () => {
     const { container, unmount } = home([section('newsletter', {})]);
-    expect(container.querySelector('main section')).toHaveClass('bg-black/[0.03]');
+    expect(container.querySelector('main section')).toHaveClass('bg-fg/[0.03]');
     unmount();
     const styled = home([section('newsletter', {}, { style: { background: 'accent' } })]);
-    expect(styled.container.querySelector('main section')).not.toHaveClass('bg-black/[0.03]');
+    expect(styled.container.querySelector('main section')).not.toHaveClass('bg-fg/[0.03]');
   });
 });
 

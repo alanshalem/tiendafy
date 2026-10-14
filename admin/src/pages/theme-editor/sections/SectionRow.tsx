@@ -141,7 +141,8 @@ export function SectionRow({
         >
           <span
             className={cn(
-              'w-full truncate text-sm font-medium',
+              // Hasta dos renglones: "Información de envíos, pagos y compra" se cortaba en "Información de envío…".
+              'line-clamp-2 w-full text-sm font-medium leading-snug break-words',
               section.visible ? 'text-fg' : 'text-fg-muted',
             )}
           >

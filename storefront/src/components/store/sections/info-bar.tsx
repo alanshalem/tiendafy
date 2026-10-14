@@ -65,7 +65,7 @@ export function InfoBarSection({ data }: SectionRenderProps<'info-bar'>) {
   if (list.length === 0) return null;
   const layout = data.mobileLayout;
   return (
-    <section className="border-y border-black/10">
+    <section className="border-y border-fg/10">
       <div
         className={cn(
           'mx-auto max-w-container px-4 py-8 sm:grid sm:justify-items-center sm:gap-6',

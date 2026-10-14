@@ -1,4 +1,5 @@
 import { Check, Field, Select, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, SideIcon } from './choice-group';
 import { SingleProductPicker } from './section-pickers';
 import type { SectionEditorProps } from './types';
 
@@ -15,16 +16,21 @@ export function FeaturedProductEditor({ data, set }: SectionEditorProps<'feature
       <Field label="Etiqueta" hint="Un texto corto arriba del nombre. Vacío = sin etiqueta.">
         <TextInput value={data.badge} onChange={(v) => set({ badge: v })} placeholder="Elegido del mes" />
       </Field>
-      <Field label="Foto">
-        <Select
-          value={data.layout}
-          onChange={(v) => set({ layout: v as typeof data.layout })}
-          options={[
-            { value: 'image-left', label: 'A la izquierda' },
-            { value: 'image-right', label: 'A la derecha' },
-          ]}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Foto en computadora"
+        hint="En celulares va arriba del nombre."
+        value={data.layout}
+        onChange={(layout) => set({ layout })}
+        options={[
+          {
+            value: 'image-left',
+            label: 'Izquierda',
+            title: 'A la izquierda',
+            icon: <SideIcon image="left" />,
+          },
+          { value: 'image-right', label: 'Derecha', title: 'A la derecha', icon: <SideIcon image="right" /> },
+        ]}
+      />
       <Field label="Botón">
         <Select
           value={data.button}

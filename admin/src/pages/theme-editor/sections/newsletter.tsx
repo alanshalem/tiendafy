@@ -1,11 +1,12 @@
 import type { NewsletterData } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
-import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { Field, TextArea, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, SideIcon, type Choice } from './choice-group';
 import type { SectionEditorProps } from './types';
 
-const LAYOUTS: { value: NewsletterData['layout']; label: string }[] = [
-  { value: 'stacked', label: 'Todo centrado' },
-  { value: 'split', label: 'Imagen al costado (con imagen)' },
+const LAYOUTS: Choice<NewsletterData['layout']>[] = [
+  { value: 'stacked', label: 'Centrado', title: 'Todo centrado', icon: <SideIcon image="top" /> },
+  { value: 'split', label: 'Imagen al costado', icon: <SideIcon image="left" /> },
 ];
 
 export function NewsletterEditor({ data, set, theme }: SectionEditorProps<'newsletter'>) {
@@ -26,13 +27,17 @@ export function NewsletterEditor({ data, set, theme }: SectionEditorProps<'newsl
       <Field label="Imagen (opcional)">
         <MediaUpload kind="newsletterImage" value={data.image} onChange={(url) => set({ image: url })} />
       </Field>
-      <Field label="Cómo se acomoda">
-        <Select
-          value={data.layout}
-          onChange={(v) => set({ layout: v as NewsletterData['layout'] })}
-          options={LAYOUTS}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Cómo se acomoda"
+        hint={
+          data.layout === 'split' && !data.image
+            ? 'La imagen al costado necesita una imagen: sin ella, queda todo centrado.'
+            : undefined
+        }
+        value={data.layout}
+        onChange={(layout: NewsletterData['layout']) => set({ layout })}
+        options={LAYOUTS}
+      />
       <Field label="Mensaje al suscribirse">
         <TextInput
           value={data.successMessage}

@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useSyncExternalStore } from 'react';
-import { countdownParts, countdownSpeech, formatArgentinaEnd } from '@tiendafy/types';
+import { countdownParts, countdownSpeech, formatArgentinaEnd, sectionProductPlan } from '@tiendafy/types';
 import { ProductGrid, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
 import { useSectionProducts } from '../SectionProductsContext';
 import type { SectionRenderProps } from '../section-types';
 import { SectionButton } from './section-button';
+import { EMPTY_BY_KIND, fallbackProducts } from './products';
 
 /**
  * La hora actual, al segundo, solo en el navegador. En el servidor (y en la
@@ -78,9 +79,11 @@ export function CountdownOfferSection({
   const remaining = hasEnd && now !== null ? Math.max(0, end - now) : null;
   const ended = remaining === 0;
 
-  // Sin el origen resuelto (la API no respondió), lo que haya en oferta.
-  const list =
-    resolved ?? products.filter((p) => p.compareAtAmount && p.compareAtAmount > p.priceAmount).slice(0, 8);
+  // Sin el origen resuelto (la API no respondió), lo más parecido con lo que
+  // ya hay: antes eran siempre "los que están en oferta", aunque el comercio
+  // hubiera elegido otro origen, y el editor decía que cargara precios tachados.
+  const plan = sectionProductPlan(section);
+  const list = resolved ?? (plan ? fallbackProducts(section.type, plan.source, products, plan.limit) : []);
 
   if (ended && data.whenEnded === 'hide' && !preview) return null;
 
@@ -133,7 +136,8 @@ export function CountdownOfferSection({
       )}
       {preview && !ended && list.length === 0 && (
         <p className="mx-4 mt-4 rounded-md bg-fg/5 p-3 text-sm text-fg-muted">
-          Todavía no hay productos para mostrar: cargá un precio tachado en alguno o elegilos a mano.
+          {plan ? EMPTY_BY_KIND[plan.source.kind] : 'Todavía no hay productos para mostrar.'} Elegí otro
+          origen o cargá productos.
         </p>
       )}
 

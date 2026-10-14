@@ -538,7 +538,7 @@ export const DISENO = {
       {
         heading: 'Detalle de producto',
         paragraphs: [
-          'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra, ideal para indumentaria y productos con detalles.',
+          'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra (y la información del producto acompaña al bajar), ideal para indumentaria y productos con detalles. En el celular, la apilada se desliza de costado para que el precio y el botón de compra no queden lejos.',
           'Además elegís si se muestran el SKU, el stock, los productos relacionados, los logos de medios de pago, las cuotas sin interés, un descuento pagando en efectivo y el botón “Consultar por este producto”, que abre WhatsApp con el número del Botón de WhatsApp.',
         ],
       },
