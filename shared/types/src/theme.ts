@@ -7,6 +7,10 @@
    Colores en canal RGB crudo "R G B" (para alpha de Tailwind).
    ============================================================ */
 
+import type { ThemeSection } from './sections/envelope';
+import { normalizeSections } from './sections/registry';
+import { migrateTheme, THEME_SCHEMA_VERSION } from './sections/migrations';
+
 export interface ThemeColors {
   primary: string;
   accent: string;
@@ -97,29 +101,9 @@ export interface ComingSoonConfig {
   launchDate: string;
 }
 
-export type SectionType =
-  | 'hero-video'
-  | 'carousel'
-  | 'featured'
-  | 'promo-banners'
-  | 'institutional'
-  | 'category-banners'
-  | 'new-products'
-  | 'image-text'
-  | 'sale-products'
-  | 'instagram'
-  | 'info-bar'
-  | 'newsletter'
-  | 'testimonials'
-  | 'faq'
-  | 'brands';
-
-export interface ThemeSection {
-  id: string;
-  type: SectionType;
-  visible: boolean;
-  data: Record<string, unknown>;
-}
+// Las secciones del inicio (tipos, sobre común, registro, migraciones) viven
+// en ./sections: acá solo se re-exportan para que el resto siga igual.
+export type { SectionType, ThemeSection } from './sections/envelope';
 
 export interface ProductListConfig {
   columns: number;
@@ -252,6 +236,8 @@ export type DensityStyle = 'compact' | 'cozy' | 'spacious';
 export type IconKit = 'lucide' | 'phosphor' | 'tabler' | 'heroicons' | 'feather';
 
 export interface ThemeConfig {
+  /** Versión del esquema guardado (ver sections/migrations.ts). */
+  schemaVersion: number;
   logo: string;
   favicon: string;
   shareImage: string;
@@ -282,19 +268,23 @@ export interface ThemeConfig {
   customCss: string;
 }
 
-/** Secciones iniciales de un home recién creado (las usa el storefront como fallback). */
-export const DEFAULT_SECTIONS: ThemeSection[] = [
+/**
+ * Secciones de un inicio que nunca se configuró (el tema no trae la lista).
+ * Una lista vacía NO cae acá: es un inicio vacío a propósito.
+ */
+export const DEFAULT_SECTIONS: ThemeSection[] = normalizeSections([
   { id: 'carousel', type: 'carousel', visible: true, data: { images: [], fullHeightMobile: false } },
   { id: 'featured', type: 'featured', visible: true, data: { title: 'Destacados', carousel: true } },
+  // Sin ítems: la barra muestra los tres de siempre (envíos, pagos, compra protegida).
   { id: 'info-bar', type: 'info-bar', visible: true, data: {} },
-];
+])!;
 
 /**
- * Defaults "neutros" del tema. `sections` queda vacío a propósito: cada
- * consumidor decide su fallback de secciones vía `normalizeTheme`
- * (storefront siembra DEFAULT_SECTIONS; el editor arranca sin secciones).
+ * Defaults "neutros" del tema. `sections` queda vacío: las de un tema que nunca
+ * se configuró las pone `normalizeTheme` (DEFAULT_SECTIONS).
  */
 export const baseTheme: ThemeConfig = {
+  schemaVersion: THEME_SCHEMA_VERSION,
   logo: '',
   favicon: '',
   shareImage: '',
@@ -442,15 +432,20 @@ function normalizeAnnouncement(raw?: Partial<ThemeAnnouncement>): ThemeAnnouncem
 
 /**
  * Mergea una config parcial sobre los defaults para que nunca falten campos.
- * `fallbackSections` define qué secciones usar cuando el tema no trae ninguna
- * (storefront pasa DEFAULT_SECTIONS; el editor pasa []).
+ * Antes de mergear la lleva a la versión de esquema actual (migrateTheme).
+ *
+ * Secciones: una lista (aunque esté vacía) se respeta y se normaliza; si el
+ * tema no trae lista —nunca se configuró— van `fallbackSections`.
  */
 export function normalizeTheme(
-  raw: Partial<ThemeConfig> | null,
-  fallbackSections: ThemeSection[] = [],
+  input: Partial<ThemeConfig> | null,
+  fallbackSections: ThemeSection[] = DEFAULT_SECTIONS,
 ): ThemeConfig {
-  if (!raw) return { ...baseTheme, sections: fallbackSections };
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return { ...baseTheme, sections: normalizeSections(fallbackSections) ?? [] };
+  const raw = migrateTheme(input) as Partial<ThemeConfig>;
   return {
+    schemaVersion: raw.schemaVersion ?? THEME_SCHEMA_VERSION,
     logo: typeof raw.logo === 'string' ? raw.logo : baseTheme.logo,
     favicon: typeof raw.favicon === 'string' ? raw.favicon : baseTheme.favicon,
     shareImage: typeof raw.shareImage === 'string' ? raw.shareImage : baseTheme.shareImage,
@@ -483,7 +478,7 @@ export function normalizeTheme(
       ...raw.comingSoon,
       layout: raw.comingSoon?.layout === 'split' ? 'split' : 'centered',
     },
-    sections: Array.isArray(raw.sections) && raw.sections.length > 0 ? raw.sections : fallbackSections,
+    sections: normalizeSections(raw.sections) ?? normalizeSections(fallbackSections) ?? [],
     productList: { ...baseTheme.productList, ...raw.productList },
     productDetail: { ...baseTheme.productDetail, ...raw.productDetail },
     cart: { ...baseTheme.cart, ...raw.cart },

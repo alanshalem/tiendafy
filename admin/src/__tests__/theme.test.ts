@@ -24,10 +24,12 @@ describe('normalizeTheme', () => {
 
   it('usa las fallbackSections cuando el tema no trae secciones', () => {
     const fallback = [{ id: 'x', type: 'featured', visible: true, data: {} }] as ThemeConfig['sections'];
-    expect(normalizeTheme({}, fallback).sections).toBe(fallback);
-    // pero respeta las del tema si existen
+    // Las secciones salen normalizadas (data completa), así que se comparan por contenido.
+    expect(normalizeTheme({}, fallback).sections.map((s) => s.id)).toEqual(['x']);
+    // pero respeta las del tema si existen (aunque sea una lista vacía: inicio vacío a propósito)
     const own = [{ id: 'y', type: 'faq', visible: true, data: {} }] as ThemeConfig['sections'];
-    expect(normalizeTheme({ sections: own }, fallback).sections).toBe(own);
+    expect(normalizeTheme({ sections: own }, fallback).sections.map((s) => s.id)).toEqual(['y']);
+    expect(normalizeTheme({ sections: [] }, fallback).sections).toEqual([]);
   });
 
   it('rechaza valores inválidos de enums (borderRadius/motion/iconKit)', () => {
