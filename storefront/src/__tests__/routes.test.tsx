@@ -158,7 +158,13 @@ describe('404 y errores', () => {
     const fromServer = api.calls
       .map((c) => c.path.split('?')[0]!)
       .filter((path) => !/track|pages|suggest|popular|section|categories|store\/legal/.test(path));
-    expect([...new Set(fromServer)]).toEqual(['/api/v1/tenants/resolve', '/api/v1/theme']);
+    // Las ofertas de la tienda (transferencia, cuotas, envío gratis) viajan
+    // con el diseño y comparten su caché.
+    expect([...new Set(fromServer)]).toEqual([
+      '/api/v1/tenants/resolve',
+      '/api/v1/theme',
+      '/api/v1/store-offers',
+    ]);
     expect(api.calls.some((c) => c.path.includes('redirects'))).toBe(false);
   });
 
