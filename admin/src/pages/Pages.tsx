@@ -22,7 +22,7 @@ import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { EmptyState } from '../components/EmptyState';
 import { NoStoreSelected } from '../components/NoStoreSelected';
-import { RichTextEditor } from '../components/RichTextEditor';
+import { LazyRichTextEditor } from '../components/LazyRichTextEditor';
 import { HelpLink } from '../components/HelpLink';
 import { TableSkeleton } from '../components/Skeleton';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
@@ -261,7 +261,7 @@ function PageModal({
           <p id={contentLabelId} className="block text-sm font-medium text-fg">
             Contenido
           </p>
-          <RichTextEditor labelledBy={contentLabelId} value={body} onChange={setBody} />
+          <LazyRichTextEditor labelledBy={contentLabelId} value={body} onChange={setBody} />
           <p className="text-sm text-fg-muted">
             Editá con formato: títulos, negrita, listas, links e imágenes.
           </p>

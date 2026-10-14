@@ -7,8 +7,6 @@ import { mockApi } from '../test/api';
 import { renderWithProviders } from '../test/render';
 import { describe, expect, it, vi } from 'vitest';
 import { LazyRichTextEditor } from '../components/LazyRichTextEditor';
-import { AUDIENCE_LABEL } from '../pages/marketing-constants';
-import { AUDIENCE_LABEL as FROM_MODAL } from '../pages/CampaignModal';
 
 describe('LazyRichTextEditor', () => {
   it('termina siendo el mismo editor, con su nombre y su contenido', async () => {
@@ -22,11 +20,5 @@ describe('LazyRichTextEditor', () => {
     expect(await screen.findByText('Hola')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Contenido' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Cargando el editor…' })).toBeNull();
-  });
-});
-
-describe('textos de marketing', () => {
-  it('el listado y el editor nombran igual a cada audiencia', () => {
-    expect(AUDIENCE_LABEL).toEqual(FROM_MODAL);
   });
 });

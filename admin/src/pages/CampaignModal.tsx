@@ -10,6 +10,7 @@ import { EmailPreviewPanel } from '../components/EmailPreview';
 import type { MoneyDto } from '@tiendafy/types';
 import { parseMoneyInput } from '../lib/price';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
+import { AUDIENCE_LABEL } from './marketing-constants';
 
 // ---- Tipos wire --------------------------------------------------------------
 
@@ -75,13 +76,6 @@ interface ProductDto {
   variants: { price: MoneyDto }[];
   images: { url: string }[];
 }
-
-export const AUDIENCE_LABEL: Record<string, string> = {
-  buyers: 'Compradores',
-  customers: 'Todos los contactos',
-  subscribers: 'Suscriptores a novedades',
-  custom: 'Selección manual',
-};
 
 // ---- Editor de campaña -------------------------------------------------------
 
