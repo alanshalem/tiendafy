@@ -127,6 +127,60 @@ describe('vista previa del editor', () => {
     expect(screen.queryByRole('dialog', { name: /carrito/i })).not.toBeInTheDocument();
   });
 
+  it('el carrito vacío se muestra con un producto de muestra (y las opciones se ven)', async () => {
+    view({
+      live: true,
+      theme: {
+        ...theme,
+        cart: { ...theme.cart, notice: 'Envíos los martes', checkoutButtonText: 'Pagar ya' },
+      },
+    });
+    await settle(2);
+    await fromEditor({ type: EDITOR_MSG.previewCart, open: true });
+    const drawer = screen.getByRole('dialog', { name: /carrito/i });
+    expect(drawer).toHaveTextContent(/producto de muestra/);
+    expect(drawer).toHaveTextContent(products[0]!.name);
+    expect(drawer).toHaveTextContent('Envíos los martes');
+    expect(screen.getByRole('button', { name: 'Pagar ya' })).toBeInTheDocument();
+    // La muestra no toca el carrito de verdad.
+    expect(localStorage.getItem(`tiendafy.cart.${fixtureTenantId}`)).toBeNull();
+  });
+
+  it('muestra la página "en construcción" mientras su panel está abierto', async () => {
+    view({ live: true, theme: { ...theme, comingSoon: { ...theme.comingSoon, title: 'Ya casi abrimos' } } });
+    await settle(2);
+    expect(screen.queryByText('Ya casi abrimos')).not.toBeInTheDocument();
+    await fromEditor({ type: EDITOR_MSG.previewComingSoon, show: true });
+    expect(screen.getByRole('heading', { name: 'Ya casi abrimos' })).toBeInTheDocument();
+    expect(screen.getByText(/tus visitantes siguen viendo la tienda/)).toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    await fromEditor({ type: EDITOR_MSG.previewComingSoon, show: false });
+    expect(screen.queryByText('Ya casi abrimos')).not.toBeInTheDocument();
+    // De otro origen, nada.
+    await fromEditor({ type: EDITOR_MSG.previewComingSoon, show: true }, 'https://malicioso.example');
+    expect(screen.queryByText('Ya casi abrimos')).not.toBeInTheDocument();
+  });
+
+  it('el botón de WhatsApp se ve sin número (para ubicarlo), a la izquierda y con texto', async () => {
+    view({
+      live: true,
+      theme: {
+        ...theme,
+        whatsappButton: {
+          ...theme.whatsappButton,
+          enabled: true,
+          phone: '',
+          position: 'left',
+          label: '¿Te ayudamos?',
+        },
+      },
+    });
+    await settle(2);
+    const fab = document.querySelector('[data-tf-focus="whatsapp"]')!;
+    expect(fab).toHaveClass('left-5');
+    expect(screen.getByRole('link', { name: '¿Te ayudamos? (WhatsApp)' })).toHaveTextContent('¿Te ayudamos?');
+  });
+
   it('trae al vuelo un destacado que no estaba en la tienda', async () => {
     const otherId = '99999999-9999-9999-9999-999999999999';
     api.on('GET', SECTION, { items: [{ ...dto, id: otherId, name: 'Recién destacado' }] });
@@ -222,6 +276,14 @@ describe('la tienda publicada', () => {
     expect(css).toContain('color: red');
     expect(css).not.toContain('@import');
     expect(document.querySelector('a[href^="https://wa.me/5491155554444"]')).not.toBeNull();
+    // A la derecha, como siempre, si el tema no dice otra cosa.
+    expect(document.querySelector('[data-tf-focus="whatsapp"]')).toHaveClass('right-5');
     unmount();
+  });
+
+  it('sin número, en la tienda publicada el botón de WhatsApp no aparece', async () => {
+    view({ theme: { ...theme, whatsappButton: { ...theme.whatsappButton, enabled: true, phone: '' } } });
+    await settle(2);
+    expect(document.querySelector('[data-tf-focus="whatsapp"]')).toBeNull();
   });
 });

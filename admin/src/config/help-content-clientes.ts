@@ -379,7 +379,8 @@ export const CLIENTES = {
           'En Canales de venta → Tienda online, abrí Botón de WhatsApp (grupo 5 · Conversión y contacto).',
           'Tildá “Mostrar botón de WhatsApp” y cargá el número de WhatsApp.',
           'Escribí el “Mensaje inicial”: es el texto que le aparece ya escrito al cliente cuando abre el chat. Hay “Mensajes listos” para elegir uno y ajustarlo.',
-          'Tocá “Publicar cambios”. El botón aparece abajo a la derecha en tu tienda.',
+          'Elegí la posición (abajo a la izquierda o a la derecha) y, si querés, un texto al lado del ícono, como “¿Te ayudamos?”.',
+          'Tocá “Publicar cambios”. El botón aparece en esa esquina de tu tienda.',
         ],
         blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Botón de WhatsApp'] }],
       },
@@ -387,7 +388,8 @@ export const CLIENTES = {
         heading: 'Cargá bien el número',
         paragraphs: [
           'Con código de país y de área: para Argentina, 54 + 9 (celular) + característica + número. Los espacios y el “+” no molestan.',
-          'Con “Vista previa al pasar el mouse”, en la computadora el botón muestra un mini chat antes de abrir WhatsApp.',
+          'Con “Mini-chat al pasar el mouse”, en la computadora el botón muestra un mini chat antes de abrir WhatsApp.',
+          'Sin número el botón no aparece en tu tienda; en la vista previa del editor sí, para que veas dónde va.',
         ],
         blocks: [
           {

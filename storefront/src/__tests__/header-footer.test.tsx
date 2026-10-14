@@ -21,6 +21,16 @@ import { renderInStore } from '../test/store';
 const base = mergeTheme(fixture<ThemeConfig>('/api/v1/theme'));
 const page = fixture<{ items: { id: string; title: string }[] }>('/api/v1/pages/published').items[0];
 
+/** Un inicio que arranca con una foto: lo único sobre lo que el encabezado va transparente. */
+const withHero: ThemeConfig['sections'] = [
+  {
+    id: 'c',
+    type: 'carousel',
+    visible: true,
+    data: { slides: [{ image: 'https://cdn.example.com/a.jpg' }] },
+  },
+];
+
 function theme(header: Partial<ThemeConfig['header']> = {}, extra: Partial<ThemeConfig> = {}): ThemeConfig {
   return { ...base, ...extra, header: { ...base.header, ...header } };
 }
@@ -194,27 +204,79 @@ describe('encabezado', () => {
     expect(screen.queryByRole('button', { name: 'Buscar productos' })).not.toBeInTheDocument();
   });
 
-  it('transparente sobre la portada hasta que se scrollea; borde y nivel elegibles', async () => {
-    for (const [level, alpha] of [
-      ['full', 'rgba(27, 21, 16, 0)'],
-      ['light', 'rgba(27, 21, 16, 0.25)'],
-      ['medium', 'rgba(27, 21, 16, 0.5)'],
-    ] as const) {
-      const { unmount } = await show(
-        theme({ transparentOnHome: true, transparentLevel: level, border: 'line', textColor: '0 0 0' }),
-      );
-      expect(screen.getByRole('banner').getAttribute('style')).toContain(alpha);
-      unmount();
-    }
+  it('transparente sobre la foto de portada hasta que se scrollea: menú blanco, encima de la foto', async () => {
+    const t = theme(
+      { transparentOnHome: true, border: 'shadow', textColor: '0 0 0' },
+      { sections: withHero },
+    );
+    await show(t);
+    const banner = screen.getByRole('banner');
+    // Sobre la foto el texto va en blanco (el negro elegido no se leería) y sin borde.
+    expect(banner.style.color).toBe('rgb(255, 255, 255)');
+    expect(banner).not.toHaveClass('shadow-lg');
+    // Se superpone a la portada: el contenido sube lo que mide (jsdom mide 0).
+    expect(banner.style.marginBottom).toMatch(/^-?0(px)?$/);
 
-    await show(theme({ transparentOnHome: true, border: 'shadow' }));
     Object.defineProperty(window, 'scrollY', { value: 100, configurable: true });
     act(() => {
       window.dispatchEvent(new Event('scroll'));
     });
-    expect(screen.getByRole('banner').getAttribute('style')).toContain('rgb(27, 21, 16)');
-    expect(screen.getByRole('banner')).toHaveClass('shadow-lg');
+    expect(banner.getAttribute('style')).toContain('rgb(27, 21, 16)');
+    expect(banner.style.color).toBe('rgb(0, 0, 0)');
+    expect(banner).toHaveClass('shadow-lg');
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  it('regresión: transparente sin foto de portada queda sólido (antes el menú blanco desaparecía)', async () => {
+    await show(theme({ transparentOnHome: true, textColor: '' }, { sections: [] }));
+    const banner = screen.getByRole('banner');
+    expect(banner.getAttribute('style')).toContain('rgb(27, 21, 16)');
+    expect(banner.style.marginBottom).toBe('');
+  });
+
+  it('transparente usa el logo para la foto, y el de siempre al scrollear', async () => {
+    await show(
+      theme(
+        { transparentOnHome: true, transparentLogo: 'https://cdn.example.com/blanco.png' },
+        { sections: withHero, logo: 'https://cdn.example.com/logo.png' },
+      ),
+    );
+    const src = () => screen.getAllByRole('img', { name: 'Tienda Seed' })[0]!.getAttribute('src');
+    expect(src()).toBe('https://cdn.example.com/blanco.png');
+    Object.defineProperty(window, 'scrollY', { value: 100, configurable: true });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(src()).toBe('https://cdn.example.com/logo.png');
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  it('regresión: sin color de texto elegido, el que se lee sobre el fondo (antes blanco siempre)', async () => {
+    const { unmount } = await show(theme({ bg: '255 255 255', textColor: '', border: 'line' }));
+    expect(screen.getByRole('banner').style.color).toBe('rgb(17, 24, 39)');
+    // La línea sigue al texto: blanca no se veía sobre un encabezado claro.
+    expect(screen.getByRole('banner')).toHaveClass('border-current/15');
+    unmount();
+    await show(theme({ bg: '27 21 16', textColor: '' }));
+    expect(screen.getByRole('banner').style.color).toBe('rgb(255, 255, 255)');
+  });
+
+  it('regresión: "menú a la derecha" apoya el menú contra los íconos (era igual al clásico)', async () => {
+    const { unmount } = await show(theme({ layout: 'menu-right' }));
+    expect(screen.getAllByRole('navigation')[0]).toHaveClass('justify-end');
+    unmount();
+    await show(theme({ layout: 'classic' }));
+    expect(screen.getAllByRole('navigation')[0]).toHaveClass('justify-center');
+  });
+
+  it('los tres tamaños del logo son distintos', async () => {
+    const classes = [];
+    for (const logoSize of ['sm', 'md', 'lg'] as const) {
+      const { unmount } = await show(theme({ logoSize }));
+      classes.push(screen.getAllByText('Tienda Seed')[0]!.className);
+      unmount();
+    }
+    expect(new Set(classes).size).toBe(3);
   });
 
   it('el contador del carrito y de favoritos', async () => {
@@ -321,6 +383,43 @@ describe('pie', () => {
     for (const red of ['Instagram', 'Facebook', 'TikTok', 'YouTube', 'X'])
       expect(footer.getByRole('link', { name: red })).toBeInTheDocument();
     if (page) expect(footer.getByRole('link', { name: page.title })).toBeInTheDocument();
+  });
+
+  it('en columnas: marca, links, contacto y novedades, con color de fondo propio y texto legible', async () => {
+    await show(
+      theme(
+        {},
+        {
+          footer: {
+            ...base.footer,
+            layout: 'columns',
+            bg: '20 20 20',
+            text: 'Hecho en Rosario',
+            instagram: 'https://instagram.com/seed',
+            links: [{ label: 'Envíos', href: '/productos' }],
+            emails: ['hola@tienda.com'],
+            showNewsletter: true,
+            newsletterTitle: 'Novedades',
+          },
+        },
+      ),
+    );
+    const footer = screen.getByRole('contentinfo');
+    expect(footer.style.background).toBe('rgb(20, 20, 20)');
+    expect(footer.style.color).toBe('rgb(255, 255, 255)');
+    const f = within(footer);
+    for (const title of ['Información', 'Contacto', 'Novedades'])
+      expect(f.getByRole('heading', { name: title })).toBeInTheDocument();
+    expect(f.getByRole('link', { name: 'Envíos' })).toBeInTheDocument();
+    expect(f.getByRole('link', { name: 'Instagram' })).toBeInTheDocument();
+    expect(f.getByRole('link', { name: /Botón de arrepentimiento/ })).toBeInTheDocument();
+  });
+
+  it('un tema guardado antes de las columnas sigue con el pie centrado y el fondo de la tienda', () => {
+    const old = mergeTheme({ footer: { text: 'viejo' } as ThemeConfig['footer'] });
+    expect(old.footer.layout).toBe('centered');
+    expect(old.footer.bg).toBe('');
+    expect(mergeTheme({ footer: { bg: 'rojo' } as unknown as ThemeConfig['footer'] }).footer.bg).toBe('');
   });
 
   it('los contactos: WhatsApp, teléfono y email como links, la dirección como texto', async () => {

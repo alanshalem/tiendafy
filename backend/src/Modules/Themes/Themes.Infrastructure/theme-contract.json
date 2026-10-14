@@ -1336,6 +1336,7 @@
       "textColor": "",
       "transparentOnHome": false,
       "transparentLevel": "full",
+      "transparentLogo": "",
       "showSearch": false,
       "showCart": true,
       "cartStyle": "icon",
@@ -1450,6 +1451,8 @@
       "whatsapp": ""
     },
     "footer": {
+      "layout": "centered",
+      "bg": "",
       "links": [],
       "text": "",
       "showSocial": true,
@@ -1476,7 +1479,9 @@
       "enabled": false,
       "phone": "",
       "message": "¡Hola! Tengo una consulta.",
-      "showPreview": true
+      "showPreview": true,
+      "position": "right",
+      "label": ""
     },
     "customCss": ""
   }

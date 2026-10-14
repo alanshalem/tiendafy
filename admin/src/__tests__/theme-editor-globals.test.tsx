@@ -239,7 +239,8 @@ describe('barra de anuncio y pie', () => {
     const user = await show((t, u) => <HeaderPanel theme={t} updateTheme={u} onBack={() => {}} />, {
       announcement: { show: true, animation: 'static', items: [{ text: 'Envío gratis', link: '' }] },
     });
-    await user.click(screen.getByRole('button', { name: 'Barra de anuncio' }));
+    // Con la barra prendida, su bloque ya viene abierto.
+    expect(screen.getByRole('button', { name: 'Barra de anuncio' })).toHaveAttribute('aria-expanded', 'true');
     const picker = screen.getByRole('group', { name: 'Link (opcional)' });
     await user.click(within(picker).getByRole('button', { name: /Elegir a dónde lleva/ }));
     await user.click(within(picker).getByRole('button', { name: /^Página$/ }));

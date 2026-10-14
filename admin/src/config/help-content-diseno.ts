@@ -97,7 +97,7 @@ export const DISENO = {
       {
         heading: 'La guía “Poné tu tienda linda”',
         paragraphs: [
-          'Arriba de todo del editor hay una lista con cinco pasos y una barra de avance: cargá tu logo, elegí colores de marca, armá tu página de inicio, mostrá medios de pago (los logos del pie) y cargá datos de contacto. Cada paso te lleva a su panel, y la lista desaparece cuando completás los cinco.',
+          'Arriba de todo del editor hay una lista con seis pasos y una barra de avance: cargá tu logo, elegí colores de marca, poné una foto de portada (que el inicio arranque con un carrusel con fotos o un video), sumá tus redes sociales, activá el botón de WhatsApp y cargá datos de contacto. Cada paso te lleva a su panel, y la lista desaparece cuando completás los seis.',
         ],
       },
       {
@@ -206,7 +206,7 @@ export const DISENO = {
       {
         heading: 'Tienda en construcción',
         paragraphs: [
-          'Con “Activar modo en construcción” tus visitantes ven una página de “Próximamente” en lugar de la tienda. Vos la seguís viendo y editando en la vista previa. Como todo el diseño, se aplica cuando publicás.',
+          'Con “Activar modo en construcción” tus visitantes ven una página de “Próximamente” en lugar de la tienda. Mientras el panel está abierto, la vista previa te muestra esa página tal como la van a ver; al salir del panel volvés a ver la tienda. Como todo el diseño, se aplica cuando publicás.',
           'La página la armás vos: título, mensaje, una etiqueta arriba, diseño centrado o con imagen al costado, fecha de apertura, un WhatsApp para consultas, tus redes y un campo para que la gente deje su email y le avises cuando abras. Esos emails los usás después como audiencia en Email marketing.',
         ],
         blocks: [
@@ -453,10 +453,18 @@ export const DISENO = {
       {
         heading: 'Encabezado',
         paragraphs: [
-          'Con los estilos rápidos (Clásico, Centrado, Inmersivo o Minimal) cambiás todo de una vez. Después ajustás el color de fondo, el tamaño del logo, si el encabezado queda siempre visible al bajar y si en el celular se muestra un menú de solapas.',
-          'En “Disposición y estilo” elegís dónde van el logo y el menú, el color del texto del menú, si el encabezado es transparente sobre el inicio y el borde de abajo. En “Buscador y acciones”, si se muestran el buscador y el carrito.',
+          'Con los estilos rápidos (Clásico, Centrado, Inmersivo o Minimal), cada uno con su dibujito, cambiás todo de una vez. Después elegís la disposición en la computadora (menú al centro, logo al centro, menú junto al logo o menú a la derecha) y el tamaño del logo (chico, mediano o grande), también con su muestra.',
+          'En “Colores” van el fondo, el texto e íconos (en Automático usa el que mejor se lee sobre el fondo) y el borde de abajo (ninguno, línea o sombra). En “Comportamiento”: si queda siempre visible al bajar, si en el celular hay menú desplegable (☰) y si va transparente sobre la foto de portada. En “Buscador y carrito”, si se muestran y cómo.',
         ],
-        blocks: [{ type: 'path', segments: ['Canales de venta', 'Tienda online', 'Encabezado'] }],
+        blocks: [
+          { type: 'path', segments: ['Canales de venta', 'Tienda online', 'Encabezado'] },
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Transparente sobre la foto de portada',
+            text: 'Solo se ve transparente si tu inicio arranca con un carrusel con fotos o un video de portada: sobre un fondo liso el menú no se leería, así que ahí queda sólido. Sobre la foto el menú va en blanco; podés sumar un velo para fotos claras y subir una versión clara de tu logo.',
+          },
+        ],
       },
       {
         heading: 'La barra de anuncio',
@@ -536,21 +544,22 @@ export const DISENO = {
       {
         heading: 'Carrito de compras',
         paragraphs: [
-          'Estilos rápidos: Directo o Con incentivos. Elegís el texto del botón para pagar, si se muestran productos sugeridos, el botón “Seguir comprando” y el campo de cupón, y un mensaje para tus clientes.',
+          'Estilos rápidos: Directo o Con incentivos. Mientras el panel está abierto, la vista previa abre el carrito con un producto de muestra, así ves cada opción. Elegís el texto del botón para pagar, si se muestran productos sugeridos, el botón “Seguir comprando” y el campo de cupón, y un mensaje para tus clientes.',
           '“Mostrar barra de envío gratis” le dice al cliente cuánto le falta para llegar al envío gratis, a partir del mínimo que cargues. La barra solo informa: el envío gratis tiene que existir en tus medios de envío o en un cupón.',
         ],
       },
       {
         heading: 'Pie de página',
         paragraphs: [
-          'El texto del pie, tus redes (Instagram, Facebook, TikTok, YouTube, X), links propios elegidos con el selector de links, los links a tus páginas de contenido, la suscripción a novedades, los logos de los medios de pago que aceptás y tus datos de contacto (WhatsApp, direcciones, teléfonos y emails, varios de cada uno).',
+          'Estilos rápidos: Mínimo, Completo o En columnas. La disposición puede ser todo al centro o en columnas (en la computadora: tu marca y redes, links, contacto y novedades lado a lado; en el celular, uno debajo del otro), y el pie puede tener su propio color de fondo: el texto se ajusta solo para que se lea.',
+          'Después cargás el texto del pie, tus redes (Instagram, Facebook, TikTok, YouTube, X), links propios elegidos con el selector de links, los links a tus páginas de contenido, la suscripción a novedades, los logos de los medios de pago que aceptás y tus datos de contacto (WhatsApp, direcciones, teléfonos y emails, varios de cada uno).',
           'El pie también tiene el Botón de Arrepentimiento y los links legales: esos los pone la tienda sola, porque son obligatorios.',
         ],
       },
       {
         heading: 'Contacto y botón de WhatsApp',
         paragraphs: [
-          'En el grupo 5 · Conversión y contacto están el panel Contacto (los datos de la página de contacto y su formulario) y el Botón de WhatsApp (el botón flotante, su mensaje inicial y mensajes listos). Los detalles están en los artículos “Información de contacto” y “Botón de WhatsApp”.',
+          'En el grupo 5 · Conversión y contacto están el panel Contacto (los datos de la página de contacto y su formulario) y el Botón de WhatsApp (el botón flotante abajo a la izquierda o a la derecha, con un texto opcional al lado, su mensaje inicial y mensajes listos). Los detalles están en los artículos “Información de contacto” y “Botón de WhatsApp”.',
         ],
       },
     ],
