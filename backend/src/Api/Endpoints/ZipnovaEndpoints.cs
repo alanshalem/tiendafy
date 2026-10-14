@@ -373,7 +373,7 @@ public static class ZipnovaEndpoints
     private static ParcelUnit DefaultParcel(ZipnovaConfig config) =>
         new(config.DefaultWeightGrams, config.DefaultLengthCm, config.DefaultWidthCm, config.DefaultHeightCm);
 
-    private static ZipnovaCredentials Credentials(ZipnovaConfig config, ShippingSecretProtector protector) =>
+    internal static ZipnovaCredentials Credentials(ZipnovaConfig config, ShippingSecretProtector protector) =>
         new(protector.Unprotect(config.ApiTokenEncrypted),
             protector.Unprotect(config.ApiSecretEncrypted),
             config.Country);

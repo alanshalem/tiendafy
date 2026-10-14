@@ -168,6 +168,11 @@ public static class ServiceRegistration
         services.AddScoped<Api.Inbox.MeliInboxSource>();
         services.AddScoped<Api.Inbox.InboxService>();
 
+        // Despacho: cola de pedidos, lista de picking, etiquetas en lote y
+        // despachar escaneando.
+        services.AddScoped<Api.Fulfillment.FulfillmentService>();
+        services.AddScoped<Api.Fulfillment.CarrierLabels>();
+
         // Captcha (Cloudflare Turnstile) para formularios públicos. Gated por config.
         services.AddHttpClient<Api.Captcha.ICaptchaVerifier, Api.Captcha.TurnstileVerifier>();
 
