@@ -96,3 +96,7 @@ e2e/playwright-report/
 
 # Sesión del admin del seed que guarda el setup del e2e
 e2e/tests/.auth/
+
+# Lo genera Next (dev apunta a .next/dev/types, typegen/build a .next/types):
+# versionarlo deja el árbol siempre modificado. `type-check` corre next typegen.
+storefront/next-env.d.ts
