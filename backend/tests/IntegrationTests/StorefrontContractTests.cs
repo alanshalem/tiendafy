@@ -48,7 +48,7 @@ public sealed class StorefrontContractTests
         "/api/v1/reviews/photos",
         "/api/v1/reviews/00000000-0000-0000-0000-000000000000/helpful",
         "/api/v1/reviews/00000000-0000-0000-0000-000000000000/report",
-        "/api/v1/stock-alerts");
+        "/api/v1/back-in-stock");
 
     [Theory]
     [MemberData(nameof(EscriturasDeLaTienda))]
