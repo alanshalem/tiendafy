@@ -162,7 +162,7 @@ export function MarketingPage() {
         <>
           <StatusLegend
             items={[
-              { dot: 'bg-gray-400', text: 'Borrador: todavía no sale' },
+              { dot: 'bg-fg-subtle', text: 'Borrador: todavía no sale' },
               { dot: 'bg-info', text: 'Programada: sale sola en su fecha' },
               { dot: 'bg-warning', text: 'Enviando' },
               { dot: 'bg-success', text: 'Enviada' },

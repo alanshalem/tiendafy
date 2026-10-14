@@ -7,7 +7,14 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
 }
 
-const variantClasses: Record<BadgeVariant, string> = {
+/**
+ * Las clases de cada tono, con los tokens semánticos (que tienen su versión
+ * oscura). Exportadas para lo que no es un <Badge> pero pinta un estado igual
+ * —una celda, un puntito de leyenda—: antes esos lugares usaban la paleta
+ * cruda de Tailwind (`bg-green-100 text-green-700`), que en modo oscuro
+ * quedaba como una mancha clara con letra ilegible.
+ */
+export const badgeVariantClass: Record<BadgeVariant, string> = {
   neutral: 'bg-bg-muted text-fg-muted',
   success: 'bg-success-bg text-success',
   warning: 'bg-warning-bg text-warning',
@@ -22,7 +29,7 @@ export function Badge({ variant = 'neutral', className, ...props }: BadgeProps) 
     <span
       className={cn(
         'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium',
-        variantClasses[variant],
+        badgeVariantClass[variant],
         className,
       )}
       {...props}

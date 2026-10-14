@@ -225,7 +225,7 @@ function ComprasList({
           <StatusLegend
             flow
             items={[
-              { dot: 'bg-gray-400', text: 'Borrador' },
+              { dot: 'bg-fg-subtle', text: 'Borrador' },
               { dot: 'bg-info', text: 'Confirmada' },
               { dot: 'bg-info', text: 'En producción' },
               { dot: 'bg-warning', text: 'En tránsito' },

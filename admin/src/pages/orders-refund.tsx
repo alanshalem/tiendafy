@@ -109,7 +109,7 @@ export function RefundDialog({
             className="h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary"
           />
           {amount && !amountValid && (
-            <p className="mt-1 text-xs text-red-600">
+            <p className="mt-1 text-xs text-danger">
               Ingresá un monto mayor a 0 y hasta {formatMoney(refundable, order.currency)}.
             </p>
           )}

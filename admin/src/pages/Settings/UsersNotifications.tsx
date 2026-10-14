@@ -13,7 +13,14 @@ import { formatDate, formatNumber } from '../../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
 import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { ListStats } from '../../components/stats/ListStats';
-import { OWNER, ROLE_BADGE, sensitiveKeys, useAccessMatrix, type RoleRow } from './team-access';
+import {
+  OWNER,
+  ROLE_BADGE,
+  ROLE_BADGE_FALLBACK,
+  sensitiveKeys,
+  useAccessMatrix,
+  type RoleRow,
+} from './team-access';
 import { MemberPermissionsModal, type MemberForPermissions } from './member-permissions';
 import { TeamActivity } from './team-activity';
 
@@ -342,7 +349,7 @@ export function UsersNotificationsPage() {
                             <span
                               className={cn(
                                 'rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                                ROLE_BADGE[m.role] ?? 'bg-gray-100 text-gray-600',
+                                ROLE_BADGE[m.role] ?? ROLE_BADGE_FALLBACK,
                               )}
                               title={meta?.summary}
                             >

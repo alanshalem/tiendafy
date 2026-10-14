@@ -18,6 +18,12 @@ describe('mapa canónico de estados de venta', () => {
     }
   });
 
+  it('los colores son los tonos del Badge, que tienen modo oscuro', () => {
+    for (const { cls } of Object.values(ORDER_STATUS)) {
+      expect(cls).not.toMatch(/-(green|red|amber|blue|sky|rose|gray)-\d/);
+    }
+  });
+
   it('orderStatusLabel traduce estados conocidos', () => {
     expect(orderStatusLabel('PAID')).toBe('Pagada');
     expect(orderStatusLabel('FULFILLED')).toBe('Entregada');

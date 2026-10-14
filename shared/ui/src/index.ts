@@ -7,7 +7,7 @@ export { Checkbox, type CheckboxProps } from './Checkbox';
 export { Radio, RadioGroup, type RadioProps } from './Radio';
 export { Switch, type SwitchProps } from './Switch';
 export { Card, type CardProps } from './Card';
-export { Badge, type BadgeProps, type BadgeVariant } from './Badge';
+export { Badge, badgeVariantClass, type BadgeProps, type BadgeVariant } from './Badge';
 export { Modal, type ModalProps } from './Modal';
 export { Dropdown, type DropdownProps, type DropdownItemProps } from './Dropdown';
 export { ToastProvider, useToast, type ToastVariant, type ToastOptions } from './Toast';

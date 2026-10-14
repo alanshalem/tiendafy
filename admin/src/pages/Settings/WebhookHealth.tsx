@@ -66,9 +66,9 @@ export function WebhookHealth() {
   };
 
   return (
-    <section className="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/5 p-5">
+    <section className="mt-6 rounded-lg border border-warning/40 bg-warning-bg p-5">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden="true" />
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold">
             {health.stuck === 1

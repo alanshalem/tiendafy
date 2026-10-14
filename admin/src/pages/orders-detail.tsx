@@ -11,7 +11,7 @@ import { money, type Order } from './Orders';
 
 /** El pill de estado, con "Lista para retirar" para un retiro ya avisado. */
 export function OrderStatusPill({ order }: { order: Order }) {
-  const known = ORDER_STATUS[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-600' };
+  const known = ORDER_STATUS[order.status] ?? { label: order.status, cls: 'bg-bg-muted text-fg-muted' };
   const st =
     order.isPickup && order.status === 'FULFILLED' ? { ...known, label: 'Lista para retirar' } : known;
   return <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', st.cls)}>{st.label}</span>;
@@ -55,7 +55,7 @@ export function OrderDetail({
         </div>
       ))}
       {o.discount && o.discount.amount > 0 && (
-        <div className="flex justify-between text-xs text-green-600">
+        <div className="flex justify-between text-xs text-success">
           <span>Descuento{o.couponCode ? ` (${o.couponCode})` : ''}</span>
           <span className="tabular-nums">- {money(o.discount)}</span>
         </div>
@@ -88,7 +88,7 @@ export function OrderDetail({
         </div>
       )}
       {o.refunded && o.refunded.amount > 0 && (
-        <div className="text-xs font-medium text-blue-600">
+        <div className="text-xs font-medium text-info">
           Reembolsado: {money(o.refunded)}
           {o.refundable && o.refundable.amount > 0 ? ` · queda ${money(o.refundable)}` : ' (total)'}
         </div>
@@ -142,7 +142,7 @@ export function OrderDetail({
                 type="button"
                 onClick={() => onRefund(o)}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger-bg disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}{' '}
                 Reembolsar
