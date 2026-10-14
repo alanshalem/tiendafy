@@ -33,7 +33,7 @@ describe('datos legales', () => {
   it('sugiere lo de Facturación, muestra el ejemplo y guarda', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/admin/store-legal/', SAVED);
-    api.on('PUT', '/api/v1/admin/store-legal/', (body) => ({
+    api.on('PUT', '/api/v1/admin/store-legal/', (body: unknown) => ({
       ...SAVED,
       ...(body as object),
       configured: true,

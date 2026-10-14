@@ -2,6 +2,8 @@ using Customers.Infrastructure;
 using Identity.Infrastructure;
 using MercadoLibre.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Orders.Core.Domain;
+using Orders.Infrastructure.Persistence;
 using SharedKernel.Common;
 using Support.Infrastructure;
 
@@ -61,6 +63,7 @@ public sealed record InboxQuery(string? Channel, string? Filter, string? Search,
 public sealed class InboxService(
     CustomersDbContext customers,
     SupportDbContext support,
+    OrdersDbContext orders,
     MeliDbContext meli,
     MeliInboxSource meliSource)
 {
@@ -212,6 +215,13 @@ public sealed class InboxService(
         if (conversations.Count == 0) return [];
 
         var ids = conversations.Select(c => c.Id).ToList();
+        // El número de pedido (#1042) de cada conversación, en una sola consulta.
+        var orderIds = conversations.Select(c => c.OrderId).Distinct().ToList();
+        var tenant = TenantId.From(tenantId);
+        var numbers = await orders.Orders.AsNoTracking()
+            .Where(o => o.TenantId == tenant && orderIds.Contains(o.Id))
+            .Select(o => new { o.Id, o.Number })
+            .ToDictionaryAsync(o => o.Id, o => o.Number, ct);
         // El último mensaje de cada hilo (la vista previa) y el último del
         // CLIENTE: con ese se decide si una conversación archivada tiene algo
         // nuevo — que conteste el equipo no la tiene que desarchivar.
@@ -235,7 +245,7 @@ public sealed class InboxService(
             var lastMessage = last.GetValueOrDefault(c.Id);
             var incomingAt = lastFromCustomer.TryGetValue(c.Id, out var at) ? at : c.CreatedAtUtc;
             var unread = c.UnreadForStaff > 0 || state?.MarkedUnread == true;
-            var number = $"#{Api.Orders.OrderCsv.ShortNumber(c.OrderId)}";
+            var number = OrderLabel.For(numbers.GetValueOrDefault(c.OrderId), c.OrderId);
             return new InboxThread(
                 Key(InboxChannel.Support, id), InboxChannel.Support, id,
                 c.CustomerEmail,
