@@ -574,4 +574,50 @@ export const CLIENTES = {
       },
     ],
   },
+  resenas: {
+    title: 'Reseñas de productos',
+    intro: 'Las opiniones con estrellas y fotos de quienes te compraron, en la ficha de cada producto.',
+    category: 'Clientes y comunicación',
+    keywords: ['opiniones', 'estrellas', 'valoraciones', 'reviews', 'comentarios', 'calificaciones'],
+    sections: [
+      {
+        heading: 'Solo opina quien compró',
+        paragraphs: [
+          'Una reseña nace siempre de una compra despachada: el comprador la escribe desde el link del email que le pedimos la opinión, o desde el detalle de su compra en “Mi cuenta”. Puede opinar una vez por cada producto de cada compra, con estrellas (1 a 5), un título, el texto y hasta 4 fotos.',
+          'Por eso todas dicen “Compra verificada”. En la tienda se firma con el nombre y la inicial del apellido (“Ana P.”): nunca el apellido entero ni el email.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            title: 'Vos moderás, no redactás',
+            text: 'Desde el panel podés aprobar, ocultar y responder, pero no escribir ni editar una reseña: las estrellas y el texto son del comprador. Es lo que hace que valgan algo.',
+          },
+        ],
+      },
+      {
+        heading: 'Moderar',
+        paragraphs: [
+          'En Reseñas ves las pendientes, las aprobadas y las ocultas. De fábrica, las de 4 y 5 estrellas se publican solas y las demás esperan que las mires: aprobala para que se vea, u ocultala si no corresponde (no habla del producto, insulta, tiene datos personales).',
+          'La respuesta de la tienda se publica debajo de la reseña. Contestar una opinión negativa con una solución vende más que ocultarla.',
+          'Cualquier visitante puede denunciar una reseña. Cuando tres personas distintas la denuncian, sale de la tienda y vuelve a Pendientes marcada como “Denunciada”, para que decidas vos.',
+        ],
+        blocks: [{ type: 'path', segments: ['Reseñas'] }],
+      },
+      {
+        heading: 'Configuración',
+        paragraphs: [
+          'Con “Configuración” en Reseñas elegís desde cuántas estrellas se aprueban solas (o que pasen todas por vos), si la tienda muestra las reseñas, y el email que pide la opinión: si sale y cuántos días después del despacho (de fábrica, 7).',
+          'El email sale una sola vez por compra, respeta a quien se dio de baja de tus emails y trae su link de baja. Su texto se edita en Configuración → E-mails automáticos (“Pedido de reseña”).',
+        ],
+      },
+      {
+        heading: 'Dónde se ven',
+        paragraphs: [
+          'En la ficha: las estrellas y la cantidad junto al nombre, y más abajo la sección “Opiniones” con el promedio, cuántas hay de cada estrella (se tocan para filtrar), las fotos en grande y el orden por “Más útiles” o “Más recientes”. En los listados, las estrellas aparecen debajo del nombre de cada producto.',
+          'Google también las lee: el promedio y las primeras reseñas van en los datos estructurados de la ficha, y pueden aparecer como estrellas en el resultado de búsqueda.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

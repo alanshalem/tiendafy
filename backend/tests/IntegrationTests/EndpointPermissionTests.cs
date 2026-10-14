@@ -130,6 +130,22 @@ public sealed class EndpointPermissionTests(ApiFactory factory)
             "GET /api/v1/marketing/unsubscribe",
             "POST /api/v1/marketing/unsubscribe",
         ],
+        ["Reseñas: las lee cualquiera; se escriben solo con el link firmado de una venta despachada; votos y denuncias con límite por IP"] =
+        [
+            "GET /api/v1/reviews/products/{productId:guid}",
+            "GET /api/v1/reviews/invite",
+            "POST /api/v1/reviews/",
+            "POST /api/v1/reviews/photos",
+            "POST /api/v1/reviews/{id:guid}/helpful",
+            "POST /api/v1/reviews/{id:guid}/report",
+            "GET /api/v1/shop/orders/{orderId:guid}/review-invite",
+        ],
+        ["\"Avisame cuando ingrese\": la suscripción desde la tienda y la baja desde el email (firmada)"] =
+        [
+            "POST /api/v1/back-in-stock/",
+            "GET /api/v1/back-in-stock/unsubscribe",
+            "POST /api/v1/back-in-stock/unsubscribe",
+        ],
         ["Solo dice si la IA está configurada en la plataforma"] =
         [
             "GET /api/v1/ai/status",

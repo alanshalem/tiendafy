@@ -24,6 +24,10 @@ import { useFocusTrap } from './useFocusTrap';
 import type { MoneyDto } from '@tiendafy/types';
 import { INPUT_LIGHT_10 } from './styles';
 import { PriceWithoutTaxes } from './StoreLegalInfo';
+// Reseñas, envío y aviso de stock: cada uno en su componente (montajes chicos acá).
+import { RatingSummaryLink, type ProductRating } from './ReviewStars';
+import { ShippingEstimate } from './ShippingEstimate';
+import { BackInStock } from './BackInStock';
 
 interface Variant {
   id: string;
@@ -74,6 +78,7 @@ export function ProductDetail({
   paymentLogos = [],
   whatsappPhone = '',
   stock = null,
+  rating = null,
 }: {
   name: string;
   description: string | null;
@@ -91,6 +96,8 @@ export function ProductDetail({
    * suyo: con una sola variante es el de ella, y en cero lo es para todas.
    */
   stock?: number | null;
+  /** Promedio y cantidad de reseñas aprobadas (las estrellas junto al nombre). */
+  rating?: ProductRating | null;
 }) {
   // En preview, el theme live pisa la config del server (refleja cambios al toque).
   const live = useLiveTheme();
@@ -318,6 +325,7 @@ export function ProductDetail({
         <h1 className="text-3xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
           {name}
         </h1>
+        <RatingSummaryLink rating={rating} />
         {/* Stock de la variante elegida, si se sabe (antes decía "En stock" siempre). */}
         {cfg.showStock && variant && available !== null && <StockLine available={available} />}
         {cfg.showSku && variant && <div className="text-xs text-fg-muted">SKU: {variant.sku}</div>}
@@ -439,7 +447,8 @@ export function ProductDetail({
 
         <div className="mt-5 space-y-3">
           {/* Por qué no se puede comprar (combinación inexistente o agotada). */}
-          <p role="status" className={unavailableMsg ? 'text-sm font-medium text-red-600' : 'sr-only'}>
+          {/* Color del texto del tema (no un rojo fijo): en un tema oscuro el rojo no se leía. */}
+          <p role="status" className={unavailableMsg ? 'text-sm font-medium text-fg' : 'sr-only'}>
             {unavailableMsg ?? ''}
           </p>
 
@@ -483,6 +492,16 @@ export function ProductDetail({
               {buyLabel('Agregar al carrito')}
             </button>
           </div>
+
+          {/* Agotado: en vez de un botón muerto, el aviso de reposición. */}
+          {soldOut && variant && (
+            <BackInStock key={variant.id} variantId={variant.id} label={hasOptions ? label : undefined} />
+          )}
+
+          {/* Cuánto sale el envío y cuándo llega, antes del checkout. */}
+          {canBuy && (
+            <ShippingEstimate variantId={variant.id} quantity={quantity} unitPrice={variant.price.amount} />
+          )}
 
           {/* Consultar antes de comprar: en muchos rubros la venta se cierra por
               chat, y sin esto el visitante se iba a buscar el número al pie. */}
@@ -600,16 +619,24 @@ function Thumb({ src, size }: { src: string; size: number }) {
   return <Image src={src} alt="" width={size} height={size} className="h-full w-full object-cover" />;
 }
 
-/** El stock de la variante elegida, en palabras de comprador. */
+/**
+ * El stock de la variante elegida, en palabras de comprador. El color va en
+ * el punto y el texto usa el del tema: el rojo, el ámbar y el verde fijos de
+ * antes no se leían sobre un fondo oscuro.
+ */
 function StockLine({ available }: { available: number }) {
-  if (available <= 0) return <div className="mt-1 text-sm font-medium text-red-600">● Sin stock</div>;
-  if (available <= LOW_STOCK)
-    return (
-      <div className="mt-1 text-sm font-medium text-amber-700">
-        ● {available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`}
-      </div>
-    );
-  return <div className="mt-1 text-sm font-medium text-green-600">● En stock</div>;
+  const [dot, text] =
+    available <= 0
+      ? ['bg-red-500', 'Sin stock']
+      : available <= LOW_STOCK
+        ? ['bg-amber-500', available === 1 ? '¡Última unidad!' : `¡Últimas ${available} unidades!`]
+        : ['bg-green-500', 'En stock'];
+  return (
+    <div data-stock-line className="mt-1 flex items-center gap-1.5 text-sm font-medium text-fg">
+      <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full ${dot}`} />
+      {text}
+    </div>
+  );
 }
 
 /** Imagen principal estilo MercadoLibre: lens sobre la imagen + panel de zoom al costado (desktop). Click → pantalla completa. */
