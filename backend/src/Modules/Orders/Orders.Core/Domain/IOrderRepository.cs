@@ -9,6 +9,9 @@ public interface IOrderRepository
     /// <summary>Busca por Id sin tenant (el webhook no trae tenant; el Id es el external_reference).</summary>
     Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>La venta de la tienda con ese número (#1042), o null.</summary>
+    Task<Order?> GetByNumberAsync(TenantId tenantId, int number, CancellationToken ct = default);
+
     Task<IReadOnlyList<Order>> ListAsync(TenantId tenantId, int limit, Guid? afterId, CancellationToken ct = default);
 
     /// <summary>

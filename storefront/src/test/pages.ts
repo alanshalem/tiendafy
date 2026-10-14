@@ -52,6 +52,12 @@ export const PAGES: Record<
     url: '/cuenta/verificar?token=abc',
     load: () => import('../app/cuenta/verificar/page'),
   },
+  '/cuenta/pedidos/[id]': {
+    url: '/cuenta/pedidos/00000000-0000-0000-0000-000000000001',
+    params: { id: '00000000-0000-0000-0000-000000000001' },
+    load: () => import('../app/cuenta/pedidos/[id]/page'),
+  },
+  '/seguimiento': { url: '/seguimiento?pedido=1042', load: () => import('../app/seguimiento/page') },
   '/favoritos': { url: '/favoritos', load: () => import('../app/favoritos/page') },
   '/arrepentimiento': { url: '/arrepentimiento', load: () => import('../app/arrepentimiento/page') },
   '/privacidad': { url: '/privacidad', load: () => import('../app/privacidad/page') },

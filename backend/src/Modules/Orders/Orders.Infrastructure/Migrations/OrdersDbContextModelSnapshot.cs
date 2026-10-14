@@ -94,6 +94,10 @@ namespace Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
 
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at_utc");
@@ -173,6 +177,10 @@ namespace Orders.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "CreatedAtUtc")
                         .HasDatabaseName("ix_orders_tenant_id_created_at_utc");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_number");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -267,6 +275,22 @@ namespace Orders.Infrastructure.Migrations
                         .HasDatabaseName("ix_quotes_tenant_id_number");
 
                     b.ToTable("quotes", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderNumberCounter", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("TenantId")
+                        .HasName("pk_order_number_counters");
+
+                    b.ToTable("order_number_counters", (string)null);
                 });
 
             modelBuilder.Entity("Orders.Core.Domain.Order", b =>

@@ -18,6 +18,7 @@ const RedirectsPage = lazyPage(() => import('./pages/Settings/Redirects'), 'Redi
 const TrackingPage = lazyPage(() => import('./pages/Settings/Tracking'), 'TrackingPage');
 const SpecFieldsPage = lazyPage(() => import('./pages/Settings/SpecFields'), 'SpecFieldsPage');
 const FiscalInvoicingPage = lazyPage(() => import('./pages/Settings/FiscalInvoicing'), 'FiscalInvoicingPage');
+const LegalInfoPage = lazyPage(() => import('./pages/Settings/LegalInfo'), 'LegalInfoPage');
 const DomainsPage = lazyPage(() => import('./pages/Settings/Domains'), 'DomainsPage');
 const UsersNotificationsPage = lazyPage(
   () => import('./pages/Settings/UsersNotifications'),
@@ -143,6 +144,7 @@ const SETTINGS_ROUTES: AppRoute[] = [
   { path: 'whatsapp-automatico', el: <WhatsAppAutoPage /> },
   { path: 'opciones-del-checkout', el: <CheckoutOptionsPage /> },
   { path: 'facturacion', el: <FiscalInvoicingPage /> },
+  { path: 'datos-legales', el: <LegalInfoPage /> },
   { path: 'usuarios', el: <UsersNotificationsPage /> },
   { path: 'roles', el: <RolesPage /> },
   { path: 'dominios', el: <DomainsPage /> },

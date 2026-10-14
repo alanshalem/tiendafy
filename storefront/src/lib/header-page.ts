@@ -1,7 +1,7 @@
 import type { HeaderPageKind } from '@tiendafy/types';
 
 /** Páginas de contenido fijas de la tienda (además de las que publica el comercio en /paginas). */
-const CONTENT_PATHS = ['/contacto', '/privacidad', '/terminos', '/arrepentimiento'];
+const CONTENT_PATHS = ['/contacto', '/privacidad', '/terminos', '/arrepentimiento', '/seguimiento'];
 
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`);
 

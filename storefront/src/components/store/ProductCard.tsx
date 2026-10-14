@@ -10,6 +10,7 @@ import { useFavorites } from './favorites';
 import { usePreviewHref } from './preview';
 import { StoreImage } from './StoreImage';
 import { InitialFallback } from './InitialFallback';
+import { PriceWithoutTaxes } from './StoreLegalInfo';
 
 // Descuento por transferencia/efectivo del tema (productDetail.cashDiscountPercent).
 // Se provee en StorefrontView; las cards lo usan para el "precio con transferencia".
@@ -180,6 +181,7 @@ export function ProductCard({ product, list }: { product: StoreProduct; list: Pr
           )}
         </div>
       )}
+      {list.showPrice && <PriceWithoutTaxes amount={product.priceAmount} currency={product.currency} />}
       {list.showPrice && list.showCashPrice && cashPct > 0 && (
         <div className="text-xs font-semibold text-green-700">
           {formatMoney(Math.round(product.priceAmount * (1 - cashPct / 100)), product.currency)} con

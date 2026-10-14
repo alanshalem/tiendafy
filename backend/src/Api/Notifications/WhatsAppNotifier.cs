@@ -30,7 +30,7 @@ public sealed class WhatsAppNotifier(
             var name = string.IsNullOrWhiteSpace(order.BuyerName)
                 ? order.BuyerEmail.Split('@')[0]
                 : order.BuyerName.Split(' ')[0];
-            var shortId = order.Id.ToString("N")[..8].ToUpperInvariant();
+            var shortId = order.Label;
 
             // Parámetros EN EL ORDEN que declara el catálogo para ese tipo
             // ({{1}}, {{2}}, … de la plantilla aprobada en Meta).

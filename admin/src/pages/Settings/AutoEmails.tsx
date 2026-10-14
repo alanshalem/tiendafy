@@ -25,6 +25,7 @@ const GROUPS = ['Promociones', 'Cuenta de usuarios', 'Ventas'];
 const VARS = [
   '{{store}}',
   '{{order_id}}',
+  '{{tracking_link}}',
   '{{total}}',
   '{{items}}',
   '{{name}}',

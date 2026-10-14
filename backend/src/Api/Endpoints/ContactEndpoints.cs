@@ -84,11 +84,18 @@ public static class ContactEndpoints
             var items = new List<object>(rows.Count);
             foreach (var m in rows)
             {
+                // El comprador escribe el número de pedido ("#1042"); los pedidos
+                // de antes de la numeración llegaban con el id.
                 Guid? orderId = null;
-                if (m.Kind == ContactMessage.KindRepentance
-                    && Guid.TryParse(m.OrderRef, out var candidate)
-                    && await orders.GetByIdAsync(tenant.TenantId, candidate, ct) is not null)
-                    orderId = candidate;
+                if (m.Kind == ContactMessage.KindRepentance)
+                {
+                    var found = Guid.TryParse(m.OrderRef, out var candidate)
+                        ? await orders.GetByIdAsync(tenant.TenantId, candidate, ct)
+                        : global::Orders.Core.Domain.OrderLabel.ParseNumber(m.OrderRef) is { } number
+                            ? await orders.GetByNumberAsync(tenant.TenantId, number, ct)
+                            : null;
+                    orderId = found?.Id;
+                }
                 items.Add(new
                 {
                     m.Id,

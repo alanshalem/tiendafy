@@ -735,4 +735,54 @@ export const VENTAS = {
       },
     ],
   },
+
+  seguimiento: {
+    title: 'Números de pedido, “Seguí tu pedido” y la cuenta del comprador',
+    intro:
+      'Cada venta tiene un número corto de tu tienda (#1001, #1002…) y el comprador puede ver en qué está su pedido, con cuenta o sin ella.',
+    category: 'Ventas y pagos',
+    keywords: [
+      'número de orden',
+      'nro de pedido',
+      'tracking',
+      'estado del pedido',
+      'mis pedidos',
+      'direcciones',
+    ],
+    sections: [
+      {
+        heading: 'El número de pedido',
+        paragraphs: [
+          'Las ventas se numeran solas, en orden y por tienda, empezando en #1001. Es el número que ve el comprador en la página de gracias, en los mails y en WhatsApp, el que se imprime en la etiqueta de Correo Argentino y el que trae la planilla de ventas.',
+          'En Ventas podés buscar por número: “1042” o “#1042” trae ese pedido exacto. Las ventas de antes de la numeración recibieron su número en el orden en que se hicieron; el código viejo de 8 letras (el de las etiquetas anteriores) se sigue encontrando.',
+        ],
+        blocks: [
+          {
+            type: 'callout',
+            tone: 'info',
+            text: 'Si editaste los mails automáticos, {{order_id}} ahora es el número de pedido (sin el #) y {{tracking_link}} es el link a “Seguí tu pedido” de esa compra.',
+          },
+        ],
+      },
+      {
+        heading: 'Seguí tu pedido (sin cuenta)',
+        paragraphs: [
+          'En /seguimiento el comprador escribe el email con el que compró y el número de pedido, y ve los pasos (recibido, pago acreditado, despachado o listo para retirar, entregado), el link del correo para seguir el envío y el detalle de la compra. Los mails de confirmación traen un link que lo abre directo, sin escribir nada.',
+          'El link está en el pie de la tienda, en “Mi cuenta” y en los mails. Si el email o el número no coinciden, la respuesta es siempre la misma: nadie puede averiguar quién compró en tu tienda probando emails. Y hay un tope de intentos por conexión.',
+        ],
+      },
+      {
+        heading: 'El link del correo',
+        paragraphs: [
+          'Con los envíos creados desde el panel (Andreani, Zipnova) el link sale solo. Si cargás el seguimiento a mano al despachar, se arma para Correo Argentino (cuando el medio de envío dice “Correo” o el número tiene el formato CP123456789AR) y para Andreani; también podés pegar directamente el link del correo.',
+        ],
+      },
+      {
+        heading: 'La cuenta del comprador',
+        paragraphs: [
+          'Con cuenta, el comprador ve todos sus pedidos con su número y el seguimiento, entra al detalle de cada uno (factura en PDF si está emitida, “Volver a comprar”, el chat posventa y el Botón de arrepentimiento con el número ya cargado) y guarda sus direcciones con una predeterminada, que el checkout usa para completarse solo.',
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, HelpArticle>;

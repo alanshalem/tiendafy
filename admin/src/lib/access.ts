@@ -66,6 +66,7 @@ export const SETTINGS_PERMISSIONS = {
   'medios-de-envio': 'shipping.config',
   mercadolibre: 'meli.config',
   facturacion: 'fiscal.config',
+  'datos-legales': 'store.config',
   'emails-automaticos': 'notifications.config',
   'whatsapp-automatico': 'notifications.config',
   'ficha-tecnica': 'catalog.write',

@@ -14,6 +14,9 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
     public Task<Order?> GetByIdAnyTenantAsync(Guid id, CancellationToken ct = default) =>
         context.Orders.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == id, ct);
 
+    public Task<Order?> GetByNumberAsync(TenantId tenantId, int number, CancellationToken ct = default) =>
+        context.Orders.FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Number == number, ct);
+
     public async Task<IReadOnlyList<Order>> ListByBuyerEmailAsync(TenantId tenantId, string email, CancellationToken ct = default)
     {
         var e = email.Trim().ToLowerInvariant();
@@ -70,16 +73,20 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             query = query.Where(o => o.Status.ToString().ToUpper() == wanted);
         }
 
-        // El número de orden se muestra como "#A1B2C3D4": quien lo copia de la
-        // tabla, de un WhatsApp o de una etiqueta lo pega con el numeral.
+        // El número se muestra como "#1042": quien lo copia de la tabla, de un
+        // WhatsApp o de una etiqueta lo pega con el numeral.
         var text = search?.Trim().TrimStart('#').Trim();
         if (!string.IsNullOrEmpty(text))
         {
             var term = $"%{text}%";
-            // Email, nombre del comprador o el principio del id (lo que se ve
-            // en la tabla como número de orden).
+            // Un número entero busca ESE pedido (exacto: "104" no tiene que
+            // traer el 1041 al 1049), además de lo que coincida como texto.
+            var number = OrderLabel.ParseNumber(text);
+            // Email, nombre del comprador, el número de pedido o el principio
+            // del id (las etiquetas viejas llevan el id corto).
             query = query.Where(o =>
-                EF.Functions.ILike(o.BuyerEmail, term)
+                (number != null && o.Number == number)
+                || EF.Functions.ILike(o.BuyerEmail, term)
                 || (o.BuyerName != null && EF.Functions.ILike(o.BuyerName, term))
                 || EF.Functions.ILike(o.Id.ToString(), term));
         }

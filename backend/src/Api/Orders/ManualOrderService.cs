@@ -250,7 +250,7 @@ public sealed class ManualOrderService(
         // venta.
         if (paymentMethod == CurrentAccountMethod && customerId is { } cid)
             await ledger.PostSaleAsync(
-                tenantId.Value, cid, order.Id, $"Venta #{order.Id.ToString()[..8]}",
+                tenantId.Value, cid, order.Id, $"Venta {order.Label}",
                 order.Total.AmountInMinorUnits, order.Total.Currency, order.PaidAtUtc ?? DateTime.UtcNow, ct);
 
         return new ManualOrderResult(order, null);

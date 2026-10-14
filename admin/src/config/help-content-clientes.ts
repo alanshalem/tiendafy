@@ -177,7 +177,8 @@ export const CLIENTES = {
             rows: [
               ['{{store}}', 'El nombre de tu tienda'],
               ['{{name}}', 'El nombre del cliente'],
-              ['{{order_id}}', 'El número del pedido'],
+              ['{{order_id}}', 'El número del pedido, sin el # (ej. 1042)'],
+              ['{{tracking_link}}', 'El link a “Seguí tu pedido” de esa compra (abre sin pedir datos)'],
               ['{{total}}', 'El total pagado'],
               ['{{items}}', 'La tabla de productos con fotos y precios'],
               ['{{link}}', 'El link de la acción (seguimiento, verificación, carrito…)'],

@@ -295,7 +295,7 @@ public static class CorreoArgentinoEndpoints
             {
                 customerId = config.CustomerId,
                 extOrderId = order.Id.ToString("N"),
-                orderNumber = order.Id.ToString("N")[..8].ToUpperInvariant(),
+                orderNumber = order.Label.TrimStart('#'),
                 recipient = new
                 {
                     name = req.RecipientName.Trim(),

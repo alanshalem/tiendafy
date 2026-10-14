@@ -47,6 +47,15 @@ public static class OrderStatuses
 /// </summary>
 public sealed class Order : AggregateRoot
 {
+    /// <summary>
+    /// Número de pedido de la tienda: 1001, 1002, … correlativo POR TIENDA. Es
+    /// lo que el comprador dicta por teléfono o pega en un WhatsApp; el UUID
+    /// sigue siendo la identidad (y el external_reference de los pagos). Lo
+    /// asigna la persistencia al insertar (ver OrdersDbContext): 0 = todavía
+    /// no se guardó.
+    /// </summary>
+    public int Number { get; private set; }
+
     public Guid CheckoutSessionId { get; private set; }
     public OrderStatus Status { get; private set; }
     public string Currency { get; private set; } = null!;
@@ -119,6 +128,22 @@ public sealed class Order : AggregateRoot
 
         return order;
     }
+
+    /// <summary>
+    /// La persistencia le da el número al insertar. Una sola vez: un número ya
+    /// asignado no se pisa nunca (está impreso en etiquetas y en mails).
+    /// </summary>
+    public void AssignNumber(int number)
+    {
+        if (Number == 0 && number > 0) Number = number;
+    }
+
+    /// <summary>
+    /// Cómo se nombra el pedido ante una persona: "#1042". Una orden sin
+    /// número todavía (en memoria, sin guardar) cae al principio del id, que
+    /// es lo que se mostraba antes.
+    /// </summary>
+    public string Label => OrderLabel.For(Number, Id);
 
     /// <summary>
     /// Comisión REAL cobrada por Mercado Pago en este pago (transaction_amount −
@@ -308,6 +333,31 @@ public sealed class OrderItem
     }
 
     public Money LineTotal => UnitPrice * Quantity;
+}
+
+/// <summary>El nombre visible de un pedido, para quien solo tiene el número y el id.</summary>
+public static class OrderLabel
+{
+    /// <summary>Primer número de cada tienda: un "#1" parece de prueba.</summary>
+    public const int FirstNumber = 1001;
+
+    public static string For(int number, Guid id) =>
+        number > 0 ? $"#{number}" : $"#{id.ToString("N")[..8].ToUpperInvariant()}";
+
+    /// <summary>
+    /// Lee un número de pedido como lo escribe una persona: "1042", "#1042",
+    /// "Pedido #1042 ". Null si no es un número.
+    /// </summary>
+    public static int? ParseNumber(string? text)
+    {
+        var t = text?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        var hash = t.LastIndexOf('#');
+        if (hash >= 0) t = t[(hash + 1)..].Trim();
+        return int.TryParse(t, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0
+            ? n
+            : null;
+    }
 }
 
 /// <summary>Errores de reembolso compartidos entre el dominio y el pre-chequeo del endpoint.</summary>

@@ -13,11 +13,12 @@ import { BTN_SUBMIT_PUBLIC, INPUT_LIGHT_11, TEXTAREA_LIGHT } from './styles';
  * con el asunto normalizado para que el pedido sea inconfundible. Al enviar se
  * muestra un número de solicitud y la fecha (constancia para el comprador).
  */
-export function RepentanceForm() {
+export function RepentanceForm({ initialOrder = '' }: { initialOrder?: string }) {
   const { tenantId } = useCart();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [order, setOrder] = useState('');
+  // Llega con el número ya puesto desde "Seguí tu pedido" o el detalle de la cuenta.
+  const [order, setOrder] = useState(initialOrder);
   const [reason, setReason] = useState('');
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,7 +86,7 @@ export function RepentanceForm() {
       <input
         value={order}
         onChange={(e) => setOrder(e.target.value)}
-        placeholder="Número de pedido (si lo tenés)"
+        placeholder="Número de pedido (ej. #1042), si lo tenés"
         aria-label="Número de pedido"
         className={INPUT_LIGHT_11}
       />
