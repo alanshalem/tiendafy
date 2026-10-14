@@ -56,7 +56,15 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('next/image', () => ({
-  default: ({ src, alt, fill: _f, priority: _p, sizes: _s, ...rest }: Record<string, unknown>) =>
+  default: ({
+    src,
+    alt,
+    fill: _f,
+    priority: _p,
+    preload: _pl,
+    sizes: _s,
+    ...rest
+  }: Record<string, unknown>) =>
     createElement('img', { src: typeof src === 'string' ? src : '', alt: String(alt ?? ''), ...rest }),
 }));
 

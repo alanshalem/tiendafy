@@ -3,7 +3,7 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ProductListConfig, ThemeSection } from '@/lib/theme';
 import type { StoreProduct } from './ProductCard';
-import { SectionRenderer, SECTION_LABELS } from './sections';
+import { LeadSectionContext, SectionRenderer, SECTION_LABELS } from './sections';
 import { PreviewContext } from './preview';
 import { EditableRegion } from './EditableRegion';
 
@@ -62,14 +62,16 @@ export function HomeSections({
     return (
       <main>
         {!homeHasTitle(visible) && <h1 className="sr-only">{storeName}</h1>}
-        {visible.map((s) => (
-          <SectionRenderer
-            key={s.id}
-            section={s}
-            products={products}
-            storeName={storeName}
-            productList={productList}
-          />
+        {visible.map((s, i) => (
+          // La primera sección es la que se ve al abrir: su imagen va con prioridad.
+          <LeadSectionContext.Provider key={s.id} value={i === 0}>
+            <SectionRenderer
+              section={s}
+              products={products}
+              storeName={storeName}
+              productList={productList}
+            />
+          </LeadSectionContext.Provider>
         ))}
       </main>
     );
