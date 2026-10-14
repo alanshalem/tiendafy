@@ -94,9 +94,12 @@ export function DiscountsPage() {
 
   const toggle = useMutation({
     mutationFn: (c: Coupon) => api.post(`/api/v1/coupons/${c.id}/toggle`, {}),
-    onSuccess: () => {
-      refresh();
+    // Se espera la lista nueva antes de volver a habilitar el botón: es un
+    // "alternar", y con el estado viejo en pantalla un segundo click lo
+    // deshacía (o lo pausaba creyendo que lo activaba).
+    onSuccess: async () => {
       toast('Cupón actualizado', { variant: 'success' });
+      await refresh();
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
@@ -152,7 +155,7 @@ export function DiscountsPage() {
                 <Dropdown.Item onSelect={() => setEditing(c)}>
                   <Pencil className="mr-2 inline h-4 w-4" /> Editar
                 </Dropdown.Item>
-                <Dropdown.Item onSelect={() => toggle.mutate(c)}>
+                <Dropdown.Item disabled={toggle.isPending} onSelect={() => toggle.mutate(c)}>
                   <Power className="mr-2 inline h-4 w-4" /> {c.active ? 'Pausar' : 'Activar'}
                 </Dropdown.Item>
                 <Dropdown.Item

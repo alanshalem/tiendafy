@@ -132,6 +132,8 @@ export function TenantsPage() {
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
   });
+  // Archivar/activar en curso: el menú no deja mandarlo dos veces.
+  const statusBusy = archiveMut.isPending || activateMut.isPending;
   const deleteMut = useMutation({
     mutationFn: (t: Tenant) => api.delete<Tenant>(`/api/v1/tenants/${t.id}`),
     onSuccess: (t) => {
@@ -237,11 +239,11 @@ export function TenantsPage() {
                   <Pencil className="mr-2 inline h-4 w-4" /> Editar
                 </Dropdown.Item>
                 {t.status === 'ACTIVE' ? (
-                  <Dropdown.Item onSelect={() => archiveMut.mutate(t)}>
+                  <Dropdown.Item disabled={statusBusy} onSelect={() => archiveMut.mutate(t)}>
                     <Archive className="mr-2 inline h-4 w-4" /> Archivar
                   </Dropdown.Item>
                 ) : (
-                  <Dropdown.Item onSelect={() => activateMut.mutate(t)}>
+                  <Dropdown.Item disabled={statusBusy} onSelect={() => activateMut.mutate(t)}>
                     <ArchiveRestore className="mr-2 inline h-4 w-4" /> Activar
                   </Dropdown.Item>
                 )}

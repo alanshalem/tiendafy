@@ -644,7 +644,11 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
           <div className="mt-3 flex flex-wrap gap-2">
             {quote.editable && (
               <>
-                <Button variant="secondary" onClick={() => action.mutate({ path: 'send' })}>
+                <Button
+                  variant="secondary"
+                  disabled={action.isPending}
+                  onClick={() => action.mutate({ path: 'send' })}
+                >
                   Marcar como enviado
                 </Button>
                 <Button onClick={() => setAccepting(true)} disabled={quote.expired}>
@@ -679,7 +683,11 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
               </>
             )}
             {quote.status === 'rejected' && (
-              <Button variant="secondary" onClick={() => action.mutate({ path: 'reopen' })}>
+              <Button
+                variant="secondary"
+                disabled={action.isPending}
+                onClick={() => action.mutate({ path: 'reopen' })}
+              >
                 Reabrir para renegociar
               </Button>
             )}

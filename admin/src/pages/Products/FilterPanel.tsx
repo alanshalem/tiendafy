@@ -1,6 +1,9 @@
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { cn } from '@tiendafy/ui';
+import { usePermissions } from '../../context/PermissionsContext';
+import { SETTINGS_BASE } from '../../lib/access';
 
 /**
  * Filtros del listado de productos. Todos se resuelven EN LA BASE: el listado
@@ -89,6 +92,7 @@ export function FilterPanel({
   setDraft,
 }: FilterPanelProps) {
   const fid = useId();
+  const { can } = usePermissions();
   return (
     <>
       <div
@@ -169,10 +173,20 @@ export function FilterPanel({
             </div>
           ))}
 
-          <div className="rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-4 text-sm">
-            <div className="font-semibold text-primary">Crear campo personalizado</div>
-            <p className="mt-1 text-fg-muted">Agregá diferentes atributos a tus productos. (Próximamente)</p>
-          </div>
+          {/* Los campos propios existen: son la ficha técnica, en Configuración.
+              Antes esto decía "Próximamente". */}
+          {can('catalog.write') && (
+            <Link
+              to={`${SETTINGS_BASE}/ficha-tecnica`}
+              className="block rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-4 text-sm hover:bg-primary/[0.06]"
+            >
+              <span className="font-semibold text-primary">Crear campo personalizado</span>
+              <span className="mt-1 block text-fg-muted">
+                Agregá atributos a tus productos (material, garantía, talle…) desde Configuración → Ficha
+                técnica.
+              </span>
+            </Link>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
