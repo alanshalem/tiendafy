@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { cn, Tooltip } from '@tiendafy/ui';
+import { cn, PageHeader, Tooltip } from '@tiendafy/ui';
 import { HeaderActions } from '../../components/HeaderActions';
 import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { visibleSettingsNav } from '../../config/navigation';
@@ -90,15 +90,7 @@ export function SettingsHeader({
   description?: string;
   action?: React.ReactNode;
 }) {
-  return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-fg-muted">{description}</p>}
-      </div>
-      {action}
-    </div>
-  );
+  return <PageHeader className="mb-5" title={title} subtitle={description} actions={action} />;
 }
 
 /** Barra inferior sticky de guardar/cancelar. */

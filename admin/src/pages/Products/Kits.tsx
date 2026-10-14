@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2 } from 'lucide-react';
-import { Button, Card, Input, useToast } from '@tiendafy/ui';
+import { Button, Card, Input, useToast, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { replaceAt } from '../../lib/arrays';
 import { api, errMsg } from '../../lib/api';
@@ -101,12 +101,10 @@ export function KitsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Kits y combos</h1>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          Definí qué piezas componen cada kit: al venderse, el stock de los componentes se descuenta solo.
-        </p>
-      </div>
+      <PageHeader
+        title="Kits y combos"
+        subtitle="Definí qué piezas componen cada kit: al venderse, el stock de los componentes se descuenta solo."
+      />
 
       {!editingKit ? (
         <>

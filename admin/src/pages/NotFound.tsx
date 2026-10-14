@@ -14,6 +14,7 @@ export function NotFoundPage() {
 
   return (
     <EmptyState
+      as="h1"
       kicker="Página no encontrada"
       title="Esta dirección no existe"
       body="Puede que el link esté viejo o que la pantalla se haya movido de lugar. Desde el inicio llegás a todo."

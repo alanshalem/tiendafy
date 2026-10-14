@@ -2,7 +2,18 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, FileText, PackageCheck, Printer, ScanLine, Tag, Truck } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Input, Select, Tabs, useToast, Spinner } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  cn,
+  Input,
+  Select,
+  Tabs,
+  useToast,
+  Spinner,
+  PageHeader,
+} from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { downloadBlob } from '../lib/download';
@@ -49,13 +60,10 @@ export function DespachoPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">Despacho</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Lo cobrado y sin despachar, para preparar de a muchos: picking, etiquetas, remitos y despachar
-          escaneando.
-        </p>
-      </div>
+      <PageHeader
+        title="Despacho"
+        subtitle="Lo cobrado y sin despachar, para preparar de a muchos: picking, etiquetas, remitos y despachar escaneando."
+      />
       <Tabs
         items={[
           { id: 'cola', label: 'Pedidos para preparar' },

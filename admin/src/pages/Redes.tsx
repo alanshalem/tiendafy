@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { Button, Tabs, useToast } from '@tiendafy/ui';
+import { Button, Tabs, useToast, PageHeader } from '@tiendafy/ui';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
 import { HelpLink } from '../components/HelpLink';
@@ -105,16 +105,12 @@ export function RedesPage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Redes sociales</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Un solo post para todas tus redes: escribilo una vez, programalo y listo.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs items={TABS} value={tab} onChange={setTab} />
-          {tab !== 'cuentas' && (
+      <PageHeader
+        className="mb-4"
+        title="Redes sociales"
+        subtitle="Un solo post para todas tus redes: escribilo una vez, programalo y listo."
+        actions={
+          tab !== 'cuentas' && (
             <Button
               onClick={() => {
                 if (accounts === null) return; // todavía cargando (o no se pudo)
@@ -128,9 +124,11 @@ export function RedesPage() {
             >
               <Plus className="h-4 w-4" /> Nuevo post
             </Button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
+      {/* Las pestañas, debajo del título como en el resto del panel. */}
+      <Tabs items={TABS} value={tab} onChange={setTab} className="mb-5" />
 
       {loadError !== null && (
         <LoadError

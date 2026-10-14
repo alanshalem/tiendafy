@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, MessageCircle, Paperclip, RefreshCw, Send, Sparkles } from 'lucide-react';
-import { cn, useToast, Spinner } from '@tiendafy/ui';
+import { cn, useToast, Spinner, PageHeader, Button } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useAiEnabled } from '../lib/useAi';
 import { useStore } from '../context/StoreContext';
@@ -211,21 +211,20 @@ export function SupportChatPage() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fg">Chat posventa</h1>
-        <Link
-          to="/bandeja?canal=posventa"
-          className="ml-auto mr-3 text-sm font-medium text-primary hover:underline"
-        >
-          Ver en la Bandeja
-        </Link>
-        <button
-          onClick={loadConvs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-        >
-          <RefreshCw className="h-4 w-4" /> Actualizar
-        </button>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Chat posventa"
+        actions={
+          <>
+            <Link to="/bandeja?canal=posventa" className="text-sm font-medium text-primary hover:underline">
+              Ver en la Bandeja
+            </Link>
+            <Button variant="secondary" onClick={loadConvs}>
+              <RefreshCw className="h-4 w-4" /> Actualizar
+            </Button>
+          </>
+        }
+      />
 
       {convs.length > 0 && (
         <div className="mb-4">

@@ -202,21 +202,18 @@ export function DiscountsPage() {
       <PageHeader
         title="Cupones de descuento"
         subtitle="Monto fijo, porcentaje o envío gratis, con vigencia y límite de usos."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'cupón' : 'cupones')
+        }
         actions={
-          <div className="flex items-center gap-3">
-            {(data?.total ?? 0) > 0 && (
-              <span className="text-xs text-fg-subtle">
-                {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'cupón' : 'cupones')}
+          canEdit && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> Crear cupón
               </span>
-            )}
-            {canEdit && (
-              <Button onClick={() => setCreateOpen(true)}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" /> Crear cupón
-                </span>
-              </Button>
-            )}
-          </div>
+            </Button>
+          )
         }
       />
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check } from 'lucide-react';
-import { Badge, Card } from '@tiendafy/ui';
+import { Badge, Card, PageHeader } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { api } from '../lib/api';
@@ -107,12 +107,14 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">Hola 👋</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Esto es lo que está pasando en <strong className="text-fg">{store.name}</strong>.
-        </p>
-      </div>
+      <PageHeader
+        title="Hola 👋"
+        subtitle={
+          <>
+            Esto es lo que está pasando en <strong className="text-fg">{store.name}</strong>.
+          </>
+        }
+      />
 
       <AvisosCard />
 

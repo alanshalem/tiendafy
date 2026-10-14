@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
-import { Badge, Table, type TableColumn, EmptyList } from '@tiendafy/ui';
+import { Badge, Table, type TableColumn, EmptyList, PageHeader } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -92,21 +92,20 @@ export function StockAlertsPage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Avisame cuando ingrese</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Quién espera cada producto agotado. Cuando entra stock, les avisamos por email una sola vez.
-          </p>
-        </div>
-        {(data?.totalWaiting ?? 0) > 0 && (
-          <span className="text-sm text-fg-muted">
-            <strong className="text-fg">{data!.totalWaiting}</strong>{' '}
-            {data!.totalWaiting === 1 ? 'persona esperando' : 'personas esperando'} ·{' '}
-            {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'variante' : 'variantes')}
-          </span>
-        )}
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Avisame cuando ingrese"
+        subtitle="Quién espera cada producto agotado. Cuando entra stock, les avisamos por email una sola vez."
+        count={
+          (data?.totalWaiting ?? 0) > 0 && (
+            <>
+              <strong className="text-fg">{data!.totalWaiting}</strong>{' '}
+              {data!.totalWaiting === 1 ? 'persona esperando' : 'personas esperando'} ·{' '}
+              {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'variante' : 'variantes')}
+            </>
+          )
+        }
+      />
 
       {isLoading ? (
         <div className="rounded-lg border border-border bg-surface">

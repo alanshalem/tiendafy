@@ -14,6 +14,7 @@ import {
   useConfirm,
   useToast,
   EmptyList,
+  PageHeader,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -175,23 +176,20 @@ function BalancesList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Cuentas corrientes</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Quién te debe y a quién le debés, comprobante por comprobante. Cada cobro o pago que registrás acá
-            mueve también la caja o el banco donde entró la plata.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="secondary" onClick={() => setAdjust(true)}>
-            <Scale className="h-4 w-4" /> Ajuste
-          </Button>
-          <Button onClick={() => setReceipt(true)}>
-            <Plus className="h-4 w-4" /> {kind === 'customer' ? 'Registrar cobro' : 'Registrar pago'}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Cuentas corrientes"
+        subtitle="Quién te debe y a quién le debés, comprobante por comprobante. Cada cobro o pago que registrás acá mueve también la caja o el banco donde entró la plata."
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setAdjust(true)}>
+              <Scale className="h-4 w-4" /> Ajuste
+            </Button>
+            <Button onClick={() => setReceipt(true)}>
+              <Plus className="h-4 w-4" /> {kind === 'customer' ? 'Registrar cobro' : 'Registrar pago'}
+            </Button>
+          </>
+        }
+      />
 
       <Tabs
         items={[
@@ -314,7 +312,7 @@ function PartyStatement({
           >
             <ArrowLeft className="h-4 w-4" /> Cuentas corrientes
           </button>
-          <h1 className="mt-1 text-xl font-semibold">{data?.partyName ?? '...'}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-fg">{data?.partyName ?? '...'}</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
             Todo lo que pasó con {partyKind === 'customer' ? 'este cliente' : 'este proveedor'}, en orden, con
             el saldo después de cada movimiento.

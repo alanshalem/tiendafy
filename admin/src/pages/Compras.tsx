@@ -13,6 +13,7 @@ import {
   Tabs,
   useConfirm,
   useToast,
+  PageHeader,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -136,26 +137,22 @@ function ComprasList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Compras e importaciones</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Órdenes de compra a proveedores, ciclo de importación y landed cost: el costo real de cada unidad
-            puesta en el depósito alimenta Rentabilidad.
-          </p>
-          {(data?.total ?? 0) > 0 && (
-            <p className="mt-1 text-xs text-fg-subtle">
-              {pageRangeLabel(page, PO_PAGE_SIZE, data!.total, data!.total === 1 ? 'compra' : 'compras')}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <VatBookDownload />
-          <Button onClick={() => onNew()}>
-            <Plus className="h-4 w-4" /> Nueva compra
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Compras e importaciones"
+        subtitle="Órdenes de compra a proveedores, ciclo de importación y landed cost: el costo real de cada unidad puesta en el depósito alimenta Rentabilidad."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PO_PAGE_SIZE, data!.total, data!.total === 1 ? 'compra' : 'compras')
+        }
+        actions={
+          <>
+            <VatBookDownload />
+            <Button onClick={() => onNew()}>
+              <Plus className="h-4 w-4" /> Nueva compra
+            </Button>
+          </>
+        }
+      />
 
       {summary && summary.total > 0 && (
         <ListStats
@@ -598,7 +595,7 @@ function PoEditor({
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" /> Compras
           </Button>
-          <h1 className="text-xl font-semibold">
+          <h1 className="text-2xl font-bold text-fg">
             {poId === null ? 'Nueva compra' : (po?.supplierName ?? '…')}
           </h1>
           <Badge variant={PO_STATUS[status]?.variant ?? 'neutral'}>

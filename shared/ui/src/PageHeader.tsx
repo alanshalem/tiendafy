@@ -2,22 +2,38 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 export interface PageHeaderProps {
-  title: string;
+  title: ReactNode;
   subtitle?: ReactNode;
-  /** Acciones a la derecha (ej. botón "Nuevo"). */
+  /** Acciones a la derecha (ej. botón "Nuevo"); la principal va última. */
   actions?: ReactNode;
+  /**
+   * El conteo del listado ("1–25 de 45 ventas"). Va siempre en el mismo
+   * lugar, debajo del título: antes cada pantalla lo ponía en otro (al lado
+   * del título, arriba de la tabla, abajo de los filtros, en la bajada).
+   */
+  count?: ReactNode;
+  /** Arriba del título: el link para volver al listado en una ficha. */
+  back?: ReactNode;
   className?: string;
 }
 
-/** Encabezado estándar de página del admin: título + bajada + acciones. */
-export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
+/**
+ * Encabezado estándar de página del admin: título + bajada + conteo a la
+ * izquierda y acciones arriba a la derecha.
+ *
+ * Había tres estilos de título (2xl en negrita, xl seminegrita y otro con
+ * tracking apretado) según quién había hecho la pantalla.
+ */
+export function PageHeader({ title, subtitle, actions, count, back, className }: PageHeaderProps) {
   return (
-    <div className={cn('flex flex-wrap items-center justify-between gap-3', className)}>
-      <div>
-        <h1 className="text-2xl font-bold text-fg">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-fg-muted">{subtitle}</p>}
+    <div className={cn('flex flex-wrap items-start justify-between gap-x-4 gap-y-3', className)}>
+      <div className="min-w-0">
+        {back && <div className="mb-1">{back}</div>}
+        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-fg">{title}</h1>
+        {subtitle && <div className="mt-0.5 text-sm text-fg-muted">{subtitle}</div>}
+        {count && <p className="mt-1 text-xs text-fg-subtle">{count}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

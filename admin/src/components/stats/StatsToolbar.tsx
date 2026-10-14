@@ -1,7 +1,7 @@
 import { InfoDot } from '../charts';
 import { type ReactNode } from 'react';
 import { Calendar, ChevronDown, Clock } from 'lucide-react';
-import { cn } from '@tiendafy/ui';
+import { cn, PageHeader } from '@tiendafy/ui';
 import { SETTINGS_CARD } from '../../lib/styles';
 
 /* ============================================================
@@ -218,10 +218,7 @@ export function StatsPageHeader({
 }) {
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">{title}</h1>
-        {description && <p className="mt-1 text-sm text-fg-muted">{description}</p>}
-      </div>
+      <PageHeader title={title} subtitle={description} />
       {range && onRangeChange && <StatsToolbar value={range} onChange={onRangeChange} />}
     </div>
   );

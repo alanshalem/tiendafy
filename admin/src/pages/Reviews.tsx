@@ -2,7 +2,20 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Check, EyeOff, Flag, MessageSquareReply, Settings2, Star, ThumbsUp } from 'lucide-react';
-import { Badge, Button, cn, Input, Modal, Select, Switch, Textarea, useToast, EmptyList } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  cn,
+  Input,
+  Modal,
+  Select,
+  Switch,
+  Textarea,
+  useToast,
+  EmptyList,
+  PageHeader,
+  Tabs,
+} from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -122,57 +135,33 @@ export function ReviewsPage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Reseñas</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Las opiniones de quienes te compraron. Solo pueden opinar compradores con la compra despachada.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {(data?.total ?? 0) > 0 && (
-            <span className="text-xs text-fg-subtle">
-              {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'reseña' : 'reseñas')}
-            </span>
-          )}
-          <Button variant="secondary" size="sm" onClick={() => setSettingsOpen(true)}>
-            <Settings2 className="mr-1.5 h-4 w-4" /> Configuración
+      <PageHeader
+        className="mb-5"
+        title="Reseñas"
+        subtitle="Las opiniones de quienes te compraron. Solo pueden opinar compradores con la compra despachada."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'reseña' : 'reseñas')
+        }
+        actions={
+          <Button variant="secondary" onClick={() => setSettingsOpen(true)}>
+            <Settings2 className="h-4 w-4" /> Configuración
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border text-sm" role="tablist">
-        {TABS.map((t) => {
-          const n = countOf(t.id);
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => list.set({ estado: t.id })}
-              className={cn(
-                '-mb-px shrink-0 border-b-2 px-4 pb-2.5 font-medium',
-                tab === t.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-fg-muted hover:text-fg',
-              )}
-            >
-              {t.label}
-              {n !== null && n > 0 && (
-                <span
-                  className={cn(
-                    'ml-1.5 rounded-full px-1.5 py-0.5 text-2xs font-semibold',
-                    t.id === 'pending' ? 'bg-warning-bg text-warning' : 'bg-bg-muted text-fg-muted',
-                  )}
-                >
-                  {n}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <Tabs
+        className="mb-4"
+        label="Estado de las reseñas"
+        items={TABS.map((t) => ({
+          id: t.id,
+          label: t.label,
+          count: countOf(t.id),
+          countTone: t.id === 'pending' ? 'warning' : 'default',
+        }))}
+        value={tab}
+        onChange={(id) => list.set({ estado: id })}
+      />
 
       {(data?.counts.flagged ?? 0) > 0 && (
         <p className="mb-3 flex items-center gap-2 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">

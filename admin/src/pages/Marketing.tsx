@@ -139,17 +139,14 @@ export function MarketingPage() {
         className="mb-5"
         title="Email marketing"
         subtitle="Campañas de email para tus clientes: novedades, promos, lanzamientos."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'campaña' : 'campañas')
+        }
         actions={
-          <div className="flex items-center gap-3">
-            {(data?.total ?? 0) > 0 && (
-              <span className="text-xs text-fg-subtle">
-                {pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'campaña' : 'campañas')}
-              </span>
-            )}
-            <Button onClick={() => setEditing('new')}>
-              <Plus className="h-4 w-4" /> Nueva campaña
-            </Button>
-          </div>
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Nueva campaña
+          </Button>
         }
       />
 

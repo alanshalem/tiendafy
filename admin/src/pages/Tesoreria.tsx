@@ -1,7 +1,18 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftRight, Banknote, Landmark, Plus, Wallet } from 'lucide-react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea, useToast, EmptyList } from '@tiendafy/ui';
+import {
+  Badge,
+  Button,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+  useToast,
+  EmptyList,
+  PageHeader,
+} from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
@@ -65,30 +76,27 @@ export function TesoreriaPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Tesorería</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Dónde está la plata: tus cajas y cuentas bancarias, con cada movimiento que las tocó. Los cobros y
-            pagos que cargás en Cuentas corrientes entran acá solos.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {activas.length >= 2 && (
-            <Button variant="secondary" onClick={() => setTransfer(true)}>
-              <ArrowLeftRight className="h-4 w-4" /> Transferir
+      <PageHeader
+        title="Tesorería"
+        subtitle="Dónde está la plata: tus cajas y cuentas bancarias, con cada movimiento que las tocó. Los cobros y pagos que cargás en Cuentas corrientes entran acá solos."
+        actions={
+          <>
+            {activas.length >= 2 && (
+              <Button variant="secondary" onClick={() => setTransfer(true)}>
+                <ArrowLeftRight className="h-4 w-4" /> Transferir
+              </Button>
+            )}
+            {activas.length > 0 && (
+              <Button variant="secondary" onClick={() => setMovement(true)}>
+                <Plus className="h-4 w-4" /> Movimiento
+              </Button>
+            )}
+            <Button onClick={() => setNewAccount(true)}>
+              <Plus className="h-4 w-4" /> Nueva cuenta
             </Button>
-          )}
-          {activas.length > 0 && (
-            <Button variant="secondary" onClick={() => setMovement(true)}>
-              <Plus className="h-4 w-4" /> Movimiento
-            </Button>
-          )}
-          <Button onClick={() => setNewAccount(true)}>
-            <Plus className="h-4 w-4" /> Nueva cuenta
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {(data?.totals ?? []).length > 0 && (
         <ListStats

@@ -12,6 +12,7 @@ import {
   useConfirm,
   useToast,
   EmptyList,
+  PageHeader,
 } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -128,19 +129,15 @@ function ListsOverview({ onOpen }: { onOpen: (list: PriceListRow) => void }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Listas de precios</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Un precio distinto para mayoristas, revendedores o un canal, sin duplicar el catálogo. Cada lista
-            es un porcentaje sobre el precio del producto (o sobre otra lista), así que cuando cambiás un
-            precio, todas las listas se mueven con él.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Nueva lista
-        </Button>
-      </div>
+      <PageHeader
+        title="Listas de precios"
+        subtitle="Un precio distinto para mayoristas, revendedores o un canal, sin duplicar el catálogo. Cada lista es un porcentaje sobre el precio del producto (o sobre otra lista), así que cuando cambiás un precio, todas las listas se mueven con él."
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Nueva lista
+          </Button>
+        }
+      />
 
       {lists.length === 0 ? (
         <EmptyList icon={<Tags />} title="Todavía no hay listas de precios">
@@ -449,7 +446,7 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
           >
             <ArrowLeft className="h-4 w-4" /> Listas de precios
           </button>
-          <h1 className="mt-1 text-xl font-semibold">{list.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-fg">{list.name}</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
             Los precios los calcula la regla de la lista. Escribí uno solo si ese producto necesita otro
             número: ese queda fijo y deja de moverse con el precio del producto. Vaciá la casilla para que

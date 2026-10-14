@@ -2,13 +2,13 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowUpDown, Filter, MoreVertical, Plus, Search, Trash2, Upload, X } from 'lucide-react';
-import { Button, Checkbox, Dropdown, Modal, useToast } from '@tiendafy/ui';
+import { Button, Checkbox, Dropdown, Modal, PageHeader, useToast } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { api, errMsg } from '../../lib/api';
 import { useVariantStock, useCatalogHealth } from './queries';
-import { Pagination } from '../../components/Pagination';
+import { Pagination, pageRangeLabel } from '../../components/Pagination';
 import { useListParams, useListSearch } from '../../lib/useListParams';
 import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
@@ -317,10 +317,15 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fg">Productos</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && (
+      <PageHeader
+        title="Productos"
+        count={
+          !isEmpty &&
+          total > 0 &&
+          pageRangeLabel(pageClamped, PAGE_SIZE, total, total === 1 ? 'producto' : 'productos')
+        }
+        actions={
+          canEdit && (
             <>
               <Link to="/productos/exportar-importar">
                 <HeaderBtn>
@@ -358,9 +363,9 @@ export function ProductsPage() {
                 </Dropdown>
               )}
             </>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {health && health.total > 0 && (
         <ListStats
@@ -473,10 +478,6 @@ export function ProductsPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="text-sm text-fg-muted">
-            {formatNumber(total)} {total === 1 ? 'producto' : 'productos'}
           </div>
 
           {bulkResult && (

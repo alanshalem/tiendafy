@@ -14,6 +14,7 @@ import {
   useToast,
   Spinner,
   EmptyList,
+  PageHeader,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -153,31 +154,28 @@ function SupplierList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Proveedores</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Con quiénes comprás: sus datos, todas sus órdenes de compra y cuánto les debés. Al cargar una
-            compra podés elegir el proveedor de esta lista en vez de volver a escribir el nombre.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => importFromPurchases.mutate()}
-            disabled={importFromPurchases.isPending}
-            title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {importFromPurchases.isPending ? <Spinner inline /> : <PackagePlus className="h-4 w-4" />}
-              Traer de mis compras
-            </span>
-          </Button>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Nuevo proveedor
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Proveedores"
+        subtitle="Con quiénes comprás: sus datos, todas sus órdenes de compra y cuánto les debés. Al cargar una compra podés elegir el proveedor de esta lista en vez de volver a escribir el nombre."
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => importFromPurchases.mutate()}
+              disabled={importFromPurchases.isPending}
+              title="Crea las fichas de los proveedores que escribiste a mano en tus compras y las ata"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {importFromPurchases.isPending ? <Spinner inline /> : <PackagePlus className="h-4 w-4" />}
+                Traer de mis compras
+              </span>
+            </Button>
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" /> Nuevo proveedor
+            </Button>
+          </>
+        }
+      />
 
       {rows.length > 0 && (
         <ListStats
@@ -325,7 +323,7 @@ function SupplierDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           >
             <ArrowLeft className="h-4 w-4" /> Proveedores
           </button>
-          <h1 className="mt-1 flex items-center gap-2 text-xl font-semibold">
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold text-fg">
             {data.name}
             {!data.active && <Badge variant="neutral">Inactivo</Badge>}
           </h1>

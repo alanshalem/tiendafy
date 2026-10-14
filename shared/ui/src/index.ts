@@ -1,6 +1,7 @@
 export { cn } from './cn';
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button';
 export { Input, type InputProps } from './Input';
+export { SearchInput, type SearchInputProps } from './SearchInput';
 export { Textarea, type TextareaProps } from './Textarea';
 export { Select, type SelectProps, type SelectOption } from './Select';
 export { Checkbox, type CheckboxProps } from './Checkbox';

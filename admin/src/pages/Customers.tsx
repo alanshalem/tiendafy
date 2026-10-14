@@ -27,6 +27,7 @@ import {
   useConfirm,
   type TableColumn,
   Spinner,
+  PageHeader,
 } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { useStore } from '../context/StoreContext';
@@ -331,47 +332,46 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Clientes</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Quiénes te compran: cuánto, cada cuánto y cómo escribirles.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={exportCsv}
-            disabled={exporting || total === 0}
-            title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />}
-              Exportar
-            </span>
-          </Button>
-          {canEdit && (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => importFromOrders.mutate()}
-                disabled={importFromOrders.isPending}
-                title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {importFromOrders.isPending ? <Spinner inline /> : <UserPlus className="h-4 w-4" />}
-                  Traer de mis ventas
-                </span>
-              </Button>
-              <Button onClick={() => setCreateOpen(true)}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" /> Agregar cliente
-                </span>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Clientes"
+        subtitle="Quiénes te compran: cuánto, cada cuánto y cómo escribirles."
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={exportCsv}
+              disabled={exporting || total === 0}
+              title="Descarga la agenda (con la búsqueda y el segmento puestos) en un CSV para Excel."
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />}
+                Exportar
+              </span>
+            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => importFromOrders.mutate()}
+                  disabled={importFromOrders.isPending}
+                  title="Suma a la agenda los compradores de tus ventas anteriores y recalcula lo que compró cada uno"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {importFromOrders.isPending ? <Spinner inline /> : <UserPlus className="h-4 w-4" />}
+                    Traer de mis ventas
+                  </span>
+                </Button>
+                <Button onClick={() => setCreateOpen(true)}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Plus className="h-4 w-4" /> Agregar cliente
+                  </span>
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <form
@@ -410,11 +410,6 @@ export function CustomersPage() {
             ]}
             className="w-auto"
           />
-        )}
-        {total > 0 && (
-          <span className="text-xs text-fg-subtle">
-            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'cliente' : 'clientes')}
-          </span>
         )}
       </div>
 

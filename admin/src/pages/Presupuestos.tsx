@@ -17,6 +17,7 @@ import {
   useToast,
   type BadgeVariant,
   EmptyList,
+  PageHeader,
 } from '@tiendafy/ui';
 import { useStore } from '../context/StoreContext';
 import { api, errMsg } from '../lib/api';
@@ -176,28 +177,19 @@ function QuoteList({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="text-xl font-semibold">Presupuestos</h1>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Los precios que le pasás a un cliente antes de que compre. Si lo acepta, la venta se genera con
-            los precios que cotizaste — no con los de hoy.
-          </p>
-          {(data?.total ?? 0) > 0 && (
-            <p className="mt-1 text-xs text-fg-subtle">
-              {pageRangeLabel(
-                page,
-                PAGE_SIZE,
-                data!.total,
-                data!.total === 1 ? 'presupuesto' : 'presupuestos',
-              )}
-            </p>
-          )}
-        </div>
-        <Button onClick={onNew}>
-          <Plus className="h-4 w-4" /> Nuevo presupuesto
-        </Button>
-      </div>
+      <PageHeader
+        title="Presupuestos"
+        subtitle="Los precios que le pasás a un cliente antes de que compre. Si lo acepta, la venta se genera con los precios que cotizaste — no con los de hoy."
+        count={
+          (data?.total ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.total, data!.total === 1 ? 'presupuesto' : 'presupuestos')
+        }
+        actions={
+          <Button onClick={onNew}>
+            <Plus className="h-4 w-4" /> Nuevo presupuesto
+          </Button>
+        }
+      />
 
       {summary && summary.total > 0 && (
         <ListStats
@@ -541,7 +533,7 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
           >
             <ArrowLeft className="h-4 w-4" /> Presupuestos
           </button>
-          <h1 className="mt-1 flex flex-wrap items-center gap-2 text-xl font-semibold">
+          <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-bold text-fg">
             {quote ? quote.number : 'Nuevo presupuesto'}
             {quote && <Badge variant={STATUS[quote.status].variant}>{STATUS[quote.status].label}</Badge>}
             {quote?.expired && <Badge variant="warning">Vencido</Badge>}

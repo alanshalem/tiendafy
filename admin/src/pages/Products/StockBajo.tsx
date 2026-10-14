@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOff, PackageCheck, Plus, Settings2 } from 'lucide-react';
-import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast, Spinner } from '@tiendafy/ui';
+import { Badge, Button, Checkbox, cn, Switch, usePrompt, useToast, Spinner, PageHeader } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
@@ -126,20 +126,18 @@ export function StockBajoPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Stock bajo</h1>
-          <p className="mt-1 max-w-2xl text-sm text-fg-muted">
-            Lo que se agota antes de que llegue la próxima compra (con lo vendido en 60 días, en la tienda y
-            en Mercado Libre) y lo que bajó de su mínimo.
-          </p>
-        </div>
-        {canBuy && items.length > 0 && (
-          <Button onClick={buildOrder}>
-            <Plus className="h-4 w-4" /> Armar orden de compra ({forOrder.length})
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Stock bajo"
+        subtitle="Lo que se agota antes de que llegue la próxima compra (con lo vendido en 60 días, en la tienda y en Mercado Libre) y lo que bajó de su mínimo."
+        actions={
+          canBuy &&
+          items.length > 0 && (
+            <Button onClick={buildOrder}>
+              <Plus className="h-4 w-4" /> Armar orden de compra ({forOrder.length})
+            </Button>
+          )
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm">
         <span className="text-fg-muted">

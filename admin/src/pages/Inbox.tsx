@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Inbox as InboxIcon, MessagesSquare } from 'lucide-react';
-import { cn, Input, Select, Spinner } from '@tiendafy/ui';
+import { cn, Input, Select, Spinner, PageHeader, Tabs } from '@tiendafy/ui';
 import { formatDateTime } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
@@ -116,49 +116,36 @@ export function InboxPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Bandeja</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Contacto, chat posventa y Mercado Libre en un solo lugar. Se actualiza sola.
-          </p>
-        </div>
-        {counts && (
-          <p className="text-sm text-fg-muted" role="status">
-            <span className="font-semibold text-fg">{counts.unread}</span> sin leer
-            {counts.mine > 0 && (
-              <>
-                {' · '}
-                <span className="font-semibold text-fg">{counts.mine}</span> asignadas a vos
-              </>
-            )}
-          </p>
-        )}
-      </div>
+      <PageHeader
+        className="mb-4"
+        title="Bandeja"
+        subtitle="Contacto, chat posventa y Mercado Libre en un solo lugar. Se actualiza sola."
+        count={
+          counts && (
+            <span role="status">
+              <span className="font-semibold text-fg">{counts.unread}</span> sin leer
+              {counts.mine > 0 && (
+                <>
+                  {' · '}
+                  <span className="font-semibold text-fg">{counts.mine}</span> asignadas a vos
+                </>
+              )}
+            </span>
+          )
+        }
+      />
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-surface p-1 text-sm">
-          {FILTERS.map((f) => {
-            const n = f.id === 'sin-leer' ? counts?.unread : f.id === 'mias' ? counts?.mine : undefined;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                aria-pressed={filter === f.id}
-                onClick={() => setParam({ filtro: f.id || null })}
-                className={cn(
-                  'shrink-0 rounded-md px-3 py-1.5 font-medium',
-                  filter === f.id
-                    ? 'bg-primary text-primary-fg'
-                    : 'text-fg-muted hover:bg-bg-muted hover:text-fg',
-                )}
-              >
-                {f.label}
-                {!!n && <span className="ml-1.5 tabular-nums opacity-80">{n}</span>}
-              </button>
-            );
-          })}
-        </div>
+        <Tabs
+          label="Conversaciones"
+          items={FILTERS.map((f) => ({
+            id: f.id,
+            label: f.label,
+            count: f.id === 'sin-leer' ? counts?.unread : f.id === 'mias' ? counts?.mine : null,
+          }))}
+          value={filter}
+          onChange={(id) => setParam({ filtro: id || null })}
+        />
         <div className="w-48">
           <Select
             aria-label="Canal"

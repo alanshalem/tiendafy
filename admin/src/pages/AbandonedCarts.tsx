@@ -5,11 +5,12 @@ import { useStore } from '../context/StoreContext';
 import { formatMoney, formatDateTime, formatNumber } from '../lib/format';
 import { HelpLink } from '../components/HelpLink';
 import type { MoneyDto } from '@tiendafy/types';
-import { SETTINGS_CARD, TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
+import { TABLE_CARD, TABLE_HEAD_STICKY, TABLE_SCROLL_X } from '../lib/styles';
 import { Pagination, pageRangeLabel } from '../components/Pagination';
 import { TableSkeleton } from '../components/Skeleton';
 import { usePageParam } from '../lib/useListParams';
-import { EmptyList } from '@tiendafy/ui';
+import { EmptyList, PageHeader } from '@tiendafy/ui';
+import { ListStats } from '../components/stats/ListStats';
 
 interface Abandoned {
   count: number;
@@ -45,27 +46,27 @@ export function AbandonedCartsPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold text-fg">Carritos abandonados</h1>
-      <p className="mb-5 text-sm text-fg-muted">
-        Checkouts iniciados que no terminaron en compra (últimos 30 días).
-        {(data?.count ?? 0) > 0 && (
-          <span className="ml-2 text-xs text-fg-subtle">
-            {pageRangeLabel(page, PAGE_SIZE, data!.count, data!.count === 1 ? 'carrito' : 'carritos')}
-          </span>
-        )}
-      </p>
+      <PageHeader
+        className="mb-5"
+        title="Carritos abandonados"
+        subtitle="Checkouts iniciados que no terminaron en compra (últimos 30 días)."
+        count={
+          (data?.count ?? 0) > 0 &&
+          pageRangeLabel(page, PAGE_SIZE, data!.count, data!.count === 1 ? 'carrito' : 'carritos')
+        }
+      />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2">
-        <div className={SETTINGS_CARD}>
-          <div className="text-sm font-semibold text-fg">Carritos abandonados</div>
-          <div className="mt-2 text-3xl font-bold text-fg">{formatNumber(data?.count ?? 0)}</div>
-        </div>
-        <div className={SETTINGS_CARD}>
-          <div className="text-sm font-semibold text-fg">Valor recuperable</div>
-          <div className="mt-2 text-3xl font-bold text-fg">{formatMoney(data?.recoverableValue ?? 0)}</div>
-          <div className="mt-1 text-xs text-fg-subtle">De carritos con email.</div>
-        </div>
-      </div>
+      <ListStats
+        className="mb-5"
+        items={[
+          { label: 'Carritos abandonados', value: formatNumber(data?.count ?? 0) },
+          {
+            label: 'Valor recuperable',
+            value: formatMoney(data?.recoverableValue ?? 0),
+            hint: 'Lo que suman los carritos que dejaron un email: a esos se les puede escribir.',
+          },
+        ]}
+      />
 
       {isLoading ? (
         <div className="rounded-lg border border-border bg-surface">

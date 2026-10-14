@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, GripVertical } from 'lucide-react';
-import { Button, Checkbox, FormField, Input, useToast } from '@tiendafy/ui';
+import { Button, Checkbox, FormField, Input, useToast, PageHeader } from '@tiendafy/ui';
 import type { MoneyDto } from '@tiendafy/types';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
@@ -388,14 +388,16 @@ export function EditProductPage() {
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fg">Editar producto</h1>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {/* "Avisame cuando ingrese": cuánta gente espera este producto. */}
-          <ProductWaitingNotice productId={product.id} />
-          <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
-        </div>
-      </div>
+      <PageHeader
+        title="Editar producto"
+        actions={
+          <>
+            {/* "Avisame cuando ingrese": cuánta gente espera este producto. */}
+            <ProductWaitingNotice productId={product.id} />
+            <span className="text-sm text-fg-muted">{statusLabel[product.status]}</span>
+          </>
+        }
+      />
 
       {/* En pantallas anchas, lo principal a la izquierda y lo que se toca poco
           (estado, categorías, SEO) en una columna al costado. */}

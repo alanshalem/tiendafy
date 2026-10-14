@@ -13,6 +13,8 @@ import {
   usePrompt,
   Spinner,
   EmptyList,
+  PageHeader,
+  Button,
 } from '@tiendafy/ui';
 import type { MoneyDto as Money } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
@@ -441,36 +443,32 @@ export function OrdersPage() {
   return (
     // Lugar para la barra de lo elegido, que en el celular va fija abajo.
     <div className={cn(selected.size > 0 && 'pb-44 sm:pb-0')}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fg">Ventas</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {can('orders.create') && (
-            <button
-              type="button"
-              onClick={() => setManualOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+      <PageHeader
+        className="mb-5"
+        title="Ventas"
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
+        actions={
+          <>
+            <Button variant="secondary" onClick={load}>
+              <RefreshCw className="h-4 w-4" /> Actualizar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={exportCsv}
+              disabled={exporting || total === 0}
+              title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
             >
-              <Plus className="h-4 w-4" /> Venta manual
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={exporting || total === 0}
-            title="Descarga las ventas de este listado (con la búsqueda y los filtros puestos) en un CSV para Excel."
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
-          >
-            {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />} Exportar
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:bg-bg-muted"
-          >
-            <RefreshCw className="h-4 w-4" /> Actualizar
-          </button>
-        </div>
-      </div>
+              {exporting ? <Spinner inline /> : <Download className="h-4 w-4" />} Exportar
+            </Button>
+            {/* La principal va última: arriba a la derecha, como en todo el panel. */}
+            {can('orders.create') && (
+              <Button onClick={() => setManualOpen(true)}>
+                <Plus className="h-4 w-4" /> Venta manual
+              </Button>
+            )}
+          </>
+        }
+      />
       {manualOpen && <ManualSaleModal onClose={() => setManualOpen(false)} onCreated={load} />}
 
       {listStats.length > 0 && (
@@ -486,11 +484,6 @@ export function OrdersPage() {
         onChange={(patch) => list.set(patch)}
         showMeliLink={can('meli.operate')}
       />
-      {total > 0 && (
-        <p className="mb-3 text-xs text-fg-subtle">
-          {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'venta' : 'ventas')}
-        </p>
-      )}
 
       {focusOrder && !focusInPage && ordersQuery.isSuccess && (
         <FocusedOrder
