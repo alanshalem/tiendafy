@@ -140,7 +140,11 @@ describe('cambio de contraseña', () => {
 
 describe('favoritos', () => {
   const productId = fixture<{ productIds: string[] }>('/api/v1/shop/favorites').productIds[0]!;
-  const name = fixture<{ name: string }>('/api/v1/products/:id').name;
+  const product = fixture<{ name: string }>('/api/v1/products/:id');
+  const name = product.name;
+  // Los favoritos se piden juntos y solo los publicados (como una sección "a mano").
+  const section = '/api/v1/products/section';
+  beforeEach(() => api.on('GET', section, { items: [product] }));
 
   it('al entrar, sube los locales y adopta los del servidor', async () => {
     // Un comprador que ya entró antes (la tienda lo recuerda y valida su sesión).
@@ -156,7 +160,12 @@ describe('favoritos', () => {
     expect(api.calls.find((c) => c.path === '/api/v1/shop/favorites/merge')?.body).toEqual({
       productIds: ['local-1'],
     });
-    expect(api.calls.some((c) => c.path === `/api/v1/products/${productId}`)).toBe(true);
+    // Primero los del navegador; después del merge, los de la cuenta.
+    const asked = api.calls
+      .filter((c) => c.path.startsWith(`${section}?`))
+      .map((c) => new URL(c.path, 'http://x').searchParams);
+    expect(asked.every((q) => q.get('kind') === 'manual')).toBe(true);
+    expect(asked.at(-1)!.get('ids')!.split(',')).toContain(productId);
     expect(screen.getAllByText(name).length).toBeGreaterThan(0);
   });
 

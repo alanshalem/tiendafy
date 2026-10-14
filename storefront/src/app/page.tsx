@@ -1,7 +1,7 @@
 import { StorefrontView } from '@/components/store/StorefrontView';
 import { ComingSoon } from '@/components/store/ComingSoon';
 import { fetchDraftTheme, fetchPublishedTheme } from '@/lib/theme';
-import { loadStorefront, siteBase, withReferencedProducts } from '@/lib/storefront';
+import { loadStorefront, siteBase, loadHomeSectionProducts } from '@/lib/storefront';
 import { resolveTenant } from '@/lib/tenancy';
 import { jsonLd } from '@/lib/json-ld';
 
@@ -51,7 +51,9 @@ export default async function HomePage({
   if (!preview && theme.comingSoon.enabled)
     return <ComingSoon theme={theme} tenantName={data.tenant.name} tenantId={data.tenant.id} />;
 
-  const products = await withReferencedProducts(data.tenant.id, theme, data.products);
+  // Los productos de cada sección de la portada, según su origen (elegidos,
+  // más vendidos, lo último, ofertas…): un pedido por origen y solo publicados.
+  const sectionProducts = await loadHomeSectionProducts(data.tenant.id, theme.sections);
 
   // Organization + WebSite: nombre, logo y redes de la tienda para el Knowledge
   // Panel / resultados de marca. Datos que el merchant ya cargó en el theme.
@@ -80,7 +82,8 @@ export default async function HomePage({
         tenantId={data.tenant.id}
         tenantName={data.tenant.name}
         theme={theme}
-        products={products}
+        products={data.products}
+        sectionProducts={sectionProducts}
         live={preview}
       />
     </>
