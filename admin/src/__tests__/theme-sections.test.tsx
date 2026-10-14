@@ -33,6 +33,7 @@ const ALL_TYPES: Record<SectionType, true> = {
   brands: true,
   'countdown-offer': true,
   'featured-product': true,
+  'promo-popup': true,
 };
 
 let crashes: () => unknown[][];

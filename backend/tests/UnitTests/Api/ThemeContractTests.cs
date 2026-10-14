@@ -145,6 +145,22 @@ public partial class ThemeContractTests
         if (!ok) Assert.Contains("la fecha en que termina", errors[0].Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("5", true)]
+    [InlineData("0", true)]
+    [InlineData("120", true)]
+    [InlineData("121", false)]
+    [InlineData("-1", false)]
+    [InlineData("2.5", false)]
+    [InlineData("\"5\"", false)]
+    public void Los_numeros_son_enteros_dentro_de_su_rango(string seconds, bool ok)
+    {
+        var errors = ValidateSections($$"""[{{Section("promo-popup", $$"""{ "delaySeconds": {{seconds}} }""")}}]""");
+        Assert.Equal(ok, errors.Count == 0);
+        if (!ok)
+            Assert.Contains("los segundos de espera tiene que ser un número entero entre 0 y 120", errors[0].Message, StringComparison.Ordinal);
+    }
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

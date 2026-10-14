@@ -362,6 +362,7 @@ export interface SectionDataMap {
   brands: BrandsData;
   'countdown-offer': CountdownOfferData;
   'featured-product': FeaturedProductData;
+  'promo-popup': PromoPopupData;
 }
 
 /* ---- El registro ---- */
@@ -668,6 +669,28 @@ export const SECTION_REGISTRY = {
     defaults: { badge: 'Elegido del mes', layout: 'image-left', showDescription: true, button: 'cart' },
     limits: {},
     keywords: 'producto estrella vidriera lanzamiento elegido comprar',
+  }),
+  'promo-popup': define({
+    type: 'promo-popup',
+    label: 'Pop-up promocional',
+    previewLabel: 'el pop-up',
+    description: 'Una ventana con una promo o un cupón que aparece al entrar o al irse.',
+    group: 'Contenido',
+    wireframe: 'popup',
+    fields: promoPopupFields,
+    defaults: {
+      title: '10% off en tu primera compra',
+      text: 'Usá este código cuando pagues.',
+      couponCode: 'BIENVENIDA10',
+      buttonText: 'Ver productos',
+      link: '/productos',
+      trigger: 'delay',
+      delaySeconds: 5,
+      frequency: 'days',
+      frequencyDays: 7,
+    },
+    limits: { maxPerPage: 1 },
+    keywords: 'popup modal ventana emergente cupon descuento bienvenida suscripcion',
   }),
 } satisfies Record<SectionType, SectionDefinition>;
 

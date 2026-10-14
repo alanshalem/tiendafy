@@ -17,6 +17,10 @@ import { SectionProductsContext } from '../components/store/SectionProductsConte
 import type { StoreProduct } from '../components/store/ProductCard';
 import { toStoreProducts, type ProductDto } from '../lib/catalog';
 import { excerptOf } from '../lib/catalog-map';
+import { popupSeen } from '../components/store/sections/promo-popup';
+import { ADMIN_ORIGIN } from '../components/store/preview';
+import { nav } from '../test/next';
+import { EDITOR_MSG } from '@tiendafy/types';
 import { useCart } from '../components/store/cart';
 import userEvent from '@testing-library/user-event';
 import { fixture, mockApi } from '../test/api';
@@ -218,5 +222,174 @@ describe('producto destacado', () => {
     const out = excerptOf(long, 50);
     expect(out.length).toBeLessThanOrEqual(51);
     expect(out.endsWith('palabra…')).toBe(true);
+  });
+});
+
+describe('pop-up promocional', () => {
+  const popup = (data: Record<string, unknown> = {}) =>
+    section('promo-popup', {
+      title: '10% off',
+      text: 'En tu primera compra',
+      couponCode: 'HOLA10',
+      buttonText: 'Ver productos',
+      link: '/productos',
+      delaySeconds: 5,
+      ...data,
+    });
+  const dialog = () => document.querySelector('dialog')!;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+
+  it('no ocupa lugar y se abre a los segundos elegidos, como diálogo modal accesible', async () => {
+    const { container } = render(ui(popup()));
+    expect(dialog().open).toBe(false);
+    expect(container.querySelector('[data-promo-popup]')).toHaveClass('contents');
+    await act(async () => {
+      vi.advanceTimersByTime(4900);
+    });
+    expect(dialog().open).toBe(false);
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(dialog().open).toBe(true);
+    expect(screen.getByRole('dialog', { name: '10% off' })).toBeInTheDocument();
+    // El foco entra al diálogo (en el navegador, al botón de cerrar: sin abrir el teclado del celular).
+    expect(dialog().contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('link', { name: 'Ver productos' })).toHaveAttribute('href', '/productos');
+
+    // Escape lo cierra (como el navegador).
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(dialog().open).toBe(false);
+  });
+
+  it('no vuelve a aparecer dentro de la frecuencia, por tienda', async () => {
+    const first = render(ui(popup({ frequency: 'days', frequencyDays: 7 })));
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(dialog().open).toBe(true);
+    first.unmount();
+
+    render(ui(popup({ frequency: 'days', frequencyDays: 7 })));
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(dialog().open).toBe(false);
+    expect(Object.keys(localStorage).some((k) => k.startsWith('tf:popup:'))).toBe(true);
+  });
+
+  it('la frecuencia decide cuándo vuelve', () => {
+    const data = (frequency: string, frequencyDays = 7) =>
+      ({ frequency, frequencyDays }) as unknown as Parameters<typeof popupSeen>[0];
+    const now = Date.parse('2026-11-10T12:00:00Z');
+    localStorage.setItem('k', String(now - 3 * 86_400_000));
+    expect(popupSeen(data('days', 7), 'k', now)).toBe(true);
+    expect(popupSeen(data('days', 2), 'k', now)).toBe(false);
+    expect(popupSeen(data('once'), 'k', now)).toBe(true);
+    expect(popupSeen(data('once'), 'otra', now)).toBe(false);
+    expect(popupSeen(data('session'), 'k', now)).toBe(false);
+    sessionStorage.setItem('k', '1');
+    expect(popupSeen(data('session'), 'k', now)).toBe(true);
+  });
+
+  it('nunca en el checkout ni en la cuenta', async () => {
+    nav.at('/checkout');
+    render(ui(popup({ delaySeconds: 0 })));
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(dialog().open).toBe(false);
+  });
+
+  it('al querer irse (mouse que sale por arriba), solo con mouse', async () => {
+    const match = vi
+      .spyOn(window, 'matchMedia')
+      .mockImplementation(
+        (q) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }) as never,
+      );
+    render(ui(popup({ trigger: 'exit' })));
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(dialog().open).toBe(false);
+    await act(async () => {
+      document.dispatchEvent(new MouseEvent('mouseout', { clientY: 0, relatedTarget: null }));
+    });
+    expect(dialog().open).toBe(true);
+    match.mockRestore();
+  });
+
+  it('cierra con el botón y con un clic en el fondo; copia el cupón', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    render(ui(popup({ delaySeconds: 0 })));
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+    await act(async () => {
+      screen.getByRole('button', { name: 'Copiar' }).click();
+    });
+    expect(writeText).toHaveBeenCalledWith('HOLA10');
+    expect(screen.getByText('Código copiado. Pegalo cuando pagues.')).toBeInTheDocument();
+    await act(async () => {
+      screen.getByRole('button', { name: 'Cerrar' }).click();
+    });
+    expect(dialog().open).toBe(false);
+
+    await act(async () => {
+      dialog().showModal();
+      dialog().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(dialog().open).toBe(false);
+  });
+
+  it('en el editor no se abre solo: se abre con su panel y se cierra al pasar a otro', async () => {
+    render(ui(popup({ delaySeconds: 0 }), { preview: true }));
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(dialog().open).toBe(false);
+    expect(screen.getByText(/En la tienda no ocupa lugar/)).toBeInTheDocument();
+
+    const msg = (sectionId: string) =>
+      act(async () => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            origin: ADMIN_ORIGIN,
+            data: { type: EDITOR_MSG.focusSection, target: 'section', sectionId },
+          }),
+        );
+      });
+    await msg('s-promo-popup');
+    expect(dialog().open).toBe(true);
+    await msg('otra');
+    expect(dialog().open).toBe(false);
+    // Un mensaje de otro origen no abre nada.
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'https://otro.com',
+          data: { type: EDITOR_MSG.focusSection, sectionId: 's-promo-popup' },
+        }),
+      );
+    });
+    expect(dialog().open).toBe(false);
+    await act(async () => {
+      screen.getByRole('button', { name: 'Ver el pop-up' }).click();
+    });
+    expect(dialog().open).toBe(true);
+  });
+
+  it('con newsletter muestra el formulario de suscripción', async () => {
+    render(ui(popup({ delaySeconds: 0, newsletter: true, couponCode: '' })));
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(screen.getByRole('button', { name: 'Suscribirme' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiar' })).not.toBeInTheDocument();
   });
 });

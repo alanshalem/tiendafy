@@ -105,6 +105,15 @@ export function MiniBlock({ wireframe }: { wireframe: SectionWireframe }) {
           </div>
         </div>
       );
+    case 'popup':
+      return (
+        <div className={`flex h-9 items-center justify-center ${base}`}>
+          <div className="flex h-7 w-12 flex-col items-center justify-center gap-1 rounded-[3px] bg-bg shadow-sm">
+            <span className="h-1 w-7 rounded bg-fg/25" />
+            <span className="h-2 w-5 rounded bg-primary/40" />
+          </div>
+        </div>
+      );
     case 'countdown':
       return (
         <div className="space-y-1">

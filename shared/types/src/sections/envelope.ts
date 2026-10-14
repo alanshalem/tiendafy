@@ -26,6 +26,7 @@ export const SECTION_TYPES = [
   'instagram',
   'countdown-offer',
   'featured-product',
+  'promo-popup',
 ] as const;
 
 export type SectionType = (typeof SECTION_TYPES)[number];

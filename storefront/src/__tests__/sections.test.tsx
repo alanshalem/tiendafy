@@ -118,6 +118,10 @@ const FULL: Record<SectionType, { data: Record<string, unknown>; shows?: string 
     data: { productId: products[1]!.id, badge: 'Elegido del mes', layout: 'image-right' },
     shows: 'Elegido del mes',
   },
+  // No se ve hasta que se abre (a los segundos): en la página no ocupa lugar.
+  'promo-popup': {
+    data: { title: 'Promo', couponCode: 'HOLA', newsletter: true, image: img(7), mobileImage: img(8) },
+  },
 };
 
 const TYPES = Object.keys(FULL) as SectionType[];

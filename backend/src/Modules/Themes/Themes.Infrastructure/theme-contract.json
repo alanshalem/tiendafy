@@ -441,6 +441,65 @@
           ]
         }
       }
+    },
+    "promo-popup": {
+      "label": "Pop-up promocional",
+      "fields": {
+        "image": {
+          "kind": "media"
+        },
+        "mobileImage": {
+          "kind": "media"
+        },
+        "title": {
+          "kind": "string",
+          "max": 200
+        },
+        "text": {
+          "kind": "text",
+          "max": 2000
+        },
+        "couponCode": {
+          "kind": "string",
+          "max": 40
+        },
+        "buttonText": {
+          "kind": "string",
+          "max": 200
+        },
+        "link": {
+          "kind": "url"
+        },
+        "newsletter": {
+          "kind": "boolean"
+        },
+        "trigger": {
+          "kind": "enum",
+          "values": [
+            "delay",
+            "exit",
+            "both"
+          ]
+        },
+        "delaySeconds": {
+          "kind": "number",
+          "min": 0,
+          "max": 120
+        },
+        "frequency": {
+          "kind": "enum",
+          "values": [
+            "once",
+            "session",
+            "days"
+          ]
+        },
+        "frequencyDays": {
+          "kind": "number",
+          "min": 1,
+          "max": 365
+        }
+      }
     }
   },
   "defaultConfig": {

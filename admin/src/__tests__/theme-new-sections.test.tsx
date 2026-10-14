@@ -5,6 +5,7 @@
  * tienda, y el registro tolera datos rotos.
  */
 import {
+  canAddSection,
   createSection,
   normalizeSection,
   sectionData,
@@ -145,5 +146,48 @@ describe('producto destacado', () => {
     await user.selectOptions(screen.getByLabelText('Botón'), 'link');
     await user.click(screen.getByLabelText('Mostrar un resumen de la descripción'));
     expect(latest).toMatchObject({ layout: 'image-right', button: 'link', showDescription: false });
+  });
+});
+
+describe('pop-up promocional', () => {
+  it('una sola por página', () => {
+    const one = [createSection('promo-popup')];
+    expect(canAddSection(one, 'promo-popup')).toBe(false);
+    expect(canAddSection([], 'promo-popup')).toBe(true);
+  });
+
+  it('cupón en mayúsculas, segundos y días con rango, y campos que aparecen según lo elegido', async () => {
+    const { user } = await open('promo-popup', createSection('promo-popup').data);
+    const coupon = screen.getByLabelText('Código de cupón (opcional)');
+    await user.clear(coupon);
+    await user.type(coupon, 'verano25');
+    expect(latest.couponCode).toBe('VERANO25');
+
+    fireEvent.change(screen.getByLabelText('Segundos de espera'), { target: { value: '500' } });
+    expect(latest.delaySeconds).toBe(120);
+
+    await user.selectOptions(screen.getByLabelText('Cuándo aparece'), 'exit');
+    expect(screen.queryByLabelText('Segundos de espera')).not.toBeInTheDocument();
+    expect(screen.getByText(/aparece solo en computadoras/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Volver a mostrarlo después de'), { target: { value: '30' } });
+    expect(latest.frequencyDays).toBe(30);
+    await user.selectOptions(screen.getByLabelText('Cada cuánto se muestra a la misma persona'), 'session');
+    expect(screen.queryByLabelText('Volver a mostrarlo después de')).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Pedir el email para el newsletter'));
+    expect(latest).toMatchObject({ trigger: 'exit', frequency: 'session', newsletter: true });
+  });
+
+  it('el campo numérico deja borrar para escribir otro número', async () => {
+    await open('promo-popup');
+    const input = screen.getByLabelText('Segundos de espera');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input).toHaveValue(null);
+    expect(latest.delaySeconds).toBeUndefined();
+    fireEvent.change(input, { target: { value: '12' } });
+    expect(latest.delaySeconds).toBe(12);
+    fireEvent.blur(input);
+    expect(input).toHaveValue(12);
   });
 });
