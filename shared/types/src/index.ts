@@ -50,7 +50,14 @@ export type {
   DensityStyle,
   ThemeConfig,
 } from './theme';
-export { DEFAULT_SECTIONS, baseTheme, normalizeTheme, sanitizeCss, PAYMENT_LOGOS } from './theme';
+export {
+  DEFAULT_SECTIONS,
+  baseTheme,
+  normalizeTheme,
+  sanitizeCss,
+  PAYMENT_LOGOS,
+  heroUnderHeader,
+} from './theme';
 export * from './sections';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
 export { EDITOR_MSG } from './editor-messages';

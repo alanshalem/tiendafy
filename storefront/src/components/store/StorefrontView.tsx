@@ -12,6 +12,7 @@ import { EditableRegion } from './EditableRegion';
 import { Analytics } from './Analytics';
 import { TrackingTags } from './TrackingTags';
 import { WhatsAppFab } from './WhatsAppFab';
+import { ComingSoon } from './ComingSoon';
 import { ADMIN_ORIGIN, PreviewContext, LiveThemeContext } from './preview';
 import { mergeTheme, themeToStyle, type ThemeConfig } from '@/lib/theme';
 import { fetchSectionProductsClient } from '@/lib/catalog-client';
@@ -88,7 +89,11 @@ function Inner({
       <EditableRegion target="footer" label="el pie de página">
         <Footer theme={theme} tenantName={tenantName} />
       </EditableRegion>
-      <CartDrawer cart={theme.cart} suggested={theme.cart.showSuggested ? products.slice(0, 3) : []} />
+      <CartDrawer
+        cart={theme.cart}
+        suggested={theme.cart.showSuggested ? products.slice(0, 3) : []}
+        sample={products[0]}
+      />
     </div>
   );
 }
@@ -103,6 +108,9 @@ export function StorefrontView({
   children,
 }: StorefrontViewProps) {
   const [theme, setTheme] = useState<ThemeConfig>(initialTheme);
+  // Vista previa del editor con el panel "Tienda en construcción" abierto: se
+  // ve la página que verían los visitantes, no la tienda.
+  const [comingSoon, setComingSoon] = useState(false);
   // Lo resuelto de cada sección de productos, por plan (origen + límite).
   const [resolved, setResolved] = useState<SectionProductsMap>(initialSectionProducts ?? {});
   // Planes ya pedidos (o que vinieron del servidor): cada uno se pide una vez.
@@ -116,6 +124,10 @@ export function StorefrontView({
       if (e.origin !== ADMIN_ORIGIN) return;
       // mergeTheme: el editor puede postear un draft viejo sin campos nuevos.
       if (e.data?.type === EDITOR_MSG.theme && e.data.theme) setTheme(mergeTheme(e.data.theme));
+      if (e.data?.type === EDITOR_MSG.previewComingSoon) {
+        setComingSoon(e.data.show === true);
+        window.scrollTo({ top: 0 });
+      }
       // Al abrir un panel, el editor pide enfocar su sección: scroll + flash.
       if (e.data?.type === EDITOR_MSG.focusSection) {
         const key = e.data.sectionId ? `section:${e.data.sectionId}` : e.data.target;
@@ -196,22 +208,38 @@ export function StorefrontView({
                 <FavoritesProvider storeKey={tenantId}>
                   <CartProvider storeKey={tenantId}>
                     <SectionProductsContext.Provider value={bySection}>
-                      <Inner tenantName={tenantName} theme={theme} products={products}>
-                        {children}
-                      </Inner>
+                      {comingSoon ? (
+                        <>
+                          <ComingSoon theme={theme} tenantName={tenantName} tenantId={tenantId} />
+                          {/* Que no se confunda con "ya está activa". */}
+                          <div className="fixed left-1/2 top-3 z-[80] -translate-x-1/2 rounded-full bg-black/75 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
+                            {theme.comingSoon.enabled
+                              ? 'Activada: al publicar, tus visitantes ven esta página'
+                              : 'Apagada: tus visitantes siguen viendo la tienda'}
+                          </div>
+                        </>
+                      ) : (
+                        <Inner tenantName={tenantName} theme={theme} products={products}>
+                          {children}
+                        </Inner>
+                      )}
                     </SectionProductsContext.Provider>
                   </CartProvider>
                 </FavoritesProvider>
               </AuthProvider>
             </LiveThemeContext.Provider>
           </PreviewContext.Provider>
-          {theme.whatsappButton?.enabled && theme.whatsappButton.phone && (
+          {/* En la vista previa aparece aunque falte el número: así se ve dónde
+              va y cómo queda mientras se completa el panel. */}
+          {theme.whatsappButton?.enabled && (theme.whatsappButton.phone || live) && !comingSoon && (
             <WhatsAppFab
               phone={theme.whatsappButton.phone}
               message={theme.whatsappButton.message}
               storeName={tenantName}
               logo={theme.logo}
               showPreview={theme.whatsappButton.showPreview !== false}
+              position={theme.whatsappButton.position}
+              label={theme.whatsappButton.label}
             />
           )}
         </CashDiscountContext.Provider>

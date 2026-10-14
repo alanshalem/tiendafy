@@ -67,12 +67,21 @@ export interface ThemeHeader {
   showTabsMobile: boolean;
   /** Disposición de logo + menú + íconos. */
   layout: 'classic' | 'logo-center' | 'menu-left' | 'menu-right';
-  /** Color del texto del menú en "R G B". Vacío = automático (blanco). */
+  /** Color del texto del menú en "R G B". Vacío = automático (el que se lee sobre el fondo). */
   textColor: string;
-  /** Transparente sobre el hero del inicio; sólido al scrollear. */
+  /**
+   * Transparente sobre la foto de portada del inicio; sólido al scrollear.
+   * Solo se nota si el inicio arranca con una foto o un video (ver
+   * `heroUnderHeader`): sobre un fondo liso no habría con qué contrastar.
+   */
   transparentOnHome: boolean;
   /** Nivel de transparencia del header en el inicio. */
   transparentLevel: 'full' | 'light' | 'medium';
+  /**
+   * Logo para cuando el encabezado está transparente sobre la foto (suele ser
+   * la versión en blanco). Vacío = el logo de siempre.
+   */
+  transparentLogo: string;
   showSearch: boolean;
   showCart: boolean;
   cartStyle: 'icon' | 'text';
@@ -185,13 +194,17 @@ export interface ContactConfig {
   email: string;
   whatsapp: string;
 }
-/** Botón flotante de WhatsApp (abajo a la derecha del storefront). */
+/** Botón flotante de WhatsApp (abajo, a la derecha o a la izquierda del storefront). */
 interface WhatsAppButtonConfig {
   enabled: boolean;
   phone: string;
   message: string;
   /** Al pasar el mouse, muestra un mini-preview estilo chat de WhatsApp del mensaje. */
   showPreview: boolean;
+  /** Esquina de abajo donde va. La izquierda deja libre la derecha (otro chat, el carrito…). */
+  position: 'right' | 'left';
+  /** Texto al lado del ícono ("¿Te ayudamos?"). Vacío = solo el ícono. */
+  label: string;
 }
 /** Un link propio del pie (Envíos, Mayoristas, un catálogo en PDF…). */
 export interface FooterLink {
@@ -201,6 +214,14 @@ export interface FooterLink {
 }
 
 export interface FooterConfig {
+  /**
+   * 'centered': todo apilado al centro (el de siempre). 'columns': en columnas
+   * en la compu (marca y redes · links · contacto · novedades), como las
+   * tiendas grandes; en el celular se apila igual.
+   */
+  layout: 'centered' | 'columns';
+  /** Color de fondo del pie en "R G B". Vacío = el fondo de la tienda. El texto se ajusta solo. */
+  bg: string;
   /** Links propios del comercio, en el orden en que se cargaron. */
   links: FooterLink[];
   tiktok: string;
@@ -351,6 +372,7 @@ export const baseTheme: ThemeConfig = {
     textColor: '',
     transparentOnHome: false,
     transparentLevel: 'full',
+    transparentLogo: '',
     showSearch: false,
     showCart: true,
     cartStyle: 'icon',
@@ -410,6 +432,8 @@ export const baseTheme: ThemeConfig = {
   },
   contact: { showForm: true, address: '', phone: '', email: '', whatsapp: '' },
   footer: {
+    layout: 'centered',
+    bg: '',
     links: [],
     text: '',
     showSocial: true,
@@ -428,9 +452,35 @@ export const baseTheme: ThemeConfig = {
     phones: [],
     emails: [],
   },
-  whatsappButton: { enabled: false, phone: '', message: '¡Hola! Tengo una consulta.', showPreview: true },
+  whatsappButton: {
+    enabled: false,
+    phone: '',
+    message: '¡Hola! Tengo una consulta.',
+    showPreview: true,
+    position: 'right',
+    label: '',
+  },
   customCss: '',
 };
+
+/** "R G B" con cada canal de 0 a 255, o vacío (= automático). Cualquier otra cosa, vacío. */
+const rgbOrEmpty = (v: unknown): string =>
+  typeof v === 'string' && /^\s*\d{1,3}\s+\d{1,3}\s+\d{1,3}\s*$/.test(v) ? v.trim() : '';
+
+/**
+ * ¿El inicio arranca con una foto o un video a todo el ancho? Es lo único sobre
+ * lo que un encabezado transparente se lee: sobre el fondo liso de la tienda
+ * (o sobre una grilla de productos) el menú blanco desaparecía. Una sección
+ * escondida en un dispositivo no cuenta: en ese dispositivo arrancaría con otra.
+ */
+export function heroUnderHeader(sections: ThemeSection[]): boolean {
+  const first = sections.find((s) => s.visible && s.type !== 'promo-popup');
+  if (!first || first.hideOn) return false;
+  if (first.type === 'hero-video') return true;
+  if (first.type !== 'carousel') return false;
+  const slides = (first.data as { slides?: { image?: unknown }[] }).slides;
+  return Array.isArray(slides) && slides.some((s) => typeof s?.image === 'string' && !!s.image);
+}
 
 /**
  * Saneo del CSS custom del merchant — espejo del SanitizeCss del backend.
@@ -591,6 +641,11 @@ export function normalizeTheme(
       // El menú puede venir de una config guardada antes de que existiera, o
       // con el formato viejo ({ id, visible }): se migra acá.
       menu: normalizeMenu(raw.header?.menu),
+      textColor: rgbOrEmpty(raw.header?.textColor),
+      transparentLogo:
+        typeof raw.header?.transparentLogo === 'string'
+          ? raw.header.transparentLogo
+          : baseTheme.header.transparentLogo,
     },
     announcement: normalizeAnnouncement(raw.announcement),
     comingSoon: {
@@ -610,6 +665,9 @@ export function normalizeTheme(
     footer: {
       ...baseTheme.footer,
       ...raw.footer,
+      // Temas guardados antes de que existieran: el pie centrado de siempre.
+      layout: raw.footer?.layout === 'columns' ? 'columns' : 'centered',
+      bg: rgbOrEmpty(raw.footer?.bg),
       links: normalizeFooterLinks(raw.footer?.links),
       paymentLogos: Array.isArray(raw.footer?.paymentLogos)
         ? raw.footer!.paymentLogos.filter((s) => PAYMENT_LOGO_SLUGS.includes(s))
@@ -619,7 +677,15 @@ export function normalizeTheme(
       phones: Array.isArray(raw.footer?.phones) ? raw.footer!.phones : baseTheme.footer.phones,
       emails: Array.isArray(raw.footer?.emails) ? raw.footer!.emails : baseTheme.footer.emails,
     },
-    whatsappButton: { ...baseTheme.whatsappButton, ...raw.whatsappButton },
+    whatsappButton: {
+      ...baseTheme.whatsappButton,
+      ...raw.whatsappButton,
+      position: raw.whatsappButton?.position === 'left' ? 'left' : 'right',
+      label:
+        typeof raw.whatsappButton?.label === 'string'
+          ? raw.whatsappButton.label
+          : baseTheme.whatsappButton.label,
+    },
     customCss: typeof raw.customCss === 'string' ? raw.customCss : baseTheme.customCss,
   };
 }

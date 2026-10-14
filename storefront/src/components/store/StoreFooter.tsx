@@ -7,29 +7,145 @@ import { usePublishedPages } from './PagesNav';
 import { usePreviewHref } from './preview';
 import { NewsletterForm } from './NewsletterForm';
 import { StoreLink } from './StoreLink';
-import { safeHref } from '@tiendafy/types';
+import { contrastText, mixRgb, safeHref } from '@tiendafy/types';
 
-export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
-  const footer = theme.footer;
-  const pages = usePublishedPages();
-  const href = usePreviewHref();
-  // Cada red es opcional: se dibuja la que tenga un link válido, en el orden de
-  // siempre. safeHref completa "instagram.com/x" con https:// (antes quedaba
-  // como link relativo roto) y descarta lo que no es un link.
-  const socials = [
+type FooterConfig = ThemeConfig['footer'];
+
+/**
+ * Las redes con un link válido, en el orden de siempre. safeHref completa
+ * "instagram.com/x" con https:// (antes quedaba como link relativo roto) y
+ * descarta lo que no es un link.
+ */
+function footerSocials(footer: FooterConfig) {
+  return [
     { url: safeHref(footer.instagram), label: 'Instagram', icon: <InstagramIcon /> },
     { url: safeHref(footer.facebook), label: 'Facebook', icon: <FacebookIcon /> },
     { url: safeHref(footer.tiktok), label: 'TikTok', icon: <TikTokIcon /> },
     { url: safeHref(footer.youtube), label: 'YouTube', icon: <YouTubeIcon /> },
     { url: safeHref(footer.x), label: 'X', icon: <XIcon /> },
   ].filter((s) => !!s.url);
+}
+
+/**
+ * Pie con color propio: el texto se elige solo (el que se lee) y las
+ * variables de color se redefinen adentro, así lo secundario (legales, "©")
+ * también se lee sobre ese fondo y no hay que tocar cada pieza.
+ */
+function footerColors(bg: string): React.CSSProperties | undefined {
+  if (!bg) return undefined;
+  const fg = contrastText(bg);
+  return {
+    background: `rgb(${bg})`,
+    color: `rgb(${fg})`,
+    ['--color-fg' as string]: fg,
+    ['--color-fg-muted' as string]: mixRgb(fg, bg, 0.3),
+  };
+}
+
+/** Cuántas columnas en la compu según cuántas hay (clases literales para Tailwind). */
+const COLS = ['', 'lg:grid-cols-1', 'lg:grid-cols-2', 'lg:grid-cols-3', 'lg:grid-cols-4'];
+
+export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: string }) {
+  const footer = theme.footer;
+  const pages = usePublishedPages();
+  const href = usePreviewHref();
+  const socials = footer.showSocial ? footerSocials(footer) : [];
   // Links propios del comercio: solo los que tienen nombre y un destino válido.
   const links = (footer.links ?? []).filter((l) => l.label.trim() && safeHref(l.href));
+  const shownPages = footer.showPages ? pages : [];
+  const hasContacts = [...footer.whatsapps, ...footer.addresses, ...footer.phones, ...footer.emails].some(
+    Boolean,
+  );
+  const style = footerColors(footer.bg);
+  const frame = `mt-8 ${style ? '' : 'border-t border-black/10'}`;
+
+  if (footer.layout === 'columns') {
+    const navigation = [
+      ...links.map((l, i) => (
+        <StoreLink key={`l${i}`} href={l.href} newTab={l.newTab} className="hover:underline">
+          {l.label}
+        </StoreLink>
+      )),
+      ...shownPages.map((p) => (
+        <Link key={p.id} href={href(`/paginas/${p.slug}`)} className="hover:underline">
+          {p.title}
+        </Link>
+      )),
+    ];
+    const columns = [
+      navigation.length > 0 && (
+        <FooterColumn key="nav" title="Información">
+          <ul className="space-y-1 text-sm">
+            {navigation.map((n, i) => (
+              // py-1.5: alto cómodo para el dedo en el celular.
+              <li key={i} className="py-1.5 opacity-80 hover:opacity-100">
+                {n}
+              </li>
+            ))}
+          </ul>
+        </FooterColumn>
+      ),
+      hasContacts && (
+        <FooterColumn key="contact" title="Contacto">
+          <FooterContacts footer={footer} vertical />
+        </FooterColumn>
+      ),
+      footer.showNewsletter && (
+        <FooterColumn key="news" title={footer.newsletterTitle || 'Recibí novedades'}>
+          <NewsletterForm source="footer" compact />
+        </FooterColumn>
+      ),
+    ].filter(Boolean);
+    return (
+      <footer className={frame} style={style}>
+        <div className="mx-auto max-w-container px-4 py-12">
+          <div className={`grid gap-10 sm:grid-cols-2 ${COLS[columns.length + 1] ?? COLS[4]}`}>
+            <div className="max-w-xs">
+              {theme.logo ? (
+                <img src={theme.logo} alt={tenantName} className="h-10 w-auto max-w-[12rem] object-contain" />
+              ) : (
+                <div className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+                  {tenantName}
+                </div>
+              )}
+              {footer.text && <p className="mt-3 text-sm opacity-75">{footer.text}</p>}
+              {socials.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {socials.map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={s.label}
+                      title={s.label}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-current/10 transition hover:bg-current/20"
+                    >
+                      {s.icon}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            {columns}
+          </div>
+          <div className="mt-10 flex flex-col gap-4 border-t border-current/10 pt-6 md:flex-row md:items-center md:justify-between">
+            <PaymentLogos footer={footer} className="justify-start" />
+            <div className="flex flex-wrap items-center gap-x-4 text-xs text-fg-muted">
+              <LegalLinks />
+              <span className="py-2">© {tenantName}</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
-    <footer className="mt-8 border-t border-black/10">
+    <footer className={frame} style={style}>
       <div className="mx-auto max-w-container px-4 py-10">
         {footer.text && <p className="mx-auto max-w-xl text-center text-sm opacity-70">{footer.text}</p>}
-        {footer.showSocial && socials.length > 0 && (
+        {socials.length > 0 && (
           <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm">
             {socials.map((s) => (
               <a
@@ -66,9 +182,9 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
 
         {/* Las páginas que escribió el comercio (cómo comprar, preguntas, envíos):
             estaban solo en el menú de arriba, donde compiten por lugar. */}
-        {footer.showPages && pages.length > 0 && (
+        {shownPages.length > 0 && (
           <div className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm opacity-75">
-            {pages.map((p) => (
+            {shownPages.map((p) => (
               <Link
                 key={p.id}
                 href={href(`/paginas/${p.slug}`)}
@@ -88,79 +204,114 @@ export function Footer({ theme, tenantName }: { theme: ThemeConfig; tenantName: 
             </div>
           </div>
         )}
-        {[...footer.whatsapps, ...footer.addresses, ...footer.phones, ...footer.emails].some(Boolean) && (
-          <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm opacity-75">
-            {footer.whatsapps.filter(Boolean).map((w, i) => (
-              <a
-                key={`w${i}`}
-                href={`https://wa.me/${w.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 hover:opacity-100"
-              >
-                <Icon name="chat" className="h-4 w-4" /> {w}
-              </a>
-            ))}
-            {footer.phones.filter(Boolean).map((p, i) => (
-              <a
-                key={`p${i}`}
-                href={`tel:${p.replace(/\s/g, '')}`}
-                className="inline-flex items-center gap-1.5 hover:opacity-100"
-              >
-                <Icon name="phone" className="h-4 w-4" /> {p}
-              </a>
-            ))}
-            {footer.emails.filter(Boolean).map((e, i) => (
-              <a
-                key={`e${i}`}
-                href={`mailto:${e}`}
-                className="inline-flex items-center gap-1.5 hover:opacity-100"
-              >
-                <Icon name="mail" className="h-4 w-4" /> {e}
-              </a>
-            ))}
-            {footer.addresses.filter(Boolean).map((a, i) => (
-              <span key={`a${i}`} className="inline-flex items-center gap-1.5">
-                <Icon name="mapPin" className="h-4 w-4" /> {a}
-              </span>
-            ))}
+        {hasContacts && (
+          <div className="mt-5">
+            <FooterContacts footer={footer} />
           </div>
         )}
-        {footer.showPaymentLogos && footer.paymentLogos.length > 0 && (
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-            {footer.paymentLogos.map((slug) => (
-              // lazy: al pie, nunca a la vista al cargar. Sin esto React los
-              // precargaba desde el <head>, compitiendo con la foto de portada.
-              <img
-                key={slug}
-                src={`/payment-logos/${slug}.svg`}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"
-              />
-            ))}
-          </div>
-        )}
-        {/* Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res. 424/2020). */}
-        {/* py-2: con el texto de 12 px, el link solo medía 16 px de alto y en el
-            celular costaba acertarle con el dedo. */}
+        <PaymentLogos footer={footer} className="mt-5 justify-center" />
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 text-xs text-fg-muted">
-          <Link href="/terminos" className="inline-block py-2 hover:underline">
-            Términos y condiciones
-          </Link>
-          <span aria-hidden>·</span>
-          <Link href="/privacidad" className="inline-block py-2 hover:underline">
-            Privacidad
-          </Link>
-          <span aria-hidden>·</span>
-          <Link href="/arrepentimiento" className="inline-block py-2 font-semibold hover:underline">
-            Botón de arrepentimiento
-          </Link>
+          <LegalLinks />
         </div>
         <div className="mt-3 text-center text-xs text-fg-muted">© {tenantName}</div>
       </div>
     </footer>
+  );
+}
+
+/** Una columna del pie en columnas: título y contenido. */
+function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+/** WhatsApp, teléfono y email como links; la dirección como texto. */
+function FooterContacts({ footer, vertical = false }: { footer: FooterConfig; vertical?: boolean }) {
+  const item = 'inline-flex items-center gap-1.5 hover:opacity-100';
+  return (
+    <div
+      className={
+        vertical
+          ? 'flex flex-col items-start gap-2.5 text-sm opacity-80'
+          : 'flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm opacity-75'
+      }
+    >
+      {footer.whatsapps.filter(Boolean).map((w, i) => (
+        <a
+          key={`w${i}`}
+          href={`https://wa.me/${w.replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+          className={item}
+        >
+          <Icon name="chat" className="h-4 w-4 shrink-0" /> {w}
+        </a>
+      ))}
+      {footer.phones.filter(Boolean).map((p, i) => (
+        <a key={`p${i}`} href={`tel:${p.replace(/\s/g, '')}`} className={item}>
+          <Icon name="phone" className="h-4 w-4 shrink-0" /> {p}
+        </a>
+      ))}
+      {footer.emails.filter(Boolean).map((e, i) => (
+        <a key={`e${i}`} href={`mailto:${e}`} className={item}>
+          <Icon name="mail" className="h-4 w-4 shrink-0" /> {e}
+        </a>
+      ))}
+      {footer.addresses.filter(Boolean).map((a, i) => (
+        <span key={`a${i}`} className="inline-flex items-center gap-1.5">
+          <Icon name="mapPin" className="h-4 w-4 shrink-0" /> {a}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PaymentLogos({ footer, className }: { footer: FooterConfig; className: string }) {
+  if (!footer.showPaymentLogos || footer.paymentLogos.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap items-center gap-2.5 ${className}`}>
+      {footer.paymentLogos.map((slug) => (
+        // lazy: al pie, nunca a la vista al cargar. Sin esto React los
+        // precargaba desde el <head>, compitiendo con la foto de portada.
+        <img
+          key={slug}
+          src={`/payment-logos/${slug}.svg`}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-7 w-auto rounded border border-black/10 bg-white object-contain px-1.5 py-1"
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Links legales fijos: el Botón de Arrepentimiento es obligatorio (Res.
+ * 424/2020). py-2: con el texto de 12 px, el link solo medía 16 px de alto y
+ * en el celular costaba acertarle con el dedo.
+ */
+function LegalLinks() {
+  return (
+    <>
+      <Link href="/terminos" className="inline-block py-2 hover:underline">
+        Términos y condiciones
+      </Link>
+      <span aria-hidden>·</span>
+      <Link href="/privacidad" className="inline-block py-2 hover:underline">
+        Privacidad
+      </Link>
+      <span aria-hidden>·</span>
+      <Link href="/arrepentimiento" className="inline-block py-2 font-semibold hover:underline">
+        Botón de arrepentimiento
+      </Link>
+    </>
   );
 }
 

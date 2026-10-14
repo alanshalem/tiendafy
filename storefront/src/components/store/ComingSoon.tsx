@@ -1,3 +1,4 @@
+import { safeHref } from '@tiendafy/types';
 import { primaryInk, type ThemeConfig } from '@/lib/theme';
 import { NewsletterForm } from './NewsletterForm';
 
@@ -58,13 +59,15 @@ export function ComingSoon({
   const pill = theme.borderRadius === 'sharp' ? '' : 'rounded-full';
 
   const telefono = whatsapp || theme.footer.whatsapps[0] || theme.contact.whatsapp;
+  // safeHref, como en el pie: "instagram.com/x" sin https:// quedaba como un
+  // link relativo a la propia tienda (que lleva a "no encontrada").
   const redes = [
-    { href: theme.footer.instagram, label: 'Instagram' },
-    { href: theme.footer.facebook, label: 'Facebook' },
-    { href: theme.footer.tiktok, label: 'TikTok' },
-    { href: theme.footer.youtube, label: 'YouTube' },
-    { href: theme.footer.x, label: 'X' },
-  ].filter((r) => r.href);
+    { href: safeHref(theme.footer.instagram), label: 'Instagram' },
+    { href: safeHref(theme.footer.facebook), label: 'Facebook' },
+    { href: safeHref(theme.footer.tiktok), label: 'TikTok' },
+    { href: safeHref(theme.footer.youtube), label: 'YouTube' },
+    { href: safeHref(theme.footer.x), label: 'X' },
+  ].filter((r): r is { href: string; label: string } => !!r.href);
 
   const contenido = (
     <div className="relative z-10 max-w-lg">
