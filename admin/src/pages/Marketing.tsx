@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Copy, Loader2, Mail, Megaphone, Pencil, Plus, Trash2, XCircle } from 'lucide-react';
 import { Badge, Button, Modal, PageHeader, useConfirm, useToast, type BadgeVariant } from '@tiendafy/ui';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { api, errMsg } from '../lib/api';
+import { lazyComponent } from '../lib/lazyPage';
 import { useStore } from '../context/StoreContext';
 import { NotificationUsage } from '../components/NotificationUsage';
 import { StatusLegend } from '../components/StatusLegend';
@@ -15,7 +16,7 @@ import { usePageParam } from '../lib/useListParams';
 
 // El editor de campañas trae el editor de texto enriquecido (Tiptap, ~400 KB):
 // se baja recién al crear o editar una campaña, no al mirar el listado.
-const CampaignModal = lazy(() => import('./CampaignModal').then((m) => ({ default: m.CampaignModal })));
+const CampaignModal = lazyComponent(() => import('./CampaignModal').then((m) => m.CampaignModal));
 
 interface CampaignDetail {
   campaign: Campaign;

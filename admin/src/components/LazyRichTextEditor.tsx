@@ -1,11 +1,12 @@
-import { lazy, Suspense, type ComponentProps } from 'react';
+import { Suspense, type ComponentProps } from 'react';
+import { lazyComponent } from '../lib/lazyPage';
 import { Bone } from './Skeleton';
 
 // Tiptap y sus extensiones pesan ~400 KB (130 KB comprimido): más que casi
 // cualquier pantalla del panel. Importado de forma estática, viaja con la
 // pantalla que lo usa aunque el editor esté dentro de un modal que nunca se
 // abre. Así se baja recién cuando se dibuja.
-const RichTextEditor = lazy(() => import('./RichTextEditor').then((m) => ({ default: m.RichTextEditor })));
+const RichTextEditor = lazyComponent(() => import('./RichTextEditor').then((m) => m.RichTextEditor));
 
 /**
  * El editor de texto enriquecido, cargado a demanda. Mismas props que

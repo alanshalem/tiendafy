@@ -16,9 +16,26 @@ export function lazyPage<M, K extends keyof M>(load: () => Promise<M>, name: K) 
 }
 
 /**
- * Baja todas las pantallas de una vez. Lo usan los tests, para que un import
- * lento no se confunda con una pantalla que no aparece.
+ * Una pieza pesada que no es una pantalla (un modal, el editor de texto) y
+ * se baja recién cuando se dibuja. Queda anotada igual que las pantallas, así
+ * los tests la bajan de antemano.
  */
-export function preloadPages() {
-  return Promise.all(loaders.map((load) => load()));
+export function lazyComponent<P extends object>(load: () => Promise<ComponentType<P>>) {
+  loaders.push(load);
+  return lazy(() => load().then((component) => ({ default: component })));
+}
+
+/**
+ * Baja todas las pantallas y piezas de una vez. Lo usan los tests, para que
+ * un import lento no se confunda con una pantalla que no aparece. Va en
+ * vueltas porque una pieza se anota recién cuando se baja la pantalla que la
+ * usa (el modal de campañas, al bajar Marketing).
+ */
+export async function preloadPages() {
+  let done = 0;
+  while (done < loaders.length) {
+    const pending = loaders.slice(done);
+    done = loaders.length;
+    await Promise.all(pending.map((load) => load()));
+  }
 }
