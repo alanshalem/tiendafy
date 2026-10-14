@@ -350,11 +350,11 @@ describe('listado y detalle de producto', () => {
 
   it('productos por fila en el celular: 2 o 1', async () => {
     const user = await show((t, u) => <ProductListPanel theme={t} updateTheme={u} onBack={() => {}} />);
-    const mobile = screen.getByRole('combobox', { name: 'Productos por fila en el celular' });
-    expect(mobile).toHaveValue('2');
-    await user.selectOptions(mobile, '1');
+    const mobile = within(screen.getByRole('radiogroup', { name: 'Productos por fila en el celular' }));
+    expect(mobile.getByRole('radio', { name: '2 por fila' })).toBeChecked();
+    await user.click(mobile.getByRole('radio', { name: '1 por fila (foto grande)' }));
     expect(current.productList.mobileColumns).toBe(1);
-    await user.selectOptions(mobile, '2');
+    await user.click(mobile.getByRole('radio', { name: '2 por fila' }));
     expect(current.productList.mobileColumns).toBe(2);
   });
 });

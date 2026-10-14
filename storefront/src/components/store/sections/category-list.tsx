@@ -7,7 +7,7 @@ import { categoryHref } from '@/lib/category-url';
 import { findCategoryNode, useCategoryTree, type CatNode } from '../CategoryMenu';
 import { InitialFallback } from '../InitialFallback';
 import { usePreviewHref } from '../preview';
-import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { RailArrows, SectionTitle, usePreviewPlaceholders, useRail } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { SectionButton } from './section-button';
@@ -90,6 +90,8 @@ export function CategoryTile({
 export function CategoryListSection({ data }: SectionRenderProps<'category-list'>) {
   const preview = usePreviewPlaceholders();
   const tree = useCategoryTree();
+  const rail = useRail<HTMLUListElement>([data.layout, data.columnsDesktop, data.columnsMobile]);
+  const { ref: railRef, edge, measure, page } = rail;
 
   const tiles: Tile[] =
     data.mode === 'auto'
@@ -128,20 +130,25 @@ export function CategoryListSection({ data }: SectionRenderProps<'category-list'
       {data.title && <SectionTitle className="mb-6 text-2xl font-bold">{data.title}</SectionTitle>}
       {data.layout === 'carousel' ? (
         // Se ve un pedazo de la siguiente: así se entiende que se desliza.
-        <ul
-          className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:thin]"
-          style={{ '--cm': m + 0.35, '--cd': d + 0.35 } as CSSProperties}
-          aria-label={data.title || 'Categorías'}
-        >
-          {tiles.map((t) => (
-            <li
-              key={t.key}
-              className="w-[calc((100%-1rem*(var(--cm)-1))/var(--cm))] shrink-0 snap-start md:w-[calc((100%-1rem*(var(--cd)-1))/var(--cd))]"
-            >
-              {tile(t)}
-            </li>
-          ))}
-        </ul>
+        <div className="relative">
+          <ul
+            ref={railRef}
+            onScroll={measure}
+            className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:thin]"
+            style={{ '--cm': m + 0.35, '--cd': d + 0.35 } as CSSProperties}
+            aria-label={data.title || 'Categorías'}
+          >
+            {tiles.map((t) => (
+              <li
+                key={t.key}
+                className="w-[calc((100%-1rem*(var(--cm)-1))/var(--cm))] shrink-0 snap-start md:w-[calc((100%-1rem*(var(--cd)-1))/var(--cd))]"
+              >
+                {tile(t)}
+              </li>
+            ))}
+          </ul>
+          {tiles.length > data.columnsDesktop && <RailArrows edge={edge} page={page} top="top-[40%]" />}
+        </div>
       ) : (
         <ul
           className={cn('grid gap-x-4 gap-y-6', MOBILE_COLS[m], TABLET_COLS[Math.min(d, 4)], DESKTOP_COLS[d])}

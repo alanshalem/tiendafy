@@ -145,7 +145,7 @@ export function BannerGrid<B extends GridBanner>({
                     className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
                   />
                 ) : (
-                  <ImagePlaceholder />
+                  <ImagePlaceholder chip={text ? (v === 'top' ? 'bottom' : 'top') : undefined} />
                 )}
                 {text && scrim.cover && <div className={cn('absolute inset-0', scrim.cover)} />}
               </div>

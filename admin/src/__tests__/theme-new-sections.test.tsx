@@ -15,6 +15,7 @@ import {
   type ThemeSection,
 } from '@tiendafy/types';
 import { fireEvent, screen } from '@testing-library/react';
+import { radio } from '../test/choice';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -143,7 +144,7 @@ describe('producto destacado', () => {
 
   it('elige el lado de la foto, el botón y si va la descripción', async () => {
     const { user } = await open('featured-product');
-    await user.selectOptions(screen.getByLabelText('Foto'), 'image-right');
+    await user.click(radio('Foto en computadora', 'A la derecha'));
     await user.selectOptions(screen.getByLabelText('Botón'), 'link');
     await user.click(screen.getByLabelText('Mostrar un resumen de la descripción'));
     expect(latest).toMatchObject({ layout: 'image-right', button: 'link', showDescription: false });
@@ -232,7 +233,7 @@ describe('texto con formato', () => {
 
   it('la imagen elige su lugar y el link del botón aparece con el texto', async () => {
     const { user } = await open('rich-text', { image: 'https://cdn.example.com/a.jpg' });
-    await user.selectOptions(screen.getByLabelText('Dónde va la imagen'), 'top');
+    await user.click(radio('Dónde va la imagen', 'Arriba del texto'));
     expect(latest.imagePosition).toBe('top');
     expect(screen.queryByText('A dónde lleva el botón')).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('Texto del botón (opcional)'), 'Leer más');
@@ -263,15 +264,18 @@ describe('categorías principales', () => {
 
   it('forma, columnas y «Ver todas»', async () => {
     const { user } = await open('category-list', createSection('category-list').data);
-    await user.selectOptions(screen.getByLabelText('Cómo se muestran'), 'carousel');
-    await user.selectOptions(screen.getByLabelText('Forma de la foto'), 'square');
-    await user.selectOptions(screen.getByLabelText('Por fila en celular'), '3');
-    fireEvent.change(screen.getByLabelText('Por fila en computadora'), { target: { value: '1' } });
+    await user.click(radio('Cómo se muestran', 'Carrusel (se deslizan)'));
+    await user.click(radio('Forma de la foto', 'Cuadrada'));
+    await user.click(radio('Por fila en celular', '2 por fila'));
+    // En computadora se ofrece de 2 a 8 (lo que acepta la sección), nada más.
+    const desktop = screen.getByRole('radiogroup', { name: 'Por fila en computadora' });
+    expect(desktop.querySelectorAll('input[type="radio"]')).toHaveLength(7);
+    await user.click(radio('Por fila en computadora', '8 por fila'));
     expect(latest).toMatchObject({
       layout: 'carousel',
       shape: 'square',
-      columnsMobile: 3,
-      columnsDesktop: 2,
+      columnsMobile: 2,
+      columnsDesktop: 8,
     });
     await user.click(screen.getByLabelText('Botón «Ver todas»'));
     expect(latest.showAll).toBe(false);
@@ -317,7 +321,7 @@ describe('video', () => {
     const { user } = await open('video', createSection('video').data);
     await user.type(screen.getByLabelText('Link del video'), 'https://youtube.com/shorts/dQw4w9WgXcQ');
     expect(screen.getByText(/Short de YouTube reconocido.*Es vertical/)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Proporción'), '9:16');
+    await user.click(radio('Proporción', 'Vertical, tipo reel (9:16)'));
     expect(screen.getByText(/Short de YouTube reconocido/)).not.toHaveTextContent('Es vertical');
   });
 
@@ -326,7 +330,7 @@ describe('video', () => {
     await user.selectOptions(screen.getByLabelText('De dónde sale el video'), 'file');
     expect(screen.queryByLabelText('Link del video')).not.toBeInTheDocument();
     await user.click(screen.getByLabelText('Reproducir solo, sin sonido y en loop'));
-    await user.selectOptions(screen.getByLabelText('Proporción'), '9:16');
+    await user.click(radio('Proporción', 'Vertical, tipo reel (9:16)'));
     expect(latest).toMatchObject({ source: 'file', autoplay: false, ratio: '9:16' });
   });
 });
@@ -344,9 +348,13 @@ describe('íconos con texto', () => {
     expect(items).toHaveLength(4);
     expect(items[3]).toMatchObject({ icon: 'heart', title: 'Hecho a mano' });
 
-    fireEvent.change(screen.getByLabelText('Columnas en computadora'), { target: { value: '9' } });
+    // Solo se ofrece lo que existe (de 2 a 6 por fila).
+    expect(
+      screen.getAllByRole('radio', { name: /por fila$/ }).map((r) => r.getAttribute('aria-label')),
+    ).toEqual(['2 por fila', '3 por fila', '4 por fila', '5 por fila', '6 por fila']);
+    await user.click(radio('Por fila en computadora', '6 por fila'));
     expect(latest.columnsDesktop).toBe(6);
-    await user.selectOptions(screen.getByLabelText('En celular'), 'swipe');
+    await user.click(radio('En celular', 'Deslizando de costado'));
     expect(latest.mobile).toBe('swipe');
   });
 
@@ -388,8 +396,8 @@ describe('collage', () => {
     await user.selectOptions(screen.getByLabelText('Categoría'), 'Musculación');
     expect((latest.blocks as { categoryId: string }[])[2]!.categoryId).not.toBe('');
 
-    await user.selectOptions(screen.getByLabelText('El bloque grande va'), 'big-right');
-    await user.selectOptions(screen.getByLabelText('En celular'), 'swipe');
+    await user.click(radio('El bloque grande va', 'A la derecha'));
+    await user.click(radio('En celular', 'Deslizando de costado'));
     expect(latest).toMatchObject({ layout: 'big-right', mobile: 'swipe' });
   });
 

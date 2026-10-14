@@ -76,7 +76,12 @@ export function IconColumnsSection({ data }: SectionRenderProps<'icon-columns'>)
   const swipe = data.mobile === 'swipe';
   return (
     <section className="mx-auto max-w-container px-4 py-12">
-      {data.title && <SectionTitle className="mb-8 text-2xl font-bold">{data.title}</SectionTitle>}
+      {/* El título acompaña a las columnas: centradas (como vienen), centrado. */}
+      {data.title && (
+        <SectionTitle className={cn('mb-8 text-2xl font-bold', center && 'text-center')}>
+          {data.title}
+        </SectionTitle>
+      )}
       <ul
         className={cn(
           swipe
@@ -87,7 +92,15 @@ export function IconColumnsSection({ data }: SectionRenderProps<'icon-columns'>)
         )}
       >
         {items.map((it, i) => (
-          <li key={i} className={cn(swipe && 'w-[78%] shrink-0 snap-start md:w-auto')}>
+          // Deslizando, cada columna va en una tarjeta: con el contenido
+          // centrado, la siguiente asomaba vacía y no se notaba que había más.
+          <li
+            key={i}
+            className={cn(
+              swipe &&
+                'w-[72%] shrink-0 snap-start rounded-lg bg-fg/[0.04] p-5 md:w-auto md:bg-transparent md:p-0',
+            )}
+          >
             <Column item={it} center={center} />
           </li>
         ))}

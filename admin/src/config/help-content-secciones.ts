@@ -136,19 +136,26 @@ export const SECCIONES = {
         heading: 'Lo que tienen todas',
         paragraphs: [
           'Cada sección tiene un “Nombre de la sección” que solo ves vos, para reconocerla en la lista, y abajo de todo un bloque plegable “Diseño de la sección” con las mismas opciones para todas.',
+          'Las opciones que se ven (la forma de una imagen, de qué lado va, cuántas por fila, grilla o carrusel) se eligen tocando un dibujito de cada una, así comparás de un vistazo antes de elegir.',
         ],
         blocks: [
           {
             type: 'table',
             headers: ['Opción de “Diseño de la sección”', 'Qué elegís'],
             rows: [
-              ['Mostrar en', 'Celulares y computadoras, Solo en celulares o Solo en computadoras.'],
-              ['Fondo', 'Sin fondo, Gris suave, Color de la marca tenue, u Otro color que elegís vos.'],
+              ['Mostrar en', 'Todos (celulares y computadoras), Celular o Computadora.'],
+              [
+                'Fondo',
+                'Ninguno, Gris (suave), Marca (el color de tu marca, tenue) u Otro color que elegís vos.',
+              ],
               [
                 'Espacio arriba / Espacio abajo',
-                'Normal, Sin espacio, Chico, Mediano o Grande. Sirve para pegar o separar dos secciones.',
+                'Normal, Nada, Chico, Medio o Grande. Sirve para pegar o separar dos secciones.',
               ],
-              ['Alineación de los títulos', 'Como viene, A la izquierda o Centrados.'],
+              [
+                'Alineación de los títulos',
+                'Como viene, Izquierda o Centro. No aparece en las secciones sin título (carrusel, hero con video, barra de información y pop-up).',
+              ],
             ],
           },
           {
@@ -254,7 +261,7 @@ export const SECCIONES = {
               '“Cantidad de productos”: de 1 a 24 (8 si no tocás nada).',
               '“Orden”, para las de categoría, marca y oferta: más nuevos primero, por precio o por nombre.',
               '“Cómo se muestran”: carrusel que se desliza, o grilla.',
-              '“Columnas en computadora” (2 a 5) y “Columnas en el celular” (1 columna con foto grande, o 2), o igual que el listado de productos.',
+              '“Por fila en computadora” (2 a 5) y “Por fila en el celular” (1 con foto grande, o 2), o “Auto”: las mismas que el listado de productos (el editor te dice cuántas son).',
               '“Mostrar el link Ver todos”, con su texto y a dónde lleva.',
             ],
           },
@@ -262,7 +269,7 @@ export const SECCIONES = {
             type: 'callout',
             tone: 'info',
             title: 'A dónde va “Ver todos” si no le elegís link',
-            text: 'Al listado ya filtrado como la sección: la categoría, la marca, los más nuevos, el listado de Ofertas (con el filtro “Solo ofertas” prendido) o el listado ordenado por “Más vendidos”. Si los productos son elegidos a mano, va al catálogo completo.',
+            text: 'Al listado ya filtrado como la sección: la categoría, la marca, los más nuevos, el listado de Ofertas (con el filtro “Solo ofertas” prendido) o el listado ordenado por “Más vendidos”. Si los productos son elegidos a mano, va al catálogo completo. El editor te dice cuál es, con su dirección.',
           },
           {
             type: 'callout',
@@ -296,21 +303,21 @@ export const SECCIONES = {
         heading: 'Categorías principales',
         paragraphs: [
           'Muestra tus categorías principales automáticamente, en el orden que tienen en Productos → Categorías, o las que elijas vos, con un nombre y una foto propios si querés. Una categoría sin foto muestra su inicial.',
-          'Elegís grilla o carrusel, la forma de la foto (círculo, cuadrada o vertical), cuántas van por fila en computadora y en celular, y un botón “Ver todas” que lleva al listado de productos. Si borrás una categoría, desaparece sola de la sección.',
+          'Elegís grilla o carrusel (en computadora, con flechas), la forma de la foto (círculo, cuadrada o vertical), cuántas van por fila en computadora (2 a 8) y en celular (1 a 3), y un botón “Ver todas” que lleva al listado de productos. Si borrás una categoría, desaparece sola de la sección.',
         ],
       },
       {
         heading: 'Mensaje institucional, imagen y texto, texto con formato',
         paragraphs: [
           'El mensaje institucional es un título y un texto corto, con un botón opcional que se muestra cuando tiene texto y link.',
-          'El módulo de imagen y texto pone una foto al costado de un texto con botón. Elegís si la imagen va a la izquierda o a la derecha en computadora, qué va primero en el celular (la imagen o el texto), la altura del texto respecto de la imagen, el fondo del texto y el estilo del botón (relleno, con borde o link subrayado).',
+          'El módulo de imagen y texto pone una foto al costado de un texto con botón. Elegís la forma de la imagen (la original o 16:9, 4:3, 1:1, 4:5, 3:4), si va a la izquierda o a la derecha en computadora, qué va primero en el celular (la imagen o el texto), la altura del texto respecto de la imagen, el fondo del texto y el estilo del botón (relleno, con borde o link subrayado). Mientras no subas la foto, la vista previa muestra su lugar.',
           'El texto con formato es para textos largos: títulos, listas, links y citas, con una imagen opcional a la izquierda, a la derecha o arriba (en el celular siempre va arriba).',
         ],
         blocks: [
           {
             type: 'callout',
             tone: 'tip',
-            text: 'En imagen y texto, si elegís texto claro sobre un fondo que no es oscuro, la tienda le pone sola un recuadro oscuro detrás para que se pueda leer. El editor te lo avisa.',
+            text: 'En imagen y texto, si elegís texto claro sobre una tienda de fondo claro, la tienda le pone sola un recuadro oscuro detrás para que se pueda leer. El editor te lo avisa. Si tu tienda es oscura no hace falta, y va el fondo del texto que elegiste.',
           },
         ],
       },
@@ -326,6 +333,7 @@ export const SECCIONES = {
         paragraphs: [
           'Una ventana que aparece encima de la página con una imagen, un título, un texto y un botón. Puede mostrar un cupón con un botón “Copiar” (el cupón lo creás antes en Cupones) y pedir el email para el newsletter.',
           '“Cuándo aparece”: a los pocos segundos de entrar (elegís cuántos), cuando el mouse se va de la página (solo en computadora) o lo que pase primero. “Cada cuánto se muestra a la misma persona”: cada tantos días, una vez por visita o una sola vez.',
+          'En la vista previa del editor el pop-up no aparece solo: se abre con “Ver el pop-up” o al abrir su panel, y el aviso en su lugar resume cuándo y cada cuánto va a aparecer en la tienda.',
         ],
         blocks: [
           {

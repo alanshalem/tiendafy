@@ -1,11 +1,13 @@
 import { SECTION_REGISTRY, type CategoryListItem } from '@tiendafy/types';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { Check, Field, Select, TextInput } from '../../theme-editor-inputs';
+import { ChoiceGroup, ColumnsIcon, LayoutIcon, ShapeIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
 import { CategorySelect, NumberField, useStoreCategories } from './section-pickers';
 import type { SectionEditorProps } from './types';
 
 const FIELDS = SECTION_REGISTRY['category-list'].fields;
+const perRow = (n: number | string) => `${n} por fila`;
 
 function CategoryItem({
   item,
@@ -28,6 +30,12 @@ function CategoryItem({
     </>
   );
 }
+
+/** De 2 a 8 por fila (los topes del registro). */
+const DESKTOP_COLUMNS = Array.from(
+  { length: FIELDS.columnsDesktop.max - FIELDS.columnsDesktop.min + 1 },
+  (_, i) => FIELDS.columnsDesktop.min + i,
+);
 
 export function CategoryListEditor({ data, set }: SectionEditorProps<'category-list'>) {
   const categories = useStoreCategories();
@@ -68,45 +76,51 @@ export function CategoryListEditor({ data, set }: SectionEditorProps<'category-l
           renderItem={(it, update) => <CategoryItem item={it} update={update} />}
         />
       )}
-      <Field label="Cómo se muestran">
-        <Select
-          value={data.layout}
-          onChange={(v) => set({ layout: v as typeof data.layout })}
-          options={[
-            { value: 'grid', label: 'Grilla' },
-            { value: 'carousel', label: 'Carrusel (se deslizan)' },
-          ]}
-        />
-      </Field>
-      <Field label="Forma de la foto">
-        <Select
-          value={data.shape}
-          onChange={(v) => set({ shape: v as typeof data.shape })}
-          options={[
-            { value: 'circle', label: 'Círculo' },
-            { value: 'square', label: 'Cuadrada' },
-            { value: 'portrait', label: 'Vertical' },
-          ]}
-        />
-      </Field>
-      <NumberField
-        label="Por fila en computadora"
-        value={data.columnsDesktop}
-        min={FIELDS.columnsDesktop.min}
-        max={FIELDS.columnsDesktop.max}
-        onChange={(columnsDesktop) => set({ columnsDesktop })}
+      <ChoiceGroup
+        label="Cómo se muestran"
+        value={data.layout}
+        onChange={(layout) => set({ layout })}
+        options={[
+          { value: 'grid', label: 'Grilla', icon: <LayoutIcon layout="grid" /> },
+          {
+            value: 'carousel',
+            label: 'Carrusel',
+            title: 'Carrusel (se deslizan)',
+            icon: <LayoutIcon layout="carousel" />,
+          },
+        ]}
       />
-      <Field label="Por fila en celular">
-        <Select
-          value={String(data.columnsMobile)}
-          onChange={(v) => set({ columnsMobile: Number(v) })}
-          options={[
-            { value: '1', label: '1' },
-            { value: '2', label: '2' },
-            { value: '3', label: '3' },
-          ]}
-        />
-      </Field>
+      <ChoiceGroup
+        label="Forma de la foto"
+        value={data.shape}
+        onChange={(shape) => set({ shape })}
+        options={[
+          { value: 'circle', label: 'Círculo', icon: <ShapeIcon shape="circle" /> },
+          { value: 'square', label: 'Cuadrada', icon: <ShapeIcon shape="square" /> },
+          { value: 'portrait', label: 'Vertical', icon: <ShapeIcon shape="portrait" /> },
+        ]}
+      />
+      <ChoiceGroup
+        label="Por fila en computadora"
+        hint={
+          data.layout === 'carousel' ? 'En carrusel se asoma además un pedazo de la siguiente.' : undefined
+        }
+        value={String(data.columnsDesktop)}
+        onChange={(v) => set({ columnsDesktop: Number(v) })}
+        options={DESKTOP_COLUMNS.map((n) => ({ value: String(n), label: String(n), title: perRow(n) }))}
+        columns={DESKTOP_COLUMNS.length}
+      />
+      <ChoiceGroup
+        label="Por fila en celular"
+        value={String(data.columnsMobile)}
+        onChange={(v) => set({ columnsMobile: Number(v) })}
+        options={['1', '2', '3'].map((n) => ({
+          value: n,
+          label: n,
+          title: perRow(n),
+          icon: <ColumnsIcon n={Number(n)} />,
+        }))}
+      />
       <Check label="Botón «Ver todas»" checked={data.showAll} onChange={(v) => set({ showAll: v })} />
       {data.showAll && (
         <Field label="Texto del botón">

@@ -2,9 +2,9 @@ import { BANNER_RATIOS, SECTION_REGISTRY, type PromoBannerItem } from '@tiendafy
 import { LinkPicker } from '../../../components/LinkPicker';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { bannerIdeal, bannerMobileIdeal } from '../../../lib/uploads';
-import { Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
+import { Field, TextArea, TextInput } from '../../theme-editor-inputs';
 import { BannerGridFields } from './banners';
-import { CheckRow, EditorWarning, ratioOptions } from './image-fields';
+import { CheckRow, EditorWarning } from './image-fields';
 import { ItemListEditor } from './ItemListEditor';
 import type { SectionEditorProps } from './types';
 
@@ -15,14 +15,16 @@ export function PromoBannersEditor({ data, set }: SectionEditorProps<'promo-bann
   const columnsMobile = Number(data.columnsMobile);
   return (
     <>
-      <BannerGridFields data={data} set={set} columns={['1', '2', '3', '4']} ratios={BANNER_RATIOS} />
-      <Field label="Forma en celular" hint="Más alta deja lugar al texto en una pantalla angosta.">
-        <Select
-          value={data.ratioMobile}
-          onChange={(v) => set({ ratioMobile: v as typeof data.ratioMobile })}
-          options={[{ value: 'same', label: 'La misma' }, ...ratioOptions(BANNER_RATIOS)]}
-        />
-      </Field>
+      <BannerGridFields
+        data={data}
+        set={set}
+        columns={['1', '2', '3', '4']}
+        ratios={BANNER_RATIOS}
+        mobileRatio={{
+          value: data.ratioMobile,
+          onChange: (v) => set({ ratioMobile: v as typeof data.ratioMobile }),
+        }}
+      />
       <ItemListEditor<PromoBannerItem>
         items={data.banners}
         onChange={(banners) => set({ banners })}

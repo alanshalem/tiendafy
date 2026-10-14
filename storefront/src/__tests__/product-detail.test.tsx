@@ -334,6 +334,16 @@ describe('ficha de producto: galería', () => {
     for (const t of thumbs) expect(t).toHaveAttribute('width', '64');
   });
 
+  it('apilada: en celular se desliza de costado y en la computadora la info acompaña al bajar', async () => {
+    await show({ config: { ...CONFIG, galleryStyle: 'stacked' } });
+    const gallery = screen.getByTestId('gallery-stacked');
+    // En celular, una tira con snap (antes empujaba precio y compra varias pantallas abajo).
+    expect(gallery).toHaveClass('flex', 'snap-x', 'overflow-x-auto', 'md:block');
+    expect(within(gallery).getByRole('button', { name: 'Ampliar la imagen 2 de 3' })).toHaveClass('w-[86%]');
+    // La columna de la info queda fija mientras se bajan las fotos.
+    expect(screen.getByRole('heading', { level: 1 }).parentElement).toHaveClass('md:sticky');
+  });
+
   it('el visor: flechas, teclado, miniaturas, zoom y cerrar', async () => {
     const { user } = await show({ config: { ...CONFIG, galleryStyle: 'stacked' } });
     await user.click(screen.getByRole('img', { name: 'Frente' }));

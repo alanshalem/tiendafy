@@ -41,10 +41,19 @@ const MOBILE_H = {
   adapt: '',
 } as const;
 
-function slideBox(data: Pick<CarouselData, 'height' | 'heightMobile'>, slide: CarouselSlide): string {
+export function slideBox(data: Pick<CarouselData, 'height' | 'heightMobile'>, slide: CarouselSlide): string {
   const mobile = data.heightMobile === 'auto' ? data.height : data.heightMobile;
-  // La foto de celular se recomienda 4:5; sin ella, la misma apaisada.
-  const m = mobile === 'adapt' ? (slide.mobileImage ? 'aspect-[4/5]' : 'aspect-[79/30]') : MOBILE_H[mobile];
+  // La foto de celular se recomienda 4:5; sin ella, la misma apaisada. Pero
+  // una apaisada en 390 px mide 150 de alto: con título, texto y botón, el
+  // título quedaba cortado afuera. Con texto, un alto mínimo (la foto se
+  // recorta un poco a los costados, el texto se lee entero).
+  const hasText = !!(slide.title || slide.subtitle || slide.buttonText);
+  const m =
+    mobile === 'adapt'
+      ? slide.mobileImage
+        ? 'aspect-[4/5]'
+        : `aspect-[79/30]${hasText ? ' min-h-[260px] md:min-h-0' : ''}`
+      : MOBILE_H[mobile];
   return `${m} ${DESKTOP_H[data.height]}`;
 }
 
@@ -56,6 +65,10 @@ export function PlayPauseIcon({ playing }: { playing: boolean }) {
     </svg>
   );
 }
+
+/** Del lado contrario al texto: arriba si el texto va abajo, y al revés. */
+const chipSide = (p: CarouselSlide['textPosition']): 'top' | 'bottom' =>
+  p.startsWith('top') ? 'bottom' : 'top';
 
 /** Más que esto, los puntos no entran en un celular: va "3 / 12". */
 const MAX_DOTS = 8;
@@ -72,8 +85,11 @@ export function ImageCarousel({
   /** Abre la portada: la primera foto es la más grande a la vista (ver StoreImage). */
   lcp?: boolean;
   label?: string;
-  /** En la vista previa del editor, una diapositiva todavía sin foto. */
-  renderPlaceholder?: () => React.ReactNode;
+  /**
+   * En la vista previa del editor, una diapositiva todavía sin foto. Con
+   * texto encima, `chip` dice dónde poner el aviso para que no lo tape.
+   */
+  renderPlaceholder?: (chip?: 'top' | 'bottom') => React.ReactNode;
 }) {
   const n = slides.length;
   const trackRef = useRef<HTMLDivElement>(null);
@@ -205,10 +221,16 @@ export function ImageCarousel({
       )}
 
       {n > 1 && (data.indicators || canPlay) && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center px-14">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center px-14">
           {data.indicators &&
             (n <= MAX_DOTS ? (
-              <div className="pointer-events-auto flex items-center rounded-full bg-black/30 px-1">
+              // Cada punto se toca en 40 × 32 px (antes 24: con el dedo se
+              // erraba); la pastilla oscura de atrás sigue siendo chica.
+              <div className="pointer-events-auto relative flex items-center px-1">
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 rounded-full bg-black/30"
+                />
                 {slides.map((_, i) => (
                   <button
                     key={i}
@@ -216,7 +238,7 @@ export function ImageCarousel({
                     onClick={() => goTo(i)}
                     aria-label={`Ir a la diapositiva ${i + 1}`}
                     aria-current={i === index ? 'true' : undefined}
-                    className="flex h-6 w-6 items-center justify-center focus-visible:outline-2 focus-visible:outline-white"
+                    className="relative flex h-10 w-8 items-center justify-center focus-visible:outline-2 focus-visible:outline-white"
                   >
                     <span
                       className={cn(
@@ -287,7 +309,7 @@ function Slide({
   eager: boolean;
   roomForDots: boolean;
   roomForArrows: boolean;
-  placeholder?: () => React.ReactNode;
+  placeholder?: (chip?: 'top' | 'bottom') => React.ReactNode;
 }) {
   const hasText = !!(slide.title || slide.subtitle || slide.buttonText);
   // Toda la diapositiva lleva al link; con botón, el botón se estira encima
@@ -315,7 +337,9 @@ function Slide({
           className="object-cover"
         />
       ) : (
-        <div className="absolute inset-0">{placeholder?.()}</div>
+        <div className="absolute inset-0">
+          {placeholder?.(hasText ? chipSide(slide.textPosition) : undefined)}
+        </div>
       )}
       {OVERLAY_BG[slide.overlay] && <div className={cn('absolute inset-0', OVERLAY_BG[slide.overlay])} />}
       {hasText && (

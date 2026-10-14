@@ -38,11 +38,13 @@ export function EditableRegion({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClickCapture={(e) => {
-        // El botón de eliminar se maneja solo; no abrir el editor en ese caso.
+        // El botón de eliminar se maneja solo, y un control propio del
+        // preview (`passthrough`, p. ej. "Ver el pop-up") hace lo suyo: en
+        // esos casos no se abre el editor.
         const action = (e.target as HTMLElement)
           .closest('[data-region-action]')
           ?.getAttribute('data-region-action');
-        if (action === 'delete') return;
+        if (action === 'delete' || action === 'passthrough') return;
         e.preventDefault();
         e.stopPropagation();
         open();

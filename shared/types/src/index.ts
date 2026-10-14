@@ -30,6 +30,15 @@ export {
 // Videos de YouTube, Vimeo e Instagram: qué link se puede embeber y cómo.
 export type { VideoEmbed, PlayableVideo } from './video-embed';
 export { parseVideoEmbed, parsePlayableVideo, videoAutoplaySrc, videoThumbnail } from './video-embed';
+// Título y descripción de la portada en Google (tienda y vista previa del editor).
+export {
+  SEO_TITLE_IDEAL,
+  SEO_DESCRIPTION_IDEAL,
+  SEO_DESCRIPTION_SHORT,
+  homeSeoTitle,
+  homeSeoDescription,
+  truncateForSnippet,
+} from './seo';
 
 // Schema de tema del merchant (fuente única para storefront + admin).
 export type {

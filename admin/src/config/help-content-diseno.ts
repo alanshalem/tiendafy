@@ -171,7 +171,8 @@ export const DISENO = {
         heading: 'Identidad: logo y cómo aparecés en Google',
         paragraphs: [
           'En Logo de la tienda cargás el logo (sin logo se muestra el nombre de la tienda), el favicon (el iconito de la pestaña del navegador) y la “Imagen al compartir”, la que se ve cuando alguien pasa el link de tu tienda por WhatsApp o redes.',
-          'Ahí mismo, en “Cómo aparecés en Google”, van el título y la descripción para buscadores. Mirá el artículo “Aparecer en Google (SEO)”.',
+          'Debajo de la imagen ves cómo queda el link en un chat de WhatsApp: con imagen va grande arriba; sin imagen, la tarjeta sale chica y sin foto (lo ideal es una de 1200 × 630 px).',
+          'Ahí mismo, en “Cómo aparecés en Google”, van el título y la descripción para buscadores, con una vista previa del resultado que se actualiza mientras escribís: el favicon, tu dominio y los textos cortados como los corta Google. Debajo de cada campo, un contador te avisa si quedó corto o tan largo que Google lo va a cortar (ideal: hasta 60 caracteres el título y 150-160 la descripción). Si los dejás vacíos, se usa un texto con el nombre de tu tienda, el mismo que muestra la vista previa. Mirá también el artículo “Aparecer en Google (SEO)”.',
         ],
       },
       {
@@ -537,7 +538,7 @@ export const DISENO = {
       {
         heading: 'Detalle de producto',
         paragraphs: [
-          'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra, ideal para indumentaria y productos con detalles.',
+          'La página de cada producto. Estilos rápidos: Simple o Vendedor. El “Estilo de galería” puede ser con miniaturas abajo, miniaturas al costado, o Apilada: todas las fotos grandes, una debajo de la otra (y la información del producto acompaña al bajar), ideal para indumentaria y productos con detalles. En el celular, la apilada se desliza de costado para que el precio y el botón de compra no queden lejos.',
           'Además elegís si se muestran el SKU, el stock, los productos relacionados, los logos de medios de pago, las cuotas sin interés, un descuento pagando en efectivo y el botón “Consultar por este producto”, que abre WhatsApp con el número del Botón de WhatsApp.',
         ],
       },

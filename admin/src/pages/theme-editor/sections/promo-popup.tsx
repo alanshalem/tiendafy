@@ -41,7 +41,7 @@ export function PromoPopupEditor({ data, set }: SectionEditorProps<'promo-popup'
       </Field>
       <Field
         label="Código de cupón (opcional)"
-        hint="Se muestra con un botón para copiarlo. Crealo en Descuentos."
+        hint="Se muestra con un botón para copiarlo. El cupón se crea en Gestión → Cupones: si no existe, no descuenta nada."
       >
         <TextInput
           value={data.couponCode}

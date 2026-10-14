@@ -22,6 +22,8 @@ interface Tile {
   detail?: string;
   href: string | null;
   internal: boolean;
+  /** Solo en el editor: el bloque está a medio elegir y esto dice qué falta. */
+  missing?: string;
 }
 
 function TileBody({ tile, big, placeholder }: { tile: Tile; big: boolean; placeholder: boolean }) {
@@ -35,7 +37,7 @@ function TileBody({ tile, big, placeholder }: { tile: Tile; big: boolean; placeh
           className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
         />
       ) : placeholder ? (
-        <ImagePlaceholder />
+        <ImagePlaceholder label={tile.missing ?? 'Subí una imagen'} chip={tile.title ? 'top' : undefined} />
       ) : (
         <span className="absolute inset-0 bg-primary/15" />
       )}
@@ -85,10 +87,16 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
   const productById = (id: string): StoreProduct | undefined =>
     (resolved ?? products).find((p) => p.id === id);
 
+  // En el editor, un bloque de producto o categoría todavía sin elegir se
+  // ve con su lugar y qué falta: antes desaparecía, y el bloque que quedaba
+  // pasaba a ser "el grande" ocupando media fila sin explicación.
+  const pending = (missing: string, title: string): Tile | null =>
+    preview ? { image: '', title, href: null, internal: false, missing } : null;
+
   const toTile = (b: CollageBlock): Tile | null => {
     if (b.kind === 'product') {
       const p = b.productId ? productById(b.productId) : undefined;
-      if (!p) return null;
+      if (!p) return pending('Elegí un producto', b.title.trim());
       return {
         image: b.image || p.image || p.images[0] || '',
         title: b.title.trim() || p.name,
@@ -99,7 +107,7 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
     }
     if (b.kind === 'category') {
       const node = b.categoryId ? findCategoryNode(tree, b.categoryId) : undefined;
-      if (!node) return null;
+      if (!node) return pending('Elegí una categoría', b.title.trim());
       return { image: b.image, title: b.title.trim() || node.name, href: categoryHref(node), internal: true };
     }
     if (!b.image && !b.title.trim()) return null;
@@ -122,8 +130,11 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
   }
 
   const right = data.layout === 'big-right';
-  const swipe = data.mobile === 'swipe';
+  const swipe = data.mobile === 'swipe' && tiles.length > 1;
   const three = tiles.length === 3;
+  // Uno solo (los otros sin foto ni texto, o un producto que se despublicó):
+  // ocupa el ancho entero en vez de dejar media fila vacía.
+  const single = tiles.length === 1;
 
   return (
     <section className="mx-auto max-w-container px-4 py-12">
@@ -145,6 +156,7 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
                 swipe && 'w-[85%] shrink-0 snap-start md:w-auto',
                 // El grande ocupa las dos filas de su lado; con dos bloques, los dos.
                 (big || !three) && 'md:row-span-2',
+                single && 'md:col-span-2',
                 big && right && 'md:col-start-2 md:row-start-1',
                 !big && right && 'md:col-start-1',
               )}
@@ -153,7 +165,7 @@ export function CollageSection({ section, data, products }: SectionRenderProps<'
                 tile={tile}
                 className={cn(
                   'group relative block w-full overflow-hidden rounded-lg md:aspect-auto md:h-full',
-                  big ? 'aspect-[4/3]' : 'aspect-[16/9]',
+                  big && !single ? 'aspect-[4/3]' : 'aspect-[16/9]',
                 )}
               >
                 <TileBody tile={tile} big={big} placeholder={preview} />

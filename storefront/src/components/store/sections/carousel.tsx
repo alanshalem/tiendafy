@@ -20,7 +20,7 @@ export function CarouselSection({ data, storeName }: SectionRenderProps<'carouse
     // tienda sobre un degradé de su color y un botón al catálogo. Sin textos
     // inventados ("envíos a todo el país…"): la tienda puede no hacerlos.
     return (
-      <section className="relative overflow-hidden border-b border-black/5">
+      <section className="relative overflow-hidden border-b border-fg/5">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
@@ -54,7 +54,7 @@ export function CarouselSection({ data, storeName }: SectionRenderProps<'carouse
       slides={slides}
       data={data}
       lcp={lead}
-      renderPlaceholder={() => <ImagePlaceholder label="Subí la foto de esta diapositiva" />}
+      renderPlaceholder={(chip) => <ImagePlaceholder label="Subí la foto de esta diapositiva" chip={chip} />}
     />
   );
 }
