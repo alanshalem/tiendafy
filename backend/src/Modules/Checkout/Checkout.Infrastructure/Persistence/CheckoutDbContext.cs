@@ -28,6 +28,8 @@ public sealed class CheckoutDbContext : DbContext
     public DbSet<ZipnovaShipment> ZipnovaShipments => Set<ZipnovaShipment>();
     public DbSet<AndreaniConfig> AndreaniConfigs => Set<AndreaniConfig>();
     public DbSet<AndreaniShipment> AndreaniShipments => Set<AndreaniShipment>();
+    public DbSet<CorreoShipment> CorreoShipments => Set<CorreoShipment>();
+    public DbSet<ShipmentClaim> ShipmentClaims => Set<ShipmentClaim>();
     public DbSet<CheckoutSettings> Settings => Set<CheckoutSettings>();
     public DbSet<StorePaymentOptions> PaymentOptions => Set<StorePaymentOptions>();
 
@@ -175,7 +177,8 @@ public sealed class CheckoutDbContext : DbContext
         andreaniShipment.Property(s => s.Id).ValueGeneratedNever();
         andreaniShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
         // Andreani no tiene idempotencia ni cancelación: un envío duplicado no
-        // se puede deshacer y se factura igual. El índice es la única defensa.
+        // se puede deshacer y se factura igual. El índice garantiza una fila por
+        // venta; que no se llame dos veces a Andreani lo garantiza shipment_claims.
         andreaniShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
         andreaniShipment.HasIndex(s => s.TrackingNumber);
         andreaniShipment.Property(s => s.TrackingNumber).HasMaxLength(40).IsRequired();
@@ -185,6 +188,29 @@ public sealed class CheckoutDbContext : DbContext
         andreaniShipment.Property(s => s.BranchName).HasMaxLength(120);
         andreaniShipment.Property(s => s.Status).HasMaxLength(30).IsRequired();
         andreaniShipment.Property(s => s.RawStatus).HasMaxLength(80);
+
+        var correoShipment = modelBuilder.Entity<CorreoShipment>();
+        correoShipment.ToTable("correo_shipments");
+        correoShipment.HasKey(s => s.Id);
+        correoShipment.Property(s => s.Id).ValueGeneratedNever();
+        correoShipment.HasQueryFilter(s => !_filterByTenant || s.TenantId == _tenantGuid);
+        // Un alta por venta: no se sabe si MiCorreo deduplica por extOrderId.
+        correoShipment.HasIndex(s => new { s.TenantId, s.OrderId }).IsUnique();
+        correoShipment.Property(s => s.DeliveryType).HasMaxLength(1).IsRequired();
+        correoShipment.Property(s => s.Agency).HasMaxLength(20);
+        correoShipment.Property(s => s.RemoteCreatedAt).HasMaxLength(40);
+
+        // Write-ahead de la creación de envíos (ver ShipmentClaim): el índice
+        // único decide quién llama al carrier cuando llegan dos pedidos juntos.
+        var claim = modelBuilder.Entity<ShipmentClaim>();
+        claim.ToTable("shipment_claims");
+        claim.HasKey(c => c.Id);
+        claim.Property(c => c.Id).ValueGeneratedNever();
+        claim.HasQueryFilter(c => !_filterByTenant || c.TenantId == _tenantGuid);
+        claim.HasIndex(c => new { c.TenantId, c.OrderId, c.Carrier }).IsUnique();
+        claim.Property(c => c.Carrier).HasMaxLength(20).IsRequired();
+        claim.Property(c => c.Status).HasMaxLength(20).IsRequired();
+        claim.Property(c => c.Note).HasMaxLength(ShipmentClaim.MaxNoteLength);
 
         session.OwnsMany(s => s.Items, items =>
         {

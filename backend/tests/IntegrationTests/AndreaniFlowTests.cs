@@ -203,6 +203,120 @@ public sealed class AndreaniFlowTests
         Assert.Equal(2, tracking.GetProperty("events").GetArrayLength());
     }
 
+    /// <summary>La respuesta de Andreani a una orden de envío creada, con un bulto.</summary>
+    private static HttpResponseMessage OrderCreated(string tracking) => FakeHttp.Json(new
+    {
+        estado = "Pendiente",
+        bultos = new[] { new { numeroDeEnvio = tracking, linking = Array.Empty<object>() } },
+    });
+
+    [Fact]
+    public async Task Dos_pedidos_a_la_vez_crean_un_solo_envio()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "anr");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+        StubLogin();
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
+        var orders = $"{Base}/ordenes-de-envio";
+        var before = _factory.ExternalHttp.SentTo(orders).Count;
+
+        var (first, second) = await CarrierRace.RunAsync(_factory.ExternalHttp, HttpMethod.Post, orders,
+            () => OrderCreated("360000000099990"),
+            () => merchant.SendAsync(HttpMethod.Post, url, Recipient()));
+
+        // El primero crea; el segundo choca con la reserva y no llama a Andreani.
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("envío en curso", await second.Content.ReadAsStringAsync());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(orders).Count);
+
+        // Terminado el primero, la reserva se soltó y manda la fila guardada.
+        var again = await merchant.PostAsync(url, Recipient());
+        Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal("360000000099990", again.GetProperty("trackingNumber").GetString());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(orders).Count);
+    }
+
+    [Fact]
+    public async Task Si_Andreani_no_responde_o_rechaza_se_puede_reintentar()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "ant");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+        StubLogin();
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
+        var orders = $"{Base}/ordenes-de-envio";
+
+        // Sin respuesta no se sabe si se creó: no es un 500, y se avisa que
+        // hay que mirar el panel de Andreani antes de reintentar.
+        _factory.ExternalHttp.On(HttpMethod.Post, orders, (_, _) => throw new HttpRequestException("conexión cortada"));
+        var noAnswer = await merchant.SendAsync(HttpMethod.Post, url, Recipient());
+        Assert.Equal(HttpStatusCode.BadGateway, noAnswer.StatusCode);
+        Assert.Contains("revisalo en el panel de Andreani", await noAnswer.Content.ReadAsStringAsync());
+
+        // Un rechazo con respuesta tampoco deja la venta trabada.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, orders,
+            new[] { new { code = "E1", property = "destino", message = "Sucursal inexistente" } }, HttpStatusCode.BadRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Post, url, Recipient())).StatusCode);
+
+        _factory.ExternalHttp.On(HttpMethod.Post, orders, (_, _) => OrderCreated("360000000099991"));
+        var created = await merchant.PostAsync(url, Recipient());
+        Assert.False(created.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal("360000000099991", created.GetProperty("trackingNumber").GetString());
+    }
+
+    [Fact]
+    public async Task Retiro_en_sucursal_exige_la_sucursal_y_domicilio_exige_la_direccion()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "anb");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
+        var orders = $"{Base}/ordenes-de-envio";
+        var before = _factory.ExternalHttp.SentTo(orders).Count;
+
+        // Sucursal sin id y sin dirección: antes caía al destino postal y
+        // reventaba con la calle vacía.
+        var noBranch = await merchant.SendAsync(HttpMethod.Post, url, new
+        {
+            name = "Ana Pérez",
+            email = "ana@mail.com",
+            documentNumber = "30111222",
+            toBranch = true,
+            branchId = "  ",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, noBranch.StatusCode);
+        Assert.Contains("id de la sucursal", await noBranch.Content.ReadAsStringAsync());
+
+        // A domicilio, la dirección es obligatoria.
+        var noAddress = await merchant.SendAsync(HttpMethod.Post, url, new
+        {
+            name = "Ana Pérez",
+            email = "ana@mail.com",
+            documentNumber = "30111222",
+            toBranch = false,
+            city = "CABA",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, noAddress.StatusCode);
+        Assert.Contains("Completá calle", await noAddress.Content.ReadAsStringAsync());
+        Assert.Equal(before, _factory.ExternalHttp.SentTo(orders).Count);
+
+        // Con la sucursal, el destino es la sucursal aunque no haya dirección.
+        StubLogin();
+        _factory.ExternalHttp.On(HttpMethod.Post, orders, (_, _) => OrderCreated("360000000099992"));
+        await merchant.PostAsync(url, new
+        {
+            name = "Ana Pérez",
+            email = "ana@mail.com",
+            documentNumber = "30111222",
+            toBranch = true,
+            branchId = "BAR",
+        });
+        var sent = _factory.ExternalHttp.SentTo(orders).Last().Body!;
+        Assert.Contains("\"destino\":{\"sucursal\":{\"id\":\"BAR\"}}", sent);
+    }
+
     [Fact]
     public async Task Los_errores_de_Andreani_llegan_al_panel_traducidos()
     {

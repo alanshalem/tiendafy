@@ -17,6 +17,12 @@ public sealed class CorreoArgentinoConfigRepository(CheckoutDbContext context) :
         return Task.CompletedTask;
     }
 
+    public Task<CorreoShipment?> GetShipmentByOrderAsync(Guid tenantId, Guid orderId, CancellationToken ct = default) =>
+        context.CorreoShipments.FirstOrDefaultAsync(s => s.TenantId == tenantId && s.OrderId == orderId, ct);
+
+    public async Task AddShipmentAsync(CorreoShipment shipment, CancellationToken ct = default) =>
+        await context.CorreoShipments.AddAsync(shipment, ct);
+
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         context.SaveChangesAsync(ct);
 }

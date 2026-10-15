@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Api.Auth;
 using Api.Shipping;
 using Catalog.Contracts;
@@ -155,7 +156,7 @@ public static class CorreoArgentinoEndpoints
         group.MapPost("/shipping/correo/quote", async (
             CorreoQuoteRequest req, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
             ShippingSecretProtector protector, MiCorreoClient client, ICatalogCheckoutQuery catalog,
-            IDataProtectionProvider dp, CancellationToken ct) =>
+            IDataProtectionProvider dp, ILoggerFactory loggers, CancellationToken ct) =>
         {
 
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
@@ -214,10 +215,13 @@ public static class CorreoArgentinoEndpoints
 
                 return Results.Ok(new { available = true, options });
             }
-            catch (MiCorreoException)
+            catch (Exception ex) when (ex is MiCorreoException or HttpRequestException or OperationCanceledException or JsonException)
             {
                 // El checkout nunca se rompe por el cotizador: se degrada a los
-                // métodos manuales de la tienda.
+                // métodos manuales de la tienda. Un error con respuesta ya lo
+                // loguea el cliente; un timeout o la red caída, no.
+                if (ex is not MiCorreoException)
+                    loggers.CreateLogger("CorreoArgentino").LogWarning(ex, "MiCorreo no pudo cotizar.");
                 return Results.Ok(new
                 {
                     available = true,
@@ -253,8 +257,9 @@ public static class CorreoArgentinoEndpoints
                     }),
                 });
             }
-            catch (MiCorreoException)
+            catch (Exception ex) when (ex is MiCorreoException or HttpRequestException or OperationCanceledException or JsonException)
             {
+                // Igual que la cotización: sin sucursales, el checkout sigue.
                 return Results.Ok(new { items = Array.Empty<object>() });
             }
         }).RequireTenant();
@@ -263,7 +268,8 @@ public static class CorreoArgentinoEndpoints
         group.MapPost("/admin/orders/{orderId:guid}/correo-shipment", async (
             Guid orderId, CorreoShipmentRequest req, ITenantContext tenant,
             ICorreoArgentinoConfigRepository configs, IOrderRepository orders, ICatalogCheckoutQuery catalog,
-            ShippingSecretProtector protector, MiCorreoClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, MiCorreoClient client, IShipmentClaimRepository claims,
+            ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await configs.GetAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -272,6 +278,12 @@ public static class CorreoArgentinoEndpoints
 
             var order = await orders.GetByIdAsync(tenant.TenantId, orderId, ct);
             if (order is null) return Results.NotFound();
+
+            // GUARD: no se sabe si MiCorreo deduplica por extOrderId, así que una
+            // venta se da de alta una sola vez. Si ya está, se devuelve la que
+            // hay; dos pedidos simultáneos los resuelve ShipmentWriteAhead.
+            var existing = await configs.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
+            if (existing is not null) return Results.Ok(ShipmentDto(existing, alreadyExisted: true));
 
             var isAgency = string.Equals(req.DeliveryType, "S", StringComparison.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(req.RecipientName) || string.IsNullOrWhiteSpace(req.RecipientEmail))
@@ -329,16 +341,44 @@ public static class CorreoArgentinoEndpoints
                 },
             };
 
-            try
-            {
-                var createdAt = await client.ImportShippingAsync(Credentials(config, protector), payload, ct);
-                return Results.Ok(new { ok = true, createdAt });
-            }
-            catch (MiCorreoException ex)
-            {
-                return Error.Validation("Correo.ImportFailed", ex.Message).ToProblem();
-            }
+            return await ShipmentWriteAhead.CreateOnceAsync(
+                claims, loggers.CreateLogger("CorreoArgentino"), tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Correo, "Correo Argentino",
+                async c => await configs.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, c) is { } done
+                    ? Results.Ok(ShipmentDto(done, alreadyExisted: true))
+                    : null,
+                async attempt =>
+                {
+                    try
+                    {
+                        var createdAt = await client.ImportShippingAsync(Credentials(config, protector), payload, ct);
+                        attempt.CarrierCreated($"alta de la venta {order.Label}");
+
+                        // Sin el token del pedido: el alta ya existe en MiCorreo
+                        // y tiene que quedar guardada aunque el panel se haya ido.
+                        var record = CorreoShipment.Create(tenant.TenantId.Value, orderId,
+                            isAgency ? "S" : "D", isAgency ? req.Agency!.Trim() : null, createdAt);
+                        await configs.AddShipmentAsync(record, CancellationToken.None);
+                        await configs.SaveChangesAsync(CancellationToken.None);
+                        return Results.Ok(ShipmentDto(record, alreadyExisted: false));
+                    }
+                    catch (MiCorreoException ex) when (attempt.CreatedAtCarrier is null)
+                    {
+                        return Error.Validation("Correo.ImportFailed", ex.Message).ToProblem();
+                    }
+                },
+                ct);
         }).RequirePermission(Permission.OrdersFulfill);
+
+        // El alta de esa venta en MiCorreo, si se hizo desde el panel.
+        group.MapGet("/admin/orders/{orderId:guid}/correo-shipment", async (
+            Guid orderId, ITenantContext tenant, ICorreoArgentinoConfigRepository configs, CancellationToken ct) =>
+        {
+            var shipment = await configs.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
+            return shipment is null
+                ? Results.Ok(new { exists = false })
+                : Results.Ok(ShipmentDto(shipment, alreadyExisted: true));
+        }).RequirePermission(Permission.OrdersRead);
 
         // Seguimiento de un envío MiCorreo (por número de tracking del carrier).
         group.MapGet("/admin/shipping/correo/tracking", async (
@@ -356,7 +396,9 @@ public static class CorreoArgentinoEndpoints
                     items = tracking.Select(t => new
                     {
                         t.TrackingNumber,
-                        events = (t.Events ?? []).Select(e => new { e.Event, e.Date, e.Branch, e.Status }),
+                        // Del más nuevo al más viejo: el panel muestra el primero.
+                        events = TrackingEvents.NewestFirst(t.Events ?? [], e => e.Date)
+                            .Select(e => new { e.Event, e.Date, e.Branch, e.Status }),
                     }),
                 });
             }
@@ -391,6 +433,21 @@ public static class CorreoArgentinoEndpoints
         };
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
+
+    /// <summary>
+    /// El alta de una venta. <c>ok</c> y <c>createdAt</c> (la fecha que devolvió
+    /// MiCorreo) son los campos que el panel ya leía antes de que se guardara.
+    /// </summary>
+    private static object ShipmentDto(CorreoShipment s, bool alreadyExisted) => new
+    {
+        exists = true,
+        ok = true,
+        alreadyExisted,
+        deliveryType = s.DeliveryType,
+        agency = s.Agency,
+        createdAt = s.RemoteCreatedAt,
+        createdAtUtc = s.CreatedAtUtc,
+    };
 
     /// <summary>DTO de config SIN secretos: los tokens jamás salen de la API.</summary>
     private static object ConfigDto(CorreoArgentinoConfig? c) => c is null

@@ -201,3 +201,38 @@ public class ZipnovaClientParsingTests
         Assert.Equal("https://tracking.zipnova.com.ar/8842137", parsed.TrackingUrl);
     }
 }
+
+public class TrackingEventsTests
+{
+    private static ZipnovaTrackingEvent Event(string status, string? at) => new(status, status, at, null);
+
+    private static IEnumerable<string?> Order(params ZipnovaTrackingEvent[] events) =>
+        TrackingEvents.NewestFirst(events, e => e.CreatedAt).Select(e => e.Status);
+
+    [Fact]
+    public void ElPrimeroEsElDeFechaMasNueva_AunqueLleguenDelMasViejoAlMasNuevo() =>
+        Assert.Equal(["delivered", "in_transit", "new"], Order(
+            Event("new", "2026-07-01T10:00:00Z"),
+            Event("in_transit", "2026-07-02 09:00:00"),
+            Event("delivered", "2026-07-03T15:30:00-03:00")));
+
+    [Fact]
+    public void LasFechasDeMiCorreoSeLeenDiaMesAnio() =>
+        // Con cultura invariante, "11-10-2026" sería el 10 de noviembre y
+        // quedaría primero.
+        Assert.Equal(["entregado", "preimposicion"], Order(
+            Event("preimposicion", "11-10-2026 12:00"),
+            Event("entregado", "02-11-2026 09:30")));
+
+    [Fact]
+    public void LosEventosSinFechaVanAlFinal_YLosEmpatesRespetanElOrdenOriginal() =>
+        Assert.Equal(["a", "b", "viejo", "sin_fecha", "ilegible"], Order(
+            Event("sin_fecha", null),
+            Event("a", "2026-07-02T10:00:00Z"),
+            Event("b", "2026-07-02T10:00:00Z"),
+            Event("ilegible", "ayer"),
+            Event("viejo", "2026-07-01T10:00:00Z")));
+
+    [Fact]
+    public void SinEventos_NoHayNada() => Assert.Empty(Order());
+}

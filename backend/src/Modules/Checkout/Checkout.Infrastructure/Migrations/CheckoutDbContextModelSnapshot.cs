@@ -17,7 +17,7 @@ namespace Checkout.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -466,6 +466,95 @@ namespace Checkout.Infrastructure.Migrations
                         .HasDatabaseName("ix_correo_argentino_configs_tenant_id");
 
                     b.ToTable("correo_argentino_configs", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.CorreoShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Agency")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("agency");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("DeliveryType")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("delivery_type");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("RemoteCreatedAt")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("remote_created_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_correo_shipments");
+
+                    b.HasIndex("TenantId", "OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_correo_shipments_tenant_id_order_id");
+
+                    b.ToTable("correo_shipments", (string)null);
+                });
+
+            modelBuilder.Entity("Checkout.Core.Domain.ShipmentClaim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Carrier")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("carrier");
+
+                    b.Property<DateTime>("ClaimedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at_utc");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shipment_claims");
+
+                    b.HasIndex("TenantId", "OrderId", "Carrier")
+                        .IsUnique()
+                        .HasDatabaseName("ix_shipment_claims_tenant_id_order_id_carrier");
+
+                    b.ToTable("shipment_claims", (string)null);
                 });
 
             modelBuilder.Entity("Checkout.Core.Domain.ShippingMethod", b =>

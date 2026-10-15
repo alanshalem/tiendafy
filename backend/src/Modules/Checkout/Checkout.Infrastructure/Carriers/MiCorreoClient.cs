@@ -195,12 +195,26 @@ public sealed class MiCorreoClient(HttpClient http, IMemoryCache cache, ILogger<
         return result;
     }
 
-    /// <summary>POST /shipping/import — alta del envío en MiCorreo. Devuelve la fecha de creación.</summary>
+    /// <summary>
+    /// POST /shipping/import — alta del envío en MiCorreo. Devuelve la fecha de
+    /// creación. Un 2xx ya es el alta hecha: si el cuerpo no se puede leer, se
+    /// devuelve null en vez de fallar (fallar haría creer que no se creó).
+    /// </summary>
     public async Task<string?> ImportShippingAsync(MiCorreoCredentials creds, object payload, CancellationToken ct)
     {
         var body = await SendAsync(creds, HttpMethod.Post, "/shipping/import", payload, ct);
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.TryGetProperty("createdAt", out var c) ? c.GetString() : null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("createdAt", out var c) && c.ValueKind == JsonValueKind.String
+                ? c.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>GET /shipping/tracking — eventos de seguimiento de un envío.</summary>

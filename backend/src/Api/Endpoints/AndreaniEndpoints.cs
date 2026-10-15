@@ -235,7 +235,8 @@ public static class AndreaniEndpoints
         group.MapPost("/admin/orders/{orderId:guid}/andreani-shipment", async (
             Guid orderId, AndreaniShipmentRequest req, ITenantContext tenant,
             IAndreaniRepository repo, IOrderRepository orders, ICatalogCheckoutQuery catalog,
-            ShippingSecretProtector protector, AndreaniClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, AndreaniClient client, IShipmentClaimRepository claims,
+            ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -250,7 +251,8 @@ public static class AndreaniEndpoints
 
             // GUARD DE IDEMPOTENCIA. Andreani no deduplica y NO TIENE ENDPOINT DE
             // CANCELACIÓN: un segundo envío no se puede anular por API y se
-            // factura igual. Si ya existe, se devuelve el que hay.
+            // factura igual. Si ya existe, se devuelve el que hay; dos pedidos
+            // simultáneos los resuelve la reserva de ShipmentWriteAhead.
             var existing = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             if (existing is not null) return Results.Ok(ShipmentDto(existing, alreadyExisted: true));
 
@@ -276,22 +278,35 @@ public static class AndreaniEndpoints
             var declared = Math.Max(0, req.DeclaredValue ?? order.Total.ToDecimal());
             var payload = BuildOrderPayload(config, req, contract!, parcels, declared, orderId);
 
-            try
-            {
-                var token = await client.LoginAsync(config, protector.Unprotect(config.PasswordEncrypted), ct);
-                var created = await client.CreateShipmentAsync(config, token, payload, ct);
+            return await ShipmentWriteAhead.CreateOnceAsync(
+                claims, loggers.CreateLogger("Andreani"), tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Andreani, "Andreani",
+                async c => await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, c) is { } done
+                    ? Results.Ok(ShipmentDto(done, alreadyExisted: true))
+                    : null,
+                async attempt =>
+                {
+                    try
+                    {
+                        var token = await client.LoginAsync(config, protector.Unprotect(config.PasswordEncrypted), ct);
+                        var created = await client.CreateShipmentAsync(config, token, payload, ct);
+                        attempt.CarrierCreated($"seguimiento {created.TrackingNumber}");
 
-                var record = AndreaniShipment.Create(
-                    tenant.TenantId.Value, orderId, created.TrackingNumber, created.AllTrackingNumbers,
-                    created.LabelUrl, contract, created.BranchName);
-                await repo.AddShipmentAsync(record, ct);
-                await repo.SaveChangesAsync(ct);
-                return Results.Ok(ShipmentDto(record, alreadyExisted: false));
-            }
-            catch (AndreaniException ex)
-            {
-                return Error.Validation("Andreani.CreateFailed", ex.Message).ToProblem();
-            }
+                        // Sin el token del pedido: el envío ya existe en Andreani
+                        // y tiene que quedar guardado aunque el panel se haya ido.
+                        var record = AndreaniShipment.Create(
+                            tenant.TenantId.Value, orderId, created.TrackingNumber, created.AllTrackingNumbers,
+                            created.LabelUrl, contract, created.BranchName);
+                        await repo.AddShipmentAsync(record, CancellationToken.None);
+                        await repo.SaveChangesAsync(CancellationToken.None);
+                        return Results.Ok(ShipmentDto(record, alreadyExisted: false));
+                    }
+                    catch (AndreaniException ex) when (attempt.CreatedAtCarrier is null)
+                    {
+                        return Error.Validation("Andreani.CreateFailed", ex.Message).ToProblem();
+                    }
+                },
+                ct);
         }).RequirePermission(Permission.OrdersFulfill);
 
         group.MapGet("/admin/orders/{orderId:guid}/andreani-shipment", async (
@@ -427,7 +442,15 @@ public static class AndreaniEndpoints
             return Error.Validation("Andreani.EmailTooLong",
                 "Andreani no acepta emails de más de 40 caracteres.");
 
-        if (req.ToBranch) return null;
+        // Retiro en sucursal: alcanza con la sucursal. Sin ella no hay a dónde
+        // mandarlo, y la dirección del comprador no sirve de destino.
+        if (req.ToBranch)
+        {
+            return string.IsNullOrWhiteSpace(req.BranchId)
+                ? Error.Validation("Andreani.MissingBranch",
+                    "Para retiro en sucursal cargá el id de la sucursal de Andreani.")
+                : null;
+        }
 
         if (string.IsNullOrWhiteSpace(req.Street) || string.IsNullOrWhiteSpace(req.StreetNumber)
             || string.IsNullOrWhiteSpace(req.City) || NumericZip(req.PostalCode) is null)
@@ -509,9 +532,10 @@ public static class AndreaniEndpoints
             ["bultos"] = bultos,
         };
 
-        if (req.ToBranch && !string.IsNullOrWhiteSpace(req.BranchId))
+        // ValidateRecipient ya exigió la sucursal o la dirección completa.
+        if (req.ToBranch)
         {
-            payload["destino"] = new { sucursal = new { id = req.BranchId.Trim() } };
+            payload["destino"] = new { sucursal = new { id = req.BranchId!.Trim() } };
         }
         else
         {

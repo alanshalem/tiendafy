@@ -119,8 +119,14 @@ public sealed class CorreoArgentinoFlowTests
         Assert.Equal(HttpStatusCode.BadRequest,
             (await merchant.SendAsync(HttpMethod.Get, "/api/v1/shipping/correo/agencies?province=bb")).StatusCode);
 
-        // Alta del envío de una venta. El JWT vencido (401) se renueva una vez.
+        // Alta del envío de una venta. A sucursal: hace falta elegirla.
         var orderId = await merchant.CreateSaleAsync();
+        Assert.False((await merchant.GetAsync($"/api/v1/admin/orders/{orderId}/correo-shipment")).GetProperty("exists").GetBoolean());
+        var noAgency = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/orders/{orderId}/correo-shipment",
+            new { deliveryType = "S", recipientName = "Ana", recipientEmail = "a@b.com" });
+        Assert.Equal(HttpStatusCode.BadRequest, noAgency.StatusCode);
+
+        // El JWT vencido (401) se renueva una vez.
         var calls = 0;
         _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/shipping/import", (_, _) =>
             ++calls == 1
@@ -142,21 +148,37 @@ public sealed class CorreoArgentinoFlowTests
             declaredValue = 50_000m,
         });
         Assert.True(shipment.GetProperty("ok").GetBoolean());
+        Assert.False(shipment.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal("2026-10-11T12:00:00", shipment.GetProperty("createdAt").GetString());
         Assert.Equal(2, calls);
         Assert.Contains("\"provinceCode\":\"C\"", _factory.ExternalHttp.SentTo($"{Base}/shipping/import").Last().Body);
 
-        // A sucursal: hace falta elegirla.
-        var noAgency = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/orders/{orderId}/correo-shipment",
-            new { deliveryType = "S", recipientName = "Ana", recipientEmail = "a@b.com" });
-        Assert.Equal(HttpStatusCode.BadRequest, noAgency.StatusCode);
+        // El alta queda registrada: la venta no se da de alta dos veces.
+        var registered = await merchant.GetAsync($"/api/v1/admin/orders/{orderId}/correo-shipment");
+        Assert.True(registered.GetProperty("exists").GetBoolean());
+        Assert.Equal("D", registered.GetProperty("deliveryType").GetString());
+        var again = await merchant.PostAsync($"/api/v1/admin/orders/{orderId}/correo-shipment",
+            new { deliveryType = "S", recipientName = "Ana", recipientEmail = "a@b.com", agency = "B0101" });
+        Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal(2, calls);
 
         // Seguimiento: el server responde array, objeto suelto o error.
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipping/tracking", new[]
         {
-            new { trackingNumber = "000500076393019A3G0C701", events = new[] { new { @event = "PREIMPOSICION", date = "11-10-2026 12:00", branch = "CABA", status = "OK" } } },
+            new
+            {
+                trackingNumber = "000500076393019A3G0C701",
+                events = new[]
+                {
+                    new { @event = "PREIMPOSICION", date = "11-10-2026 12:00", branch = "CABA", status = "OK" },
+                    new { @event = "EN DISTRIBUCION", date = "02-11-2026 09:30", branch = "CABA", status = "OK" },
+                },
+            },
         });
         var tracking = await merchant.GetAsync("/api/v1/admin/shipping/correo/tracking?shippingId=000500076393019A3G0C701");
-        Assert.Single(tracking.GetProperty("items").EnumerateArray());
+        var item = Assert.Single(tracking.GetProperty("items").EnumerateArray());
+        // Del más nuevo al más viejo, con la fecha leída día-mes-año: el panel muestra el primero.
+        Assert.Equal("EN DISTRIBUCION", item.GetProperty("events")[0].GetProperty("event").GetString());
 
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipping/tracking", new { trackingNumber = "X1", events = (object?)null });
         Assert.Single((await merchant.GetAsync("/api/v1/admin/shipping/correo/tracking?shippingId=X1")).GetProperty("items").EnumerateArray());
@@ -226,5 +248,62 @@ public sealed class CorreoArgentinoFlowTests
         });
         Assert.Equal(HttpStatusCode.BadRequest, import.StatusCode);
         Assert.Contains("CP inválido", await import.Content.ReadAsStringAsync());
+
+        // El rechazo no deja la venta trabada: corregido, el alta sale.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Base}/shipping/import", new { createdAt = "2026-10-12T09:00:00" });
+        var retried = await merchant.PostAsync($"/api/v1/admin/orders/{orderId}/correo-shipment", new
+        {
+            deliveryType = "S",
+            recipientName = "Ana",
+            recipientEmail = "a@b.com",
+            agency = "B0102",
+        });
+        Assert.False(retried.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal("B0102", retried.GetProperty("agency").GetString());
+    }
+
+    [Fact]
+    public async Task Dos_altas_a_la_vez_dan_de_alta_la_venta_una_sola_vez()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "coz");
+        await merchant.PutAsync("/api/v1/admin/shipping/correo", Config($"user-{merchant.Subdomain}"));
+        StubToken();
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/correo-shipment";
+        var import = $"{Base}/shipping/import";
+        var before = _factory.ExternalHttp.SentTo(import).Count;
+        var body = new { deliveryType = "S", recipientName = "Ana", recipientEmail = "a@b.com", agency = "B0101" };
+
+        var (first, second) = await CarrierRace.RunAsync(_factory.ExternalHttp, HttpMethod.Post, import,
+            () => FakeHttp.Json(new { createdAt = "2026-10-11T12:00:00" }),
+            () => merchant.SendAsync(HttpMethod.Post, url, body));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("envío en curso", await second.Content.ReadAsStringAsync());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(import).Count);
+
+        var again = await merchant.PostAsync(url, body);
+        Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(import).Count);
+    }
+
+    [Fact]
+    public async Task Cotizar_con_MiCorreo_sin_respuesta_no_rompe_el_checkout()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cot");
+        await merchant.PutAsync("/api/v1/admin/shipping/correo", Config($"user-{merchant.Subdomain}"));
+        StubToken();
+
+        // La red caída y el timeout son lo mismo para el comprador: Correo no
+        // ofrece opciones y el checkout sigue con los demás medios.
+        foreach (var failure in new Exception[] { new HttpRequestException("sin red"), new TaskCanceledException("timeout") })
+        {
+            _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/rates", (_, _) => throw failure);
+            var quote = await merchant.PostAsync("/api/v1/shipping/correo/quote", new { postalCode = "1043", units = 1 });
+            Assert.True(quote.GetProperty("available").GetBoolean());
+            Assert.Empty(quote.GetProperty("options").EnumerateArray());
+            Assert.False(string.IsNullOrEmpty(quote.GetProperty("error").GetString()));
+        }
     }
 }

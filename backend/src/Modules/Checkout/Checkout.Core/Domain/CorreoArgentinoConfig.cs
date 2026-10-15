@@ -26,8 +26,9 @@ public sealed class CorreoArgentinoConfig
     /// <summary>CP desde donde despacha la tienda (numérico, ej: "1704").</summary>
     public string OriginPostalCode { get; private set; } = null!;
 
-    // Paquete estimado POR UNIDAD del carrito. El catálogo no tiene peso/dimensiones
-    // por producto (deuda declarada): la cotización usa estos defaults × cantidad.
+    // Paquete por defecto POR UNIDAD: lo usan las unidades cuya variante no
+    // tiene peso o medidas cargadas (CartParcelsBuilder arma un bulto por
+    // unidad con lo de su variante y cae acá solo para lo que falta).
     public int DefaultWeightGrams { get; private set; }
     public int DefaultLengthCm { get; private set; }
     public int DefaultWidthCm { get; private set; }
@@ -114,4 +115,44 @@ public sealed class CorreoArgentinoConfig
         var digits = new string(raw.Where(char.IsAsciiDigit).ToArray());
         return digits.Length == 4 ? digits : null;
     }
+}
+
+/// <summary>
+/// Alta de un envío en MiCorreo desde una venta. MiCorreo no devuelve número
+/// de seguimiento al importar (solo la fecha): el número lo carga el comercio
+/// en la venta cuando paga el envío en la web de MiCorreo.
+///
+/// Sirve de guard: no se sabe si MiCorreo deduplica por <c>extOrderId</c>, así
+/// que una venta se da de alta una sola vez (índice único por tienda y venta).
+/// </summary>
+public sealed class CorreoShipment
+{
+    public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
+    public Guid OrderId { get; private set; }
+
+    /// <summary>"D" (a domicilio) o "S" (a sucursal), como lo pide MiCorreo.</summary>
+    public string DeliveryType { get; private set; } = "D";
+
+    /// <summary>Código de la sucursal de destino, si va a sucursal.</summary>
+    public string? Agency { get; private set; }
+
+    /// <summary>La fecha de alta tal como la devolvió MiCorreo (texto, sin zona).</summary>
+    public string? RemoteCreatedAt { get; private set; }
+
+    public DateTime CreatedAtUtc { get; private set; }
+
+    private CorreoShipment() { } // EF Core
+
+    public static CorreoShipment Create(
+        Guid tenantId, Guid orderId, string deliveryType, string? agency, string? remoteCreatedAt) => new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            OrderId = orderId,
+            DeliveryType = deliveryType == "S" ? "S" : "D",
+            Agency = Text.Clip(agency, 20),
+            RemoteCreatedAt = Text.Clip(remoteCreatedAt, 40),
+            CreatedAtUtc = DateTime.UtcNow,
+        };
 }

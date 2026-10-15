@@ -150,44 +150,6 @@ public class AndreaniStatusMapTests
     [InlineData(AndreaniShipmentStatus.Unknown, "Sin novedades")]
     public void CadaEstadoTieneSuEtiquetaEnElPanel(string status, string label) =>
         Assert.Equal(label, AndreaniStatusMap.AdminLabel(status));
-
-    [Theory]
-    [InlineData(AndreaniShipmentStatus.DeliveryAttemptFailed)]
-    [InlineData(AndreaniShipmentStatus.AvailableForPickup)]
-    [InlineData(AndreaniShipmentStatus.ReturnedToSender)]
-    public void LasNovedadesQueRequierenAlgoDelCompradorTambienSeAvisan(string status) =>
-        Assert.False(string.IsNullOrWhiteSpace(AndreaniStatusMap.BuyerMessage(status)));
-
-    [Fact]
-    public void QueSeGenereLaEtiquetaNoEsNovedadParaElComprador() =>
-        Assert.Null(AndreaniStatusMap.BuyerMessage(AndreaniShipmentStatus.Created));
-
-    [Fact]
-    public void NuncaSeLeAvisaAlCompradorSobreUnEstadoQueNoEntendemos() =>
-        Assert.Null(AndreaniStatusMap.BuyerMessage(AndreaniShipmentStatus.Unknown));
-
-    [Theory]
-    [InlineData(AndreaniShipmentStatus.Dispatched)]
-    [InlineData(AndreaniShipmentStatus.OutForDelivery)]
-    [InlineData(AndreaniShipmentStatus.Delivered)]
-    public void LosEstadosQueLeImportanAlCompradorTienenMensaje(string status)
-    {
-        var message = AndreaniStatusMap.BuyerMessage(status);
-        Assert.False(string.IsNullOrWhiteSpace(message));
-        // Nunca el texto crudo de Andreani: "Ingreso al circuito operativo" no
-        // significa nada para una persona.
-        Assert.DoesNotContain("circuito", message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void SoloEntregadoYDevueltoSonFinales()
-    {
-        Assert.True(AndreaniStatusMap.IsFinal(AndreaniShipmentStatus.Delivered));
-        Assert.True(AndreaniStatusMap.IsFinal(AndreaniShipmentStatus.ReturnedToSender));
-        Assert.False(AndreaniStatusMap.IsFinal(AndreaniShipmentStatus.OutForDelivery));
-        // Un estado desconocido no es final: hay que volver a preguntar.
-        Assert.False(AndreaniStatusMap.IsFinal(AndreaniShipmentStatus.Unknown));
-    }
 }
 
 public class AndreaniShipmentTests

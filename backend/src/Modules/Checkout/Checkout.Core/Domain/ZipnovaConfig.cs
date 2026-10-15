@@ -108,6 +108,8 @@ public sealed class ZipnovaConfig
 /// Envío creado en Zipnova para una orden. Cumple DOS roles: guard de
 /// idempotencia local (la API de Zipnova NO deduplica — un reintento crea un
 /// envío real duplicado con costo) y acceso persistente a tracking/etiqueta.
+/// La fila se graba después de crear el envío: a dos pedidos simultáneos los
+/// frena la reserva previa (<see cref="ShipmentClaim"/>), no esta fila.
 /// </summary>
 public sealed class ZipnovaShipment
 {

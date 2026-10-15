@@ -16,7 +16,8 @@ namespace Api.Endpoints;
 /// vivo para el checkout, creación de envíos con etiqueta PDF y tracking.
 /// Credenciales cifradas, nunca devueltas. Reglas duras del proveedor
 /// (confirmadas por soporte jul-2026): sin idempotencia en creación (guard
-/// local vía zipnova_shipments), dimensiones en CM en todos los endpoints,
+/// local: reserva previa en shipment_claims + zipnova_shipments), dimensiones
+/// en CM en todos los endpoints,
 /// y pruebas sólo con la modalidad "testing" habilitada sobre la cuenta.
 /// </summary>
 public static class ZipnovaEndpoints
@@ -203,7 +204,8 @@ public static class ZipnovaEndpoints
         group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment", async (
             Guid orderId, ZipnovaShipmentRequest req, ITenantContext tenant,
             IZipnovaRepository repo, IOrderRepository orders, ICatalogCheckoutQuery catalog,
-            ShippingSecretProtector protector, ZipnovaClient client, CancellationToken ct) =>
+            ShippingSecretProtector protector, ZipnovaClient client, IShipmentClaimRepository claims,
+            ILoggerFactory loggers, CancellationToken ct) =>
         {
             var config = await repo.GetConfigAsync(tenant.TenantId.Value, ct);
             if (config is null)
@@ -214,7 +216,8 @@ public static class ZipnovaEndpoints
             if (order is null) return Results.NotFound();
 
             // GUARD DE IDEMPOTENCIA (crítico): Zipnova no deduplica — un segundo
-            // POST crea otro envío real con costo. Si ya hay envío, se devuelve.
+            // POST crea otro envío real con costo. Si ya hay envío, se devuelve;
+            // dos pedidos simultáneos los resuelve la reserva de ShipmentWriteAhead.
             var existing = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             if (existing is not null)
                 return Results.Ok(ShipmentDto(existing, alreadyExisted: true));
@@ -286,21 +289,35 @@ public static class ZipnovaEndpoints
                 ["packages"] = packages,
             };
 
-            try
-            {
-                var created = await client.CreateShipmentAsync(Credentials(config, protector), payload, ct);
-                var record = ZipnovaShipment.Create(
-                    tenant.TenantId.Value, orderId, created.Id,
-                    created.Carrier?.Name, created.CarrierTrackingId,
-                    created.TrackingUrl ?? created.TrackingExternalUrl, created.Status);
-                await repo.AddShipmentAsync(record, ct);
-                await repo.SaveChangesAsync(ct);
-                return Results.Ok(ShipmentDto(record, alreadyExisted: false));
-            }
-            catch (ZipnovaException ex)
-            {
-                return Error.Validation("Zipnova.CreateFailed", ex.Message).ToProblem();
-            }
+            return await ShipmentWriteAhead.CreateOnceAsync(
+                claims, loggers.CreateLogger("Zipnova"), tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Zipnova, "Zipnova",
+                async c => await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, c) is { } done
+                    ? Results.Ok(ShipmentDto(done, alreadyExisted: true))
+                    : null,
+                async attempt =>
+                {
+                    try
+                    {
+                        var created = await client.CreateShipmentAsync(Credentials(config, protector), payload, ct);
+                        attempt.CarrierCreated($"envío #{created.Id}");
+
+                        // Sin el token del pedido: el envío ya existe en Zipnova
+                        // y tiene que quedar guardado aunque el panel se haya ido.
+                        var record = ZipnovaShipment.Create(
+                            tenant.TenantId.Value, orderId, created.Id,
+                            created.Carrier?.Name, created.CarrierTrackingId,
+                            created.TrackingUrl ?? created.TrackingExternalUrl, created.Status);
+                        await repo.AddShipmentAsync(record, CancellationToken.None);
+                        await repo.SaveChangesAsync(CancellationToken.None);
+                        return Results.Ok(ShipmentDto(record, alreadyExisted: false));
+                    }
+                    catch (ZipnovaException ex) when (attempt.CreatedAtCarrier is null)
+                    {
+                        return Error.Validation("Zipnova.CreateFailed", ex.Message).ToProblem();
+                    }
+                },
+                ct);
         }).RequirePermission(Permission.OrdersFulfill);
 
         // Estado del envío Zipnova de una orden (para pintar el botón correcto).
@@ -342,7 +359,12 @@ public static class ZipnovaEndpoints
             if (config is null || shipment is null) return Results.NotFound();
             try
             {
-                var events = await client.GetTrackingAsync(Credentials(config, protector), shipment.ShipmentId, ct);
+                // Zipnova no documenta en qué orden vienen los eventos: se
+                // ordenan por fecha, del más nuevo al más viejo, y el estado
+                // guardado es el del más nuevo.
+                var events = TrackingEvents.NewestFirst(
+                    await client.GetTrackingAsync(Credentials(config, protector), shipment.ShipmentId, ct),
+                    e => e.CreatedAt);
                 var latest = events.Count > 0 ? events[0] : null;
                 if (latest?.Status is not null)
                 {

@@ -50,30 +50,6 @@ public static class AndreaniStatusMap
         return AndreaniShipmentStatus.Unknown;
     }
 
-    /// <summary>
-    /// Estados de los que ya no se sale: no tiene sentido seguir consultándolos.
-    /// </summary>
-    public static bool IsFinal(string status) =>
-        status is AndreaniShipmentStatus.Delivered or AndreaniShipmentStatus.ReturnedToSender;
-
-    /// <summary>
-    /// Qué se le dice al comprador. Nunca el texto crudo de Andreani: "Ingreso
-    /// al circuito operativo" no significa nada para una persona.
-    ///
-    /// Devuelve null cuando no corresponde avisar — y un estado desconocido
-    /// NUNCA se avisa: no se notifica sobre algo que no entendemos.
-    /// </summary>
-    public static string? BuyerMessage(string status) => status switch
-    {
-        AndreaniShipmentStatus.Dispatched => "Tu pedido ya está en camino.",
-        AndreaniShipmentStatus.OutForDelivery => "Tu pedido sale a entregarse hoy.",
-        AndreaniShipmentStatus.DeliveryAttemptFailed => "Pasamos a entregarte y no había nadie. Vamos a intentarlo de nuevo.",
-        AndreaniShipmentStatus.AvailableForPickup => "Tu pedido te espera en la sucursal.",
-        AndreaniShipmentStatus.Delivered => "Tu pedido fue entregado.",
-        AndreaniShipmentStatus.ReturnedToSender => "Tu pedido volvió a la tienda. Escribinos para resolverlo.",
-        _ => null,
-    };
-
     /// <summary>Etiqueta corta para el panel.</summary>
     public static string AdminLabel(string status) => status switch
     {

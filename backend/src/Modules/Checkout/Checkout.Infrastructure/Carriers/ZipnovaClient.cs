@@ -81,7 +81,8 @@ public sealed record ZipnovaTrackingEvent(
 /// Zipnova por escrito (jul-2026):
 /// - La creación de envíos NO tiene idempotencia del lado de Zipnova (un
 ///   external_id repetido DUPLICA el envío): acá NUNCA se reintenta un
-///   POST /shipments. El guard local vive en ZipnovaShipment.
+///   POST /shipments. El guard local es la reserva previa (ShipmentClaim)
+///   más la fila de ZipnovaShipment.
 /// - Dimensiones en CM en TODOS los endpoints (la spec pública decía mm en
 ///   la creación; soporte lo desmintió — no convertir nunca).
 /// - Pruebas: no hay ambiente aparte; se pide a soporte habilitar la

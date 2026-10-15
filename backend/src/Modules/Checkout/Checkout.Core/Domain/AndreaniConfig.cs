@@ -187,10 +187,12 @@ public sealed class AndreaniConfig
 /// Envío de Andreani generado desde una venta.
 ///
 /// Andreani devuelve un número de seguimiento POR BULTO, no uno por envío, y
-/// <b>no tiene endpoint de cancelación ni de idempotencia</b>. Por eso hay una
-/// única fila por orden con índice único: si dos operadores tocan "despachar"
-/// a la vez, la base frena al segundo. Un envío duplicado no se puede deshacer
-/// por API y se factura igual.
+/// <b>no tiene endpoint de cancelación ni de idempotencia</b>: un envío
+/// duplicado no se puede deshacer por API y se factura igual. Hay una única
+/// fila por orden con índice único, pero esa fila se graba DESPUÉS de que
+/// Andreani creó el envío, así que sola no frena a dos operadores que tocan
+/// "despachar" a la vez. Lo que los frena es la reserva previa
+/// (<see cref="ShipmentClaim"/>), grabada antes de llamar a Andreani.
 /// </summary>
 public sealed class AndreaniShipment
 {

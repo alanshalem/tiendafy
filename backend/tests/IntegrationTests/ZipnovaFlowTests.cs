@@ -224,6 +224,87 @@ public sealed class ZipnovaFlowTests
         await merchant.ExpectOkAsync(HttpMethod.Delete, "/api/v1/admin/shipping/zipnova");
     }
 
+    private static HttpResponseMessage Created(long id) => FakeHttp.Json(new
+    {
+        id,
+        external_id = "TF-x",
+        carrier_tracking_id = $"AND{id}",
+        carrier = new { id = 12, name = "Andreani" },
+        status = "new",
+        tracking = $"https://tracking.zipnova.com.ar/{id}",
+    });
+
+    private async Task<(Merchant Merchant, Guid OrderId)> ConfiguredSaleAsync(string tag)
+    {
+        var merchant = await Merchant.CreateAsync(_factory, tag);
+        await merchant.PutAsync("/api/v1/admin/shipping/zipnova", Config());
+        return (merchant, await merchant.CreateSaleAsync());
+    }
+
+    [Fact]
+    public async Task Dos_pedidos_a_la_vez_crean_un_solo_envio()
+    {
+        // Zipnova no deduplica: un segundo POST /shipments es otro envío que se paga.
+        var (merchant, orderId) = await ConfiguredSaleAsync("zpr");
+        var url = $"/api/v1/admin/orders/{orderId}/zipnova-shipment";
+        var shipments = $"{Base}/shipments";
+        var before = _factory.ExternalHttp.SentTo(shipments).Count;
+
+        var (first, second) = await CarrierRace.RunAsync(_factory.ExternalHttp, HttpMethod.Post, shipments,
+            () => Created(8800001), () => merchant.SendAsync(HttpMethod.Post, url, Recipient()));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("envío en curso", await second.Content.ReadAsStringAsync());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(shipments).Count);
+
+        var again = await merchant.PostAsync(url, Recipient());
+        Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal(8800001, again.GetProperty("shipmentId").GetInt64());
+        Assert.Equal(before + 1, _factory.ExternalHttp.SentTo(shipments).Count);
+    }
+
+    [Fact]
+    public async Task Si_Zipnova_no_responde_se_avisa_y_se_puede_reintentar()
+    {
+        var (merchant, orderId) = await ConfiguredSaleAsync("zpt");
+        var url = $"/api/v1/admin/orders/{orderId}/zipnova-shipment";
+
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/shipments", (_, _) => throw new HttpRequestException("conexión cortada"));
+        var noAnswer = await merchant.SendAsync(HttpMethod.Post, url, Recipient());
+        Assert.Equal(HttpStatusCode.BadGateway, noAnswer.StatusCode);
+        Assert.Contains("revisalo en el panel de Zipnova", await noAnswer.Content.ReadAsStringAsync());
+
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/shipments", (_, _) => Created(8800002));
+        var created = await merchant.PostAsync(url, Recipient());
+        Assert.False(created.GetProperty("alreadyExisted").GetBoolean());
+    }
+
+    [Fact]
+    public async Task El_estado_guardado_es_el_del_evento_mas_nuevo_aunque_lleguen_al_reves()
+    {
+        var (merchant, orderId) = await ConfiguredSaleAsync("zpk");
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Base}/shipments", (_, _) => Created(8800003));
+        await merchant.PostAsync($"/api/v1/admin/orders/{orderId}/zipnova-shipment", Recipient());
+
+        // Del más viejo al más nuevo: tomar el primero dejaría "new" para
+        // siempre aunque el paquete ya se haya entregado.
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Base}/shipments/8800003/tracking", new
+        {
+            data = new[]
+            {
+                new { status = "new", status_name = "Nuevo", created_at = "2026-10-01 10:00:00", description = "" },
+                new { status = "in_transit", status_name = "En camino", created_at = "2026-10-02 09:00:00", description = "" },
+                new { status = "delivered", status_name = "Entregado", created_at = "2026-10-03 15:30:00", description = "" },
+            },
+        });
+
+        var tracking = await merchant.GetAsync($"/api/v1/admin/orders/{orderId}/zipnova-tracking");
+        Assert.Equal("delivered", tracking.GetProperty("events")[0].GetProperty("status").GetString());
+        Assert.Equal("delivered",
+            (await merchant.GetAsync($"/api/v1/admin/orders/{orderId}/zipnova-shipment")).GetProperty("status").GetString());
+    }
+
     private static async Task<byte[]> LabelAsync(Merchant merchant, Guid orderId)
     {
         var res = await merchant.ExpectOkAsync(HttpMethod.Get, $"/api/v1/admin/orders/{orderId}/zipnova-label");
