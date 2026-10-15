@@ -85,7 +85,7 @@ public sealed class Coupon
         if (EndsAtUtc is { } e && now > e) return CouponEvaluation.Invalid("El cupón venció.");
         if (MaxUses is { } m && UsedCount >= m) return CouponEvaluation.Invalid("El cupón alcanzó su límite de usos.");
         if (subtotal < MinPurchase)
-            return CouponEvaluation.Invalid($"Compra mínima de ${MinPurchase / 100m:N0} para usar este cupón.");
+            return CouponEvaluation.Invalid($"Compra mínima de ${ArgentineNumbers.Number(MinPurchase / 100m)} para usar este cupón.");
 
         var discount = Type switch
         {

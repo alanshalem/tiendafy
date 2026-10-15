@@ -52,6 +52,22 @@ public class CouponTests
     }
 
     [Fact]
+    public void CompraMinima_muestra_el_monto_con_punto_de_miles_aun_con_cultura_invariante()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        try
+        {
+            var ev = Create(CouponType.Percentage, 10, minPurchase: 1_500_000_00).Evaluate(50_000, Now);
+            Assert.Equal("Compra mínima de $1.500.000 para usar este cupón.", ev.Error);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
     public void Vencido_no_se_puede_usar()
     {
         var ev = Create(CouponType.Percentage, 10, endsAt: Now.AddDays(-1)).Evaluate(50_000, Now);

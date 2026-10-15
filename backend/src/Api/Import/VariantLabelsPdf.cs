@@ -3,6 +3,7 @@ using Net.Codecrete.QrCodeGenerator;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SharedKernel.Common;
 
 namespace Api.Import;
 
@@ -44,7 +45,7 @@ public static class VariantLabelsPdf
                             if (label.VariantDescription.Length > 0)
                                 col.Item().Text(Clip(label.VariantDescription, 30)).FontSize(7);
                             col.Item().Text(label.Sku).FontSize(7).FontColor(Colors.Grey.Darken1);
-                            col.Item().Text($"$ {label.PriceMinor / 100m:N0}").FontSize(9).Bold();
+                            col.Item().Text($"$ {ArgentineNumbers.Number(label.PriceMinor / 100m)}").FontSize(9).Bold();
                         });
                     });
                 }

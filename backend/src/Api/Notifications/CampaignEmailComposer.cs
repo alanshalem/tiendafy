@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Api.Auth;
 using Microsoft.AspNetCore.DataProtection;
+using SharedKernel.Common;
 
 namespace Api.Notifications;
 
@@ -80,7 +81,7 @@ public static partial class CampaignEmailComposer
         {
             var name = WebUtility.HtmlEncode(p.Name);
             var url = $"{storeBaseUrl}/productos/{Uri.EscapeDataString(p.Slug)}";
-            var price = (p.PriceMinor / 100m).ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+            var price = ArgentineNumbers.Number(p.PriceMinor / 100m);
             var image = string.IsNullOrEmpty(p.Image)
                 ? ""
                 : $"""<img src="{WebUtility.HtmlEncode(p.Image)}" alt="{name}" width="120" style="display:block;width:120px;height:120px;object-fit:cover;border-radius:8px" />""";
