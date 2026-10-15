@@ -271,6 +271,22 @@ public sealed class ArcaGotchasTests
         Assert.Null(FiscalCertificateFactory.ReadSubjectCuit("CN=otro certificado, C=AR"));
     }
 
+    // ---- TLS ---------------------------------------------------------------------
+
+    [Fact]
+    public void El_TLS_con_ARCA_no_ofrece_DHE()
+    {
+        // servicios1 (WSFEv1 de producción) elige DHE de 1024 bits si se lo
+        // ofrecen, y OpenSSL 3 corta con DH_KEY_TOO_SMALL. La política vale
+        // solo en Linux (en Windows decide SChannel): ahí corre producción y CI.
+        if (!OperatingSystem.IsLinux()) return;
+
+        var suites = global::Fiscal.Infrastructure.FiscalModule.EcdheOnly().AllowedCipherSuites!.ToList();
+
+        Assert.Contains(System.Net.Security.TlsCipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, suites);
+        Assert.DoesNotContain(suites, s => s.ToString().StartsWith("TLS_DHE_", StringComparison.Ordinal));
+    }
+
     private sealed class Stub(string responseXml, HttpStatusCode status) : HttpMessageHandler
     {
         public string LastRequest { get; private set; } = "";

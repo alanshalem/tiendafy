@@ -28,8 +28,9 @@ Lo que los documentos marcan como bloqueante, juntado acá:
 - **Payway:** si Payway da un host productivo distinto de `live.decidir.com`
   o `ventasonline.payway.com.ar`, sumarlo al CSP de la tienda
   (`storefront/src/lib/csp.ts`) además de cargarlo como host alternativo.
-- **ARCA:** en producción, `servicios1.afip.gov.ar` puede rechazar el TLS con
-  `DH_KEY_TOO_SMALL` y la imagen de la API no baja el nivel de seguridad de
-  OpenSSL. Probarlo contra producción apenas esté el certificado.
+- **ARCA:** falta activar un certificado (homologación y después producción)
+  y emitir el primer CAE real. El `DH_KEY_TOO_SMALL` de `servicios1.afip.gov.ar`
+  ya está resuelto en el cliente (solo ECDHE, sin bajar el nivel de seguridad):
+  ver [arca.md](arca.md#tls-contra-arca).
 - **Mercado Libre:** cargar `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` en `.env.prod`
   (el compose ya arma el resto).

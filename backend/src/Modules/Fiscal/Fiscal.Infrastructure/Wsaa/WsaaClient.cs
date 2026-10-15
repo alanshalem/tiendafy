@@ -41,7 +41,7 @@ public sealed class WsaaClient(HttpClient http, ILogger<WsaaClient> logger)
         }
         catch (Exception ex)
         {
-            // Handshake TLS fallido (H2/H3: DH_KEY_TOO_SMALL en prod) cae acá.
+            // Handshake TLS fallido (H2/H3, ver FiscalModule.ArcaHandler) cae acá.
             logger.LogError(ex, "WSAA loginCms: fallo de red/TLS contra {Endpoint}.", endpoint);
             return Result.Failure<WsaaCredentials>(Error.Conflict("Wsaa.Network",
                 "No se pudo conectar con ARCA (WSAA). Revisá conectividad/TLS del ambiente."));

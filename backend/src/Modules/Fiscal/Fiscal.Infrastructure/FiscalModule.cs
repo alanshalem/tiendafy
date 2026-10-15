@@ -42,18 +42,48 @@ public static class FiscalModule
 
     /// <summary>
     /// El handler HTTP de todo lo que habla con ARCA (WSAA, WSFEv1, padrón), con
-    /// TLS explícito (H2/H3): forzar TLS 1.2/1.3 evita el "anda en homologación,
-    /// revienta en producción". El DH_KEY_TOO_SMALL de servicios1 se ataja
-    /// además con el SECLEVEL de la imagen (documentado en el ADR de
-    /// despliegue). Estaba copiado en cada cliente; un cambio de TLS tiene que
-    /// llegar a los tres a la vez.
+    /// TLS explícito (H2/H3): TLS 1.2/1.3 y, en Linux, solo suites con ECDHE.
+    /// Estaba copiado en cada cliente; un cambio de TLS tiene que llegar a los
+    /// tres a la vez.
+    ///
+    /// <para>
+    /// Por qué las suites: <c>servicios1.afip.gov.ar</c> (WSFEv1 de producción)
+    /// elige DHE si el cliente lo ofrece, con un grupo DH de 1024 bits, y
+    /// OpenSSL 3 con su nivel de seguridad por defecto (SECLEVEL=2) corta el
+    /// handshake con <c>DH_KEY_TOO_SMALL</c>. Ofreciendo solo ECDHE negocia
+    /// ECDHE-RSA-AES256-GCM-SHA384 sin bajar el nivel de seguridad. La lista
+    /// por defecto de .NET en Linux ya es solo ECDHE, pero deja de mandar
+    /// apenas el openssl.cnf de la imagen define un <c>CipherString</c>
+    /// (pasa en varias distros): fijarla acá no depende de la imagen. Las
+    /// pruebas contra los seis hosts están en docs/integraciones/arca.md.
+    /// En Windows (desarrollo) la política de suites no existe y decide SChannel.
+    /// </para>
     /// </summary>
     private static SocketsHttpHandler ArcaHandler() => new()
     {
         SslOptions = new SslClientAuthenticationOptions
         {
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            CipherSuitesPolicy = OperatingSystem.IsLinux() ? EcdheOnly() : null,
         },
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
     };
+
+    /// <summary>
+    /// TLS 1.3 (que ARCA hoy no habla, pero el día que lo habilite no hay que
+    /// tocar nada) y TLS 1.2 con intercambio ECDHE y AEAD. Sin DHE a propósito.
+    /// </summary>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    internal static CipherSuitesPolicy EcdheOnly() => new(
+    [
+        TlsCipherSuite.TLS_AES_256_GCM_SHA384,
+        TlsCipherSuite.TLS_AES_128_GCM_SHA256,
+        TlsCipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+        TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+        TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+        TlsCipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+        TlsCipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+        TlsCipherSuite.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+    ]);
 }

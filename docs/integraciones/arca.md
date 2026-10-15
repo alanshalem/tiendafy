@@ -179,8 +179,9 @@ reintentar no los arregla. Desde Ventas se ve el estado
 - En homologación `FEParamGetPtosVenta` no lista nada (602) y se acepta
   cualquier punto de venta; en producción tiene que ser de web services.
 - Hosts explícitos por ambiente, nunca derivados reemplazando el dominio, y
-  TLS 1.2/1.3 forzado. `servicios1.afip.gov.ar` (WSFEv1 producción) puede fallar
-  con `DH_KEY_TOO_SMALL` contra un OpenSSL con nivel de seguridad alto.
+  TLS 1.2/1.3 forzado. `servicios1.afip.gov.ar` (WSFEv1 producción) elige DHE
+  de 1024 bits si el cliente lo ofrece y OpenSSL 3 corta con
+  `DH_KEY_TOO_SMALL`: por eso el cliente ofrece solo ECDHE (ver abajo).
 - En Windows un certificado armado desde PEM no firma CMS: hay que pasar por
   PKCS#12 (`TraSigner.LoadForSigning`).
 - Padrón A5: los hijos de `getPersona_v2` van sin namespace, un CUIT
@@ -188,6 +189,59 @@ reintentar no los arregla. Desde Ventas se ve el estado
   aparte para `ws_sr_padron_a5`.
 - ARCA no deja facturarse a uno mismo, y su mensaje no lo dice claro: pasa al
   probar con el CUIT de la propia empresa.
+
+## TLS contra ARCA
+
+Probado el 15-oct-2026 desde la imagen de runtime
+(`mcr.microsoft.com/dotnet/aspnet:10.0`, que es **Ubuntu 24.04** con OpenSSL
+3.0.13, no Debian) y desde `debian:bookworm-slim` (OpenSSL 3.0.22), con el mismo
+resultado. Ninguna de las dos imágenes trae `SECLEVEL` ni `CipherString` en
+`/etc/ssl/openssl.cnf`: el nivel por defecto es 2.
+
+```bash
+openssl s_client -connect HOST:443 -servername HOST </dev/null               # por defecto
+openssl s_client ... -cipher DEFAULT@SECLEVEL=2                              # igual al anterior
+openssl s_client ... -cipher DEFAULT@SECLEVEL=1
+openssl s_client ... -tls1_2 -cipher ECDHE@SECLEVEL=2                        # solo ECDHE
+openssl s_client ... -tls1_2 -cipher DHE@SECLEVEL=1                          # solo DHE
+openssl s_client ... -tls1_3
+```
+
+| Host | Por defecto / SECLEVEL=2 | SECLEVEL=1 | Solo ECDHE (SECLEVEL=2) | DH que ofrece | TLS 1.3 |
+|---|---|---|---|---|---|
+| `servicios1.afip.gov.ar` (WSFEv1 prod) | **falla: `dh key too small`** | DHE-RSA-AES256-GCM, DH 1024 | ECDHE-RSA-AES256-GCM-SHA384 | **1024 bits** | no |
+| `wsaa.afip.gov.ar` | ECDHE-RSA-AES256-GCM-SHA384 | igual | igual | 2048 | no |
+| `aws.afip.gov.ar` (padrón prod) | ECDHE-RSA-AES128-GCM-SHA256 | igual | igual | 1024 | no |
+| `wsaahomo.afip.gov.ar` | ECDHE-RSA-AES128-GCM-SHA256 | igual | igual | 2048 | no |
+| `wswhomo.afip.gov.ar` | ECDHE-RSA-AES256-GCM-SHA384 | igual | igual | 2048 | no |
+| `awshomo.afip.gov.ar` | ECDHE-RSA-AES128-GCM-SHA256 | igual | igual | 2048 | no |
+
+`servicios1` elige DHE antes que ECDHE cuando el cliente ofrece los dos, y su
+grupo DH es de 1024 bits. Homologación no tiene el problema: por eso "anda en
+homologación y revienta en producción".
+
+Con .NET (un `SslStream` dentro de la imagen de runtime):
+
+| Cliente | `servicios1` | Los otros cinco |
+|---|---|---|
+| Lista por defecto de .NET | ECDHE-RSA-AES256-GCM-SHA384 | ECDHE |
+| `CipherSuitesPolicy` con DHE | `dh key too small` | ECDHE |
+| Lista por defecto + `openssl.cnf` con `CipherString = DEFAULT@SECLEVEL=2` | **`dh key too small`** | ECDHE |
+| `CipherSuitesPolicy` solo ECDHE + ese mismo `openssl.cnf` | ECDHE-RSA-AES256-GCM-SHA384 | ECDHE |
+
+Hoy la imagen andaría de casualidad: .NET en Linux aplica su propia lista
+(solo ECDHE) **mientras** el `openssl.cnf` no defina un `CipherString`; si lo
+define (varias distros lo hacen), usa esa, ofrece DHE y `servicios1` falla.
+La decisión fue la más angosta que no depende de la imagen: el handler de ARCA
+(`FiscalModule.ArcaHandler`, compartido por WSAA, WSFEv1 y padrón) fija una
+`CipherSuitesPolicy` de TLS 1.3 + TLS 1.2 ECDHE con AEAD. No se baja el
+`SECLEVEL` (ni global ni para ARCA) y el `Dockerfile` no cambia. En Windows
+(desarrollo) la política no existe y decide SChannel; homologación negocia
+ECDHE igual.
+
+Si ARCA cambia la configuración de `servicios1`, se repite con
+`openssl s_client` desde la imagen de runtime (como root, instalando `openssl`
+con apt) y con un `SslStream` publicado para `linux-x64`.
 
 ## Cómo probar
 
@@ -216,11 +270,6 @@ Documentación: manuales de WSAA y WSFEv1).
 - **Certificado real**: activar uno de homologación y emitir el primer CAE;
   después el de producción (es otro certificado), el punto de venta de web
   services y una factura de prueba verificada en el portal de ARCA.
-- **TLS en producción**: el comentario de `FiscalModule.cs` dice que el
-  `DH_KEY_TOO_SMALL` de `servicios1` se ataja con el `SECLEVEL` de la imagen y
-  que está documentado en un ADR de despliegue, pero `backend/Dockerfile` no
-  toca la configuración de OpenSSL y ese ADR no existe. Probarlo contra
-  producción antes de dar la facturación por lista.
 - **Condición frente al IVA del comprador**: ya no se asume RI por tener CUIT
   (persona jurídica = RI, persona física = consumidor final salvo que se
   declare), y el padrón se puede consultar desde el panel. Pero la emisión
