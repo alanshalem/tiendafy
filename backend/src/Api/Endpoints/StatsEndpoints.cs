@@ -69,12 +69,13 @@ public static class StatsEndpoints
                 ?? previous.FirstOrDefault()?.Currency
                 ?? Money.DefaultCurrency;
 
-            // Evolución diaria del período (para el gráfico de barras).
+            // Evolución diaria del período (para el gráfico de barras), en días
+            // de Argentina: una venta de las 22 h es de ese día, no del siguiente.
             var byDay = current
-                .GroupBy(o => DateOnly.FromDateTime((o.PaidAtUtc ?? o.CreatedAtUtc).Date))
+                .GroupBy(o => ArgentinaTime.DateOf(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .ToDictionary(g => g.Key, g => (Revenue: g.Sum(o => o.NetRevenue.AmountInMinorUnits), Orders: g.Count()));
             var series = Enumerable.Range(0, span)
-                .Select(i => DateOnly.FromDateTime(since.AddDays(i + 1).Date))
+                .Select(i => ArgentinaTime.DateOf(since.AddDays(i + 1)))
                 .Select(d => new
                 {
                     date = d,
@@ -156,7 +157,7 @@ public static class StatsEndpoints
             var currency = paid.FirstOrDefault()?.Currency ?? orders.FirstOrDefault()?.Currency ?? Money.DefaultCurrency;
 
             var series = paid
-                .GroupBy(o => (o.PaidAtUtc ?? o.CreatedAtUtc).Date)
+                .GroupBy(o => LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .Select(g => new { date = g.Key, revenue = g.Sum(o => o.NetRevenue.AmountInMinorUnits), orders = g.Count() })
                 .OrderBy(x => x.date).ToList();
 
@@ -249,7 +250,7 @@ public static class StatsEndpoints
             var profit = revenueWithCost - productCost - mpFeesWithCost;
 
             var series = withCost
-                .GroupBy(o => (o.PaidAtUtc ?? o.CreatedAtUtc).Date)
+                .GroupBy(o => LocalDay(o.PaidAtUtc ?? o.CreatedAtUtc))
                 .Select(g => new
                 {
                     date = g.Key,
@@ -421,8 +422,13 @@ public static class StatsEndpoints
             var totalViews = await period.CountAsync(ct);
             var uniqueVisitors = await period.Select(v => v.VisitorId).Distinct().CountAsync(ct);
 
+            // Por día de Argentina, contado en la base: correr el instante al
+            // huso local antes de truncar al día (Npgsql lo traduce a
+            // date_trunc('day', occurred_at_utc + interval, 'UTC')). La fecha
+            // sale con el mismo formato de siempre, medianoche "UTC".
+            var offset = ArgentinaTime.Offset;
             var series = (await period
-                    .GroupBy(v => v.OccurredAtUtc.Date)
+                    .GroupBy(v => (v.OccurredAtUtc + offset).Date)
                     .Select(g => new { date = g.Key, views = g.Count(), visitors = g.Select(x => x.VisitorId).Distinct().Count() })
                     .ToListAsync(ct))
                 .OrderBy(x => x.date)
@@ -511,7 +517,8 @@ public static class StatsEndpoints
 
             // Lo de hoy contra lo de ayer a esta misma hora: la comparación que
             // sirve cuando el día todavía no terminó.
-            var startOfToday = DateTime.UtcNow.Date;
+            // "Hoy" es el día de Argentina: arranca a las 3 UTC, no a las 21 h locales.
+            var startOfToday = ArgentinaTime.StartOfDayUtc(ArgentinaTime.Today);
             var elapsed = DateTime.UtcNow - startOfToday;
             var today = await ordersDb.Orders
                 .Where(o => o.TenantId == tenant.TenantId && OrderStatuses.Earning.Contains(o.Status) && o.PaidAtUtc >= startOfToday)
@@ -595,7 +602,8 @@ public static class StatsEndpoints
 
     /// <summary>
     /// Ventana [since, until) del reporte: si viene from (y opcionalmente to),
-    /// manda el rango explícito (días completos UTC, tope 366); si no, los
+    /// manda el rango explícito (días completos de Argentina, como el filtro
+    /// del listado de ventas; tope 366); si no, los
     /// últimos `fallbackDays`. `until` exclusivo simplifica el "hasta hoy".
     /// </summary>
     /// <summary>
@@ -664,14 +672,22 @@ public static class StatsEndpoints
         };
     }
 
+    /// <summary>
+    /// El día de Argentina de un instante, para las series diarias. Medianoche
+    /// con Kind Utc a propósito: el JSON sale igual que antes
+    /// ("2026-10-15T00:00:00Z") y el panel lee solo la parte de la fecha.
+    /// </summary>
+    private static DateTime LocalDay(DateTime utc) =>
+        DateTime.SpecifyKind(ArgentinaTime.DateOf(utc).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+
     private static (DateTime Since, DateTime Until) Range(DateOnly? from, DateOnly? to, int fallbackDays)
     {
         if (from is { } f)
         {
-            var t = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            var t = to ?? ArgentinaTime.Today;
             if (t < f) (f, t) = (t, f);
-            var until = t.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-            var since = f.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var until = ArgentinaTime.StartOfDayUtc(t.AddDays(1));
+            var since = ArgentinaTime.StartOfDayUtc(f);
             if ((until - since).TotalDays > 366) since = until.AddDays(-366);
             return (since, until);
         }
