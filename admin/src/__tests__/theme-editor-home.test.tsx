@@ -351,7 +351,11 @@ describe('lista de secciones: filas', () => {
 
 describe('agregar sección', () => {
   it('por grupos, con maqueta y descripción; lo que va uno solo, apagado con el motivo', async () => {
-    const { user } = await openHome();
+    // Un inicio que ya tiene newsletter, diga lo que diga el tema exportado.
+    const { user } = await openHome([
+      ...draft.sections.filter((s) => s.type !== 'newsletter'),
+      { id: 'news', type: 'newsletter', visible: true, data: { title: 'Novedades' } },
+    ]);
     const add = within(panel()).getByRole('button', { name: 'Agregar sección' });
     await user.click(add);
     const dialog = picker();

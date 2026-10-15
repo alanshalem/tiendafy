@@ -9,13 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture, mockApi, type MockApi } from '../test/api';
 import { settle, watchCrashes } from '../test/explore';
 import { renderApp } from '../test/render';
-import { orderNumber } from '../lib/orderNumber';
+import { orderLabel } from '../lib/orderNumber';
 
 const CONVS = '/api/v1/support/conversations';
 
 interface Conv {
   id: string;
   orderId: string;
+  orderNumber: number | null;
   customerEmail: string;
   status: 'OPEN' | 'CLOSED';
   unreadForStaff: number;
@@ -23,6 +24,8 @@ interface Conv {
 
 const inbox = fixture<{ items: Conv[] }>(CONVS).items;
 const [waiting, other] = [inbox[0]!, inbox[1]!];
+/** La venta de la conversación, como la ve el comprador (sale de la fixture). */
+const saleLabel = orderLabel({ id: waiting.orderId, number: waiting.orderNumber });
 const closed: Conv = {
   ...other,
   id: 'closed-1',
@@ -268,14 +271,15 @@ describe('chat posventa: el hilo', () => {
     // pedido es el de la conversación (no el id de la conversación), con el
     // número que ve el comprador.
     expect(api.calls.filter((c) => c.path === '/api/v1/ai/support-reply').at(-1)!.body).toMatchObject({
-      orderSummary: `Pedido ${orderNumber(waiting.orderId)}`,
+      orderSummary: `Pedido ${saleLabel}`,
     });
   });
 
   it('el pedido de cada conversación se muestra con su número de venta', async () => {
     const { user } = await openChat();
-    const number = orderNumber(waiting.orderId);
-    expect(number).toMatch(/^#[0-9A-F]{8}$/);
+    // El correlativo de la tienda (#1042), no el principio del id.
+    const number = `#${waiting.orderNumber}`;
+    expect(saleLabel).toBe(number);
     expect(screen.getAllByText(new RegExp(`Pedido ${number}`)).length).toBeGreaterThan(0);
     await openThread(user);
     expect(screen.getAllByText(`Pedido ${number}`).length).toBeGreaterThan(0);

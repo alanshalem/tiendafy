@@ -107,19 +107,40 @@ type Store = {
 let api: MockApi;
 let crashes: () => unknown[][];
 
-/** Una tienda con Mercado Pago conectado (o lo que el test cambie) y un carrito. */
+/**
+ * Una tienda con Mercado Pago conectado (o lo que el test cambie) y un carrito.
+ * Sin transferencia ni efectivo, diga lo que diga la tienda exportada: los
+ * tests de pago a mano los prenden con su propio /store-offers.
+ */
 function store(opts: Store = {}) {
   api = mockApi();
-  api.on(
-    'GET',
-    '/api/v1/payments/mercadopago/public-config',
-    opts.mp ?? { connected: true, checkoutMode: 'PRO' },
-  );
+  const mp = opts.mp ?? { connected: true, checkoutMode: 'PRO' };
+  api.on('GET', '/api/v1/payments/mercadopago/public-config', mp);
+  api.on('GET', '/api/v1/store-offers', {
+    configured: true,
+    transfer: { enabled: false, discountPercent: 0, holdHours: 48 },
+    cashOnPickup: { enabled: false },
+    installments: { max: 0, note: null },
+    freeShipping: null,
+    // Como lo calcula el servidor: sin pago a mano, se compra si hay pasarela.
+    canCheckout: Boolean((mp as { connected?: boolean }).connected) || Boolean(opts.payway),
+  });
   if (opts.payway) api.on('GET', '/api/v1/payments/payway/public-config', opts.payway);
   if (opts.methods) api.on('GET', '/api/v1/shipping/methods', opts.methods);
   if (opts.settings) api.on('GET', '/api/v1/checkout-settings', { ...settings, ...opts.settings });
   api.on('POST', '/api/v1/checkout', { id: SESSION });
-  localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify(opts.cart ?? [LINE]));
+  // Lo del carrito sigue a la venta al mismo precio: las variantes de LINE no
+  // son las de la tienda exportada, y sin esto el repreciado las daría por
+  // dadas de baja. Los tests de precios y stock lo pisan después.
+  const cart = opts.cart ?? [LINE];
+  api.on('GET', '/api/v1/products/variants', {
+    items: cart.map((l) => ({
+      variantId: l.variantId,
+      price: { amount: l.priceAmount, currency: l.currency },
+      available: 99,
+    })),
+  });
+  localStorage.setItem(cartStorageKey(fixtureTenantId), JSON.stringify(cart));
   if (opts.coupon) localStorage.setItem(couponStorageKey(fixtureTenantId), JSON.stringify(opts.coupon));
 }
 

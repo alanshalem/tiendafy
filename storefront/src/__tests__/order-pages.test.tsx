@@ -333,6 +333,12 @@ describe('leyendas legales', () => {
   });
 
   it('sin datos cargados no ocupa lugar', async () => {
+    // La tienda exportada ya factura (tiene razón social y CUIT): esta todavía no.
+    api.on(
+      'GET',
+      '/api/v1/store/legal',
+      legal({ legalName: null, cuit: null, address: null, dataFiscalUrl: null }),
+    );
     await show(<SellerIdentity />);
     expect(screen.queryByText(/CUIT/)).toBeNull();
   });

@@ -38,6 +38,8 @@ public sealed partial class ApiFixturesExport
         var store = seeded.Store;
         var routes = new SortedDictionary<string, JsonNode?>(StringComparer.Ordinal);
 
+        await ReadyToSellAsync(store);
+
         // Primero el comprador (su compra mueve el stock sembrado): así todo lo
         // que exporta el dueño después ya refleja esa venta.
         var (shopper, conversationId) = await ShopperWithHistoryAsync(store, seeded.Ids);
@@ -87,6 +89,40 @@ public sealed partial class ApiFixturesExport
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
         await File.WriteAllTextAsync(target, document.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Assert.True(routes.Count > 80, $"solo {routes.Count} rutas exportadas");
+    }
+
+    /// <summary>
+    /// Lo que tiene configurado una tienda que ya vende, como las de la
+    /// importadora: ARCA lista para facturar (emisor, certificado y punto de
+    /// venta) y transferencia con descuento más efectivo al retirar. Sin esto
+    /// las fixtures son las de una tienda a medio armar: el panel ofrece
+    /// "Configurá la facturación" en cada venta y la tienda no deja comprar.
+    ///
+    /// <para>
+    /// Mercado Pago y Payway quedan sin conectar a propósito: los tests de
+    /// medios de pago arrancan de "sin conectar" y los del checkout dicen con
+    /// qué pasarela cobran.
+    /// </para>
+    /// </summary>
+    private async Task ReadyToSellAsync(Merchant store)
+    {
+        _ = new FakeArca(_factory.ExternalHttp);
+        await store.ConfigureFiscalAsync();
+        await store.PutAsync("/api/v1/admin/payments/options", new
+        {
+            transferEnabled = true,
+            discountPercent = 10,
+            bankName = "Banco Nación",
+            accountHolder = "Importadora Seed SRL",
+            holderTaxId = "30-71234567-8",
+            cbu = "0110599520000012345678",
+            alias = "SEED.TIENDA.PAGOS",
+            instructions = "Mandanos el comprobante por WhatsApp.",
+            holdHours = 48,
+            cashOnPickupEnabled = true,
+            installmentsMax = 0,
+            installmentsNote = (string?)null,
+        });
     }
 
     /// <summary>
@@ -184,6 +220,8 @@ public sealed partial class ApiFixturesExport
     {
         // El cliente sembrado tiene una venta en cuenta corriente con un cobro parcial.
         "/api/v1/finance/ledger" or "/api/v1/finance/ledger/pending" => "?partyKind=customer&partyId=" + ids["customer"],
+        // El repreciado del carrito: sin ids responde una lista vacía, que no muestra la forma.
+        "/api/v1/products/variants" => "?ids=" + ids["variant"],
         _ => "",
     };
 

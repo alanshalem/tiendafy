@@ -33,10 +33,24 @@ const ACTIVE_CERT = {
   usable: true,
 };
 const POS = { id: 'pos-1', number: 3, label: 'Web', active: true };
+/** Una tienda que todavía no configuró nada (la exportada ya factura). */
+const UNCONFIGURED = {
+  configured: false,
+  cuit: null,
+  businessName: null,
+  condition: null,
+  environment: null,
+  autoInvoice: false,
+  trigger: null,
+  defaultPointOfSaleId: null,
+  consumerFinalThresholdMinorUnits: null,
+  enabled: false,
+  certificate: null,
+};
 
-async function open(config: object | null = null, points: object[] = []) {
+async function open(config: object = UNCONFIGURED, points: object[] = []) {
   const api = mockApi();
-  if (config) api.on('GET', '/api/v1/fiscal/config', config);
+  api.on('GET', '/api/v1/fiscal/config', config);
   api.on('GET', '/api/v1/fiscal/points-of-sale', { items: points });
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp('/configuracion/facturacion');

@@ -102,10 +102,7 @@ En los frontends, `vitest run --coverage` deja `coverage/lcov-report/index.html`
 - **`test-fixtures/api.json`**: respuestas reales de la API sobre una tienda
   sembrada completa (`SeededStore`: catálogo, ventas, presupuestos, compras,
   campañas, chat, movimientos financieros), incluidas las del comprador
-  logueado. Se regeneran con `pnpm fixtures:api` (corre `ApiFixturesExport`
-  contra el Postgres de dev). No es determinista: si solo cambiaron unas
-  rutas, regenerá aparte y copiá esas rutas, porque reescribir el archivo
-  entero puede romper tests ajenos por el orden de los productos.
+  logueado. Ver [Las fixtures de la API](#las-fixtures-de-la-api).
 - **`test-fixtures/mock-api.ts`**: `fetch` simulado con esas respuestas (rutas
   normalizadas como el backend: GUID → `:id`). `api.on(método, ruta,
   respuesta, status)` pisa una ruta; `api.calls` registra método, ruta, body y
@@ -124,6 +121,55 @@ En los frontends, `vitest run --coverage` deja `coverage/lcov-report/index.html`
   responde 503), `Workers.RunOnceAsync<T>` (una pasada de un worker),
   `SqlCommands` (cuenta consultas de EF), `FakeArca` + `TestCa` +
   `merchant.ConfigureFiscalAsync()` y `merchant.ConnectMercadoPagoAsync(...)`.
+
+## Las fixtures de la API
+
+`test-fixtures/api.json` lo escribe `ApiFixturesExport` (tests de
+integración): siembra la tienda (`SeededStore` + la demo de
+`POST /dev/demo-seed`), le configura lo que tiene una tienda que vende —ARCA
+lista para facturar, transferencia con 10 % y efectivo al retirar— y suma un
+comprador con una compra, un favorito y un chat. Después pide cada ruta GET de
+la API y guarda la respuesta. Mercado Pago y Payway quedan sin conectar a
+propósito: los tests de medios de pago arrancan de "sin conectar" y los del
+checkout dicen con qué pasarela cobran.
+
+**Regenerar** (con el Postgres de dev levantado; la API de dev puede seguir
+corriendo):
+
+```bash
+pnpm fixtures:api
+```
+
+Compila en Release (el Debug es el de la API de dev y con ella levantada los
+DLL están tomados) y usa su propia base, `tiendafy_fixtures`, para no pisar
+una corrida de integración; `TIENDAFY_TEST_DB` la cambia. Después corré las
+dos suites del front, de a una: si algo se rompe, es un test que dependía de
+un dato que no tenía por qué.
+
+**Qué cambia entre dos regeneraciones y qué no.** La demo usa una semilla
+fija y siembra en orden, así que las ventas, sus estados, montos, compradores
+y números (#1042…) salen iguales cada vez. Cambian los ids (GUID nuevos), el
+subdominio y el mail del dueño (`seedXXXXXXXX`), las fechas (relativas a hoy;
+de un día para otro cambia cuántas ventas caen en fin de semana; las visitas
+"en vivo" dependen del minuto) y todo orden que sale de un id o de un empate:
+el listado de productos en modo cursor, las líneas de una venta, las
+especificaciones de un producto, los gastos de una compra, las sugerencias de
+reposición con la misma urgencia. Para comparar dos regeneraciones, mirá
+qué rutas cambian además de ids y fechas: si aparece una venta con otro
+estado u otro comprador, algo de la siembra volvió a depender del orden en
+que Postgres devuelve las filas (la demo sortea por posición: cada consulta
+que alimenta el sorteo lleva `OrderBy`). Por eso, en los tests:
+
+- Lo que sale de las fixtures se lee de las fixtures (`fixture('/api/v1/orders')`,
+  `orderLabel(venta)`), nunca se copia como literal: un `'#6E158C56'` o un
+  `'Mancuerna hexagonal 10kg'` escrito a mano se rompe en la próxima
+  regeneración.
+- Un dato se busca por lo que lo define (`items.find((o) => o.status === 'PAID')`,
+  por SKU, por slug), no por la posición en un listado ordenado por id.
+- Un test que necesita otra tienda (Mercado Pago conectado, ARCA sin
+  configurar, un inicio con newsletter, otra respuesta del repreciado) la pide
+  con `api.on(...)` en su propio mock: el estado del que depende queda
+  escrito en el test, no escondido en el archivo global.
 
 ## Convenciones
 
