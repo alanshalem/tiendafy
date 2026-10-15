@@ -3,8 +3,12 @@
 **Estado: implementado.** Matriz editable por tienda y excepciones por persona
 desde 2026-10-12 (antes era fija en código). Fuente de verdad:
 `backend/src/Modules/Identity/Identity.Infrastructure/` (`Permissions.cs`,
-`AccessPolicy.cs`, `TeamRules.cs`), con tests `AccessPolicyTests`,
-`TeamRulesTests` y `TeamPermissionsTests`.
+`Roles.cs`, `AccessPolicy.cs`, `TeamRules.cs`, `AccessService.cs`), con tests
+`AccessPolicyTests` y `TeamRulesTests` (unitarios), `TeamPermissionsTests` y
+`EndpointPermissionTests` (integración).
+
+Esto gobierna solo el panel. El comprador de la tienda no tiene roles: su
+sesión es otra (cookie por tienda, `/api/v1/shop/*`) y solo ve lo suyo.
 
 ## El modelo en una frase
 
@@ -16,7 +20,10 @@ permiso de su funcionalidad. **Deny by default.** El dueño tiene todo, siempre.
 
 ## El catálogo de permisos
 
-Una entrada por funcionalidad del panel, en `PermissionCatalog.All`: clave
+Una entrada por funcionalidad del panel, en `PermissionCatalog.All` (38
+permisos en 10 secciones: Estadísticas, Ventas, Mercado Libre, Catálogo,
+Clientes, Marketing, Tienda online, Finanzas y facturación, Configuración y
+Equipo): clave
 estable (`orders.refund`), sección, texto, descripción, si es **sensible** (mueve
 plata, obligaciones fiscales o da más accesos), si es **solo del dueño**
 (`tenant.admin`: dominios, editar y borrar la tienda — no se delega) y su
@@ -24,9 +31,18 @@ plata, obligaciones fiscales o da más accesos), si es **solo del dueño**
 permiso no cuenta). También dice qué roles lo traen de fábrica.
 
 Es la ÚNICA lista: el backend la sirve en `GET /api/v1/members/roles` y el
-panel la muestra tal cual. Agregar una funcionalidad es agregar una línea ahí y
-proteger sus endpoints con `RequirePermission(Permission.X)`; el panel la
-mapea en `admin/src/lib/access.ts` (un test verifica que las claves coincidan).
+panel la muestra tal cual. Agregar una funcionalidad es:
+
+1. Agregar el valor al enum `Permission` (al final: el orden del enum no se
+   corre) y su línea en `PermissionCatalog.All`.
+2. Proteger sus endpoints con `RequirePermission(Permission.X)`.
+   `EndpointPermissionTests` recorre todas las rutas de la API y falla si una
+   no exige un permiso y tampoco está en su lista de excepciones con motivo
+   (la tienda pública, el comprador, el login, los webhooks).
+3. Sumar la clave a `PERMISSION_KEYS` en `admin/src/lib/access.ts` y decir qué
+   pantalla la pide. `access.test.ts` exige que las claves sean las mismas del
+   backend y en el mismo orden (las compara contra `test-fixtures/api.json`,
+   así que hay que regenerar las fixtures con `pnpm fixtures:api`).
 
 ## Roles
 
@@ -38,7 +54,7 @@ Fijos (`Roles.All`): lo que se edita es qué puede cada uno.
 | `admin` (Administrador) | 2    | Todo menos lo que es solo del dueño.                                                                                                    |
 | `vendedor`              | 1    | Ventas (ver, registrar, despachar), presupuestos, atender ML, clientes (ver), chat, mensajes, reseñas, cupones (ver), estadísticas, stock (ver). |
 | `catalogo`              | 1    | Productos, precios y repreciación, stock, costos, publicar en ML.                                                                       |
-| `finanzas`              | 1    | Ventas (ver), devoluciones, facturación, tesorería, compras, cobros (ver), costos, estadísticas.                                        |
+| `finanzas`              | 1    | Ventas (ver), devoluciones, facturación, tesorería, compras, cobros (ver), costos, estadísticas, clientes (ver), cupones (ver), stock (ver). |
 | `soporte`               | 1    | Ventas (ver), clientes (ver), chat, mensajes, reseñas, atender ML.                                                                      |
 
 El rol `staff` (de cuando había dos) se migró a `admin`.
@@ -78,6 +94,11 @@ En `backend/src/Api/Auth/AuthExtensions.cs`:
 - `RequirePermissionForWrites(Permission.X)` — grupos mixtos con el
   storefront: los GET son públicos, las escrituras exigen X.
 
+Dos chequeos no usan esos helpers, a propósito: las rutas
+`/api/v1/tenants/{id}` (editar, archivar, activar, borrar) piden `tenant.admin`
+sobre la tienda del id y no la del header, y `GET /api/v1/theme/draft` pide
+`content.write` salvo que llegue con el token de preview firmado del editor.
+
 El acceso efectivo lo resuelve `IAccessService` contra la base **en cada
 request** (memorizado durante el request): un cambio de la matriz vale desde el
 próximo clic, sin volver a entrar. Las denegaciones se loguean (categoría
@@ -91,7 +112,8 @@ Configuración → Usuarios; `GET /api/v1/members/activity` (`members.read`).
 
 ## El panel
 
-- `GET /api/v1/me/permissions` → permisos efectivos en la tienda activa.
+- `GET /api/v1/me/permissions` → rol, permisos efectivos en la tienda activa
+  y si la persona tiene excepciones propias (`customized`).
 - `admin/src/lib/access.ts`: qué permiso pide cada pantalla (rutas, menú
   lateral, menú de Configuración y buscador salen de ahí).
 - Configuración → **Roles y permisos**: la matriz editable.
