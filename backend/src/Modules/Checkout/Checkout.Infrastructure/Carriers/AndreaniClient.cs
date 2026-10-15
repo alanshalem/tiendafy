@@ -291,7 +291,7 @@ public sealed class AndreaniClient(HttpClient http, ILogger<AndreaniClient> logg
     /// <summary>Las trazas traen la hora de Argentina sin offset.</summary>
     private static DateTime ToUtc(string? raw) =>
         DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)
-            ? DateTime.SpecifyKind(local.AddHours(3), DateTimeKind.Utc)
+            ? ArgentinaTime.ToUtc(local)
             : DateTime.UtcNow;
 
     /// <summary>

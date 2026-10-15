@@ -197,9 +197,9 @@ public sealed class StockAlertService(
     /// <summary>Hora de Argentina pasada la elegida, y todavía sin resumen hoy.</summary>
     public static bool DigestDue(StockAlertSettings settings, DateTime nowUtc)
     {
-        var local = nowUtc.AddHours(-3);
+        var local = ArgentinaTime.ToLocal(nowUtc);
         if (local.Hour < settings.DigestHourLocal) return false;
-        return settings.LastDigestAtUtc is not { } last || last.AddHours(-3).Date < local.Date;
+        return settings.LastDigestAtUtc is not { } last || ArgentinaTime.ToLocal(last).Date < local.Date;
     }
 
     /// <summary>

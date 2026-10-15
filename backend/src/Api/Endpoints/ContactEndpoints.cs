@@ -8,6 +8,7 @@ using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -238,7 +239,7 @@ public static class ContactEndpoints
             : $"<p style='margin:0 0 8px'>Pedido informado: <strong>{WebUtility.HtmlEncode(orderRef.Trim())}</strong></p>";
         return $@"<h2 style='margin:0 0 12px;font-size:20px'>Recibimos tu solicitud de arrepentimiento</h2>
 <p style='margin:0 0 8px'>Hola {WebUtility.HtmlEncode(name)},</p>
-<p style='margin:0 0 8px'>Registramos tu solicitud con el número de constancia <strong>{reference}</strong> el {DateTime.UtcNow.AddHours(-3):dd/MM/yyyy}.</p>
+<p style='margin:0 0 8px'>Registramos tu solicitud con el número de constancia <strong>{reference}</strong> el {ArgentinaTime.Now:dd/MM/yyyy}.</p>
 {pedido}<p style='margin:0 0 8px'>La tienda se va a contactar con vos para coordinar la devolución y el reintegro del pago, sin costo adicional, según el art. 34 de la Ley 24.240 y la Resolución 424/2020.</p>
 <p style='color:#8b8b8b;font-size:12px;margin-top:16px'>Guardá este email como constancia.</p>";
     }

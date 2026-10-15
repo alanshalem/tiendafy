@@ -2,6 +2,7 @@ using Orders.Core.Domain;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SharedKernel.Common;
 
 namespace Api.Fulfillment;
 
@@ -40,7 +41,7 @@ public static class PackingSlipPdf
                         {
                             col.Item().Text(storeName).FontSize(16).Bold();
                             col.Item().Text($"Pedido {FulfillmentService.Number(o)}").FontSize(13).SemiBold();
-                            col.Item().Text($"Fecha: {(o.PaidAtUtc ?? o.CreatedAtUtc).AddHours(-3):dd/MM/yyyy HH:mm}")
+                            col.Item().Text($"Fecha: {ArgentinaTime.ToLocal(o.PaidAtUtc ?? o.CreatedAtUtc):dd/MM/yyyy HH:mm}")
                                 .FontColor(Colors.Grey.Darken1);
                         });
                         row.ConstantItem(84).Svg(Api.Import.VariantLabelsPdf.QrSvg(o.Id.ToString()));

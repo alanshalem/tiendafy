@@ -5,6 +5,7 @@ using Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Orders.Core.Domain;
 using SharedKernel.Abstractions;
+using SharedKernel.Common;
 
 namespace Api.Endpoints;
 
@@ -39,7 +40,7 @@ public static class CustomersEndpoints
         {
             var query = await SearchAsync(db, tenant.TenantId.Value, filter, ct);
             return Api.Fiscal.VatBookCsv.Download(
-                $"clientes-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd}.csv",
+                $"clientes-{ArgentinaTime.Now:yyyy-MM-dd}.csv",
                 "Nombre;Email;Teléfono;Dirección;Notas;Etiquetas;Compras;Total gastado;Última compra;Alta",
                 Sort(query, filter.Sort, filter.Desc)
                     .ThenBy(c => c.Id)

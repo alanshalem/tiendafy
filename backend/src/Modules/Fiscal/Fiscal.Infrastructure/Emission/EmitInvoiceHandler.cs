@@ -35,7 +35,7 @@ public sealed class EmitInvoiceHandler(
     private static readonly System.Globalization.CultureInfo ArCulture = System.Globalization.CultureInfo.GetCultureInfo("es-AR");
 
     // Zona horaria de Argentina (UTC-3, sin DST) para la fecha del comprobante.
-    private static readonly TimeSpan ArOffset = TimeSpan.FromHours(-3);
+    private static readonly TimeSpan ArOffset = ArgentinaTime.Offset;
 
     public async Task<Result<EmitInvoiceResult>> EmitAsync(EmitInvoiceCommand cmd, CancellationToken ct = default)
     {

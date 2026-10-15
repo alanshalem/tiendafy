@@ -61,7 +61,7 @@ public static class FulfillmentEndpoints
         {
             if (BatchError(request) is { } error) return error.ToProblem();
             var batch = await labels.BuildAsync(tenant.TenantId, request.OrderIds!, ct);
-            var fileName = $"etiquetas-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd-HHmm}.pdf";
+            var fileName = $"etiquetas-{ArgentinaTime.Now:yyyy-MM-dd-HHmm}.pdf";
 
             if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
             {
@@ -110,7 +110,7 @@ public static class FulfillmentEndpoints
 
             var pdf = PackingSlipPdf.Render(storeName, [.. orders.Select(o => new PackingSlipPdf.Slip(o, locations))]);
             http.Response.Headers["X-Slips-Skipped"] = (ids.Count - orders.Count).ToString();
-            return Results.File(pdf, "application/pdf", $"remitos-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd-HHmm}.pdf");
+            return Results.File(pdf, "application/pdf", $"remitos-{ArgentinaTime.Now:yyyy-MM-dd-HHmm}.pdf");
         });
 
         // El pedido de un código escaneado (QR del remito o número corto), con
