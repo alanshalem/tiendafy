@@ -273,7 +273,10 @@ function Queue({ onScan }: { onScan: (order: QueueOrder) => void }) {
                     <td className="py-2 pr-3">
                       {l.productName}
                       {l.variantDescription && l.variantDescription !== 'Única' && (
-                        <span className="text-fg-muted"> · {l.variantDescription}</span>
+                        <>
+                          {' '}
+                          <span className="text-fg-muted">· {l.variantDescription}</span>
+                        </>
                       )}
                       <span className="ml-1 font-mono text-xs text-fg-subtle">{l.sku}</span>
                     </td>

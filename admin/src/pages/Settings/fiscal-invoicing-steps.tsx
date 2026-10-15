@@ -170,7 +170,12 @@ export function ProgressChecklist({
             </span>
             <span className={cn('text-sm font-medium', s.done ? 'text-fg' : 'text-fg-muted')}>
               {s.label}
-              {s.optional && <span className="font-normal text-fg-subtle"> (opcional)</span>}
+              {s.optional && (
+                <>
+                  {' '}
+                  <span className="font-normal text-fg-subtle">(opcional)</span>
+                </>
+              )}
             </span>
             {i < steps.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
           </div>

@@ -188,8 +188,8 @@ function EditModal({
               <code key={v} className="mx-0.5 rounded bg-bg-muted px-1 py-0.5">
                 {v}
               </code>
-            ))}
-            <span> — se reemplazan al enviar.</span>
+            ))}{' '}
+            <span>— se reemplazan al enviar.</span>
           </div>
           <div className="rounded-md border border-border p-3 text-xs text-fg-muted">
             <div className="mb-1 font-medium text-fg">Recomendaciones de diseño</div>

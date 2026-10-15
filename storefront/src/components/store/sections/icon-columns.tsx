@@ -44,7 +44,12 @@ function Column({ item, center }: { item: IconColumnItem; center: boolean }) {
         >
           Ver más
           {/* El destino completo, para quien no ve la columna entera. */}
-          {item.title && <span className="sr-only">{` sobre ${item.title}`}</span>}
+          {item.title && (
+            <>
+              {' '}
+              <span className="sr-only">{`sobre ${item.title}`}</span>
+            </>
+          )}
         </StoreLink>
       )}
     </div>

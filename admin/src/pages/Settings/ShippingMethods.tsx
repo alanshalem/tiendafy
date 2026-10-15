@@ -196,7 +196,12 @@ export function ShippingMethodsPage() {
                     ) : (
                       <span className="font-medium">{formatMoney(m.price.amount, m.price.currency)}</span>
                     )}
-                    {m.description && <span className="text-fg-muted"> · {m.description}</span>}
+                    {m.description && (
+                      <>
+                        {' '}
+                        <span className="text-fg-muted">· {m.description}</span>
+                      </>
+                    )}
                   </div>
                   {m.freeAbove && (
                     <p className="mt-0.5 text-xs font-medium text-success">

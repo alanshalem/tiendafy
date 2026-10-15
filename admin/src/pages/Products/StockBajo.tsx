@@ -237,10 +237,16 @@ export function StockBajoPage() {
                         <>
                           Alcanza {i.coverageDays} días
                           {i.unitsPerDay != null && (
-                            <span className="text-fg-subtle"> · {i.unitsPerDay}/día</span>
+                            <>
+                              {' '}
+                              <span className="text-fg-subtle">· {i.unitsPerDay}/día</span>
+                            </>
                           )}
                           {i.minUnits != null && (
-                            <span className="text-fg-subtle"> · mínimo {i.minUnits}</span>
+                            <>
+                              {' '}
+                              <span className="text-fg-subtle">· mínimo {i.minUnits}</span>
+                            </>
                           )}
                         </>
                       )}

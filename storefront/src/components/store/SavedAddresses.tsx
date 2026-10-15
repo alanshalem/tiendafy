@@ -188,7 +188,12 @@ function AddressForm({
       htmlFor={`${id}-${key}`}
     >
       {label}
-      {opts.required && <span aria-hidden> *</span>}
+      {opts.required && (
+        <>
+          {' '}
+          <span aria-hidden>*</span>
+        </>
+      )}
       <input
         id={`${id}-${key}`}
         className={`${INPUT_THEMED_11} mt-1`}

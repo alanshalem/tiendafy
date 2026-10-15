@@ -184,7 +184,10 @@ export function ScanDispatch({ initialCode }: { initialCode: string | null }) {
                     <span className="min-w-0 flex-1 truncate text-fg">
                       {i.productName}
                       {i.variantDescription && i.variantDescription !== 'Única' && (
-                        <span className="text-fg-muted"> · {i.variantDescription}</span>
+                        <>
+                          {' '}
+                          <span className="text-fg-muted">· {i.variantDescription}</span>
+                        </>
                       )}
                       <span className="ml-1 font-mono text-xs text-fg-subtle">{i.sku}</span>
                     </span>

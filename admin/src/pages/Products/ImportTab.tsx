@@ -291,7 +291,13 @@ function ImportProgress({ job }: { job: ImportJobStatus }) {
             {job.errors.map((e, i) => (
               <li key={i}>
                 <span className="font-medium text-fg">Fila {e.line}</span>
-                {e.slug && <span className="text-fg-subtle"> ({e.slug})</span>}: {e.message}
+                {e.slug && (
+                  <>
+                    {' '}
+                    <span className="text-fg-subtle">({e.slug})</span>
+                  </>
+                )}
+                : {e.message}
               </li>
             ))}
           </ul>

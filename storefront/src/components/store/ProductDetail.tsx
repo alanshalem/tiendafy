@@ -420,7 +420,10 @@ export function ProductDetail({
                       >
                         {val}
                         {(missing || noStock) && (
-                          <span className="sr-only">{missing ? ' (no disponible)' : ' (sin stock)'}</span>
+                          <>
+                            {' '}
+                            <span className="sr-only">{missing ? '(no disponible)' : '(sin stock)'}</span>
+                          </>
                         )}
                       </button>
                     );

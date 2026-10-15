@@ -251,7 +251,12 @@ function CharCounter({ id, length, max }: { id: string; length: number; max: num
   return (
     <p id={id} className={cn('mt-1 text-right text-xs', length >= max ? 'text-warning' : 'text-fg-subtle')}>
       {length}/{max}
-      {length >= max && <span className="sr-only"> Llegaste al máximo de caracteres.</span>}
+      {length >= max && (
+        <>
+          {' '}
+          <span className="sr-only">Llegaste al máximo de caracteres.</span>
+        </>
+      )}
     </p>
   );
 }

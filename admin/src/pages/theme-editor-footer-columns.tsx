@@ -322,7 +322,12 @@ export function FooterColumnsEditor({
                     >
                       <span className="text-sm font-medium text-fg">
                         {k.label}
-                        {already && <span className="font-normal text-fg-muted"> · ya está</span>}
+                        {already && (
+                          <>
+                            {' '}
+                            <span className="font-normal text-fg-muted">· ya está</span>
+                          </>
+                        )}
                       </span>
                       <span className="text-xs text-fg-muted">{k.description}</span>
                     </button>

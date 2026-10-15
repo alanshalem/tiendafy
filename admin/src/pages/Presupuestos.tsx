@@ -642,7 +642,10 @@ function QuoteEditor({ id, onBack }: { id: string | null; onBack: () => void }) 
                   <span className="min-w-0 flex-1 truncate">
                     {line.productName}
                     {line.variantDescription && (
-                      <span className="text-fg-muted"> · {line.variantDescription}</span>
+                      <>
+                        {' '}
+                        <span className="text-fg-muted">· {line.variantDescription}</span>
+                      </>
                     )}{' '}
                     <span className="font-mono text-xs text-fg-subtle">{line.sku}</span>
                   </span>

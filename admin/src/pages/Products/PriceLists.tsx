@@ -502,7 +502,10 @@ function ListPrices({ list, onBack }: { list: PriceListRow; onBack: () => void }
                       <div className="truncate">
                         {row.productName}
                         {row.variantDescription && (
-                          <span className="text-fg-muted"> · {row.variantDescription}</span>
+                          <>
+                            {' '}
+                            <span className="text-fg-muted">· {row.variantDescription}</span>
+                          </>
                         )}
                       </div>
                       <div className="font-mono text-xs text-fg-subtle">{row.sku}</div>

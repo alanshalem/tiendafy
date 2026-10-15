@@ -393,7 +393,12 @@ function Reposicion({ onCreateOrder }: { onCreateOrder: (items: FormItem[]) => v
                 <tr key={s.variantId} className="border-b border-border last:border-b-0">
                   <td className="px-4 py-2.5 text-fg">
                     {s.product}
-                    {s.variant && <span className="text-fg-muted"> · {s.variant}</span>}
+                    {s.variant && (
+                      <>
+                        {' '}
+                        <span className="text-fg-muted">· {s.variant}</span>
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-fg-subtle">{s.sku}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-fg-muted">{s.unitsPerDay}</td>

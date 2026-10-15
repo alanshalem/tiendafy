@@ -35,7 +35,12 @@ export function ConflictBanner({
         <span>
           El diseño cambió en otra pestaña o lo editó otra persona. Tus últimos cambios no se guardaron
           todavía.
-          {failed && <span className="text-danger"> No se pudo completar: probá de nuevo.</span>}
+          {failed && (
+            <>
+              {' '}
+              <span className="text-danger">No se pudo completar: probá de nuevo.</span>
+            </>
+          )}
         </span>
       </p>
       <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">

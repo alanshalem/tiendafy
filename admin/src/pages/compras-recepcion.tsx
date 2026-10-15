@@ -116,7 +116,12 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
               <li key={m.variantId} className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate text-fg">
                   {m.product}
-                  {m.variant && <span className="text-fg-muted"> · {m.variant}</span>}
+                  {m.variant && (
+                    <>
+                      {' '}
+                      <span className="text-fg-muted">· {m.variant}</span>
+                    </>
+                  )}
                 </span>
                 <span
                   className={`shrink-0 tabular-nums font-semibold ${m.marginPct < 0 ? 'text-danger' : 'text-warning'}`}
@@ -175,7 +180,12 @@ export function ReceiveButton({ po, onDone }: { po: PoDetail; onDone: () => void
                 <div key={i.variantId} className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 flex-1 truncate text-fg">
                     {i.productName}
-                    {i.variantDescription && <span className="text-fg-muted"> · {i.variantDescription}</span>}
+                    {i.variantDescription && (
+                      <>
+                        {' '}
+                        <span className="text-fg-muted">· {i.variantDescription}</span>
+                      </>
+                    )}
                   </span>
                   <span className="text-xs text-fg-subtle">pedidas {i.quantity}</span>
                   <div className="w-20 shrink-0">

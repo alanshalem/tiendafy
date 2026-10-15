@@ -485,7 +485,12 @@ function PickingTab() {
                 >
                   <span className="min-w-0 flex-1 truncate text-fg">
                     {i.productName}
-                    {i.variantDescription && <span className="text-fg-muted"> · {i.variantDescription}</span>}
+                    {i.variantDescription && (
+                      <>
+                        {' '}
+                        <span className="text-fg-muted">· {i.variantDescription}</span>
+                      </>
+                    )}
                     <span className="ml-1 font-mono text-xs text-fg-subtle">{i.sku}</span>
                   </span>
                   <span className={`ml-3 tabular-nums ${done ? 'text-success' : 'text-fg'}`}>
@@ -669,8 +674,7 @@ function ConteoTab() {
                 {list.map((r) => (
                   <tr key={r.hit.variantId} className="border-b border-border last:border-b-0">
                     <td className="py-2 text-fg">
-                      {r.hit.productName}
-                      <span className="text-fg-muted"> · {r.hit.description}</span>
+                      {r.hit.productName} <span className="text-fg-muted">· {r.hit.description}</span>
                     </td>
                     <td className="py-2 text-right tabular-nums text-fg-muted">{r.hit.available}</td>
                     <td className="py-2 text-right">

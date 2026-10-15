@@ -231,10 +231,12 @@ export function CatalogBrowser({
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             Filtrar
             {activeFilters > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-fg">
-                {activeFilters}
-                <span className="sr-only"> activos</span>
-              </span>
+              <>
+                {' '}
+                <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-fg">
+                  {activeFilters} <span className="sr-only">activos</span>
+                </span>
+              </>
             )}
           </button>
         )}
