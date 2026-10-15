@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 import { setTrackSink, valueOf, type FunnelEvent } from '@/lib/track';
 
 interface TrackingConfig {
@@ -212,7 +212,7 @@ export function TrackingTags({ tenantId }: { tenantId: string }) {
     }
     setAsked(true);
 
-    fetch(`${API}/api/v1/tracking/`, { headers: tenantHeaders(tenantId) })
+    fetch(`${apiUrl()}/api/v1/tracking/`, { headers: tenantHeaders(tenantId) })
       .then((r) => r.json())
       .then((d: TrackingConfig) => alive && setConfig(d))
       .catch(() => alive && setConfig(null))

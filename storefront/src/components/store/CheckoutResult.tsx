@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
 
-import { apiUrl as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { finishPurchase } from '@/lib/cart-storage';
 import { trackingHref, type OrderView } from '@/lib/orders';
 import { OrderSummary } from './OrderSummary';
@@ -40,7 +40,7 @@ export function CheckoutResult({
 
   useEffect(() => {
     let active = true;
-    fetch(`${API}/api/v1/checkout-settings`, { headers: tenantHeaders(tenantId) })
+    fetch(`${apiUrl()}/api/v1/checkout-settings`, { headers: tenantHeaders(tenantId) })
       .then((r) => r.json())
       .then((d: { orderMessageEnabled?: boolean; orderMessageText?: string }) => {
         if (active && d.orderMessageEnabled) setOwnMessage((d.orderMessageText ?? '').trim());
@@ -60,7 +60,7 @@ export function CheckoutResult({
     let tries = 0;
     const poll = async () => {
       try {
-        const res = await fetch(`${API}/api/v1/orders/${orderId}/status`, {
+        const res = await fetch(`${apiUrl()}/api/v1/orders/${orderId}/status`, {
           headers: tenantHeaders(tenantId),
         });
         if (res.ok) {

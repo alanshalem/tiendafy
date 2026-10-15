@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { apiUrl as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 
 interface ShopUser {
@@ -100,7 +100,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
     // próxima vista ya no pregunta.
     removeKey(googleKey);
 
-    fetch(`${API}/api/v1/shop/auth/me`, { headers, credentials: 'include' })
+    fetch(`${apiUrl()}/api/v1/shop/auth/me`, { headers, credentials: 'include' })
       .then((r) => {
         if (r.ok) return r.json();
         // Solo 401/403 dicen "no hay sesión". Un 429 o un 5xx es no haber podido
@@ -119,7 +119,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
       // Un corte de red rechaza el fetch: se devuelve como cualquier otro
       // error, así los formularios lo muestran y sueltan el botón en vez de
       // que la excepción les llegue sin atajar.
-      const res = await fetch(`${API}/api/v1/shop/auth/${path}`, {
+      const res = await fetch(`${apiUrl()}/api/v1/shop/auth/${path}`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -148,7 +148,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   const forgot = useCallback((email: string) => authPost('forgot', { email }), [authPost]);
 
   const logout = useCallback(() => {
-    fetch(`${API}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(
+    fetch(`${apiUrl()}/api/v1/shop/auth/logout`, { method: 'POST', headers, credentials: 'include' }).catch(
       () => {},
     );
     persistUser(null);
@@ -159,7 +159,7 @@ export function AuthProvider({ storeKey, children }: { storeKey: string; childre
   const googleUrl = useCallback(
     (returnTo: string) => {
       writeJson(googleKey, Date.now());
-      return `${API}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`;
+      return `${apiUrl()}/api/v1/shop/auth/google/start?tenant=${encodeURIComponent(storeKey)}&return=${encodeURIComponent(returnTo)}`;
     },
     [storeKey, googleKey],
   );

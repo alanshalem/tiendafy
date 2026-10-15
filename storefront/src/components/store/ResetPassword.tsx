@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
-import { apiUrl as API, problemMessage, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { BTN_PRIMARY_BLOCK, INPUT_THEMED_11 } from './styles';
 
 export function ResetPassword() {
@@ -25,7 +25,7 @@ export function ResetPassword() {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch(`${API}/api/v1/shop/auth/reset`, {
+      const res = await fetch(`${apiUrl()}/api/v1/shop/auth/reset`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
         credentials: 'include',

@@ -7,7 +7,7 @@ import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
-import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 
 export function VerifyEmail() {
   const params = useSearchParams();
@@ -22,7 +22,7 @@ export function VerifyEmail() {
       return;
     }
     let cancelled = false;
-    fetch(`${API}/api/v1/shop/auth/verify`, {
+    fetch(`${apiUrl()}/api/v1/shop/auth/verify`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify({ token }),

@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './auth';
 
-import { apiUrl as API, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
 
 /**
@@ -66,7 +66,7 @@ export function FavoritesProvider({ storeKey, children }: { storeKey: string; ch
       setIds((prev) => {
         const has = prev.includes(id);
         if (token) {
-          fetch(`${API}/api/v1/shop/favorites/${id}`, {
+          fetch(`${apiUrl()}/api/v1/shop/favorites/${id}`, {
             method: has ? 'DELETE' : 'PUT',
             headers: tenantHeaders(storeKey),
             credentials: 'include',

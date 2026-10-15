@@ -30,7 +30,7 @@ import {
   type QuotedOption,
 } from './checkout-carriers';
 
-import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
 import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
@@ -180,7 +180,7 @@ const FIELD_ORDER: BuyerField[] = [
 
 /** GET a la API con tope de espera; tira si no responde bien (no es lo mismo que "no configurado"). */
 async function getJson<T>(path: string, tenantId: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${apiUrl()}${path}`, {
     headers: tenantHeaders(tenantId),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
@@ -470,7 +470,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
         const carrier = CARRIERS[k];
         let message: string | null = null;
         try {
-          const res = await fetch(`${API}${carrier.path}`, {
+          const res = await fetch(`${apiUrl()}${carrier.path}`, {
             method: 'POST',
             headers,
             body: JSON.stringify(carrier.body(input)),
@@ -600,14 +600,14 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
   // start + submit → reserva stock con todos los datos; devuelve sessionId.
   const reserve = async (buyerEmail: string) => {
     const headers = tenantHeaders(tenantId, true);
-    const startRes = await fetch(`${API}/api/v1/checkout/`, {
+    const startRes = await fetch(`${apiUrl()}/api/v1/checkout/`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) }),
     });
     if (!startRes.ok) throw new Error('No se pudo iniciar el checkout.');
     const session = await startRes.json();
-    const submitRes = await fetch(`${API}/api/v1/checkout/${session.id}/submit`, {
+    const submitRes = await fetch(`${apiUrl()}/api/v1/checkout/${session.id}/submit`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -679,7 +679,7 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
     body: object,
     failMsg: string,
   ) => {
-    const res = await fetch(`${API}/api/v1/checkout/${id}/${path}`, {
+    const res = await fetch(`${apiUrl()}/api/v1/checkout/${id}/${path}`, {
       method: 'POST',
       headers: tenantHeaders(tenantId, true),
       body: JSON.stringify({ ...body, couponCode: coupon?.code ?? null, utmSource: utmSource() }),

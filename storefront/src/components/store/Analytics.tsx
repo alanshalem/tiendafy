@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-import { apiUrl as API, tenantHeaders } from '@/lib/api-client';
+import { apiUrl, tenantHeaders } from '@/lib/api-client';
 
 function persistentId(key: string, storage: Storage): string {
   let value = storage.getItem(key);
@@ -28,7 +28,7 @@ export function Analytics({ tenantId }: { tenantId: string }) {
       const fromUrl = new URLSearchParams(window.location.search).get('utm_source');
       if (fromUrl) sessionStorage.setItem('tiendafy.utm', fromUrl);
       const utmSource = fromUrl ?? sessionStorage.getItem('tiendafy.utm');
-      fetch(`${API}/api/v1/track`, {
+      fetch(`${apiUrl()}/api/v1/track`, {
         method: 'POST',
         headers: tenantHeaders(tenantId, true),
         body: JSON.stringify({
