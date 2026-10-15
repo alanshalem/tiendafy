@@ -11,6 +11,7 @@ import {
   type ShippingOrderLike,
 } from '../lib/shipping';
 import { ShipmentFooter, shipmentLabelCls } from './ShipmentBits';
+import { ShipmentReviewNotice, type ShipmentReviewState } from './ShipmentReview';
 
 interface ShipmentState {
   exists: boolean;
@@ -20,6 +21,8 @@ interface ShipmentState {
   carrierTrackingId?: string | null;
   trackingUrl?: string | null;
   status?: string | null;
+  /** Zipnova pudo haberlo creado sin que quedara guardado: hay que revisarlo antes de crear otro. */
+  review?: ShipmentReviewState | null;
 }
 
 /**
@@ -91,6 +94,19 @@ export function ZipnovaShipmentButton({ order }: { order: ShippingOrderLike }) {
           </a>
         )}
       </span>
+    );
+  }
+
+  if (state?.review) {
+    return (
+      <ShipmentReviewNotice<ShipmentState>
+        orderId={order.id}
+        carrier="zipnova"
+        carrierName="Zipnova"
+        review={state.review}
+        numberLabel="Número de envío de Zipnova (el que figura como #123456)"
+        onResolved={setState}
+      />
     );
   }
 

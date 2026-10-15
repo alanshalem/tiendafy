@@ -10,6 +10,7 @@ import {
   type ShippingOrderLike,
 } from '../lib/shipping';
 import { ShipmentFooter, shipmentLabelCls } from './ShipmentBits';
+import { ShipmentReviewNotice, type ShipmentReviewState } from './ShipmentReview';
 
 const CORREO_PROVINCES: { value: string; label: string }[] = [
   { value: 'B', label: 'Buenos Aires' },
@@ -44,6 +45,8 @@ interface ShipmentState {
   deliveryType?: 'D' | 'S';
   agency?: string | null;
   createdAt?: string | null;
+  /** MiCorreo pudo haber hecho el alta sin que quedara guardada: hay que revisarla antes de hacer otra. */
+  review?: ShipmentReviewState | null;
 }
 
 interface TrackingResponse {
@@ -132,6 +135,21 @@ export function CorreoShipmentButton({ order }: { order: ShippingOrderLike }) {
           </span>
         )}
       </span>
+    );
+  }
+
+  if (state?.review) {
+    return (
+      <ShipmentReviewNotice<ShipmentState>
+        orderId={order.id}
+        carrier="correo"
+        carrierName="Correo Argentino"
+        review={state.review}
+        // MiCorreo no da número al dar de alta: se registra el alta y el
+        // seguimiento se carga después con "Marcar enviada".
+        numberLabel={null}
+        onResolved={setState}
+      />
     );
   }
 

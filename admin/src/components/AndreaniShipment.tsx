@@ -11,6 +11,7 @@ import {
   type ShippingOrderLike,
 } from '../lib/shipping';
 import { ShipmentFooter, shipmentLabelCls } from './ShipmentBits';
+import { ShipmentReviewNotice, type ShipmentReviewState } from './ShipmentReview';
 
 interface ShipmentState {
   exists: boolean;
@@ -21,6 +22,8 @@ interface ShipmentState {
   label?: string;
   hasLabel?: boolean;
   branchName?: string | null;
+  /** Andreani pudo haberlo creado sin que quedara guardado: hay que revisarlo antes de crear otro. */
+  review?: ShipmentReviewState | null;
 }
 
 /**
@@ -113,6 +116,19 @@ export function AndreaniShipmentButton({ order }: { order: ShippingOrderLike }) 
           {tracking && <Spinner inline size={14} />} Seguimiento
         </button>
       </span>
+    );
+  }
+
+  if (state?.review) {
+    return (
+      <ShipmentReviewNotice<ShipmentState>
+        orderId={order.id}
+        carrier="andreani"
+        carrierName="Andreani"
+        review={state.review}
+        numberLabel="Número de seguimiento de Andreani (si tiene varios bultos, pegalos separados por coma)"
+        onResolved={setState}
+      />
     );
   }
 
