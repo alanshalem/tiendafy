@@ -147,7 +147,7 @@ public sealed class FiscalFlowTests
         await RunEmissionUntilAsync(autoOrder, "Done"); // ya facturada: se da por hecha, no se duplica
 
         // 9. Libro IVA del mes, en CSV para el contador.
-        var now = DateTime.UtcNow;
+        var now = SharedKernel.Common.ArgentinaTime.Today;
         Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Get, "/api/v1/fiscal/documents/export?year=2019&month=1")).StatusCode);
         var csv = await merchant.ExpectOkAsync(HttpMethod.Get, $"/api/v1/fiscal/documents/export?year={now.Year}&month={now.Month}");
         var book = await csv.Content.ReadAsStringAsync();
@@ -202,7 +202,65 @@ public sealed class FiscalFlowTests
         Assert.False(down.IsSuccessStatusCode && (await down.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("ok").GetBoolean());
     }
 
+    [Fact]
+    public async Task El_libro_IVA_corta_el_mes_en_hora_argentina_y_no_mezcla_ambientes()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "fib");
+        await merchant.PutAsync("/api/v1/fiscal/config", new
+        {
+            cuit = Cuit,
+            businessName = "Tienda SA",
+            condition = "RESPONSABLE_INSCRIPTO",
+            environment = "HOMOLOGACION",
+        });
+
+        // 31/08 a las 23:30 en Argentina es 01/09 02:30 en UTC: es de agosto.
+        // Antes caía en septiembre. Y uno de producción no entra en el libro
+        // de una tienda que factura en homologación (ni al revés).
+        await SeedDocumentAsync(merchant.TenantId, 101, new DateTime(2026, 9, 1, 2, 30, 0, DateTimeKind.Utc));
+        await SeedDocumentAsync(merchant.TenantId, 102, new DateTime(2026, 9, 1, 3, 30, 0, DateTimeKind.Utc));
+        await SeedDocumentAsync(merchant.TenantId, 103, new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc),
+            global::Fiscal.Core.Domain.FiscalEnvironment.Produccion);
+
+        var agosto = await BookAsync(merchant, 2026, 8);
+        var septiembre = await BookAsync(merchant, 2026, 9);
+
+        var a = Assert.Single(agosto);
+        Assert.Contains("00000101", a);
+        Assert.StartsWith("31/08/2026;", a);
+        var s = Assert.Single(septiembre);
+        Assert.Contains("00000102", s);
+        Assert.StartsWith("01/09/2026;", s);
+        Assert.EndsWith(";Homologación (prueba, sin validez fiscal)", s);
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>Las filas del libro (sin el encabezado).</summary>
+    private static async Task<List<string>> BookAsync(Merchant merchant, int year, int month)
+    {
+        var res = await merchant.ExpectOkAsync(HttpMethod.Get, $"/api/v1/fiscal/documents/export?year={year}&month={month}");
+        var text = (await res.Content.ReadAsStringAsync()).TrimStart('\uFEFF');
+        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.TrimEnd('\r')).ToList();
+        Assert.Equal("Fecha;Tipo;Punto de venta;Numero;Doc receptor;Neto;IVA;Total;CAE;Ambiente", lines[0]);
+        return lines.Skip(1).ToList();
+    }
+
+    private async Task SeedDocumentAsync(
+        Guid tenantId, long number, DateTime createdAtUtc,
+        global::Fiscal.Core.Domain.FiscalEnvironment env = global::Fiscal.Core.Domain.FiscalEnvironment.Homologacion)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        var doc = global::Fiscal.Core.Domain.FiscalDocument.Draft(tenantId, Guid.NewGuid(), env, 1,
+            global::Fiscal.Core.Domain.CbteTipo.FacturaB, number, global::Fiscal.Core.Domain.DocTipo.ConsumidorFinal, 0,
+            121m, 100m, 21m, global::Fiscal.Core.Domain.CondicionIvaReceptor.ConsumidorFinal);
+        doc.MarkAuthorized($"7500000000{number:D4}", createdAtUtc.AddDays(10), null, null, null);
+        db.Documents.Add(doc);
+        await db.SaveChangesAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE fiscal_documents SET created_at_utc = {createdAtUtc} WHERE id = {doc.Id}");
+    }
 
     private async Task RunEmissionUntilAsync(Guid orderId, string status, string kind = "Invoice")
     {

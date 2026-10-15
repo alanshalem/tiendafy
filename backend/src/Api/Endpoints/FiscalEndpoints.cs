@@ -277,24 +277,37 @@ public static class FiscalEndpoints
         // --- Emisión manual -----------------------------------------------------------
         // Libro IVA ventas del mes en CSV (para el contador): comprobantes
         // APROBADOS con neto/IVA/total, separador ; y BOM (Excel argentino).
+        //
+        // Solo los del ambiente en que factura la tienda: los de homologación
+        // no tienen validez fiscal y antes se mezclaban con los de producción
+        // en el mismo libro. La columna "Ambiente" lo dice fila por fila, así
+        // un libro de pruebas no se confunde con uno real. Y el mes es el de
+        // Argentina: una factura del 31 a las 22 h es de ese mes, no del siguiente.
         fiscal.MapGet("/documents/export", async (
             int year, int month, ITenantContext tenant, FiscalDbContext db, CancellationToken ct) =>
         {
             if (year < 2020 || month is < 1 or > 12)
                 return Error.Validation("Fiscal.BadPeriod", "Período inválido.").ToProblem();
-            var from = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var to = from.AddMonths(1);
+            var tid = tenant.TenantId.Value;
+            var firstDay = new DateOnly(year, month, 1);
+            var from = ArgentinaTime.StartOfDayUtc(firstDay);
+            var to = ArgentinaTime.StartOfDayUtc(firstDay.AddMonths(1));
+
+            var env = await db.Configs.AsNoTracking().Where(c => c.TenantId == tid)
+                .Select(c => (FiscalEnvironment?)c.Environment).FirstOrDefaultAsync(ct) ?? FiscalEnvironment.Homologacion;
+            var envLabel = env == FiscalEnvironment.Produccion ? "Producción" : "Homologación (prueba, sin validez fiscal)";
 
             var docs = await db.Documents.AsNoTracking()
-                .Where(d => d.Result == FiscalResult.Authorized && d.CreatedAtUtc >= from && d.CreatedAtUtc < to)
+                .Where(d => d.TenantId == tid && d.Environment == env && d.Result == FiscalResult.Authorized
+                            && d.CreatedAtUtc >= from && d.CreatedAtUtc < to)
                 .OrderBy(d => d.PtoVta).ThenBy(d => d.Number)
                 .ToListAsync(ct);
 
             var bytes = Api.Fiscal.VatBookCsv.Build(
-                "Fecha;Tipo;Punto de venta;Numero;Doc receptor;Neto;IVA;Total;CAE",
+                "Fecha;Tipo;Punto de venta;Numero;Doc receptor;Neto;IVA;Total;CAE;Ambiente",
                 docs.Select(d => new[]
                 {
-                    Api.Fiscal.VatBookCsv.Date(d.CreatedAtUtc),
+                    Api.Fiscal.VatBookCsv.Date(ArgentinaTime.ToLocal(d.CreatedAtUtc)),
                     d.CbteTipo.ToString(),
                     d.PtoVta.ToString("0000"),
                     d.Number.ToString("00000000"),
@@ -303,8 +316,10 @@ public static class FiscalEndpoints
                     Api.Fiscal.VatBookCsv.Amount(d.ImpIVA),
                     Api.Fiscal.VatBookCsv.Amount(d.ImpTotal),
                     d.Cae ?? "",
+                    envLabel,
                 }));
-            return Results.File(bytes, "text/csv", $"libro-iva-ventas-{year}-{month:00}.csv");
+            var suffix = env == FiscalEnvironment.Produccion ? "" : "-homologacion";
+            return Results.File(bytes, "text/csv", $"libro-iva-ventas-{year}-{month:00}{suffix}.csv");
         });
 
         // Gateado con FiscalEmit (más restrictivo que FiscalConfig). Emite un
