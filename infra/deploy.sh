@@ -38,6 +38,24 @@ ENV_FILE=".env.$ENVIRONMENT"
 [ -n "$TAG_ARG" ] && export TAG="$TAG_ARG"
 
 compose() { docker compose -f docker-compose.stack.yml --env-file "$ENV_FILE" "$@"; }
+APP_ENV="$(sed -n 's/^APP_ENV=//p' "$ENV_FILE" | tail -1)"
+
+# Los backups los escribe pg-backup, que corre como root: la carpeta del
+# ambiente queda de root y el usuario que corre esto (deploy) no puede escribir
+# ahí. Se la devuelve con un contenedor del mismo servicio, que ya la monta
+# (estar en el grupo docker alcanza, no hace falta sudo). pg-backup sigue
+# escribiendo igual: corre como root.
+backups_writable() {
+  local dir="backups/$APP_ENV"
+  mkdir -p "$dir" 2> /dev/null || true
+  [ -w "$dir" ] && return 0
+  echo "==> $dir es de root (la crea pg-backup): pasa a $(id -un)"
+  compose run --rm --no-deps -T --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
+  [ -w "$dir" ] || {
+    echo "No pude dejar $dir escribible para $(id -un)." >&2
+    return 1
+  }
+}
 # Tag de una imagen "registro/nombre:tag" (lo que va después de los últimos dos puntos).
 tag_of() { echo "${1##*:}"; }
 
@@ -54,7 +72,8 @@ fi
 PG_ID="$(compose ps -q postgres)"
 if [ -n "$PG_ID" ]; then
   RUNNING_MAJOR="$(docker exec "$PG_ID" psql -U tiendafy -d tiendafy -tAc 'SHOW server_version_num' | cut -c1-2)"
-  WANTED_MAJOR="$(compose config --images | sed -n 's/^postgres:\([0-9]*\).*/\1/p' | head -1)"
+  # awk lee toda la lista: un `head -1` puede matar a `compose config` de SIGPIPE.
+  WANTED_MAJOR="$(compose config --images | awk -F: '/^postgres:/ && !seen++ { split($2, v, "-"); print v[1] }')"
   if [ "$RUNNING_MAJOR" != "$WANTED_MAJOR" ]; then
     echo "Corre Postgres $RUNNING_MAJOR y el compose pide la $WANTED_MAJOR. Primero:" >&2
     echo "  ./infra/pg-upgrade.sh $ENVIRONMENT" >&2
@@ -84,8 +103,7 @@ compose pull api storefront admin
 # migración, y el backup diario puede tener casi 24 h. Mismo nombre que los
 # diarios (tiendafy-*.dump), así entra en la misma retención.
 if [ -n "$PG_ID" ]; then
-  APP_ENV="$(sed -n 's/^APP_ENV=//p' "$ENV_FILE" | tail -1)"
-  mkdir -p "backups/$APP_ENV"
+  backups_writable
   PREDEPLOY_DUMP="backups/$APP_ENV/tiendafy-predeploy-$(date +%Y%m%d-%H%M)-$NEW_TAG.dump"
   echo "==> copia de la base antes de migrar ($PREDEPLOY_DUMP)"
   docker exec "$PG_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$PREDEPLOY_DUMP.tmp"

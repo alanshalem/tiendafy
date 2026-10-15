@@ -356,7 +356,7 @@ cd /srv/tiendafy && git pull
    Postgres nuevo descartable. Si algo no entra (una fila huérfana hace fallar
    una clave foránea), termina ahí y todo sigue andando como estaba.
 2. Frena la API, la tienda y el backup; cuenta las filas de cada tabla y hace
-   el dump definitivo en `infra/docker/backups/pg-upgrade-<ambiente>-<fecha>/`.
+   el dump definitivo en `infra/docker/backups/<ambiente>/pg-upgrade-<fecha>/`.
 3. Reemplaza el contenedor por el de la major nueva con un volumen **nuevo**
    (`pgdata<major>`). El viejo no se toca: es la vuelta atrás.
 4. Restaura, recalcula estadísticas y compara los conteos de antes y después.

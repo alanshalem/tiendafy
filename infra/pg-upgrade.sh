@@ -35,6 +35,24 @@ ENV_FILE=".env.$ENVIRONMENT"
 }
 compose() { docker compose -f docker-compose.stack.yml --env-file "$ENV_FILE" "$@"; }
 psql_in() { docker exec -i "$1" psql -U tiendafy -d tiendafy -v ON_ERROR_STOP=1 -tA "${@:2}"; }
+APP_ENV="$(sed -n 's/^APP_ENV=//p' "$ENV_FILE" | tail -1)"
+
+# Los backups los escribe pg-backup, que corre como root: la carpeta del
+# ambiente queda de root y el usuario que corre esto (deploy) no puede escribir
+# ahí. Se la devuelve con un contenedor del mismo servicio, que ya la monta
+# (estar en el grupo docker alcanza, no hace falta sudo). pg-backup sigue
+# escribiendo igual: corre como root.
+backups_writable() {
+  local dir="backups/$APP_ENV"
+  mkdir -p "$dir" 2> /dev/null || true
+  [ -w "$dir" ] && return 0
+  echo "==> $dir es de root (la crea pg-backup): pasa a $(id -un)"
+  compose run --rm --no-deps -T --entrypoint chown pg-backup -R "$(id -u):$(id -g)" /backups
+  [ -w "$dir" ] || {
+    echo "No pude dejar $dir escribible para $(id -un)." >&2
+    return 1
+  }
+}
 
 # Una línea "tabla filas" por tabla, ordenadas: se comparan antes y después.
 COUNT_ROWS="SELECT format('SELECT %L, count(*) FROM %I.%I', table_schema || '.' || table_name, table_schema, table_name)
@@ -50,7 +68,11 @@ OLD_ID="$(compose ps -q postgres)"
 PROJECT="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$OLD_ID")"
 OLD_VOLUME="$(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{end}}{{end}}' "$OLD_ID")"
 OLD_MAJOR="$(psql_in "$OLD_ID" -c 'SHOW server_version_num' | cut -c1-2)"
-NEW_MAJOR="$(compose config --images | sed -n 's/^postgres:\([0-9]*\).*/\1/p' | head -1)"
+# awk lee toda la lista (Postgres aparece dos veces: la base y el backup). Un
+# `head -1` cortaría la lectura y `compose config` moriría de SIGPIPE: con
+# pipefail, el script entero, y solo a veces (depende de quién escribe primero).
+NEW_MAJOR="$(compose config --images | awk -F: '/^postgres:/ && !seen++ { split($2, v, "-"); print v[1] }')"
+NEW_IMAGE="$(compose config --images | awk '/^postgres:/ && !seen++')"
 NEW_VOLUME="${PROJECT}_pgdata${NEW_MAJOR}"
 
 [ "$OLD_MAJOR" != "$NEW_MAJOR" ] || {
@@ -63,7 +85,8 @@ if docker volume inspect "$NEW_VOLUME" > /dev/null 2>&1; then
   exit 1
 fi
 
-WORK="backups/pg-upgrade-$ENVIRONMENT-$(date +%Y%m%d-%H%M)"
+backups_writable
+WORK="backups/$APP_ENV/pg-upgrade-$(date +%Y%m%d-%H%M)"
 mkdir -p "$WORK"
 echo "==> $ENVIRONMENT: Postgres $OLD_MAJOR → $NEW_MAJOR (copia en infra/docker/$WORK)"
 
@@ -73,7 +96,7 @@ echo "==> $ENVIRONMENT: Postgres $OLD_MAJOR → $NEW_MAJOR (copia en infra/docke
 echo "==> ensayo: copia en caliente y restauración en un Postgres $NEW_MAJOR descartable"
 docker exec "$OLD_ID" pg_dump -U tiendafy -d tiendafy -Fc > "$WORK/ensayo.dump"
 TRIAL="$(docker run -d --rm -e POSTGRES_USER=tiendafy -e POSTGRES_PASSWORD=ensayo -e POSTGRES_DB=tiendafy \
-  "$(compose config --images | grep -m1 '^postgres:')")"
+  "$NEW_IMAGE")"
 trap 'docker rm -f "$TRIAL" > /dev/null 2>&1 || true' EXIT
 # Por TCP: durante la inicialización la imagen levanta un servidor temporal
 # que solo escucha por socket, y por socket "listo" llegaría antes de tiempo.
