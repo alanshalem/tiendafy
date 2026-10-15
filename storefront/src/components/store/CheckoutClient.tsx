@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type InputHTMLAttributes } from 'react';
-import Image from 'next/image';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import {
   Banknote,
@@ -14,7 +13,6 @@ import {
   MessageCircle,
   MessageSquare,
   Store,
-  Tag,
   Truck,
   Loader2,
 } from 'lucide-react';
@@ -32,18 +30,18 @@ import {
 
 import { apiUrl, tenantHeaders } from '@/lib/api-client';
 import type { MoneyDto } from '@tiendafy/types';
-import { couponStorageKey, LineIssueText, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
+import { couponStorageKey, PriceChangeNotice, useCart, type StoredCoupon } from './cart';
 import { readJson, removeKey, writeJson } from '@/lib/storage';
 import { finishPurchase, readBuyer, writeBuyer } from '@/lib/cart-storage';
 import { readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { hardNavigate } from '@/lib/navigation';
 import { validateCoupon as validateCouponApi } from '@/lib/coupons';
-import { INPUT_10, INPUT_11 } from './styles';
+import { INPUT_11 } from './styles';
 import { CheckoutSkeleton } from './CheckoutSkeleton';
 import { useAuth } from './auth';
 import type { StoreOffers } from '@/lib/store-offers';
 import { defaultAddress, fetchSavedAddresses } from '@/lib/addresses';
-import { PriceWithoutTaxes } from './StoreLegalInfo';
+import { CheckoutSummary } from './CheckoutSummary';
 import { checkoutTotals, freeByAmount, methodPrice } from '@/lib/checkout-totals';
 
 interface ShippingOption {
@@ -1461,106 +1459,29 @@ export function CheckoutClient({ tenantId, contact }: { tenantId: string; contac
 
         {/* Resumen del pedido. En el celular va arriba del formulario y se
             abre con la barra "Ver resumen"; en la compu, al costado siempre. */}
-        <aside
+        <CheckoutSummary
           id={`${formId}-summary`}
-          aria-label="Resumen del pedido"
-          className={`order-first h-fit rounded-lg border border-fg/10 p-4 text-sm lg:sticky lg:top-6 lg:order-none lg:block ${
-            summaryOpen ? 'block' : 'hidden'
-          }`}
-        >
-          {lines.map((l) => (
-            <div key={l.variantId} className="py-1.5">
-              <div className="flex items-center gap-3">
-                {l.image && (
-                  <Image
-                    src={l.image}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 rounded-md object-cover"
-                  />
-                )}
-                <span className="flex-1">
-                  {l.productName}
-                  {l.variantLabel && l.variantLabel !== 'Única' ? ` · ${l.variantLabel}` : ''} × {l.quantity}
-                </span>
-                <span className="tabular-nums">{formatMoney(l.priceAmount * l.quantity, l.currency)}</span>
-              </div>
-              {issues[l.variantId] && (
-                <div className="flex items-start justify-between gap-2">
-                  <LineIssueText issue={issues[l.variantId]} />
-                  <button
-                    type="button"
-                    onClick={() => remove(l.variantId)}
-                    className="mt-1 shrink-0 text-xs font-semibold text-danger underline"
-                  >
-                    Quitar
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          <div className="mt-3 space-y-1 border-t border-fg/10 pt-3">
-            <div className="flex justify-between">
-              <span className="opacity-70">Subtotal</span>
-              <span className="tabular-nums">{formatMoney(subtotal, currency)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-success">
-                <span>Descuento ({coupon?.code})</span>
-                <span className="tabular-nums">- {formatMoney(discount, currency)}</span>
-              </div>
-            )}
-            {offlineDiscount > 0 && (
-              <div className="flex justify-between text-success">
-                <span>
-                  Descuento por {payMethod === 'cash' ? 'pago en efectivo' : 'transferencia'} ({offlinePct}%)
-                </span>
-                <span className="tabular-nums">- {formatMoney(offlineDiscount, currency)}</span>
-              </div>
-            )}
-            {hasShipping && (
-              <div className="flex justify-between">
-                <span className="opacity-70">
-                  Costo de envío
-                  {coupon?.freeShipping && quotedShipping > 0 ? ` (gratis con ${coupon.code})` : ''}
-                  {!coupon?.freeShipping && selected && !selectedQuote && freeByAmount(selected, subtotal)
-                    ? ' (sin cargo por el monto)'
-                    : ''}
-                </span>
-                <span className="tabular-nums">
-                  {shipCost === 0 ? 'Gratis' : formatMoney(shipCost, currency)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between pt-1 text-base font-bold">
-              <span>Total</span>
-              <span className="tabular-nums">{formatMoney(total, currency)}</span>
-            </div>
-            <PriceWithoutTaxes amount={total} currency={currency} className="text-right" />
-          </div>
-
-          {!coupon && (
-            <div className="mt-4">
-              <div className="flex gap-2">
-                <input
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                  placeholder="Cupón de descuento"
-                  aria-label="Cupón de descuento"
-                  className={INPUT_10}
-                />
-                <button
-                  onClick={() => applyCoupon()}
-                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-fg/30 px-3 text-sm font-semibold"
-                >
-                  <Tag className="h-4 w-4" /> Aplicar
-                </button>
-              </div>
-              {couponError && <p className="mt-1 text-xs text-danger">{couponError}</p>}
-            </div>
-          )}
-        </aside>
+          open={summaryOpen}
+          lines={lines}
+          issues={issues}
+          onRemove={remove}
+          currency={currency}
+          subtotal={subtotal}
+          coupon={coupon}
+          discount={discount}
+          offlineDiscount={offlineDiscount}
+          offlinePct={offlinePct}
+          cash={payMethod === 'cash'}
+          hasShipping={hasShipping}
+          quotedShipping={quotedShipping}
+          freeByAmount={Boolean(selected && !selectedQuote && freeByAmount(selected, subtotal))}
+          shipCost={shipCost}
+          total={total}
+          couponInput={couponInput}
+          onCouponInput={setCouponInput}
+          onApplyCoupon={() => applyCoupon()}
+          couponError={couponError}
+        />
       </div>
     </main>
   );
