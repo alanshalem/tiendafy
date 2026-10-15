@@ -175,7 +175,9 @@ public sealed class FiscalDocument
             new
             {
                 Code = "NumeroAjeno",
-                Message = $"ARCA tiene el número {Number} con otro comprobante (doc {arcaDocNro}, total {arcaTotal}). " +
+                // Con ArgentineNumbers: interpolado con la cultura del proceso,
+                // en el contenedor (invariante) salía "total 1500.5".
+                Message = $"ARCA tiene el número {Number} con otro comprobante (doc {arcaDocNro}, total ${SharedKernel.Common.ArgentineNumbers.Number(arcaTotal, 2)}). " +
                           "¿Se emite con este punto de venta desde otro sistema?",
             },
         });

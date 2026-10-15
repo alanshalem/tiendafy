@@ -32,8 +32,6 @@ public sealed class EmitInvoiceHandler(
     IFiscalAuthenticator authenticator,
     ILogger<EmitInvoiceHandler> logger) : IInvoiceEmitter
 {
-    private static readonly System.Globalization.CultureInfo ArCulture = System.Globalization.CultureInfo.GetCultureInfo("es-AR");
-
     // Zona horaria de Argentina (UTC-3, sin DST) para la fecha del comprobante.
     private static readonly TimeSpan ArOffset = ArgentinaTime.Offset;
 
@@ -100,7 +98,7 @@ public sealed class EmitInvoiceHandler(
                 && cmd.GrossMinorUnits >= cfg.ConsumerFinalThresholdMinorUnits)
             {
                 return Result.Failure<EmitInvoiceResult>(Error.Validation(EmissionErrors.BuyerIdRequired,
-                    $"Por encima de ${(cfg.ConsumerFinalThresholdMinorUnits / 100).ToString("N0", ArCulture)} ARCA exige identificar al comprador: "
+                    $"Por encima de ${ArgentineNumbers.Number(cfg.ConsumerFinalThresholdMinorUnits / 100)} ARCA exige identificar al comprador: "
                     + "cargá su DNI o CUIT al facturar."));
             }
 

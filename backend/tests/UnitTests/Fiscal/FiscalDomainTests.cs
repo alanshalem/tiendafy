@@ -191,4 +191,26 @@ public class FiscalDomainTests
         Assert.Equal("<req/>", doc.RequestPayload);
         Assert.Equal("<res/>", doc.ResponsePayload);
     }
+    [Fact]
+    public void El_numero_ajeno_muestra_el_total_como_se_lee_en_Argentina()
+    {
+        // El contenedor corre con la cultura invariante: interpolado sin
+        // formato, el mensaje decía "total 1500.5".
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        try
+        {
+            var doc = FiscalDocument.Draft(Tenant, Guid.NewGuid(), FiscalEnvironment.Produccion, 1, CbteTipo.FacturaB, 7,
+                DocTipo.ConsumidorFinal, 0, 121m, 100m, 21m);
+
+            doc.MarkNumberTakenByAnother(30111222, 1500.5m);
+
+            Assert.Equal(FiscalResult.Rejected, doc.Result);
+            Assert.Contains("total $1.500,50", doc.Errors);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
 }
