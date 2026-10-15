@@ -162,7 +162,7 @@ export function CustomerProfilePage() {
             href={wa}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-white hover:opacity-90"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-status-fg hover:opacity-90"
           >
             <MessageCircle className="h-4 w-4" /> WhatsApp
           </a>

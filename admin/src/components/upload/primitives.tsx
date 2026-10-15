@@ -284,7 +284,7 @@ export function ProgressTrack({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      className={cn('h-1.5 overflow-hidden rounded-full bg-black/10', className)}
+      className={cn('h-1.5 overflow-hidden rounded-full bg-bg-muted', className)}
     >
       <div
         className={cn(

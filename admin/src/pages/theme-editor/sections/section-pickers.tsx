@@ -200,7 +200,7 @@ export function SingleProductPicker({
         {current?.images?.[0] ? (
           <img src={current.images[0].url} alt="" className="h-10 w-10 rounded object-cover" />
         ) : (
-          <div className="h-10 w-10 rounded bg-black/5" />
+          <div className="h-10 w-10 rounded bg-bg-muted" />
         )}
         <span className="min-w-0 flex-1 truncate">
           {current?.name ?? (chosen.data ? 'Producto borrado' : 'Producto')}
@@ -256,7 +256,7 @@ export function SingleProductPicker({
                 {p.images?.[0] ? (
                   <img src={p.images[0].url} alt="" className="h-8 w-8 rounded object-cover" />
                 ) : (
-                  <div className="h-8 w-8 rounded bg-black/5" />
+                  <div className="h-8 w-8 rounded bg-bg-muted" />
                 )}
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <Plus className="h-4 w-4 text-primary" aria-hidden />

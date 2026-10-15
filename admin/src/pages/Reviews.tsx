@@ -233,7 +233,7 @@ function RatingStars({ rating }: { rating: number }) {
         <Star
           key={n}
           aria-hidden
-          className={cn('h-4 w-4', n <= rating ? 'fill-amber-400 text-amber-400' : 'text-fg-subtle/40')}
+          className={cn('h-4 w-4', n <= rating ? 'fill-warning text-warning' : 'text-fg-subtle/40')}
         />
       ))}
     </span>
