@@ -310,13 +310,53 @@ public static class AndreaniEndpoints
         }).RequirePermission(Permission.OrdersFulfill);
 
         group.MapGet("/admin/orders/{orderId:guid}/andreani-shipment", async (
-            Guid orderId, ITenantContext tenant, IAndreaniRepository repo, CancellationToken ct) =>
+            Guid orderId, ITenantContext tenant, IAndreaniRepository repo, IShipmentClaimRepository claims,
+            CancellationToken ct) =>
         {
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             return shipment is null
-                ? Results.Ok(new { exists = false })
+                ? Results.Ok(new
+                {
+                    exists = false,
+                    review = await ShipmentReview.PendingAsync(
+                        claims, tenant.TenantId.Value, orderId, ShipmentCarriers.Andreani, ct),
+                })
                 : Results.Ok(ShipmentDto(shipment, alreadyExisted: true));
         }).RequirePermission(Permission.OrdersRead);
+
+        // Un envío que Andreani creó y no quedó guardado (ver ShipmentReview):
+        // o no se creó y se suelta, o se carga el número que figura en Andreani.
+        group.MapPost("/admin/orders/{orderId:guid}/andreani-shipment/review/release", (
+            Guid orderId, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            IShipmentClaimRepository claims, IAuditLog audit, ILoggerFactory loggers, CancellationToken ct) =>
+            ShipmentReview.ReleaseAsync(http, tenant.TenantId.Value, orderId, ShipmentCarriers.Andreani, "Andreani",
+                orders, claims, audit, loggers.CreateLogger("Andreani"), ct))
+            .RequirePermission(Permission.OrdersFulfill);
+
+        group.MapPost("/admin/orders/{orderId:guid}/andreani-shipment/review/record", async (
+            Guid orderId, ShipmentReviewRecordRequest req, HttpContext http, ITenantContext tenant,
+            IOrderRepository orders, IShipmentClaimRepository claims, IAuditLog audit,
+            ILoggerFactory loggers, CancellationToken ct) =>
+        {
+            // Uno por bulto: si el envío tiene varios, se pueden pegar todos.
+            var numbers = (req.Number ?? "").Split([',', ';', ' ', '\n', '\r', '\t'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (numbers.Length == 0)
+                return Error.Validation("Andreani.MissingTracking",
+                    "Cargá el número de seguimiento que figura en el panel de Andreani.").ToProblem();
+            if (numbers.Any(n => n.Length > 40))
+                return Error.Validation("Andreani.BadTracking",
+                    "Ese número de seguimiento es demasiado largo: copialo tal como figura en Andreani.").ToProblem();
+
+            // Como una creación que terminó bien, sin etiqueta: Andreani no la
+            // dio acá. El seguimiento anda con el número.
+            var record = AndreaniShipment.Create(tenant.TenantId.Value, orderId, numbers[0], numbers,
+                labelUrl: null, contractUsed: null, branchName: null);
+            return await ShipmentReview.RecordAsync(http, tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Andreani, "Andreani", record, string.Join(", ", numbers),
+                r => Results.Ok(ShipmentDto(r, alreadyExisted: false)),
+                orders, claims, audit, loggers.CreateLogger("Andreani"), ct);
+        }).RequirePermission(Permission.OrdersFulfill);
 
         // Etiqueta: se descarga desde la URL que devolvió Andreani al crear el
         // envío. No se arma a mano — el path cambió entre versiones de la API.

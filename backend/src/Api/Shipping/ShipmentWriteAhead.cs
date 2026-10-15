@@ -34,7 +34,8 @@ public sealed class ShipmentAttempt
 /// <item>El carrier no respondió (timeout, red): se suelta igual, pero se avisa
 /// que el envío pudo haberse creado y que hay que mirarlo antes de reintentar.</item>
 /// <item>El carrier lo creó y no se pudo guardar: la reserva queda "a revisar"
-/// y nunca vence sola. Otro envío sería un duplicado que se paga.</item>
+/// y nunca vence sola. Otro envío sería un duplicado que se paga. Se destraba
+/// desde la venta (ver <see cref="ShipmentReview"/>).</item>
 /// <item>El proceso murió a mitad de camino: la reserva vence a los
 /// <see cref="StaleAfter"/> para no trabar la venta para siempre.</item>
 /// </list>
@@ -67,7 +68,7 @@ public static class ShipmentWriteAhead
             case ShipmentClaimOutcome.NeedsReview:
                 return Error.Conflict("Shipping.NeedsReview",
                     $"{carrierName} creó un envío para esta venta que no quedó registrado en Tiendafy. " +
-                    $"Revisalo en el panel de {carrierName} antes de crear otro y avisá a soporte.").ToProblem();
+                    $"Revisalo en el panel de {carrierName} y resolvelo desde el aviso de la venta antes de crear otro.").ToProblem();
             case ShipmentClaimOutcome.ClaimedOverStale:
                 logger.LogWarning(
                     "Se pisó una reserva vieja de envío de {Carrier} para la venta {OrderId}: el pedido anterior no terminó.",
@@ -94,7 +95,7 @@ public static class ShipmentWriteAhead
             return Results.Problem(
                 title: "Shipping.NotRecorded",
                 detail: $"El envío se creó en {carrierName} ({attempt.CreatedAtCarrier}) pero no se pudo registrar " +
-                    "en Tiendafy. No lo vuelvas a crear: avisá a soporte.",
+                    "en Tiendafy. No lo vuelvas a crear: recargá la venta y registralo desde el aviso.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
         catch (Exception ex) when (IsNoAnswer(ex))

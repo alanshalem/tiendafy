@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Checkout.Core.Domain;
 
 namespace IntegrationTests;
 
@@ -310,5 +311,67 @@ public sealed class ZipnovaFlowTests
         var res = await merchant.ExpectOkAsync(HttpMethod.Get, $"/api/v1/admin/orders/{orderId}/zipnova-label");
         Assert.Equal("application/pdf", res.Content.Headers.ContentType?.MediaType);
         return await res.Content.ReadAsByteArrayAsync();
+    }
+
+    [Fact]
+    public async Task Un_envio_a_revisar_que_no_se_creo_se_libera_y_se_vuelve_a_crear()
+    {
+        var (merchant, orderId) = await ConfiguredSaleAsync("zpv");
+        var url = $"/api/v1/admin/orders/{orderId}/zipnova-shipment";
+        var shipments = $"{Base}/shipments";
+
+        // Sin nada a revisar, liberar es un 409 y la venta no muestra aviso.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null,
+            (await merchant.GetAsync(url)).GetProperty("review").ValueKind);
+
+        await StuckShipment.LeaveAsync(_factory, merchant.TenantId, orderId, ShipmentCarriers.Zipnova, "envío #8800009");
+        var state = await merchant.GetAsync(url);
+        Assert.Equal("envío #8800009", state.GetProperty("review").GetProperty("note").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, url, Recipient())).StatusCode);
+
+        // Liberarlo pide el permiso de despachar.
+        var catalog = await merchant.AddTeammateAsync("catalogo", "zpveq");
+        Assert.Equal(HttpStatusCode.Forbidden, await catalog.StatusAsync(HttpMethod.Post, $"{url}/review/release"));
+
+        // El número de envío de Zipnova es numérico.
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record", new { number = "OCA123" })).StatusCode);
+
+        // "No se creó": se suelta, una sola vez, y se puede crear de nuevo.
+        Assert.Equal(HttpStatusCode.NoContent, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null,
+            (await merchant.GetAsync(url)).GetProperty("review").ValueKind);
+
+        _factory.ExternalHttp.On(HttpMethod.Post, shipments, (_, _) => Created(8800010));
+        var created = await merchant.PostAsync(url, Recipient());
+        Assert.False(created.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal(8800010, created.GetProperty("shipmentId").GetInt64());
+
+        var activity = await merchant.GetAsync("/api/v1/members/activity");
+        Assert.Contains(activity.GetProperty("items").EnumerateArray(), e =>
+            e.GetProperty("action").GetString() == "shipment.review.release");
+    }
+
+    [Fact]
+    public async Task Un_envio_a_revisar_que_si_se_creo_se_carga_con_su_numero()
+    {
+        var (merchant, orderId) = await ConfiguredSaleAsync("zpw");
+        var url = $"/api/v1/admin/orders/{orderId}/zipnova-shipment";
+        await StuckShipment.LeaveAsync(_factory, merchant.TenantId, orderId, ShipmentCarriers.Zipnova, "envío #8800011");
+
+        var recorded = await merchant.PostAsync($"{url}/review/record", new { number = "#8800011" });
+        Assert.Equal(8800011, recorded.GetProperty("shipmentId").GetInt64());
+        Assert.True((await merchant.GetAsync(url)).GetProperty("exists").GetBoolean());
+
+        // La etiqueta sale con el número cargado, como la de uno creado acá.
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Base}/shipments/8800011/label.pdf", (_, _) =>
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent("%PDF-1.4"u8.ToArray()) });
+        Assert.Equal(HttpStatusCode.OK,
+            (await merchant.SendAsync(HttpMethod.Get, $"/api/v1/admin/orders/{orderId}/zipnova-label")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record", new { number = "8800011" })).StatusCode);
     }
 }

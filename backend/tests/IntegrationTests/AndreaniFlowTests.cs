@@ -1,5 +1,8 @@
 using System.Net;
 using Checkout.Core.Domain;
+using Checkout.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests;
 
@@ -264,6 +267,77 @@ public sealed class AndreaniFlowTests
         var created = await merchant.PostAsync(url, Recipient());
         Assert.False(created.GetProperty("alreadyExisted").GetBoolean());
         Assert.Equal("360000000099991", created.GetProperty("trackingNumber").GetString());
+    }
+
+    [Fact]
+    public async Task Un_envio_creado_en_Andreani_que_no_se_guardo_se_carga_a_mano_desde_la_venta()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "anv");
+        await merchant.PutAsync("/api/v1/admin/shipping/andreani", Config());
+        StubLogin();
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/andreani-shipment";
+        var orders = $"{Base}/ordenes-de-envio";
+
+        // Andreani crea el envío y guardarlo acá falla: mientras tanto apareció
+        // otra fila de esa venta y el índice único frena la nuestra.
+        _factory.ExternalHttp.On(HttpMethod.Post, orders, (_, _) =>
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
+            db.AndreaniShipments.Add(AndreaniShipment.Create(merchant.TenantId, orderId, "INTRUSO", ["INTRUSO"], null, null, null));
+            db.SaveChanges();
+            return OrderCreated("360000000077770");
+        });
+        var failed = await merchant.SendAsync(HttpMethod.Post, url, Recipient());
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        Assert.Contains("No lo vuelvas a crear", await failed.Content.ReadAsStringAsync());
+        await RemoveShipmentRowAsync(orderId); // el envío de Andreani no quedó guardado en ningún lado
+        _factory.ExternalHttp.On(HttpMethod.Post, orders, (_, _) => OrderCreated("360000000077771"));
+
+        // La venta lo muestra, con lo que devolvió Andreani, y no deja crear otro.
+        var state = await merchant.GetAsync(url);
+        Assert.False(state.GetProperty("exists").GetBoolean());
+        Assert.Contains("360000000077770", state.GetProperty("review").GetProperty("note").GetString());
+        var before = _factory.ExternalHttp.SentTo(orders).Count;
+        var blocked = await merchant.SendAsync(HttpMethod.Post, url, Recipient());
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+        Assert.Equal(before, _factory.ExternalHttp.SentTo(orders).Count);
+
+        // Sin número no se carga nada.
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record", new { number = " " })).StatusCode);
+
+        // "Se creó": se carga el número y queda como un envío normal, sin etiqueta.
+        var recorded = await merchant.PostAsync($"{url}/review/record", new { number = " 360000000077770 " });
+        Assert.Equal("360000000077770", recorded.GetProperty("trackingNumber").GetString());
+        Assert.False(recorded.GetProperty("hasLabel").GetBoolean());
+        state = await merchant.GetAsync(url);
+        Assert.True(state.GetProperty("exists").GetBoolean());
+        Assert.Equal("360000000077770", state.GetProperty("trackingNumber").GetString());
+
+        // Ya resuelto: repetirlo (doble clic) o soltarlo no hace nada.
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record", new { number = "360000000077770" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
+
+        // Crear de nuevo devuelve el cargado, sin llamar a Andreani.
+        var again = await merchant.PostAsync(url, Recipient());
+        Assert.True(again.GetProperty("alreadyExisted").GetBoolean());
+        Assert.Equal(before, _factory.ExternalHttp.SentTo(orders).Count);
+
+        // Quién lo resolvió queda en la actividad de la tienda.
+        var activity = await merchant.GetAsync("/api/v1/members/activity");
+        Assert.Contains(activity.GetProperty("items").EnumerateArray(), e =>
+            e.GetProperty("action").GetString() == "shipment.review.record"
+            && e.GetProperty("summary").GetString()!.Contains("360000000077770"));
+    }
+
+    private async Task RemoveShipmentRowAsync(Guid orderId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
+        await db.AndreaniShipments.IgnoreQueryFilters().Where(s => s.OrderId == orderId).ExecuteDeleteAsync();
     }
 
     [Fact]

@@ -62,8 +62,9 @@ public static class ShipmentClaimStatus
 
     /// <summary>
     /// El carrier creó el envío pero no se pudo guardar en Tiendafy. Nunca
-    /// vence sola: crear otro sería un envío duplicado. Se destraba a mano,
-    /// después de cargar el envío que ya existe.
+    /// vence sola: crear otro sería un envío duplicado. La destraba alguien del
+    /// equipo desde la venta, después de mirar el panel del carrier: o carga el
+    /// número del envío que ya existe, o la suelta porque no se había creado.
     /// </summary>
     public const string NeedsReview = "needs_review";
 }
@@ -98,4 +99,22 @@ public interface IShipmentClaimRepository
 
     /// <summary>El carrier creó el envío pero no se pudo guardar: la reserva queda para revisión.</summary>
     Task MarkNeedsReviewAsync(Guid claimId, string note, CancellationToken ct = default);
+
+    /// <summary>La reserva a revisar de esa venta con ese carrier, si hay. Solo lectura.</summary>
+    Task<ShipmentClaim?> FindNeedsReviewAsync(Guid tenantId, Guid orderId, string carrier, CancellationToken ct = default);
+
+    /// <summary>
+    /// Suelta una reserva a revisar: alguien miró el panel del carrier y el
+    /// envío no existe. False si no había una a revisar (ya se resolvió, o nunca hubo).
+    /// </summary>
+    Task<bool> ReleaseNeedsReviewAsync(Guid tenantId, Guid orderId, string carrier, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cierra una reserva a revisar guardando el envío que el carrier sí creó,
+    /// en la misma transacción: o quedan los dos cambios, o ninguno. False si
+    /// no había una a revisar, o si otro pedido la resolvió en el medio.
+    /// </summary>
+    Task<bool> CloseNeedsReviewAsync<TShipment>(
+        Guid tenantId, Guid orderId, string carrier, TShipment recorded, CancellationToken ct = default)
+        where TShipment : class;
 }

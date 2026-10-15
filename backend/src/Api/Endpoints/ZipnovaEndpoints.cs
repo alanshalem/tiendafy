@@ -322,13 +322,49 @@ public static class ZipnovaEndpoints
 
         // Estado del envío Zipnova de una orden (para pintar el botón correcto).
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-shipment", async (
-            Guid orderId, ITenantContext tenant, IZipnovaRepository repo, CancellationToken ct) =>
+            Guid orderId, ITenantContext tenant, IZipnovaRepository repo, IShipmentClaimRepository claims,
+            CancellationToken ct) =>
         {
             var shipment = await repo.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             return shipment is null
-                ? Results.Ok(new { exists = false })
+                ? Results.Ok(new
+                {
+                    exists = false,
+                    review = await ShipmentReview.PendingAsync(
+                        claims, tenant.TenantId.Value, orderId, ShipmentCarriers.Zipnova, ct),
+                })
                 : Results.Ok(ShipmentDto(shipment, alreadyExisted: true));
         }).RequirePermission(Permission.OrdersRead);
+
+        // Un envío que Zipnova creó y no quedó guardado (ver ShipmentReview):
+        // o no se creó y se suelta, o se carga el número de envío de Zipnova.
+        group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment/review/release", (
+            Guid orderId, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            IShipmentClaimRepository claims, IAuditLog audit, ILoggerFactory loggers, CancellationToken ct) =>
+            ShipmentReview.ReleaseAsync(http, tenant.TenantId.Value, orderId, ShipmentCarriers.Zipnova, "Zipnova",
+                orders, claims, audit, loggers.CreateLogger("Zipnova"), ct))
+            .RequirePermission(Permission.OrdersFulfill);
+
+        group.MapPost("/admin/orders/{orderId:guid}/zipnova-shipment/review/record", async (
+            Guid orderId, ShipmentReviewRecordRequest req, HttpContext http, ITenantContext tenant,
+            IOrderRepository orders, IShipmentClaimRepository claims, IAuditLog audit,
+            ILoggerFactory loggers, CancellationToken ct) =>
+        {
+            // El id del envío en Zipnova ("envío #123" en el aviso): con él
+            // andan la etiqueta y el seguimiento, igual que con uno creado acá.
+            var raw = (req.Number ?? "").Trim().TrimStart('#').Trim();
+            if (!long.TryParse(raw, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var shipmentId) || shipmentId <= 0)
+                return Error.Validation("Zipnova.BadShipmentId",
+                    "Cargá el número de envío que figura en el panel de Zipnova (solo números).").ToProblem();
+
+            var record = ZipnovaShipment.Create(tenant.TenantId.Value, orderId, shipmentId,
+                carrierName: null, carrierTrackingId: null, trackingUrl: null, status: null);
+            return await ShipmentReview.RecordAsync(http, tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Zipnova, "Zipnova", record, $"envío #{shipmentId}",
+                r => Results.Ok(ShipmentDto(r, alreadyExisted: false)),
+                orders, claims, audit, loggers.CreateLogger("Zipnova"), ct);
+        }).RequirePermission(Permission.OrdersFulfill);
 
         // Etiqueta PDF, proxied (las credenciales nunca tocan el browser).
         group.MapGet("/admin/orders/{orderId:guid}/zipnova-label", async (

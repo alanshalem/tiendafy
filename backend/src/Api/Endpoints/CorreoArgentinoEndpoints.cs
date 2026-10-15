@@ -372,13 +372,44 @@ public static class CorreoArgentinoEndpoints
 
         // El alta de esa venta en MiCorreo, si se hizo desde el panel.
         group.MapGet("/admin/orders/{orderId:guid}/correo-shipment", async (
-            Guid orderId, ITenantContext tenant, ICorreoArgentinoConfigRepository configs, CancellationToken ct) =>
+            Guid orderId, ITenantContext tenant, ICorreoArgentinoConfigRepository configs,
+            IShipmentClaimRepository claims, CancellationToken ct) =>
         {
             var shipment = await configs.GetShipmentByOrderAsync(tenant.TenantId.Value, orderId, ct);
             return shipment is null
-                ? Results.Ok(new { exists = false })
+                ? Results.Ok(new
+                {
+                    exists = false,
+                    review = await ShipmentReview.PendingAsync(
+                        claims, tenant.TenantId.Value, orderId, ShipmentCarriers.Correo, ct),
+                })
                 : Results.Ok(ShipmentDto(shipment, alreadyExisted: true));
         }).RequirePermission(Permission.OrdersRead);
+
+        // Un alta que MiCorreo hizo y no quedó guardada (ver ShipmentReview): o
+        // no se hizo y se suelta, o se registra que está hecha.
+        group.MapPost("/admin/orders/{orderId:guid}/correo-shipment/review/release", (
+            Guid orderId, HttpContext http, ITenantContext tenant, IOrderRepository orders,
+            IShipmentClaimRepository claims, IAuditLog audit, ILoggerFactory loggers, CancellationToken ct) =>
+            ShipmentReview.ReleaseAsync(http, tenant.TenantId.Value, orderId, ShipmentCarriers.Correo, "Correo Argentino",
+                orders, claims, audit, loggers.CreateLogger("CorreoArgentino"), ct))
+            .RequirePermission(Permission.OrdersFulfill);
+
+        // MiCorreo no da número al dar de alta (sale después, al pagar el envío
+        // en MiCorreo): acá solo se registra el alta. El número de seguimiento
+        // se carga en la venta con "Marcar enviada", como con un alta normal.
+        group.MapPost("/admin/orders/{orderId:guid}/correo-shipment/review/record", (
+            Guid orderId, HttpContext http, ITenantContext tenant,
+            IOrderRepository orders, IShipmentClaimRepository claims, IAuditLog audit,
+            ILoggerFactory loggers, CancellationToken ct) =>
+            ShipmentReview.RecordAsync(http, tenant.TenantId.Value, orderId,
+                ShipmentCarriers.Correo, "Correo Argentino",
+                // El tipo de entrega del alta no se sabe: "D" es el que no
+                // muestra una sucursal inventada.
+                CorreoShipment.Create(tenant.TenantId.Value, orderId, "D", agency: null, remoteCreatedAt: null),
+                number: null, r => Results.Ok(ShipmentDto(r, alreadyExisted: false)),
+                orders, claims, audit, loggers.CreateLogger("CorreoArgentino"), ct))
+            .RequirePermission(Permission.OrdersFulfill);
 
         // Seguimiento de un envío MiCorreo (por número de tracking del carrier).
         group.MapGet("/admin/shipping/correo/tracking", async (

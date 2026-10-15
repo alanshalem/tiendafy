@@ -1,4 +1,5 @@
 using System.Net;
+using Checkout.Core.Domain;
 
 namespace IntegrationTests;
 
@@ -305,5 +306,35 @@ public sealed class CorreoArgentinoFlowTests
             Assert.Empty(quote.GetProperty("options").EnumerateArray());
             Assert.False(string.IsNullOrEmpty(quote.GetProperty("error").GetString()));
         }
+    }
+
+    [Fact]
+    public async Task Un_alta_a_revisar_se_registra_o_se_libera_desde_la_venta()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "cov");
+        await merchant.PutAsync("/api/v1/admin/shipping/correo", Config($"user-{merchant.Subdomain}"));
+        var orderId = await merchant.CreateSaleAsync();
+        var url = $"/api/v1/admin/orders/{orderId}/correo-shipment";
+
+        // Sin nada a revisar, registrar es un 409.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record")).StatusCode);
+
+        await StuckShipment.LeaveAsync(_factory, merchant.TenantId, orderId, ShipmentCarriers.Correo, "alta de la venta #1");
+        Assert.Equal("alta de la venta #1",
+            (await merchant.GetAsync(url)).GetProperty("review").GetProperty("note").GetString());
+
+        // Otra tienda no la ve ni la toca.
+        var other = await Merchant.CreateAsync(_factory, "cow");
+        Assert.Equal(HttpStatusCode.NotFound, (await other.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await other.GetAsync(url)).GetProperty("review").ValueKind);
+
+        // "Se creó": queda registrada el alta (MiCorreo no da número al dar de alta).
+        var recorded = await merchant.PostAsync($"{url}/review/record", new { });
+        Assert.True(recorded.GetProperty("exists").GetBoolean());
+        Assert.True((await merchant.GetAsync(url)).GetProperty("exists").GetBoolean());
+
+        // Ya resuelta: ni registrarla de nuevo ni liberarla.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"{url}/review/release")).StatusCode);
     }
 }
