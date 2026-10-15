@@ -1,5 +1,6 @@
 using Catalog.Core.Domain;
 using MercadoLibre.Infrastructure;
+using SharedKernel.Common;
 
 namespace Api.Meli;
 
@@ -13,16 +14,34 @@ namespace Api.Meli;
 /// </summary>
 public static class MeliListingPayload
 {
-    /// <summary>El payload y el precio publicado (centavos, ya con el recargo).</summary>
-    public sealed record Listing(Dictionary<string, object?> Payload, long PriceMinor);
+    /// <summary>
+    /// El payload, el precio publicado (centavos, ya con el recargo) y la
+    /// cantidad publicada (disponible − colchón): es lo que queda registrado
+    /// como "último empujado" en el vínculo. Antes se registraba el disponible
+    /// local entero y la primera pasada del worker mandaba un PUT de más.
+    /// </summary>
+    public sealed record Listing(Dictionary<string, object?> Payload, long PriceMinor, int Quantity);
 
     /// <param name="available">Disponible local de la variante (ya validado &gt; 0).</param>
     /// <param name="specAttributeIds">Definición de ficha técnica → atributo de ML, solo las mapeadas.</param>
-    public static Listing Build(
+    /// <returns>
+    /// Falla si el colchón anti-sobreventa se come todo el stock: publicar 1
+    /// unidad igual (lo que se hacía antes) era justo la sobreventa que el
+    /// colchón está para evitar.
+    /// </returns>
+    public static Result<Listing> Build(
         Product product, Variant variant, MeliConnection connection,
         string categoryId, string? listingTypeId, int available,
         IReadOnlyDictionary<Guid, string> specAttributeIds)
     {
+        // Mismo cálculo que MeliStockSyncWorker: en ML se publica stock − colchón.
+        var quantity = available - connection.StockBufferUnits;
+        if (quantity < 1)
+            return Result.Failure<Listing>(Error.Validation("Meli.BufferExceedsStock",
+                $"La variante tiene {available} disponibles y el colchón anti-sobreventa es de " +
+                $"{connection.StockBufferUnits}: no queda stock para publicar en Mercado Libre. " +
+                "Sumá stock o bajá el colchón en la configuración de Mercado Libre."));
+
         // Precio local en centavos → el del canal → ML espera decimal en la moneda del site.
         // El recargo es parte de la sincronización de precios (el panel lo muestra
         // solo con ella prendida): sin sincronización, un recargo guardado de
@@ -35,7 +54,7 @@ public static class MeliListingPayload
             ["category_id"] = categoryId,
             ["price"] = MeliPricing.ToApiAmount(priceMinor),
             ["currency_id"] = variant.Price.Currency,
-            ["available_quantity"] = Math.Max(1, available - connection.StockBufferUnits),
+            ["available_quantity"] = quantity,
             ["condition"] = "new",
             ["listing_type_id"] = string.IsNullOrWhiteSpace(listingTypeId) ? "gold_special" : listingTypeId,
             ["pictures"] = product.Images.OrderBy(i => i.Position).Take(6)
@@ -58,6 +77,6 @@ public static class MeliListingPayload
         }
 
         if (attributes.Count > 0) payload["attributes"] = attributes;
-        return new Listing(payload, priceMinor);
+        return new Listing(payload, priceMinor, quantity);
     }
 }

@@ -33,7 +33,7 @@ public class MeliListingPayloadTests
     {
         var (product, variant) = Remera(10_000_00);
 
-        var listing = MeliListingPayload.Build(product, variant, Connection(15m), "MLA1", null, 5, new Dictionary<Guid, string>());
+        var listing = MeliListingPayload.Build(product, variant, Connection(15m), "MLA1", null, 5, new Dictionary<Guid, string>()).Value;
 
         Assert.Equal(11_500_00, listing.PriceMinor);
         Assert.Equal(11_500m, listing.Payload["price"]);
@@ -48,7 +48,7 @@ public class MeliListingPayloadTests
         // que quedó guardado de antes no puede subir el precio a escondidas.
         var (product, variant) = Remera(10_000_00);
 
-        var listing = MeliListingPayload.Build(product, variant, Connection(15m, priceSync: false), "MLA1", null, 5, new Dictionary<Guid, string>());
+        var listing = MeliListingPayload.Build(product, variant, Connection(15m, priceSync: false), "MLA1", null, 5, new Dictionary<Guid, string>()).Value;
 
         Assert.Equal(10_000_00, listing.PriceMinor);
         Assert.Equal(10_000m, listing.Payload["price"]);
@@ -59,7 +59,7 @@ public class MeliListingPayloadTests
     {
         var (product, variant) = Remera(9_900_00);
 
-        var listing = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5, new Dictionary<Guid, string>());
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m), "MLA1", null, 5, new Dictionary<Guid, string>()).Value;
 
         Assert.Equal(9_900m, listing.Payload["price"]);
         Assert.Equal("ARS", listing.Payload["currency_id"]);
@@ -70,17 +70,33 @@ public class MeliListingPayloadTests
     {
         var (product, variant) = Remera(1_000_00);
 
-        var listing = MeliListingPayload.Build(product, variant, Connection(0m, buffer: 2), "MLA1", " ", 5, new Dictionary<Guid, string>());
+        var listing = MeliListingPayload.Build(product, variant, Connection(0m, buffer: 2), "MLA1", " ", 5, new Dictionary<Guid, string>()).Value;
 
         Assert.Equal(3, listing.Payload["available_quantity"]);
+        // Lo que queda registrado como último empujado es lo que viajó, no el disponible.
+        Assert.Equal(3, listing.Quantity);
         Assert.Equal("gold_special", listing.Payload["listing_type_id"]);
         Assert.Equal("MLA1", listing.Payload["category_id"]);
         var attributes = Assert.IsType<List<object>>(listing.Payload["attributes"]);
         Assert.Equal(2, attributes.Count); // BRAND y SELLER_SKU
 
-        // Con un colchón más grande que el stock, ML igual exige al menos una unidad.
-        var tight = MeliListingPayload.Build(product, variant, Connection(0m, buffer: 10), "MLA1", "gold_pro", 5, new Dictionary<Guid, string>());
-        Assert.Equal(1, tight.Payload["available_quantity"]);
-        Assert.Equal("gold_pro", tight.Payload["listing_type_id"]);
+        var justOne = MeliListingPayload.Build(product, variant, Connection(0m, buffer: 4), "MLA1", "gold_pro", 5, new Dictionary<Guid, string>()).Value;
+        Assert.Equal(1, justOne.Payload["available_quantity"]);
+        Assert.Equal("gold_pro", justOne.Payload["listing_type_id"]);
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(10)]
+    public void Si_el_colchon_se_come_todo_el_stock_no_se_publica(int buffer)
+    {
+        // Antes se publicaba 1 unidad igual: justo la sobreventa que el colchón evita.
+        var (product, variant) = Remera(1_000_00);
+
+        var result = MeliListingPayload.Build(product, variant, Connection(0m, buffer: buffer), "MLA1", null, 5, new Dictionary<Guid, string>());
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Meli.BufferExceedsStock", result.Error.Code);
+        Assert.Contains("colchón", result.Error.Message);
     }
 }

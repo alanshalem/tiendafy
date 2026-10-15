@@ -131,8 +131,7 @@ public static class ServiceRegistration
         if (runPollingWorkers) services.AddHostedService<Api.Orders.OfflinePaymentExpiryWorker>();
         services.AddScoped<CampaignAudienceService>();
 
-        // Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,
-        // stock unificado y publicación. Tokens cifrados; refresh serializado.
+        // Meta Ads: gasto de pauta por campaña para el ROAS real de Rentabilidad.
         services.Configure<Api.MetaAds.MetaAdsOptions>(configuration.GetSection(Api.MetaAds.MetaAdsOptions.SectionName));
         services.AddHttpClient<Api.MetaAds.MetaAdsClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<Api.MetaAds.MetaAdsTokenService>();
@@ -149,6 +148,8 @@ public static class ServiceRegistration
         services.AddScoped<Api.Orders.ManualOrderService>();
         services.AddScoped<Api.Orders.OfflinePaymentService>();
         services.AddSingleton<Api.Auth.IGoogleIdTokenValidator, Api.Auth.GoogleIdTokenValidator>(); // login de compradores con Google
+        // Mercado Libre: OAuth por tienda, ventas/preguntas/mensajes en el panel,
+        // stock unificado y publicación. Tokens cifrados; refresh serializado.
         // MeliOptions y MeliClient los registra su módulo: AddMercadoLibreModule.
         services.AddScoped<Api.Meli.MeliTokenService>();
         services.AddScoped<Api.Meli.MeliSyncService>();

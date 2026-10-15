@@ -422,7 +422,8 @@ public static class MeliEndpoints
             }
         });
 
-        // Mensajería posventa por pack. Solo lectura con OrdersRead…
+        // Mensajería posventa por pack: leer y escribir piden meli.operate (quien
+        // atiende las ventas de ML)…
         sales.MapGet("/packs/{packId:long}/messages", async (
             long packId, ITenantContext tenant, MeliDbContext db,
             MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
@@ -458,8 +459,8 @@ public static class MeliEndpoints
             }
         });
 
-        // …y escritura con OrdersFulfill. El buyer se valida contra el cache
-        // local (nunca se manda un mensaje a un user arbitrario del request).
+        // …igual que contestar. El buyer se valida contra el cache local (nunca
+        // se manda un mensaje a un user arbitrario del request).
         actions.MapPost("/packs/{packId:long}/messages", async (
             long packId, MeliSendMessageRequest request,
             ITenantContext tenant, MeliDbContext db, MeliTokenService tokens, MeliClient client, CancellationToken ct) =>
@@ -714,6 +715,26 @@ public static class MeliEndpoints
             return Results.NoContent();
         });
 
+        // Qué se sincroniza de UNA publicación vinculada: stock, precio o los
+        // dos. El interruptor de la conexión manda sobre este (apagado allá,
+        // no viaja nada); este sirve para dejar afuera una publicación puntual
+        // (una con precio promocional cargado a mano en ML, por ejemplo). No
+        // escribe en Mercado Libre: vale también para la cuenta de ejemplo.
+        items.MapPut("/items/{itemId}/sync", async (
+            string itemId, MeliLinkSyncRequest request, MeliDbContext db, CancellationToken ct) =>
+        {
+            var normalized = itemId.Trim().ToUpperInvariant();
+            var link = await db.ItemLinks.FirstOrDefaultAsync(
+                l => l.MeliItemId == normalized && l.MeliVariationId == request.MeliVariationId, ct);
+            if (link is null)
+                return Error.NotFound("Meli.LinkNotFound", "Esa publicación no está vinculada a tu catálogo.").ToProblem();
+
+            if (request.SyncStock is { } stock) link.SetSyncStock(stock);
+            if (request.SyncPrice is { } price) link.SetSyncPrice(price);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(MeliItemLinkDto.From(link));
+        });
+
         // Predicción de categoría para el flujo de publicar.
         items.MapGet("/categories/predict", async (
             string title, ITenantContext tenant, MeliDbContext db,
@@ -784,8 +805,10 @@ public static class MeliEndpoints
                     .Select(d => new { d.Id, d.MeliAttributeId })
                     .ToDictionaryAsync(d => d.Id, d => d.MeliAttributeId!, ct)
                 : [];
-            var listing = MeliListingPayload.Build(
+            var built = MeliListingPayload.Build(
                 product, variant, c, request.CategoryId, request.ListingTypeId, available, specAttributeIds);
+            if (built.IsFailure) return built.Error.ToProblem();
+            var listing = built.Value;
 
             try
             {
@@ -809,7 +832,9 @@ public static class MeliEndpoints
                     tenant.TenantId.Value, itemId, null, product.Id, variant.Id, product.Name);
                 if (link.IsSuccess)
                 {
-                    link.Value.MarkPushed(available);
+                    // Lo que viajó (disponible − colchón), no el disponible local:
+                    // si no, la primera pasada del worker lo PUTeaba de nuevo.
+                    link.Value.MarkPushed(listing.Quantity);
                     // Ya salió con el precio del canal: el worker no lo vuelve a empujar.
                     link.Value.MarkPricePushed(listing.PriceMinor);
                     db.ItemLinks.Add(link.Value);
@@ -832,10 +857,29 @@ public static class MeliEndpoints
         // ML exige 200 en <500 ms: SOLO persistir (inbox durable) y salir.
         // Sin firma criptográfica: nunca se confía en el payload — el worker
         // re-consulta el resource con el token del vendedor.
-        group.MapPost("/webhooks/meli", async (HttpRequest http, MeliDbContext db, CancellationToken ct) =>
+        group.MapPost("/webhooks/meli", async (
+            HttpRequest http, MeliDbContext db, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
-            using var doc = await JsonDocument.ParseAsync(http.Body, cancellationToken: ct);
+            // Un cuerpo que no es JSON (o no es un objeto) se contesta 200 y se
+            // descarta, igual que un aviso incompleto. Antes reventaba con 500.
+            // No es un 400 a propósito: ML trata todo lo que no sea 200 como
+            // aviso fallido y lo reintenta durante horas, y un cuerpo roto no
+            // se arregla reintentando; solo sumaría errores a la URL de avisos.
+            // Si de verdad era una venta, la trae el backfill ("Actualizar").
+            JsonDocument doc;
+            try
+            {
+                doc = await JsonDocument.ParseAsync(http.Body, cancellationToken: ct);
+            }
+            catch (JsonException)
+            {
+                loggerFactory.CreateLogger("MeliWebhook").LogWarning("Aviso de Mercado Libre con JSON inválido: se descarta.");
+                return Results.Ok();
+            }
+
+            using var _ = doc;
             var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return Results.Ok();
             var topic = JsonRead.GetString(root, "topic") ?? "";
             var resource = JsonRead.GetString(root, "resource") ?? "";
             var userId = JsonRead.GetLongFlexible(root, "user_id");
@@ -879,4 +923,6 @@ public sealed record MeliItemSummary(
 }
 public sealed record MeliSendMessageRequest(string Text);
 public sealed record MeliLinkRequest(Guid ProductId, Guid VariantId, long? MeliVariationId, string? Title);
+/// <summary>Switches de una publicación; null = no se toca.</summary>
+public sealed record MeliLinkSyncRequest(long? MeliVariationId, bool? SyncStock, bool? SyncPrice);
 public sealed record MeliPublishRequest(string? CategoryId, Guid? VariantId, string? ListingTypeId);

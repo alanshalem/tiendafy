@@ -635,7 +635,9 @@ public static class StatsEndpoints
         int unitsLinked = 0, unitsTotal = 0, unitsWithFee = 0;
         foreach (var o in meliOrders)
         {
-            meliRevenue += (long)Math.Round(o.TotalAmount * 100m);
+            // Lo cobrado, no el total de la venta: con una devolución parcial
+            // cuenta lo que quedó, igual que en los ingresos del canal.
+            meliRevenue += o.BillableMinorUnits;
             foreach (var it in Api.Meli.MeliSyncService.ParseSnapshot(o.ItemsJson))
             {
                 unitsTotal += it.Quantity;

@@ -62,9 +62,24 @@ public sealed class MeliItemLink
         });
     }
 
-    public void SetSyncStock(bool enabled) => SyncStock = enabled;
+    /// <summary>
+    /// Prende o apaga el empuje de stock a esta publicación. Al volver a
+    /// prenderlo se olvida lo último empujado: mientras estuvo apagado la
+    /// publicación pudo cambiar en ML, y la próxima pasada tiene que mandar el
+    /// stock de la tienda aunque coincida con el de antes.
+    /// </summary>
+    public void SetSyncStock(bool enabled)
+    {
+        if (enabled && !SyncStock) LastPushedQty = null;
+        SyncStock = enabled;
+    }
 
-    public void SetSyncPrice(bool enabled) => SyncPrice = enabled;
+    /// <summary>Lo mismo para el precio (con el recargo de la conexión).</summary>
+    public void SetSyncPrice(bool enabled)
+    {
+        if (enabled && !SyncPrice) LastPushedPriceMinor = null;
+        SyncPrice = enabled;
+    }
 
     public void MarkPushed(int qty) => LastPushedQty = qty;
 

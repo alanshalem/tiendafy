@@ -27,13 +27,13 @@ public sealed class MercadoLibreFlowTests
 
     public MercadoLibreFlowTests(ApiFactory factory) => _factory = factory;
 
-    private static object Order(long id, string status, string itemId, int quantity, long buyerId = 777) => new
+    private static object Order(long id, string status, string itemId, int quantity, long buyerId = 777, decimal? paidAmount = null) => new
     {
         id,
         status,
         date_created = "2026-10-10T12:00:00.000-03:00",
         total_amount = 15_000m * quantity,
-        paid_amount = 15_000m * quantity,
+        paid_amount = paidAmount ?? 15_000m * quantity,
         currency_id = "ARS",
         pack_id = id + 1,
         buyer = new { id = buyerId, nickname = "COMPRADOR_ML" },
@@ -317,6 +317,79 @@ public sealed class MercadoLibreFlowTests
     }
 
     [Fact]
+    public async Task Publicar_registra_lo_que_viajo_y_respeta_el_colchon()
+    {
+        var (merchant, _) = await ConnectedAsync("mlb");
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, stockBufferUnits = 2 });
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Api}/items", new { id = itemId, permalink = (string?)null });
+        _factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/items/{itemId}", new { id = itemId });
+
+        // 5 disponibles − 2 de colchón: viajan 3, y eso es lo que queda como
+        // último empujado. Antes quedaba 5 y la primera pasada del worker
+        // mandaba un PUT de más con el 3.
+        var (productId, _) = await merchant.CreateProductAsync("Gorra con colchón", priceMinor: 5_000_00, stock: 5);
+        await merchant.PostAsync($"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "MLA1" });
+        var body = _factory.ExternalHttp.SentTo($"{Api}/items").Last(r => r.Uri.AbsolutePath == "/items").Body;
+        Assert.Contains("\"available_quantity\":3", body);
+
+        Assert.Equal(1, (await merchant.GetAsync("/api/v1/admin/meli/connection")).GetProperty("linkedStock").GetInt32());
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        Assert.DoesNotContain(_factory.ExternalHttp.SentTo($"{Api}/items/{itemId}"), r => r.Method == HttpMethod.Put);
+
+        // Con un colchón que se come todo el stock no se publica: antes salía
+        // 1 unidad igual, justo la sobreventa que el colchón está para evitar.
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, stockBufferUnits = 5 });
+        var publishes = _factory.ExternalHttp.SentTo($"{Api}/items").Count(r => r.Uri.AbsolutePath == "/items");
+        var refused = await merchant.SendAsync(HttpMethod.Post,
+            $"/api/v1/admin/meli/products/{productId}/publish", new { categoryId = "MLA1" });
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        Assert.Contains("colchón", await refused.Content.ReadAsStringAsync());
+        Assert.Equal(publishes, _factory.ExternalHttp.SentTo($"{Api}/items").Count(r => r.Uri.AbsolutePath == "/items"));
+    }
+
+    [Fact]
+    public async Task Cada_publicacion_puede_dejar_afuera_su_stock_o_su_precio()
+    {
+        var (merchant, _) = await ConnectedAsync("mls");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        var (productId, variantId) = await merchant.CreateProductAsync("Campera ML", priceMinor: 30_000_00, stock: 6);
+        await merchant.PostAsync($"/api/v1/admin/meli/items/{itemId}/link",
+            new { productId, variantId, meliVariationId = (long?)null, title = "Campera ML" });
+        _factory.ExternalHttp.OnJson(HttpMethod.Put, $"{Api}/items/{itemId}", new { id = itemId });
+        List<string?> Puts() => [.. _factory.ExternalHttp.SentTo($"{Api}/items/{itemId}")
+            .Where(r => r.Method == HttpMethod.Put).Select(r => r.Body)];
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = true, priceMarkupPct = 0m });
+
+        // Sin el stock de esta publicación: viaja solo el precio.
+        var off = await merchant.PutAsync($"/api/v1/admin/meli/items/{itemId.ToLowerInvariant()}/sync", new { syncStock = false });
+        Assert.False(off.GetProperty("syncStock").GetBoolean());
+        Assert.True(off.GetProperty("syncPrice").GetBoolean());
+        Assert.Equal(0, (await merchant.GetAsync("/api/v1/admin/meli/connection")).GetProperty("linkedStock").GetInt32());
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        var priceOnly = Assert.Single(Puts());
+        Assert.Contains("\"price\":30000", priceOnly);
+        Assert.DoesNotContain("available_quantity", priceOnly);
+
+        // Al volver a prenderlo, el stock viaja en la próxima pasada.
+        await merchant.PutAsync($"/api/v1/admin/meli/items/{itemId}/sync", new { syncStock = true });
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        Assert.Equal(2, Puts().Count);
+        Assert.Contains("\"available_quantity\":6", Puts().Last());
+        Assert.DoesNotContain("price", Puts().Last());
+
+        // Y sin el precio, un cambio de recargo no viaja a esta publicación.
+        await merchant.PutAsync($"/api/v1/admin/meli/items/{itemId}/sync", new { syncPrice = false });
+        await merchant.PutAsync("/api/v1/admin/meli/settings", new { stockSyncEnabled = true, priceSyncEnabled = true, priceMarkupPct = 20m });
+        await Workers.RunOnceAsync<MeliStockSyncWorker>(_factory);
+        Assert.Equal(2, Puts().Count);
+
+        // Una publicación que no está vinculada no tiene switches.
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Put,
+            "/api/v1/admin/meli/items/MLA1/sync", new { syncStock = false })).StatusCode);
+    }
+
+    [Fact]
     public async Task La_cuenta_de_demostracion_es_de_solo_lectura()
     {
         var store = await SeededStore.GetAsync(_factory);
@@ -347,6 +420,15 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/webhooks/meli",
             new { topic = "orders_v2", resource = "/orders/123", user_id = 1 })).StatusCode); // cuenta de nadie
         await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+
+        // Un cuerpo que no es JSON (o no es un objeto) también: antes era un 500,
+        // y ML reintenta todo lo que no sea 200 aunque reintentar no lo arregle.
+        foreach (var raw in new[] { "{esto no es json", "[1,2,3]", "" })
+        {
+            var bad = await client.PostAsync("/api/v1/webhooks/meli",
+                new StringContent(raw, System.Text.Encoding.UTF8, "application/json"));
+            Assert.Equal(HttpStatusCode.OK, bad.StatusCode);
+        }
 
         var browser = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         Assert.EndsWith("meli=error", (await browser.GetAsync("/api/v1/meli/oauth/callback")).Headers.Location!.ToString());
@@ -425,9 +507,15 @@ public sealed class MercadoLibreFlowTests
         // "partially_refunded": dos números distintos para las mismas ventas.
         var (merchant, userId) = await ConnectedAsync("mlr");
         var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
-        foreach (var (id, status) in new[] { (userId * 10 + 1, "paid"), (userId * 10 + 2, "partially_refunded"), (userId * 10 + 3, "cancelled") })
+        // La devuelta en parte: de los 15.000 quedaron cobrados 10.000.
+        foreach (var (id, status, charged) in new[]
         {
-            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{id}", Order(id, status, itemId, 1));
+            (userId * 10 + 1, "paid", 15_000m),
+            (userId * 10 + 2, "partially_refunded", 10_000m),
+            (userId * 10 + 3, "cancelled", 15_000m),
+        })
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{id}", Order(id, status, itemId, 1, paidAmount: charged));
             await NotifyAsync(userId, $"/orders/{id}");
             await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
         }
@@ -435,6 +523,9 @@ public sealed class MercadoLibreFlowTests
         // Las ventas de Order() son del 10-oct-2026: rango fijo para que el test no venza.
         var profitability = await merchant.GetAsync("/api/v1/stats/profitability?from=2026-10-01&to=2026-10-20");
         Assert.Equal(2, profitability.GetProperty("meli").GetProperty("orders").GetInt32());
+        // La ganancia del canal cuenta lo cobrado (como los ingresos), no el
+        // total de la venta: antes la devuelta en parte sumaba los 15.000 enteros.
+        Assert.Equal(25_000_00, profitability.GetProperty("meli").GetProperty("revenue").GetInt64());
         var paid = await merchant.GetAsync($"/api/v1/admin/meli/orders?limit=25&estado={MeliOrderFilters.Paid}");
         Assert.Equal(2, paid.GetProperty("total").GetInt32());
     }

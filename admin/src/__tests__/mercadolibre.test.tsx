@@ -22,7 +22,7 @@ interface MeliOrder {
 interface MeliItem {
   id: string;
   title: string;
-  link: { meliVariationId: string | null } | null;
+  link: { meliVariationId: string | null; syncStock: boolean; syncPrice: boolean } | null;
 }
 const orders = fixture<{ items: MeliOrder[] }>('/api/v1/admin/meli/orders').items;
 const toInvoice = orders.find((o) => o.status === 'paid' && !o.fiscalDocumentId)!;
@@ -262,6 +262,44 @@ describe('Mercado Libre: publicaciones', () => {
         (c) => c.method === 'DELETE' && c.path.startsWith(`/api/v1/admin/meli/items/${linked.id}/link`),
       ),
     ).toBe(true);
+  });
+
+  it('apaga y prende la sincronización de una publicación vinculada', async () => {
+    const synced = items.find((i) => i.link?.syncStock && i.link.syncPrice)!;
+    const { api, user } = await open('publicaciones', (a) =>
+      a.on('PUT', `/api/v1/admin/meli/items/${synced.id}/sync`, (body) => ({
+        ...synced.link,
+        syncStock: (body as { syncStock?: boolean }).syncStock ?? true,
+        syncPrice: (body as { syncPrice?: boolean }).syncPrice ?? true,
+      })),
+    );
+    const stock = await screen.findByRole('switch', { name: `Sincronizar stock de ${synced.title}` });
+    const price = screen.getByRole('switch', { name: `Sincronizar precio de ${synced.title}` });
+    expect(stock).toHaveAttribute('aria-checked', 'true');
+
+    await user.click(stock);
+    await waitFor(() => expect(stock).toHaveAttribute('aria-checked', 'false'));
+    expect(price).toHaveAttribute('aria-checked', 'true');
+    const put = api.calls.filter(
+      (c) => c.method === 'PUT' && c.path === `/api/v1/admin/meli/items/${synced.id}/sync`,
+    );
+    expect(put.at(-1)?.body).toEqual({ meliVariationId: synced.link!.meliVariationId, syncStock: false });
+  });
+
+  it('si no se puede cambiar la sincronización, lo dice y el switch queda como estaba', async () => {
+    const synced = items.find((i) => i.link?.syncStock)!;
+    const { user } = await open('publicaciones', (a) =>
+      a.on(
+        'PUT',
+        `/api/v1/admin/meli/items/${synced.id}/sync`,
+        { detail: 'Esa publicación no está vinculada a tu catálogo.' },
+        404,
+      ),
+    );
+    const stock = await screen.findByRole('switch', { name: `Sincronizar stock de ${synced.title}` });
+    await user.click(stock);
+    expect(await screen.findByText('Esa publicación no está vinculada a tu catálogo.')).toBeInTheDocument();
+    expect(stock).toHaveAttribute('aria-checked', 'true');
   });
 
   it('publica un producto con la categoría que sugiere Mercado Libre', async () => {

@@ -109,6 +109,34 @@ public class MeliItemLinkTests
         Assert.Equal(12, link.LastPushedQty);
         Assert.Equal(77, link.MeliVariationId);
     }
+
+    [Fact]
+    public void Volver_a_prender_un_switch_olvida_lo_ultimo_empujado()
+    {
+        // Mientras estuvo apagado, la publicación pudo cambiar en ML: al
+        // prenderlo, la próxima pasada tiene que mandar el valor de la tienda.
+        var link = MeliItemLink.Create(
+            Guid.NewGuid(), "MLA1", null, Guid.NewGuid(), Guid.NewGuid(), "t").Value;
+        link.MarkPushed(12);
+        link.MarkPricePushed(1_000_00);
+
+        link.SetSyncStock(false);
+        link.SetSyncPrice(false);
+        Assert.Equal(12, link.LastPushedQty); // apagar no borra nada
+        Assert.False(link.SyncStock);
+
+        link.SetSyncStock(true);
+        Assert.Null(link.LastPushedQty);
+        Assert.Equal(1_000_00, link.LastPushedPriceMinor); // cada switch con lo suyo
+
+        link.SetSyncPrice(true);
+        Assert.Null(link.LastPushedPriceMinor);
+
+        // Prender lo que ya estaba prendido no fuerza nada.
+        link.MarkPushed(3);
+        link.SetSyncStock(true);
+        Assert.Equal(3, link.LastPushedQty);
+    }
 }
 
 public class MeliNotificationTests

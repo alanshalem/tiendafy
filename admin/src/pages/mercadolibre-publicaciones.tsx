@@ -12,6 +12,7 @@ import {
   useToast,
   type BadgeVariant,
   SearchInput,
+  Switch,
 } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useProductSearch } from '../lib/useProductSearch';
@@ -30,6 +31,8 @@ interface MeliItemLinkDto {
   meliVariationId: number | null;
   syncStock: boolean;
   lastPushedQty: number | null;
+  syncPrice: boolean;
+  lastPushedPrice: number | null;
 }
 
 interface MeliItem {
@@ -119,6 +122,21 @@ export function PublicacionesTab() {
     }
   };
 
+  // Switches de una publicación vinculada. Se pinta lo que devuelve la API
+  // (no se recarga la página entera: eso volvería a pedirle todo a ML).
+  const setSync = async (item: MeliItem, change: { syncStock?: boolean; syncPrice?: boolean }) => {
+    if (!item.link) return;
+    try {
+      const link = await api.put<MeliItemLinkDto>(`/api/v1/admin/meli/items/${item.id}/sync`, {
+        meliVariationId: item.link.meliVariationId,
+        ...change,
+      });
+      setItems((prev) => prev?.map((i) => (i.id === item.id ? { ...i, link } : i)) ?? prev);
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo cambiar la sincronización.'), { variant: 'error' });
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
@@ -176,6 +194,32 @@ export function PublicacionesTab() {
                       </span>
                     )}
                   </div>
+                  {item.link && (
+                    <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-fg-muted">
+                      <span
+                        className="inline-flex items-center gap-2"
+                        title="Empujar el stock de tu tienda a esta publicación (si la sincronización de stock está prendida en la configuración)"
+                      >
+                        <Switch
+                          checked={item.link.syncStock}
+                          onChange={(syncStock) => setSync(item, { syncStock })}
+                          aria-label={`Sincronizar stock de ${item.title ?? item.id}`}
+                        />
+                        Stock
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-2"
+                        title="Empujar el precio de tu tienda, con el recargo del canal, a esta publicación (si la sincronización de precios está prendida en la configuración)"
+                      >
+                        <Switch
+                          checked={item.link.syncPrice}
+                          onChange={(syncPrice) => setSync(item, { syncPrice })}
+                          aria-label={`Sincronizar precio de ${item.title ?? item.id}`}
+                        />
+                        Precio
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {item.permalink && (
