@@ -134,6 +134,9 @@ public static class ServiceRegistration
         services.AddScoped<Api.Crm.CustomerDirectory>();
         services.AddScoped<DemoDataSeeder>();   // datos de ejemplo; solo se usa desde /dev
         services.AddScoped<Api.Orders.PaidOrderSideEffects>();
+        services.AddScoped<Api.Orders.RefundedOrderSideEffects>();
+        services.AddScoped<Api.Orders.OrderRefundService>();
+        services.AddSingleton<Api.Orders.OrderRefundLocks>(); // una por proceso: es lo que serializa
         services.AddScoped<Api.Orders.OrderFulfillment>();
         services.AddScoped<Api.Orders.OrderTrackingView>();
         services.AddScoped<Api.Orders.ManualOrderService>();

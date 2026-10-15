@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Api.Auth;
 using Api.Fiscal;
 using Api.Notifications;
@@ -17,9 +16,6 @@ namespace Api.Endpoints;
 
 public static class OrderEndpoints
 {
-    // Serializa reembolsos concurrentes de la misma orden (por instancia).
-    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> RefundLocks = new();
-
     /// <summary>Tope de ventas por despacho en lote: una página del listado entra holgada.</summary>
     private const int MaxBulkOrders = 100;
 
@@ -249,49 +245,14 @@ public static class OrderEndpoints
         // escrito quién la canceló y por qué. Una venta cobrada no se cancela:
         // se reembolsa.
         group.MapPost("/orders/{id:guid}/cancel", async (
-            Guid id, CancelOrderRequest? req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
-            Inventory.Core.Domain.IStockRepository stock, IMercadoPagoPaymentService mp,
-            ILoggerFactory loggers, CancellationToken ct) =>
+            Guid id, CancelOrderRequest? req, HttpContext http, ITenantContext tenant,
+            Api.Orders.OrderRefundService refunds, CancellationToken ct) =>
         {
-            var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-            if (order is null) return Results.NotFound();
-            var cancellable = order.EnsureCancellable();
-            if (cancellable.IsFailure) return cancellable.Error.ToProblem();
-
-            // El link primero: si se anulara después, entre cancelar y anular
-            // el comprador todavía podría pagar una venta ya cancelada.
-            var linkExpired = false;
-            if (order.PreferenceId is { Length: > 0 } preference)
-            {
-                var expired = await mp.ExpirePreferenceAsync(tenant.TenantId, preference, ct);
-                linkExpired = expired.IsSuccess;
-                if (expired.IsFailure)
-                    loggers.CreateLogger("Orders").LogWarning(
-                        "No se pudo vencer la preference {Preference} de la venta {OrderId}: {Error}",
-                        preference, order.Id, expired.Error.Code);
-            }
-
-            var by = http.User.Identity?.Name ?? http.User.GetUserId()?.ToString() ?? "admin";
-            var cancelled = order.Cancel(by, req?.Reason);
-            if (cancelled.IsFailure) return cancelled.Error.ToProblem();
-            try
-            {
-                await orders.SaveChangesAsync(ct);
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return Error.Conflict("Order.Concurrent",
-                    "La venta cambió mientras se cancelaba (puede que se haya pagado). Recargá y revisala.").ToProblem();
-            }
-
-            // Una reserva que ya venció (o ya se liberó) no es un error: el
-            // stock ya había vuelto solo.
-            var released = 0;
-            foreach (var reservationId in order.ReservationIds)
-                if ((await stock.ReleaseReservationAsync(tenant.TenantId, reservationId, ct)).IsSuccess)
-                    released++;
-
-            return Results.Ok(new { order = ToDto(order), linkExpired, releasedReservations = released });
+            var result = await refunds.CancelAsync(tenant.TenantId, id, req?.Reason, ActorOf(http), ct);
+            if (result.IsFailure)
+                return result.Error.Type == ErrorType.NotFound ? Results.NotFound() : result.Error.ToProblem();
+            var c = result.Value;
+            return Results.Ok(new { order = ToDto(c.Order), linkExpired = c.LinkExpired, releasedReservations = c.ReleasedReservations });
         }).RequireAnyPermission(Permission.OrdersCreate, Permission.OrdersRefund);
 
         // Marcar despachado (admin). Paid → Fulfilled + tracking + email/WhatsApp de envío.
@@ -328,133 +289,16 @@ public static class OrderEndpoints
             });
         }).RequirePermission(Permission.OrdersFulfill);
 
-        // Reembolso total o parcial (admin). MP refund → estado + auditoría + email.
-        // Lock por orden + recarga dentro del lock: dos requests concurrentes no
-        // disparan dos refunds ni dos emails. La clave de idempotencia hacia MP es
-        // el id del registro de auditoría: única por intento, así los parciales
-        // sucesivos no se deduplican entre sí pero un retry de red sí.
+        // Reembolso total o parcial (admin). MP refund → estado + auditoría +
+        // avisos (ver OrderRefundService).
         group.MapPost("/orders/{id:guid}/refund", async (
-            Guid id, RefundRequest req, HttpContext http, ITenantContext tenant, IOrderRepository orders,
-            IMercadoPagoPaymentService mp, PaymentsDbContext paymentsDb, OrderNotifier notifier, WhatsAppNotifier whatsapp,
-            global::Fiscal.Core.Abstractions.IFiscalEmissionQueue fiscalQueue,
-            Inventory.Core.Domain.IStockRepository stock, Api.Orders.KitStockService kits,
-            Api.Finance.LedgerPoster ledger, Api.Crm.CustomerDirectory customers, CancellationToken ct) =>
+            Guid id, RefundRequest req, HttpContext http, ITenantContext tenant,
+            Api.Orders.OrderRefundService refunds, CancellationToken ct) =>
         {
-
-            var gate = RefundLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(ct);
-            try
-            {
-                var order = await orders.GetByIdAsync(tenant.TenantId, id, ct);
-                if (order is null) return Results.NotFound();
-                if (string.IsNullOrEmpty(order.PaymentId))
-                    return Error.Validation("Order.NoPayment", "El pedido no tiene un pago para reembolsar.").ToProblem();
-                if (order.Status is not (OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.PartiallyRefunded))
-                    return Error.Conflict("Order.NotRefundable", "Solo se puede reembolsar un pedido pagado.").ToProblem();
-
-                // Monto: null/0 = todo lo que queda; con valor = parcial validado server-side.
-                var remaining = order.RemainingRefundable;
-                var isTotal = req.Amount is null or <= 0m;
-                var amount = isTotal ? remaining : Money.FromDecimal(req.Amount!.Value, order.Currency);
-                if (amount.AmountInMinorUnits <= 0)
-                    return Error.Validation("Refund.InvalidAmount", "No queda monto por reembolsar.").ToProblem();
-                if (amount > remaining)
-                    return OrderErrors.RefundExceedsRemaining(remaining).ToProblem();
-
-                var requestedBy = http.User.Identity?.Name
-                    ?? http.User.GetUserId()?.ToString() ?? "admin";
-                var audit = PaymentRefund.Create(
-                    Guid.NewGuid(), tenant.TenantId.Value, order.Id, order.PaymentId!,
-                    amount.AmountInMinorUnits, order.Currency,
-                    isTotal && order.RefundedAmount.IsZero, req.Reason, requestedBy);
-
-                // Key de idempotencia DETERMINÍSTICA hacia MP: deriva del estado
-                // acumulado + este monto. Un retry (crash antes de persistir) o un
-                // doble-click con el mismo monto recomputan la MISMA key → MP
-                // deduplica y NO reembolsa dos veces. Un parcial nuevo (RefundedAmount
-                // ya avanzó) da otra key. Reemplaza el Guid aleatorio por intento.
-                var idemKey = $"refund-{order.Id:N}-{order.RefundedAmount.AmountInMinorUnits}-{amount.AmountInMinorUnits}";
-
-                // MP primero (la plata), estado local después. amount null a MP = total
-                // del pago; con parciales previos siempre mandamos monto explícito.
-                // Ventas manuales (efectivo/transferencia): la plata se devuelve a
-                // mano — solo se registra el estado y la auditoría.
-                var isManualPayment = order.PaymentId!.StartsWith(OrderPayment.ManualPrefix, StringComparison.Ordinal);
-                if (!isManualPayment)
-                {
-                    var mpAmount = isTotal && order.RefundedAmount.IsZero ? (decimal?)null : amount.ToDecimal();
-                    var refund = await mp.RefundAsync(tenant.TenantId, order.PaymentId!, mpAmount, idemKey, ct);
-                    if (refund.IsFailure) return refund.Error.ToProblem();
-                    audit.AttachMercadoPagoId(refund.Value.RefundId);
-                }
-
-                var applied = order.ApplyRefund(amount);
-                if (applied.IsFailure) return applied.Error.ToProblem();
-
-                try
-                {
-                    // xmin (token de concurrencia): si otra instancia ya aplicó un
-                    // refund a esta orden, este SaveChanges falla → 409 en vez de
-                    // doble aplicación local.
-                    await orders.SaveChangesAsync(ct);
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    return Error.Conflict("Refund.Concurrent",
-                        "El pedido cambió mientras se procesaba el reembolso. Recargá y verificá el estado.").ToProblem();
-                }
-                paymentsDb.PaymentRefunds.Add(audit);
-                await paymentsDb.SaveChangesAsync(ct);
-                // Lo gastado por el cliente es neto de reembolsos: la agenda lo refleja ya.
-                await customers.RefreshStatsAsync(order.TenantId.Value, order.BuyerEmail, ct);
-
-                // Venta a cuenta corriente: la plata nunca entró, así que no hay
-                // nada que devolver — lo que baja es la deuda del cliente. Antes
-                // el reembolso marcaba la venta y la deuda quedaba entera.
-                if (OrderPayment.Of(order) == OrderPayment.CurrentAccount)
-                    await ledger.PostSaleRefundAsync(
-                        tenant.TenantId.Value, order.Id, audit.Id,
-                        $"Reembolso venta {order.Label}",
-                        amount.AmountInMinorUnits, order.Currency, DateTime.UtcNow, req.Reason, ct);
-
-                if (order.Status == OrderStatus.Refunded)
-                {
-                    await notifier.NotifyAsync(order, "cancelacion-compra", ct);
-                    await whatsapp.NotifyAsync(order, "cancelacion-compra", ct);
-                    // Nota de crédito automática si la orden estaba facturada.
-                    await fiscalQueue.EnqueueCreditNoteAsync(tenant.TenantId.Value, order.Id,
-                        order.RefundedAmount.AmountInMinorUnits, order.DocNumber, ct);
-
-                    // Devolución física: reingresar el stock (opt-in del operador,
-                    // solo con reembolso TOTAL — un parcial no dice qué volvió).
-                    // Sin esto, un reembolso dejaba el stock mintiendo.
-                    if (req.Restock)
-                    {
-                        foreach (var item in order.Items)
-                        {
-                            try
-                            {
-                                await stock.AdjustAvailableAsync(
-                                    tenant.TenantId, item.VariantId, item.Quantity,
-                                    $"Devolución venta {order.Label}", ct);
-                            }
-                            catch
-                            {
-                                // best-effort: el reembolso ya está hecho; el ajuste
-                                // manual de stock queda como recurso.
-                            }
-                        }
-                        // Kits: la venta descontó los COMPONENTES, así que la
-                        // devolución los devuelve (si no, quedaban descontados).
-                        await kits.ReverseAsync(order, ct);
-                    }
-                }
-                return Results.Ok(ToDto(order));
-            }
-            finally
-            {
-                gate.Release();
-            }
+            var result = await refunds.RefundAsync(tenant.TenantId, id, req, ActorOf(http), ct);
+            if (result.IsFailure)
+                return result.Error.Type == ErrorType.NotFound ? Results.NotFound() : result.Error.ToProblem();
+            return Results.Ok(ToDto(result.Value));
         }).RequirePermission(Permission.OrdersRefund);
 
         // Historial de reembolsos de una orden (admin).
@@ -696,6 +540,10 @@ public static class OrderEndpoints
             IsPickup: isPickup,
             OfflinePayment: offline), ct);
     }
+
+    /// <summary>Quién hizo la acción, para dejarlo escrito: su nombre, si no su id, y si no "admin".</summary>
+    private static string ActorOf(HttpContext http) =>
+        http.User.Identity?.Name ?? http.User.GetUserId()?.ToString() ?? "admin";
 
     private static PreferenceItem ToPreferenceItem(OrderItem i) => new(
         string.IsNullOrWhiteSpace(i.VariantDescription) ? i.ProductName : $"{i.ProductName} · {i.VariantDescription}",
