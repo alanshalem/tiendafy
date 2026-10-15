@@ -278,11 +278,8 @@ export function UsersNotificationsPage() {
     <div>
       <SettingsHeader
         title="Usuarios y permisos"
-        description={`Invitá a tu equipo y elegí qué puede hacer cada uno en el panel.${
-          total > 0
-            ? ` · ${pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'usuario' : 'usuarios')}`
-            : ''
-        }`}
+        description="Invitá a tu equipo y elegí qué puede hacer cada uno en el panel."
+        count={total > 0 && pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'usuario' : 'usuarios')}
         action={
           canManage && (
             <button

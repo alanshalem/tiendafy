@@ -85,12 +85,15 @@ export function SettingsHeader({
   title,
   description,
   action,
+  count,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  /** El "1–7 de 7 usuarios" del listado (ver PageHeader). */
+  count?: React.ReactNode;
 }) {
-  return <PageHeader className="mb-5" title={title} subtitle={description} actions={action} />;
+  return <PageHeader className="mb-5" title={title} subtitle={description} actions={action} count={count} />;
 }
 
 /** Barra inferior sticky de guardar/cancelar. */
