@@ -14,6 +14,8 @@ export interface ShippingOrderLike {
   shippingMethod: string | null;
   shippingAddress: string | null;
   total: MoneyDto;
+  /** Número de seguimiento cargado en la venta (Correo Argentino no lo devuelve al dar de alta). */
+  tracking?: string | null;
 }
 
 /** "Av. Corrientes 1234, 2B, CABA, CP 1043" → campos sueltos (mejor esfuerzo). */

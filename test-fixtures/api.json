@@ -1015,6 +1015,9 @@
     "/api/v1/admin/orders/:id/andreani-shipment": {
       "exists": false
     },
+    "/api/v1/admin/orders/:id/correo-shipment": {
+      "exists": false
+    },
     "/api/v1/admin/orders/:id/zipnova-shipment": {
       "exists": false
     },

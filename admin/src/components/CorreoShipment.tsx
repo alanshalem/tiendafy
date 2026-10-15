@@ -1,6 +1,6 @@
 import { useEffect, useState, useId } from 'react';
 import { Send } from 'lucide-react';
-import { Button, Input, Modal, Select, useToast } from '@tiendafy/ui';
+import { Button, Input, Modal, Select, Spinner, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
 import {
@@ -38,41 +38,129 @@ const CORREO_PROVINCES: { value: string; label: string }[] = [
   { value: 'T', label: 'Tucumán' },
 ];
 
+interface ShipmentState {
+  exists: boolean;
+  alreadyExisted?: boolean;
+  deliveryType?: 'D' | 'S';
+  agency?: string | null;
+  createdAt?: string | null;
+}
+
+interface TrackingResponse {
+  items: { trackingNumber: string | null; events: { event: string | null; date: string | null }[] }[];
+}
+
 /**
  * Alta del envío de una venta en MiCorreo (POST /shipping/import). Precarga
  * los datos del comprador y la dirección parseada BEST-EFFORT — el merchant
  * revisa y corrige antes de confirmar (la dirección de la orden es texto
  * libre; MiCorreo la exige estructurada). Después del alta, el pago del
  * envío y la etiqueta se terminan en la plataforma MiCorreo.
+ *
+ * El alta queda registrada: una venta se da de alta una sola vez (el backend
+ * lo garantiza; no se sabe si MiCorreo deduplica). Con el número de
+ * seguimiento cargado en la venta, se consulta el seguimiento desde acá.
  */
 export function CorreoShipmentButton({ order }: { order: ShippingOrderLike }) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [available, setAvailable] = useState<boolean | null>(null);
+  const [configured, setConfigured] = useState(false);
+  const [state, setState] = useState<ShipmentState | null>(null);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     let alive = true;
     api
       .get<{ configured: boolean; active?: boolean }>('/api/v1/admin/shipping/correo')
-      .then((c) => alive && setAvailable(c.configured === true))
-      .catch(() => alive && setAvailable(false));
+      .then((c) => {
+        if (!alive || !c.configured) return;
+        setConfigured(true);
+        return api
+          .get<ShipmentState>(`/api/v1/admin/orders/${order.id}/correo-shipment`)
+          .then((s) => alive && setState(s));
+      })
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, []);
+  }, [order.id]);
 
-  if (!available) return null;
+  if (!configured) return null;
+
+  const trackingNumber = order.tracking?.trim();
+
+  const refreshTracking = async () => {
+    if (!trackingNumber) return;
+    setTracking(true);
+    try {
+      const res = await api.get<TrackingResponse>(
+        `/api/v1/admin/shipping/correo/tracking?shippingId=${encodeURIComponent(trackingNumber)}`,
+      );
+      // El backend los ordena del más nuevo al más viejo.
+      const last = res.items.flatMap((i) => i.events).find((e) => e.event);
+      toast(
+        last
+          ? `Correo Argentino: ${last.event}${last.date ? ` (${last.date})` : ''}`
+          : 'Correo Argentino todavía no tiene novedades de este envío.',
+        { variant: 'info' },
+      );
+    } catch (e) {
+      toast(errMsg(e, 'No se pudo consultar el seguimiento.'), { variant: 'error' });
+    } finally {
+      setTracking(false);
+    }
+  };
+
+  if (state?.exists) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2">
+        <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-bg-muted px-3 text-xs font-medium text-fg">
+          <Send className="h-3.5 w-3.5 text-fg-muted" /> Correo Argentino · alta en MiCorreo
+          {state.deliveryType === 'S' && state.agency ? ` · sucursal ${state.agency}` : ''}
+        </span>
+        {trackingNumber ? (
+          <button
+            onClick={refreshTracking}
+            disabled={tracking}
+            className={`${shipmentTriggerCls} disabled:opacity-50`}
+          >
+            {tracking && <Spinner inline size={14} />} Seguimiento
+          </button>
+        ) : (
+          <span className="text-xs text-fg-muted">
+            Cargá el número de seguimiento de MiCorreo en la venta para consultarlo acá.
+          </span>
+        )}
+      </span>
+    );
+  }
 
   return (
     <>
       <button onClick={() => setOpen(true)} className={shipmentTriggerCls}>
         <Send className="h-3.5 w-3.5" /> Crear envío en Correo Argentino
       </button>
-      {open && <ShipmentModal order={order} onClose={() => setOpen(false)} />}
+      {open && (
+        <ShipmentModal
+          order={order}
+          onClose={(created) => {
+            setOpen(false);
+            if (created) setState(created);
+          }}
+        />
+      )}
     </>
   );
 }
 
-function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: () => void }) {
+function ShipmentModal({
+  order,
+  onClose,
+}: {
+  order: ShippingOrderLike;
+  /** Con el alta hecha, la recibe para que el botón pase a mostrarla. */
+  onClose: (created?: ShipmentState) => void;
+}) {
   const fid = useId();
   const { toast } = useToast();
   const parsed = parseAddress(order.shippingAddress);
@@ -93,7 +181,9 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
   const [agency, setAgency] = useState(agencyCodeInAddress);
   const [declared, setDeclared] = useState(declaredValueFromOrder(order));
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<ShipmentState | null>(null);
+  // Cerrar después del alta le pasa el envío al botón, que pasa a mostrarlo.
+  const finish = () => onClose(done ?? undefined);
   // Creado el envío, lo que queda en el form ya no se pierde: cerrar no pregunta.
   const { dirty, close } = useModalFormGuard(
     {
@@ -111,33 +201,35 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
       agency,
       declared,
     },
-    onClose,
+    () => onClose(),
     { enabled: !done },
   );
 
   const submit = async () => {
     setBusy(true);
     try {
-      const res = await api.post<{ ok: boolean; createdAt: string | null }>(
-        `/api/v1/admin/orders/${order.id}/correo-shipment`,
+      const res = await api.post<ShipmentState>(`/api/v1/admin/orders/${order.id}/correo-shipment`, {
+        deliveryType,
+        recipientName: name.trim(),
+        recipientEmail: email.trim(),
+        recipientPhone: phone.trim() || null,
+        streetName: street.trim() || null,
+        streetNumber: number.trim() || null,
+        floor: floor.trim() || null,
+        apartment: apartment.trim() || null,
+        city: city.trim() || null,
+        provinceCode: province,
+        postalCode: cp.trim() || null,
+        agency: agency.trim() || null,
+        declaredValue: Number(declared) || 0,
+      });
+      setDone(res);
+      toast(
+        res.alreadyExisted ? 'Esta venta ya estaba dada de alta en MiCorreo' : 'Envío creado en MiCorreo',
         {
-          deliveryType,
-          recipientName: name.trim(),
-          recipientEmail: email.trim(),
-          recipientPhone: phone.trim() || null,
-          streetName: street.trim() || null,
-          streetNumber: number.trim() || null,
-          floor: floor.trim() || null,
-          apartment: apartment.trim() || null,
-          city: city.trim() || null,
-          provinceCode: province,
-          postalCode: cp.trim() || null,
-          agency: agency.trim() || null,
-          declaredValue: Number(declared) || 0,
+          variant: 'success',
         },
       );
-      setDone(res.createdAt ?? 'ok');
-      toast('Envío creado en MiCorreo', { variant: 'success' });
     } catch (err) {
       toast(errMsg(err, 'No se pudo crear el envío en MiCorreo.'), { variant: 'error' });
     } finally {
@@ -149,12 +241,12 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
     <Modal
       open
       size="lg"
-      onClose={onClose}
+      onClose={finish}
       dirty={dirty}
       title="Crear envío en Correo Argentino"
       footer={
         done ? (
-          <Button onClick={onClose}>Listo</Button>
+          <Button onClick={finish}>Listo</Button>
         ) : (
           <ShipmentFooter busy={busy} onClose={close} onSubmit={submit} />
         )
@@ -165,7 +257,8 @@ function ShipmentModal({ order, onClose }: { order: ShippingOrderLike; onClose: 
           <p className="font-semibold text-success">El envío quedó importado en MiCorreo. ✓</p>
           <p className="text-fg-muted">
             Para terminar, entrá a tu cuenta de MiCorreo: ahí pagás el envío, generás la etiqueta y obtenés el
-            número de seguimiento. Después cargalo en esta venta con “Marcar enviada”.
+            número de seguimiento. Después cargalo en esta venta con “Marcar enviada” y vas a poder consultar
+            el seguimiento desde acá.
           </p>
         </div>
       ) : (

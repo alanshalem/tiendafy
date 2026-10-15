@@ -258,9 +258,10 @@ export function OrderDetail({
             </button>
           )}
           {/* Los carriers no aplican a un pedido que se retira en el local. */}
-          {o.status === 'PAID' && canFulfill && !o.isPickup && <CorreoShipmentButton order={o} />}
+          {/* Despachada sigue mostrando el envío de cada carrier, con su seguimiento. */}
           {(o.status === 'PAID' || o.status === 'FULFILLED') && canFulfill && !o.isPickup && (
             <>
+              <CorreoShipmentButton order={o} />
               <ZipnovaShipmentButton order={o} />
               <AndreaniShipmentButton order={o} />
             </>

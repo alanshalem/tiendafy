@@ -180,7 +180,13 @@ describe('Correo Argentino', () => {
   it('a domicilio manda la dirección; a sucursal, el código de la sucursal', async () => {
     const api = mockApi();
     api.on('GET', '/api/v1/admin/shipping/correo', { configured: true, active: true });
-    api.on('POST', `${base}/correo-shipment`, { ok: true, createdAt: '2026-10-11T12:00:00' });
+    api.on('POST', `${base}/correo-shipment`, {
+      exists: true,
+      ok: true,
+      deliveryType: 'S',
+      agency: 'B0101',
+      createdAt: '2026-10-11T12:00:00',
+    });
     const user = userEvent.setup();
     renderWithProviders(
       <CorreoShipmentButton
@@ -201,7 +207,49 @@ describe('Correo Argentino', () => {
       agency: 'B0101',
       recipientEmail: 'ana@mail.com',
     });
-    expect(await screen.findByRole('button', { name: 'Listo' })).toBeInTheDocument();
+    // Hecha el alta, el botón de crear desaparece: la venta ya está en MiCorreo.
+    await user.click(await screen.findByRole('button', { name: 'Listo' }));
+    expect(await screen.findByText(/alta en MiCorreo/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Crear envío en Correo Argentino/ })).not.toBeInTheDocument();
+  });
+
+  it('con el alta hecha y el número cargado en la venta, consulta el seguimiento', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/correo', { configured: true, active: true });
+    api.on('GET', `${base}/correo-shipment`, { exists: true, deliveryType: 'S', agency: 'B0101' });
+    api.on('GET', '/api/v1/admin/shipping/correo/tracking', {
+      items: [
+        {
+          trackingNumber: 'CP123456789AR',
+          events: [
+            { event: 'EN DISTRIBUCION', date: '02-11-2026 09:30' },
+            { event: 'PREIMPOSICION', date: '11-10-2026 12:00' },
+          ],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<CorreoShipmentButton order={{ ...order, tracking: 'CP123456789AR' }} />);
+
+    expect(await screen.findByText(/sucursal B0101/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Crear envío en Correo Argentino/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Seguimiento/ }));
+    expect(
+      await screen.findByText('Correo Argentino: EN DISTRIBUCION (02-11-2026 09:30)'),
+    ).toBeInTheDocument();
+    expect(
+      api.calls.some((c) => c.path === '/api/v1/admin/shipping/correo/tracking?shippingId=CP123456789AR'),
+    ).toBe(true);
+  });
+
+  it('con el alta hecha y sin número de seguimiento, dice dónde cargarlo', async () => {
+    const api = mockApi();
+    api.on('GET', '/api/v1/admin/shipping/correo', { configured: true, active: true });
+    api.on('GET', `${base}/correo-shipment`, { exists: true, deliveryType: 'D' });
+    renderWithProviders(<CorreoShipmentButton order={order} />);
+
+    expect(await screen.findByText(/Cargá el número de seguimiento/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Seguimiento/ })).not.toBeInTheDocument();
   });
 
   it('no aparece sin Correo configurado', async () => {
