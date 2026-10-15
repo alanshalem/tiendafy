@@ -1,8 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound, permanentRedirect } from 'next/navigation';
 
-import { apiUrl } from '@/lib/api-client';
-import { API_TIMEOUT_MS } from '@/lib/api';
+import { apiGetTenant } from '@/lib/api';
 import { resolveTenant } from '@/lib/tenancy';
 
 /**
@@ -27,15 +26,18 @@ export async function redirectTarget(): Promise<string | null> {
     const tenant = await resolveTenant();
     if (!tenant) return null;
 
-    const res = await fetch(`${apiUrl()}/api/v1/redirects/resolve?path=${encodeURIComponent(path)}`, {
-      headers: { 'X-Tenant-Id': tenant.id },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    });
-    if (!res.ok) return null;
-
-    const data = (await res.json()) as { to?: string };
-    return data.to ?? null;
+    // Por la API interna (lib/api), no por la URL pública que usa el
+    // navegador: el servidor no tiene por qué salir a internet y volver.
+    // Sin reintentos: una redirección que no llegó al primer intento no vale
+    // la espera, y el 404 (lo más común: no hay ninguna cargada) es null.
+    // El tope de tiempo es el de todo pedido a la API (API_TIMEOUT_MS).
+    const data = await apiGetTenant<{ to?: string }>(
+      `/api/v1/redirects/resolve?path=${encodeURIComponent(path)}`,
+      tenant.id,
+      { cache: 'no-store' },
+      0,
+    );
+    return data?.to ?? null;
   } catch {
     // Una redirección que no se pudo resolver no puede tapar el 404.
     return null;

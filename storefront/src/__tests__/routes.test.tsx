@@ -127,7 +127,16 @@ describe('404 y errores', () => {
     nav.headers = { 'x-pathname': '/viejo' };
     api.on('GET', '/api/v1/redirects/resolve', { to: '/productos' });
     await expect(Unmatched()).rejects.toThrow('NEXT_REDIRECT /productos');
-    expect(api.calls.some((c) => c.path === '/api/v1/redirects/resolve?path=%2Fviejo')).toBe(true);
+    const call = api.calls.find((c) => c.path.startsWith('/api/v1/redirects/resolve'));
+    expect(call?.path).toBe(`/api/v1/redirects/resolve?path=%2Fviejo&_mt=${fixtureTenantId}`);
+    expect(call?.headers['x-tenant-id']).toBe(fixtureTenantId);
+  });
+
+  it('si la API de redirecciones falla, es un 404 sin reintentar ni esperar', async () => {
+    nav.headers = { 'x-pathname': '/viejo' };
+    api.on('GET', '/api/v1/redirects/resolve', {}, 503);
+    await expect(Unmatched()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(api.calls.filter((c) => c.path.startsWith('/api/v1/redirects/resolve'))).toHaveLength(1);
   });
 
   it.each([

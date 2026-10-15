@@ -13,17 +13,30 @@ const API_URL = process.env.API_URL ?? 'http://localhost:5080';
  */
 export const API_TIMEOUT_MS = 8_000;
 
-/** apiGet + header X-Tenant-Id (evita repetirlo en cada fetch del storefront). */
-export function apiGetTenant<T>(path: string, tenantId: string, init?: RequestInit): Promise<T | null> {
+/**
+ * apiGet + header X-Tenant-Id (evita repetirlo en cada fetch del storefront).
+ * `attempts`: reintentos ante red caída o 5xx (ver apiGet); 0 para lo que no
+ * vale la pena esperar.
+ */
+export function apiGetTenant<T>(
+  path: string,
+  tenantId: string,
+  init?: RequestInit,
+  attempts?: number,
+): Promise<T | null> {
   // El tenant TAMBIÉN viaja en la URL (_mt): la Data Cache de Next cachea por
   // URL e IGNORA los headers — sin esto, dos tiendas con el mismo path (ej.
   // /pages/by-slug/terminos con revalidate) COMPARTÍAN entrada de caché y una
   // podía servir el contenido de la otra. El backend ignora el query extra.
   const sep = path.includes('?') ? '&' : '?';
-  return apiGet<T>(`${path}${sep}_mt=${tenantId}`, {
-    ...init,
-    headers: { 'X-Tenant-Id': tenantId, ...init?.headers },
-  });
+  return apiGet<T>(
+    `${path}${sep}_mt=${tenantId}`,
+    {
+      ...init,
+      headers: { 'X-Tenant-Id': tenantId, ...init?.headers },
+    },
+    attempts,
+  );
 }
 
 /** Un abort (por el tope de tiempo o porque el que llamó canceló): no se reintenta. */
