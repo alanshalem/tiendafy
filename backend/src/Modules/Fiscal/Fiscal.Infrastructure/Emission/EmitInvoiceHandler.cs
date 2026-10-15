@@ -78,44 +78,54 @@ public sealed class EmitInvoiceHandler(
         if (ptoVtaResult.IsFailure) return Result.Failure<EmitInvoiceResult>(ptoVtaResult.Error);
         var ptoVta = ptoVtaResult.Value;
 
-        // Receptor + clase de comprobante (según emisor y comprador).
-        var receptor = ReceptorResolver.Resolve(cmd.BuyerDoc, cmd.BuyerIvaCondition);
-
-        // Umbral de consumidor final (RG 5.700/2025, configurable): por encima,
-        // ARCA exige identificar al comprador. El umbral se guardaba y nadie lo
-        // leía: la factura salía anónima y volvía rechazada. Acá se corta antes,
-        // con un mensaje que dice qué falta y sin gastar una llamada a ARCA. No
-        // aplica a notas de crédito: acreditan una factura que ya pasó.
-        if (!cmd.CreditNote
-            && receptor.DocTipo == DocTipo.ConsumidorFinal
-            && cfg.ConsumerFinalThresholdMinorUnits > 0
-            && cmd.GrossMinorUnits >= cfg.ConsumerFinalThresholdMinorUnits)
-        {
-            return Result.Failure<EmitInvoiceResult>(Error.Validation(EmissionErrors.BuyerIdRequired,
-                $"Por encima de ${(cfg.ConsumerFinalThresholdMinorUnits / 100).ToString("N0", ArCulture)} ARCA exige identificar al comprador: "
-                + "cargá su DNI o CUIT al facturar."));
-        }
-        var draftResult = ComprobanteBuilder.Build(cfg.Condition, receptor, cmd.GrossMinorUnits, cmd.CreditNote);
-        if (draftResult.IsFailure) return Result.Failure<EmitInvoiceResult>(draftResult.Error);
-        var draft = draftResult.Value;
-
-        // Nota de crédito: referencia obligatoria al comprobante original (CbtesAsoc).
+        Result<InvoiceDraft> draftResult;
         if (cmd.CreditNote)
         {
+            // Nota de crédito: copia receptor y clase de la factura que acredita
+            // y la referencia en CbtesAsoc. El documento que traiga el comando
+            // no se usa: recalcularlo desde la venta perdía la condición
+            // declarada y el documento corregido al facturar, y la NC salía B o
+            // a otro comprador (ARCA la rechaza).
             if (cmd.OrderId is not { } oid)
                 return Result.Failure<EmitInvoiceResult>(Error.Validation("Fiscal.NcNeedsOrder",
                     "Una nota de crédito necesita la orden del comprobante original."));
 
+            // Del mismo ambiente: una NC de producción no puede asociar una
+            // factura de homologación (para ARCA no existe).
             var original = await db.Documents
-                .Where(d => d.TenantId == cmd.TenantId && d.OrderId == oid && d.Result == FiscalResult.Authorized
+                .Where(d => d.TenantId == cmd.TenantId && d.OrderId == oid && d.Environment == env
+                    && d.Result == FiscalResult.Authorized
                     && (d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC))
                 .OrderByDescending(d => d.CreatedAtUtc).FirstOrDefaultAsync(ct);
             if (original is null)
                 return Result.Failure<EmitInvoiceResult>(Error.Conflict("Fiscal.NoOriginalInvoice",
                     "No hay una factura autorizada para acreditar en esta orden."));
 
-            draft = draft with { CbtesAsoc = [new CbteAsoc(original.CbteTipo, original.PtoVta, original.Number)] };
+            draftResult = ComprobanteBuilder.BuildCreditNote(original, cmd.GrossMinorUnits);
         }
+        else
+        {
+            // Receptor + clase de comprobante (según emisor y comprador).
+            var receptor = ReceptorResolver.Resolve(cmd.BuyerDoc, cmd.BuyerIvaCondition);
+
+            // Umbral de consumidor final (RG 5.700/2025, configurable): por encima,
+            // ARCA exige identificar al comprador. El umbral se guardaba y nadie lo
+            // leía: la factura salía anónima y volvía rechazada. Acá se corta antes,
+            // con un mensaje que dice qué falta y sin gastar una llamada a ARCA. No
+            // aplica a notas de crédito: acreditan una factura que ya pasó.
+            if (receptor.DocTipo == DocTipo.ConsumidorFinal
+                && cfg.ConsumerFinalThresholdMinorUnits > 0
+                && cmd.GrossMinorUnits >= cfg.ConsumerFinalThresholdMinorUnits)
+            {
+                return Result.Failure<EmitInvoiceResult>(Error.Validation(EmissionErrors.BuyerIdRequired,
+                    $"Por encima de ${(cfg.ConsumerFinalThresholdMinorUnits / 100).ToString("N0", ArCulture)} ARCA exige identificar al comprador: "
+                    + "cargá su DNI o CUIT al facturar."));
+            }
+
+            draftResult = ComprobanteBuilder.Build(cfg.Condition, receptor, cmd.GrossMinorUnits);
+        }
+        if (draftResult.IsFailure) return Result.Failure<EmitInvoiceResult>(draftResult.Error);
+        var draft = draftResult.Value;
 
         // ARCA no deja que alguien se facture a sí mismo, y el error que devuelve
         // ("DocNro no puede ser igual al del emisor") no dice qué hacer. Pasa al
@@ -187,7 +197,8 @@ public sealed class EmitInvoiceHandler(
         // que el pedido salga hacia ARCA.
         var doc = FiscalDocument.Draft(
             cmd.TenantId, cmd.OrderId, env, ptoVta, draft.CbteTipo, number,
-            draft.Receptor.DocTipo, draft.Receptor.DocNro, draft.ImpTotal, draft.ImpNeto, draft.ImpIVA);
+            draft.Receptor.DocTipo, draft.Receptor.DocNro, draft.ImpTotal, draft.ImpNeto, draft.ImpIVA,
+            draft.Receptor.Condicion);
         doc.MarkAwaitingReconciliation(null, "Pedido de CAE enviado a ARCA; esperando respuesta.");
         db.Documents.Add(doc);
         await db.SaveChangesAsync(ct);

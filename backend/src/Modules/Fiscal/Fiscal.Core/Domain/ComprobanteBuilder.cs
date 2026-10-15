@@ -24,10 +24,47 @@ public static class ComprobanteBuilder
         if (grossMinorUnits <= 0)
             return Result.Failure<InvoiceDraft>(Error.Validation("Comprobante.NonPositive", "El total debe ser mayor a cero."));
 
-        var cbteTipo = ResolveCbteTipo(emisor, receptor, creditNote);
+        return Assemble(ResolveCbteTipo(emisor, receptor, creditNote), receptor, grossMinorUnits);
+    }
+
+    /// <summary>
+    /// La nota de crédito de una factura autorizada: mismo receptor (tipo y
+    /// número de documento, condición frente al IVA) y misma clase que la
+    /// original, que va referenciada en CbtesAsoc. No se recalcula nada desde
+    /// la venta: ARCA rechaza una NC cuya clase o receptor no coincide con el
+    /// comprobante que acredita (las NC A solo asocian facturas A, las B a B, las
+    /// C a C; 10123 si el receptor es otro).
+    /// </summary>
+    /// <param name="original">La factura que se acredita (A, B o C, autorizada).</param>
+    /// <param name="grossMinorUnits">Monto a acreditar, en centavos.</param>
+    public static Result<InvoiceDraft> BuildCreditNote(FiscalDocument original, long grossMinorUnits)
+    {
+        if (grossMinorUnits <= 0)
+            return Result.Failure<InvoiceDraft>(Error.Validation("Comprobante.NonPositive", "El total debe ser mayor a cero."));
+
+        CbteTipo? ncTipo = original.CbteTipo switch
+        {
+            CbteTipo.FacturaA => CbteTipo.NotaCreditoA,
+            CbteTipo.FacturaB => CbteTipo.NotaCreditoB,
+            CbteTipo.FacturaC => CbteTipo.NotaCreditoC,
+            _ => null,
+        };
+        if (ncTipo is null)
+            return Result.Failure<InvoiceDraft>(Error.Validation("Comprobante.NotAnInvoice",
+                "Solo se puede acreditar una factura A, B o C."));
+
+        return Assemble(ncTipo.Value, original.IssuedReceptor(), grossMinorUnits) with
+        {
+            CbtesAsoc = [new CbteAsoc(original.CbteTipo, original.PtoVta, original.Number)],
+        };
+    }
+
+    /// <summary>Los importes según la clase del comprobante ya decidida.</summary>
+    private static InvoiceDraft Assemble(CbteTipo cbteTipo, Receptor receptor, long grossMinorUnits)
+    {
         var gross = grossMinorUnits / 100m;
 
-        if (emisor == FiscalCondition.Monotributo)
+        if (cbteTipo is CbteTipo.FacturaC or CbteTipo.NotaCreditoC or CbteTipo.NotaDebitoC)
         {
             // Clase C: ImpTotal = ImpNeto + ImpTrib; ImpNeto es el subtotal (no neto
             // gravado); sin array Iva (error 10071 si se envía), sin ImpIVA/OpEx/TotConc.

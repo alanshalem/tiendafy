@@ -52,10 +52,13 @@ public sealed class FiscalEmissionQueue(FiscalDbContext db, ILogger<FiscalEmissi
         var cfg = await db.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
         if (cfg is null || !cfg.Enabled || !cfg.AutoInvoiceEnabled) return false;
 
-        // Sólo tiene sentido acreditar si hay una factura autorizada de la orden.
+        // Sólo tiene sentido acreditar si hay una factura autorizada de la orden,
+        // y del ambiente en que se va a emitir la NC (una de homologación no
+        // existe para ARCA de producción). El receptor y la clase de la NC salen
+        // de esa factura al emitir; el buyerDoc solo queda en el job.
         var hasInvoice = await db.Documents.AsNoTracking().AnyAsync(
-            d => d.TenantId == tenantId && d.OrderId == orderId
-              && d.CbteTipo != CbteTipo.NotaCreditoA && d.CbteTipo != CbteTipo.NotaCreditoB && d.CbteTipo != CbteTipo.NotaCreditoC
+            d => d.TenantId == tenantId && d.OrderId == orderId && d.Environment == cfg.Environment
+              && (d.CbteTipo == CbteTipo.FacturaA || d.CbteTipo == CbteTipo.FacturaB || d.CbteTipo == CbteTipo.FacturaC)
               && d.Result == FiscalResult.Authorized, ct);
         if (!hasInvoice) return false;
 

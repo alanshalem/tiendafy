@@ -17,8 +17,14 @@ public interface IFiscalEmissionQueue
 
     /// <summary>
     /// Encola una nota de crédito para una orden reembolsada. Sólo procede si la
-    /// orden tiene una factura autorizada (algo que acreditar) y auto-factura activa.
+    /// orden tiene una factura autorizada en el ambiente actual (algo que
+    /// acreditar) y auto-factura activa.
     /// </summary>
+    /// <param name="buyerDoc">
+    /// Solo informativo (queda en el job). La NC sale al receptor y con la clase
+    /// de la factura original, no a lo que diga hoy la venta: ver
+    /// <see cref="Domain.ComprobanteBuilder.BuildCreditNote"/>.
+    /// </param>
     /// <returns>true si se encoló; false si no correspondía (sin factura previa, deshabilitado, ya encolada).</returns>
     Task<bool> EnqueueCreditNoteAsync(
         Guid tenantId, Guid orderId, long grossMinorUnits, string? buyerDoc, CancellationToken ct = default);

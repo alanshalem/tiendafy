@@ -33,6 +33,16 @@ public sealed class FiscalDocument
 
     public DocTipo DocTipo { get; private set; }
     public long DocNro { get; private set; }
+
+    /// <summary>
+    /// Condición frente al IVA del receptor con la que se emitió (la que viajó
+    /// en CondicionIVAReceptorId). Hace falta guardarla porque no se puede
+    /// volver a deducir: pudo declararla el comercio o devolverla el padrón, y
+    /// la nota de crédito tiene que salir al mismo receptor y con la misma
+    /// clase que la factura. Null en comprobantes viejos (ver <see cref="IssuedReceptor"/>).
+    /// </summary>
+    public CondicionIvaReceptor? ReceptorCondicion { get; private set; }
+
     public decimal ImpTotal { get; private set; }
     public decimal ImpNeto { get; private set; }
     public decimal ImpIVA { get; private set; }
@@ -54,10 +64,30 @@ public sealed class FiscalDocument
 
     private FiscalDocument() { } // EF Core
 
+    /// <summary>
+    /// El receptor tal como salió en este comprobante. Una nota de crédito lo
+    /// copia: si se recalculara desde el documento de la venta, una factura A a
+    /// un RI persona física (declarado a mano o por el padrón) o con el
+    /// documento corregido al facturar tendría una NC B o a otro comprador, y
+    /// ARCA la rechaza (10123, receptor distinto del comprobante asociado).
+    ///
+    /// <para>
+    /// Los comprobantes de antes de guardar la condición la toman de la clase:
+    /// una A solo se emite a un Responsable Inscripto; una B o una C, a efectos
+    /// de la nota de crédito, como consumidor final. La migración que agregó la
+    /// columna la completó desde el pedido guardado cuando lo había.
+    /// </para>
+    /// </summary>
+    public Receptor IssuedReceptor() => new(DocTipo, DocNro, ReceptorCondicion ?? (
+        CbteTipo is CbteTipo.FacturaA or CbteTipo.NotaCreditoA or CbteTipo.NotaDebitoA
+            ? CondicionIvaReceptor.ResponsableInscripto
+            : CondicionIvaReceptor.ConsumidorFinal));
+
     public static FiscalDocument Draft(
         Guid tenantId, Guid? orderId, FiscalEnvironment environment,
         int ptoVta, CbteTipo cbteTipo, long number,
-        DocTipo docTipo, long docNro, decimal impTotal, decimal impNeto, decimal impIva)
+        DocTipo docTipo, long docNro, decimal impTotal, decimal impNeto, decimal impIva,
+        CondicionIvaReceptor? receptorCondicion = null)
     {
         var now = DateTime.UtcNow;
         return new FiscalDocument
@@ -71,6 +101,7 @@ public sealed class FiscalDocument
             Number = number,
             DocTipo = docTipo,
             DocNro = docNro,
+            ReceptorCondicion = receptorCondicion,
             ImpTotal = impTotal,
             ImpNeto = impNeto,
             ImpIVA = impIva,

@@ -7,6 +7,12 @@ namespace Fiscal.Core.Abstractions;
 /// Orden de emitir un comprobante. Para emisión manual desde el admin, OrderId
 /// es null y el operador pasa el total y (opcional) el documento del comprador.
 /// Para emisión automática, viene de la orden.
+///
+/// <para>
+/// En una nota de crédito (<c>CreditNote</c>) BuyerDoc y BuyerIvaCondition no
+/// se usan: el receptor y la clase se copian de la factura autorizada de la
+/// orden, que va asociada.
+/// </para>
 /// </summary>
 public sealed record EmitInvoiceCommand(
     Guid TenantId,

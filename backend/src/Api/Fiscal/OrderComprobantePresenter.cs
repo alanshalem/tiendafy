@@ -20,8 +20,15 @@ public static class OrderComprobantePresenter
         var (letra, label) = CbteLabel(doc.CbteTipo);
         var emisorCondition = cfg.Condition == global::Fiscal.Core.Domain.FiscalCondition.Monotributo
             ? "Monotributista" : "Responsable Inscripto";
-        var receptorCondition = doc.DocTipo == global::Fiscal.Core.Domain.DocTipo.Cuit
-            ? "Responsable Inscripto" : "Consumidor Final";
+        // La condición con la que se emitió, no la que sugiere el documento: un
+        // CUIL tiene forma de CUIT y su dueño es consumidor final (Factura B).
+        var receptorCondition = doc.IssuedReceptor().Condicion switch
+        {
+            global::Fiscal.Core.Domain.CondicionIvaReceptor.ResponsableInscripto => "Responsable Inscripto",
+            global::Fiscal.Core.Domain.CondicionIvaReceptor.Monotributo => "Responsable Monotributo",
+            global::Fiscal.Core.Domain.CondicionIvaReceptor.Exento => "IVA Exento",
+            _ => "Consumidor Final",
+        };
 
         var items = new List<global::Fiscal.Core.Abstractions.ComprobantePdfItem>();
         if (order is not null)

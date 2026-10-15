@@ -243,14 +243,109 @@ public sealed class FiscalEmissionTests
         Assert.Equal(CondicionIvaReceptor.ResponsableInscripto, declarada.LastDraft.Receptor.Condicion);
     }
 
-    private async Task<Guid> SeedTenantAsync()
+    // ------------------------------------------------- nota de crédito
+
+    [Fact]
+    public async Task La_NC_de_una_A_declarada_sale_A_al_mismo_receptor()
+    {
+        // Factura A a un RI persona física: la condición la declaró el comercio
+        // (o el padrón). El reembolso encola la NC con el documento de la venta
+        // y sin condición: antes salía B, y ARCA la rechaza.
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+        var order = Guid.NewGuid();
+
+        var factura = await EmitAsync(tenant, arca, order, buyerDoc: "20-12345678-6",
+            declared: CondicionIvaReceptor.ResponsableInscripto);
+        Assert.Equal(nameof(CbteTipo.FacturaA), factura.Value.CbteTipo);
+
+        var nc = await EmitAsync(tenant, arca, order, buyerDoc: "20123456786", creditNote: true);
+
+        Assert.True(nc.Value.Authorized);
+        Assert.Equal(CbteTipo.NotaCreditoA, arca.LastDraft!.CbteTipo);
+        Assert.Equal(new Receptor(DocTipo.Cuit, 20123456786, CondicionIvaReceptor.ResponsableInscripto), arca.LastDraft.Receptor);
+        Assert.Equal(new CbteAsoc(CbteTipo.FacturaA, 1, factura.Value.Number), Assert.Single(arca.LastDraft.CbtesAsoc));
+    }
+
+    [Fact]
+    public async Task La_NC_de_una_B_va_al_documento_con_que_se_facturo()
+    {
+        // El comercio corrigió el documento al facturar: la venta dice uno, la
+        // factura salió con otro. La NC acredita la factura, no la venta.
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+        var order = Guid.NewGuid();
+
+        var factura = await EmitAsync(tenant, arca, order, buyerDoc: "30111222");
+        Assert.Equal(nameof(CbteTipo.FacturaB), factura.Value.CbteTipo);
+
+        await EmitAsync(tenant, arca, order, buyerDoc: "27999888", creditNote: true);
+
+        Assert.Equal(CbteTipo.NotaCreditoB, arca.LastDraft!.CbteTipo);
+        Assert.Equal(new Receptor(DocTipo.Dni, 30111222, CondicionIvaReceptor.ConsumidorFinal), arca.LastDraft.Receptor);
+        Assert.Equal(CbteTipo.FacturaB, Assert.Single(arca.LastDraft.CbtesAsoc).Tipo);
+    }
+
+    [Fact]
+    public async Task La_NC_de_una_C_sale_C()
+    {
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync(FiscalCondition.Monotributo);
+        var order = Guid.NewGuid();
+
+        var factura = await EmitAsync(tenant, arca, order, buyerDoc: "30111222");
+        Assert.Equal(nameof(CbteTipo.FacturaC), factura.Value.CbteTipo);
+
+        await EmitAsync(tenant, arca, order, creditNote: true);
+
+        Assert.Equal(CbteTipo.NotaCreditoC, arca.LastDraft!.CbteTipo);
+        Assert.Equal(new Receptor(DocTipo.Dni, 30111222, CondicionIvaReceptor.ConsumidorFinal), arca.LastDraft.Receptor);
+        Assert.Empty(arca.LastDraft.Iva);
+    }
+
+    [Fact]
+    public async Task La_NC_de_Mercado_Libre_sin_documento_copia_el_de_la_factura()
+    {
+        // La sincronización de Mercado Libre encola la NC sin documento (null):
+        // antes eso era consumidor final siempre, aunque la venta se hubiera
+        // facturado A a una empresa.
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+        var mlSale = Guid.NewGuid();
+
+        await EmitAsync(tenant, arca, mlSale, buyerDoc: "30-71234567-1",
+            declared: CondicionIvaReceptor.ResponsableInscripto);
+        Assert.Equal(CbteTipo.FacturaA, arca.LastDraft!.CbteTipo);
+
+        await EmitAsync(tenant, arca, mlSale, buyerDoc: null, creditNote: true);
+
+        Assert.Equal(CbteTipo.NotaCreditoA, arca.LastDraft!.CbteTipo);
+        Assert.Equal(new Receptor(DocTipo.Cuit, 30712345671, CondicionIvaReceptor.ResponsableInscripto), arca.LastDraft.Receptor);
+    }
+
+    [Fact]
+    public async Task La_condicion_del_receptor_queda_guardada_en_el_comprobante()
+    {
+        var arca = new FakeArca();
+        var tenant = await SeedTenantAsync();
+
+        var r = await EmitAsync(tenant, arca, Guid.NewGuid(), buyerDoc: "20-12345678-6",
+            declared: CondicionIvaReceptor.Monotributo);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
+        var doc = await db.Documents.AsNoTracking().SingleAsync(d => d.Id == r.Value.DocumentId);
+        Assert.Equal(CondicionIvaReceptor.Monotributo, doc.ReceptorCondicion);
+    }
+
+    private async Task<Guid> SeedTenantAsync(FiscalCondition condition = FiscalCondition.ResponsableInscripto)
     {
         var tenantId = Guid.NewGuid();
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
 
         var cfg = FiscalConfig.Create(tenantId, Cuit.Create(EmisorCuit).Value, "Tienda de prueba",
-            FiscalCondition.ResponsableInscripto, FiscalEnvironment.Homologacion);
+            condition, FiscalEnvironment.Homologacion);
         db.Configs.Add(cfg);
         db.PointsOfSale.Add(FiscalPointOfSale.Create(tenantId, 1, "Web"));
         await db.SaveChangesAsync();
@@ -260,13 +355,13 @@ public sealed class FiscalEmissionTests
     /// <summary>Cada intento con su propio scope, como cada vuelta del worker.</summary>
     private async Task<Result<EmitInvoiceResult>> EmitAsync(
         Guid tenantId, FakeArca arca, Guid orderId, long grossMinor = 12_100, string? buyerDoc = null,
-        CondicionIvaReceptor? declared = null)
+        CondicionIvaReceptor? declared = null, bool creditNote = false)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FiscalDbContext>();
         var handler = new EmitInvoiceHandler(db, arca, new FakeAuthenticator(), NullLogger<EmitInvoiceHandler>.Instance);
         return await handler.EmitAsync(new EmitInvoiceCommand(
-            tenantId, orderId, grossMinor, buyerDoc, BuyerIvaCondition: declared));
+            tenantId, orderId, grossMinor, buyerDoc, CreditNote: creditNote, BuyerIvaCondition: declared));
     }
 
     private sealed class FakeAuthenticator : IFiscalAuthenticator
