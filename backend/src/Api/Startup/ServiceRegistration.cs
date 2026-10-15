@@ -52,7 +52,13 @@ public static class ServiceRegistration
             .Enrich.FromLogContext()
             .WriteTo.Console());
         // DSN vacío = Sentry desactivado (sin DSN, UseSentry() tira ArgumentNullException).
-        builder.WebHost.UseSentry(o => o.Dsn = builder.Configuration["Sentry:Dsn"] ?? string.Empty);
+        // El scrubber tapa los secretos que viajan en URLs (token del bot de
+        // Telegram, access_token de Meta, links firmados) antes de mandar nada.
+        builder.WebHost.UseSentry(o =>
+        {
+            o.Dsn = builder.Configuration["Sentry:Dsn"] ?? string.Empty;
+            SentryScrubber.Configure(o);
+        });
         return builder;
     }
 
