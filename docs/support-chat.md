@@ -1,80 +1,104 @@
 # Chat posventa (módulo Support)
 
-Chat por orden entre el comprador registrado y el staff de la tienda, con
-adjuntos PDF/JPG/PNG. Disponible para órdenes efectivamente pagadas
-(`PaidAtUtc` presente).
+Chat por pedido entre el comprador registrado y el equipo de la tienda, con
+adjuntos PDF/JPG/PNG. Solo para pedidos pagados (`PaidAtUtc` presente). En el
+panel se atiende desde su pantalla (`/posventa`) o desde la **Bandeja**
+(`/bandeja`), que junta en una lista el contacto, la posventa y las preguntas y
+mensajes de Mercado Libre.
 
 ## Modelo
 
-`Modules/Support/Support.Infrastructure` (patrón Infrastructure-only, como
-Content/Analytics):
+`backend/src/Modules/Support/Support.Infrastructure` (solo Infrastructure,
+como Content o Reviews):
 
-- **Conversation** — una por orden (`unique (tenant_id, order_id)`). Guarda
-  `CustomerId`, snapshot de `CustomerEmail` (evita join cross-módulo en la
-  bandeja), `Status` (Open/Closed), contadores `UnreadForCustomer` /
-  `UnreadForStaff` y `LastMessageAtUtc`. El cliente reabre una cerrada al escribir.
-- **SupportMessage** — texto (≤ 4000 chars) + adjunto opcional (uno por
-  mensaje): clave de storage, nombre original y content-type.
+- **Conversation**: una por pedido (`unique (tenant_id, order_id)`). Guarda
+  `CustomerId`, una copia de `CustomerEmail` (para no cruzar módulos en la
+  lista), `Status` (Open/Closed), los contadores `UnreadForCustomer` /
+  `UnreadForStaff` y `LastMessageAtUtc`. Si el comprador escribe en una
+  conversación cerrada, se reabre.
+- **SupportMessage**: texto (hasta 4000 caracteres) y un adjunto opcional por
+  mensaje (clave de storage, nombre original y content-type).
+- **InboxThreadState**: lo que la Bandeja agrega a una conversación de
+  cualquier canal (a quién del equipo le toca, archivada, leída). Cada canal
+  guarda sus mensajes donde siempre; la fila nace recién cuando alguien hace
+  algo con la conversación. Una archivada vuelve sola si el cliente escribe de
+  nuevo.
 
 ## Adjuntos (seguridad)
 
-- Tipos permitidos: `application/pdf`, `image/jpeg`, `image/png`. Límite 10 MB.
-- **Magic bytes verificados** server-side (`%PDF`, JPEG `FF D8 FF`, PNG
-  `89 50 4E 47…`): la extensión/content-type del cliente no se confía.
-- Se guardan en el **bucket privado** `tiendafy-private` (sin policy de lectura
-  anónima — separado del bucket público de media). La única vía de lectura es la
-  **URL firmada de 15 minutos** que la API genera al listar mensajes, y solo la
-  recibe quien pasó la autorización del hilo.
+- Tipos: `application/pdf`, `image/jpeg`, `image/png`. Hasta 10 MB
+  (`S3MediaStorage.MaxAttachmentBytes`).
+- **Magic bytes verificados** en el servidor (`MagicBytes`): no se confía en la
+  extensión ni en el content-type que manda el cliente.
+- Van al **bucket privado** (`Media:PrivateBucket`, por defecto
+  `tiendafy-private`), separado del público de fotos. La única forma de leerlos
+  es la **URL firmada de 15 minutos** que la API arma al listar mensajes, y solo
+  la recibe quien pasó la autorización del hilo.
 - Claves: `{tenantId}/support/{conversationId}/{guid}.{ext}`.
 
 ## Autorización
 
-- **Comprador** (storefront): sesión de shopper (`ShopAuth`, cookie HttpOnly).
-  Solo ve/abre conversaciones cuyo `CustomerId` es el suyo; al abrir una
-  conversación nueva se valida que la orden pertenezca a su email y esté pagada.
-- **Staff** (admin): `RequirePermission(Permission.SupportChat)` a nivel grupo — auth de
-  plataforma + membership de la tienda del header `X-Tenant-Id`. Solo ve
-  conversaciones de su tenant.
+- **Comprador** (tienda): sesión de comprador (cookie HttpOnly por tienda,
+  `ShopAuth`). Solo ve las conversaciones con su `CustomerId`; para abrir una
+  nueva, el pedido tiene que ser de su email y estar pagado. Las escrituras
+  exigen `Origin` propio (`RequireSameOriginForWrites`).
+- **Equipo** (panel): `RequirePermission(Permission.SupportChat)` en todo el
+  grupo (`support.chat`: sesión + membresía de la tienda del `X-Tenant-Id` +
+  el permiso). En la Bandeja, cada persona ve solo los canales para los que
+  tiene permiso (posventa pide `support.chat`).
 
 ## Tiempo real: polling corto (decisión)
 
-Se evaluó SignalR vs polling. **Elegimos polling** (6 s storefront, 8 s admin,
-solo mientras el chat está visible):
+Se evaluó SignalR contra polling. **Se eligió polling**, solo mientras el chat
+está a la vista:
 
-- Coherente con la arquitectura actual: el sistema ya usa polling a Postgres
-  (webhook inbox, workers) y no hay infraestructura de conexiones persistentes.
-- SignalR suma estado por conexión, complicaciones con el multi-tenant por
-  header y configuración extra de proxy/nginx — para un chat de posventa (baja
-  frecuencia, no conversación en vivo) el beneficio no justifica el costo.
-- El volumen es acotado: consultas por pedidos, no soporte en vivo. Si algún día
-  se necesita presencia/typing en vivo, el endpoint de mensajes ya es la fuente
-  de verdad y SignalR se puede sumar como capa de push sin tocar el modelo.
+| Dónde | Cada |
+| --- | --- |
+| Tienda, chat abierto | 6 s |
+| Panel, `/posventa` | 8 s |
+| Panel, Bandeja: hilo abierto / lista | 15 s / 30 s |
+
+- Coherente con el resto del sistema, que ya hace polling a Postgres (inbox de
+  webhooks, workers; ver [ADR 0005](./adr/0005-segundo-plano-con-polling-a-postgres.md))
+  y no tiene infraestructura de conexiones persistentes.
+- SignalR suma estado por conexión, complica el multi-tenant por header y pide
+  configuración extra en el proxy (Caddy). Para un chat de posventa (pocas
+  consultas, no conversación en vivo) no paga.
+- Si algún día hace falta presencia o "escribiendo…", el endpoint de mensajes
+  ya es la fuente de verdad y SignalR se puede sumar como capa de aviso sin
+  tocar el modelo.
 
 ## Endpoints
 
-Comprador (`/api/v1/shop/support`, requiere sesión shopper + `X-Tenant-Id`):
+Comprador (`/api/v1/shop/support`, sesión de comprador + `X-Tenant-Id`):
 
 | Método | Ruta | Qué hace |
-|---|---|---|
-| POST | `/conversations` | Abre (o devuelve) la conversación de una orden propia pagada |
+| --- | --- | --- |
+| POST | `/conversations` | Abre (o devuelve) la conversación de un pedido propio y pagado |
 | GET | `/conversations` | Mis conversaciones |
-| GET | `/conversations/{id}/messages` | Hilo + marca leído (cliente); adjuntos con URL firmada |
+| GET | `/conversations/{id}/messages` | Los últimos 500 mensajes + marca leído (comprador); adjuntos con URL firmada |
 | POST | `/conversations/{id}/messages` | Enviar texto |
 | POST | `/conversations/{id}/attachments` | Enviar adjunto (multipart `file` + `body` opcional) |
 
-Staff (`/api/v1/support`, `RequirePermission(Permission.SupportChat)`):
+Equipo (`/api/v1/support`, `support.chat`):
 
 | Método | Ruta | Qué hace |
-|---|---|---|
-| GET | `/conversations` | Bandeja (no leídas primero) + `unreadTotal` |
-| GET | `/conversations/{id}/messages` | Hilo + marca leído (staff) |
+| --- | --- | --- |
+| GET | `/conversations` | Lista paginada (`offset`, `limit`, 25 por defecto), sin leer primero; `filter=waiting` (esperan respuesta) u `open`. Devuelve `unreadTotal` y los conteos de cada filtro, con el número de pedido |
+| GET | `/conversations/{id}/messages` | Los últimos mensajes; con `before` (id del más viejo) la tanda anterior y `hasMore`. Sin `before`, marca leído (equipo) |
 | POST | `/conversations/{id}/messages` | Responder |
 | POST | `/conversations/{id}/attachments` | Adjuntar |
-| POST | `/conversations/{id}/close` | Cerrar conversación |
+| POST | `/conversations/{id}/close` | Cerrar |
+
+La Bandeja usa además `/api/v1/inbox` (lista, conteos, asignar, leído/no
+leído, archivar) y, para leer y responder un hilo de posventa, los mismos
+endpoints de `/api/v1/support`.
 
 ## UI
 
-- **Storefront**: Cuenta → Mis pedidos → "Consultar sobre este pedido" (órdenes
-  pagadas/enviadas/reembolsadas) → modal de chat con envío de texto y adjuntos.
-- **Admin**: menú "Chat posventa" (`/posventa`) → bandeja con badge de no
-  leídos por conversación, hilo estilo mensajería, adjuntar y cerrar.
+- **Tienda**: Mi cuenta → Mis pedidos → "Consultar sobre este pedido" (en
+  pedidos que no estén pendientes de pago, fallidos ni cancelados) → modal de
+  chat con texto y adjuntos.
+- **Panel**: "Chat posventa" (`/posventa`): lista con filtros y no leídos,
+  hilo estilo mensajería con "Ver anteriores", adjuntar y cerrar. La misma
+  conversación aparece en la Bandeja (`/bandeja`) con el canal "posventa".
