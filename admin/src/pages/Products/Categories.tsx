@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../../lib/queryKeys';
 import {
   ChevronRight,
@@ -25,6 +25,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, ApiRequestError, errMsg } from '../../lib/api';
+import { useCategories, type Category } from '../../lib/useCategories';
 import { storePublicUrl } from '../../lib/storefront';
 import { EmptyState } from '../../components/EmptyState';
 import { SHOW_HELP_LINKS } from '../../config/features';
@@ -36,25 +37,12 @@ import { TableSkeleton } from '../../components/Skeleton';
 import { useModalFormGuard, useUnsavedChanges } from '../../lib/useUnsavedChanges';
 import { ERROR_SHOWN, LoadError } from '../../components/LoadError';
 
-interface CategoryDto {
-  id: string;
-  name: string;
-  slug: string;
-  parentId: string | null;
-  path: string;
-  depth: number;
-}
-
-interface CategoriesResponse {
-  items: CategoryDto[];
-}
-
 /** Nodo del árbol con sus hijos, en orden. */
-interface TreeNode extends CategoryDto {
+interface TreeNode extends Category {
   children: TreeNode[];
 }
 
-function buildTree(items: CategoryDto[], order: Record<string, string[]>): TreeNode[] {
+function buildTree(items: Category[], order: Record<string, string[]>): TreeNode[] {
   const byId = new Map(items.map((c) => [c.id, { ...c, children: [] as TreeNode[] }]));
   const roots: TreeNode[] = [];
   for (const node of byId.values()) {
@@ -95,7 +83,7 @@ export function CategoriesPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createParentId, setCreateParentId] = useState<string | null>(null);
-  const [renaming, setRenaming] = useState<CategoryDto | null>(null);
+  const [renaming, setRenaming] = useState<Category | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dirty, setDirty] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -111,12 +99,7 @@ export function CategoriesPage() {
     setOrder(readSavedOrder(storageKey));
   }
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<CategoriesResponse>('/api/v1/categories'),
-    enabled: !!store,
-    meta: ERROR_SHOWN,
-  });
+  const { data, isLoading, isError, error, refetch, isFetching } = useCategories({ meta: ERROR_SHOWN });
   const categories = useMemo(() => data?.items ?? [], [data]);
 
   // Un orden sin guardar no se pierde: ni yéndose a otra pantalla del panel
@@ -133,7 +116,7 @@ export function CategoriesPage() {
       return next;
     });
 
-  const scopeOf = (node: CategoryDto) => node.parentId ?? 'root';
+  const scopeOf = (node: Category) => node.parentId ?? 'root';
 
   const handleDrop = (target: TreeNode) => {
     if (!dragId || dragId === target.id) {
@@ -188,11 +171,11 @@ export function CategoriesPage() {
   // categorías); el aviso lo dice.
   const duplicateMut = useMutation({
     mutationFn: async (node: TreeNode) => {
-      let copy: CategoryDto | null = null;
+      let copy: Category | null = null;
       for (let n = 1; !copy; n++) {
         const name = n === 1 ? `${node.name} (copia)` : `${node.name} (copia ${n})`;
         try {
-          copy = await api.post<CategoryDto>('/api/v1/categories', { name, parentId: node.parentId });
+          copy = await api.post<Category>('/api/v1/categories', { name, parentId: node.parentId });
         } catch (e) {
           // Ya hay una copia con ese nombre: se prueba con el siguiente número.
           if (!(e instanceof ApiRequestError && e.error.code === 'Category.Duplicate') || n >= 20) throw e;
@@ -200,7 +183,7 @@ export function CategoriesPage() {
       }
       const copyChildren = async (from: TreeNode, parentId: string) => {
         for (const child of from.children) {
-          const made = await api.post<CategoryDto>('/api/v1/categories', { name: child.name, parentId });
+          const made = await api.post<Category>('/api/v1/categories', { name: child.name, parentId });
           await copyChildren(child, made.id);
         }
       };
@@ -374,7 +357,7 @@ function RenameCategoryModal({
   onSave,
   saving,
 }: {
-  category: CategoryDto;
+  category: Category;
   onClose: () => void;
   onSave: (name: string) => void;
   saving: boolean;
@@ -545,7 +528,7 @@ function CreateCategoryModal({
   open: boolean;
   onClose: () => void;
   storeId: string;
-  categories: CategoryDto[];
+  categories: Category[];
   presetParentId?: string | null;
 }) {
   const [name, setName] = useState('');
@@ -561,7 +544,7 @@ function CreateCategoryModal({
     .map((c) => ({ value: c.id, label: `${'— '.repeat(c.depth - 1)}${c.name}` }));
 
   const createCategory = useMutation({
-    mutationFn: () => api.post<CategoryDto>('/api/v1/categories', { name, parentId: parentId || null }),
+    mutationFn: () => api.post<Category>('/api/v1/categories', { name, parentId: parentId || null }),
     onSuccess: (category) => {
       queryClient.invalidateQueries({ queryKey: qk.categories(storeId) });
       toast(`Categoría "${category.name}" creada`, { variant: 'success' });

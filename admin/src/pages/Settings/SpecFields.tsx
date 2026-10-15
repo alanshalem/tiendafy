@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { qk } from '../../lib/queryKeys';
 import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Badge,
@@ -21,6 +19,7 @@ import { SettingsHeader } from './SettingsLayout';
 import { HelpLink } from '../../components/HelpLink';
 import { SETTINGS_CARD } from '../../lib/styles';
 import { useServerLoad } from '../../lib/useServerLoad';
+import { useCategories, type Category } from '../../lib/useCategories';
 import { useModalFormGuard } from '../../lib/useUnsavedChanges';
 
 type SpecType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'LIST';
@@ -37,12 +36,6 @@ export interface SpecDefinition {
   filterable: boolean;
   meliAttributeId: string | null;
   sortOrder: number;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  depth: number;
 }
 
 const TYPE_LABEL: Record<SpecType, string> = {
@@ -88,11 +81,7 @@ export function SpecFieldsPage() {
     },
   );
 
-  const categoriesQ = useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
+  const categoriesQ = useCategories();
   const categories = useMemo(() => categoriesQ.data?.items ?? [], [categoriesQ.data]);
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 

@@ -16,6 +16,7 @@ import {
 } from '@tiendafy/ui';
 import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
+import { useCategories } from '../../lib/useCategories';
 import type { CatalogProduct } from '../../lib/products';
 import { formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
@@ -331,11 +332,7 @@ function RepriceModal({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const { dirty, close } = useModalFormGuard({ percent, categoryId, rounding }, onClose);
 
-  const { data: cats } = useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
+  const { data: cats } = useCategories();
 
   const apply = async () => {
     const pct = Number(percent);

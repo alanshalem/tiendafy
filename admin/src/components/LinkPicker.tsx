@@ -28,6 +28,7 @@ import {
 } from '@tiendafy/types';
 import { api } from '../lib/api';
 import { useStore } from '../context/StoreContext';
+import { useCategories } from '../lib/useCategories';
 import { useProductSearch } from '../lib/useProductSearch';
 
 /* ============================================================
@@ -98,27 +99,11 @@ interface ProductDto {
   slug: string;
   images?: { url: string }[];
 }
-interface CategoryDto {
-  id: string;
-  name: string;
-  path: string;
-  depth?: number;
-}
 interface PageDto {
   id: string;
   title: string;
   slug: string;
   published: boolean;
-}
-
-/** Categorías de la tienda (misma consulta y cache que la pantalla de Categorías). */
-function useCategories(enabled: boolean) {
-  const { store } = useStore();
-  return useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
-    enabled: enabled && !!store,
-  });
 }
 
 /** Páginas de contenido (misma consulta y cache que la pantalla de Páginas). */
@@ -163,7 +148,7 @@ function tabFor(target: LinkTarget, tabs: LinkPickerTab[]): LinkPickerTab {
 function useLinkSummary(value: string): { prefix: string; name: string; icon: LucideIcon } | null {
   const target = describeLink(value);
   const products = useProductBySlug(target.type === 'product' ? target.slug : null);
-  const categories = useCategories(target.type === 'category');
+  const categories = useCategories({ enabled: target.type === 'category' });
   const pages = usePages(target.type === 'page');
 
   switch (target.type) {
@@ -429,7 +414,7 @@ function ProductTab({ onPick }: { onPick: (p: LinkPick) => void }) {
 
 function CategoryTab({ onPick }: { onPick: (p: LinkPick) => void }) {
   const [q, setQ] = useState('');
-  const categories = useCategories(true);
+  const categories = useCategories();
   const all = categories.data?.items ?? [];
   const needle = q.trim().toLowerCase();
   const items = needle ? all.filter((c) => c.name.toLowerCase().includes(needle)) : all;

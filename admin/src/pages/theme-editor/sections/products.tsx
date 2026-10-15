@@ -1,6 +1,5 @@
 import { useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { qk } from '../../../lib/queryKeys';
 import {
   BEST_SELLERS_DAYS,
   PRODUCT_SOURCE_LIMIT,
@@ -15,6 +14,7 @@ import {
 import { LinkPicker } from '../../../components/LinkPicker';
 import { useStore } from '../../../context/StoreContext';
 import { api } from '../../../lib/api';
+import { useCategories } from '../../../lib/useCategories';
 import { Check, Field, Select, TextArea, TextInput } from '../../theme-editor-inputs';
 import { ProductPicker } from '../../theme-editor-pickers';
 import { ChoiceGroup, ColumnsIcon, LayoutIcon, type Choice } from './choice-group';
@@ -48,23 +48,6 @@ const LAYOUTS: Choice<'carousel' | 'grid'>[] = [
   },
   { value: 'grid', label: 'Grilla', icon: <LayoutIcon layout="grid" /> },
 ];
-
-interface CategoryDto {
-  id: string;
-  name: string;
-  path: string;
-  depth?: number;
-}
-
-/** Categorías de la tienda (misma consulta y caché que la pantalla de Categorías y el selector de links). */
-function useCategories(enabled: boolean) {
-  const { store } = useStore();
-  return useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
-    enabled: enabled && !!store,
-  });
-}
 
 /** Las marcas cargadas en los productos (las mismas que el filtro de la tienda). */
 function useBrands(enabled: boolean) {
@@ -150,7 +133,7 @@ export function ProductsEditor({ section, data, set, theme }: SectionEditorProps
     if (next.kind === 'manual') patch.productIds = next.ids;
     set(patch);
   };
-  const categories = useCategories(source.kind === 'category');
+  const categories = useCategories({ enabled: source.kind === 'category' });
   const brands = useBrands(source.kind === 'brand');
   const sortable = source.kind === 'category' || source.kind === 'brand' || source.kind === 'on-sale';
 

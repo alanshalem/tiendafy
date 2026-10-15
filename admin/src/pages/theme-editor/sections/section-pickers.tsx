@@ -1,6 +1,4 @@
 import { useId, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { qk } from '../../../lib/queryKeys';
 import { Plus, X } from 'lucide-react';
 import {
   argentinaLocalToIso,
@@ -13,8 +11,7 @@ import {
   type ProductSource,
   type ProductSourceKind,
 } from '@tiendafy/types';
-import { api } from '../../../lib/api';
-import { useStore } from '../../../context/StoreContext';
+import { useCategories } from '../../../lib/useCategories';
 import { useProductSearch, useProductsByIds } from '../../../lib/useProductSearch';
 import { Field, INPUT_BASE, Select, TextInput } from '../../theme-editor-inputs';
 import { ProductPicker } from '../../theme-editor-pickers';
@@ -115,24 +112,6 @@ export function NumberField({
 
 /* ---------- Categorías ---------- */
 
-interface CategoryDto {
-  id: string;
-  name: string;
-  parentId?: string | null;
-  path: string;
-  depth?: number;
-}
-
-/** Las categorías de la tienda (misma consulta y cache que la pantalla de Categorías). */
-export function useStoreCategories() {
-  const { store } = useStore();
-  return useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
-}
-
 /** Una categoría de la tienda (lista desplegable con sangría por nivel). */
 export function CategorySelect({
   value,
@@ -145,7 +124,7 @@ export function CategorySelect({
   id?: string;
   placeholder?: string;
 }) {
-  const categories = useStoreCategories();
+  const categories = useCategories();
   const items = categories.data?.items ?? [];
   const missing = value && categories.data && !items.some((c) => c.id === value);
   return (

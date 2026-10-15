@@ -1,11 +1,9 @@
 import { useId, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { qk } from '../../../lib/queryKeys';
 import { categoryLink, SECTION_REGISTRY, type CategoryBannerItem } from '@tiendafy/types';
 import { LinkPicker } from '../../../components/LinkPicker';
 import { MediaUpload } from '../../../components/upload/MediaUpload';
-import { useStore } from '../../../context/StoreContext';
 import { api } from '../../../lib/api';
+import { useCategories } from '../../../lib/useCategories';
 import { bannerIdeal } from '../../../lib/uploads';
 import { Field, TextInput } from '../../theme-editor-inputs';
 import { BannerGridFields } from './banners';
@@ -15,24 +13,8 @@ import type { SectionEditorProps } from './types';
 
 const MAX_BANNERS = SECTION_REGISTRY['category-banners'].fields.banners.max;
 
-interface CategoryDto {
-  id: string;
-  name: string;
-  path: string;
-  depth?: number;
-}
 interface ProductDto {
   images?: { url: string }[];
-}
-
-/** Categorías de la tienda (misma consulta y cache que la pantalla de Categorías y el LinkPicker). */
-function useCategories() {
-  const { store } = useStore();
-  return useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: CategoryDto[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
 }
 
 /** La foto del primer producto activo de la categoría que tenga foto (las categorías no tienen imagen propia). */

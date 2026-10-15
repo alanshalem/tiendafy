@@ -3,7 +3,8 @@ import { MediaUpload } from '../../../components/upload/MediaUpload';
 import { Check, Field, Select, TextInput } from '../../theme-editor-inputs';
 import { ChoiceGroup, ColumnsIcon, LayoutIcon, ShapeIcon } from './choice-group';
 import { ItemListEditor } from './ItemListEditor';
-import { CategorySelect, NumberField, useStoreCategories } from './section-pickers';
+import { useCategories } from '../../../lib/useCategories';
+import { CategorySelect, NumberField } from './section-pickers';
 import type { SectionEditorProps } from './types';
 
 const FIELDS = SECTION_REGISTRY['category-list'].fields;
@@ -38,7 +39,7 @@ const DESKTOP_COLUMNS = Array.from(
 );
 
 export function CategoryListEditor({ data, set }: SectionEditorProps<'category-list'>) {
-  const categories = useStoreCategories();
+  const categories = useCategories();
   const names = new Map((categories.data?.items ?? []).map((c) => [c.id, c.name]));
   return (
     <>

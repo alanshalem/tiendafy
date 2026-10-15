@@ -8,13 +8,7 @@ export type { StockItem } from '../../lib/products';
 
 export type ProductStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
-export interface Category {
-  id: string;
-  name: string;
-  path: string;
-  depth: number;
-  parentId?: string | null;
-}
+export type { Category } from '../../lib/useCategories';
 
 export const statusVariant: Record<ProductStatus, BadgeVariant> = {
   ACTIVE: 'success',

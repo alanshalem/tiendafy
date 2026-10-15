@@ -15,7 +15,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { NoStoreSelected } from '../../components/NoStoreSelected';
 import { HelpLink } from '../../components/HelpLink';
 import { FilterPanel, defaultFilters, type ProductFilters } from './FilterPanel';
-import { type Category } from './types';
+import { useCategories } from '../../lib/useCategories';
 import { ProductCard, ProductRows } from './ProductRows';
 import { ListCardList } from '../../components/ListCards';
 import { useIsMobile } from '../../lib/useMediaQuery';
@@ -175,11 +175,7 @@ export function ProductsPage() {
   // cuántos productos quedaron en borrador o sin foto.
   const { data: health } = useCatalogHealth(canEdit);
 
-  const { data: cats } = useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
+  const { data: cats } = useCategories();
 
   const setStatus = useMutation({
     mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>

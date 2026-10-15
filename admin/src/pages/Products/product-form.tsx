@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { qk } from '../../lib/queryKeys';
 import { Check, Sparkles } from 'lucide-react';
 import { FormField, Input, Textarea, useToast, Spinner, SearchInput } from '@tiendafy/ui';
-import { useStore } from '../../context/StoreContext';
 import { api, errMsg } from '../../lib/api';
 import { foldText } from '../../lib/text';
+import { useCategories } from '../../lib/useCategories';
 import { useAiEnabled } from '../../lib/useAi';
 import { Section } from './FormSection';
 import { SpecFields, useSpecDefinitions, type SpecValues } from './SpecFields';
@@ -99,12 +97,7 @@ export function CategoriesSection({
   value: string[];
   onChange: (ids: string[]) => void;
 }) {
-  const { store } = useStore();
-  const { data: cats } = useQuery({
-    queryKey: qk.categories(store?.id),
-    queryFn: () => api.get<{ items: Category[] }>('/api/v1/categories'),
-    enabled: !!store,
-  });
+  const { data: cats } = useCategories();
   const [query, setQuery] = useState('');
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
