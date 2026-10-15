@@ -112,7 +112,7 @@ public sealed class OfflinePaymentService(
                 "Esta venta se cobra por una pasarela: el pago lo confirma ella, no se registra a mano."));
         if (order.Status == OrderStatus.Paid) return order; // doble clic: ya está
 
-        var paid = order.MarkPaid($"manual-{order.PaymentProvider}");
+        var paid = order.MarkPaid(OrderPayment.ManualPaymentId(order.PaymentProvider));
         if (paid.IsFailure) return Result.Failure<Order>(paid.Error);
 
         try
@@ -213,7 +213,7 @@ public sealed class OfflinePaymentService(
     public static object InstructionsDto(Order order, StorePaymentOptions? options)
     {
         var pending = order.Status == OrderStatus.PendingPayment;
-        var transfer = order.PaymentProvider == "transfer" && pending && options is not null;
+        var transfer = order.PaymentProvider == OrderPayment.Transfer && pending && options is not null;
         return new
         {
             orderId = order.Id,
@@ -233,7 +233,7 @@ public sealed class OfflinePaymentService(
                 }
                 : null,
             instructions = pending ? options?.Instructions : null,
-            pickupAddress = order.PaymentProvider == "cash" ? order.ShippingAddress : null,
+            pickupAddress = order.PaymentProvider == OrderPayment.Cash ? order.ShippingAddress : null,
         };
     }
 }
@@ -244,7 +244,7 @@ public static class OfflinePaymentEmail
     private static string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
 
     /// <summary>Hora de Argentina: el plazo se lee en la hora del comprador, no en UTC.</summary>
-    public static string Local(DateTime utc) => utc.AddHours(-3).ToString("dd/MM 'a las' HH:mm");
+    public static string Local(DateTime utc) => ArgentinaTime.ToLocal(utc).ToString("dd/MM 'a las' HH:mm");
 
     public static IReadOnlyDictionary<string, string> Vars(Order order, StorePaymentOptions options) =>
         new Dictionary<string, string> { ["payment_instructions"] = Block(order, options) };
@@ -252,7 +252,7 @@ public static class OfflinePaymentEmail
     public static string Block(Order order, StorePaymentOptions options)
     {
         var sb = new StringBuilder("<div style='margin:16px 0;padding:14px 16px;border:1px solid #e5e5e5;border-radius:8px;font-size:14px'>");
-        if (order.PaymentProvider == "cash")
+        if (order.PaymentProvider == OrderPayment.Cash)
         {
             sb.Append("<p style='margin:0 0 6px'><strong>Pagás en efectivo al retirar</strong></p>");
             if (!string.IsNullOrWhiteSpace(order.ShippingAddress))
@@ -301,7 +301,7 @@ public static class OfflinePaymentEmail
             ? $" (ya con {MoneyFormat.ForNotification(order.PaymentMethodDiscount)} de descuento)"
             : string.Empty;
         string title;
-        if (order.PaymentProvider == "cash")
+        if (order.PaymentProvider == OrderPayment.Cash)
         {
             title = "Pagás al retirar";
             lines.Add($"Pagás {total} en efectivo cuando retirás{discount}.");

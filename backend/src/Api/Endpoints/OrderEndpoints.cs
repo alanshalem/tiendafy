@@ -214,7 +214,7 @@ public static class OrderEndpoints
         group.MapGet("/orders/export", (
             ITenantContext tenant, IOrderRepository orders, [AsParameters] OrderListQuery query, CancellationToken ct) =>
             Api.Fiscal.VatBookCsv.Download(
-                $"ventas-{DateTime.UtcNow.AddHours(-3):yyyy-MM-dd}.csv",
+                $"ventas-{ArgentinaTime.Today:yyyy-MM-dd}.csv",
                 Api.Orders.OrderCsv.Header,
                 orders.StreamAsync(tenant.TenantId, query.ToFilter()).Select(Api.Orders.OrderCsv.Row),
                 ct))
@@ -400,7 +400,7 @@ public static class OrderEndpoints
             IConfiguration cfg,
             CancellationToken ct) =>
         {
-            if (request.PaymentMethod is not ("cash" or "transfer" or "link"
+            if (request.PaymentMethod is not (OrderPayment.Cash or OrderPayment.Transfer or "link"
                 or Api.Orders.ManualOrderService.CurrentAccountMethod))
                 return Error.Validation("Order.BadPayment", "Método de pago inválido.").ToProblem();
             // El link de pago se le manda al comprador: necesita email real.
@@ -522,21 +522,15 @@ public sealed record OrderListQuery(
     string? Payment,
     string? Ids)
 {
-    // Argentina no tiene horario de verano desde 2009: UTC−3 fijo.
-    private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
-
     public OrderListFilter ToFilter() => new(
         Q,
         Status,
-        From is { } from ? StartOfDayUtc(from) : null,
-        To is { } to ? StartOfDayUtc(to.AddDays(1)) : null,
+        From is { } from ? ArgentinaTime.StartOfDayUtc(from) : null,
+        To is { } to ? ArgentinaTime.StartOfDayUtc(to.AddDays(1)) : null,
         Channel,
         Shipping,
         Payment,
         ParseIds(Ids));
-
-    private static DateTime StartOfDayUtc(DateOnly day) =>
-        DateTime.SpecifyKind(day.ToDateTime(TimeOnly.MinValue) - Argentina, DateTimeKind.Utc);
 
     /// <summary>"a,b,c" → ids; lo que no es un id se ignora, y hay tope (es una selección de la tabla).</summary>
     private static List<Guid>? ParseIds(string? ids)

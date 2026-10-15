@@ -1,5 +1,6 @@
 using Api.Fiscal;
 using Orders.Core.Domain;
+using SharedKernel.Common;
 
 namespace Api.Orders;
 
@@ -10,10 +11,6 @@ namespace Api.Orders;
 /// </summary>
 public static class OrderCsv
 {
-    // Argentina no tiene horario de verano desde 2009: UTC−3 fijo evita
-    // depender de la base de zonas horarias del contenedor.
-    private static readonly TimeSpan Argentina = TimeSpan.FromHours(-3);
-
     public const string Header =
         "Número;Fecha;Estado;Cliente;Email;Teléfono;DNI/CUIT;Productos;Unidades;Subtotal;Descuento;Envío;Total;Reembolsado;Moneda;Medio de envío;Dirección;Seguimiento;Cobrada;Enviada;Cupón;Origen;Canal;Cobro";
 
@@ -64,7 +61,7 @@ public static class OrderCsv
     };
 
     private static string LocalDateTime(DateTime utc) =>
-        (DateTime.SpecifyKind(utc, DateTimeKind.Utc) + Argentina).ToString("dd/MM/yyyy HH:mm");
+        ArgentinaTime.ToLocal(utc).ToString("dd/MM/yyyy HH:mm");
 
     /// <summary>Los mismos nombres que el panel (lib/orderStatus.ts del admin).</summary>
     private static string StatusLabel(Order o) => o.Status switch

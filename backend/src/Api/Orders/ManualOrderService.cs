@@ -39,7 +39,7 @@ public sealed class ManualOrderService(
     /// Es una venta cerrada —descuenta stock, factura, cuenta en las
     /// estadísticas— y lo único distinto es que la plata todavía no entró.
     /// </summary>
-    public const string CurrentAccountMethod = "cuenta_corriente";
+    public const string CurrentAccountMethod = OrderPayment.CurrentAccount;
 
     public async Task<Result<ManualOrderResult>> CreateAsync(
         TenantId tenantId, ManualOrderRequest request, string? linkBaseUrl, CancellationToken ct,
@@ -175,8 +175,8 @@ public sealed class ManualOrderService(
 
         var methodLabel = request.PaymentMethod switch
         {
-            "cash" => "Efectivo",
-            "transfer" => "Transferencia",
+            OrderPayment.Cash => "Efectivo",
+            OrderPayment.Transfer => "Transferencia",
             CurrentAccountMethod => "Cuenta corriente",
             _ => "Link de Mercado Pago",
         };
@@ -227,7 +227,7 @@ public sealed class ManualOrderService(
         TenantId tenantId, Order order, string paymentMethod,
         List<(Guid VariantId, Guid ReservationId)> reserved, CancellationToken ct, Guid? customerId = null)
     {
-        var paid = order.MarkPaid($"manual-{paymentMethod}");
+        var paid = order.MarkPaid(OrderPayment.ManualPaymentId(paymentMethod));
         if (paid.IsFailure)
         {
             await ReleaseAllAsync(tenantId, reserved, ct);
