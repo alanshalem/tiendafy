@@ -171,6 +171,8 @@ public class MeliOrderTests
         var order = MeliOrder.Create(Guid.NewGuid(), 1);
         order.Apply(status, DateTime.UtcNow, null, 1, 1, "ARS", 1, "b", "[]", null, null, null);
         Assert.Equal(expected, order.IsPaid);
+        // La lista que usan las consultas (estadísticas, reposición, filtros) es la misma regla.
+        Assert.Equal(expected, MeliOrder.EarningStatuses.Contains(status));
     }
 
     private static MeliOrder Sold(string status)

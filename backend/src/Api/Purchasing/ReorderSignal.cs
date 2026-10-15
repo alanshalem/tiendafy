@@ -111,7 +111,7 @@ public sealed class ReorderSignal(
         {
             var resolver = MeliLinkResolver.From(links);
             var meliOrders = await meliDb.Orders.AsNoTracking()
-                .Where(o => o.TenantId == tid && o.Status == "paid" && o.DateCreatedUtc >= since)
+                .Where(o => o.TenantId == tid && MeliOrder.EarningStatuses.Contains(o.Status) && o.DateCreatedUtc >= since)
                 .ToListAsync(ct);
             foreach (var order in meliOrders)
             {

@@ -42,7 +42,7 @@ public static class MeliOrderFilters
         {
             Unbilled => OnlyUnbilled(query),
             Billed => query.Where(o => o.FiscalDocumentId != null),
-            Paid => query.Where(o => o.Status == "paid" || o.Status == "partially_refunded"),
+            Paid => query.Where(o => MeliOrder.EarningStatuses.Contains(o.Status)),
             AwaitingPayment => query.Where(o =>
                 o.Status == "payment_required" || o.Status == "payment_in_process" || o.Status == "confirmed"),
             Cancelled => query.Where(o => o.Status == "cancelled"),
@@ -55,7 +55,7 @@ public static class MeliOrderFilters
     /// facturación acepta facturar (ver <see cref="MeliOrder.IsPaid"/>).
     /// </summary>
     public static IQueryable<MeliOrder> OnlyUnbilled(IQueryable<MeliOrder> query) =>
-        query.Where(o => (o.Status == "paid" || o.Status == "partially_refunded")
+        query.Where(o => MeliOrder.EarningStatuses.Contains(o.Status)
             && o.FiscalDocumentId == null
             && (o.PaidAmount > 0 || o.TotalAmount > 0));
 }

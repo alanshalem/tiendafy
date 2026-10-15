@@ -418,6 +418,27 @@ public sealed class MercadoLibreFlowTests
         Assert.Equal(0, (await merchant.GetAsync("/api/v1/home/todo")).GetProperty("mercadoLibre").GetProperty("unbilled").GetInt32());
     }
 
+    [Fact]
+    public async Task Una_venta_con_devolucion_parcial_cuenta_como_cobrada_en_todo_el_panel()
+    {
+        // La rentabilidad contaba solo "paid" y el resto del panel también
+        // "partially_refunded": dos números distintos para las mismas ventas.
+        var (merchant, userId) = await ConnectedAsync("mlr");
+        var itemId = $"MLA{Random.Shared.NextInt64(1_000_000_000, 9_000_000_000)}";
+        foreach (var (id, status) in new[] { (userId * 10 + 1, "paid"), (userId * 10 + 2, "partially_refunded"), (userId * 10 + 3, "cancelled") })
+        {
+            _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/orders/{id}", Order(id, status, itemId, 1));
+            await NotifyAsync(userId, $"/orders/{id}");
+            await Workers.RunOnceAsync<MeliNotificationWorker>(_factory);
+        }
+
+        // Las ventas de Order() son del 10-oct-2026: rango fijo para que el test no venza.
+        var profitability = await merchant.GetAsync("/api/v1/stats/profitability?from=2026-10-01&to=2026-10-20");
+        Assert.Equal(2, profitability.GetProperty("meli").GetProperty("orders").GetInt32());
+        var paid = await merchant.GetAsync($"/api/v1/admin/meli/orders?limit=25&estado={MeliOrderFilters.Paid}");
+        Assert.Equal(2, paid.GetProperty("total").GetInt32());
+    }
+
     /// <summary>Un comercio con una cuenta de ML conectada (sin ventas previas).</summary>
     private async Task<(Merchant Merchant, long UserId)> ConnectedAsync(string tag)
     {

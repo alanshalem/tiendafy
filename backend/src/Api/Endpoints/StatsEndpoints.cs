@@ -86,7 +86,7 @@ public static class StatsEndpoints
             // De dónde vienen las ventas: canal propio vs. Mercado Libre.
             var meliRevenue = await meli.Orders.AsNoTracking()
                 .Where(o => o.TenantId == tid.Value && o.DateCreatedUtc >= since
-                    && (o.Status == "paid" || o.Status == "partially_refunded"))
+                    && MercadoLibre.Infrastructure.MeliOrder.EarningStatuses.Contains(o.Status))
                 .ToListAsync(ct);
 
             // Origen del tráfico que terminó en venta (utm_source de la orden).
@@ -609,7 +609,8 @@ public static class StatsEndpoints
         TenantId tid, DateTime since, DateTime until, CancellationToken ct)
     {
         var meliOrders = await meliDb.Orders.AsNoTracking()
-            .Where(o => o.TenantId == tid.Value && o.Status == "paid" && o.DateCreatedUtc >= since && o.DateCreatedUtc < until)
+            .Where(o => o.TenantId == tid.Value && MercadoLibre.Infrastructure.MeliOrder.EarningStatuses.Contains(o.Status)
+                && o.DateCreatedUtc >= since && o.DateCreatedUtc < until)
             .ToListAsync(ct);
         if (meliOrders.Count == 0) return null;
 

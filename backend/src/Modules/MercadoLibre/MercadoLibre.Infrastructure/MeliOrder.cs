@@ -85,7 +85,17 @@ public sealed class MeliOrder
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public bool IsPaid => Status is "paid" or "partially_refunded";
+    /// <summary>
+    /// Los estados de una venta de ML que cuentan como cobrada: pagada, o con
+    /// una devolución parcial (lo que quedó sigue siendo ingreso). Una sola
+    /// definición para descontar stock, facturar, listar, contar ingresos,
+    /// rentabilidad y reposición: antes la rentabilidad y la reposición
+    /// contaban solo "paid" y daban otro número que el resto del panel.
+    /// En consultas: <c>MeliOrder.EarningStatuses.Contains(o.Status)</c> (EF lo traduce).
+    /// </summary>
+    public static readonly string[] EarningStatuses = ["paid", "partially_refunded"];
+
+    public bool IsPaid => EarningStatuses.Contains(Status);
 
     /// <summary>Importe que se factura/acredita: lo pagado, o el total si aún no hay pago informado.</summary>
     public decimal BillableAmount => PaidAmount > 0 ? PaidAmount : TotalAmount;

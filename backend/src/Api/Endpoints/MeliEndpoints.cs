@@ -274,14 +274,14 @@ public static class MeliEndpoints
             var since = DateTime.UtcNow.AddDays(-Math.Clamp(days ?? 30, 1, 365));
 
             var paid = await db.Orders.AsNoTracking()
-                .Where(o => o.DateCreatedUtc >= since && (o.Status == "paid" || o.Status == "partially_refunded"))
+                .Where(o => o.DateCreatedUtc >= since && MeliOrder.EarningStatuses.Contains(o.Status))
                 .ToListAsync(ct);
 
             return Results.Ok(new
             {
                 connected = await db.Connections.AsNoTracking().AnyAsync(ct),
                 orders = paid.Count,
-                revenue = paid.Sum(o => o.PaidAmount > 0 ? o.PaidAmount : o.TotalAmount),
+                revenue = paid.Sum(o => o.BillableAmount),
                 currency = paid.Select(o => o.CurrencyId).FirstOrDefault() ?? "ARS",
                 unitsSold = paid.Sum(o =>
                     MeliSyncService.ParseSnapshot(o.ItemsJson).Sum(i => i.Quantity)),
