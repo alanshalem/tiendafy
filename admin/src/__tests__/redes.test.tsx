@@ -145,6 +145,12 @@ async function openRedes(setup?: (api: MockApi) => void, path = '/redes') {
 }
 
 const tab = (name: string) => screen.getByRole('button', { name });
+
+/** La bandeja pagina en el servidor: pide sus posts recién al abrir la pestaña. */
+async function openPosts(user: ReturnType<typeof userEvent.setup>, first: string | RegExp = 'Falló en X') {
+  await user.click(tab('Publicaciones'));
+  expect(await screen.findByText(first, {}, { timeout: 5000 })).toBeInTheDocument();
+}
 const confirmDialog = async (button: string) =>
   within(await screen.findByRole('dialog')).getByRole('button', { name: button });
 
@@ -226,7 +232,7 @@ describe('redes: cuentas', () => {
 describe('redes: publicaciones', () => {
   it('muestra próximos e historial, con cupón, ventas y errores por red', async () => {
     const { api, user } = await openRedes();
-    await user.click(tab('Publicaciones'));
+    await openPosts(user);
     expect(screen.getByRole('heading', { name: 'Próximos' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Historial' })).toBeInTheDocument();
     expect(screen.getByText('(solo imagen)')).toBeInTheDocument();
@@ -253,7 +259,7 @@ describe('redes: publicaciones', () => {
       a.on('POST', `${POSTS}/p-scheduled/unschedule`, { detail: 'Ya se está publicando.' }, 409);
       a.on('DELETE', `${POSTS}/p-published`, { detail: 'No se pudo borrar.' }, 500);
     });
-    await user.click(tab('Publicaciones'));
+    await openPosts(user, 'Programado de verano');
     const scheduled = screen.getByText('Programado de verano').closest('[role=button]') as HTMLElement;
     await user.click(within(scheduled).getByTitle('Volver a borrador'));
     expect(await screen.findByText('Ya se está publicando.')).toBeInTheDocument();
@@ -278,7 +284,7 @@ describe('redes: publicaciones', () => {
 
   it('una tarjeta se abre con clic, con Enter o con el lápiz', async () => {
     const { user } = await openRedes();
-    await user.click(tab('Publicaciones'));
+    await openPosts(user);
     await user.click(screen.getByText('Falló en X'));
     expect(await screen.findByRole('dialog', { name: 'Ver post' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
@@ -296,10 +302,9 @@ describe('redes: publicaciones', () => {
 
   it('sin posts lo explica (también filtrando)', async () => {
     const { user } = await openRedes((a) => a.on('GET', POSTS, { posts: [] }));
-    await user.click(tab('Publicaciones'));
-    expect(screen.getByText(/Todavía no hay posts\./)).toBeInTheDocument();
+    await openPosts(user, /Todavía no hay posts\./);
     await user.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Published');
-    expect(screen.getByText(/Todavía no hay posts en ese estado/)).toBeInTheDocument();
+    expect(await screen.findByText(/Todavía no hay posts en ese estado/)).toBeInTheDocument();
   });
 });
 

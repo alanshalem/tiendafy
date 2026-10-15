@@ -27,7 +27,7 @@ async function openCampaign() {
   api.on('POST', '/api/v1/admin/campaigns', campaign);
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp('/marketing');
-  await user.click((await screen.findAllByTitle('Editar'))[0]!);
+  await user.click((await screen.findAllByTitle('Editar', {}, { timeout: 5000 }))[0]!);
   const dialog = await screen.findByRole('dialog', { name: 'Editar campaña' });
   await settle(2);
   return { api, user, dialog: within(dialog), root: dialog };
@@ -46,7 +46,7 @@ describe('campañas', () => {
     await userEvent.setup().type(dialog.getAllByPlaceholderText('Sin mínimo')[0]!, '1');
     await debounce();
     await settle(2);
-    expect(dialog.getByText('Contando destinatarios…')).toBeInTheDocument();
+    expect(await dialog.findByText('Contando destinatarios…')).toBeInTheDocument();
   });
 
   it('el modal es accesible', async () => {

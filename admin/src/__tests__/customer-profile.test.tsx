@@ -90,7 +90,7 @@ async function open(path: string, heading: string | RegExp, setup?: (api: MockAp
   setup?.(api);
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderApp(path);
-  await screen.findByRole('heading', { name: heading });
+  await screen.findByRole('heading', { name: heading }, { timeout: 5000 });
   await settle(3);
   return { api, user };
 }
