@@ -10,7 +10,7 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class PickupOrderTests(ApiFactory factory)
 {
-    private const string WhatsAppGraph = "https://graph.facebook.com/v20.0";
+    private const string WhatsAppGraph = Api.MetaAds.MetaGraph.ApiBaseUrl;
 
     [Fact]
     public async Task Al_despachar_un_retiro_se_avisa_listo_para_retirar()

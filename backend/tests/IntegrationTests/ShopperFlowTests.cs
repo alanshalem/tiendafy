@@ -245,7 +245,7 @@ public sealed partial class ShopperFlowTests
         // Con WhatsApp conectado y la plantilla activa, también le llega por ahí
         // (al teléfono que dejó en el checkout).
         var phoneNumberId = $"pn{Guid.NewGuid():N}"[..14];
-        var messages = $"https://graph.facebook.com/v20.0/{phoneNumberId}/messages";
+        var messages = $"{Api.MetaAds.MetaGraph.ApiBaseUrl}/{phoneNumberId}/messages";
         await merchant.ExpectOkAsync(HttpMethod.Put, "/api/v1/whatsapp/connection", new { phoneNumberId, accessToken = "EAAG-aba" });
         await merchant.PutAsync("/api/v1/whatsapp/templates/carritos-abandonados",
             new { enabled = true, metaTemplateName = "carrito_olvidado", languageCode = "es_AR" });

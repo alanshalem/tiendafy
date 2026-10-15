@@ -16,9 +16,9 @@ public sealed class MetaAdsOptions
     /// <summary>Callback público OAuth registrado en la app de Meta. Dev = URL del túnel.</summary>
     public string RedirectUri { get; set; } = string.Empty;
 
-    public string AuthBaseUrl { get; set; } = "https://www.facebook.com/v21.0/dialog/oauth";
+    public string AuthBaseUrl { get; set; } = MetaGraph.DialogUrl;
 
-    public string ApiBaseUrl { get; set; } = "https://graph.facebook.com/v21.0";
+    public string ApiBaseUrl { get; set; } = MetaGraph.ApiBaseUrl;
 
     /// <summary>A dónde vuelve el navegador del merchant tras autorizar.</summary>
     public string AdminReturnUrl { get; set; } = "http://localhost:5173/estadisticas/rentabilidad";

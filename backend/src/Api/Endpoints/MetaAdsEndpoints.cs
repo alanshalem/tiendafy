@@ -93,7 +93,9 @@ public static class MetaAdsEndpoints
             if (conn.Value.Connection.AdAccountId is not { } account)
                 return Error.Conflict("MetaAds.NoAccount", "Elegí la cuenta publicitaria primero.").ToProblem();
 
-            var until = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            // "Hoy" es el de Argentina: entre las 21 y las 24 la fecha UTC ya es
+            // mañana y el rango por defecto pedía un día que todavía no existe.
+            var until = to ?? ArgentinaTime.Today;
             var since = from ?? until.AddDays(-30);
             var spend = await client.GetSpendAsync(conn.Value.AccessToken, account, since, until, ct);
             if (spend.IsFailure) return spend.Error.ToProblem();

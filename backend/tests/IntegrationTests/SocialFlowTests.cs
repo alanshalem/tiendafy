@@ -18,7 +18,7 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class SocialFlowTests
 {
-    private const string Graph = "https://graph.facebook.com/v21.0";
+    private const string Graph = Api.MetaAds.MetaGraph.ApiBaseUrl;
     private const string XApi = "https://api.x.com/2";
     private const string Telegram = "https://api.telegram.org";
 

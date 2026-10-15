@@ -12,8 +12,8 @@ namespace IntegrationTests;
 [Collection("api")]
 public sealed class WhatsAppAndAdsFlowTests
 {
-    private const string WhatsAppGraph = "https://graph.facebook.com/v20.0";
-    private const string Graph = "https://graph.facebook.com/v21.0";
+    private const string WhatsAppGraph = Api.MetaAds.MetaGraph.ApiBaseUrl;
+    private const string Graph = Api.MetaAds.MetaGraph.ApiBaseUrl;
     private readonly ApiFactory _factory;
 
     public WhatsAppAndAdsFlowTests(ApiFactory factory) => _factory = factory;
@@ -155,6 +155,13 @@ public sealed class WhatsAppAndAdsFlowTests
         var spend = await merchant.GetAsync("/api/v1/meta-ads/spend?from=2026-10-01&to=2026-10-11");
         Assert.Equal(15_500_50, spend.GetProperty("spendTotal").GetInt64());
         Assert.Contains("time_range", _factory.ExternalHttp.SentTo($"{Graph}/act_111/insights").Last().Uri.ToString());
+
+        // Sin fechas: los últimos 30 días hasta hoy en Argentina, no la fecha
+        // UTC (de 21 a 24 h ya es mañana).
+        await merchant.GetAsync("/api/v1/meta-ads/spend");
+        var range = Uri.UnescapeDataString(_factory.ExternalHttp.SentTo($"{Graph}/act_111/insights").Last().Uri.Query);
+        var today = SharedKernel.Common.ArgentinaTime.Today;
+        Assert.Contains($"\"since\":\"{today.AddDays(-30):yyyy-MM-dd}\",\"until\":\"{today:yyyy-MM-dd}\"", range);
 
         // Meta caído.
         _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Graph}/act_111/insights", new { error = new { message = "boom" } }, HttpStatusCode.InternalServerError);

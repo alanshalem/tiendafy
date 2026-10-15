@@ -23,8 +23,8 @@ public sealed class SocialOptions
         public string AppId { get; set; } = string.Empty;
         public string AppSecret { get; set; } = string.Empty;
         public string RedirectUri { get; set; } = string.Empty;
-        public string ApiBaseUrl { get; set; } = "https://graph.facebook.com/v21.0";
-        public string AuthBaseUrl { get; set; } = "https://www.facebook.com/v21.0/dialog/oauth";
+        public string ApiBaseUrl { get; set; } = Api.MetaAds.MetaGraph.ApiBaseUrl;
+        public string AuthBaseUrl { get; set; } = Api.MetaAds.MetaGraph.DialogUrl;
         public bool Configured => !string.IsNullOrWhiteSpace(AppId) && !string.IsNullOrWhiteSpace(AppSecret);
     }
 

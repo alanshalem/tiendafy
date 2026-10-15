@@ -22,7 +22,7 @@ public sealed class WhatsAppTokenProtector(IDataProtectionProvider provider)
 /// </summary>
 public sealed class WhatsAppSender(HttpClient http, ILogger<WhatsAppSender> logger)
 {
-    private const string GraphBase = "https://graph.facebook.com/v20.0";
+    private const string GraphBase = Api.MetaAds.MetaGraph.ApiBaseUrl;
     private static readonly TimeSpan[] Backoff = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3)];
 
     /// <returns>true si Meta aceptó el mensaje.</returns>
