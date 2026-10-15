@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Badge, EmptyList, Spinner } from '@tiendafy/ui';
 import { api } from '../lib/api';
+import { useStore } from '../context/StoreContext';
 import { fecha } from './mercadolibre-shared';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { useListParams } from '../lib/useListParams';
@@ -24,10 +25,11 @@ const LIST_DEFAULTS = { 'pagina-reclamos': 1 };
 export function ReclamosTab() {
   const list = useListParams(LIST_DEFAULTS, { pageKey: 'pagina-reclamos' });
   const page = list.values['pagina-reclamos'];
+  const { store } = useStore();
   // Un error no es "sin reclamos": eso hacía creer que no había nada que atender.
   // De a una página: antes eran los 30 más nuevos y el resto no aparecía.
   const { data, error, isError, refetch, isFetching } = useQuery({
-    queryKey: ['meli-claims', page],
+    queryKey: ['meli-claims', store?.id, page],
     queryFn: () =>
       api.get<{ claims: MeliClaim[]; total?: number }>(
         `/api/v1/admin/meli/claims?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,

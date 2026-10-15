@@ -841,9 +841,10 @@ function QuoteCustomerField({
   onPick: (customer: { id: string | null; name: string; email: string | null } | null) => void;
 }) {
   const debounced = useDebouncedValue(search, 300).trim();
+  const { store } = useStore();
 
   const { data } = useQuery({
-    queryKey: ['quote-customers', debounced],
+    queryKey: ['quote-customers', store?.id, debounced],
     queryFn: () =>
       api.get<{ items: { id: string; name: string; email: string | null }[] }>(
         `/api/v1/customers?limit=8&q=${encodeURIComponent(debounced)}`,

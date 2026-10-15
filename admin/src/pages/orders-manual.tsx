@@ -9,6 +9,7 @@ import { replaceAt } from '../lib/arrays';
 import { formatMoney } from '../lib/format';
 import { Z_ANCHORED } from '../lib/styles';
 import { usePermissions } from '../context/PermissionsContext';
+import { useStore } from '../context/StoreContext';
 import { VariantPicker } from '../components/VariantPicker';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
 
@@ -391,9 +392,10 @@ function CustomerField({
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const debounced = useDebouncedValue(name, 300).trim();
+  const { store } = useStore();
 
   const { data } = useQuery({
-    queryKey: ['manual-sale-customers', debounced],
+    queryKey: ['manual-sale-customers', store?.id, debounced],
     queryFn: () =>
       api.get<{ items: AgendaCustomer[] }>(`/api/v1/customers?limit=8&q=${encodeURIComponent(debounced)}`),
     enabled: !customer && debounced.length >= 2 && can('customers.read'),
@@ -402,7 +404,7 @@ function CustomerField({
   // Solo para mostrar de qué lista salen los precios: el que los aplica es el
   // backend, con la lista guardada en la ficha.
   const { data: lists } = useQuery({
-    queryKey: ['price-lists-picker'],
+    queryKey: ['price-lists-picker', store?.id],
     queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/price-lists'),
   });
   const nameOfList = (id: string | null) =>

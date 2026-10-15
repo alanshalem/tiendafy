@@ -280,8 +280,9 @@ export function MarketingPage() {
 // ---- Detalle con métricas ----------------------------------------------------
 
 function DetailModal({ campaignId, onClose }: { campaignId: string; onClose: () => void }) {
+  const { store } = useStore();
   const { data } = useQuery({
-    queryKey: ['campaign-detail', campaignId],
+    queryKey: ['campaign-detail', store?.id, campaignId],
     queryFn: () => api.get<CampaignDetail>(`/api/v1/admin/campaigns/${campaignId}`),
     refetchInterval: (q) => (q.state.data?.campaign.status === 'sending' ? 5000 : false),
   });

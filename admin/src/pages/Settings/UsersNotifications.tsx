@@ -8,6 +8,7 @@ import type { Perm } from '../../lib/access';
 import { HelpLink } from '../../components/HelpLink';
 import { usePermissions } from '../../context/PermissionsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useStore } from '../../context/StoreContext';
 import { SettingsHeader } from './SettingsLayout';
 import { formatDate, formatNumber } from '../../lib/format';
 import { TABLE_CARD, TABLE_HEAD_STICKY_SUBTLE, TABLE_SCROLL_X } from '../../lib/styles';
@@ -45,6 +46,7 @@ export function UsersNotificationsPage() {
   const isOwner = myRole === OWNER;
   const canManage = can('members.manage');
   const mobile = useIsMobile();
+  const { store } = useStore();
 
   // La matriz real del backend: nombres de los roles, qué puede cada uno y qué
   // es sensible. Sin copia acá que pueda quedar desactualizada.
@@ -62,7 +64,7 @@ export function UsersNotificationsPage() {
 
   const [page, setPage] = useState(1);
   const membersQ = useQuery({
-    queryKey: ['members', page],
+    queryKey: ['members', store?.id, page],
     queryFn: () =>
       api.get<{ items: Member[]; total: number }>(
         `/api/v1/members?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,

@@ -71,7 +71,7 @@ export function EditProductPage() {
   const { toast } = useToast();
 
   const productQ = useQuery({
-    queryKey: ['product', id],
+    queryKey: ['product', store?.id, id],
     queryFn: () => api.get<ProductDto>(`/api/v1/products/${id}`),
     enabled: !!id && !!store,
     meta: ERROR_SHOWN,
@@ -199,7 +199,7 @@ export function EditProductPage() {
   const leave = useUnsavedChanges(dirty);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['product', id] });
+    queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
     queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
   };
 
@@ -210,7 +210,7 @@ export function EditProductPage() {
     const url = await uploadMedia(file, progress);
     await api.post(`/api/v1/products/${id}/images`, { url, altText: name });
     // La miniatura nueva aparece justo cuando se va la que estaba subiendo.
-    await queryClient.invalidateQueries({ queryKey: ['product', id] });
+    await queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
     return url;
   });
   const addImages = async (files: File[]) => {
@@ -222,7 +222,7 @@ export function EditProductPage() {
   const reorder = useMutation({
     mutationFn: (imageIds: string[]) => api.put(`/api/v1/products/${id}/images/reorder`, { imageIds }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['product', id] });
+      queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
       queryClient.invalidateQueries({ queryKey: ['products', store?.id] });
     },
     onError: (e) => toast(errMsg(e), { variant: 'error' }),
@@ -334,7 +334,7 @@ export function EditProductPage() {
     },
     onError: (e) => {
       // Si alguna foto se borró antes del error, que deje de verse.
-      if (pendingRemoval.length > 0) queryClient.invalidateQueries({ queryKey: ['product', id] });
+      if (pendingRemoval.length > 0) queryClient.invalidateQueries({ queryKey: ['product', store?.id, id] });
       // El choque de stock se marca en su campo (y en un aviso, porque el
       // campo puede estar lejos del botón); lo demás, donde siempre.
       if (isStockChanged(e)) toast(e.message, { variant: 'error' });

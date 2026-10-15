@@ -21,6 +21,7 @@ import { CouponPicker } from '../components/CouponPicker';
 import type { MoneyDto } from '@tiendafy/types';
 import { parseMoneyInput } from '../lib/price';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
+import { useStore } from '../context/StoreContext';
 import { AUDIENCE_LABEL } from './marketing-constants';
 
 // ---- Tipos wire --------------------------------------------------------------
@@ -667,9 +668,11 @@ function RecipientPicker({
   onClose: () => void;
   onChange: (s: Set<string>) => void;
 }) {
+  const { store } = useStore();
   const [query, setQuery] = useState('');
   const { data } = useQuery({
-    queryKey: ['audience-all-contacts'],
+    // Con la tienda en la clave: al cambiar de tienda no quedan los contactos de la anterior.
+    queryKey: ['audience-all-contacts', store?.id],
     queryFn: () =>
       api.post<AudiencePreview>('/api/v1/admin/campaigns/audience/preview', { type: 'customers' }),
   });

@@ -6,6 +6,7 @@ import { api, errMsg } from '../lib/api';
 import { formatAmount, formatDate } from '../lib/format';
 import { downloadBlob } from '../lib/download';
 import { useAiEnabled } from '../lib/useAi';
+import { useStore } from '../context/StoreContext';
 import { CONFIDENCE_TONE } from './compras-tipos';
 import { UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
 import { UPLOADS, describe } from '../lib/uploads';
@@ -60,6 +61,7 @@ export function VatBookDownload() {
  * que es cuando suele llegar el papel.
  */
 export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
+  const { store } = useStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const aiEnabled = useAiEnabled();
@@ -83,7 +85,8 @@ export function SupplierInvoiceCard({ po }: { po: PoDetail }) {
       }),
     onSuccess: () => {
       toast('Comprobante guardado. Ya entra en el libro de IVA compras.', { variant: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', po.id] });
+      // La misma clave que el detalle (Compras.tsx): sin la tienda no coincidía y no se refrescaba.
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', store?.id, po.id] });
     },
     onError: (e) => toast(errMsg(e, 'No se pudo guardar el comprobante.'), { variant: 'error' }),
   });

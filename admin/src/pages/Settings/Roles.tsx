@@ -5,16 +5,10 @@ import { Checkbox, cn, Tooltip, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../../lib/api';
 import { togglePermission, type Perm, type PermissionInfo } from '../../lib/access';
 import { usePermissions } from '../../context/PermissionsContext';
+import { useStore } from '../../context/StoreContext';
 import { HelpLink } from '../../components/HelpLink';
 import { SettingsHeader } from './SettingsLayout';
-import {
-  canChange,
-  MATRIX_KEY,
-  OWNER,
-  useAccessMatrix,
-  type AccessMatrix,
-  type RoleRow,
-} from './team-access';
+import { canChange, matrixKey, OWNER, useAccessMatrix, type AccessMatrix, type RoleRow } from './team-access';
 import { TableSkeleton } from '../../components/Skeleton';
 import { TABLE_HEAD_TEXT } from '../../lib/styles';
 
@@ -41,6 +35,8 @@ export function RolesPage() {
   const confirm = useConfirm();
   const { role: myRole, can } = usePermissions();
   const { data: matrix, isLoading, isError, error } = useAccessMatrix();
+  const { store } = useStore();
+  const accessKey = matrixKey(store?.id);
 
   const isOwner = myRole === OWNER;
   const myRank = matrix?.roles.find((r) => r.role === myRole)?.rank ?? 0;
@@ -52,10 +48,10 @@ export function RolesPage() {
     mutationFn: ({ role, permissions }: { role: string; permissions: string[] }) =>
       api.put(`/api/v1/members/roles/${role}`, { permissions }),
     onMutate: async ({ role, permissions }) => {
-      await qc.cancelQueries({ queryKey: MATRIX_KEY });
-      const previous = qc.getQueryData<AccessMatrix>(MATRIX_KEY);
+      await qc.cancelQueries({ queryKey: accessKey });
+      const previous = qc.getQueryData<AccessMatrix>(accessKey);
       qc.setQueryData<AccessMatrix>(
-        MATRIX_KEY,
+        accessKey,
         (m) =>
           m && {
             ...m,
@@ -65,11 +61,11 @@ export function RolesPage() {
       return { previous };
     },
     onError: (e, _vars, ctx) => {
-      if (ctx?.previous) qc.setQueryData(MATRIX_KEY, ctx.previous);
+      if (ctx?.previous) qc.setQueryData(accessKey, ctx.previous);
       toast(errMsg(e, 'No se pudo guardar el cambio.'), { variant: 'error' });
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: MATRIX_KEY });
+      qc.invalidateQueries({ queryKey: accessKey });
       qc.invalidateQueries({ queryKey: ['members'] });
       qc.invalidateQueries({ queryKey: ['team-activity'] });
     },
@@ -80,7 +76,7 @@ export function RolesPage() {
     onSuccess: () => toast('Listo: el rol volvió a lo de fábrica.', { variant: 'success' }),
     onError: (e) => toast(errMsg(e, 'No se pudo restaurar el rol.'), { variant: 'error' }),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: MATRIX_KEY });
+      qc.invalidateQueries({ queryKey: accessKey });
       qc.invalidateQueries({ queryKey: ['members'] });
       qc.invalidateQueries({ queryKey: ['team-activity'] });
     },

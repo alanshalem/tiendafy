@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
 import { api, errMsg } from '../../lib/api';
+import { useStore } from '../../context/StoreContext';
 import { formatDateTime } from '../../lib/format';
 import { Pagination } from '../../components/Pagination';
 import { Spinner } from '@tiendafy/ui';
@@ -22,9 +23,10 @@ const PAGE_SIZE = 10;
  * puede (o ya no puede) hacer algo.
  */
 export function TeamActivity() {
+  const { store } = useStore();
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['team-activity', page],
+    queryKey: ['team-activity', store?.id, page],
     queryFn: () =>
       api.get<{ items: ActivityItem[]; total: number }>(
         `/api/v1/members/activity?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,

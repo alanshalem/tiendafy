@@ -20,6 +20,7 @@ import { api, errMsg } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { useAiEnabled } from '../lib/useAi';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../context/StoreContext';
 import { ERROR_SHOWN } from '../components/LoadError';
 import {
   CHANNELS,
@@ -274,8 +275,9 @@ function MessageList({
 }
 
 function ContactBody({ thread }: { thread: Extract<InboxThread, { channel: 'contacto' }> }) {
+  const { store } = useStore();
   const { data } = useQuery({
-    queryKey: ['contact-replies', thread.externalId],
+    queryKey: ['contact-replies', store?.id, thread.externalId],
     queryFn: () =>
       api.get<{ items: { id: string; authorName: string; body: string; createdAtUtc: string }[] }>(
         `/api/v1/contact/messages/${thread.externalId}/replies`,
@@ -310,8 +312,9 @@ function ContactBody({ thread }: { thread: Extract<InboxThread, { channel: 'cont
 }
 
 function SupportBody({ thread }: { thread: Extract<InboxThread, { channel: 'posventa' }> }) {
+  const { store } = useStore();
   const { data, isLoading } = useQuery({
-    queryKey: ['inbox-support-messages', thread.externalId],
+    queryKey: ['inbox-support-messages', store?.id, thread.externalId],
     queryFn: () =>
       api.get<{
         items: {
@@ -425,8 +428,9 @@ function QuestionBody({ thread }: { thread: Extract<InboxThread, { channel: 'ml-
 }
 
 function MeliMessagesBody({ thread }: { thread: Extract<InboxThread, { channel: 'ml-mensaje' }> }) {
+  const { store } = useStore();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['inbox-meli-messages', thread.externalId],
+    queryKey: ['inbox-meli-messages', store?.id, thread.externalId],
     queryFn: () =>
       api.get<{ messages: { text: string | null; dateCreated: string | null; fromSeller: boolean }[] }>(
         `/api/v1/admin/meli/packs/${thread.externalId}/messages`,

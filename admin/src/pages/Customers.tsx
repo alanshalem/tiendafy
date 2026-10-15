@@ -508,6 +508,7 @@ export function CustomerModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
+  const { store } = useStore();
   // Crear = vacío, editar = datos del cliente (ver la key en quien lo abre).
   const [name, setName] = useState(customer?.name ?? '');
   const [email, setEmail] = useState(customer?.email ?? '');
@@ -522,7 +523,7 @@ export function CustomerModal({
   // Las listas se piden solo con el modal abierto: la mayoría de las tiendas no
   // tiene ninguna y el campo entero desaparece.
   const { data: priceLists } = useQuery({
-    queryKey: ['price-lists-picker'],
+    queryKey: ['price-lists-picker', store?.id],
     queryFn: () => api.get<{ items: { id: string; name: string; active: boolean }[] }>('/api/v1/price-lists'),
     enabled: open,
   });
