@@ -19,7 +19,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@mercadopago/sdk-react": "^1.0.7",
-    "@sentry/nextjs": "^10.76.2",
+    "@sentry/nextjs": "^11.7.0",
     "@tabler/icons-react": "^3.49.0",
     "@tiendafy/design-system": "workspace:*",
     "@tiendafy/types": "workspace:*",
