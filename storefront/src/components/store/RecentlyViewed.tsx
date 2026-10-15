@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatMoney } from '@tiendafy/types';
-import { productGridClass } from '@/lib/theme';
+import { productGridClass } from '@/lib/theme-style';
 import { fetchProductsByIdsClient } from '@/lib/catalog-client';
 import {
   readRecentlyViewed,
@@ -11,7 +11,7 @@ import {
   recordProductView,
   RECENTLY_VIEWED_EVENT,
 } from '@/lib/recently-viewed';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { ProductCard, type StoreProduct } from './ProductCard';
 import { useProductListConfig } from './ProductListContext';
 import { usePreviewHref } from './preview';

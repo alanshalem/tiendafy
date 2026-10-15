@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { useRouter } from 'next/navigation';
 import { LayoutGrid } from 'lucide-react';
 import { formatMoney } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { categoryHref } from '@/lib/category-url';
 import {
   fetchPopularSearchesClient,
@@ -14,7 +14,7 @@ import {
 import { Icon } from './Icon';
 import { InitialFallback } from './InitialFallback';
 import { StoreImage } from './StoreImage';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 
 /** Menos que esto no se busca (la API tampoco): con una letra aparece medio catálogo. */

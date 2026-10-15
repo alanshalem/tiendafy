@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { EDITOR_MSG, type PromoPopupData } from '@tiendafy/types';
-import { useCart } from '../cart';
+import { useCart } from '../cart-context';
 import { Icon } from '../Icon';
 import { NewsletterForm } from '../NewsletterForm';
 import { ADMIN_ORIGIN } from '../preview';
-import { usePreviewPlaceholders } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { useFocusTrap } from '../useFocusTrap';
@@ -162,8 +161,7 @@ function PopupBody({
   );
 }
 
-export function PromoPopupSection({ section, data }: SectionRenderProps<'promo-popup'>) {
-  const preview = usePreviewPlaceholders();
+export function PromoPopupSection({ section, data, preview }: SectionRenderProps<'promo-popup'>) {
   const pathname = usePathname() ?? '/';
   const { tenantId } = useCart();
   const anchor = useRef<HTMLDivElement>(null);

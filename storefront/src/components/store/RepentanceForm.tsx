@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { Captcha } from './Captcha';
 import { submitContact } from '@/lib/contact';
 import { BTN_SUBMIT_PUBLIC, INPUT_11, TEXTAREA } from './styles';

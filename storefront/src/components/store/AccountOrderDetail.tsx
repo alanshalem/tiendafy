@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, MessageCircle, RotateCcw, ShoppingCart, Undo2 } from 'lucide-react';
 import { useAuth } from './auth';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { SupportChat } from './SupportChat';
 import { OrderSummary, OrderTimeline } from './OrderSummary';

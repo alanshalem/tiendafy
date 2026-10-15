@@ -2,7 +2,8 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import { countdownParts, countdownSpeech, formatArgentinaEnd, sectionProductPlan } from '@tiendafy/types';
-import { ProductGrid, SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { SectionTitle } from '../section-primitives';
+import { ProductGrid } from '../product-grid';
 import { useSectionProducts } from '../SectionProductsContext';
 import type { SectionRenderProps } from '../section-types';
 import { SectionButton } from './section-button';
@@ -70,8 +71,8 @@ export function CountdownOfferSection({
   data,
   products,
   productList,
+  preview,
 }: SectionRenderProps<'countdown-offer'>) {
-  const preview = usePreviewPlaceholders();
   const resolved = useSectionProducts(section.id);
   const end = data.endsAt ? Date.parse(data.endsAt) : NaN;
   const hasEnd = Number.isFinite(end);
@@ -95,7 +96,11 @@ export function CountdownOfferSection({
     <section className="mx-auto max-w-container py-12">
       <div className="flex flex-col gap-5 px-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          {data.title && <SectionTitle className="text-2xl font-bold">{data.title}</SectionTitle>}
+          {data.title && (
+            <SectionTitle align={section.style?.align} className="text-2xl font-bold">
+              {data.title}
+            </SectionTitle>
+          )}
           {ended ? (
             <p className="mt-2 text-fg-muted">{data.endedText || 'Esta oferta terminó.'}</p>
           ) : (

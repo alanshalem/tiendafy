@@ -5,7 +5,7 @@
  */
 import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProductGrid } from '../components/store/section-primitives';
+import { ProductGrid } from '../components/store/product-grid';
 import type { StoreProduct } from '../components/store/ProductCard';
 import { defaultTheme } from '../lib/theme';
 import { mockApi } from '../test/api';

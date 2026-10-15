@@ -1,5 +1,3 @@
-'use client';
-
 import { sectionData, type FaqItem, type ThemeSection } from '@tiendafy/types';
 import { Icon } from '../Icon';
 import { SectionTitle } from '../section-primitives';
@@ -34,13 +32,16 @@ export function faqPageJsonLd(sections: readonly ThemeSection[]) {
  * respuesta cortan palabras larguísimas (un link pegado): antes empujaban la
  * flecha fuera de la caja. La respuesta respeta los saltos de línea.
  */
-export function FaqSection({ data }: SectionRenderProps<'faq'>) {
+export function FaqSection({ section, data }: SectionRenderProps<'faq'>) {
   const items = answered(data.items);
   if (items.length === 0) return null;
   return (
     <section className="store-section mx-auto max-w-3xl px-6 py-14 sm:px-4">
       {data.title && (
-        <SectionTitle className="mb-6 text-center text-2xl font-bold wrap-anywhere">
+        <SectionTitle
+          align={section.style?.align}
+          className="mb-6 text-center text-2xl font-bold wrap-anywhere"
+        >
           {data.title}
         </SectionTitle>
       )}

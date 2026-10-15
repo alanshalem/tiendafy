@@ -1,5 +1,3 @@
-'use client';
-
 import type { ReactNode } from 'react';
 import { CheckCircle2, Circle, ExternalLink, MapPin, Store, Truck } from 'lucide-react';
 import { formatDateTime, formatMoney } from '@tiendafy/types';

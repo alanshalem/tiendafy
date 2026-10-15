@@ -3,14 +3,14 @@
 import { useId, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
-import { type ThemeConfig } from '@/lib/theme';
+import type { ThemeConfig } from '@/lib/theme';
 import { usePublishedPages } from './PagesNav';
 import { usePreviewHref } from './preview';
 import { NewsletterForm } from './NewsletterForm';
 import { SellerIdentity } from './StoreLegalInfo';
 import { StoreLink } from './StoreLink';
 import { useMediaQuery } from './use-media';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import {
   contrastText,
   footerColumnTitle,

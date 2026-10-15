@@ -1,9 +1,6 @@
-'use client';
-
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { NewsletterForm } from '../NewsletterForm';
 import { SectionTitle } from '../section-primitives';
-import { useSectionStyle } from '../section-context';
 import { StoreImage } from '../StoreImage';
 import type { SectionRenderProps } from '../section-types';
 
@@ -12,13 +9,17 @@ import type { SectionRenderProps } from '../section-types';
  * lado, texto y formulario al otro, desde la tablet). El fondo suave de
  * siempre se va si el comercio eligió otro en "Diseño de la sección".
  */
-export function NewsletterSection({ data }: SectionRenderProps<'newsletter'>) {
-  const style = useSectionStyle();
+export function NewsletterSection({ section, data }: SectionRenderProps<'newsletter'>) {
+  const style = section.style;
   const split = data.layout === 'split' && !!data.image;
   const left = style?.align === 'left' || split;
   const body = (
     <div className={cn('min-w-0', left ? 'text-left' : 'text-center')}>
-      {data.title && <SectionTitle className="text-xl font-bold wrap-anywhere">{data.title}</SectionTitle>}
+      {data.title && (
+        <SectionTitle align={style?.align} className="text-xl font-bold wrap-anywhere">
+          {data.title}
+        </SectionTitle>
+      )}
       {data.text && (
         <p className={cn('mt-2 max-w-md whitespace-pre-line opacity-70 wrap-anywhere', !left && 'mx-auto')}>
           {data.text}

@@ -14,10 +14,10 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatMoney, PAYMENT_LOGO_SIZE, paymentLogoLabel, paymentLogoSrc } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import Image from 'next/image';
 import { track } from '@/lib/track';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { useLiveTheme, usePreviewHref } from './preview';
 import { InitialFallback } from './InitialFallback';
 import { useFocusTrap } from './useFocusTrap';

@@ -3,7 +3,7 @@ import { StorefrontView } from '@/components/store/StorefrontView';
 import { ProductDetailSkeleton } from '@/components/store/Skeletons';
 import { StoreBreadcrumbs } from '@/components/store/StoreBreadcrumbs';
 import { ProductDetail } from '@/components/store/ProductDetail';
-import { SectionRenderer } from '@/components/store/sections';
+import { SectionBody } from '@/components/store/section-body';
 import { EmptyState } from '@/components/store/EmptyState';
 import { ProductMeta } from '@/components/store/ProductMeta';
 import { RecentlyViewed } from '@/components/store/RecentlyViewed';
@@ -229,7 +229,7 @@ async function ProductContent({
           />
           <ProductReviews productId={product.id} initial={reviews} />
           {theme.productDetail.showRelated && related.length > 0 && (
-            <SectionRenderer
+            <SectionBody
               section={{
                 id: 'related',
                 type: 'featured',
@@ -239,6 +239,7 @@ async function ProductContent({
               products={related}
               storeName={data.tenant.name}
               productList={theme.productList}
+              preview={preview}
             />
           )}
           <RecentlyViewed recordId={product.id} />

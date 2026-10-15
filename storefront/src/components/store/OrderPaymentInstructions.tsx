@@ -1,5 +1,3 @@
-'use client';
-
 import { Landmark } from 'lucide-react';
 import type { OrderView } from '@/lib/orders';
 

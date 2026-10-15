@@ -1,7 +1,5 @@
-'use client';
-
 import { safeHref } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { StoreLink } from '../StoreLink';
 
 /**

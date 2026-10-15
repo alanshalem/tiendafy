@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { ChevronRight, Heart, LogOut, MessageCircle, Package, Search } from 'lucide-react';
 import { formatMoney, formatDate } from '@tiendafy/types';
 import { useAuth } from './auth';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { SupportChat } from './SupportChat';
-import { AuthModal } from './AccountButton';
+import { AuthModal } from './AuthModal';
 import { SavedAddresses } from './SavedAddresses';
 import { TrackingLink } from './OrderSummary';
 

@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Botón flotante de WhatsApp. Al pasar el mouse (sólo desktop) abre un mini-chat
  * con estética WhatsApp que previsualiza el mensaje que el cliente va a enviar.

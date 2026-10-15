@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { CarouselData, CarouselSlide } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { Icon } from './Icon';
+import { PlayPauseIcon } from './PlayPauseIcon';
 import { StoreImage } from './StoreImage';
 import { StoreLink } from './StoreLink';
 import { usePrefersReducedMotion } from './use-media';
@@ -55,15 +56,6 @@ export function slideBox(data: Pick<CarouselData, 'height' | 'heightMobile'>, sl
         : `aspect-[79/30]${hasText ? ' min-h-[260px] md:min-h-0' : ''}`
       : MOBILE_H[mobile];
   return `${m} ${DESKTOP_H[data.height]}`;
-}
-
-/** Pausa (dos barras) mientras se mueve, play (triángulo) cuando está quieto. También la usa la barra de anuncio. */
-export function PlayPauseIcon({ playing }: { playing: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-      {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l10.5-6.5z" />}
-    </svg>
-  );
 }
 
 /** Del lado contrario al texto: arriba si el texto va abajo, y al revés. */

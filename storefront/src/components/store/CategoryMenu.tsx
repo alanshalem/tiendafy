@@ -1,71 +1,24 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { useHoverMenu } from './useHoverMenu';
-import { useCart } from './cart';
 import { usePreviewHref } from './preview';
 import { StoreLink } from './StoreLink';
 
-import { clientJsonTenant } from '@/lib/api-client';
 import { categoryHref } from '@/lib/category-url';
+import { findCategoryNode, useCategoryTree, type CatNode } from './category-tree';
 
-export interface Cat {
-  id: string;
-  name: string;
-  parentId: string | null;
-  path?: string;
-}
-
-/**
- * Las categorías que trajo el servidor (ver StoreCategories, en el layout).
- * Antes el menú las pedía desde el navegador después de cargar, así que no
- * estaban en el HTML: Google no veía ningún link a una categoría. null = no
- * vinieron del servidor (tests, o la API falló): se piden como antes.
- */
-const StoreCategoriesContext = createContext<Cat[] | null>(null);
-
-export function StoreCategoriesProvider({
-  categories,
-  children,
-}: {
-  categories: Cat[];
-  children: ReactNode;
-}) {
-  return <StoreCategoriesContext.Provider value={categories}>{children}</StoreCategoriesContext.Provider>;
-}
-export interface CatNode extends Cat {
-  children: CatNode[];
-}
-
-/** Arma el árbol (cualquier profundidad) desde la lista plana con parentId. */
-function buildTree(cats: Cat[]): CatNode[] {
-  const byId = new Map<string, CatNode>();
-  cats.forEach((c) => byId.set(c.id, { ...c, children: [] }));
-  const roots: CatNode[] = [];
-  byId.forEach((node) => {
-    const parent = node.parentId ? byId.get(node.parentId) : null;
-    if (parent) parent.children.push(node);
-    else roots.push(node);
-  });
-  return roots;
-}
-
-/** Las categorías de la tienda como árbol. Compartido desktop + mobile (y el menú armable). */
-export function useCategoryTree(): CatNode[] {
-  const fromServer = useContext(StoreCategoriesContext);
-  const { tenantId } = useCart();
-  const [fetched, setFetched] = useState<Cat[]>([]);
-  useEffect(() => {
-    if (fromServer || !tenantId) return;
-    clientJsonTenant<{ items?: Cat[] }>('/api/v1/categories', tenantId).then((d) =>
-      setFetched(d?.items ?? []),
-    );
-  }, [fromServer, tenantId]);
-  const cats = fromServer ?? fetched;
-  return useMemo(() => buildTree(cats), [cats]);
-}
+// El árbol vive en category-tree; se re-exporta para quien lo importaba de acá.
+export {
+  findCategoryNode,
+  StoreCategoriesProvider,
+  useCategoryTree,
+  useHasSubcategories,
+  type Cat,
+  type CatNode,
+} from './category-tree';
 
 /** Fila recursiva: link + flechita para expandir hijos. Misma UX en todo lado. */
 function CatRow({ node, depth, onNavigate }: { node: CatNode; depth: number; onNavigate: () => void }) {
@@ -144,16 +97,6 @@ export function CategoryMenu({ label = 'Categorías' }: { label?: string }) {
       </div>
     </div>
   );
-}
-
-/** Una categoría del árbol por id (en cualquier profundidad). */
-export function findCategoryNode(nodes: CatNode[], id: string): CatNode | undefined {
-  for (const n of nodes) {
-    if (n.id === id) return n;
-    const inner = findCategoryNode(n.children, id);
-    if (inner) return inner;
-  }
-  return undefined;
 }
 
 /** Un link que el comercio anidó a mano debajo de un ítem del menú. */
@@ -295,11 +238,4 @@ export function CategoryBranchMobile({
   const children = findCategoryNode(tree, categoryId)?.children ?? [];
   if (children.length === 0) return null;
   return <CategoryTree nodes={children} onNavigate={onNavigate} />;
-}
-
-/** ¿La categoría tiene subcategorías? (decide si en el celular es acordeón o link). */
-export function useHasSubcategories(categoryId: string | undefined): boolean {
-  const tree = useCategoryTree();
-  if (!categoryId) return false;
-  return (findCategoryNode(tree, categoryId)?.children.length ?? 0) > 0;
 }

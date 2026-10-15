@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { API_URL, problemMessage, tenantHeaders } from '@/lib/api-client';
 import { readJson, writeJson } from '@/lib/storage';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
 
 type State = 'idle' | 'sending' | 'done' | 'error';

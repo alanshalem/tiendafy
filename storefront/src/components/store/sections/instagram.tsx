@@ -1,9 +1,7 @@
-'use client';
-
 import { parseVideoEmbed, type VideoEmbed } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import type { ReactNode } from 'react';
-import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { SectionTitle } from '../section-primitives';
 import type { InstagramData, SectionRenderProps } from '../section-types';
 
 /** Lo que el iframe le permite al reproductor (lo mismo que pone YouTube en su código de inserción). */
@@ -22,11 +20,19 @@ function aspectOf(data: InstagramData, embed: VideoEmbed): string {
   return embed.kind === 'youtube' && embed.short ? ASPECT['9:16'] : ASPECT['16:9'];
 }
 
-function Frame({ data, children }: { data: InstagramData; children: ReactNode }) {
+function Frame({
+  data,
+  align,
+  children,
+}: {
+  data: InstagramData;
+  align?: 'left' | 'center';
+  children: ReactNode;
+}) {
   return (
     <section className="store-section mx-auto max-w-container px-4 py-12">
       {data.title && (
-        <SectionTitle className="mb-6 text-center text-2xl font-bold wrap-anywhere">
+        <SectionTitle align={align} className="mb-6 text-center text-2xl font-bold wrap-anywhere">
           {data.title}
         </SectionTitle>
       )}
@@ -55,8 +61,7 @@ function PreviewNote({ children }: { children: ReactNode }) {
  * se puede embeber no se dibuja (antes iba crudo al iframe y la tienda
  * mostraba un recuadro gris); en la vista previa se avisa.
  */
-export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
-  const placeholders = usePreviewPlaceholders();
+export function InstagramSection({ section, data, preview: placeholders }: SectionRenderProps<'instagram'>) {
   const url = data.video.trim();
   const embed = parseVideoEmbed(url);
   if (!embed) {
@@ -74,7 +79,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
   // Va una tarjeta con link al perfil.
   if (embed.kind === 'instagram-profile') {
     return (
-      <Frame data={data}>
+      <Frame data={data} align={section.style?.align}>
         <a
           href={embed.href}
           target="_blank"
@@ -105,7 +110,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
 
   if (embed.kind === 'instagram') {
     return (
-      <Frame data={data}>
+      <Frame data={data} align={section.style?.align}>
         <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border border-fg/10 bg-white">
           <iframe
             src={embed.src}
@@ -121,7 +126,7 @@ export function InstagramSection({ data }: SectionRenderProps<'instagram'>) {
   }
 
   return (
-    <Frame data={data}>
+    <Frame data={data} align={section.style?.align}>
       <div className={cn('overflow-hidden rounded-lg bg-fg/5', aspectOf(data, embed))}>
         <iframe
           src={embed.src}

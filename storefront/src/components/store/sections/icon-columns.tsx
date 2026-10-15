@@ -1,10 +1,7 @@
-'use client';
-
 import { safeHref, type IconColumnItem } from '@tiendafy/types';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { Icon, type IconName } from '../Icon';
-import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
-import { useSectionStyle } from '../section-context';
+import { SectionTitle } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { StoreLink } from '../StoreLink';
@@ -59,9 +56,8 @@ function Column({ item, center }: { item: IconColumnItem; center: boolean }) {
  * kit de la tienda —o una imagen propia—, título, texto y link. En celular
  * van de a una, de a dos o deslizándose.
  */
-export function IconColumnsSection({ data }: SectionRenderProps<'icon-columns'>) {
-  const preview = usePreviewPlaceholders();
-  const center = (useSectionStyle()?.align ?? 'center') === 'center';
+export function IconColumnsSection({ section, data, preview }: SectionRenderProps<'icon-columns'>) {
+  const center = (section.style?.align ?? 'center') === 'center';
   const items = data.items.filter((it) => it.title || it.text || it.image);
   if (items.length === 0) {
     if (!preview) return null;
@@ -78,7 +74,10 @@ export function IconColumnsSection({ data }: SectionRenderProps<'icon-columns'>)
     <section className="mx-auto max-w-container px-4 py-12">
       {/* El título acompaña a las columnas: centradas (como vienen), centrado. */}
       {data.title && (
-        <SectionTitle className={cn('mb-8 text-2xl font-bold', center && 'text-center')}>
+        <SectionTitle
+          align={section.style?.align}
+          className={cn('mb-8 text-2xl font-bold', center && 'text-center')}
+        >
           {data.title}
         </SectionTitle>
       )}

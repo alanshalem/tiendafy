@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Undo2 } from 'lucide-react';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { usePreviewHref } from './preview';
 import { OrderSummary, OrderTimeline } from './OrderSummary';
 import { OrderPaymentInstructions } from './OrderPaymentInstructions';

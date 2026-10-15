@@ -6,7 +6,7 @@ import { formatMoney, type MoneyDto } from '@tiendafy/types';
 import { API_URL, clientJsonTenant, tenantHeaders } from '@/lib/api-client';
 import { isPostalCode, normalizePostalCode, readPostalCode, savePostalCode } from '@/lib/postal-code';
 import { CARRIERS, enabledCarriers, type CarrierKey } from './checkout-carriers';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
 
 /** Un medio propio de la tienda, como lo devuelve /shipping/methods. */

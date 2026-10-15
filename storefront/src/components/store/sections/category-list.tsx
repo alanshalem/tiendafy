@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { categoryHref } from '@/lib/category-url';
 import { findCategoryNode, useCategoryTree, type CatNode } from '../CategoryMenu';
 import { InitialFallback } from '../InitialFallback';
 import { usePreviewHref } from '../preview';
-import { RailArrows, SectionTitle, usePreviewPlaceholders, useRail } from '../section-primitives';
+import { SectionTitle } from '../section-primitives';
+import { RailArrows, useRail } from '../product-grid';
 import type { SectionRenderProps } from '../section-types';
 import { StoreImage } from '../StoreImage';
 import { SectionButton } from './section-button';
@@ -87,8 +88,7 @@ export function CategoryTile({
  * cada una con su foto y su nombre (se pueden cambiar), en grilla o carrusel.
  * Las categorías salen del árbol de la tienda que trae el layout.
  */
-export function CategoryListSection({ data }: SectionRenderProps<'category-list'>) {
-  const preview = usePreviewPlaceholders();
+export function CategoryListSection({ section, data, preview }: SectionRenderProps<'category-list'>) {
   const tree = useCategoryTree();
   const rail = useRail<HTMLUListElement>([data.layout, data.columnsDesktop, data.columnsMobile]);
   const { ref: railRef, edge, measure, page } = rail;
@@ -108,7 +108,11 @@ export function CategoryListSection({ data }: SectionRenderProps<'category-list'
     if (!preview) return null;
     return (
       <section className="mx-auto max-w-container px-4 py-12">
-        {data.title && <SectionTitle className="mb-4 text-2xl font-bold">{data.title}</SectionTitle>}
+        {data.title && (
+          <SectionTitle align={section.style?.align} className="mb-4 text-2xl font-bold">
+            {data.title}
+          </SectionTitle>
+        )}
         <p className="rounded-md bg-fg/5 p-4 text-sm text-fg-muted">
           {data.mode === 'auto'
             ? 'Todavía no hay categorías: cargalas en Productos → Categorías.'
@@ -127,7 +131,11 @@ export function CategoryListSection({ data }: SectionRenderProps<'category-list'
 
   return (
     <section className="mx-auto max-w-container px-4 py-12">
-      {data.title && <SectionTitle className="mb-6 text-2xl font-bold">{data.title}</SectionTitle>}
+      {data.title && (
+        <SectionTitle align={section.style?.align} className="mb-6 text-2xl font-bold">
+          {data.title}
+        </SectionTitle>
+      )}
       {data.layout === 'carousel' ? (
         // Se ve un pedazo de la siguiente: así se entiende que se desliza.
         <div className="relative">

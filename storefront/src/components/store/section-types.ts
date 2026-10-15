@@ -35,4 +35,16 @@ export interface SectionRenderProps<T extends SectionType = SectionType> {
   products: StoreProduct[];
   storeName: string;
   productList: ProductListConfig;
+  /**
+   * La sección que abre la portada: su imagen es la más grande a la vista al
+   * cargar (el LCP) y va con prioridad.
+   */
+  lead: boolean;
+  /**
+   * Vista previa del editor: lo que falta (una foto, un link) se ve como un
+   * hueco que dice qué completar, en vez de no dibujarse.
+   */
+  preview: boolean;
+  /** La página de la tienda es oscura (el texto que se le calcula encima es blanco). */
+  darkPage: boolean;
 }

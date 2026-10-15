@@ -1,24 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@tiendafy/ui';
+import { cn } from '@tiendafy/ui/cn';
 import { MarqueeTrack } from '../MarqueeTrack';
+import { PlayPauseIcon } from '../PlayPauseIcon';
 import { StoreImage } from '../StoreImage';
 import { StoreLink } from '../StoreLink';
-import { SectionTitle, usePreviewPlaceholders } from '../section-primitives';
+import { SectionTitle } from '../section-primitives';
 import type { SectionRenderProps } from '../section-types';
 import { usePrefersReducedMotion } from '../use-media';
 
 /** Segundos por vuelta (la de antes, 22 s, es "normal"). */
 const SPEED = { slow: 40, normal: 22, fast: 13 } as const;
-
-function PlayPauseIcon({ playing }: { playing: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-      {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l10.5-6.5z" />}
-    </svg>
-  );
-}
 
 /**
  * Marcas que vendemos: logos fijos o en una tira que se desliza sola.
@@ -28,14 +21,16 @@ function PlayPauseIcon({ playing }: { playing: boolean }) {
  * tira se pausa con el botón, al pasar el mouse o al entrar con el teclado,
  * y queda quieta si el sistema pide menos movimiento.
  */
-export function BrandsSection({ data }: SectionRenderProps<'brands'>) {
-  const placeholders = usePreviewPlaceholders();
+export function BrandsSection({ section, data, preview: placeholders }: SectionRenderProps<'brands'>) {
   const reduced = usePrefersReducedMotion();
   const [paused, setPaused] = useState(false);
   const logos = data.logos.filter((l) => l.image);
   if (logos.length === 0 && !placeholders) return null;
   const title = data.title && (
-    <SectionTitle className="mb-6 text-center text-sm font-bold uppercase tracking-widest text-fg-muted">
+    <SectionTitle
+      align={section.style?.align}
+      className="mb-6 text-center text-sm font-bold uppercase tracking-widest text-fg-muted"
+    >
       {data.title}
     </SectionTitle>
   );

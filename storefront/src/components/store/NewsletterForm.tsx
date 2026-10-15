@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { subscribeNewsletter, type NewsletterSource } from '@/lib/newsletter';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { INPUT_10 } from './styles';
 
 type State = 'idle' | 'sending' | 'done' | 'error';

@@ -1,27 +1,32 @@
 import type { ComponentType } from 'react';
 import type { SectionType } from '@/lib/theme';
 import type { SectionRenderProps } from '../section-types';
-import { BrandsSection } from './brands';
-import { CarouselSection } from './carousel';
+// Las que se dibujan en el servidor (sin hooks): su HTML llega listo y no
+// suman JavaScript a la tienda.
 import { CategoryBannersSection } from './category-banners';
-import { CountdownOfferSection } from './countdown-offer';
 import { FaqSection } from './faq';
-import { HeroVideoSection } from './hero-video';
 import { ImageTextSection } from './image-text';
 import { InfoBarSection } from './info-bar';
 import { InstagramSection } from './instagram';
 import { InstitutionalSection } from './institutional';
 import { NewsletterSection } from './newsletter';
-import { ProductsSection } from './products';
 import { PromoBannersSection } from './promo-banners';
-import { TestimonialsSection } from './testimonials';
-import { FeaturedProductSection } from './featured-product';
-import { PromoPopupSection } from './promo-popup';
 import { RichTextSection } from './rich-text';
-import { CategoryListSection } from './category-list';
-import { VideoSection } from './video';
 import { IconColumnsSection } from './icon-columns';
-import { CollageSection } from './collage';
+// Las interactivas, cada una en su pedazo de JS (ver lazy.tsx).
+import {
+  BrandsSection,
+  CarouselSection,
+  CategoryListSection,
+  CollageSection,
+  CountdownOfferSection,
+  FeaturedProductSection,
+  HeroVideoSection,
+  ProductsSection,
+  PromoPopupSection,
+  TestimonialsSection,
+  VideoSection,
+} from './lazy';
 
 /**
  * Un renderer por tipo de sección. El tipo del mapa obliga a que estén todos:

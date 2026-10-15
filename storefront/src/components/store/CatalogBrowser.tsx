@@ -14,16 +14,17 @@ import {
   X,
 } from 'lucide-react';
 import { buildPageWindow, cn } from '@tiendafy/ui';
-import { productGridClass, type ProductListConfig } from '@/lib/theme';
+import type { ProductListConfig } from '@/lib/theme';
+import { productGridClass } from '@/lib/theme-style';
 import type { CategoryDto, ProductFacets, SpecFacet } from '@/lib/catalog';
 import { categoryParam, readableQuery } from '@/lib/category-url';
 import { facetLabel, formatPesos } from '@/lib/facet-label';
 import { logSearchClient } from '@/lib/catalog-client';
-import { ProductCard, type StoreProduct } from './sections';
+import { ProductCard, type StoreProduct } from './ProductCard';
 import { PreviewContext, useLiveTheme, usePreviewHref } from './preview';
 import { EmptyState } from './EmptyState';
 import { INPUT_10 } from './styles';
-import { useCart } from './cart';
+import { useCart } from './cart-context';
 import { useFocusTrap } from './useFocusTrap';
 import { useMediaQuery } from './use-media';
 import { PredictiveSearch } from './PredictiveSearch';

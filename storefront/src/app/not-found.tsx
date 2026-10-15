@@ -5,7 +5,7 @@ import { resolveTenant } from '@/lib/tenancy';
 import { fetchPublishedTheme } from '@/lib/theme';
 import { NOT_INDEXED } from '@/lib/seo';
 import { StorefrontView } from '@/components/store/StorefrontView';
-import { StoreNotFound } from '@/components/store/StoreNotFound';
+import { StoreNotFound } from '@/components/store/store-islands';
 
 /** Con el nombre de la tienda: antes la pestaña del 404 decía "Tienda online". */
 export async function generateMetadata(): Promise<Metadata> {

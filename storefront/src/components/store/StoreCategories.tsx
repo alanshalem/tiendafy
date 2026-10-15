@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { fetchCategories } from '@/lib/catalog';
 import { resolveTenant } from '@/lib/tenancy';
-import { StoreCategoriesProvider } from './CategoryMenu';
+import { StoreCategoriesProvider } from './category-tree';
 
 /**
  * Las categorías de la tienda, traídas en el servidor para el menú del
