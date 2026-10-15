@@ -37,7 +37,7 @@ if ($Docker) {
 
 Stop-Port 5080 'API'
 Stop-Port 5000 'API(default)'
-Stop-Port 3001 'Admin'
+Stop-Port 5173 'Admin'
 Stop-Port 3000 'Storefront'
 
 if ($KeepInfra) {

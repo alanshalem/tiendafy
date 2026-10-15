@@ -137,15 +137,16 @@ Write-Host @"
 
   URLs:
     API             http://localhost:5080   (Swagger: /scalar, Health: /health)
-    Storefront      http://localhost:3000   (la plataforma)
+    Storefront      http://localhost:3000   (cada tienda en <subdominio>.localhost:3000)
     Admin           http://localhost:5173   (el panel de todas las tiendas)
 
   Cada tienda vive en su propio subdominio del storefront:
     http://<subdominio>.localhost:3000
   dev-up.ps1 lista al final las que haya en la base. Para verlas a mano:
     docker exec tiendafy-postgres psql -U tiendafy -d tiendafy -c "select subdomain, name from tenants"
-  Si no hay ninguna, se crean desde el panel o con el seed de demo:
-    curl -X POST http://localhost:5080/dev/demo-seed
+  Las tiendas se crean desde el panel (Mis tiendas). Para llenar una con datos
+  de demo: POST /api/v1/dev/demo-seed con la sesión del dueño y la tienda en
+  X-Tenant-Id (?reset=true vuelve a empezar). Solo existe en Development.
 
   O a mano (nativo):
     Backend API     cd backend/src/Api; dotnet run

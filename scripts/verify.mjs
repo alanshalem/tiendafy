@@ -144,7 +144,8 @@ if (back) {
       ['format-backend', 'dotnet format backend.slnx --verify-no-changes --no-restore', 'backend'],
       ['tests-unitarios', 'dotnet test tests/UnitTests -c Release --no-build', 'backend'],
     ]);
-    // Los de integración levantan Postgres en Docker: solos.
+    // Los de integración usan el Postgres de dev (localhost:5432), que tiene que
+    // estar arriba; van solos porque son los más pesados.
     await phase('Backend: tests de integración', [
       ['tests-integracion', 'dotnet test tests/IntegrationTests -c Release --no-build', 'backend'],
     ]);

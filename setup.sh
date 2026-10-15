@@ -98,8 +98,9 @@ cat <<'EOF'
     http://<subdominio>.localhost:3000
   Las que haya en la base:
     docker exec tiendafy-postgres psql -U tiendafy -d tiendafy -c "select subdomain, name from tenants"
-  Si no hay ninguna, se crean desde el panel o con el seed de demo:
-    curl -X POST http://localhost:5080/dev/demo-seed
+  Las tiendas se crean desde el panel (Mis tiendas). Para llenar una con datos
+  de demo: POST /api/v1/dev/demo-seed con la sesión del dueño y la tienda en
+  X-Tenant-Id (?reset=true vuelve a empezar). Solo existe en Development.
 
   Tests backend:    dotnet test backend/backend.slnx
   Type-check FE:    pnpm --filter "./shared/**" run type-check

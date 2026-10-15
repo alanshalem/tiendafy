@@ -5,8 +5,8 @@
     Infra (Docker) -> API (.NET) -> Frontends (admin + storefront).
 
 .DESCRIPTION
-    Arranca Docker Desktop si está apagado, levanta el stack (Postgres, PgBouncer,
-    MinIO), espera a que cada puerto responda, arranca la API y solo
+    Arranca Docker Desktop si está apagado, levanta el stack (Postgres,
+    MinIO, pgAdmin), espera a que cada puerto responda, arranca la API y solo
     cuando /health da 200 lanza los frontends. Idempotente: se puede correr de
     nuevo sin romper nada.
 
@@ -74,8 +74,8 @@ function Show-Stores {
         $suspendida = if ($cols[2] -ne 'Active') { "  [$($cols[2])]" } else { '' }
         Write-Host ("    {0,-34} {1}{2}" -f "http://$($cols[0]).localhost:$($PORTS.Storefront)", $cols[1], $suspendida)
     }
-    Write-Host '    (el dominio pelado muestra la landing de la plataforma,' -ForegroundColor DarkGray
-    Write-Host '     salvo que una tienda lo reclame como dominio propio)' -ForegroundColor DarkGray
+    Write-Host '    (el dominio pelado atiende la tienda de PRIMARY_STORE_SUBDOMAIN;' -ForegroundColor DarkGray
+    Write-Host '     sin ella, dice "tienda no encontrada")' -ForegroundColor DarkGray
 }
 
 # ---- Que el panel sepa en qué puerto quedó el storefront ----
@@ -241,7 +241,7 @@ if ($Docker) {
     Ok '== Todo arriba (Docker) =='
     Write-Host "  API        http://localhost:$($PORTS.API)"
     Write-Host "  Swagger    http://localhost:$($PORTS.API)/scalar"
-    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (la plataforma; cada tienda va en su subdominio)"
+    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (cada tienda en su subdominio: <sub>.localhost)"
     Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
     Write-Host "  pgAdmin    http://localhost:8081   (entra sin login, con la base ya cargada)"
     Write-Host "  MinIO      http://localhost:9001   (minioadmin / minioadmin)"
@@ -342,7 +342,7 @@ if ($tunnelUrl) {
 }
 if (-not $BackendOnly) {
     Write-Host "  Admin      http://localhost:$($PORTS.Admin)"
-    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (la plataforma; cada tienda va en su subdominio)"
+    Write-Host "  Storefront http://localhost:$($PORTS.Storefront)   (cada tienda en su subdominio: <sub>.localhost)"
 }
 Write-Host "  MinIO      http://localhost:9001   (minioadmin / minioadmin)"
 Write-Host "  pgAdmin    http://localhost:8081   (entra sin login, con la base ya cargada)"
