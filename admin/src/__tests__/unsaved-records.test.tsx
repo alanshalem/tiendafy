@@ -41,8 +41,10 @@ async function setup(param?: string) {
   mockApi();
   const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
   renderWithProviders(<Harness param={param} />, '/compras');
+  // Abrir una ficha cuando no había ninguna no deja nada atrás: no pregunta.
   await user.click(await screen.findByRole('button', { name: 'Abrir' }));
   expect(await screen.findByText('ficha: 1')).toBeInTheDocument();
+  expect(screen.queryByText('¿Descartar los cambios?')).not.toBeInTheDocument();
   return user;
 }
 

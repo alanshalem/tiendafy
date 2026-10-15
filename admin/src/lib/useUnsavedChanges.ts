@@ -34,7 +34,10 @@ export function useUnsavedChanges(
     if (currentLocation.pathname !== nextLocation.pathname) return true;
     if (!param) return false;
     const record = (search: string) => new URLSearchParams(search).get(param);
-    return record(currentLocation.search) !== record(nextLocation.search);
+    // Sale de la ficha si había una abierta y se cierra o se cambia por otra.
+    // Abrir una cuando no había ninguna no deja nada atrás: no pregunta.
+    const current = record(currentLocation.search);
+    return current !== null && current !== record(nextLocation.search);
   });
 
   useEffect(() => {
