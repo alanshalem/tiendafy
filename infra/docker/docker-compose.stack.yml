@@ -19,7 +19,7 @@
 #   docker compose ... --env-file .env.<amb> run --rm api dotnet Api.dll migrate
 # ============================================================
 
-x-pg-image: &pgimage postgres:16-alpine
+x-pg-image: &pgimage postgres:18-alpine
 
 x-logging: &logging
   logging:
@@ -41,7 +41,11 @@ services:
       POSTGRES_USER: tiendafy
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en el .env del ambiente}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Un volumen por major (pgdata<major>): los datos de una major no arrancan
+      # con otra, y desde la 18 la imagen los guarda en /var/lib/postgresql/<major>/docker
+      # (por eso el montaje es un nivel arriba). Cambiar de major es un paso
+      # aparte, infra/pg-upgrade.sh, y deploy.sh se niega a seguir sin él.
+      - pgdata18:/var/lib/postgresql
     mem_limit: ${PG_MEM_LIMIT:-1g}
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tiendafy -d tiendafy']
@@ -208,5 +212,7 @@ services:
       VITE_BRAND_NAME: ${BRAND_NAME:-}
 
 volumes:
-  pgdata:
+  # El volumen de la 16 (pgdata) ya no se declara a propósito: queda en el disco
+  # como vuelta atrás de la migración y ningún `down -v` se lo lleva.
+  pgdata18:
   dpkeys:

@@ -27,7 +27,7 @@ jobs:
     # Postgres para los tests de integración (aislamiento multi-tenant).
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: tiendafy
           POSTGRES_PASSWORD: tiendafy

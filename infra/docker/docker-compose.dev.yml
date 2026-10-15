@@ -3,7 +3,7 @@ name: tiendafy
 services:
   postgres:
     # Misma major que prod y CI (paridad dev/prod).
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: tiendafy-postgres
     environment:
       POSTGRES_USER: tiendafy
@@ -13,7 +13,11 @@ services:
       # Bind solo a loopback: la DB no queda expuesta a la red si el host no es local.
       - '127.0.0.1:5432:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Desde la 18 la imagen guarda los datos en /var/lib/postgresql/<major>/docker
+      # y el volumen se monta un nivel arriba. Volumen nuevo por major: el de la
+      # 16 (tiendafy_postgres_data) no sirve para la 18. Pasar los datos:
+      # docs/DEPLOY.md → "Cambiar de major de Postgres" → Desarrollo.
+      - postgres18_data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tiendafy']
       interval: 5s
@@ -75,6 +79,6 @@ services:
 # browsers modernos y Windows 11. mitienda.localhost:3000 funciona directo.
 
 volumes:
-  postgres_data:
+  postgres18_data:
   minio_data:
   pgadmin_data:

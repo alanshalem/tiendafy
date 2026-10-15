@@ -193,9 +193,9 @@ Notas de build (ya resueltas en los Dockerfiles):
 - **API**: user no-root `app` de las imágenes .NET 8+ (`USER $APP_UID`); cache
   mount de NuGet (cambiar código no re-descarga paquetes); `libfontconfig1` +
   fuentes en el runtime para los PDFs de facturas (QuestPDF/Skia).
-- **Frontends**: corepack usa el pnpm pinneado en el `packageManager` del
-  package.json raíz. Capa de deps con `pnpm fetch` (solo lockfile) + cache mount
-  del store, e install `--frozen-lockfile --offline --filter ./app...` (el
+- **Frontends**: se instala con npm el pnpm pinneado en el `packageManager`
+  del package.json raíz (Node 25+ ya no trae corepack). Capa de deps con
+  `pnpm fetch` (solo lockfile) + cache mount del store, e install `--frozen-lockfile --offline --filter ./app...` (el
   equivalente estricto de `npm ci`, filtrado al workspace que se buildea).
 - **Storefront**: runtime = output **standalone** de Next (server.js +
   node_modules podados por file-tracing) — la imagen no lleva el repo.
@@ -246,12 +246,12 @@ deshace con un rollback de imagen — para eso está el backup.
 
 ### Restaurar un backup (ensayado — no improvisar en la emergencia)
 
-Los dumps diarios quedan en `infra/docker/backups/` (formato custom de pg_dump,
+Los dumps diarios quedan en `infra/docker/backups/<ambiente>/` (formato custom de pg_dump,
 retención 14 días). Restaurar:
 
 ```bash
 # 1. Copiar el dump adentro del contenedor de postgres
-docker cp infra/docker/backups/tiendafy-YYYYMMDD-HHMM.dump tiendafy-prod-postgres-1:/tmp/r.dump
+docker cp infra/docker/backups/prod/tiendafy-YYYYMMDD-HHMM.dump tiendafy-prod-postgres-1:/tmp/r.dump
 # 2. Crear una DB de verificación y restaurar ahí (NUNCA pisar tiendafy directo)
 docker exec tiendafy-prod-postgres-1 createdb -U tiendafy tiendafy_restore
 docker exec tiendafy-prod-postgres-1 pg_restore -U tiendafy -d tiendafy_restore /tmp/r.dump
@@ -262,6 +262,61 @@ docker exec tiendafy-prod-postgres-1 psql -U tiendafy -d tiendafy_restore -c "SE
 
 Recordá: el volumen `dpkeys` (keyring de DataProtection) se backupea aparte —
 sin él, los tokens MP y certificados ARCA cifrados son irrecuperables.
+
+### Cambiar de major de Postgres (16 → 18)
+
+Los datos de una major no arrancan con otra, así que no es un deploy más:
+cuando el compose pide otra major que la que corre, `deploy.sh` se frena y
+pide este paso. `infra/pg-upgrade.sh` lo hace en unos segundos de corte
+(probado con una copia de la base de desarrollo: 108 tablas, 30 s):
+
+```bash
+cd /srv/tiendafy && git pull
+./infra/pg-upgrade.sh prod          # ensayo, copia, cambio y control de filas
+./infra/deploy.sh prod sha-XXXXXXX  # levanta la API y la tienda de nuevo
+```
+
+1. **Ensayo sin cortar nada**: copia la base en caliente y la restaura en un
+   Postgres nuevo descartable. Si algo no entra (una fila huérfana hace fallar
+   una clave foránea), termina ahí y todo sigue andando como estaba.
+2. Frena la API, la tienda y el backup; cuenta las filas de cada tabla y hace
+   el dump definitivo en `infra/docker/backups/pg-upgrade-<ambiente>-<fecha>/`.
+3. Reemplaza el contenedor por el de la major nueva con un volumen **nuevo**
+   (`pgdata<major>`). El viejo no se toca: es la vuelta atrás.
+4. Restaura, recalcula estadísticas y compara los conteos de antes y después.
+   Si no coinciden, se frena y explica cómo volver.
+
+**Si el ensayo falla por filas huérfanas**, el error dice la clave foránea.
+Para verlas todas (no borra nada):
+
+```bash
+docker exec -i tiendafy-prod-postgres-1 psql -U tiendafy -d tiendafy -tA <<'SQL'
+SELECT format('SELECT %L, count(*) FROM %s c WHERE c.%I IS NOT NULL AND NOT EXISTS (SELECT 1 FROM %s p WHERE p.%I = c.%I) HAVING count(*) > 0',
+  con.conname, con.conrelid::regclass, a.attname, con.confrelid::regclass, af.attname, a.attname)
+FROM pg_constraint con
+JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = con.conkey[1]
+JOIN pg_attribute af ON af.attrelid = con.confrelid AND af.attnum = con.confkey[1]
+WHERE con.contype = 'f' AND array_length(con.conkey, 1) = 1
+\gexec
+SQL
+```
+
+En producción no debería haber ninguna: la única forma conocida de crearlas es
+la purga de tiendas, que solo existe en desarrollo.
+
+**Volver atrás** después del cambio: el script imprime los comandos (volver el
+compose al commit anterior y levantar de nuevo; los datos viejos siguen en su
+volumen). Cuando todo ande unos días, borrar el volumen viejo con el
+`docker volume rm` que indica al final.
+
+**Desarrollo**: mismo cambio en `docker-compose.dev.yml` (volumen
+`postgres18_data`). La primera vez, copiar la base vieja a la nueva:
+
+```bash
+docker exec tiendafy-postgres pg_dump -U tiendafy -d tiendafy -Fc > dev.dump   # con la 16 todavía corriendo
+docker compose -f infra/docker/docker-compose.dev.yml up -d --wait postgres     # recrea con la 18, base vacía
+docker exec -i tiendafy-postgres pg_restore -U tiendafy -d tiendafy --exit-on-error < dev.dump
+```
 
 ### Correr TODO el sistema en contenedores (local)
 
