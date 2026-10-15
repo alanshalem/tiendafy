@@ -13,12 +13,14 @@ homologación, después de producción) para emitir el primer CAE de verdad.
   despachar, con una cola durable y reintentos.
 - **Nota de crédito automática** cuando una venta se reembolsa por completo
   (y cuando Mercado Libre informa una venta facturada como cancelada o
-  devuelta), con referencia al comprobante original.
+  devuelta), al mismo receptor y con la misma clase que la factura, que va
+  referenciada.
 - **Emisión manual** desde Ventas (con documento y condición de IVA que puede
   completar el comercio) y comprobantes sueltos sin orden.
 - **Consulta al padrón A5**: quién es un CUIT y su condición frente al IVA.
-- **PDF** del comprobante con el QR de ARCA, **libro IVA ventas** del mes en
-  CSV y un **diagnóstico de conexión** por pasos.
+- **PDF** del comprobante con el QR de ARCA (adjunto en el email "factura" si
+  la tienda prendió esa plantilla), **libro IVA ventas** del mes en CSV y un
+  **diagnóstico de conexión** por pasos.
 - **Asistente de certificado**: la clave privada y el CSR se generan en el
   backend; el comercio nunca toca OpenSSL ni ve la clave.
 
@@ -47,6 +49,7 @@ del 21% (el envío se factura como ítem gravado al 21%).
 | PDF con QR | `Fiscal.Infrastructure/Pdf/ComprobantePdfRenderer.cs` |
 | TLS de los clientes de ARCA | `Fiscal.Infrastructure/FiscalModule.cs` |
 | Worker de la cola | `backend/src/Api/Fiscal/FiscalEmissionWorker.cs` |
+| Email "factura" con el PDF | `backend/src/Api/Fiscal/InvoiceEmail.cs` |
 | Endpoints de configuración, padrón y emisión suelta | `backend/src/Api/Endpoints/FiscalEndpoints.cs` |
 | Facturar una orden, estado fiscal y PDF | `backend/src/Api/Endpoints/OrderEndpoints.cs` |
 | Disparadores | `Api/Orders/PaidOrderSideEffects.cs`, `OrderFulfillment.cs`, `RefundedOrderSideEffects.cs`, `Api/Meli/MeliSyncService.cs` |
@@ -125,8 +128,11 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    cualquier persona física = consumidor final.
 3. Importes: RI desarma el IVA del total (neto redondeado al centavo, IVA =
    total − neto, alícuota 21%); Monotributo va sin IVA. Moneda `PES`.
-4. Lock de **sesión** (`pg_advisory_lock`) por tienda, ambiente, punto de venta
-   y tipo de comprobante.
+4. Locks de **sesión** (`pg_advisory_lock`): primero el de la venta (facturas
+   y NC por separado) y, con él tomado, se repite el corte "ya tiene
+   factura"; después el de la serie (tienda, ambiente, punto de venta y tipo
+   de comprobante). Dos emisiones de la misma venta (botón manual y worker, o
+   un job retomado por lease) no corren a la vez.
 5. `FECompUltimoAutorizado`: el número es **ese + 1, exacto**. La secuencia
    local es un espejo y se corrige si quedó desfasada.
 6. Reconciliación: cada comprobante de la serie que quedó `Pending` se consulta
@@ -138,19 +144,38 @@ hasta 2 minutos antes de vencer. Si no hay uno válido, se pide bajo
    pedir el CAE.
 8. `FECAESolicitar`. Autorizado: guarda CAE, vencimiento y observaciones, y
    avanza la secuencia. Rechazado: guarda errores y observaciones; el número no
-   se consumió. Sin respuesta (red o respuesta ilegible): queda `Pending` para
-   reconciliar en el próximo intento.
+   se consumió. Sin respuesta (red, respuesta ilegible o un error HTTP sin
+   SOAP Fault, como el 502 de un proxy): queda `Pending` para reconciliar en
+   el próximo intento. Solo un SOAP Fault es rechazo.
 
 **Automática.** Los disparadores encolan un job único por (tienda, orden,
 tipo) si la facturación está habilitada y automática, y si el disparador
 coincide. El worker corre cada 10 s, toma 20 por vuelta, reintenta los fallos
 transitorios con espera de 1, 2, 4… hasta 60 minutos (8 intentos) y manda a
 fallidos los rechazos de ARCA y la falta de documento del comprador, porque
-reintentar no los arregla. Desde Ventas se ve el estado
-(`GET /orders/{id}/fiscal`) y se reintenta (`POST /fiscal/jobs/{id}/retry`).
+reintentar no los arregla. Un job tomado (`Processing`) hace más de 15
+minutos se da por abandonado (el proceso murió con él) y vuelve a la cola: el
+reintento va por el emisor, que reconcilia el pendiente con ARCA antes de
+pedir otro número. Desde Ventas se ve el estado (`GET /orders/{id}/fiscal`) y
+se reintenta (`POST /fiscal/jobs/{id}/retry`).
 
-**Nota de crédito.** Usa el último comprobante autorizado de la orden como
-`CbtesAsoc`, por el monto reembolsado. Una sola por orden.
+**Email al comprador.** Cuando una factura de una orden de la tienda obtiene
+el CAE (worker o botón "Facturar"), sale la plantilla "factura" con el PDF
+adjunto, una sola vez (`buyer_notified_at_utc`). Viene apagada: solo la mandan
+las tiendas que la prendieron. No sale a `@sin-email.local` ni en ventas de
+Mercado Libre.
+
+**Nota de crédito.** Acredita la última factura autorizada de la orden **en
+el ambiente actual** y copia de ella el receptor (tipo y número de documento,
+condición frente al IVA, guardada en `receptor_condicion`) y la clase: A → NC
+A, B → NC B, C → NC C, con la factura en `CbtesAsoc`. El documento con que se
+encola (el de la venta, o ninguno en Mercado Libre) no se usa: ARCA rechaza
+una NC de otra clase o a otro receptor (10123). Por el monto reembolsado, una
+sola por orden.
+
+**Libro IVA.** `GET /fiscal/documents/export?year&month`: comprobantes
+autorizados del ambiente en que factura la tienda (columna "Ambiente";
+homologación no tiene validez fiscal), del mes en hora argentina.
 
 ## Lo que aprendimos de la API real
 
@@ -275,12 +300,6 @@ Documentación: manuales de WSAA y WSFEv1).
   declare), y el padrón se puede consultar desde el panel. Pero la emisión
   automática no consulta el padrón y el checkout no pide la condición: un RI
   persona física recibe B salvo que el comercio facture a mano.
-- **La nota de crédito recalcula el receptor** desde el documento de la orden,
-  sin la condición declarada ni el documento corregido de la factura. Si la
-  factura fue A a una persona física (declarada a mano), la NC sale B y ARCA la
-  va a rechazar. Debería copiar receptor y clase del comprobante original.
 - **Reembolsos parciales**: no generan nota de crédito (una por orden).
-- **Jobs colgados**: si el proceso muere con un job en `Processing`, el worker
-  no lo vuelve a tomar; solo sale con el reintento manual.
-- **Libro IVA**: el CSV mezcla ambientes y corta el mes en UTC, no en hora
-  argentina.
+- **Email "factura" en ventas de Mercado Libre**: no sale (no son órdenes de
+  la tienda y ML no da el email del comprador).
