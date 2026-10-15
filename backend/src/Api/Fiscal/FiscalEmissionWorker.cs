@@ -40,6 +40,7 @@ public sealed class FiscalEmissionWorker(
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<FiscalDbContext>();
         var emitter = sp.GetRequiredService<IInvoiceEmitter>();
+        var invoiceEmail = sp.GetRequiredService<InvoiceEmail>();
 
         await ReleaseStaleLeasesAsync(db, ct);
 
@@ -119,6 +120,12 @@ public sealed class FiscalEmissionWorker(
             }
 
             await db.SaveChangesAsync(ct);
+
+            // Con la factura ya registrada, el email al comprador (si la tienda
+            // prendió la plantilla). También cuando la había terminado otro
+            // camino: sale una sola vez por factura.
+            if (job is { Status: FiscalJobStatus.Done, Kind: FiscalJobKind.Invoice, FiscalDocumentId: { } documentId })
+                await invoiceEmail.SendAsync(job.TenantId, documentId, ct);
         }
     }
 

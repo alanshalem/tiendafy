@@ -223,6 +223,10 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("BuyerNotifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("buyer_notified_at_utc");
+
                     b.Property<string>("Cae")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")

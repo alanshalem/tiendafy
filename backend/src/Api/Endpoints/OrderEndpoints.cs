@@ -354,7 +354,7 @@ public static class OrderEndpoints
         // que sabe o que le devolvió el padrón.
         group.MapPost("/orders/{id:guid}/invoice", async (
             Guid id, HttpRequest http, ITenantContext tenant, IOrderRepository orders,
-            global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, CancellationToken ct) =>
+            global::Fiscal.Core.Abstractions.IInvoiceEmitter emitter, Api.Fiscal.InvoiceEmail invoiceEmail, CancellationToken ct) =>
         {
             // Se lee a mano y no como parámetro: con un parámetro de cuerpo, un
             // POST sin Content-Type —que antes andaba— pasaba a dar 415.
@@ -380,6 +380,8 @@ public static class OrderEndpoints
             var result = await emitter.EmitAsync(cmd, ct);
             if (result.IsFailure) return result.Error.ToProblem();
             var r = result.Value;
+            // La factura al comprador por email, si la tienda prendió la plantilla.
+            if (r.Authorized) await invoiceEmail.SendAsync(tenant.TenantId.Value, r.DocumentId, ct);
             return Results.Ok(new
             {
                 r.DocumentId,

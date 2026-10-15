@@ -8,8 +8,8 @@ namespace Api.Fiscal;
 
 /// <summary>
 /// El PDF del comprobante autorizado de una venta (con el QR de ARCA). Lo
-/// descargan el panel y el comprador desde su cuenta: un solo armado, así los
-/// dos ven exactamente el mismo papel.
+/// descargan el panel y el comprador desde su cuenta, y va adjunto en el email
+/// "factura": un solo armado, así todos ven exactamente el mismo papel.
 /// </summary>
 public static class OrderInvoicePdf
 {
@@ -27,7 +27,13 @@ public static class OrderInvoicePdf
         var cfg = await fiscalDb.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.TenantId == tenantId, ct);
         if (cfg is null) return Results.NotFound();
 
-        var bytes = pdf.Render(OrderComprobantePresenter.BuildPdfData(doc, order, cfg));
-        return Results.File(bytes, "application/pdf", $"comprobante-{doc.PtoVta:0000}-{doc.Number:00000000}.pdf");
+        var (bytes, fileName) = Render(pdf, doc, order, cfg);
+        return Results.File(bytes, "application/pdf", fileName);
     }
+
+    /// <summary>El archivo de un comprobante ya cargado, con su nombre.</summary>
+    public static (byte[] Bytes, string FileName) Render(
+        IComprobantePdfRenderer pdf, FiscalDocument doc, Order? order, FiscalConfig cfg) =>
+        (pdf.Render(OrderComprobantePresenter.BuildPdfData(doc, order, cfg)),
+         $"comprobante-{doc.PtoVta:0000}-{doc.Number:00000000}.pdf");
 }

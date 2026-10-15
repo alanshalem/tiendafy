@@ -62,6 +62,14 @@ public sealed class FiscalDocument
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
+    /// <summary>
+    /// Cuándo se le mandó al comprador el email con su factura (plantilla
+    /// "factura", si la tienda la prendió). Lo reclama con un
+    /// UPDATE condicional quien manda el email: el worker y el botón manual
+    /// pueden terminar la misma factura, y el comprador recibe uno solo.
+    /// </summary>
+    public DateTime? BuyerNotifiedAtUtc { get; private set; }
+
     private FiscalDocument() { } // EF Core
 
     /// <summary>

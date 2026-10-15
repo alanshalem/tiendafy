@@ -23,11 +23,15 @@ public sealed class EmailOptions
     public int MaxRetries { get; set; } = 2;
 }
 
+/// <summary>Un archivo adjunto (la factura en PDF, por ejemplo).</summary>
+public sealed record EmailAttachment(string FileName, byte[] Content);
+
 public interface IEmailSender
 {
     /// <param name="fromName">Nombre visible del remitente (la tienda). Null = el del From configurado.</param>
     /// <param name="replyTo">A dónde van las respuestas del cliente (email de la tienda). Null = sin reply-to.</param>
     /// <param name="tenantTag">Tag "tenant" para Resend: los webhooks (bounces) lo devuelven y permiten atribuir la supresión a la tienda correcta.</param>
+    /// <param name="attachments">Adjuntos. Null o vacío = sin adjuntos.</param>
     /// <returns>
     /// true si Resend aceptó el email (o, en modo dev, si se escribió en el log);
     /// false si lo rechazó o se agotaron los reintentos. Nunca tira por un error
@@ -35,7 +39,8 @@ public interface IEmailSender
     /// seguir; las campañas lo usan para contar los fallidos.
     /// </returns>
     Task<bool> SendAsync(string toEmail, string subject, string htmlBody,
-        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null);
+        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null,
+        IReadOnlyList<EmailAttachment>? attachments = null);
 }
 
 /// <summary>
@@ -51,7 +56,8 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
     private readonly EmailOptions _o = options.Value;
 
     public async Task<bool> SendAsync(string toEmail, string subject, string htmlBody,
-        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null)
+        string? fromName = null, string? replyTo = null, CancellationToken ct = default, string? tenantTag = null,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         // En logs el destinatario va SIEMPRE enmascarado (PII) y sanitizado
         // (anti log-forging). El email completo vive en Resend / notification_events.
@@ -76,6 +82,10 @@ public sealed class EmailSender(HttpClient http, IOptions<EmailOptions> options,
             reply_to = string.IsNullOrWhiteSpace(replyTo) ? null : new[] { replyTo },
             // El tag vuelve en los webhooks de Resend → atribuye bounces a la tienda.
             tags = string.IsNullOrEmpty(tenantTag) ? null : new[] { new { name = "tenant", value = tenantTag } },
+            // Resend recibe el contenido en base64 (máx. 40 MB por email).
+            attachments = attachments is { Count: > 0 }
+                ? attachments.Select(a => new { filename = a.FileName, content = Convert.ToBase64String(a.Content) }).ToArray()
+                : null,
         };
 
         for (var attempt = 0; ; attempt++)

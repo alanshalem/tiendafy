@@ -35,14 +35,15 @@ public sealed class BrandedEmailSender(
     /// Si el email salió: false si Resend lo rechazó o la dirección es de relleno.
     /// No tira por errores del proveedor (ver <see cref="IEmailSender.SendAsync"/>).
     /// </returns>
-    public async Task<bool> SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null, string? replyTo = null)
+    public async Task<bool> SendAsync(Guid tenantId, string toEmail, string subject, string bodyHtml, CancellationToken ct = default, string? template = null, string? replyTo = null,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         if (IsPlaceholder(toEmail)) return false;
 
         var branding = await ResolveBrandingAsync(tenantId, ct);
         // El remitente visible es la tienda ("Mi Tienda <no-reply@…>"), no la plataforma.
         var sent = await inner.SendAsync(toEmail, subject, EmailLayout.Render(branding, bodyHtml),
-            fromName: branding.StoreName, replyTo: replyTo, ct: ct, tenantTag: tenantId.ToString());
+            fromName: branding.StoreName, replyTo: replyTo, ct: ct, tenantTag: tenantId.ToString(), attachments: attachments);
 
         // Contador de uso (panel de costos del merchant). Nunca rompe el envío.
         try

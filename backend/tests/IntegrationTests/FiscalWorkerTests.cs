@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Api.Fiscal;
 using Fiscal.Core.Domain;
 using Fiscal.Infrastructure.Persistence;
@@ -99,6 +100,84 @@ public sealed class FiscalWorkerTests(ApiFactory factory)
 
         Assert.Equal(FiscalJobStatus.Processing, (await JobAsync(order)).Status);
         Assert.Equal(0, arca.CaeRequests);
+    }
+
+    // ------------------------------------------------- email "factura"
+
+    private static async Task EnableInvoiceEmailAsync(Merchant merchant) =>
+        await merchant.PutAsync("/api/v1/email-templates/factura", new
+        {
+            enabled = true,
+            subject = "Tu factura de {{store}}",
+            bodyHtml = "<p>Adjuntamos la factura de tu compra #{{order_id}}.</p>",
+        });
+
+    /// <summary>Los emails "factura" que salieron a esa dirección, con sus adjuntos.</summary>
+    private List<JsonElement> InvoiceEmailsTo(string address) =>
+        [.. factory.ExternalHttp.SentTo(ApiFactory.ResendEmails)
+            .Select(r => JsonDocument.Parse(r.Body!).RootElement)
+            .Where(e => e.GetProperty("to")[0].GetString() == address
+                        && e.GetProperty("subject").GetString()!.StartsWith("Tu factura", StringComparison.Ordinal))];
+
+    [Fact]
+    public async Task Con_el_CAE_el_comprador_recibe_su_factura_en_PDF_una_sola_vez()
+    {
+        var merchant = await AutoInvoicingStoreAsync("fwe");
+        await EnableInvoiceEmailAsync(merchant);
+        var buyer = $"factura-{Guid.NewGuid():N}@test.local";
+        var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
+
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+        Assert.Equal(FiscalJobStatus.Done, (await JobAsync(order)).Status);
+
+        var email = Assert.Single(InvoiceEmailsTo(buyer));
+        var attachment = Assert.Single(email.GetProperty("attachments").EnumerateArray());
+        Assert.Matches(@"^comprobante-0003-\d{8}\.pdf$", attachment.GetProperty("filename").GetString());
+        var pdf = Convert.FromBase64String(attachment.GetProperty("content").GetString()!);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+
+        // El botón "Facturar" sobre la misma venta: ya está facturada, y el
+        // comprador no recibe otro email.
+        var again = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/orders/{order}/invoice");
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Single(InvoiceEmailsTo(buyer));
+    }
+
+    [Fact]
+    public async Task La_factura_manual_tambien_se_manda_por_email()
+    {
+        var merchant = await Merchant.CreateAsync(factory, "fwm");
+        _ = new FakeArca(factory.ExternalHttp);
+        await merchant.ConfigureFiscalAsync();
+        await EnableInvoiceEmailAsync(merchant);
+        var buyer = $"manual-{Guid.NewGuid():N}@test.local";
+        var order = await merchant.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
+
+        await merchant.PostAsync($"/api/v1/orders/{order}/invoice", new { });
+
+        var email = Assert.Single(InvoiceEmailsTo(buyer));
+        Assert.Contains("Adjuntamos la factura", email.GetProperty("html").GetString());
+    }
+
+    [Fact]
+    public async Task Sin_la_plantilla_prendida_o_sin_email_no_sale_nada()
+    {
+        // La plantilla viene apagada: una tienda que nunca la prendió no manda.
+        var apagada = await AutoInvoicingStoreAsync("fwo");
+        var buyer = $"apagada-{Guid.NewGuid():N}@test.local";
+        var order = await apagada.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: buyer);
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+        Assert.Equal(FiscalJobStatus.Done, (await JobAsync(order)).Status);
+        Assert.Empty(InvoiceEmailsTo(buyer));
+
+        // Prendida, pero la venta de mostrador no tiene email (relleno).
+        var prendida = await AutoInvoicingStoreAsync("fws");
+        await EnableInvoiceEmailAsync(prendida);
+        var placeholder = $"mostrador-{Guid.NewGuid():N}@sin-email.local";
+        var counter = await prendida.CreateSaleAsync(priceMinor: 20_000_00, buyerEmail: placeholder);
+        await Workers.RunOnceAsync<FiscalEmissionWorker>(factory);
+        Assert.Equal(FiscalJobStatus.Done, (await JobAsync(counter)).Status);
+        Assert.Empty(InvoiceEmailsTo(placeholder));
     }
 
     [Fact]

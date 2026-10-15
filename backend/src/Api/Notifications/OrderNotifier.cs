@@ -19,8 +19,10 @@ public sealed class OrderNotifier(
         NotifyAsync(order, templateKey, null, ct);
 
     /// <param name="extraVars">Variables propias de una plantilla (ej. los datos de la transferencia), ya en HTML seguro.</param>
+    /// <param name="attachments">Adjuntos (la factura en PDF).</param>
     public async Task<bool> NotifyAsync(
-        Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default)
+        Order order, string templateKey, IReadOnlyDictionary<string, string>? extraVars, CancellationToken ct = default,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         var store = await links.ForTenantAsync(order.TenantId.Value, "https", ct);
         var storeName = store?.Name ?? "tu tienda";
@@ -37,7 +39,8 @@ public sealed class OrderNotifier(
         var rendered = await templates.RenderAsync(order.TenantId.Value, templateKey, vars, ct);
 
         if (rendered is not { Enabled: true }) return false;
-        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct);
+        await email.SendAsync(order.TenantId.Value, order.BuyerEmail, rendered.Subject, rendered.Html, ct,
+            attachments: attachments);
         return true;
     }
 }
