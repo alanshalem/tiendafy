@@ -104,23 +104,71 @@ async function openThread(user: ReturnType<typeof userEvent.setup>) {
 
 describe('chat posventa: la bandeja', () => {
   it('las métricas filtran: esperando respuesta, abiertas y todas', async () => {
-    const { user } = await openChat();
+    const { api, user } = await openChat();
     const stat = (label: RegExp) => screen.getByRole('button', { name: label });
+    const asked = (filter: string) =>
+      api.calls.some((c) => c.path.startsWith(`${CONVS}?`) && c.path.includes(`filter=${filter}`));
     expect(conversation(closed.customerEmail)).toHaveTextContent('Cerrada');
 
+    // El recorte lo hace el servidor (la bandeja va de a una página); las
+    // cifras de arriba son de todas.
+    api.on('GET', CONVS, { items: [waiting], total: 1, waitingCount: 1, openCount: 2, allCount: 3 });
+    await user.click(stat(/Esperando respuesta/));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: new RegExp(answered.customerEmail) }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(asked('waiting')).toBe(true);
+    expect(conversation(waiting.customerEmail)).toBeInTheDocument();
+    expect(stat(/Total de consultas/)).toHaveTextContent('3');
+
+    // Tocar de nuevo la misma vuelve a todas.
+    api.on('GET', CONVS, { items: CONVERSATIONS, total: 3, waitingCount: 1, openCount: 2, allCount: 3 });
     await user.click(stat(/Esperando respuesta/));
     expect(
-      screen.queryByRole('button', { name: new RegExp(answered.customerEmail) }),
-    ).not.toBeInTheDocument();
-    expect(conversation(waiting.customerEmail)).toBeInTheDocument();
-    // Tocar de nuevo la misma vuelve a todas.
-    await user.click(stat(/Esperando respuesta/));
-    expect(conversation(answered.customerEmail)).toBeInTheDocument();
+      await screen.findByRole('button', { name: new RegExp(answered.customerEmail) }),
+    ).toBeInTheDocument();
 
+    api.on('GET', CONVS, {
+      items: CONVERSATIONS.filter((c) => c.status === 'OPEN'),
+      total: 2,
+      waitingCount: 1,
+      openCount: 2,
+      allCount: 3,
+    });
     await user.click(stat(/Abiertas/));
-    expect(screen.queryByRole('button', { name: new RegExp(closed.customerEmail) })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: new RegExp(closed.customerEmail) }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(asked('open')).toBe(true);
+    api.on('GET', CONVS, { items: CONVERSATIONS, total: 3, waitingCount: 1, openCount: 2, allCount: 3 });
     await user.click(stat(/Total de consultas/));
-    expect(conversation(closed.customerEmail)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: new RegExp(closed.customerEmail) })).toBeInTheDocument();
+  });
+
+  it('el hilo trae los últimos mensajes y "Ver anteriores" suma los de antes', async () => {
+    const { api, user } = await openChat((a) =>
+      a.on('GET', `${CONVS}/${waiting.id}/messages`, {
+        conversation: waiting,
+        items: messages.slice(-1),
+        hasMore: true,
+      }),
+    );
+    await openThread(user);
+    api.on('GET', `${CONVS}/${waiting.id}/messages`, {
+      conversation: waiting,
+      items: messages.slice(0, -1),
+      hasMore: false,
+    });
+    await user.click(await screen.findByRole('button', { name: /Ver anteriores/ }));
+    expect(api.calls.some((c) => c.path.includes(`/messages?before=${messages.at(-1)!.id}`))).toBe(true);
+    for (const m of messages.filter((m) => m.body))
+      expect(await screen.findByText(m.body)).toBeInTheDocument();
+    // No queda nada más atrás.
+    expect(screen.queryByRole('button', { name: /Ver anteriores/ })).not.toBeInTheDocument();
   });
 
   it('si la bandeja no carga lo dice (no "sin consultas"); Actualizar vuelve a pedir', async () => {
@@ -251,7 +299,9 @@ describe('chat posventa: el hilo', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { api, user } = await openChat();
     await openThread(user);
-    const count = (path: string) => api.calls.filter((c) => c.method === 'GET' && c.path === path).length;
+    // La bandeja va con su página en la query: se cuenta por la ruta sola.
+    const count = (path: string) =>
+      api.calls.filter((c) => c.method === 'GET' && c.path.split('?')[0] === path).length;
     const before = { inbox: count(CONVS), thread: count(`${CONVS}/${waiting.id}/messages`) };
     await act(async () => {
       vi.advanceTimersByTime(8_000);

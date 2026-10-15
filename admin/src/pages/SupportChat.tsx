@@ -13,6 +13,7 @@ import { formatNumber } from '../lib/format';
 import { orderLabel } from '../lib/orderNumber';
 import { UPLOADS, describe } from '../lib/uploads';
 import { UploadBar, UploadNotes, useFilePicker, useUploadQueue } from '../components/upload/primitives';
+import { Pagination } from '../components/Pagination';
 
 interface Conversation {
   id: string;
@@ -40,18 +41,57 @@ interface Message {
 
 const POLL_MS = 8000;
 
+/** Conversaciones por página de la bandeja. */
+const INBOX_PAGE = 25;
+
+interface InboxResponse {
+  items: Conversation[];
+  total?: number;
+  waitingCount?: number;
+  openCount?: number;
+  allCount?: number;
+}
+
+type InboxFilter = 'all' | 'waiting' | 'open';
+
+/** El hilo abierto: lo que se ve y si queda algo más atrás ("Ver anteriores"). */
+interface Thread {
+  items: Message[];
+  hasOlder: boolean;
+}
+
+const EMPTY_THREAD: Thread = { items: [], hasOlder: false };
+
+/**
+ * La última tanda que llegó del servidor, sumada a lo que ya se veía: lo más
+ * viejo que se cargó con "Ver anteriores" no se pierde en cada pasada del
+ * polling, y lo nuevo reemplaza lo que había.
+ */
+function mergeLatest(prev: Thread, latest: Message[], hasMore: boolean): Thread {
+  if (latest.length === 0) return { items: prev.items, hasOlder: prev.hasOlder };
+  const ids = new Set(latest.map((m) => m.id));
+  const oldestNew = latest[0]!.createdAtUtc;
+  const older = prev.items.filter((m) => !ids.has(m.id) && m.createdAtUtc < oldestNew);
+  return { items: [...older, ...latest], hasOlder: older.length > 0 ? prev.hasOlder : hasMore };
+}
+
 /** Bandeja de chat posventa: conversaciones por orden con los compradores. */
 export function SupportChatPage() {
   const { store } = useStore();
   const { toast } = useToast();
   const [convs, setConvs] = useState<Conversation[]>([]);
+  const [inboxInfo, setInboxInfo] = useState<Omit<InboxResponse, 'items'>>({});
+  const [inbox, setInbox] = useState<InboxFilter>('all');
+  const [inboxPage, setInboxPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   // La conversación abierta, para descartar respuestas que llegan tarde.
   const selectedRef = useRef(selected);
   useLayoutEffect(() => {
     selectedRef.current = selected;
   });
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [thread, setThread] = useState<Thread>(EMPTY_THREAD);
+  const messages = thread.items;
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -63,16 +103,25 @@ export function SupportChatPage() {
   // 8 s, un corte vaciaba la bandeja y mostraba "Sin consultas todavía".
   // Ahora se queda lo último que llegó y se avisa.
   const [loadError, setLoadError] = useState<unknown>(null);
-  const fetchConvs = useCallback(
-    () =>
-      api
-        .get<{ items: Conversation[] }>('/api/v1/support/conversations')
-        .then((d) => ({ items: d.items ?? [], error: null as unknown }))
-        .catch((error: unknown) => ({ items: null, error: error ?? true })),
-    [],
-  );
-  const showConvs = useCallback((r: { items: Conversation[] | null; error: unknown }) => {
-    if (r.items) setConvs(r.items);
+  // De a una página y con el recorte (esperando / abiertas) en el servidor:
+  // antes llegaban las 200 primeras y se filtraba acá.
+  const fetchConvs = useCallback(() => {
+    const params = new URLSearchParams({
+      limit: String(INBOX_PAGE),
+      offset: String((inboxPage - 1) * INBOX_PAGE),
+    });
+    if (inbox !== 'all') params.set('filter', inbox);
+    return api
+      .get<InboxResponse>(`/api/v1/support/conversations?${params}`)
+      .then((d) => ({ data: d, error: null as unknown }))
+      .catch((error: unknown) => ({ data: null, error: error ?? true }));
+  }, [inbox, inboxPage]);
+  const showConvs = useCallback((r: { data: InboxResponse | null; error: unknown }) => {
+    if (r.data) {
+      const { items, ...info } = r.data;
+      setConvs(items ?? []);
+      setInboxInfo(info);
+    }
     setLoadError(r.error);
     setLoading(false);
   }, []);
@@ -82,9 +131,11 @@ export function SupportChatPage() {
     // La respuesta tardía de otra conversación no puede pisar la abierta
     // (el polling de 8 s dispara requests que resuelven fuera de orden).
     try {
-      const d = await api.get<{ items: Message[] }>(`/api/v1/support/conversations/${id}/messages`);
+      const d = await api.get<{ items: Message[]; hasMore?: boolean }>(
+        `/api/v1/support/conversations/${id}/messages`,
+      );
       if (selectedRef.current !== id) return;
-      setMessages(d.items ?? []);
+      setThread((t) => mergeLatest(t, d.items ?? [], d.hasMore ?? false));
       // Leído al abrir: refrescar contadores de la bandeja.
       setConvs((cs) => cs.map((c) => (c.id === id ? { ...c, unreadForStaff: 0 } : c)));
     } catch {
@@ -113,14 +164,42 @@ export function SupportChatPage() {
     return () => clearInterval(t);
   }, [store, selected, loadConvs, loadMessages]);
 
+  // Abajo de todo cuando llega algo NUEVO, no cuando se cargan los anteriores
+  // (eso suma arriba y saltar al final haría perder lo que se fue a buscar).
+  const newestId = messages.at(-1)?.id;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [newestId]);
 
   const open = (id: string) => {
     setSelected(id);
-    setMessages([]);
+    setThread(EMPTY_THREAD);
     loadMessages(id);
+  };
+
+  // "Ver anteriores": la tanda de antes del mensaje más viejo que se ve.
+  const loadOlder = async () => {
+    const id = selected;
+    const oldest = messages[0];
+    if (!id || !oldest || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const d = await api.get<{ items: Message[]; hasMore?: boolean }>(
+        `/api/v1/support/conversations/${id}/messages?before=${oldest.id}`,
+      );
+      if (selectedRef.current !== id) return;
+      setThread((t) => {
+        const seen = new Set(t.items.map((m) => m.id));
+        return {
+          items: [...(d.items ?? []).filter((m) => !seen.has(m.id)), ...t.items],
+          hasOlder: d.hasMore ?? false,
+        };
+      });
+    } catch (e) {
+      toast(errMsg(e, 'No se pudieron cargar los mensajes anteriores.'), { variant: 'error' });
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   // La IA redacta con el contexto del pedido; el operador edita y manda.
@@ -194,20 +273,20 @@ export function SupportChatPage() {
 
   const current = convs.find((c) => c.id === selected) ?? null;
 
-  // La bandeja llega entera, así que las métricas salen de lo que ya está en
-  // memoria: sin pedirle nada más al servidor.
-  const waiting = convs.filter((c) => c.unreadForStaff > 0).length;
-  const openCount = convs.filter((c) => c.status === 'OPEN').length;
+  // Las cifras son de toda la bandeja (las cuenta el servidor), no de la
+  // página a la vista.
+  const waiting = inboxInfo.waitingCount ?? convs.filter((c) => c.unreadForStaff > 0).length;
+  const openCount = inboxInfo.openCount ?? convs.filter((c) => c.status === 'OPEN').length;
+  const allCount = inboxInfo.allCount ?? convs.length;
+  const inboxPages = Math.max(1, Math.ceil((inboxInfo.total ?? convs.length) / INBOX_PAGE));
 
-  // La bandeja llega entera, así que el recorte también se hace acá.
-  const [inbox, setInbox] = useState<'all' | 'waiting' | 'open'>('all');
-  const toggleInbox = (next: 'waiting' | 'open') => setInbox((current) => (current === next ? 'all' : next));
+  const showInbox = (next: InboxFilter) => {
+    setInbox(next);
+    setInboxPage(1);
+  };
+  const toggleInbox = (next: 'waiting' | 'open') => showInbox(inbox === next ? 'all' : next);
 
-  const visible = convs.filter((c) => {
-    if (inbox === 'waiting') return c.unreadForStaff > 0;
-    if (inbox === 'open') return c.status === 'OPEN';
-    return true;
-  });
+  const visible = convs;
 
   return (
     <div>
@@ -227,7 +306,7 @@ export function SupportChatPage() {
         </button>
       </div>
 
-      {convs.length > 0 && (
+      {allCount > 0 && (
         <div className="mb-4">
           <ListStats
             items={[
@@ -248,8 +327,8 @@ export function SupportChatPage() {
               },
               {
                 label: 'Total de consultas',
-                value: formatNumber(convs.length),
-                onClick: inbox === 'all' ? undefined : () => setInbox('all'),
+                value: formatNumber(allCount),
+                onClick: inbox === 'all' ? undefined : () => showInbox('all'),
               },
             ]}
           />
@@ -278,8 +357,16 @@ export function SupportChatPage() {
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg-muted">
               <MessageCircle className="h-8 w-8 opacity-50" />
-              <p className="text-sm">Sin consultas todavía.</p>
-              <p className="px-6 text-xs">Cuando un cliente escriba sobre su pedido, aparece acá.</p>
+              {inbox === 'all' ? (
+                <>
+                  <p className="text-sm">Sin consultas todavía.</p>
+                  <p className="px-6 text-xs">Cuando un cliente escriba sobre su pedido, aparece acá.</p>
+                </>
+              ) : (
+                <p className="text-sm">
+                  {inbox === 'waiting' ? 'Nada esperando respuesta.' : 'No hay consultas abiertas.'}
+                </p>
+              )}
             </div>
           ) : (
             visible.map((c) => (
@@ -313,6 +400,13 @@ export function SupportChatPage() {
               </button>
             ))
           )}
+          <div className="px-2 pb-3">
+            <Pagination
+              page={Math.min(inboxPage, inboxPages)}
+              totalPages={inboxPages}
+              onPage={setInboxPage}
+            />
+          </div>
         </div>
 
         {/* Hilo */}
@@ -353,6 +447,18 @@ export function SupportChatPage() {
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+                {thread.hasOlder && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => void loadOlder()}
+                      disabled={loadingOlder}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+                    >
+                      {loadingOlder && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Ver anteriores
+                    </button>
+                  </div>
+                )}
                 {messages.map((m) => (
                   <div key={m.id} className={cn('flex', m.isFromStaff ? 'justify-end' : 'justify-start')}>
                     <div

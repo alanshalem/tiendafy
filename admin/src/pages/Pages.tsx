@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import {
@@ -27,6 +27,11 @@ import { HelpLink } from '../components/HelpLink';
 import { TableSkeleton } from '../components/Skeleton';
 import { ERROR_SHOWN, LoadError } from '../components/LoadError';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
+import { useListParams, useListSearch } from '../lib/useListParams';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
+
+const PAGE_SIZE = 25;
+const LIST_DEFAULTS = { q: '', pagina: 1 };
 
 interface PageDto {
   id: string;
@@ -46,13 +51,29 @@ export function PagesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<PageDto | null>(null);
 
+  // De a una página y con búsqueda en el servidor: cada página trae su
+  // contenido entero y antes venían todas juntas.
+  const list = useListParams(LIST_DEFAULTS);
+  const [search, setSearch] = useListSearch(list);
+  const page = list.values.pagina;
+  const q = list.values.q.trim();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['pages', store?.id],
-    queryFn: () => api.get<{ items: PageDto[] }>('/api/v1/pages'),
+    queryKey: ['pages', store?.id, page, q],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return api.get<{ items: PageDto[]; total?: number }>(`/api/v1/pages?${params}`);
+    },
     enabled: !!store,
+    placeholderData: keepPreviousData,
     meta: ERROR_SHOWN,
   });
   const pages = data?.items ?? [];
+  const total = data?.total ?? pages.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['pages', store?.id] });
 
@@ -148,7 +169,7 @@ export function PagesPage() {
           onRetry={() => void refetch()}
           retrying={isFetching}
         />
-      ) : pages.length === 0 ? (
+      ) : total === 0 && !list.filtered ? (
         <EmptyState
           kicker="Páginas"
           title="Creá tu primera página"
@@ -157,7 +178,30 @@ export function PagesPage() {
         />
       ) : (
         <Card flush>
-          <Table columns={columns} rows={pages} rowKey={(p) => p.id} emptyState="No hay páginas." />
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-3">
+            <Input
+              type="search"
+              aria-label="Buscar página por título o dirección"
+              placeholder="Buscar página por título o dirección…"
+              className="max-w-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <span className="text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'página' : 'páginas')}
+            </span>
+          </div>
+          <Table
+            columns={columns}
+            rows={pages}
+            rowKey={(p) => p.id}
+            emptyState={list.filtered ? 'Ninguna página coincide con la búsqueda.' : 'No hay páginas.'}
+          />
+          <Pagination
+            page={Math.min(page, totalPages)}
+            totalPages={totalPages}
+            onPage={(pagina) => list.set({ pagina })}
+          />
         </Card>
       )}
 

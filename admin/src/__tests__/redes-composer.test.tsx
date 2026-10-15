@@ -309,16 +309,23 @@ describe('compositor de redes: reglas y acciones', () => {
     const api = mockApi();
     api.on('GET', '/api/v1/coupons', {
       items: [
-        { code: 'REDES10', active: true },
-        { code: 'VIEJO', active: false },
+        { id: 'c1', code: 'REDES10', active: true },
+        { id: 'c2', code: 'VIEJO', active: false },
       ],
+      total: 2,
     });
     const user = setup();
     open();
     const d = await dialog();
-    const coupon = await d.findByLabelText('Cupón para medir ventas');
-    expect(within(coupon).queryByText('VIEJO')).not.toBeInTheDocument();
-    await user.selectOptions(coupon, 'REDES10');
+    // Se busca por código: la búsqueda va al servidor y los inactivos no se ofrecen.
+    await user.type(await d.findByLabelText('Cupón para medir ventas'), 'RE');
+    await waitFor(() =>
+      expect(api.calls.some((c) => c.path.startsWith('/api/v1/coupons?') && c.path.includes('q=RE'))).toBe(
+        true,
+      ),
+    );
+    expect(d.queryByRole('option', { name: 'VIEJO' })).not.toBeInTheDocument();
+    await user.click(await d.findByRole('option', { name: 'REDES10' }));
     await user.type(text(d), 'Promo');
     await user.click(d.getByRole('button', { name: 'Insertar en el texto' }));
     expect(text(d).value).toBe('Promo\n🎁 Usá el cupón REDES10');

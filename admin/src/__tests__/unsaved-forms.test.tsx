@@ -73,7 +73,7 @@ describe('useModalFormGuard', () => {
       </ConfirmProvider>,
     );
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(screen.getByText('cerrado')).toBeInTheDocument();
+    expect(await screen.findByText('cerrado')).toBeInTheDocument();
     unmount();
 
     render(
@@ -95,7 +95,7 @@ describe('useModalFormGuard', () => {
     });
     expect(cancel.defaultPrevented).toBe(true);
     await user.click(await screen.findByRole('button', { name: 'Descartar' }));
-    expect(screen.getByText('cerrado')).toBeInTheDocument();
+    expect(await screen.findByText('cerrado')).toBeInTheDocument();
   });
 });
 

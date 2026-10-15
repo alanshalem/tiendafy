@@ -82,7 +82,12 @@ describe('campañas', () => {
     await user.click(picker.getByRole('button', { name: 'Listo' }));
     expect(dialog.getByRole('button', { name: `Quitar ${product.name}` })).toBeInTheDocument();
 
-    if (coupon) await user.selectOptions(dialog.getByRole('combobox', { name: /Cupón/ }), coupon.code);
+    // El cupón se busca por código (la lista entera no viene: puede haber miles).
+    if (coupon) {
+      await user.type(dialog.getByLabelText('Cupón de la campaña'), coupon.code.slice(0, 3));
+      await user.click(await dialog.findByRole('option', { name: coupon.code }));
+      expect(dialog.getByRole('button', { name: `Sacar el cupón ${coupon.code}` })).toBeInTheDocument();
+    }
 
     await user.click(dialog.getByRole('button', { name: /Guardar borrador/ }));
     await settle(2);

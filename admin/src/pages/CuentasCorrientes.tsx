@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Ban, Plus, Receipt, Scale, Users } from 'lucide-react';
 import {
   Badge,
@@ -25,6 +25,8 @@ import { useDebouncedValue } from '../lib/useDebouncedValue';
 import type { FinanceAccount } from './Tesoreria';
 import { parseMoneyInput } from '../lib/price';
 import { useModalFormGuard } from '../lib/useUnsavedChanges';
+import { useListParams } from '../lib/useListParams';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
 
 // ---------------------------------------------------------------- Tipos wire
 
@@ -57,8 +59,23 @@ interface LedgerResponse {
   partyName: string;
   balanceMinor: number;
   currency: string;
+  /** Del más nuevo al más viejo, de a una página. */
   items: LedgerRow[];
+  total?: number;
 }
+
+interface BalancesResponse {
+  items: BalanceRow[];
+  total?: number;
+  totalMinor: number;
+  /** Las cifras de arriba son de todos los saldos, no de la página. */
+  positiveMinor?: number;
+  negativeMinor?: number;
+}
+
+const PAGE_SIZE = 25;
+const BALANCES_DEFAULTS = { pagina: 1 };
+const LEDGER_DEFAULTS = { 'pagina-cuenta': 1 };
 
 interface PendingRow {
   id: string;
@@ -158,19 +175,29 @@ function BalancesList({
   const { store } = useStore();
   const [receipt, setReceipt] = useState(false);
   const [adjust, setAdjust] = useState(false);
+  const list = useListParams(BALANCES_DEFAULTS);
+  const page = list.values.pagina;
 
+  // De a una página: antes llegaban todos los saldos juntos.
   const { data } = useQuery({
-    queryKey: ['finance-balances', store?.id, kind],
+    queryKey: ['finance-balances', store?.id, kind, page],
     queryFn: () =>
-      api.get<{ items: BalanceRow[]; totalMinor: number }>(`/api/v1/finance/balances?partyKind=${kind}`),
+      api.get<BalancesResponse>(
+        `/api/v1/finance/balances?partyKind=${kind}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   const rows = data?.items ?? [];
+  const total = data?.total ?? rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   // Lo que nos deben y lo que debemos son dos preguntas distintas: un neto solo
-  // las tapa.
-  const aFavor = rows.filter((r) => r.balanceMinor > 0).reduce((s, r) => s + r.balanceMinor, 0);
-  const enContra = rows.filter((r) => r.balanceMinor < 0).reduce((s, r) => s + r.balanceMinor, 0);
+  // las tapa. Son de todos los saldos (las calcula el servidor), no de la página.
+  const aFavor =
+    data?.positiveMinor ?? rows.filter((r) => r.balanceMinor > 0).reduce((s, r) => s + r.balanceMinor, 0);
+  const enContra =
+    data?.negativeMinor ?? rows.filter((r) => r.balanceMinor < 0).reduce((s, r) => s + r.balanceMinor, 0);
   const currency = rows[0]?.currency ?? 'ARS';
 
   return (
@@ -207,7 +234,7 @@ function BalancesList({
           items={[
             {
               label: 'Contactos con saldo',
-              value: String(rows.length),
+              value: String(total),
             },
             {
               label: kind === 'customer' ? 'Nos deben' : 'Saldo a favor nuestro',
@@ -270,6 +297,16 @@ function BalancesList({
               </tbody>
             </table>
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3">
+            <span className="pt-3 text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'contacto' : 'contactos')}
+            </span>
+            <Pagination
+              page={Math.min(page, totalPages)}
+              totalPages={totalPages}
+              onPage={(pagina) => list.set({ pagina })}
+            />
+          </div>
         </div>
       )}
 
@@ -296,15 +333,24 @@ function PartyStatement({
 }) {
   const { store } = useStore();
   const [receipt, setReceipt] = useState(false);
+  const list = useListParams(LEDGER_DEFAULTS, { pageKey: 'pagina-cuenta' });
+  const page = list.values['pagina-cuenta'];
 
+  // De a una página y del más nuevo al más viejo: lo que se viene a mirar es
+  // lo último que pasó, y un cliente de años no trae su historia entera.
   const { data } = useQuery({
-    queryKey: ['finance-ledger', store?.id, partyKind, partyId],
+    queryKey: ['finance-ledger', store?.id, partyKind, partyId, page],
     queryFn: () =>
-      api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=${partyKind}&partyId=${partyId}`),
+      api.get<LedgerResponse>(
+        `/api/v1/finance/ledger?partyKind=${partyKind}&partyId=${partyId}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+      ),
     enabled: !!store,
+    placeholderData: keepPreviousData,
   });
 
   const rows = data?.items ?? [];
+  const total = data?.total ?? rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
@@ -319,8 +365,8 @@ function PartyStatement({
           </button>
           <h1 className="mt-1 text-xl font-semibold">{data?.partyName ?? '...'}</h1>
           <p className="mt-0.5 text-sm text-fg-muted">
-            Todo lo que pasó con {partyKind === 'customer' ? 'este cliente' : 'este proveedor'}, en orden, con
-            el saldo después de cada movimiento.
+            Todo lo que pasó con {partyKind === 'customer' ? 'este cliente' : 'este proveedor'}, de lo más
+            nuevo a lo más viejo, con el saldo después de cada movimiento.
           </p>
         </div>
         <Button onClick={() => setReceipt(true)}>
@@ -337,7 +383,7 @@ function PartyStatement({
               tone: data.balanceMinor === 0 ? 'success' : data.balanceMinor > 0 ? 'warning' : 'danger',
               hint: balanceLabel(partyKind, data.balanceMinor),
             },
-            { label: 'Movimientos', value: String(rows.length) },
+            { label: 'Movimientos', value: String(total) },
           ]}
         />
       )}
@@ -388,6 +434,16 @@ function PartyStatement({
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3">
+            <span className="pt-3 text-xs text-fg-subtle">
+              {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'movimiento' : 'movimientos')}
+            </span>
+            <Pagination
+              page={Math.min(page, totalPages)}
+              totalPages={totalPages}
+              onPage={(p) => list.set({ 'pagina-cuenta': p })}
+            />
           </div>
         </div>
       )}

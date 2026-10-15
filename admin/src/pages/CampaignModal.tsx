@@ -7,6 +7,7 @@ import { api, errMsg } from '../lib/api';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { useProductSearch, useProductsByIds } from '../lib/useProductSearch';
 import { EmailPreviewPanel } from '../components/EmailPreview';
+import { CouponPicker } from '../components/CouponPicker';
 import type { MoneyDto } from '@tiendafy/types';
 import { parseMoneyInput } from '../lib/price';
 import { useBeforeUnload, useGuardedClose } from '../lib/useUnsavedChanges';
@@ -60,12 +61,6 @@ interface AudiencePreview {
     orders: number;
     lastPurchaseUtc: string | null;
   }[];
-}
-
-interface Coupon {
-  id: string;
-  code: string;
-  active: boolean;
 }
 
 interface ProductDto {
@@ -179,12 +174,6 @@ export function CampaignModal({
     }, 400);
     return () => clearTimeout(t);
   }, [subject, body, products, audience]);
-
-  const { data: couponsData } = useQuery({
-    queryKey: ['coupons-for-campaign'],
-    queryFn: () => api.get<{ items: Coupon[] }>('/api/v1/coupons'),
-  });
-  const activeCoupons = (couponsData?.items ?? []).filter((c) => c.active);
 
   const save = useMutation({
     mutationFn: async () =>
@@ -368,15 +357,11 @@ export function CampaignModal({
             <label htmlFor={`${fid}-3`} className="mb-1.5 block text-sm font-medium text-fg">
               Cupón de la campaña (opcional)
             </label>
-            <Select
+            <CouponPicker
               id={`${fid}-3`}
-              aria-label="Cupón de la campaña"
+              label="Cupón de la campaña"
               value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
-              options={[
-                { value: '', label: 'Sin cupón' },
-                ...activeCoupons.map((c) => ({ value: c.code, label: c.code })),
-              ]}
+              onChange={setCouponCode}
             />
             <p className="mt-1 text-xs text-fg-subtle">
               Con cupón, el detalle de la campaña te muestra cuántas ventas y cuánta plata generó.

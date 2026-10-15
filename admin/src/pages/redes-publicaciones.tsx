@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlignLeft, CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { Badge, Button, EmptyList, Select, Spinner, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
@@ -12,6 +12,16 @@ import {
   type SocialPostDto,
 } from './redes-shared';
 import { BRAND } from '../lib/runtime';
+import { useStore } from '../context/StoreContext';
+import { useListParams } from '../lib/useListParams';
+import { Pagination, pageRangeLabel } from '../components/Pagination';
+import { LoadError } from '../components/LoadError';
+
+const PAGE_SIZE = 20;
+const LIST_DEFAULTS = { estado: '', 'pagina-posts': 1 };
+
+/** La clave de la bandeja: invalidarla la vuelve a pedir (después de guardar un post). */
+export const SOCIAL_POSTS_KEY = 'social-posts';
 
 const STATUS_FILTER = [
   { value: '', label: 'Todos los estados' },
@@ -21,21 +31,48 @@ const STATUS_FILTER = [
   { value: 'Failed', label: 'Con errores' },
 ];
 
-/** Bandeja de publicaciones: todos los posts con su resultado red por red. */
+/**
+ * Bandeja de publicaciones: los posts con su resultado red por red, de a una
+ * página y con el filtro por estado en el servidor (antes llegaban todos los
+ * posts de la historia y se filtraban acá).
+ */
 export function PublicacionesTab({
-  posts,
   onChanged,
   onEdit,
 }: {
-  posts: SocialPostDto[] | null; // null = cargando
   onChanged: () => void;
   onEdit: (post: SocialPostDto) => void;
 }) {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const [status, setStatus] = useState('');
+  const { store } = useStore();
+  const queryClient = useQueryClient();
+  const list = useListParams(LIST_DEFAULTS, { pageKey: 'pagina-posts' });
+  const status = list.values.estado;
+  const page = list.values['pagina-posts'];
 
-  const filtered = status ? (posts ?? []).filter((p) => p.status === status) : (posts ?? []);
+  const { data, error, isError, refetch, isFetching } = useQuery({
+    queryKey: [SOCIAL_POSTS_KEY, store?.id, status, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+      });
+      if (status) params.set('status', status);
+      return api.get<{ posts: SocialPostDto[]; total?: number }>(`/api/v1/admin/social/posts?${params}`);
+    },
+    enabled: !!store,
+    placeholderData: keepPreviousData,
+  });
+  const posts = data?.posts ?? null;
+  const total = data?.total ?? posts?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const changed = () => {
+    void queryClient.invalidateQueries({ queryKey: [SOCIAL_POSTS_KEY, store?.id] });
+    onChanged();
+  };
+
+  const filtered = posts ?? [];
   // Timeline: lo que VIENE primero (ascendente), el historial después.
   const upcoming = filtered
     .filter((p) => p.status === 'Scheduled' || p.status === 'Draft')
@@ -46,7 +83,7 @@ export function PublicacionesTab({
     try {
       await api.post(`/api/v1/admin/social/posts/${post.id}/unschedule`, {});
       toast('El post volvió a borradores', { variant: 'success' });
-      onChanged();
+      changed();
     } catch (err) {
       toast(errMsg(err, 'No se pudo desprogramar.'), { variant: 'error' });
     }
@@ -66,22 +103,36 @@ export function PublicacionesTab({
     try {
       await api.delete(`/api/v1/admin/social/posts/${post.id}`);
       toast('Post eliminado', { variant: 'success' });
-      onChanged();
+      changed();
     } catch (err) {
       toast(errMsg(err, 'No se pudo eliminar.'), { variant: 'error' });
     }
   };
 
+  if (isError && !data)
+    return (
+      <LoadError
+        title="No se pudieron cargar las publicaciones."
+        error={error}
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
+    );
   if (posts === null) return <Spinner />;
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        {total > 0 && (
+          <span className="text-xs text-fg-subtle">
+            {pageRangeLabel(page, PAGE_SIZE, total, total === 1 ? 'post' : 'posts')}
+          </span>
+        )}
         <div className="w-52">
           <Select
             aria-label="Filtrar por estado"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => list.set({ estado: e.target.value })}
             options={STATUS_FILTER}
           />
         </div>
@@ -128,6 +179,11 @@ export function PublicacionesTab({
           )}
         </div>
       )}
+      <Pagination
+        page={Math.min(page, totalPages)}
+        totalPages={totalPages}
+        onPage={(p) => list.set({ 'pagina-posts': p })}
+      />
     </div>
   );
 }

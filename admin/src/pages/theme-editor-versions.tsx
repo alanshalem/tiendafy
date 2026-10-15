@@ -5,6 +5,10 @@ import { type ThemeConfig } from '@tiendafy/types';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime } from '../lib/format';
 import { useServerLoad } from '../lib/useServerLoad';
+import { Pagination } from '../components/Pagination';
+
+/** Versiones por página del historial (la API guarda las últimas 20). */
+const HISTORY_PAGE = 10;
 
 interface Version {
   id: string;
@@ -30,13 +34,21 @@ export function HistoryModal({
 }) {
   const { toast } = useToast();
   const [items, setItems] = useState<Version[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Cada apertura vuelve a pedir el historial (key null = cerrado).
+  // Cada apertura (y cada página) vuelve a pedir el historial (key null = cerrado).
   const { loading } = useServerLoad(
-    open ? 'historial' : null,
-    () => api.get<{ items: Version[] }>('/api/v1/theme/history'),
-    (r) => setItems(r.items ?? []),
+    open ? `historial:${page}` : null,
+    () =>
+      api.get<{ items: Version[]; total?: number }>(
+        `/api/v1/theme/history?limit=${HISTORY_PAGE}&offset=${(page - 1) * HISTORY_PAGE}`,
+      ),
+    (r) => {
+      setItems(r.items ?? []);
+      setTotal(r.total ?? r.items?.length ?? 0);
+    },
     () => setItems([]),
   );
   const shown = loading ? null : items;
@@ -90,6 +102,11 @@ export function HistoryModal({
               </li>
             ))}
           </ul>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / HISTORY_PAGE))}
+            onPage={setPage}
+          />
         </>
       )}
     </Modal>

@@ -94,7 +94,9 @@ export function CustomerProfilePage() {
   const canFinance = can('finance.manage');
   const ledger = useQuery({
     queryKey: ['finance-ledger', store?.id, 'customer', id],
-    queryFn: () => api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=customer&partyId=${id}`),
+    // Solo los últimos movimientos (vienen del más nuevo al más viejo): el
+    // estado de cuenta entero vive en Cuentas corrientes.
+    queryFn: () => api.get<LedgerResponse>(`/api/v1/finance/ledger?partyKind=customer&partyId=${id}&limit=5`),
     enabled: !!store && !!id && canFinance,
   });
 
@@ -467,7 +469,7 @@ function CurrentAccount({
   customerId: string;
 }) {
   const balance = ledger?.balanceMinor ?? 0;
-  const last = (ledger?.items ?? []).slice(-5).reverse();
+  const last = (ledger?.items ?? []).slice(0, 5);
   return (
     <Card>
       <h2 className="text-base font-semibold text-fg">Cuenta corriente</h2>

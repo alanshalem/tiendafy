@@ -191,7 +191,10 @@ describe('cuentas corrientes', () => {
     const { api, user } = await open('/cuentas-corrientes');
     await user.click(screen.getByRole('button', { name: 'Proveedores' }));
     await settle(2);
-    expect(api.calls.some((c) => c.path === '/api/v1/finance/balances?partyKind=supplier')).toBe(true);
+    // Los saldos van de a una página.
+    expect(
+      api.calls.some((c) => c.path === '/api/v1/finance/balances?partyKind=supplier&limit=25&offset=0'),
+    ).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /Ajuste/ }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Ajuste de cuenta corriente' }));
