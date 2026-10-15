@@ -10,6 +10,13 @@ vi.mock('@sentry/nextjs', () => sentry);
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
+/** Lo que se le pasa a Sentry.init y se prueba acá. */
+interface SentryOptions {
+  beforeSend: (e: { request: { url: string } }) => { request: { url: string } };
+  beforeBreadcrumb: (c: { category: string; data: { to: string } }) => { data: { to: string } };
+  beforeSendTransaction: unknown;
+}
+
 beforeEach(() => {
   vi.resetModules();
   sentry.init.mockClear();
@@ -35,6 +42,22 @@ describe('browser', () => {
     );
   });
 
+  it('con DSN engancha los scrubbers: el link firmado de la página no llega a Sentry', async () => {
+    window.__TIENDAFY_CONFIG__ = { sentryDsn: 'https://k@o.ingest/1' };
+    await import('../../instrumentation-client');
+    await vi.waitFor(() => expect(sentry.init).toHaveBeenCalled());
+    const options = sentry.init.mock.calls[0]![0] as SentryOptions;
+    expect(options.beforeBreadcrumb).toBeTypeOf('function');
+    expect(options.beforeSendTransaction).toBeTypeOf('function');
+    expect(
+      options.beforeSend({ request: { url: 'https://tienda.test/seguimiento?t=CfDJ8&pedido=1' } }).request
+        .url,
+    ).toBe('https://tienda.test/seguimiento?t=[Filtered]&pedido=1');
+    expect(
+      options.beforeBreadcrumb({ category: 'navigation', data: { to: '/preview?pt=firmado' } }).data.to,
+    ).toBe('/preview?pt=[Filtered]');
+  });
+
   it('reportError: sin DSN no hace nada; con DSN manda el error', async () => {
     const { reportError } = await import('../report-error');
     reportError(new Error('x'), { tags: { area: 't' } });
@@ -56,6 +79,11 @@ describe('servidor', () => {
     expect(sentry.init).toHaveBeenCalledWith(
       expect.objectContaining({ dsn: 'https://k@o.ingest/2', environment: 'production' }),
     );
+    // Un error del SSR trae la URL del pedido: también pasa por los scrubbers.
+    const options = sentry.init.mock.calls[0]![0] as SentryOptions;
+    expect(
+      options.beforeSend({ request: { url: 'https://tienda.test/cuenta/reset?token=x' } }).request.url,
+    ).toBe('https://tienda.test/cuenta/reset?token=[Filtered]');
   });
 
   it('sin DSN, nada', async () => {

@@ -1,3 +1,4 @@
+import { sentryScrubbers } from '@tiendafy/types';
 import { serverRuntimeConfig } from '@/lib/runtime';
 
 // Sentry del lado del servidor (SSR/route handlers). Activo solo con DSN.
@@ -9,5 +10,7 @@ export async function register() {
   const dsn = sentryDsn || process.env.SENTRY_DSN;
   if (!dsn) return;
   const Sentry = await import('@sentry/nextjs');
-  Sentry.init({ dsn, environment: envName, tracesSampleRate: 0.1 });
+  // Los mismos scrubbers que el browser: un error del SSR trae la URL del
+  // pedido, con el ?t= o el ?pt= que tenga.
+  Sentry.init({ dsn, environment: envName, tracesSampleRate: 0.1, ...sentryScrubbers });
 }

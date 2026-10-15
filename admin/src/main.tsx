@@ -14,21 +14,15 @@ import { PermissionsProvider } from './context/PermissionsContext';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGate } from './pages/Login';
 import { applyMode, getInitialMode } from './lib/themeMode';
-import { runtime } from './lib/runtime';
 import { createQueryClient } from './lib/queryClient';
 import { QueryErrorToasts } from './components/QueryErrorToasts';
 import { RootBoundary, RouteCrash } from './components/AppCrash';
 import { installStaleChunkReload } from './lib/staleChunkReload';
+import { initSentry } from './lib/reportError';
 import './index.css';
 
 // Sentry: activo solo si hay DSN (servidor). Sin DSN = cero overhead en dev.
-// El ambiente sale de la config de runtime, así que los errores de staging y
-// los de producción quedan separados aunque la imagen sea la misma.
-if (runtime.sentryDsn) {
-  import('@sentry/react').then((Sentry) => {
-    Sentry.init({ dsn: runtime.sentryDsn, environment: runtime.envName, tracesSampleRate: 0.1 });
-  });
-}
+void initSentry();
 
 // Pestaña abierta de antes de un deploy: recarga una vez en vez de fallar.
 installStaleChunkReload();

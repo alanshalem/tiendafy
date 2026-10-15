@@ -64,6 +64,14 @@ export { DEFAULT_SECTIONS, baseTheme, normalizeTheme } from './theme';
 export { PAYMENT_LOGOS, PAYMENT_LOGO_SIZE, paymentLogoSrc, paymentLogoLabel } from './payment-logos';
 export * from './sections';
 export { formatMoney, formatNumber, formatDate, formatDateTime } from './format';
+export {
+  SENTRY_FILTERED,
+  isSensitiveName,
+  redactSecrets,
+  scrubSentryBreadcrumb,
+  scrubSentryEvent,
+  sentryScrubbers,
+} from './sentry-scrub';
 export { EDITOR_MSG } from './editor-messages';
 export { contrastText, contrastRatio, mixRgb, readableOn } from './color';
 export { FONT_OPTIONS, FONT_FAMILY_CSS } from './fonts';
