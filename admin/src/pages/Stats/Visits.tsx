@@ -12,6 +12,7 @@ import { BarChart, Delta, RankBars } from '../../components/charts/viz';
 import { formatDayShort, formatNumber, formatPercent } from '../../lib/format';
 import { api } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
+import { CardsSkeleton } from '../../components/Skeleton';
 
 interface Visits {
   totalViews: number;
@@ -43,11 +44,7 @@ export function StatsVisitsPage() {
       />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
-          ))}
-        </div>
+        <CardsSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
           <div className={KPI_GRID}>

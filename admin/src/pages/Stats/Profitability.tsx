@@ -17,6 +17,7 @@ import { api, errMsg } from '../../lib/api';
 import { useStore } from '../../context/StoreContext';
 import { formatDayShort, formatMoney, formatNumber, formatPercent } from '../../lib/format';
 import { HelpLink } from '../../components/HelpLink';
+import { CardsSkeleton } from '../../components/Skeleton';
 
 interface Profitability {
   currency: string;
@@ -126,11 +127,7 @@ export function StatsProfitabilityPage() {
       />
 
       {isLoading || !data ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-surface" />
-          ))}
-        </div>
+        <CardsSkeleton label="Cargando estadísticas…" />
       ) : (
         <>
           {partial && (
