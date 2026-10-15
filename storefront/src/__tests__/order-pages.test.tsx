@@ -237,14 +237,22 @@ describe('Mi cuenta', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = await show(<AccountDashboard />);
 
-    const card = screen.getByText('Corrientes 1234, CABA, CP 1414').closest('li')!;
-    await user.click(within(card).getByRole('button', { name: /predeterminada/ }));
-    await user.click(within(card).getByRole('button', { name: 'Borrar' }));
-    await settle(2);
-    expect(api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/shop/addresses/a-1/default'))).toBe(
-      true,
+    const card = () => screen.getByText('Corrientes 1234, CABA, CP 1414').closest('li')!;
+    await user.click(within(card()).getByRole('button', { name: /predeterminada/ }));
+    await waitFor(() =>
+      expect(
+        api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/shop/addresses/a-1/default')),
+      ).toBe(true),
     );
-    expect(api.calls.some((c) => c.method === 'DELETE' && c.path.endsWith('/shop/addresses/a-1'))).toBe(true);
+    // Mientras se guarda, los botones de la fila quedan deshabilitados: se
+    // borra cuando la lista vuelve.
+    await waitFor(() => expect(within(card()).getByRole('button', { name: 'Borrar' })).toBeEnabled());
+    await user.click(within(card()).getByRole('button', { name: 'Borrar' }));
+    await waitFor(() =>
+      expect(api.calls.some((c) => c.method === 'DELETE' && c.path.endsWith('/shop/addresses/a-1'))).toBe(
+        true,
+      ),
+    );
 
     await user.click(screen.getByRole('button', { name: /Agregar dirección/ }));
     await user.type(screen.getByLabelText(/Nombre de quien recibe/), 'Beto');
