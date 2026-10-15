@@ -1,7 +1,12 @@
+using System.Collections.Concurrent;
 using System.Net;
+using System.Web;
+using Api.Payments;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Payments.Contracts;
 using Payments.Core.Domain;
+using Payments.Infrastructure.Persistence;
 using SharedKernel.Common;
 
 namespace IntegrationTests;
@@ -281,7 +286,110 @@ public sealed class PaywayFlowTests
         Assert.Equal("PAID", await StatusAsync(shopper, other));
     }
 
+    [Fact]
+    public async Task Lo_que_quedo_en_el_medio_se_reconsulta_hasta_resolverse()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "pwq");
+        var shopper = new Shopper(merchant);
+        await merchant.PutAsync("/api/v1/payments/payway/connection", Config());
+        var (_, variantId) = await merchant.CreateProductAsync("Mochila Payway", priceMinor: 30_000_00);
+
+        // Payway "conoce" solo las operaciones que el test le cargue. Las de
+        // otros tests que también quedaron en el medio reciben "no existe".
+        var known = new ConcurrentDictionary<string, object>();
+        _factory.ExternalHttp.On(HttpMethod.Get, $"{Sandbox}/payments?siteOperationId=", (req, _) =>
+        {
+            var tx = HttpUtility.ParseQueryString(req.RequestUri!.Query)["siteOperationId"];
+            return FakeHttp.Json(new { results = tx is not null && known.TryGetValue(tx, out var p) ? new[] { p } : [] });
+        });
+
+        // 1. El cobro no contesta y Payway tampoco lo encuentra: queda "no sabemos".
+        var buyer = $"pwq-{Guid.NewGuid():N}@test.local";
+        var lostCheckout = await shopper.CheckoutAsync(variantId, email: buyer);
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{Sandbox}/payments", (_, _) => throw new HttpRequestException("timeout simulado"));
+        var lost = await shopper.SendAsync(HttpMethod.Post, $"/api/v1/checkout/{lostCheckout}/pay-payway", Card("tok-q-lost"));
+        Assert.Contains("No vuelvas a intentar", await lost.Content.ReadAsStringAsync());
+
+        // 2. Otro queda en revisión del antifraude.
+        var reviewCheckout = await shopper.CheckoutAsync(variantId);
+        var reviewPayment = Random.Shared.NextInt64(10_000_000, 99_999_999);
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Sandbox}/payments",
+            new { id = reviewPayment, status = "review", amount = 30_000_00 }, HttpStatusCode.Created);
+        var review = await shopper.ExpectJsonAsync(HttpMethod.Post, $"/api/v1/checkout/{reviewCheckout}/pay-payway", Card("tok-q-review"));
+        Assert.Equal("UNDERREVIEW", review.GetProperty("status").GetString());
+        var reviewOrder = review.GetProperty("orderId").GetGuid();
+        Assert.Equal("PENDINGPAYMENT", await StatusAsync(shopper, reviewOrder));
+
+        var attempts = await AttemptsAsync(merchant.TenantId);
+        var lostAttempt = Assert.Single(attempts, a => a.Status == PaywayPaymentStatus.Unknown);
+        var reviewAttempt = Assert.Single(attempts, a => a.Status == PaywayPaymentStatus.UnderReview);
+        string LookupUrl(PaywayPaymentAttempt a) => $"{Sandbox}/payments?siteOperationId={a.SiteTransactionId}";
+
+        // 3. Recién pasó: todavía no toca volver a preguntar.
+        var asked = _factory.ExternalHttp.SentTo(LookupUrl(lostAttempt)).Count;
+        using (var scope = _factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<PaywayReconciliationService>().RecheckDueAsync(DateTime.UtcNow, default);
+        Assert.Equal(asked, _factory.ExternalHttp.SentTo(LookupUrl(lostAttempt)).Count);
+        Assert.Empty(_factory.ExternalHttp.SentTo(LookupUrl(reviewAttempt)));
+
+        // 4. Payway lo resolvió: el que no contestó se había cobrado; el de
+        //    revisión, se rechazó. Pasaron diez minutos.
+        var lostPayment = Random.Shared.NextInt64(10_000_000, 99_999_999);
+        known[lostAttempt.SiteTransactionId] = Approved(lostPayment, 30_000_00);
+        known[reviewAttempt.SiteTransactionId] = new
+        {
+            id = reviewPayment,
+            status = "rejected",
+            amount = 30_000_00,
+            status_details = new { error = new { type = "fraud", reason = new { id = 10003, description = "RECHAZADA POR ANTIFRAUDE" } } },
+        };
+        await BackdateAsync(merchant.TenantId, TimeSpan.FromMinutes(10));
+
+        for (var pass = 0; pass < 10; pass++)
+        {
+            await Workers.RunOnceAsync<PaywayReconciliationWorker>(_factory);
+            if ((await AttemptsAsync(merchant.TenantId)).All(a => !a.NeedsRecheck)) break;
+        }
+
+        // El cobrado queda pagado por el mismo camino que un cobro en el momento
+        // (con el email de confirmación); el rechazado libera el stock.
+        Assert.Equal("PAID", await StatusAsync(shopper, lostAttempt.OrderId));
+        Assert.Equal("FAILED", await StatusAsync(shopper, reviewOrder));
+        Assert.NotEmpty(_factory.ExternalHttp.EmailsTo(buyer));
+
+        attempts = await AttemptsAsync(merchant.TenantId);
+        var settled = Assert.Single(attempts, a => a.Id == lostAttempt.Id);
+        Assert.Equal(PaywayPaymentStatus.Approved, settled.Status);
+        Assert.Equal(lostPayment.ToString(), settled.ProviderPaymentId);
+        Assert.Equal(PaywayPaymentStatus.Declined, Assert.Single(attempts, a => a.Id == reviewAttempt.Id).Status);
+
+        // Resuelto, no se vuelve a preguntar; y el cobro nunca se reintentó.
+        asked = _factory.ExternalHttp.SentTo(LookupUrl(lostAttempt)).Count;
+        await BackdateAsync(merchant.TenantId, TimeSpan.FromHours(1));
+        await Workers.RunOnceAsync<PaywayReconciliationWorker>(_factory);
+        Assert.Equal(asked, _factory.ExternalHttp.SentTo(LookupUrl(lostAttempt)).Count);
+        Assert.Single(_factory.ExternalHttp.SentTo($"{Sandbox}/payments"),
+            r => r.Method == HttpMethod.Post && r.Body?.Contains("tok-q-lost") == true);
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    private async Task<List<PaywayPaymentAttempt>> AttemptsAsync(Guid tenantId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        return await db.PaywayPaymentAttempts.AsNoTracking().Where(a => a.TenantId == tenantId).ToListAsync();
+    }
+
+    /// <summary>Hace como si los intentos de la tienda hubieran pasado hace <paramref name="ago"/>.</summary>
+    private async Task BackdateAsync(Guid tenantId, TimeSpan ago)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        await db.PaywayPaymentAttempts.Where(a => a.TenantId == tenantId).ExecuteUpdateAsync(s => s
+            .SetProperty(a => a.CreatedAtUtc, a => a.CreatedAtUtc - ago)
+            .SetProperty(a => a.ProcessedAtUtc, a => a.ProcessedAtUtc - ago));
+    }
 
     private static async Task<string?> StatusAsync(Shopper shopper, Guid orderId) =>
         (await shopper.ExpectJsonAsync(HttpMethod.Get, $"/api/v1/orders/{orderId}/status")).GetProperty("status").GetString();

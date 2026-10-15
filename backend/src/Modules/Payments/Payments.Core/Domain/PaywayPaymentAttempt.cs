@@ -61,6 +61,12 @@ public sealed class PaywayPaymentAttempt
     public string? DeclineDescription { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
+
+    /// <summary>
+    /// La última vez que supimos algo de Payway sobre este intento: la
+    /// respuesta del cobro o la última reconsulta (ver <see cref="MarkChecked"/>).
+    /// Null = el cobro nunca contestó (el proceso se cayó en el medio).
+    /// </summary>
     public DateTime? ProcessedAtUtc { get; private set; }
 
     private PaywayPaymentAttempt() { } // EF Core
@@ -111,4 +117,54 @@ public sealed class PaywayPaymentAttempt
     /// <summary>Estados de los que ya no se sale solo: no tiene sentido volver a consultarlos.</summary>
     public bool IsSettled =>
         Status is PaywayPaymentStatus.Approved or PaywayPaymentStatus.Declined or PaywayPaymentStatus.Refunded;
+
+    // ------------------------------------------------------------ Reconsulta
+
+    /// <summary>
+    /// Quedó en el medio y Payway no avisa cuando se resuelve (no hay webhooks
+    /// para la API directa): hay que volver a preguntarle.
+    /// </summary>
+    public bool NeedsRecheck =>
+        Status is PaywayPaymentStatus.Unknown or PaywayPaymentStatus.UnderReview or PaywayPaymentStatus.RequiresAction;
+
+    /// <summary>
+    /// Pasado este tiempo desde el cobro se deja de preguntar: lo que Payway no
+    /// resolvió en tres días ya no se resuelve solo y hay que mirarlo en su portal.
+    /// </summary>
+    public static readonly TimeSpan RecheckMaxAge = TimeSpan.FromDays(3);
+
+    /// <summary>
+    /// Cada cuánto se vuelve a preguntar, según cuánto hace que se cobró: seguido
+    /// al principio (un timeout se aclara en minutos) y cada vez más espaciado
+    /// (una revisión del antifraude puede llevar horas).
+    /// </summary>
+    public static TimeSpan RecheckInterval(TimeSpan age) =>
+        age < TimeSpan.FromHours(1) ? TimeSpan.FromMinutes(2)
+        : age < TimeSpan.FromHours(6) ? TimeSpan.FromMinutes(15)
+        : age < TimeSpan.FromHours(24) ? TimeSpan.FromHours(1)
+        : TimeSpan.FromHours(4);
+
+    /// <summary>Cuándo toca volver a preguntar: el intervalo se mide desde la última vez que se supo algo.</summary>
+    public DateTime NextRecheckAtUtc
+    {
+        get
+        {
+            var last = ProcessedAtUtc ?? CreatedAtUtc;
+            return last + RecheckInterval(last - CreatedAtUtc);
+        }
+    }
+
+    /// <summary>Si en <paramref name="nowUtc"/> hay que volver a preguntarle a Payway por este intento.</summary>
+    public bool IsRecheckDue(DateTime nowUtc) =>
+        NeedsRecheck && nowUtc - CreatedAtUtc < RecheckMaxAge && nowUtc >= NextRecheckAtUtc;
+
+    /// <summary>Si después de la próxima reconsulta ya no habrá otra: es la última oportunidad de avisar.</summary>
+    public bool IsLastRecheck(DateTime nowUtc) =>
+        nowUtc - CreatedAtUtc + RecheckInterval(nowUtc - CreatedAtUtc) >= RecheckMaxAge;
+
+    /// <summary>
+    /// Se le preguntó a Payway en <paramref name="nowUtc"/>, haya contestado o
+    /// no: la próxima consulta se cuenta desde acá.
+    /// </summary>
+    public void MarkChecked(DateTime nowUtc) => ProcessedAtUtc = nowUtc;
 }

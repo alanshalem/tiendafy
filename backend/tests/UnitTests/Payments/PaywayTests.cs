@@ -240,6 +240,71 @@ public class PaywayAttemptTests
     }
 }
 
+/// <summary>
+/// Cuándo se le vuelve a preguntar a Payway por un cobro que quedó en el medio:
+/// seguido al principio, cada vez más espaciado, y nunca después de tres días.
+/// </summary>
+public class PaywayRecheckScheduleTests
+{
+    private static PaywayPaymentAttempt Attempt() => PaywayPaymentAttempt.Start(
+        Guid.NewGuid(), Guid.NewGuid(), 1, "TF-x-1", 125045, "ARS", 1, "450799", "4905", "visa", 1);
+
+    [Theory]
+    [InlineData(PaywayPaymentStatus.Unknown, true)]
+    [InlineData(PaywayPaymentStatus.UnderReview, true)]
+    [InlineData(PaywayPaymentStatus.RequiresAction, true)]
+    [InlineData(PaywayPaymentStatus.Approved, false)]
+    [InlineData(PaywayPaymentStatus.Declined, false)]
+    [InlineData(PaywayPaymentStatus.Refunded, false)]
+    [InlineData(PaywayPaymentStatus.Authorized, false)]
+    public void SoloSeReconsultaLoQueQuedoEnElMedio(PaywayPaymentStatus status, bool needs)
+    {
+        var attempt = Attempt();
+        attempt.Complete(status, "x", "1", null, null, null, null, null);
+        Assert.Equal(needs, attempt.NeedsRecheck);
+        Assert.Equal(needs, attempt.IsRecheckDue(attempt.CreatedAtUtc.AddMinutes(10)));
+    }
+
+    [Fact]
+    public void ElIntervaloSeAlargaConLaEdad()
+    {
+        Assert.Equal(TimeSpan.FromMinutes(2), PaywayPaymentAttempt.RecheckInterval(TimeSpan.FromMinutes(5)));
+        Assert.Equal(TimeSpan.FromMinutes(15), PaywayPaymentAttempt.RecheckInterval(TimeSpan.FromHours(2)));
+        Assert.Equal(TimeSpan.FromHours(1), PaywayPaymentAttempt.RecheckInterval(TimeSpan.FromHours(12)));
+        Assert.Equal(TimeSpan.FromHours(4), PaywayPaymentAttempt.RecheckInterval(TimeSpan.FromDays(2)));
+    }
+
+    [Fact]
+    public void SeEsperaElIntervaloDesdeLaUltimaConsulta()
+    {
+        var attempt = Attempt(); // Unknown, nunca contestó: se cuenta desde que se creó
+        var created = attempt.CreatedAtUtc;
+        Assert.False(attempt.IsRecheckDue(created.AddMinutes(1)));
+        Assert.True(attempt.IsRecheckDue(created.AddMinutes(2)));
+
+        attempt.MarkChecked(created.AddMinutes(2));
+        Assert.False(attempt.IsRecheckDue(created.AddMinutes(3)));
+        Assert.True(attempt.IsRecheckDue(created.AddMinutes(4)));
+
+        // A las 7 horas el intervalo ya es de una hora.
+        attempt.MarkChecked(created.AddHours(7));
+        Assert.False(attempt.IsRecheckDue(created.AddHours(7).AddMinutes(30)));
+        Assert.True(attempt.IsRecheckDue(created.AddHours(8)));
+    }
+
+    [Fact]
+    public void PasadosTresDiasSeDejaDePreguntar()
+    {
+        var attempt = Attempt();
+        var created = attempt.CreatedAtUtc;
+        attempt.MarkChecked(created.AddHours(60));
+        Assert.True(attempt.IsRecheckDue(created.AddHours(64)));
+        Assert.True(attempt.IsLastRecheck(created.AddHours(69))); // 69 h + 4 h de intervalo > 72 h
+        Assert.False(attempt.IsLastRecheck(created.AddHours(64)));
+        Assert.False(attempt.IsRecheckDue(created + PaywayPaymentAttempt.RecheckMaxAge));
+    }
+}
+
 public class PaywayRepeatedTokenTests
 {
     [Fact]

@@ -100,6 +100,10 @@ public static class ServiceRegistration
         // Webhooks de pago: inbox durable en DB + worker que hace polling con reintentos.
         if (runPollingWorkers) services.AddHostedService<PaymentWebhookWorker>();
 
+        // Payway no avisa: los cobros que quedaron en el medio se reconsultan.
+        services.AddScoped<PaywayReconciliationService>();
+        if (runPollingWorkers) services.AddHostedService<PaywayReconciliationWorker>();
+
         // Facturación automática: outbox de emisión + worker que pide el CAE a ARCA.
         if (runPollingWorkers) services.AddHostedService<Api.Fiscal.FiscalEmissionWorker>();
 
