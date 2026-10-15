@@ -241,7 +241,9 @@ public static class SocialEndpoints
             return Results.Ok(PostDto(post, accounts));
         });
 
-        posts.MapPut("/{id:guid}", (Guid id, SocialPostRequest request, SocialDbContext db, CancellationToken ct) =>
+        posts.MapPut("/{id:guid}", (
+            Guid id, SocialPostRequest request, SocialDbContext db,
+            IEnumerable<ISocialChannel> channels, CancellationToken ct) =>
             MutatePostAsync(db, id, async post =>
             {
                 var media = NormalizeMedia(request.MediaUrls);
@@ -253,15 +255,33 @@ public static class SocialEndpoints
                 var applied = await ApplyTargetsAsync(db, post, request.Targets, ct);
                 if (applied.IsFailure) return applied.Error;
                 var coupon = post.SetCoupon(request.CouponCode);
-                return coupon.IsFailure ? coupon.Error : null;
+                if (coupon.IsFailure) return coupon.Error;
+
+                // Editar uno ya programado (el composer guarda sin volver a
+                // programar) tiene que respetar los límites igual que programarlo.
+                return post.Status == SocialPostStatus.Scheduled
+                    ? await CheckNetworkLimitsAsync(db, post, channels, ct)
+                    : null;
             }, ct));
 
         // Programar (fecha futura) o publicar ya (sin fecha: el worker lo toma al toque).
         posts.MapPost("/{id:guid}/schedule", (
-            Guid id, SocialScheduleRequest request, SocialDbContext db, CancellationToken ct) =>
+            Guid id, SocialScheduleRequest request, SocialDbContext db,
+            IEnumerable<ISocialChannel> channels, CancellationToken ct) =>
+            MutatePostAsync(db, id, async post =>
+            {
+                if (await CheckNetworkLimitsAsync(db, post, channels, ct) is { } limits) return limits;
+                var result = post.Schedule(request.ScheduledAtUtc is { } d ? AsUtc(d) : null);
+                return result.IsFailure ? result.Error : null;
+            }, ct));
+
+        // Reintentar un post que terminó con errores: vuelve a la cola para ya y
+        // salen solo las redes que fallaron (las que salieron no se repiten).
+        // Mismo permiso que editar: es volver a mandar lo que la tienda armó.
+        posts.MapPost("/{id:guid}/retry", (Guid id, SocialDbContext db, CancellationToken ct) =>
             MutatePostAsync(db, id, post =>
             {
-                var result = post.Schedule(request.ScheduledAtUtc is { } d ? AsUtc(d) : null);
+                var result = post.Retry();
                 return Task.FromResult(result.IsFailure ? result.Error : (Error?)null);
             }, ct));
 
@@ -316,6 +336,40 @@ public static class SocialEndpoints
                 return Result.Failure(Error.Validation("Social.UnknownAccount", "Alguna cuenta elegida ya no existe."));
         }
         return post.SetTargets([.. list.Select(t => (t.AccountId, t.ContentOverride))]);
+    }
+
+    /// <summary>
+    /// Los límites de cada red (<see cref="ISocialChannel.Limits"/>, los
+    /// mismos que el composer recibe de /channels): el texto que va a cada
+    /// cuenta entra en su red y la que exige imagen la tiene. Se exige al
+    /// programar, no al guardar un borrador: el composer deja guardar uno a
+    /// medio escribir, y un borrador no sale a ninguna red. La cantidad de
+    /// imágenes no se valida a propósito, tampoco en el composer: Instagram
+    /// publica la primera y X solo texto, y un post con fotos para Facebook
+    /// puede ir también a esas dos.
+    /// </summary>
+    private static async Task<Error?> CheckNetworkLimitsAsync(
+        SocialDbContext db, SocialPost post, IEnumerable<ISocialChannel> channels, CancellationToken ct)
+    {
+        var byKey = channels.ToDictionary(c => c.Key);
+        var accounts = await AccountsByIdAsync(db, post.Targets, ct);
+        var hasMedia = (JsonSerializer.Deserialize<List<string>>(post.MediaUrlsJson) ?? []).Count > 0;
+        foreach (var target in post.Targets)
+        {
+            if (!accounts.TryGetValue(target.AccountId, out var account)
+                || !byKey.TryGetValue(account.Provider, out var channel)) continue;
+
+            var length = post.ContentFor(target).Length;
+            if (length > channel.Limits.MaxChars)
+                return Error.Validation("Social.TooLongForNetwork",
+                    $"El texto para {channel.DisplayName} ({account.Name}) tiene {ArgentineNumbers.Number(length)} " +
+                    $"caracteres y el máximo es {ArgentineNumbers.Number(channel.Limits.MaxChars)}. " +
+                    "Acortalo o escribí un texto distinto para esa cuenta.");
+            if (channel.Limits.RequiresMedia && !hasMedia)
+                return Error.Validation("Social.MediaRequired",
+                    $"{channel.DisplayName} ({account.Name}) exige al menos una imagen.");
+        }
+        return null;
     }
 
     private static Result<string> NormalizeMedia(IReadOnlyList<string>? mediaUrls)

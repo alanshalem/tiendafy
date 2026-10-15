@@ -77,8 +77,14 @@ public sealed class SocialPost
         };
     }
 
+    /// <summary>
+    /// Borrador o programado que todavía no tomó el publicador. Un post
+    /// reintentado que ya salió en alguna red no se edita: lo publicado no
+    /// cambia, y cambiar los destinos lo volvería a mandar a esas redes.
+    /// </summary>
     public bool IsEditable => Status is SocialPostStatus.Draft or SocialPostStatus.Scheduled
-        && ScheduleStatus == SocialScheduleStatus.Pending;
+        && ScheduleStatus == SocialScheduleStatus.Pending
+        && !_targets.Any(t => t.PublishedAtUtc is not null);
 
     public Result UpdateContent(string? content, string mediaUrlsJson)
     {
@@ -146,6 +152,26 @@ public sealed class SocialPost
         return Result.Success();
     }
 
+    /// <summary>
+    /// Vuelve a mandar un post que falló: queda programado para ya y el
+    /// publicador lo toma en el próximo ciclo. Solo salen los destinos que
+    /// fallaron (el publicador saltea los que ya se publicaron), con el error
+    /// anterior borrado para que no se vea mientras tanto.
+    /// </summary>
+    public Result Retry()
+    {
+        if (Status != SocialPostStatus.Failed || ScheduleStatus != SocialScheduleStatus.Processed)
+            return Result.Failure(Error.Conflict("Social.NotRetryable",
+                "Solo se puede reintentar un post que terminó con errores."));
+        foreach (var target in _targets.Where(t => t.PublishedAtUtc is null))
+            target.ClearError();
+        Status = SocialPostStatus.Scheduled;
+        ScheduleStatus = SocialScheduleStatus.Pending;
+        ScheduledAtUtc = DateTime.UtcNow;
+        UpdatedAtUtc = DateTime.UtcNow;
+        return Result.Success();
+    }
+
     /// <summary>Claim del publicador (tras el UPDATE atómico del repo).</summary>
     public void MarkProcessing()
     {
@@ -202,4 +228,6 @@ public sealed class SocialPostTarget
     }
 
     public void MarkFailed(string error) => Error = error.Length > 500 ? error[..500] : error;
+
+    internal void ClearError() => Error = null;
 }

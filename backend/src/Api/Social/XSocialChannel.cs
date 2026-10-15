@@ -10,15 +10,19 @@ namespace Api.Social;
 
 /// <summary>
 /// X (Twitter): OAuth2 con PKCE (el verifier viaja dentro del state cifrado) y
-/// publicación por API v2. El access token dura ~2 h: se refresca lazy al
-/// publicar (offline.access) y el token nuevo vuelve al worker para persistir
-/// — el refresh token de X es de un solo uso, igual que el de Mercado Libre.
+/// publicación por API v2. El access token dura ~2 h: se renueva antes de
+/// publicar (offline.access) y el refresh token de X es de un solo uso, igual
+/// que el de Mercado Libre: la renovación la serializa y la persiste
+/// <see cref="SocialAccountTokens"/>, no este canal.
 /// v1 publica texto (+link); el upload de media de X va por otro flujo y queda
 /// como mejora declarada (MaxImages=0).
 /// </summary>
 public sealed class XSocialChannel(HttpClient http, IOptions<SocialOptions> options, ILogger<XSocialChannel> logger)
-    : ISocialChannel, ISocialConnector
+    : ISocialChannel, ISocialConnector, ISocialTokenRefresher
 {
+    /// <summary>Renovar con margen: nunca publicar con un token a segundos de vencer.</summary>
+    private static readonly TimeSpan ExpiryMargin = TimeSpan.FromMinutes(5);
+
     private readonly SocialOptions.XSection _o = options.Value.X;
 
     public string Key => "x";
@@ -79,46 +83,53 @@ public sealed class XSocialChannel(HttpClient http, IOptions<SocialOptions> opti
 
     // ---------------------------------------------------------------- Publish
 
+    public bool NeedsRenewal(string tokenJson)
+    {
+        var expiresAt = SocialTokenService.TokenField(tokenJson, "expires_at_utc");
+        return !string.IsNullOrEmpty(SocialTokenService.TokenField(tokenJson, "refresh_token"))
+            && DateTime.TryParse(expiresAt, null,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+                out var exp)
+            && exp <= DateTime.UtcNow.Add(ExpiryMargin);
+    }
+
+    public async Task<string?> RenewAsync(string tokenJson, CancellationToken ct)
+    {
+        var refresh = SocialTokenService.TokenField(tokenJson, "refresh_token");
+        if (string.IsNullOrEmpty(refresh)) return null;
+        var renewed = await RequestTokenAsync(new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = refresh,
+            ["client_id"] = _o.ClientId,
+        }, ct);
+        // Si X no devuelve un refresh token nuevo, se conserva el anterior.
+        return renewed is { } r ? TokenJson(r.Access, r.Refresh ?? refresh, r.ExpiresAtUtc) : null;
+    }
+
     public async Task<SocialPublishResult> PublishAsync(
         string tokenJson, string? dataJson, string text, IReadOnlyList<string> mediaUrls, CancellationToken ct)
     {
         var access = SocialTokenService.TokenField(tokenJson, "access_token");
-        var refresh = SocialTokenService.TokenField(tokenJson, "refresh_token");
         if (string.IsNullOrEmpty(access)) return SocialPublishResult.Unauthorized();
-
-        string? refreshedTokenJson = null;
-        var expiresAt = SocialTokenService.TokenField(tokenJson, "expires_at_utc");
-        if (DateTime.TryParse(expiresAt, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var exp)
-            && exp <= DateTime.UtcNow.AddMinutes(5) && !string.IsNullOrEmpty(refresh))
-        {
-            var renewed = await RequestTokenAsync(new Dictionary<string, string>
-            {
-                ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refresh,
-                ["client_id"] = _o.ClientId,
-            }, ct);
-            if (renewed is null) return SocialPublishResult.Unauthorized();
-            access = renewed.Value.Access;
-            refreshedTokenJson = TokenJson(renewed.Value.Access, renewed.Value.Refresh ?? refresh, renewed.Value.ExpiresAtUtc);
-        }
 
         using var resp = await SendAsync(HttpMethod.Post, "/tweets", access,
             JsonContent.Create(new { text }), ct);
         var json = await resp.Content.ReadAsStringAsync(ct);
         if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized) return SocialPublishResult.Unauthorized();
         if ((int)resp.StatusCode == 429)
-            return new SocialPublishResult(SocialPublishStatus.RateLimited, Message: "Rate limit de X.", RetryAfter: TimeSpan.FromMinutes(15), RefreshedTokenJson: refreshedTokenJson);
+            return new SocialPublishResult(SocialPublishStatus.RateLimited, Message: "Rate limit de X.", RetryAfter: TimeSpan.FromMinutes(15));
         if (!resp.IsSuccessStatusCode)
         {
             logger.LogWarning("X publish error {Status}: {Body}", (int)resp.StatusCode, Text.Clip(json, 500));
-            return new SocialPublishResult(SocialPublishStatus.Error, Message: $"X respondió {(int)resp.StatusCode}.", RefreshedTokenJson: refreshedTokenJson);
+            return SocialPublishResult.Fail($"X respondió {(int)resp.StatusCode}.");
         }
 
         using var doc = JsonDocument.Parse(json);
         var id = doc.RootElement.TryGetProperty("data", out var d) ? JsonRead.GetString(d, "id") : null;
         var username = SocialTokenService.TokenField(dataJson ?? "{}", "username");
         var url = id is not null && username is not null ? $"https://x.com/{username}/status/{id}" : null;
-        return SocialPublishResult.Ok(id, url, refreshedTokenJson);
+        return SocialPublishResult.Ok(id, url);
     }
 
     // ---------------------------------------------------------------- Helpers

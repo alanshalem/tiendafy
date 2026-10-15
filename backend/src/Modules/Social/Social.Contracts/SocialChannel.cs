@@ -23,19 +23,16 @@ public enum SocialPublishStatus { Ok, RateLimited, Unauthorized, Error }
 
 /// <summary>
 /// Resultado normalizado de publicar (diseño Mixpost): el worker no conoce
-/// redes — cada canal traduce su HTTP a esto. RefreshedTokenJson viene cuando
-/// el canal renovó el token durante la publicación (el worker lo persiste).
+/// redes — cada canal traduce su HTTP a esto.
 /// </summary>
 public sealed record SocialPublishResult(
     SocialPublishStatus Status,
     string? ProviderPostId = null,
     string? ExternalUrl = null,
     string? Message = null,
-    TimeSpan? RetryAfter = null,
-    string? RefreshedTokenJson = null)
+    TimeSpan? RetryAfter = null)
 {
-    public static SocialPublishResult Ok(string? id, string? url, string? refreshedToken = null) =>
-        new(SocialPublishStatus.Ok, id, url, RefreshedTokenJson: refreshedToken);
+    public static SocialPublishResult Ok(string? id, string? url) => new(SocialPublishStatus.Ok, id, url);
 
     public static SocialPublishResult Fail(string message) => new(SocialPublishStatus.Error, Message: message);
 
@@ -51,6 +48,26 @@ public interface ISocialChannel
 
     Task<SocialPublishResult> PublishAsync(
         string tokenJson, string? dataJson, string text, IReadOnlyList<string> mediaUrls, CancellationToken ct);
+}
+
+/// <summary>
+/// Canal cuyo token vence y se renueva antes de publicar (X). El refresh token
+/// de esas redes es de un solo uso: quien lo usa (el publicador) serializa la
+/// renovación por cuenta y guarda el token nuevo apenas vuelve, ANTES de
+/// publicar. Si el token nuevo viajaba en el resultado de publicar, un error
+/// de red al publicar lo perdía y la cuenta quedaba muerta.
+/// </summary>
+public interface ISocialTokenRefresher
+{
+    /// <summary>Sin salir a la red: ¿el token vence pronto?</summary>
+    bool NeedsRenewal(string tokenJson);
+
+    /// <summary>
+    /// Renueva. Devuelve el token JSON nuevo, o null si la red rechazó la
+    /// renovación (hay que reconectar). Un error de red sale como excepción:
+    /// el refresh token viejo puede seguir sirviendo.
+    /// </summary>
+    Task<string?> RenewAsync(string tokenJson, CancellationToken ct);
 }
 
 /// <summary>

@@ -12,8 +12,9 @@ namespace Api.Social;
 /// Scheduled+Pending vencidos y los reclama con un UPDATE atómico POR FILA
 /// (rowsAffected == 1 ⇒ este proceso es el dueño) — idempotente ante múltiples
 /// instancias. Publica target por target: el fallo de una red no frena a las
-/// demás; 401 marca la cuenta como no autorizada; si un canal renovó el token
-/// (X), acá se persiste cifrado. Corre sin tenant (filtro global apagado).
+/// demás; 401 marca la cuenta como no autorizada; los tokens que vencen (X)
+/// los renueva y guarda <see cref="SocialAccountTokens"/> antes de publicar.
+/// Corre sin tenant (filtro global apagado).
 /// </summary>
 public sealed class SocialPublishWorker(
     IServiceScopeFactory scopeFactory,
@@ -29,7 +30,7 @@ public sealed class SocialPublishWorker(
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<SocialDbContext>();
-        var tokens = sp.GetRequiredService<SocialTokenService>();
+        var tokens = sp.GetRequiredService<SocialAccountTokens>();
         var channels = sp.GetServices<ISocialChannel>().ToDictionary(c => c.Key);
 
         var now = DateTime.UtcNow;
@@ -61,7 +62,7 @@ public sealed class SocialPublishWorker(
     }
 
     private async Task PublishTargetsAsync(
-        SocialDbContext db, SocialTokenService tokens,
+        SocialDbContext db, SocialAccountTokens tokens,
         Dictionary<string, ISocialChannel> channels, SocialPost post, CancellationToken ct)
     {
         var accountIds = post.Targets.Select(t => t.AccountId).ToList();
@@ -88,23 +89,21 @@ public sealed class SocialPublishWorker(
                 target.MarkFailed($"Red desconocida: {account.Provider}.");
                 continue;
             }
-            var tokenJson = tokens.TryUnprotect(account.AccessTokenEncrypted);
-            if (tokenJson is null)
-            {
-                account.MarkUnauthorized();
-                target.MarkFailed("La cuenta necesita reconectarse.");
-                continue;
-            }
 
             try
             {
+                // Descifra y, si la red lo pide (X), renueva y guarda el token
+                // antes de publicar. null = el token no sirve más: reconectar.
+                var tokenJson = await tokens.ForPublishingAsync(account, channel, ct);
+                if (tokenJson is null)
+                {
+                    account.MarkUnauthorized();
+                    target.MarkFailed("La cuenta necesita reconectarse.");
+                    continue;
+                }
+
                 var result = await channel.PublishAsync(
                     tokenJson, BuildDataJson(account), post.ContentFor(target), mediaUrls, ct);
-
-                // El canal renovó el token durante la publicación (X): persistir cifrado.
-                if (result.RefreshedTokenJson is not null)
-                    account.Reauthorize(tokens.Protect(result.RefreshedTokenJson),
-                        account.Name, account.Username, account.AvatarUrl, account.DataJson);
 
                 switch (result.Status)
                 {
@@ -116,7 +115,10 @@ public sealed class SocialPublishWorker(
                         target.MarkFailed(result.Message ?? "Token vencido: reconectá la cuenta.");
                         break;
                     case SocialPublishStatus.RateLimited:
-                        var wait = result.RetryAfter is { } r ? $" Probá de nuevo en {(int)Math.Ceiling(r.TotalMinutes)} min." : "";
+                        // "Reintentar" en la bandeja vuelve a mandar solo lo que falló.
+                        var wait = result.RetryAfter is { } r
+                            ? $" Probá de nuevo con «Reintentar» en {(int)Math.Ceiling(r.TotalMinutes)} min."
+                            : "";
                         target.MarkFailed((result.Message ?? "La red limitó las publicaciones.") + wait);
                         break;
                     default:

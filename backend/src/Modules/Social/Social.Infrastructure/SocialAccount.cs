@@ -66,6 +66,13 @@ public sealed class SocialAccount
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
+    /// <summary>Token renovado (refresh de X): cambia solo el token, el resto queda.</summary>
+    public void RotateToken(string accessTokenEncrypted)
+    {
+        AccessTokenEncrypted = accessTokenEncrypted;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
     public void MarkUnauthorized()
     {
         Authorized = false;

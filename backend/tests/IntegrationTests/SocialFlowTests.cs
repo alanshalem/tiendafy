@@ -189,18 +189,45 @@ public sealed class SocialFlowTests
         _factory.ExternalHttp.On(HttpMethod.Post, $"{XApi}/tweets", (_, _) => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
         _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{Telegram}/bot{bot}/sendMessage", new { ok = false, description = "Forbidden: bot was blocked" }, HttpStatusCode.Forbidden);
 
+        // Los límites de cada red los valida también el servidor, al programar
+        // (un borrador a medio escribir se guarda igual, como en el composer).
         var post = await merchant.PostAsync("/api/v1/admin/social/posts", new
         {
             content = "Texto sin imagen",
             targets = accounts.Values.Select(id => new { accountId = id }).ToArray(),
         });
         var postId = post.GetProperty("id").GetGuid();
+        var noImage = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/social/posts/{postId}/schedule", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, noImage.StatusCode);
+        Assert.Equal("Instagram (@ig) exige al menos una imagen.", await DetailAsync(noImage));
+
+        object Targets(string? xText) => new
+        {
+            content = "Texto sin imagen",
+            targets = accounts.Where(a => a.Key != "meta_instagram")
+                .Select(a => new { accountId = a.Value, contentOverride = a.Key == "x" ? xText : null }).ToArray(),
+        };
+        await merchant.PutAsync($"/api/v1/admin/social/posts/{postId}", Targets(new string('x', 281)));
+        var tooLong = await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/social/posts/{postId}/schedule", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+        Assert.StartsWith("El texto para X (Twitter) (T) tiene 281 caracteres y el máximo es 280.", await DetailAsync(tooLong));
+        Assert.Equal("Draft", (await merchant.GetAsync("/api/v1/admin/social/posts")).GetProperty("posts")[0].GetProperty("status").GetString());
+
+        await merchant.PutAsync($"/api/v1/admin/social/posts/{postId}", Targets(null));
         await merchant.PostAsync($"/api/v1/admin/social/posts/{postId}/schedule", new { });
+        // Ya programado, editarlo pasándose del límite tampoco: el composer
+        // guarda un post programado sin volver a programarlo.
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.SendAsync(HttpMethod.Put,
+            $"/api/v1/admin/social/posts/{postId}", Targets(new string('x', 300)))).StatusCode);
         await PublishAsync(postId);
 
         var failed = (await merchant.GetAsync("/api/v1/admin/social/posts")).GetProperty("posts")[0];
         Assert.Equal("Failed", failed.GetProperty("status").GetString());
+        Assert.Equal(3, failed.GetProperty("targets").GetArrayLength());
         Assert.All(failed.GetProperty("targets").EnumerateArray(), t => Assert.Equal(JsonValueKind.String, t.GetProperty("error").ValueKind));
+        // El rate limit dice cuándo y cómo volver a probar.
+        Assert.Contains(failed.GetProperty("targets").EnumerateArray(),
+            t => t.GetProperty("error").GetString()!.Contains("con «Reintentar» en 15 min"));
 
         // Facebook y Telegram quedan pidiendo reconectar.
         var after = (await merchant.GetAsync("/api/v1/admin/social/accounts")).GetProperty("accounts").EnumerateArray()
@@ -233,7 +260,92 @@ public sealed class SocialFlowTests
         Assert.EndsWith("social=error", (await CallbackAsync(merchant, "x")).Headers.Location!.ToString());
     }
 
+    [Fact]
+    public async Task El_token_renovado_de_X_se_guarda_aunque_publicar_falle_y_el_post_se_reintenta()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "sox");
+        var unique = merchant.Subdomain;
+        // Conectada con un token a punto de vencer: publicar tiene que renovarlo.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{XApi}/oauth2/token",
+            new { access_token = $"old-{unique}", refresh_token = $"refresh-old-{unique}", expires_in = 60 });
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{XApi}/users/me", new { data = new { id = $"x-{unique}", name = "T", username = "tx" } });
+        await ConnectAsync(merchant, "x");
+        var account = (await merchant.GetAsync("/api/v1/admin/social/accounts")).GetProperty("accounts")[0].GetProperty("id").GetGuid();
+
+        // X renueva (y rota el refresh token, que es de un solo uso) y al
+        // publicar se corta la red. Antes el token nuevo viajaba en el
+        // resultado de publicar: con la excepción se perdía y la cuenta moría.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{XApi}/oauth2/token",
+            new { access_token = $"new-{unique}", refresh_token = $"refresh-new-{unique}", expires_in = 7200 });
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{XApi}/tweets", (_, _) => throw new HttpRequestException("Se cortó la conexión."));
+        var post = await merchant.PostAsync("/api/v1/admin/social/posts", new { content = "Hola X", targets = new[] { new { accountId = account } } });
+        var postId = post.GetProperty("id").GetGuid();
+        await merchant.PostAsync($"/api/v1/admin/social/posts/{postId}/schedule", new { });
+        await PublishAsync(postId);
+
+        var failed = (await merchant.GetAsync("/api/v1/admin/social/posts")).GetProperty("posts")[0];
+        Assert.Equal("Failed", failed.GetProperty("status").GetString());
+        Assert.True((await merchant.GetAsync("/api/v1/admin/social/accounts")).GetProperty("accounts")[0].GetProperty("authorized").GetBoolean());
+
+        // Reintentar: sale con el token nuevo, sin volver a renovar.
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{XApi}/tweets", new { data = new { id = "tweet-retry", text = "ok" } });
+        var retried = await merchant.PostAsync($"/api/v1/admin/social/posts/{postId}/retry", new { });
+        Assert.Equal("Scheduled", retried.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, retried.GetProperty("targets")[0].GetProperty("error").ValueKind);
+        await PublishAsync(postId);
+
+        var published = (await merchant.GetAsync("/api/v1/admin/social/posts")).GetProperty("posts")[0];
+        Assert.Equal("Published", published.GetProperty("status").GetString());
+        Assert.Equal("https://x.com/tx/status/tweet-retry", published.GetProperty("targets")[0].GetProperty("externalUrl").GetString());
+        Assert.Equal($"Bearer new-{unique}", _factory.ExternalHttp.SentTo($"{XApi}/tweets").Last().Headers["Authorization"]);
+        var refreshes = _factory.ExternalHttp.SentTo($"{XApi}/oauth2/token").Where(r => r.Body!.Contains($"-{unique}")).ToList();
+        Assert.Single(refreshes, r => r.Body!.Contains("grant_type=refresh_token"));
+
+        // Solo se reintenta lo que falló.
+        Assert.Equal(HttpStatusCode.Conflict, (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/social/posts/{postId}/retry")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await merchant.SendAsync(HttpMethod.Post, $"/api/v1/admin/social/posts/{Guid.NewGuid()}/retry")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Dos_publicaciones_a_la_vez_renuevan_el_token_de_X_una_sola_vez()
+    {
+        var merchant = await Merchant.CreateAsync(_factory, "soy");
+        var unique = merchant.Subdomain;
+        _factory.ExternalHttp.OnJson(HttpMethod.Post, $"{XApi}/oauth2/token",
+            new { access_token = $"old-{unique}", refresh_token = $"refresh-old-{unique}", expires_in = 60 });
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{XApi}/users/me", new { data = new { id = $"x-{unique}", name = "T", username = "ty" } });
+        await ConnectAsync(merchant, "x");
+        var accountId = (await merchant.GetAsync("/api/v1/admin/social/accounts")).GetProperty("accounts")[0].GetProperty("id").GetGuid();
+
+        // Una renovación lenta, para que la segunda llegue mientras corre la primera.
+        _factory.ExternalHttp.On(HttpMethod.Post, $"{XApi}/oauth2/token", (_, _) =>
+        {
+            Thread.Sleep(300);
+            return FakeHttp.Json(new { access_token = $"new-{unique}", refresh_token = $"refresh-new-{unique}", expires_in = 7200 });
+        });
+
+        async Task<string?> TokenForPublishingAsync()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<SocialDbContext>();
+            var account = await db.Accounts.IgnoreQueryFilters().SingleAsync(a => a.Id == accountId);
+            var channel = scope.ServiceProvider.GetRequiredService<XSocialChannel>();
+            return await scope.ServiceProvider.GetRequiredService<SocialAccountTokens>()
+                .ForPublishingAsync(account, channel, CancellationToken.None);
+        }
+
+        var tokens = await Task.WhenAll(TokenForPublishingAsync(), TokenForPublishingAsync());
+
+        Assert.All(tokens, t => Assert.Contains($"new-{unique}", t));
+        // El refresh token viejo se usó UNA vez: con dos, X invalida la conexión.
+        Assert.Single(_factory.ExternalHttp.SentTo($"{XApi}/oauth2/token"),
+            r => r.Body!.Contains($"refresh_token=refresh-old-{unique}"));
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    private static async Task<string> DetailAsync(HttpResponseMessage response) =>
+        JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("detail").GetString()!;
 
     /// <summary>El OAuth completo de una red: pedir la URL y volver por el callback.</summary>
     private async Task<string> ConnectAsync(Merchant merchant, string connector)

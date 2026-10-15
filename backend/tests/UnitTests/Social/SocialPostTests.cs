@@ -133,6 +133,62 @@ public class SocialPostTests
     }
 
     [Fact]
+    public void Retry_VuelveALaColaSoloConLoQueFallo()
+    {
+        var post = NewPost();
+        post.SetTargets([(Guid.NewGuid(), null), (Guid.NewGuid(), null)]);
+        post.Schedule(DateTime.UtcNow.AddHours(1));
+        post.MarkProcessing();
+        post.Targets[0].MarkPublished("ok-1", "https://red/ok-1");
+        post.Targets[1].MarkFailed("Rate limit de X. Probá de nuevo con «Reintentar» en 15 min.");
+        post.FinishProcessing();
+
+        Assert.True(post.Retry().IsSuccess);
+
+        Assert.Equal(SocialPostStatus.Scheduled, post.Status);
+        Assert.Equal(SocialScheduleStatus.Pending, post.ScheduleStatus);
+        Assert.True(post.ScheduledAtUtc <= DateTime.UtcNow.AddSeconds(5)); // sale ya, no a la hora original
+        Assert.Null(post.Targets[1].Error);
+        // Lo que ya salió queda como estaba (el publicador lo saltea).
+        Assert.NotNull(post.Targets[0].PublishedAtUtc);
+        Assert.Equal("https://red/ok-1", post.Targets[0].ExternalUrl);
+        // Con una red ya publicada no se edita: cambiar los destinos la repetiría.
+        Assert.False(post.IsEditable);
+        Assert.True(post.SetTargets([(Guid.NewGuid(), null)]).IsFailure);
+    }
+
+    [Fact]
+    public void Retry_SiNadaSalio_ElPostSigueEditable()
+    {
+        var post = NewPost();
+        post.SetTargets([(Guid.NewGuid(), null)]);
+        post.Schedule(null);
+        post.MarkProcessing();
+        post.Targets[0].MarkFailed("Error de la red.");
+        post.FinishProcessing();
+
+        Assert.True(post.Retry().IsSuccess);
+        Assert.True(post.IsEditable);
+        Assert.True(post.Unschedule().IsSuccess);
+    }
+
+    [Fact]
+    public void Retry_SoloDeUnPostQueFallo()
+    {
+        var draft = NewPost();
+        Assert.Equal("Social.NotRetryable", draft.Retry().Error.Code);
+
+        var published = NewPost();
+        published.SetTargets([(Guid.NewGuid(), null)]);
+        published.Schedule(null);
+        published.MarkProcessing();
+        published.Targets[0].MarkPublished("1", null);
+        published.FinishProcessing();
+        Assert.True(published.Retry().IsFailure);
+        Assert.Equal(SocialPostStatus.Published, published.Status);
+    }
+
+    [Fact]
     public void ContentFor_UsaOverridePorCuenta()
     {
         var post = NewPost("texto base");

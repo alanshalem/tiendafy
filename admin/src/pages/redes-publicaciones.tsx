@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../lib/queryKeys';
-import { AlignLeft, CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { AlignLeft, CalendarClock, ExternalLink, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { Badge, Button, EmptyList, Select, Spinner, cn, useConfirm, useToast } from '@tiendafy/ui';
 import { api, errMsg } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
@@ -87,6 +87,17 @@ export function PublicacionesTab({
     }
   };
 
+  // Vuelve a mandar solo las redes que fallaron: las que salieron no se repiten.
+  const retry = async (post: SocialPostDto) => {
+    try {
+      await api.post(`/api/v1/admin/social/posts/${post.id}/retry`, {});
+      toast('Lo reintentamos en el próximo minuto', { variant: 'success' });
+      changed();
+    } catch (err) {
+      toast(errMsg(err, 'No se pudo reintentar.'), { variant: 'error' });
+    }
+  };
+
   const remove = async (post: SocialPostDto) => {
     const ok = await confirm({
       title: 'Eliminar post',
@@ -153,6 +164,7 @@ export function PublicacionesTab({
                     post={post}
                     onEdit={onEdit}
                     onUnschedule={unschedule}
+                    onRetry={retry}
                     onRemove={remove}
                   />
                 ))}
@@ -169,6 +181,7 @@ export function PublicacionesTab({
                     post={post}
                     onEdit={onEdit}
                     onUnschedule={unschedule}
+                    onRetry={retry}
                     onRemove={remove}
                   />
                 ))}
@@ -195,11 +208,13 @@ function PostCard({
   post,
   onEdit,
   onUnschedule,
+  onRetry,
   onRemove,
 }: {
   post: SocialPostDto;
   onEdit: (post: SocialPostDto) => void;
   onUnschedule: (post: SocialPostDto) => void;
+  onRetry: (post: SocialPostDto) => void;
   onRemove: (post: SocialPostDto) => void;
 }) {
   const st = postStatus(post);
@@ -294,6 +309,15 @@ function PostCard({
           {post.status === 'Scheduled' && post.scheduleStatus === 'Pending' && (
             <Button variant="secondary" onClick={() => onUnschedule(post)} title="Volver a borrador">
               <CalendarClock className="h-4 w-4" />
+            </Button>
+          )}
+          {post.status === 'Failed' && post.scheduleStatus === 'Processed' && (
+            <Button
+              variant="secondary"
+              onClick={() => onRetry(post)}
+              title="Reintentar las redes que fallaron"
+            >
+              <RotateCcw className="h-4 w-4" /> Reintentar
             </Button>
           )}
           {post.scheduleStatus !== 'Processing' && (

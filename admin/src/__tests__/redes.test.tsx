@@ -282,6 +282,35 @@ describe('redes: publicaciones', () => {
     expect(await screen.findByText('Post eliminado')).toBeInTheDocument();
   });
 
+  it('un post con errores se reintenta (y si no se puede, lo dice)', async () => {
+    const { api, user } = await openRedes((a) =>
+      a.on(
+        'POST',
+        `${POSTS}/p-failed/retry`,
+        { detail: 'Solo se puede reintentar un post que terminó con errores.' },
+        409,
+      ),
+    );
+    await openPosts(user, 'Falló en X');
+    const failed = screen.getByText('Falló en X').closest('[role=button]') as HTMLElement;
+    // Solo el que falló ofrece reintentar.
+    expect(screen.getAllByRole('button', { name: 'Reintentar' })).toHaveLength(1);
+
+    await user.click(within(failed).getByRole('button', { name: 'Reintentar' }));
+    expect(
+      await screen.findByText('Solo se puede reintentar un post que terminó con errores.'),
+    ).toBeInTheDocument();
+    // El clic en el botón no abre la tarjeta.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    api.on('POST', `${POSTS}/p-failed/retry`, {});
+    await user.click(within(failed).getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('Lo reintentamos en el próximo minuto')).toBeInTheDocument();
+    expect(api.calls.filter((c) => c.method === 'POST' && c.path === `${POSTS}/p-failed/retry`)).toHaveLength(
+      2,
+    );
+  });
+
   it('una tarjeta se abre con clic, con Enter o con el lápiz', async () => {
     const { user } = await openRedes();
     await openPosts(user);

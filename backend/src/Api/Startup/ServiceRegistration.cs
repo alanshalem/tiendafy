@@ -160,6 +160,7 @@ public static class ServiceRegistration
         // multi-red programados. Tokens cifrados; el worker publica cada minuto.
         services.Configure<Api.Social.SocialOptions>(configuration.GetSection(Api.Social.SocialOptions.SectionName));
         services.AddScoped<Api.Social.SocialTokenService>();
+        services.AddScoped<Api.Social.SocialAccountTokens>();
         services.AddHttpClient<Api.Social.MetaSocialConnector>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddScoped<ISocialConnector>(sp => sp.GetRequiredService<Api.Social.MetaSocialConnector>());
         services.AddHttpClient<Api.Social.MetaFacebookChannel>(c => c.Timeout = TimeSpan.FromSeconds(30));
