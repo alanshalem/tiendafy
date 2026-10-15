@@ -27,11 +27,23 @@ usuarios, 1 depósito, 500 ventas), Pro $279.900 (8 usuarios, 3 depósitos, 2.50
 ventas), Max $599.900 (15 usuarios, 5 depósitos, 5.000 ventas). El multidepósito
 recién aparece en Pro; la contabilidad completa está en todos.
 
-> **Estado: septiembre de 2026.** Cinco de las brechas de este informe ya se
-> construyeron —tesorería, cuentas corrientes, ficha de proveedor, listas de
-> precios, presupuestos y OCR de facturas de compra—. La tabla de abajo quedó
-> como estaba al escribirlo, con una columna nueva que dice qué pasó con cada
-> una: sirve de registro de por qué se decidió lo que se decidió.
+> **Estado al 15-oct-2026.** Análisis de septiembre; la tabla de abajo quedó
+> como estaba al escribirlo, con una columna que dice qué pasó con cada brecha
+> en la tanda de septiembre. Sirve de registro de por qué se decidió lo que se
+> decidió. Lo que cambió después:
+>
+> - **Remito**: hay remitos de despacho imprimibles en lote desde la pantalla
+>   de Despacho (`POST /api/v1/fulfillment/packing-slips`). No es un
+>   comprobante fiscal.
+> - **Auditoría de cambios**: existe solo para el equipo (`audit_events`:
+>   altas, bajas, roles, excepciones y la matriz de permisos, desde el
+>   12-oct). Del resto de las entidades no hay registro.
+> - **Roles y permisos**: la matriz pasó a ser editable por tienda, con
+>   excepciones por persona (ver `docs/rbac.md`).
+> - Siguen sin hacerse: turno y arqueo de caja, lector de barras en la venta
+>   manual, ticket térmico, carga masiva de
+>   compras por Excel, importar comprobantes desde ARCA, tipo de cambio en
+>   tesorería y listas (aceptan USD como moneda, sin conversión) y multi-depósito.
 
 ---
 

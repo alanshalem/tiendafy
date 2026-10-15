@@ -2,22 +2,27 @@
 
 *Preparado para evaluar la próxima etapa del producto, con foco en el cliente importador/distribuidor. Fuentes al pie.*
 
-> **Estado (2026-08-17): Bloque A implementado en v1** — costo por variante
-> (Productos → Costos + columna «Costo» del CSV), snapshot de costo en cada
-> venta, comisión real de MP capturada del pago al conciliar, y dashboard
-> Estadísticas → Rentabilidad (ganancia, margen, por producto, cobertura).
-> **Bloque C implementado** (módulo Purchasing): OC a proveedores con el
-> ciclo del importador, landed cost prorrateado que fija el costo por
-> variante al recibir (con stock automático) y reposición con lead time.
-> **Bloque B implementado**: barcode por variante + etiquetas QR, escáner
-> con la cámara (buscar/ajustar/ubicaciones), picking verificado, recepción
-> escaneada y conteo cíclico. **Bloque D1 implementado**: kits/combos con
-> descuento automático de componentes al pagarse la venta. **A5, A6 y fee
-> ML también**: ganancia por campaña, ROAS real con Meta Ads (integración
-> completa; falta solo crear la app en Meta y cargar MetaAds:AppId/AppSecret)
-> y comisión real de ML por ítem. Pendientes: costo real del carrier, D2
-> lotes como entidad (la OC ya es el lote de facto) y D3 portal B2B mayorista
-> (superficie de venta pública nueva — proyecto propio si el canal B2B pesa).
+> **Estado al 15-oct-2026.** Informe de agosto de 2026; queda como registro de
+> por qué se construyó lo que se construyó. Contra el código de hoy:
+>
+> - **Hecho**: Bloque A (costo por variante, snapshot de costo en cada venta,
+>   comisión real de Mercado Pago y de Mercado Libre, Estadísticas →
+>   Rentabilidad, ganancia por campaña y ROAS con Meta Ads), Bloque C (módulo
+>   Purchasing: órdenes de compra con borrador → confirmada → en producción →
+>   en tránsito → en aduana → recibida, landed cost que fija el costo al
+>   recibir, reposición con lead time y alertas de stock bajo), Bloque B salvo
+>   el punto 5 (código de barras por variante, etiquetas, escáner con la
+>   cámara, picking y despacho escaneando, recepción escaneada de la orden de
+>   compra, conteo cíclico, ubicación de estante por variante) y
+>   D1 (kits que descuentan stock de sus componentes).
+> - **No hecho**: costo real del envío pagado al carrier (la rentabilidad
+>   muestra el envío cobrado aparte, como pass-through), transferencias entre
+>   depósitos (hay un solo depósito; multi-depósito queda fuera a propósito),
+>   D2 lotes como entidad (la orden de compra hace de lote) y D3 portal B2B (las
+>   listas de precios mayoristas existen, pero solo para la venta asistida
+>   desde el panel; la tienda muestra el precio del producto).
+> - **Pendiente**: Meta Ads necesita la app real en Meta (`MetaAds:AppId` y
+>   `MetaAds:AppSecret`) para leer el gasto en producción.
 
 ---
 

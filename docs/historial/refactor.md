@@ -1,6 +1,23 @@
 # Refactor integral — DRY / KISS / YAGNI / Clean Code / Clean Architecture
 
-Siete pasadas (agosto 2026) sobre todo el monorepo, con una regla fija: **cero cambios
+> **Estado al 15-oct-2026.** Registro histórico: describe cada pasada como era
+> al cerrarla (las cifras de módulos, tests y archivos son de ese momento; hoy
+> el backend tiene 21 módulos). Lo que sigue vigente como regla:
+>
+> - Lo que orquesta varios módulos vive en `Api/`; lo que habla con UN sistema
+>   externo vive en el `.Infrastructure` de su módulo (en octubre se mudaron
+>   los carriers a Checkout y el cliente de Mercado Libre a su módulo).
+> - Dos tests de arquitectura sostienen lo que antes sostenía la costumbre:
+>   `ModuleBoundariesTests` (un módulo solo ve el `.Contracts` de otro, ninguno
+>   conoce a la Api) y `TenantQueryFilterTests` (toda entidad con `TenantId`
+>   tiene filtro, o una excepción escrita con su motivo).
+> - La lista "Recortado a propósito" del final sigue valiendo.
+> - La "Decisión pendiente" de `PublicApiBaseUrl` está cerrada: el compose de
+>   producción declara la clave raíz y `StoreLinks.ApiBase` es el único que la lee.
+>
+> Las pasadas 1 a 9 son de agosto de 2026 (15 al 19); la 10 y la 11, de octubre.
+
+Pasadas sobre todo el monorepo con una regla fija: **cero cambios
 de comportamiento** (salvo fixes autorizados o bugs reales encontrados por la revisión).
 Cada pasada cerró con backend build + tests verdes, tsc/eslint/vitest en admin y
 storefront, `next build` de producción y verificación de que EF no genera migraciones
@@ -343,6 +360,80 @@ duplicado, de los que se atacaron los que tenían riesgo real de divergir.
   3 líneas; y los 3 endpoints de reservas de Inventory sin consumidor, que son
   la API pública del módulo (mismo criterio que los tipos exportados).
 
+## Pasada 10 — fronteras de módulos y lo que sostenía la costumbre (11-oct)
+
+Commits del 11 de octubre, entre `10d79a12` y `72125d80`. El mismo día se
+escribió la tanda grande de tests (integración, pantallas del panel, e2e con
+axe), y varias cosas de acá salieron de lo que esos tests destaparon.
+
+- **Fronteras revisadas por máquina** (`7bf999bd`): `ModuleBoundariesTests` y
+  `TenantQueryFilterTests`. El de filtros encontró ocho entidades con
+  `TenantId` y sin `HasQueryFilter` (entre ellas las configs y envíos de
+  Correo Argentino, Zipnova y Andreani, que guardan credenciales); las
+  consultas ya filtraban a mano, así que fue defensa en profundidad sin cambio
+  de comportamiento.
+- **Cada adaptador a su módulo**: los clientes de MiCorreo, Zipnova y Andreani
+  pasan de `Api/Shipping` a `Checkout.Infrastructure/Carriers` (`d7fc2bd5`); el
+  cliente de Mercado Libre, a `MercadoLibre.Infrastructure` (`72125d80`); los
+  puertos de redes (`ISocialChannel`, `ISocialConnector`) a `Social.Contracts`
+  (`fac6cc56`). Para mudarlos, `ExternalApiException`, `LogValue` y las
+  opciones JSON pasaron a SharedKernel (una sola instancia de `JsonDefaults.Web`).
+  Se quedan en la Api a propósito los tokens firmados que viajan al navegador
+  y la orquestación (`MeliSyncService`, workers).
+- **Una sola mecánica**: `SignedToken<T>` para los tokens firmados (cotización
+  de envío, baja y tracking de campañas), con tests que leen tokens emitidos
+  por el código viejo (`72c2ffe5`); `Paging` para el offset/limit de los nueve
+  listados (`10d79a12`); el permiso de cada endpoint declarado en la ruta y no
+  en la primera línea del handler (`93d7bd14`).
+- **Código muerto con herramientas** (`313f6c13`): analizadores IDE0005/0051/
+  0052/0060 en el backend y `tsc --noUnusedLocals --noUnusedParameters` en los
+  dos frontends; cero símbolos sin uso. `ProductEndpoints` (1087 líneas) y
+  `Compras.tsx` (1538) partidos sin tocar rutas ni componentes (`7252c029`).
+- **Bugs que destaparon los tests del día**: la factura automática nunca se
+  encolaba (`e396572b`); todo miembro invitado quedaba como dueño (`73551f35`);
+  un webhook de Mercado Pago que fallaba seis veces en 30 s se perdía (ahora
+  reintenta con escala hasta ~1 día y el campo hace de lease, `eca218aa`); un
+  CUIL salía como Factura A (`91797f6f`); errores del cliente respondían 500
+  (`f8d99ce5`); el checkout nunca ofrecía Andreani (`3ffcd170`).
+
+## Pasada 11 — auditoría del 15-oct
+
+Commits `0ffa12e3..f1326481`. Revisión por áreas después de salir a producción.
+
+- **Hora y números argentinos en un solo lugar** (`0ffa12e3`):
+  `ArgentinaTime` reemplaza el "-3 h" escrito a mano en 14 lugares y
+  `ArgentineNumbers` el `{x:N0}` sin cultura, que en el contenedor (cultura
+  invariante) daba "1,500". Con eso: las series de Estadísticas cuentan días de
+  Argentina (una venta de las 22 h ya no cae en el día siguiente), el pulso en
+  vivo muestra la hora local y los mails ponen punto de miles.
+- **Ventas**: reembolso y cancelación salen del endpoint a `OrderRefundService`
+  (el candado por venta pasa a 128 semáforos fijos en vez de un diccionario
+  que crecía para siempre); `CheckoutOrderFactory` deja de ser un estático de
+  la capa HTTP; `RunIfJustPaidAsync` junta los efectos de "recién pagada" de
+  tarjeta y Payway. Un reembolso siempre avisa: con la plantilla de la tienda
+  si está prendida, si no con el aviso genérico.
+- **Notificaciones**: `StoreLinks` junta los links de tienda
+  (`Tenancy:PlatformBaseDomain` se leía a mano en 12 lugares con dos defaults
+  distintos).
+- **Mercado Libre**: una sola definición de "venta cobrada"
+  (`MeliOrder.EarningStatuses`: la rentabilidad y la reposición no contaban
+  las devoluciones parciales) y publicar con el recargo del canal, igual que la
+  sincronización (solo si la sincronización de precios está prendida).
+- **Tienda**: el checkout partido en archivos (`lib/checkout-totals`, resumen,
+  envío, pasos), un solo pedido de cotización para el checkout y la ficha, las
+  redirecciones por la API interna en vez de salir a internet, los pedidos del
+  servidor que no dependen entre sí en paralelo, y el origin del panel leído en
+  cada uso (la misma carrera que ya se había arreglado para la URL de la API).
+- **Panel**: las claves de React Query de cada tienda llevan la tienda (cambiar
+  de tienda mostraba datos de la anterior) y las compartidas salen de
+  `lib/queryKeys.ts`; un solo `useCategories`.
+- **Operación** (`64733783`, `f1326481`): el backup diario copia también el
+  keyring de DataProtection; `backup-offsite` (apagado hasta configurarlo)
+  sube los backups cifrados con rclone crypt; `infra/check-backup.sh` restaura
+  el último dump en una base aparte; `deploy.sh` copia la base antes de migrar,
+  exige tag en producción e imprime cómo volver atrás; `pg-upgrade.sh` y
+  `deploy.sh` andan como usuario `deploy`.
+
 ## Recortado a propósito (KISS: riesgo > beneficio) — no reabrir sin motivo
 
 - Unificar modales de envío Correo/Zipnova y `RepeatableList` del theme-editor:
@@ -361,6 +452,10 @@ duplicado, de los que se atacaron los que tenían riesgo real de divergir.
 - 6 tipos exportados sin importador externo: API pública de sus módulos.
 
 ## Decisión pendiente (cambia comportamiento — requiere autorización)
+
+*Cerrada: el compose de producción declara `PublicApiBaseUrl` en la raíz
+(`https://api.<dominio>`) y desde el 15-oct la lee un solo lugar,
+`StoreLinks.ApiBase`. Queda como registro.*
 
 - `PublicApiBaseUrl` se lee en la **raíz** de la config pero solo existe
   `MercadoPago:PublicApiBaseUrl` → los links de tracking y de baja de campañas
