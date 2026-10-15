@@ -129,7 +129,8 @@ public sealed class MercadoPagoFlowTests
     public async Task Pago_con_tarjeta_en_la_tienda()
     {
         var merchant = await Merchant.CreateAsync(_factory, "mpo");
-        await merchant.ConnectMercadoPagoAsync(Random.Shared.NextInt64(1_000_000, 9_000_000_000));
+        var mpUserId = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        await merchant.ConnectMercadoPagoAsync(mpUserId);
         var (_, variantId) = await merchant.CreateProductAsync("Buzo MP", priceMinor: 30_000_00);
         var shopper = new Shopper(merchant);
 
@@ -154,6 +155,30 @@ public sealed class MercadoPagoFlowTests
         var sent = _factory.ExternalHttp.SentTo($"{Api}/v1/payments").Last(r => r.Method == HttpMethod.Post);
         Assert.Contains("\"installments\":3", sent.Body);
         Assert.Contains("\"issuer_id\":\"310\"", sent.Body);
+
+        // La respuesta del cobro no trae el neto: la comisión llega con el
+        // webhook del mismo pago, cuando la orden ya está pagada. Se guarda
+        // igual (Rentabilidad la necesita) sin volver a dar la venta por pagada.
+        var paidOrderId = paid.GetProperty("orderId").GetGuid();
+        _factory.ExternalHttp.OnJson(HttpMethod.Get, $"{Api}/v1/payments/555000111", new
+        {
+            id = 555_000_111L,
+            status = "approved",
+            status_detail = "accredited",
+            external_reference = paidOrderId.ToString(),
+            transaction_amount = 30_000m,
+            transaction_amount_refunded = 0m,
+            transaction_details = new { net_received_amount = 28_200m },
+        });
+        await WebhookAsync("555000111", mpUserId);
+        await DrainWebhooksAsync();
+        Assert.Equal("PAID", await StatusAsync(shopper, paidOrderId));
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var orders = scope.ServiceProvider.GetRequiredService<Orders.Infrastructure.Persistence.OrdersDbContext>();
+            var fee = await orders.Orders.AsNoTracking().Where(o => o.Id == paidOrderId).Select(o => o.MpFeeAmount).SingleAsync();
+            Assert.Equal(1_800_00, fee?.AmountInMinorUnits);
+        }
 
         // Tarjeta rechazada por MP: el comprador ve el error y la orden no se paga.
         var otherCheckout = await shopper.CheckoutAsync(variantId);

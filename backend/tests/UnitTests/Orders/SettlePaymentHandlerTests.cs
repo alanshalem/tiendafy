@@ -91,6 +91,42 @@ public class SettlePaymentHandlerTests
     }
 
     [Fact]
+    public async Task Webhook_de_un_pago_ya_aplicado_sin_comision_la_completa_sin_volver_a_pagarla()
+    {
+        // El cobro con tarjeta en la tienda (Brick) aplica el pago sin la
+        // comisión; el webhook del mismo pago llega con la orden ya pagada.
+        var order = Orden(Guid.NewGuid());
+        order.MarkPaid("pay-1");
+        var handler = Handler(order, out var repo, out var inv);
+
+        var result = await handler.HandleAsync(order.Id, "approved", "pay-1", amountRefunded: 0m, mpFee: 62.5m);
+
+        Assert.Equal(SettleOutcome.NoChange, result.Value.Outcome); // los efectos de "pagada" no vuelven a correr
+        Assert.Equal(6_250, order.MpFeeAmount?.AmountInMinorUnits);
+        Assert.Empty(inv.Confirmed);
+        Assert.Equal(1, repo.Saves);
+
+        // Otro aviso del mismo pago, con otra comisión: no pisa la guardada.
+        var again = await handler.HandleAsync(order.Id, "approved", "pay-1", mpFee: 99m);
+        Assert.Equal(SettleOutcome.NoChange, again.Value.Outcome);
+        Assert.Equal(6_250, order.MpFeeAmount?.AmountInMinorUnits);
+        Assert.Equal(1, repo.Saves);
+    }
+
+    [Fact]
+    public async Task La_comision_de_otro_pago_no_se_le_carga_a_la_orden()
+    {
+        var order = Orden();
+        order.MarkPaid("pay-1");
+        var handler = Handler(order, out var repo, out _);
+
+        await handler.HandleAsync(order.Id, "approved", "pay-otro", mpFee: 50m);
+
+        Assert.Null(order.MpFeeAmount);
+        Assert.Equal(0, repo.Saves);
+    }
+
+    [Fact]
     public async Task Rejected_marca_fallida_y_libera_las_reservas()
     {
         var reserva = Guid.NewGuid();

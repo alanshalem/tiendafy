@@ -34,6 +34,14 @@ public sealed class SettlePaymentHandler(
         {
             if (!order.IsPending)
             {
+                // La comisión de un pago que se aplicó sin ella: el cobro con
+                // tarjeta en la tienda (Brick) marca la orden pagada en el momento
+                // y MP no informa el neto en esa respuesta. Cuando llega el
+                // webhook del MISMO pago, la orden ya está pagada; se completa la
+                // comisión y nada más: no es "recién pagada", así que los avisos,
+                // la factura y el stock no vuelven a correr.
+                var feeRecorded = TryRecordMissingFee(order, paymentId, mpFee);
+
                 // Sync de refund parcial hecho en el dashboard de MP: el pago sigue
                 // "approved" pero transaction_amount_refunded crece.
                 if (amountRefunded is > 0m)
@@ -53,6 +61,14 @@ public sealed class SettlePaymentHandler(
                         }
                     }
                 }
+                if (feeRecorded)
+                {
+                    await repository.SaveChangesAsync(ct);
+                    logger.LogInformation("Order {OrderId} ya {Status}: se registró la comisión de MP ({Fee}).",
+                        orderId, order.Status, order.MpFeeAmount);
+                    return new SettleResult(SettleOutcome.NoChange, order);
+                }
+
                 logger.LogInformation("Order {OrderId} ya {Status}; webhook ignorado (idempotente).", orderId, order.Status);
                 return new SettleResult(SettleOutcome.NoChange, order);
             }
@@ -112,5 +128,20 @@ public sealed class SettlePaymentHandler(
         // pending / in_process → esperar siguiente webhook.
         logger.LogInformation("Order {OrderId}: pago '{Status}', sin cambios.", orderId, status);
         return new SettleResult(SettleOutcome.NoChange, order);
+    }
+
+    /// <summary>
+    /// Completa la comisión de MP de una orden que ya se cobró, si le falta. Solo
+    /// con el mismo pago que la cobró (no la de otro pago que apunte a la misma
+    /// orden) y sin pisar una comisión ya guardada.
+    /// </summary>
+    private static bool TryRecordMissingFee(Order order, string? paymentId, decimal? mpFee)
+    {
+        if (mpFee is not > 0m || order.MpFeeAmount is not null || order.PaidAtUtc is null) return false;
+        if (string.IsNullOrEmpty(paymentId) || !string.Equals(order.PaymentId, paymentId, StringComparison.Ordinal))
+            return false;
+
+        order.RecordMpFee(Money.FromDecimal(mpFee.Value, order.Currency));
+        return true;
     }
 }
